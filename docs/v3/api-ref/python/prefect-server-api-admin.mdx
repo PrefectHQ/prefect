@@ -12,7 +12,7 @@ Routes for admin-level interactions with the Prefect REST API.
 
 ## Functions
 
-### `read_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/admin.py#L13" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/admin.py#L18" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_settings() -> prefect.settings.Settings
@@ -24,7 +24,7 @@ Get the current Prefect REST API settings.
 Secret setting values will be obfuscated.
 
 
-### `read_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/admin.py#L23" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/admin.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_version() -> str
@@ -32,4 +32,34 @@ read_version() -> str
 
 
 Returns the Prefect version number
+
+
+### `read_server_default_result_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/admin.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_server_default_result_storage(db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.core.ServerDefaultResultStorage
+```
+
+
+Get the configured server default result storage block.
+
+
+### `update_server_default_result_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/admin.py#L45" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+update_server_default_result_storage(configuration: schemas.core.ServerDefaultResultStorageUpdate, db: PrefectDBInterface = Depends(provide_database_interface)) -> schemas.core.ServerDefaultResultStorage
+```
+
+
+Set the server default result storage block.
+
+
+### `clear_server_default_result_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/api/admin.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+clear_server_default_result_storage(db: PrefectDBInterface = Depends(provide_database_interface)) -> None
+```
+
+
+Clear the configured server default result storage block.
 

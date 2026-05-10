@@ -70,11 +70,6 @@ import anyio.abc
 import anyio.to_thread
 from typing_extensions import Self
 
-from prefect._experimental.bundles import (
-    SerializedBundle,
-    execute_bundle_in_subprocess,
-    extract_flow_from_bundle,
-)
 from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.compatibility.deprecated import (
     PrefectDeprecationWarning,
@@ -85,7 +80,14 @@ from prefect._internal.concurrency.api import (
     from_async,
     from_sync,
 )
-from prefect._observers import FlowRunCancellingObserver
+from prefect._internal.engine import get_hook_name
+from prefect._internal.infrastructure_exit_codes import get_infrastructure_exit_info
+from prefect._internal.observers import FlowRunCancellingObserver
+from prefect.bundles import (
+    SerializedBundle,
+    execute_bundle_in_subprocess,
+    extract_flow_from_bundle,
+)
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import (
     ConcurrencyLimitConfig,
@@ -128,8 +130,6 @@ from prefect.states import (
     AwaitingRetry,
 )
 from prefect.types.entrypoint import EntrypointType
-from prefect.utilities._engine import get_hook_name
-from prefect.utilities._infrastructure_exit_codes import get_infrastructure_exit_info
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
     asyncnullcontext,
@@ -356,7 +356,7 @@ class Runner:
         if storage is not None:
             storage = self._add_storage(storage)
             self._deployment_registry.register_storage(deployment_id, storage)
-        self._deployment_registry.register_deployment(deployment_id)
+        self._deployment_registry.register_deployment(deployment_id, deployment.name)
 
         return deployment_id
 
@@ -804,14 +804,14 @@ class Runner:
         """
         Executes a bundle in a subprocess.
 
-        Deprecated: Use `execute_bundle()` from `prefect._experimental.bundles.execute`
+        Deprecated: Use `execute_bundle()` from `prefect.bundles.execute`
         instead.
         """
         warnings.warn(
             generate_deprecation_message(
                 name="Runner.execute_bundle",
                 start_date="Mar 2026",
-                help="Use `execute_bundle()` from `prefect._experimental.bundles.execute` instead.",
+                help="Use `execute_bundle()` from `prefect.bundles.execute` instead.",
             ),
             PrefectDeprecationWarning,
             stacklevel=2,
@@ -822,10 +822,10 @@ class Runner:
         context = self if not self.started else asyncnullcontext()
 
         flow_run = FlowRun.model_validate(bundle["flow_run"])
+        env = dict(env or {})
 
         # Add heartbeat_seconds to env if configured
         if self._heartbeat_seconds is not None:
-            env = env or {}
             env["PREFECT_FLOWS_HEARTBEAT_FREQUENCY"] = str(int(self._heartbeat_seconds))
 
         async with context:
@@ -901,12 +901,20 @@ class Runner:
                 )
 
     def _get_flow_run_logger(self, flow_run: "FlowRun") -> PrefectLogAdapter:
-        return flow_run_logger(flow_run=flow_run).getChild(
+        return flow_run_logger(
+            flow_run=flow_run,
+            deployment_name=self._get_deployment_name(flow_run),
+        ).getChild(
             "runner",
             extra={
                 "runner_name": self.name,
             },
         )
+
+    def _get_deployment_name(self, flow_run: "FlowRun") -> str | None:
+        if flow_run.deployment_id is None:
+            return None
+        return self._deployment_registry.get_deployment_name(flow_run.deployment_id)
 
     async def _run_process(
         self,
@@ -935,7 +943,10 @@ class Runner:
         if flow_run.deployment_id is not None:
             flow = self._deployment_registry.get_flow(flow_run.deployment_id)
             if flow:
-                subprocess_env: dict[str, str] = {}
+                deployment_name = self._get_deployment_name(flow_run)
+                subprocess_env: dict[str, str | None] = {
+                    "PREFECT__DEPLOYMENT_NAME": deployment_name
+                }
                 control_registered = False
                 if self._heartbeat_seconds is not None:
                     subprocess_env["PREFECT_FLOWS_HEARTBEAT_FREQUENCY"] = str(
@@ -981,9 +992,16 @@ class Runner:
 
         flow_run_logger.info("Starting flow run process...")
 
-        merged_env: dict[str, str | None] = {**os.environ, **(env or {})}
+        explicit_env = env or {}
+        merged_env: dict[str, str | None] = {**os.environ, **explicit_env}
         merged_env.update(
             get_current_settings().to_environment_variables(exclude_unset=True)
+        )
+        deployment_name = self._get_deployment_name(flow_run)
+        deployment_name_env = (
+            deployment_name
+            if deployment_name is not None
+            else explicit_env.get("PREFECT__DEPLOYMENT_NAME")
         )
 
         # Register the flow run with the control channel before spawning so
@@ -1008,6 +1026,7 @@ class Runner:
                     "PREFECT__STORAGE_BASE_PATH": str(self._tmp_dir),
                     "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
                     **control_env,
+                    "PREFECT__DEPLOYMENT_NAME": deployment_name_env,
                 },
                 **({"PREFECT__FLOW_ENTRYPOINT": entrypoint} if entrypoint else {}),
                 **(
@@ -1741,6 +1760,9 @@ class Runner:
                 if flow is not None:
                     return DirectSubprocessStarter(
                         flow=flow,
+                        deployment_name=self._deployment_registry.get_deployment_name(
+                            flow_run.deployment_id
+                        ),
                         heartbeat_seconds=self._heartbeat_seconds,
                         control_channel=self._control_channel,
                     )
@@ -1748,6 +1770,13 @@ class Runner:
             return EngineCommandStarter(
                 tmp_dir=self._tmp_dir,
                 storage=storage,
+                deployment_name=(
+                    self._deployment_registry.get_deployment_name(
+                        flow_run.deployment_id
+                    )
+                    if flow_run.deployment_id
+                    else None
+                ),
                 heartbeat_seconds=self._heartbeat_seconds,
                 control_channel=self._control_channel,
             )

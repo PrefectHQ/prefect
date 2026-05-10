@@ -1719,6 +1719,7 @@ class TestFlowRunExecute:
             == captured_starter["starter"].resolve_flow
         )
         assert captured_kwargs.get("propose_submitting") is False
+        assert captured_starter["starter"]._deployment_name is None
 
     async def test_execute_keeps_workspace_alive_until_executor_context_exits(
         self,

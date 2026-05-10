@@ -5,7 +5,7 @@ import signal
 import subprocess
 import sys
 import threading
-from collections.abc import AsyncGenerator, Mapping
+from collections.abc import AsyncGenerator, Mapping, MutableMapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from functools import partial
@@ -38,6 +38,8 @@ T = TypeVar("T", infer_variance=True)
 
 def sanitize_subprocess_env(
     env: Mapping[str, str | None] | None,
+    *,
+    remove_from: MutableMapping[str, str] | None = None,
 ) -> dict[str, str]:
     """
     Normalize environment variables before launching a subprocess.
@@ -45,9 +47,18 @@ def sanitize_subprocess_env(
     `None` means "omit this key" for subprocess launch paths. Downstream APIs
     like `subprocess`, `anyio.open_process`, and `os.environ.update(...)` all
     expect concrete string values.
+
+    When applying sanitized values to an existing environment mapping, pass
+    `remove_from` to also delete keys whose incoming value is `None` before
+    updating with the returned mapping.
     """
     if not env:
         return {}
+
+    if remove_from is not None:
+        for key, value in env.items():
+            if value is None:
+                remove_from.pop(key, None)
 
     return {key: value for key, value in env.items() if value is not None}
 

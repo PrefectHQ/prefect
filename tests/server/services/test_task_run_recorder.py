@@ -7,6 +7,7 @@ from unittest.mock import patch
 from uuid import UUID, uuid4
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.dml import Insert
 
@@ -1616,3 +1617,79 @@ async def test_bulk_upserts_are_sorted_by_conflict_key(
     assert len(captured_key_orders) > 0
     for keys in captured_key_orders:
         assert keys == sorted(keys)
+
+
+async def test_bulk_upsert_retries_once_on_integrity_error(
+    session: AsyncSession,
+    flow_run: FlowRun,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Regression test for #21807.
+
+    Two concurrent recorder instances can race when one batch's existence-check
+    SELECT runs before the other batch's INSERT commits, causing the second
+    batch to choose the wrong ON CONFLICT target and raise an IntegrityError on
+    the primary key. `record_bulk_task_run_events` retries once on
+    `IntegrityError` so the SELECT re-runs against the now-visible row and the
+    upsert resolves to the correct conflict target.
+    """
+    base_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
+    event = make_event_with_flow_run(
+        task_run_id=str(uuid4()),
+        flow_run_id=str(flow_run.id),
+        task_key="my_task-abcdefg",
+        dynamic_key="1",
+        state_ts=base_time,
+        state_type=StateType.RUNNING,
+    )
+
+    call_count = 0
+    real = task_run_recorder._record_bulk_task_run_events
+
+    async def flaky(events: list[ReceivedEvent]) -> None:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise IntegrityError("simulated", None, Exception("pk_task_run"))
+        await real(events)
+
+    monkeypatch.setattr(task_run_recorder, "_record_bulk_task_run_events", flaky)
+
+    await task_run_recorder.record_bulk_task_run_events([event])
+
+    assert call_count == 2
+    task_run_id = UUID(event.resource["prefect.resource.id"].split(".")[-1])
+    persisted = await read_task_run(session=session, task_run_id=task_run_id)
+    assert persisted is not None
+    assert persisted.state_type == StateType.RUNNING
+
+
+async def test_bulk_upsert_raises_after_max_retries_on_integrity_error(
+    flow_run: FlowRun,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """If the IntegrityError persists across retries, propagate it so the
+    consumer can re-queue the batch via its own retry loop."""
+    base_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
+    event = make_event_with_flow_run(
+        task_run_id=str(uuid4()),
+        flow_run_id=str(flow_run.id),
+        task_key="my_task-abcdefg",
+        dynamic_key="1",
+        state_ts=base_time,
+        state_type=StateType.RUNNING,
+    )
+
+    call_count = 0
+
+    async def always_fails(events: list[ReceivedEvent]) -> None:
+        nonlocal call_count
+        call_count += 1
+        raise IntegrityError("simulated", None, Exception("pk_task_run"))
+
+    monkeypatch.setattr(task_run_recorder, "_record_bulk_task_run_events", always_fails)
+
+    with pytest.raises(IntegrityError):
+        await task_run_recorder.record_bulk_task_run_events([event])
+
+    assert call_count == 2

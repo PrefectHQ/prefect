@@ -24,6 +24,7 @@ import anyio.to_thread
 from pydantic import Field, PrivateAttr
 from typing_extensions import Self
 
+from prefect._internal.engine import get_hook_name
 from prefect.context import ContextModel
 from prefect.exceptions import (
     ConfigurationError,
@@ -37,7 +38,6 @@ from prefect.results import (
     ResultStore,
     get_result_store,
 )
-from prefect.utilities._engine import get_hook_name
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.collections import AutoEnum

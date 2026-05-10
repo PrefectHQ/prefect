@@ -7,34 +7,19 @@ sidebarTitle: plugins
 
 
 
-Utilities for loading plugins that extend Prefect's functionality.
+Prefect plugin system.
 
-Plugins are detected by entry point definitions in package setup files.
+Provides startup hooks that allow third-party packages to run initialization
+code (e.g., set environment variables, configure DB connections) before
+Prefect CLI commands, workers, or scripts begin work, plus loaders for the
+`prefect.collections` entry point group used by Prefect collection packages.
 
-Currently supported entrypoints:
-    - prefect.collections: Identifies this package as a Prefect collection that
-        should be imported when Prefect is imported.
+This module is the stable public surface for the plugin system. Implementation
+modules live under `prefect._internal.plugins.*` and may change without notice.
 
-
-## Functions
-
-### `safe_load_entrypoints` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/plugins.py#L20" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-safe_load_entrypoints(entrypoints: EntryPoints) -> dict[str, Union[Exception, Any]]
-```
-
-
-Load entry points for a group capturing any exceptions that occur.
-
-
-### `load_prefect_collections` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/plugins.py#L43" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-load_prefect_collections() -> dict[str, Union[ModuleType, Exception]]
-```
-
-
-Load all Prefect collections that define an entrypoint in the group
-`prefect.collections`.
+The collection-loader symbols are imported eagerly because they have no extra
+dependencies; the pluggy-backed hook system symbols are loaded lazily via
+`__getattr__` so that minimal builds (e.g. `prefect-client`) which do not
+ship `pluggy` can still `from prefect.plugins import load_prefect_collections`
+without a hard ImportError at module load time.
 

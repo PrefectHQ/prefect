@@ -24,13 +24,13 @@ checkout out the [Prefect docs](https://docs.prefect.io/latest/deploy/infrastruc
 
 ## Classes
 
-### `ImagePullPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L84" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ImagePullPolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L99" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Enum representing the image pull policy options for a Docker container.
 
 
-### `DockerWorkerJobConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L92" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DockerWorkerJobConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L107" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Configuration class used by the Docker worker.
@@ -69,7 +69,7 @@ allowing the container to use as much swap as memory. For example, if
 
 **Methods:**
 
-#### `get_extra_hosts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L329" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_extra_hosts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L344" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_extra_hosts(self, docker_client: DockerClient) -> Optional[dict[str, str]]
@@ -80,7 +80,7 @@ with the API on Linux machines. Docker Desktop on macOS will automatically
 already have this mapping.
 
 
-#### `get_network_mode` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L287" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_network_mode` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L302" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_network_mode(self) -> Optional[str]
@@ -90,7 +90,7 @@ Returns the network mode to use for the container based on the configured
 options and the platform.
 
 
-#### `prepare_for_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `prepare_for_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L279" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 prepare_for_flow_run(self, flow_run: 'FlowRun', deployment: 'DeploymentResponse | None' = None, flow: 'APIFlow | None' = None, work_pool: 'WorkPool | None' = None, worker_name: 'str | None' = None, worker_id: 'UUID | None' = None)
@@ -100,13 +100,13 @@ Prepares the flow run by setting the image, labels, and name
 attributes.
 
 
-### `DockerWorkerResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L389" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DockerWorkerResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L404" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Contains information about a completed Docker container
 
 
-### `DockerWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L397" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DockerWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L412" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Prefect worker that executes flow runs within Docker containers.
@@ -114,7 +114,7 @@ Prefect worker that executes flow runs within Docker containers.
 
 **Methods:**
 
-#### `kill_infrastructure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L979" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `kill_infrastructure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L1034" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 kill_infrastructure(self, infrastructure_pid: str, configuration: DockerWorkerJobConfiguration, grace_seconds: int = 30) -> None
@@ -133,7 +133,7 @@ for API compatibility).
 - `InfrastructureNotFound`: If the container doesn't exist.
 
 
-#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L451" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L466" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run(self, flow_run: 'FlowRun', configuration: DockerWorkerJobConfiguration, task_status: Optional[anyio.abc.TaskStatus[str]] = None) -> DockerWorkerResult
@@ -143,7 +143,7 @@ Executes a flow run within a Docker container and waits for the flow run
 to complete.
 
 
-#### `setup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L428" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `setup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/worker.py#L443" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 setup(self)

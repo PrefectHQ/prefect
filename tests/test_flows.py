@@ -26,7 +26,7 @@ import regex as re
 import prefect
 import prefect.exceptions
 from prefect import flow, tags, task
-from prefect._versioning import GitVersionInfo, VersionInfo, VersionType
+from prefect._internal.versioning import GitVersionInfo, VersionInfo, VersionType
 from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.objects import (
@@ -1585,6 +1585,7 @@ class TestFlowTimeouts:
         assert "exceeded timeout of 0.1 second(s)" in state.message
         assert not completed
 
+    @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
     def test_timeout_stops_execution_at_next_task_for_sync_flows(self, tmp_path):
         """
         Sync flow runs tasks will fail after a timeout which will cause the flow to exit
