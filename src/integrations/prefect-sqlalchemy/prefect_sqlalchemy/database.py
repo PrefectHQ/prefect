@@ -232,7 +232,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
     def get_client(
         self,
         client_type: Literal["engine", "connection"],
-        **get_client_kwargs: Dict[str, Any],
+        **get_client_kwargs: Any,
     ) -> Union[Engine, Connection]:
         """
         Returns either an engine or connection that can be used to query from databases.
@@ -274,7 +274,7 @@ class SqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         return client
 
     @contextmanager
-    def _manage_connection(self, **get_connection_kwargs: Dict[str, Any]):
+    def _manage_connection(self, **get_connection_kwargs: Any):
         """Sync context manager for managing connections."""
         with self.get_connection(**get_connection_kwargs) as connection:
             yield connection
@@ -779,7 +779,7 @@ class AsyncSqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         if self._exit_stack is None:
             self._exit_stack = AsyncExitStack()
 
-    def get_engine(self, **create_engine_kwargs: Dict[str, Any]) -> AsyncEngine:
+    def get_engine(self, **create_engine_kwargs: Any) -> AsyncEngine:
         """
         Returns an authenticated engine that can be
         used to query from databases.
@@ -830,7 +830,7 @@ class AsyncSqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         return engine
 
     def get_connection(
-        self, begin: bool = True, **connect_kwargs: Dict[str, Any]
+        self, begin: bool = True, **connect_kwargs: Any
     ) -> AsyncConnection:
         """
         Returns a connection that can be used to query from databases.
@@ -869,7 +869,7 @@ class AsyncSqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
     def get_client(
         self,
         client_type: Literal["engine", "connection"],
-        **get_client_kwargs: Dict[str, Any],
+        **get_client_kwargs: Any,
     ) -> Union[AsyncEngine, AsyncConnection]:
         """
         Returns either an engine or connection that can be used to query from databases.
@@ -911,7 +911,7 @@ class AsyncSqlAlchemyConnector(CredentialsBlock, DatabaseBlock):
         return client
 
     @asynccontextmanager
-    async def _manage_connection(self, **get_connection_kwargs: Dict[str, Any]):
+    async def _manage_connection(self, **get_connection_kwargs: Any):
         """Async context manager for managing connections."""
         async with self.get_connection(**get_connection_kwargs) as connection:
             yield connection
