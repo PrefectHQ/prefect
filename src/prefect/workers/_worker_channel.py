@@ -42,6 +42,7 @@ from prefect.settings import get_current_settings
 from prefect.types._datetime import now
 
 ConnectFactory = Callable[..., websockets.asyncio.client.connect]
+WORKER_CHANNEL_SETUP_TIMEOUT_SECONDS = 10.0
 
 
 def build_worker_channel_url(api_url: str, work_pool_name: str) -> str:
@@ -126,6 +127,7 @@ class WorkPoolWorkerChannel:
         connect_factory: ConnectFactory = websocket_connect,
         reconnect_base_seconds: float = 1.0,
         reconnect_max_seconds: float = 30.0,
+        setup_timeout_seconds: float | None = None,
     ):
         self._client = client
         self.api_url = api_url
@@ -144,6 +146,11 @@ class WorkPoolWorkerChannel:
         self._connect_factory = connect_factory
         self._reconnect_base_seconds = reconnect_base_seconds
         self._reconnect_max_seconds = reconnect_max_seconds
+        self._setup_timeout_seconds = (
+            setup_timeout_seconds
+            if setup_timeout_seconds is not None
+            else WORKER_CHANNEL_SETUP_TIMEOUT_SECONDS
+        )
 
         self.consumer_id = uuid7()
         self.url = build_worker_channel_url(api_url, work_pool_name) if api_url else None
@@ -152,6 +159,7 @@ class WorkPoolWorkerChannel:
         self._worker_id: UUID | None = None
         self._worker_metadata_sent = False
         self._websocket_started = False
+        self._run_scope: anyio.CancelScope | None = None
 
     @property
     def rest_fallback_enabled(self) -> bool:
@@ -163,6 +171,10 @@ class WorkPoolWorkerChannel:
 
     def set_client(self, client: PrefectClient) -> None:
         self._client = client
+
+    def stop(self) -> None:
+        if self._run_scope is not None:
+            self._run_scope.cancel()
 
     async def start_websocket(self, task_group: anyio.abc.TaskGroup) -> bool:
         if self._websocket_started:
@@ -176,7 +188,7 @@ class WorkPoolWorkerChannel:
         connection: WorkerChannelConnection | None = None
         try:
             self.state.mark_connecting()
-            connection = await self._connect_once()
+            connection = await self._connect_with_timeout()
             self._has_been_healthy = True
             self.state.mark_healthy()
             task_group.start_soon(self.run, connection)
@@ -256,41 +268,60 @@ class WorkPoolWorkerChannel:
     async def run(
         self, initial_connection: WorkerChannelConnection | None = None
     ) -> None:
-        if self.url is None:
-            self.state.mark_terminal("endpoint_unavailable")
-            return
-
-        self._websocket_started = True
-        reconnect_attempt = 0
-        connection = initial_connection
-
-        while not self.state.terminal:
+        with anyio.CancelScope() as scope:
+            self._run_scope = scope
             try:
-                if connection is None:
-                    self.state.mark_connecting()
-                    connection = await self._connect_once()
-                reconnect_attempt = 0
-                self._has_been_healthy = True
-                self.state.mark_healthy()
-                await self._run_connected(connection)
-            except WorkerChannelTerminalError as exc:
-                self.state.mark_terminal(exc.reason)
-                self._logger.debug("Worker channel disabled: %s", exc)
-                return
-            except WorkerChannelRetryableError as exc:
-                self.state.mark_unhealthy(exc.reason)
-                self._logger.debug(
-                    "Worker channel unhealthy, REST fallback is active: %s", exc
-                )
-            except BaseException:
-                raise
-            finally:
-                if connection is not None:
-                    await self._close_connection(connection)
-                    connection = None
+                if self.url is None:
+                    self.state.mark_terminal("endpoint_unavailable")
+                    return
 
-            reconnect_attempt += 1
-            await anyio.sleep(self._reconnect_delay(reconnect_attempt))
+                self._websocket_started = True
+                reconnect_attempt = 0
+                connection = initial_connection
+
+                while not self.state.terminal:
+                    try:
+                        if connection is None:
+                            self.state.mark_connecting()
+                            connection = await self._connect_with_timeout()
+                        reconnect_attempt = 0
+                        self._has_been_healthy = True
+                        self.state.mark_healthy()
+                        await self._run_connected(connection)
+                    except WorkerChannelTerminalError as exc:
+                        self.state.mark_terminal(exc.reason)
+                        self._logger.debug("Worker channel disabled: %s", exc)
+                        return
+                    except WorkerChannelRetryableError as exc:
+                        self.state.mark_unhealthy(exc.reason)
+                        self._logger.debug(
+                            "Worker channel unhealthy, REST fallback is active: %s", exc
+                        )
+                    except BaseException:
+                        raise
+                    finally:
+                        if connection is not None:
+                            await self._close_connection(connection)
+                            connection = None
+
+                    reconnect_attempt += 1
+                    await anyio.sleep(self._reconnect_delay(reconnect_attempt))
+            finally:
+                if self._run_scope is scope:
+                    self._run_scope = None
+
+    async def _connect_with_timeout(self) -> WorkerChannelConnection:
+        if self._setup_timeout_seconds <= 0:
+            return await self._connect_once()
+
+        try:
+            with anyio.fail_after(self._setup_timeout_seconds):
+                return await self._connect_once()
+        except TimeoutError as exc:
+            raise WorkerChannelRetryableError(
+                "setup_timeout",
+                "Worker channel setup timed out",
+            ) from exc
 
     async def _connect_once(self) -> WorkerChannelConnection:
         if self.url is None:

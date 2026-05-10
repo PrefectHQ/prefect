@@ -1154,6 +1154,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             os.environ.pop("PREFECT__WORKER_ID", None)
         for scope in self._scheduled_task_scopes:
             scope.cancel()
+        if self._worker_channel is not None:
+            self._worker_channel.stop()
 
         # Emit stopped event before closing client
         if self._started_event:
@@ -1241,6 +1243,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._record_work_pool_snapshot(work_pool)
 
     def _record_work_pool_snapshot(self, work_pool: WorkPool) -> None:
+        if not work_pool.base_job_template:
+            work_pool.base_job_template = self.__class__.get_default_base_job_template()
+
         # if the remote config type changes (or if it's being loaded for the
         # first time), check if it matches the local type and warn if not
         if getattr(self._work_pool, "type", 0) != work_pool.type:

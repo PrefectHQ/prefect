@@ -2417,6 +2417,35 @@ class TestWorkerChannelClient:
         snapshot.assert_called_once()
         assert channel.rest_fallback_enabled is False
 
+    async def test_start_websocket_times_out_setup_for_rest_fallback(self):
+        client = worker_channel_test_client()
+        channel = WorkPoolWorkerChannel(
+            client=client,
+            api_url="http://localhost:4200/api",
+            work_pool_is_available=lambda: True,
+            work_pool_name="test-work-pool",
+            worker_name="test-worker",
+            worker_type="test",
+            heartbeat_interval_seconds=30,
+            work_queue_names=[],
+            create_pool_if_not_found=True,
+            default_base_job_template={},
+            worker_metadata=no_worker_channel_metadata,
+            logger=logging.getLogger("test-worker-channel"),
+            reconnect_base_seconds=0,
+            setup_timeout_seconds=0.01,
+        )
+        websocket = FakeWorkerChannelWebSocket([{"type": "auth_success"}])
+        connect_context = FakeWorkerChannelConnect(websocket)
+        channel._connect_factory = lambda *args, **kwargs: connect_context
+
+        async with anyio.create_task_group() as task_group:
+            assert await channel.start_websocket(task_group) is False
+            task_group.cancel_scope.cancel()
+
+        assert channel.rest_fallback_enabled is True
+        client.send_worker_heartbeat.assert_not_awaited()
+
     async def test_endpoint_unavailable_is_terminal_rest_fallback(self):
         channel = WorkPoolWorkerChannel(
             client=worker_channel_test_client(),
@@ -2845,6 +2874,53 @@ class TestBaseWorkerHeartbeat:
         assert attempts == 1
         assert len(workers) == 1
         assert workers[0].name == worker.name
+
+    async def test_sync_with_backend_falls_back_to_rest_when_channel_setup_times_out(
+        self, prefect_client, work_pool, monkeypatch
+    ):
+        attempts = 0
+
+        async def never_ready(self):
+            nonlocal attempts
+            attempts += 1
+            await anyio.sleep_forever()
+
+        monkeypatch.setattr(
+            "prefect.workers._worker_channel.WORKER_CHANNEL_SETUP_TIMEOUT_SECONDS",
+            0.01,
+        )
+        monkeypatch.setattr(
+            WorkPoolWorkerChannel,
+            "_connect_once",
+            never_ready,
+        )
+
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            assert worker._worker_channel is not None
+            assert worker._worker_channel.rest_fallback_enabled is True
+
+            workers = await prefect_client.read_workers_for_work_pool(
+                work_pool_name=work_pool.name
+            )
+
+        assert attempts >= 1
+        assert len(workers) == 1
+        assert workers[0].name == worker.name
+
+    async def test_work_pool_snapshot_fills_default_base_job_template(
+        self, work_pool
+    ):
+        worker = WorkerTestImpl(work_pool_name=work_pool.name)
+        snapshot = work_pool
+        snapshot.base_job_template = {}
+
+        worker._record_work_pool_snapshot(snapshot)
+
+        assert worker._work_pool is not None
+        assert (
+            worker._work_pool.base_job_template
+            == WorkerTestImpl.get_default_base_job_template()
+        )
 
     async def test_worker_heartbeat_sends_integrations(
         self, work_pool, hosted_api_server
