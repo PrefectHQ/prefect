@@ -102,6 +102,7 @@ from prefect.utilities.templating import (
     resolve_variables,
 )
 from prefect.utilities.urls import url_for
+from prefect.workers.worker_channel import WorkPoolWorkerChannel
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
@@ -613,6 +614,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._submitting_flow_run_ids: set[UUID] = set()
         self._scheduled_task_scopes: set[anyio.CancelScope] = set()
         self._worker_metadata_sent = False
+        self._worker_channel: Optional[WorkPoolWorkerChannel] = None
 
         # Cancellation handling
         self._cancelling_observer: Optional[FlowRunCancellingObserver] = None
@@ -1113,7 +1115,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         # it in all API requests made by this worker process.
         os.environ["PREFECT__WORKER_NAME"] = self.name
 
-        await self.sync_with_backend()
+        await self.sync_with_backend(force=True)
 
         # Initialize cancellation handling if enabled
         if get_current_settings().worker.enable_cancellation and self._work_pool:
@@ -1138,6 +1140,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 self._logger.warning(
                     "Failed to setup cancellation handling: %s", exc, exc_info=True
                 )
+
+        self._start_worker_channel()
 
         self.is_setup = True
 
@@ -1166,6 +1170,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         await self._exit_stack.__aexit__(*exc_info)
         self._runs_task_group = None
         self._client = None
+        self._worker_channel = None
 
     def is_worker_still_polling(self, query_interval_seconds: float) -> bool:
         """
@@ -1318,12 +1323,22 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         return worker_id
 
-    async def sync_with_backend(self) -> None:
+    async def sync_with_backend(self, force: bool = False) -> None:
         """
         Updates the worker's local information about it's current work pool and
         queues. Sends a worker heartbeat to the API.
         """
         await self._update_local_work_pool_info()
+
+        if (
+            not force
+            and self._worker_channel is not None
+            and not self._worker_channel.rest_fallback_enabled
+        ):
+            self._logger.debug(
+                "Skipping REST worker heartbeat because the worker channel is healthy."
+            )
+            return
 
         remote_id = await self._send_worker_heartbeat()
         if remote_id:
@@ -1337,6 +1352,42 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             "Worker synchronized with the Prefect API server. "
             + (f"Remote ID: {self.backend_id}" if self.backend_id else "")
         )
+
+    def _start_worker_channel(self) -> None:
+        if not self._runs_task_group:
+            return
+
+        api_url = PREFECT_API_URL.value()
+        if not api_url:
+            return
+
+        self._worker_channel = WorkPoolWorkerChannel(
+            api_url=api_url,
+            work_pool_name=self._work_pool_name,
+            worker_name=self.name,
+            worker_type=self.type,
+            heartbeat_interval_seconds=self.heartbeat_interval_seconds,
+            work_queue_names=sorted(self._work_queues),
+            create_pool_if_not_found=self._create_pool_if_not_found,
+            default_base_job_template=(
+                self._base_job_template
+                if self._base_job_template is not None
+                else self.__class__.get_default_base_job_template()
+            ),
+            worker_metadata=self._worker_metadata,
+            logger=self._logger,
+            on_worker_id=self._record_worker_channel_id,
+            on_worker_metadata_sent=self._record_worker_metadata_sent,
+        )
+        self._runs_task_group.start_soon(self._worker_channel.run)
+
+    def _record_worker_channel_id(self, remote_id: UUID) -> None:
+        self.backend_id = remote_id
+        os.environ["PREFECT__WORKER_ID"] = str(remote_id)
+        self._logger = get_worker_logger(self)
+
+    def _record_worker_metadata_sent(self) -> None:
+        self._worker_metadata_sent = True
 
     def _should_get_worker_id(self):
         """Determines if the worker should request an ID from the API server."""
