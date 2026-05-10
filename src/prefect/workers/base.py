@@ -1112,7 +1112,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         # it in all API requests made by this worker process.
         os.environ["PREFECT__WORKER_NAME"] = self.name
 
-        self._ensure_worker_channel()
         await self.sync_with_backend()
 
         # Initialize cancellation handling if enabled
@@ -1138,8 +1137,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 self._logger.warning(
                     "Failed to setup cancellation handling: %s", exc, exc_info=True
                 )
-
-        self._start_worker_channel()
 
         self.is_setup = True
 
@@ -1234,6 +1231,16 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                     )
                 return
 
+        # once the work pool is loaded, verify that it has a `base_job_template` and
+        # set it if not
+        if not work_pool.base_job_template:
+            job_template = self.__class__.get_default_base_job_template()
+            await self._set_work_pool_template(work_pool, job_template)
+            work_pool.base_job_template = job_template
+
+        self._record_work_pool_snapshot(work_pool)
+
+    def _record_work_pool_snapshot(self, work_pool: WorkPool) -> None:
         # if the remote config type changes (or if it's being loaded for the
         # first time), check if it matches the local type and warn if not
         if getattr(self._work_pool, "type", 0) != work_pool.type:
@@ -1243,13 +1250,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                     f"{self.type!r} but received {work_pool.type!r}"
                     " from the server. Unexpected behavior may occur."
                 )
-
-        # once the work pool is loaded, verify that it has a `base_job_template` and
-        # set it if not
-        if not work_pool.base_job_template:
-            job_template = self.__class__.get_default_base_job_template()
-            await self._set_work_pool_template(work_pool, job_template)
-            work_pool.base_job_template = job_template
 
         self._work_pool = work_pool
 
@@ -1278,13 +1278,26 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         Updates the worker's local information about it's current work pool and
         queues. Sends a worker heartbeat to the API.
         """
-        await self._update_local_work_pool_info()
         self._ensure_worker_channel()
 
         if self._worker_channel is None:
             self._logger.warning("Client has not been initialized; skipping heartbeat.")
-        else:
-            await self._worker_channel.send_rest_worker_heartbeat()
+            return
+
+        channel_started = (
+            await self._worker_channel.start_websocket(self._runs_task_group)
+            if self._runs_task_group is not None
+            else False
+        )
+        if channel_started:
+            self._logger.debug(
+                "Worker synchronized with the Prefect API server. "
+                + (f"Remote ID: {self.backend_id}" if self.backend_id else "")
+            )
+            return
+
+        await self._update_local_work_pool_info()
+        await self._worker_channel.send_rest_worker_heartbeat()
 
         self._logger.debug(
             "Worker synchronized with the Prefect API server. "
@@ -1317,17 +1330,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             worker_metadata=self._worker_metadata,
             logger=self._logger,
             on_worker_id=self._record_worker_id,
+            on_work_pool_snapshot=self._record_work_pool_snapshot,
         )
-
-    def _start_worker_channel(self) -> None:
-        if not self._runs_task_group:
-            return
-
-        self._ensure_worker_channel()
-        if self._worker_channel is None or self._worker_channel.url is None:
-            return
-
-        self._runs_task_group.start_soon(self._worker_channel.run)
 
     def _record_worker_id(self, remote_id: UUID) -> None:
         self.backend_id = remote_id

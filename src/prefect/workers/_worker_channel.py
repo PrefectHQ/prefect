@@ -20,7 +20,7 @@ from prefect._internal.uuid7 import uuid7
 from prefect._internal.websockets import websocket_connect
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient
-from prefect.client.schemas.objects import WorkerMetadata
+from prefect.client.schemas.objects import WorkerMetadata, WorkPool
 from prefect.client.schemas.worker_channel import (
     CLEANUP_DELIVERY_CAPABILITY,
     WORK_POOL_SNAPSHOT_CAPABILITY,
@@ -122,6 +122,7 @@ class WorkPoolWorkerChannel:
         work_pool_is_available: Callable[[], bool],
         logger: Logger,
         on_worker_id: Callable[[UUID], None] | None = None,
+        on_work_pool_snapshot: Callable[[WorkPool], None] | None = None,
         connect_factory: ConnectFactory = websocket_connect,
         reconnect_base_seconds: float = 1.0,
         reconnect_max_seconds: float = 30.0,
@@ -139,6 +140,7 @@ class WorkPoolWorkerChannel:
         self._work_pool_is_available = work_pool_is_available
         self._logger = logger
         self._on_worker_id = on_worker_id
+        self._on_work_pool_snapshot = on_work_pool_snapshot
         self._connect_factory = connect_factory
         self._reconnect_base_seconds = reconnect_base_seconds
         self._reconnect_max_seconds = reconnect_max_seconds
@@ -149,6 +151,7 @@ class WorkPoolWorkerChannel:
         self._has_been_healthy = False
         self._worker_id: UUID | None = None
         self._worker_metadata_sent = False
+        self._websocket_started = False
 
     @property
     def rest_fallback_enabled(self) -> bool:
@@ -160,6 +163,39 @@ class WorkPoolWorkerChannel:
 
     def set_client(self, client: PrefectClient) -> None:
         self._client = client
+
+    async def start_websocket(self, task_group: anyio.abc.TaskGroup) -> bool:
+        if self._websocket_started:
+            return self.state.healthy
+
+        if self.url is None:
+            self.state.mark_terminal("endpoint_unavailable")
+            return False
+
+        self._websocket_started = True
+        connection: WorkerChannelConnection | None = None
+        try:
+            self.state.mark_connecting()
+            connection = await self._connect_once()
+            self._has_been_healthy = True
+            self.state.mark_healthy()
+            task_group.start_soon(self.run, connection)
+            return True
+        except WorkerChannelTerminalError as exc:
+            self.state.mark_terminal(exc.reason)
+            self._logger.debug("Worker channel disabled: %s", exc)
+            return False
+        except WorkerChannelRetryableError as exc:
+            self.state.mark_unhealthy(exc.reason)
+            self._logger.debug(
+                "Worker channel unhealthy, REST fallback is active: %s", exc
+            )
+            task_group.start_soon(self.run)
+            return False
+        except BaseException:
+            if connection is not None:
+                await self._close_connection(connection)
+            raise
 
     async def send_rest_worker_heartbeat(self) -> UUID | None:
         if not self.state.rest_fallback_enabled:
@@ -180,7 +216,10 @@ class WorkPoolWorkerChannel:
             "heartbeat_interval_seconds": self.heartbeat_interval_seconds,
             "get_worker_id": should_get_worker_id,
         }
-        if self._client.server_type == ServerType.CLOUD and not self._worker_metadata_sent:
+        if (
+            self._client.server_type == ServerType.CLOUD
+            and not self._worker_metadata_sent
+        ):
             worker_metadata = await self._worker_metadata()
             if worker_metadata:
                 params["worker_metadata"] = worker_metadata
@@ -214,17 +253,22 @@ class WorkPoolWorkerChannel:
     def _should_get_worker_id(self) -> bool:
         return self._client.server_type == ServerType.CLOUD and self._worker_id is None
 
-    async def run(self) -> None:
+    async def run(
+        self, initial_connection: WorkerChannelConnection | None = None
+    ) -> None:
         if self.url is None:
+            self.state.mark_terminal("endpoint_unavailable")
             return
 
+        self._websocket_started = True
         reconnect_attempt = 0
+        connection = initial_connection
 
         while not self.state.terminal:
-            connection: WorkerChannelConnection | None = None
             try:
-                self.state.mark_connecting()
-                connection = await self._connect_once()
+                if connection is None:
+                    self.state.mark_connecting()
+                    connection = await self._connect_once()
                 reconnect_attempt = 0
                 self._has_been_healthy = True
                 self.state.mark_healthy()
@@ -243,6 +287,7 @@ class WorkPoolWorkerChannel:
             finally:
                 if connection is not None:
                     await self._close_connection(connection)
+                    connection = None
 
             reconnect_attempt += 1
             await anyio.sleep(self._reconnect_delay(reconnect_attempt))
@@ -362,9 +407,14 @@ class WorkPoolWorkerChannel:
             )
 
     def _handle_ready(self, ready: WorkerReadyFrame) -> None:
+        self._handle_work_pool_snapshot(ready.payload.initial_snapshot.work_pool)
         worker_id = ready.payload.worker_id
         if worker_id is not None:
             self._record_worker_id(worker_id)
+
+    def _handle_work_pool_snapshot(self, work_pool: WorkPool) -> None:
+        if self._on_work_pool_snapshot is not None:
+            self._on_work_pool_snapshot(work_pool)
 
     def _record_worker_id(self, worker_id: UUID) -> None:
         self._worker_id = worker_id
@@ -452,6 +502,7 @@ class WorkPoolWorkerChannel:
                 ) from exc
 
             if isinstance(frame, WorkPoolSnapshotFrame):
+                self._handle_work_pool_snapshot(frame.payload.work_pool)
                 continue
 
             raise WorkerChannelTerminalError(
