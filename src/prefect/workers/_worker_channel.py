@@ -39,6 +39,7 @@ from prefect.settings import get_current_settings
 from prefect.types._datetime import now
 
 ConnectFactory = Callable[..., websockets.asyncio.client.connect]
+RestWorkerHeartbeat = Callable[[], Awaitable[UUID | None]]
 
 
 def build_worker_channel_url(api_url: str, work_pool_name: str) -> str:
@@ -115,6 +116,7 @@ class WorkPoolWorkerChannel:
         create_pool_if_not_found: bool,
         default_base_job_template: dict[str, Any],
         worker_metadata: Callable[[], Awaitable[WorkerMetadata | None]],
+        send_rest_worker_heartbeat: RestWorkerHeartbeat,
         logger: Logger,
         on_worker_id: Callable[[UUID], None] | None = None,
         on_worker_metadata_sent: Callable[[], None] | None = None,
@@ -131,6 +133,7 @@ class WorkPoolWorkerChannel:
         self.create_pool_if_not_found = create_pool_if_not_found
         self.default_base_job_template = default_base_job_template
         self._worker_metadata = worker_metadata
+        self._send_rest_worker_heartbeat = send_rest_worker_heartbeat
         self._logger = logger
         self._on_worker_id = on_worker_id
         self._on_worker_metadata_sent = on_worker_metadata_sent
@@ -146,6 +149,15 @@ class WorkPoolWorkerChannel:
     @property
     def rest_fallback_enabled(self) -> bool:
         return self.state.rest_fallback_enabled
+
+    async def send_rest_worker_heartbeat(self) -> UUID | None:
+        if not self.state.rest_fallback_enabled:
+            self._logger.debug(
+                "Skipping REST worker heartbeat because the worker channel is healthy."
+            )
+            return None
+
+        return await self._send_rest_worker_heartbeat()
 
     async def run(self) -> None:
         reconnect_attempt = 0

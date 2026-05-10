@@ -1115,7 +1115,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         # it in all API requests made by this worker process.
         os.environ["PREFECT__WORKER_NAME"] = self.name
 
-        await self.sync_with_backend(force=True)
+        await self.sync_with_backend()
 
         # Initialize cancellation handling if enabled
         if get_current_settings().worker.enable_cancellation and self._work_pool:
@@ -1323,30 +1323,20 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         return worker_id
 
-    async def sync_with_backend(self, force: bool = False) -> None:
+    async def sync_with_backend(self) -> None:
         """
         Updates the worker's local information about it's current work pool and
         queues. Sends a worker heartbeat to the API.
         """
         await self._update_local_work_pool_info()
 
-        if (
-            not force
-            and self._worker_channel is not None
-            and not self._worker_channel.rest_fallback_enabled
-        ):
-            self._logger.debug(
-                "Skipping REST worker heartbeat because the worker channel is healthy."
-            )
-            return
-
-        remote_id = await self._send_worker_heartbeat()
+        remote_id = (
+            await self._worker_channel.send_rest_worker_heartbeat()
+            if self._worker_channel is not None
+            else await self._send_worker_heartbeat()
+        )
         if remote_id:
-            self.backend_id = remote_id
-            # Set worker ID in os.environ so get_attribution_headers() includes
-            # it in all API requests made by this worker process.
-            os.environ["PREFECT__WORKER_ID"] = str(remote_id)
-            self._logger = get_worker_logger(self)
+            self._record_worker_id(remote_id)
 
         self._logger.debug(
             "Worker synchronized with the Prefect API server. "
@@ -1375,14 +1365,17 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 else self.__class__.get_default_base_job_template()
             ),
             worker_metadata=self._worker_metadata,
+            send_rest_worker_heartbeat=self._send_worker_heartbeat,
             logger=self._logger,
-            on_worker_id=self._record_worker_channel_id,
+            on_worker_id=self._record_worker_id,
             on_worker_metadata_sent=self._record_worker_metadata_sent,
         )
         self._runs_task_group.start_soon(self._worker_channel.run)
 
-    def _record_worker_channel_id(self, remote_id: UUID) -> None:
+    def _record_worker_id(self, remote_id: UUID) -> None:
         self.backend_id = remote_id
+        # Set worker ID in os.environ so get_attribution_headers() includes
+        # it in all API requests made by this worker process.
         os.environ["PREFECT__WORKER_ID"] = str(remote_id)
         self._logger = get_worker_logger(self)
 

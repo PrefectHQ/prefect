@@ -82,17 +82,17 @@ from prefect.types._datetime import now as now_fn
 from prefect.types._datetime import travel_to
 from prefect.utilities.processutils import command_to_string
 from prefect.utilities.pydantic import parse_obj_as
-from prefect.workers.base import (
-    BaseJobConfiguration,
-    BaseVariables,
-    BaseWorker,
-    BaseWorkerResult,
-)
 from prefect.workers._worker_channel import (
     WorkerChannelConnection,
     WorkerChannelTerminalError,
     WorkPoolWorkerChannel,
     build_worker_channel_url,
+)
+from prefect.workers.base import (
+    BaseJobConfiguration,
+    BaseVariables,
+    BaseWorker,
+    BaseWorkerResult,
 )
 
 pytestmark = pytest.mark.usefixtures("asserting_events_worker")
@@ -2316,6 +2316,7 @@ class TestWorkerChannelClient:
             create_pool_if_not_found=True,
             default_base_job_template={"job_configuration": {}, "variables": {}},
             worker_metadata=worker_metadata,
+            send_rest_worker_heartbeat=AsyncMock(),
             logger=logging.getLogger("test-worker-channel"),
             on_worker_metadata_sent=metadata_sent,
         )
@@ -2383,6 +2384,7 @@ class TestWorkerChannelClient:
             create_pool_if_not_found=True,
             default_base_job_template={},
             worker_metadata=no_worker_channel_metadata,
+            send_rest_worker_heartbeat=AsyncMock(),
             logger=logging.getLogger("test-worker-channel"),
             reconnect_base_seconds=0,
         )
@@ -2411,6 +2413,7 @@ class TestWorkerChannelClient:
             create_pool_if_not_found=True,
             default_base_job_template={},
             worker_metadata=no_worker_channel_metadata,
+            send_rest_worker_heartbeat=AsyncMock(),
             logger=logging.getLogger("test-worker-channel"),
             reconnect_base_seconds=0,
         )
@@ -2438,6 +2441,46 @@ class TestWorkerChannelClient:
         assert first_connect.exited
         assert channel.rest_fallback_enabled is True
         assert channel.state.terminal is True
+
+    async def test_channel_sends_rest_heartbeat_while_fallback_is_enabled(self):
+        worker_id = uuid.uuid4()
+        send_rest_worker_heartbeat = AsyncMock(return_value=worker_id)
+        channel = WorkPoolWorkerChannel(
+            api_url="http://localhost:4200/api",
+            work_pool_name="test-work-pool",
+            worker_name="test-worker",
+            worker_type="test",
+            heartbeat_interval_seconds=30,
+            work_queue_names=[],
+            create_pool_if_not_found=True,
+            default_base_job_template={},
+            worker_metadata=no_worker_channel_metadata,
+            send_rest_worker_heartbeat=send_rest_worker_heartbeat,
+            logger=logging.getLogger("test-worker-channel"),
+        )
+
+        assert await channel.send_rest_worker_heartbeat() == worker_id
+        send_rest_worker_heartbeat.assert_awaited_once()
+
+    async def test_channel_skips_rest_heartbeat_when_healthy(self):
+        send_rest_worker_heartbeat = AsyncMock()
+        channel = WorkPoolWorkerChannel(
+            api_url="http://localhost:4200/api",
+            work_pool_name="test-work-pool",
+            worker_name="test-worker",
+            worker_type="test",
+            heartbeat_interval_seconds=30,
+            work_queue_names=[],
+            create_pool_if_not_found=True,
+            default_base_job_template={},
+            worker_metadata=no_worker_channel_metadata,
+            send_rest_worker_heartbeat=send_rest_worker_heartbeat,
+            logger=logging.getLogger("test-worker-channel"),
+        )
+        channel.state.mark_healthy()
+
+        assert await channel.send_rest_worker_heartbeat() is None
+        send_rest_worker_heartbeat.assert_not_awaited()
 
 
 @pytest.mark.parametrize(
@@ -2635,11 +2678,14 @@ async def test_work_pool_env_from_job_configuration_merges_with_variable_default
 
 
 class TestBaseWorkerHeartbeat:
-    async def test_sync_with_backend_skips_rest_when_channel_is_healthy(
+    async def test_sync_with_backend_delegates_heartbeat_to_worker_channel(
         self, work_pool
     ):
         async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-            worker._worker_channel = Mock(rest_fallback_enabled=False)
+            worker_id = uuid.uuid4()
+            worker._worker_channel = Mock(
+                send_rest_worker_heartbeat=AsyncMock(return_value=worker_id)
+            )
             worker._update_local_work_pool_info = AsyncMock()
             worker._send_worker_heartbeat = AsyncMock()
 
@@ -2647,11 +2693,8 @@ class TestBaseWorkerHeartbeat:
 
             worker._update_local_work_pool_info.assert_awaited_once()
             worker._send_worker_heartbeat.assert_not_called()
-
-            await worker.sync_with_backend(force=True)
-
-            assert worker._update_local_work_pool_info.await_count == 2
-            worker._send_worker_heartbeat.assert_awaited_once()
+            worker._worker_channel.send_rest_worker_heartbeat.assert_awaited_once()
+            assert worker.backend_id == worker_id
 
     async def test_worker_heartbeat_sends_integrations(
         self, work_pool, hosted_api_server
