@@ -51,4 +51,3 @@ These modules have no dedicated intent node yet. Promote any one of them to a su
 Private (`_`-prefixed):
 
 - `_engine.py` — Naming and hook-resolution helpers for custom flow/task run names
-- `_infrastructure_exit_codes.py` — Registry of exit-code explanations for infrastructure processes
