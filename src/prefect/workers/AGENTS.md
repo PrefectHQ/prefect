@@ -15,6 +15,12 @@ This module does NOT manage the Runner execution model (no work pool) — see `r
 - `ProcessWorker` (`process.py`) — runs flow runs as local subprocesses via `Runner.execute_bundle()`
 - `BaseWorkerResult` — result returned by `run()`; wraps infrastructure status codes
 
+## Worker Channel
+
+`BaseWorker` delegates heartbeating and work-pool sync to `_worker_channel.WorkPoolWorkerChannel`. It attempts a persistent WebSocket connection; when unavailable or unhealthy (`WorkerChannelState.rest_fallback_enabled=True`), it falls back to REST heartbeats each `sync_with_backend()` call.
+
+**Testing**: Override `_ensure_worker_channel()` to inject a `WorkerChannel` test double — the old `_send_worker_heartbeat` mock no longer exists.
+
 ## Attribution Env Vars
 
 Workers stamp two env vars into `os.environ` for their own process, so all API requests include attribution headers:
