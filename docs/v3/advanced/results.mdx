@@ -299,6 +299,11 @@ prefect experimental result-storage inspect
 prefect experimental result-storage clear
 ```
 
+If you delete the block document, block schema, or block type that is configured as the server-side
+default result storage, Prefect automatically clears the default. Subsequent flow runs that relied on
+the default will no longer persist results unless you configure a new default or set `result_storage`
+explicitly.
+
 <Note>
 The saved block and its dependencies must be available wherever results are written and read. For example,
 if the default is an `S3Bucket`, install `prefect-aws` in the environment that creates the block and in
