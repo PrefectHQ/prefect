@@ -73,6 +73,21 @@ class RecordingCleanupHandler:
         return self.result
 
 
+class CancellableCleanupHandler:
+    cleanup_kind = CANCELLING_TIMEOUT_TEARDOWN
+
+    def __init__(self):
+        self.started = anyio.Event()
+        self.cancelled = anyio.Event()
+
+    async def cleanup(self, message):
+        self.started.set()
+        try:
+            await anyio.sleep_forever()
+        finally:
+            self.cancelled.set()
+
+
 class QueueWorkerChannelWebSocket:
     def __init__(self, messages: list[dict[str, Any] | BaseException] | None = None):
         self._send_stream, self._receive_stream = anyio.create_memory_object_stream[
@@ -107,7 +122,12 @@ class FakeWorkerChannelConnect:
         self.exited = True
 
 
-def _worker_ready_frame(consumer_id, *, cleanup_delivery: bool = True):
+def _worker_ready_frame(
+    consumer_id,
+    *,
+    cleanup_delivery: bool = True,
+    effective_max_cleanup_concurrency: int | None = None,
+):
     accepted_capabilities = [
         WORKER_HEARTBEAT_CAPABILITY,
         WORK_POOL_SNAPSHOT_CAPABILITY,
@@ -127,7 +147,13 @@ def _worker_ready_frame(consumer_id, *, cleanup_delivery: bool = True):
                 "effective_heartbeat_interval_seconds": 30,
                 "accepted_capabilities": accepted_capabilities,
                 "rejected_capabilities": [],
-                "effective_max_cleanup_concurrency": 1 if cleanup_delivery else 0,
+                "effective_max_cleanup_concurrency": (
+                    effective_max_cleanup_concurrency
+                    if effective_max_cleanup_concurrency is not None
+                    else 1
+                    if cleanup_delivery
+                    else 0
+                ),
                 "resolved_work_queues": [],
                 "initial_snapshot": {
                     "snapshot_sequence": 1,
@@ -286,6 +312,52 @@ async def test_protocol_advertises_cleanup_capability_from_executor():
     assert hello.payload.max_cleanup_concurrency == 2
 
 
+async def test_protocol_applies_effective_cleanup_concurrency_from_ready():
+    async def worker_metadata():
+        return None
+
+    executor = WorkerCleanupExecutor(
+        [RecordingCleanupHandler()],
+        max_concurrency=2,
+    )
+    protocol = WorkerChannelProtocolHandler(
+        consumer_id=uuid7(),
+        worker_name="test-worker",
+        worker_type="test",
+        heartbeat_interval_seconds=30,
+        work_queue_names=["default"],
+        create_pool_if_not_found=True,
+        default_base_job_template={},
+        worker_metadata=worker_metadata,
+        classify_closed_connection=lambda exc: WorkerChannelTerminalError(
+            "connection_lost", str(exc)
+        ),
+        logger=logging.getLogger("test-worker-channel"),
+        cleanup_executor=executor,
+    )
+    websocket = QueueWorkerChannelWebSocket()
+    connection = WorkerChannelConnection(
+        FakeWorkerChannelConnect(websocket),
+        websocket,
+        _worker_ready_frame(
+            protocol.consumer_id,
+            effective_max_cleanup_concurrency=1,
+        ),
+    )
+
+    async with executor:
+        async with anyio.create_task_group() as task_group:
+            task_group.start_soon(protocol.run_connected, connection)
+
+            with anyio.fail_after(1):
+                while executor.max_concurrency != 1:
+                    await anyio.sleep(0)
+
+            task_group.cancel_scope.cancel()
+
+    assert executor.max_concurrency == 1
+
+
 async def test_worker_uses_cleanup_concurrency_override_separate_from_flow_limit():
     worker = WorkerTestImpl(
         work_pool_name="test",
@@ -411,6 +483,100 @@ async def test_executor_renews_lease_before_acknowledging_success():
         finish_cleanup.set()
 
     assert [type(frame) for frame in sent] == [CleanupRenewFrame, CleanupAckFrame]
+
+
+async def test_executor_keeps_renewing_until_ack_resolves():
+    sent: list[CleanupOperationFrame] = []
+    ack_frame: CleanupAckFrame | None = None
+    ack_sent = anyio.Event()
+    renew_sent = anyio.Event()
+    executor: WorkerCleanupExecutor
+
+    async def send(frame: CleanupOperationFrame):
+        nonlocal ack_frame
+        sent.append(frame)
+        if isinstance(frame, CleanupAckFrame):
+            ack_frame = frame
+            ack_sent.set()
+            return None
+        if isinstance(frame, CleanupRenewFrame):
+            renew_sent.set()
+            return _operation_result(
+                frame,
+                lease_expires_at=now("UTC") + timedelta(minutes=5),
+            )
+        return _operation_result(frame)
+
+    executor = WorkerCleanupExecutor(
+        [RecordingCleanupHandler(result=CleanupExecutionResult.success())],
+        send_operation=send,
+        lease_renewal_buffer_seconds=0.05,
+        operation_result_timeout_seconds=1,
+    )
+    message = _message_frame(lease_expires_at=now("UTC") + timedelta(seconds=0.1))
+
+    async with anyio.create_task_group() as task_group:
+        task_group.start_soon(executor.execute, message)
+
+        with anyio.fail_after(1):
+            await ack_sent.wait()
+            await renew_sent.wait()
+
+        assert ack_frame is not None
+        executor.handle_operation_result(_operation_result(ack_frame))
+
+    assert [type(frame) for frame in sent] == [CleanupAckFrame, CleanupRenewFrame]
+
+
+async def test_executor_cancels_handler_when_renew_loses_reservation():
+    sent: list[CleanupOperationFrame] = []
+
+    async def send(frame: CleanupOperationFrame):
+        sent.append(frame)
+        if isinstance(frame, CleanupRenewFrame):
+            return _operation_result(frame, status="not_current")
+        return _operation_result(frame)
+
+    handler = CancellableCleanupHandler()
+    executor = WorkerCleanupExecutor(
+        [handler],
+        send_operation=send,
+        lease_renewal_buffer_seconds=30,
+    )
+    message = _message_frame(lease_expires_at=now("UTC") + timedelta(seconds=1))
+
+    with anyio.fail_after(1):
+        await executor.execute(message)
+
+    assert handler.started.is_set()
+    assert handler.cancelled.is_set()
+    assert [type(frame) for frame in sent] == [CleanupRenewFrame]
+
+
+async def test_executor_cancels_handler_when_renewal_misses_lease_deadline():
+    sent: list[CleanupOperationFrame] = []
+
+    async def send(frame: CleanupOperationFrame):
+        sent.append(frame)
+        return None
+
+    handler = CancellableCleanupHandler()
+    executor = WorkerCleanupExecutor(
+        [handler],
+        send_operation=send,
+        lease_renewal_buffer_seconds=30,
+        operation_result_timeout_seconds=0.01,
+        operation_retry_delay_seconds=0,
+        max_operation_attempts=1,
+    )
+    message = _message_frame(lease_expires_at=now("UTC") + timedelta(seconds=0.01))
+
+    with anyio.fail_after(1):
+        await executor.execute(message)
+
+    assert handler.started.is_set()
+    assert handler.cancelled.is_set()
+    assert [type(frame) for frame in sent] == [CleanupRenewFrame]
 
 
 async def test_executor_retries_cleanup_operation_after_lost_result():
