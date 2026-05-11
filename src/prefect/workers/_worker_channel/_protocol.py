@@ -133,11 +133,9 @@ class WorkerChannelProtocolHandler:
         max_cleanup_concurrency = 0
         if self._cleanup_delivery_requested():
             requested_capabilities.append(CLEANUP_DELIVERY_CAPABILITY)
-            if self._cleanup_executor is not None:
-                handled_cleanup_kinds = list(
-                    self._cleanup_executor.handled_cleanup_kinds
-                )
-                max_cleanup_concurrency = self._cleanup_executor.max_concurrency
+            assert self._cleanup_executor is not None
+            handled_cleanup_kinds = list(self._cleanup_executor.handled_cleanup_kinds)
+            max_cleanup_concurrency = self._cleanup_executor.max_concurrency
 
         return WorkerHelloFrame(
             type="worker.hello.v1",
