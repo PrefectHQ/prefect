@@ -653,9 +653,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             )
         return self._work_pool
 
-    def _get_work_pool_copy(self) -> WorkPool:
-        return copy.deepcopy(self.work_pool)
-
     @property
     def limiter(self) -> anyio.CapacityLimiter:
         if self._limiter is None:
@@ -960,7 +957,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             create_bundle_for_flow_run,
         )
 
-        work_pool = self._get_work_pool_copy()
+        work_pool = copy.deepcopy(self.work_pool)
 
         if (
             work_pool.storage_configuration.bundle_upload_step is None
@@ -1619,7 +1616,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         flow_run: "FlowRun",
         deployment: Optional["DeploymentResponse"] = None,
     ) -> C:
-        work_pool = self._get_work_pool_copy()
+        work_pool = copy.deepcopy(self.work_pool)
 
         if not deployment and flow_run.deployment_id:
             deployment = await self.client.read_deployment(flow_run.deployment_id)
