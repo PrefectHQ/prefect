@@ -7,7 +7,7 @@ keywords: ["zombie", "unresponsive", "stale flow", "stuck run", "detection", "cl
 
 Sudden infrastructure failures (like machine crashes or container evictions) can cause flow runs to become unresponsive and appear stuck in a `Running` state.
 
-To mitigate this, flow runs triggered by deployments can emit heartbeats to drive Automations that detect and respond to these "zombie" flow runs, ensuring they are marked as `Crashed` if they stop reporting heartbeats. Prefect Cloud provides a managed automation for this (**Unresponsive run detection**); self-hosted users — or anyone wanting custom behavior — can create the automation manually.
+To mitigate this, flow runs triggered by deployments can emit heartbeats to drive Automations that detect and respond to these "zombie" flow runs, ensuring they are marked as `Crashed` if they stop reporting heartbeats. Prefect Cloud provides a managed automation for this (**Unresponsive run detection**); self-hosted users (or anyone wanting custom behavior) can create the automation manually.
 
 
 ### Enable the managed automation (Prefect Cloud)
@@ -20,7 +20,7 @@ Prefect Cloud refers to this capability as **Unresponsive run detection**: a bui
 2. Under **Account Settings → Controls**, ensure **Managed automations** is enabled. This is an account-wide switch and only needs to be done once.
 3. Under **Workspace Settings → Managed Automations**, enable **Unresponsive run detection** for this workspace.
 
-By default, the automation marks a run as `Crashed` if it does not receive a heartbeat for 9 minutes — which tolerates three missed heartbeats at the default `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` of 180 seconds (3 minutes).
+By default, the automation marks a run as `Crashed` if it does not receive a heartbeat for 9 minutes, which tolerates three missed heartbeats at the default `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` of 180 seconds (3 minutes).
 
 <Note>
 Prefect 3.6.22 and later ship with `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` set to 180 seconds out of the box, so no extra configuration is needed. Earlier clients default to `None` (no heartbeats); if your deployments run on a client older than 3.6.22, set `PREFECT_FLOWS_HEARTBEAT_FREQUENCY=180` on the workers that run them so the managed automation has heartbeats to consume.
