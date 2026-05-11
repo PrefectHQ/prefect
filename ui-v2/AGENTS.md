@@ -145,6 +145,8 @@ Always use Tailwind's semantic color classes that automatically adapt to the cur
 | `text-gray-900`, `text-black` | `text-foreground` |
 | `border-gray-200`, `border-gray-300` | `border-border` or `border-muted` |
 
+Use `var(--event)` / `bg-event` for event indicators and charts (purple). CSS variables in this codebase store full `hsl(...)` values — use `var(--token)` directly in arbitrary Tailwind values; never wrap with `hsl()` (e.g., `hsl(var(--token))` is wrong).
+
 ### For Dividers and Subtle Elements
 
 Use opacity modifiers with semantic colors for subtle visual elements like dividers:
@@ -154,6 +156,8 @@ Use opacity modifiers with semantic colors for subtle visual elements like divid
 ### Avoid Hardcoded Colors
 
 Never use hardcoded gray scale colors (e.g., `bg-gray-100`, `text-gray-500`) as these will not adapt to dark mode and can make text unreadable or create jarring visual contrast.
+
+**Exception**: Static decorative pixel-art SVGs (empty-state illustrations) intentionally use hardcoded fill values — artistic shades that don't map to semantic tokens. Do not attempt to tokenize them.
 
 ### Testing Dark Mode
 
