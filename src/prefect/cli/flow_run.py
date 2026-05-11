@@ -573,9 +573,9 @@ async def logs(
         except ObjectNotFound:
             exit_with_error(f"Flow run '{id!s}' not found!")
 
-        # Page size is discovered from the first response; the API returns up to
-        # PREFECT_API_DEFAULT_LIMIT logs when no limit is given, so we let the
-        # first request observe whatever the server is configured for.
+        # Bounded requests start with the requested count to avoid overfetching.
+        # If that exceeds the server maximum, retry without a limit to discover
+        # the server page size from the first response.
         page_size: Optional[int] = None
         offset = 0
         num_logs_collected = 0
@@ -583,7 +583,7 @@ async def logs(
 
         while True:
             if page_size is None:
-                limit = None
+                limit = user_specified_num_logs
             elif user_specified_num_logs is not None:
                 remaining = user_specified_num_logs - num_logs_collected
                 if remaining <= 0:
@@ -592,15 +592,32 @@ async def logs(
             else:
                 limit = page_size
 
-            page_logs = await client.read_logs(
-                log_filter=log_filter,
-                limit=limit,
-                offset=offset,
-                sort=sort,
-            )
+            try:
+                page_logs = await client.read_logs(
+                    log_filter=log_filter,
+                    limit=limit,
+                    offset=offset,
+                    sort=sort,
+                )
+            except httpx.HTTPStatusError as exc:
+                if (
+                    page_size is None
+                    and limit is not None
+                    and exc.response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+                    and "Invalid limit" in exc.response.text
+                ):
+                    limit = None
+                    page_logs = await client.read_logs(
+                        log_filter=log_filter,
+                        limit=limit,
+                        offset=offset,
+                        sort=sort,
+                    )
+                else:
+                    raise
 
             if page_size is None:
-                page_size = len(page_logs)
+                page_size = limit if limit is not None else len(page_logs)
                 if page_size == 0:
                     break
 

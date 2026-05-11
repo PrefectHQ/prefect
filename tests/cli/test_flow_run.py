@@ -1481,6 +1481,44 @@ class TestFlowRunLogs:
                 expected_line_count=total_logs,
             )
 
+    async def test_bounded_tail_avoids_default_page_overfetch(
+        self, flow_run_factory, monkeypatch
+    ):
+        from prefect.settings import PREFECT_SERVER_API_DEFAULT_LIMIT
+
+        configured_limit = 100
+        requested_logs = 10
+        flow_run = await flow_run_factory(num_logs=configured_limit)
+        read_log_limits: list[int | None] = []
+        original_read_logs = PrefectClient.read_logs
+
+        async def read_logs_spy(self, *args: Any, **kwargs: Any):
+            read_log_limits.append(kwargs.get("limit"))
+            return await original_read_logs(self, *args, **kwargs)
+
+        monkeypatch.setattr(PrefectClient, "read_logs", read_logs_spy)
+
+        with temporary_settings({PREFECT_SERVER_API_DEFAULT_LIMIT: configured_limit}):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "flow-run",
+                    "logs",
+                    str(flow_run.id),
+                    "--tail",
+                    "--num-logs",
+                    str(requested_logs),
+                ],
+                expected_code=0,
+                expected_output_contains=[
+                    f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
+                    for i in range(configured_limit - requested_logs, configured_limit)
+                ],
+                expected_line_count=requested_logs,
+            )
+
+        assert read_log_limits == [requested_logs]
+
 
 class TestFlowRunWatch:
     def test_watch_completed_flow_run(self, flow_run: FlowRun, monkeypatch):
