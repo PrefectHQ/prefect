@@ -1,46 +1,78 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, renderHook } from "@testing-library/react";
-import { type ReactNode, useState } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { QueryClient } from "@tanstack/react-query";
+import {
+	createMemoryHistory,
+	createRootRoute,
+	createRouter,
+	RouterProvider,
+} from "@tanstack/react-router";
+import { act, render, waitFor } from "@testing-library/react";
+import { createWrapper } from "@tests/utils";
+import { useState } from "react";
+import { describe, expect, it } from "vitest";
 import type { Deployment } from "@/api/deployments";
 import { createFakeDeployment } from "@/mocks";
 import { useCreateFlowRunForm } from "./use-create-flow-run-form";
 
-vi.mock("@tanstack/react-router", async () => {
-	const actual = await vi.importActual<typeof import("@tanstack/react-router")>(
-		"@tanstack/react-router",
-	);
-	return {
-		...actual,
-		useNavigate: () => vi.fn(),
-		Link: ({ children }: { children: ReactNode }) => <>{children}</>,
-	};
-});
+type HookResult = ReturnType<typeof useCreateFlowRunForm>;
 
-const buildWrapper = () => {
-	const queryClient = new QueryClient({
-		defaultOptions: {
-			queries: { retry: false },
-			mutations: { retry: false },
-		},
+const renderUseCreateFlowRunForm = async (
+	initialDeployment: Deployment,
+	initialOverride: Record<string, unknown> | undefined = undefined,
+) => {
+	const resultRef: { current: HookResult | null } = { current: null };
+	let setDeploymentState: (deployment: Deployment) => void = () => {};
+	let setOverrideState: (
+		override: Record<string, unknown> | undefined,
+	) => void = () => {};
+
+	const HookHarness = () => {
+		const [deployment, setDeployment] = useState(initialDeployment);
+		const [override, setOverride] = useState<
+			Record<string, unknown> | undefined
+		>(initialOverride);
+		setDeploymentState = setDeployment;
+		setOverrideState = setOverride;
+		resultRef.current = useCreateFlowRunForm(deployment, override);
+		return null;
+	};
+
+	const rootRoute = createRootRoute({ component: HookHarness });
+	const router = createRouter({
+		routeTree: rootRoute,
+		history: createMemoryHistory({ initialEntries: ["/"] }),
+		context: { queryClient: new QueryClient() },
 	});
-	const Wrapper = ({ children }: { children: ReactNode }) => (
-		<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
-	);
-	Wrapper.displayName = "TestWrapper";
-	return Wrapper;
+
+	render(<RouterProvider router={router} />, { wrapper: createWrapper() });
+	await waitFor(() => {
+		expect(resultRef.current).not.toBeNull();
+	});
+
+	const result = {
+		get current(): HookResult {
+			if (!resultRef.current) {
+				throw new Error("hook result not yet available");
+			}
+			return resultRef.current;
+		},
+	};
+
+	return {
+		result,
+		setDeployment: (deployment: Deployment) =>
+			act(() => setDeploymentState(deployment)),
+		setOverrideParameters: (override: Record<string, unknown> | undefined) =>
+			act(() => setOverrideState(override)),
+	};
 };
 
 describe("useCreateFlowRunForm", () => {
-	it("initializes parameter values from the deployment", () => {
+	it("initializes parameter values from the deployment", async () => {
 		const deployment = createFakeDeployment({
 			parameters: { foo: "bar", count: 1 },
 		});
 
-		const { result } = renderHook(
-			() => useCreateFlowRunForm(deployment, undefined),
-			{ wrapper: buildWrapper() },
-		);
+		const { result } = await renderUseCreateFlowRunForm(deployment);
 
 		expect(result.current.parametersFormValues).toEqual({
 			foo: "bar",
@@ -48,20 +80,19 @@ describe("useCreateFlowRunForm", () => {
 		});
 	});
 
-	it("prefers `overrideParameters` over the deployment's parameters", () => {
+	it("prefers `overrideParameters` over the deployment's parameters", async () => {
 		const deployment = createFakeDeployment({
 			parameters: { foo: "bar" },
 		});
 
-		const { result } = renderHook(
-			() => useCreateFlowRunForm(deployment, { foo: "override" }),
-			{ wrapper: buildWrapper() },
-		);
+		const { result } = await renderUseCreateFlowRunForm(deployment, {
+			foo: "override",
+		});
 
 		expect(result.current.parametersFormValues).toEqual({ foo: "override" });
 	});
 
-	it("preserves user edits when the deployment object reference changes (refetch)", () => {
+	it("preserves user edits when the deployment object reference changes (refetch)", async () => {
 		// Simulates the failure described in OSS-7952: the deployment query
 		// refetches on a 30s interval and on window focus, returning a new
 		// object reference. The form should not overwrite in-flight edits.
@@ -69,43 +100,30 @@ describe("useCreateFlowRunForm", () => {
 			parameters: { foo: "bar" },
 		});
 
-		const { result, rerender } = renderHook(
-			({ deployment }: { deployment: Deployment }) =>
-				useCreateFlowRunForm(deployment, undefined),
-			{
-				wrapper: buildWrapper(),
-				initialProps: { deployment: initialDeployment },
-			},
-		);
+		const { result, setDeployment } =
+			await renderUseCreateFlowRunForm(initialDeployment);
 
 		act(() => {
 			result.current.setParametersFormValues({ foo: "edited" });
 		});
 		expect(result.current.parametersFormValues).toEqual({ foo: "edited" });
 
-		const refetchedDeployment: Deployment = {
+		setDeployment({
 			...initialDeployment,
 			parameters: { foo: "bar" },
-		};
-		rerender({ deployment: refetchedDeployment });
+		});
 
 		expect(result.current.parametersFormValues).toEqual({ foo: "edited" });
 	});
 
-	it("preserves user edits to react-hook-form fields across deployment refetches", () => {
+	it("preserves user edits to react-hook-form fields across deployment refetches", async () => {
 		const initialDeployment = createFakeDeployment({
 			tags: ["initial"],
 			enforce_parameter_schema: true,
 		});
 
-		const { result, rerender } = renderHook(
-			({ deployment }: { deployment: Deployment }) =>
-				useCreateFlowRunForm(deployment, undefined),
-			{
-				wrapper: buildWrapper(),
-				initialProps: { deployment: initialDeployment },
-			},
-		);
+		const { result, setDeployment } =
+			await renderUseCreateFlowRunForm(initialDeployment);
 
 		act(() => {
 			result.current.form.setValue("name", "my-run-name");
@@ -113,12 +131,11 @@ describe("useCreateFlowRunForm", () => {
 			result.current.form.setValue("enforce_parameter_schema", false);
 		});
 
-		const refetchedDeployment: Deployment = {
+		setDeployment({
 			...initialDeployment,
 			// Simulate a benign update to a field unrelated to the form.
 			updated: new Date().toISOString(),
-		};
-		rerender({ deployment: refetchedDeployment });
+		});
 
 		expect(result.current.form.getValues("name")).toBe("my-run-name");
 		expect(result.current.form.getValues("tags")).toEqual(["edited-tag"]);
@@ -127,17 +144,14 @@ describe("useCreateFlowRunForm", () => {
 		);
 	});
 
-	it("does not re-initialize when `overrideParameters` reference changes", () => {
+	it("does not re-initialize when `overrideParameters` reference changes", async () => {
 		// If a parent passes a fresh object identity on each render (a common
 		// React mistake), the hook should still not clobber user edits.
 		const deployment = createFakeDeployment({ parameters: {} });
 
-		const { result, rerender } = renderHook(
-			() => {
-				const [override] = useState<Record<string, unknown>>({ foo: "x" });
-				return useCreateFlowRunForm(deployment, override);
-			},
-			{ wrapper: buildWrapper() },
+		const { result, setOverrideParameters } = await renderUseCreateFlowRunForm(
+			deployment,
+			{ foo: "x" },
 		);
 
 		act(() => {
@@ -145,7 +159,7 @@ describe("useCreateFlowRunForm", () => {
 		});
 		expect(result.current.parametersFormValues).toEqual({ foo: "y" });
 
-		rerender();
+		setOverrideParameters({ foo: "x" });
 		expect(result.current.parametersFormValues).toEqual({ foo: "y" });
 	});
 });
