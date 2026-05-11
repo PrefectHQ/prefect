@@ -15,7 +15,9 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    ClassVar,
     Generic,
+    Iterable,
     Optional,
     Type,
 )
@@ -49,6 +51,14 @@ from prefect.client.schemas.objects import (
     StateType,
     WorkerMetadata,
     WorkPool,
+)
+from prefect.client.schemas.worker_channel import (
+    CLEANUP_DELIVERY_CAPABILITY,
+    REQUIRED_WORKER_CHANNEL_CAPABILITIES,
+    WORK_POOL_WORKER_CHANNEL_VERSION,
+    CleanupKind,
+    WorkerChannelCapability,
+    WorkerHelloPayload,
 )
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TagsContext
@@ -102,6 +112,12 @@ from prefect.utilities.templating import (
     resolve_variables,
 )
 from prefect.utilities.urls import url_for
+from prefect.workers.cleanup import (
+    CleanupOperationSender,
+    WorkerCleanupExecutor,
+    WorkerCleanupHandler,
+    WorkerCleanupHandlerRegistry,
+)
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
@@ -541,6 +557,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
     type: str
     job_configuration: Type[C] = BaseJobConfiguration  # type: ignore
     job_configuration_variables: Optional[Type[V]] = None
+    cleanup_handlers: ClassVar[tuple[WorkerCleanupHandler, ...]] = ()
+    cleanup_max_concurrency: ClassVar[int | None] = None
 
     _documentation_url = ""
     _logo_url = ""
@@ -557,6 +575,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         heartbeat_interval_seconds: int | None = None,
         *,
         base_job_template: dict[str, Any] | None = None,
+        _cleanup_handlers: Iterable[WorkerCleanupHandler] | None = None,
+        _max_cleanup_concurrency: int | None = None,
     ):
         """
         Base class for all Prefect workers.
@@ -595,6 +615,14 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._base_job_template = base_job_template
         self._work_pool_name = work_pool_name
         self._work_queues: set[str] = set(work_queues) if work_queues else set()
+        self._cleanup_handler_registry = WorkerCleanupHandlerRegistry(
+            _cleanup_handlers
+            if _cleanup_handlers is not None
+            else self.__class__.cleanup_handlers
+        )
+        if _max_cleanup_concurrency is not None and _max_cleanup_concurrency < 0:
+            raise ValueError("Cleanup concurrency cannot be negative")
+        self._max_cleanup_concurrency_override = _max_cleanup_concurrency
 
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
@@ -652,6 +680,81 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
     @classmethod
     def get_description(cls) -> str:
         return cls._description
+
+    @property
+    def cleanup_handler_registry(self) -> WorkerCleanupHandlerRegistry:
+        return self._cleanup_handler_registry
+
+    @property
+    def handled_cleanup_kinds(self) -> tuple[CleanupKind, ...]:
+        if not self._cleanup_delivery_available():
+            return ()
+        return self._cleanup_handler_registry.handled_cleanup_kinds
+
+    @property
+    def max_cleanup_concurrency(self) -> int:
+        if not self._cleanup_handler_registry:
+            return 0
+
+        concurrency = (
+            self._max_cleanup_concurrency_override
+            if self._max_cleanup_concurrency_override is not None
+            else self.__class__.cleanup_max_concurrency
+        )
+        if concurrency is None:
+            return 1
+        return concurrency
+
+    def _cleanup_delivery_available(self) -> bool:
+        return bool(self._cleanup_handler_registry) and self.max_cleanup_concurrency > 0
+
+    def _worker_channel_requested_capabilities(
+        self,
+    ) -> list[WorkerChannelCapability]:
+        capabilities = sorted(REQUIRED_WORKER_CHANNEL_CAPABILITIES)
+        if self._cleanup_delivery_available():
+            capabilities.append(CLEANUP_DELIVERY_CAPABILITY)
+        return capabilities
+
+    def _worker_channel_hello_payload(
+        self,
+        consumer_id: UUID,
+        worker_metadata: dict[str, Any] | None = None,
+    ) -> WorkerHelloPayload:
+        default_base_job_template = (
+            self._base_job_template
+            if self._base_job_template is not None
+            else self.__class__.get_default_base_job_template()
+        )
+        return WorkerHelloPayload(
+            consumer_id=consumer_id,
+            worker_name=self.name,
+            worker_type=self.type,
+            heartbeat_interval_seconds=self.heartbeat_interval_seconds,
+            supported_channel_versions=[WORK_POOL_WORKER_CHANNEL_VERSION],
+            requested_capabilities=self._worker_channel_requested_capabilities(),
+            work_queue_names=sorted(self._work_queues),
+            handled_cleanup_kinds=list(self.handled_cleanup_kinds),
+            max_cleanup_concurrency=(
+                self.max_cleanup_concurrency
+                if self._cleanup_delivery_available()
+                else 0
+            ),
+            create_pool_if_not_found=self._create_pool_if_not_found,
+            default_base_job_template=default_base_job_template,
+            worker_metadata=worker_metadata,
+        )
+
+    def _create_cleanup_executor(
+        self,
+        send_operation: CleanupOperationSender,
+    ) -> WorkerCleanupExecutor:
+        return WorkerCleanupExecutor(
+            handlers=self._cleanup_handler_registry,
+            send_operation=send_operation,
+            max_concurrency=self.max_cleanup_concurrency,
+            logger=self._logger,
+        )
 
     @classmethod
     def get_default_base_job_template(cls) -> dict[str, Any]:
