@@ -37,9 +37,7 @@ class TestInProcessRetryCounter:
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:
-                ctx = await stack.enter_async_context(
-                    rule(ctx, *intended_transition)
-                )
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
             await ctx.validate_proposed_state()
 
         assert ctx.run.empirical_policy.retry_type == "in_process"
@@ -69,9 +67,9 @@ class TestInProcessRetryCounter:
 
             async with contextlib.AsyncExitStack() as stack:
                 for rule in retry_policy:
-                        ctx = await stack.enter_async_context(
-                            rule(ctx, *intended_transition)
-                        )
+                    ctx = await stack.enter_async_context(
+                        rule(ctx, *intended_transition)
+                    )
                 await ctx.validate_proposed_state()
 
             assert ctx.run.empirical_policy.retry_type == "in_process"
@@ -99,9 +97,7 @@ class TestInProcessRetryCounter:
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:
-                ctx = await stack.enter_async_context(
-                    rule(ctx, *intended_transition)
-                )
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
             await ctx.validate_proposed_state()
 
         assert ctx.run.empirical_policy.retry_type is None
