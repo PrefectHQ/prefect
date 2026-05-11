@@ -295,6 +295,36 @@ class TestDeleteBlockType:
             session=session, block_type_id=block_type_x.id
         )
 
+    async def test_delete_block_type_clears_server_default_result_storage(
+        self, session, block_type_x, block_schema
+    ):
+        block = await models.block_documents.create_block_document(
+            session=session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="server-default-result-storage",
+                data=dict(),
+                block_schema_id=block_schema.id,
+                block_type_id=block_type_x.id,
+            ),
+        )
+        await models.storage_defaults.write_server_default_result_storage(
+            session=session,
+            storage_default=schemas.core.ServerDefaultResultStorage(
+                default_result_storage_block_id=block.id
+            ),
+        )
+
+        await models.block_types.delete_block_type(
+            session=session, block_type_id=block_type_x.id
+        )
+
+        storage_default = (
+            await models.storage_defaults.read_server_default_result_storage(
+                session=session
+            )
+        )
+        assert storage_default.default_result_storage_block_id is None
+
     async def test_delete_nonexistant_block_type(self, session):
         assert not await models.block_types.delete_block_type(
             session=session, block_type_id=uuid4()

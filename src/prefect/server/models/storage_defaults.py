@@ -71,3 +71,37 @@ async def clear_server_default_result_storage_for_block(
         return False
 
     return await clear_server_default_result_storage(session=session)
+
+
+async def server_default_result_storage_references_block_schema(
+    session: AsyncSession,
+    block_schema_id: UUID,
+) -> bool:
+    storage_default = await read_server_default_result_storage(session=session)
+    block_document_id = storage_default.default_result_storage_block_id
+    if block_document_id is None:
+        return False
+
+    query = (
+        sa.select(orm_models.BlockDocument.id)
+        .where(orm_models.BlockDocument.id == block_document_id)
+        .where(orm_models.BlockDocument.block_schema_id == block_schema_id)
+    )
+    return await session.scalar(query) is not None
+
+
+async def server_default_result_storage_references_block_type(
+    session: AsyncSession,
+    block_type_id: UUID,
+) -> bool:
+    storage_default = await read_server_default_result_storage(session=session)
+    block_document_id = storage_default.default_result_storage_block_id
+    if block_document_id is None:
+        return False
+
+    query = (
+        sa.select(orm_models.BlockDocument.id)
+        .where(orm_models.BlockDocument.id == block_document_id)
+        .where(orm_models.BlockDocument.block_type_id == block_type_id)
+    )
+    return await session.scalar(query) is not None
