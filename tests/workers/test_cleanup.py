@@ -36,6 +36,7 @@ from prefect.workers._cleanup import (
 )
 from prefect.workers._worker_channel._protocol import WorkerChannelProtocolHandler
 from prefect.workers._worker_channel._state import (
+    ActiveWorkerChannelSession,
     WorkerChannelConnection,
     WorkerChannelTerminalError,
 )
@@ -356,6 +357,54 @@ async def test_protocol_applies_effective_cleanup_concurrency_from_ready():
             task_group.cancel_scope.cancel()
 
     assert executor.max_concurrency == 1
+
+
+async def test_active_session_waits_for_required_capability_before_sending():
+    session = ActiveWorkerChannelSession()
+    frame = CleanupAckFrame.model_validate(
+        {
+            "type": "cleanup.ack.v1",
+            "id": str(uuid7()),
+            "sent_at": now("UTC").isoformat(),
+            "payload": {
+                "message_id": str(uuid4()),
+                "reservation_token": "token",
+            },
+        }
+    )
+    websocket_without_cleanup = QueueWorkerChannelWebSocket()
+    websocket_with_cleanup = QueueWorkerChannelWebSocket()
+    connection_without_cleanup = WorkerChannelConnection(
+        FakeWorkerChannelConnect(websocket_without_cleanup),
+        websocket_without_cleanup,
+        _worker_ready_frame(uuid7(), cleanup_delivery=False),
+    )
+    connection_with_cleanup = WorkerChannelConnection(
+        FakeWorkerChannelConnect(websocket_with_cleanup),
+        websocket_with_cleanup,
+        _worker_ready_frame(uuid7(), cleanup_delivery=True),
+    )
+
+    async def send_frame():
+        await session.send(
+            frame,
+            required_capability=CLEANUP_DELIVERY_CAPABILITY,
+        )
+
+    async with anyio.create_task_group() as task_group:
+        task_group.start_soon(send_frame)
+        session.activate(connection_without_cleanup)
+        await anyio.sleep(0)
+
+        assert websocket_without_cleanup.sent == []
+
+        session.activate(connection_with_cleanup)
+
+        with anyio.fail_after(1):
+            while not websocket_with_cleanup.sent:
+                await anyio.sleep(0)
+
+    assert websocket_with_cleanup.sent[0]["type"] == "cleanup.ack.v1"
 
 
 async def test_worker_uses_cleanup_concurrency_override_separate_from_flow_limit():

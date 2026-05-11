@@ -33,6 +33,7 @@ from prefect.settings import get_current_settings
 from prefect.types._datetime import now
 from prefect.workers._cleanup import CleanupOperationFrame, WorkerCleanupExecutor
 from prefect.workers._worker_channel._state import (
+    ActiveWorkerChannelSession,
     WorkerChannelConnection,
     WorkerChannelError,
     WorkerChannelRetryableError,
@@ -73,8 +74,7 @@ class WorkerChannelProtocolHandler:
         self._on_worker_id = on_worker_id
         self._on_work_pool_snapshot = on_work_pool_snapshot
         self._cleanup_executor = cleanup_executor
-        self._cleanup_connection: WorkerChannelConnection | None = None
-        self._cleanup_connection_available: asyncio.Event | None = None
+        self._active_session = ActiveWorkerChannelSession()
         self._worker_id: UUID | None = None
         self._worker_metadata_sent = False
 
@@ -200,12 +200,12 @@ class WorkerChannelProtocolHandler:
         cleanup_connection_active = (
             cleanup_delivery_enabled and self._cleanup_executor is not None
         )
+        self._active_session.activate(connection)
         if cleanup_connection_active and self._cleanup_executor is not None:
             self._cleanup_executor.set_max_concurrency(
                 connection.ready.payload.effective_max_cleanup_concurrency
             )
             self._cleanup_executor.set_operation_sender(self._send_cleanup_operation)
-            self._activate_cleanup_connection(connection)
 
         try:
             heartbeat_task = asyncio.create_task(
@@ -255,8 +255,7 @@ class WorkerChannelProtocolHandler:
                 "Worker channel connection closed",
             )
         finally:
-            if cleanup_connection_active:
-                self._deactivate_cleanup_connection(connection)
+            self._active_session.deactivate(connection)
 
     async def _heartbeat_loop(
         self,
@@ -330,33 +329,10 @@ class WorkerChannelProtocolHandler:
         self,
         frame: CleanupOperationFrame,
     ) -> None:
-        while True:
-            connection = self._cleanup_connection
-            if connection is not None:
-                try:
-                    await connection.websocket.send(frame.model_dump_json())
-                    return
-                except websockets.exceptions.ConnectionClosed:
-                    self._deactivate_cleanup_connection(connection)
-
-            await self._cleanup_connection_event().wait()
-
-    def _cleanup_connection_event(self) -> asyncio.Event:
-        if self._cleanup_connection_available is None:
-            self._cleanup_connection_available = asyncio.Event()
-        return self._cleanup_connection_available
-
-    def _activate_cleanup_connection(self, connection: WorkerChannelConnection) -> None:
-        self._cleanup_connection = connection
-        self._cleanup_connection_event().set()
-
-    def _deactivate_cleanup_connection(
-        self, connection: WorkerChannelConnection
-    ) -> None:
-        if self._cleanup_connection is connection:
-            self._cleanup_connection = None
-            if self._cleanup_connection_available is not None:
-                self._cleanup_connection_available.clear()
+        await self._active_session.send(
+            frame,
+            required_capability=CLEANUP_DELIVERY_CAPABILITY,
+        )
 
     def _cleanup_delivery_requested(self) -> bool:
         return (
