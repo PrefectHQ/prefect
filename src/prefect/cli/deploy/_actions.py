@@ -5,6 +5,7 @@ from getpass import GetPassWarning
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional
 
+from prefect._internal.git import get_git_branch, get_git_remote_origin_url
 from prefect.blocks.system import Secret
 from prefect.cli._prompts import (
     confirm,
@@ -12,7 +13,6 @@ from prefect.cli._prompts import (
     prompt_select_blob_storage_credentials,
     prompt_select_remote_flow_storage,
 )
-from prefect.utilities._git import get_git_branch, get_git_remote_origin_url
 from prefect.utilities.slugify import slugify
 
 if TYPE_CHECKING:

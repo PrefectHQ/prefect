@@ -12,7 +12,7 @@ from uuid import uuid4
 import pytest
 import sqlalchemy as sa
 
-from prefect._result_records import ResultRecordMetadata
+from prefect._internal.result_records import ResultRecordMetadata
 from prefect.server import schemas
 from prefect.server.concurrency.lease_storage import get_concurrency_lease_storage
 from prefect.server.database import orm_models as orm

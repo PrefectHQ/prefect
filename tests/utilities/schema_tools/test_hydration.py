@@ -1,4 +1,5 @@
 import pytest
+from pydantic import BaseModel
 
 from prefect.utilities.schema_tools.hydration import (
     HydrationContext,
@@ -11,6 +12,15 @@ from prefect.utilities.schema_tools.hydration import (
     WorkspaceVariableNotFound,
     hydrate,
 )
+
+
+class HydrationChildModel(BaseModel):
+    count: int
+
+
+class HydrationModel(BaseModel):
+    name: str
+    child: HydrationChildModel
 
 
 class TestHydratePassThrough:
@@ -447,6 +457,28 @@ class TestNestedHydration:
             ({"value": [1, 2, 3]}, {"param": [1, 2, 3]}),
             # Dict preserved
             ({"value": {"a": 1}}, {"param": {"a": 1}}),
+            # Pydantic models are converted to JSON-compatible values
+            (
+                {
+                    "value": HydrationModel(
+                        name="marvin", child=HydrationChildModel(count=42)
+                    )
+                },
+                {"param": {"name": "marvin", "child": {"count": 42}}},
+            ),
+            # Pydantic models are converted inside containers
+            (
+                {
+                    "value": {
+                        "models": [
+                            HydrationModel(
+                                name="marvin", child=HydrationChildModel(count=42)
+                            )
+                        ]
+                    }
+                },
+                {"param": {"models": [{"name": "marvin", "child": {"count": 42}}]}},
+            ),
         ],
     )
     def test_json_jinja_tojson_preserves_types(self, jinja_context, expected):
