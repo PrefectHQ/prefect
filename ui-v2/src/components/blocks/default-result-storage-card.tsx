@@ -42,17 +42,13 @@ export const DefaultResultStorageCard = ({
 	const selectValue = selectedBlockDocumentExists
 		? defaultResultStorageBlockId
 		: undefined;
-	const hasConfiguredMissingBlock =
-		Boolean(defaultResultStorageBlockId) &&
-		!defaultResultStorageBlock &&
-		!isLoadingDefaultResultStorageBlock;
 	const statusState = isLoadingDefaultResultStorageBlock
 		? "loading"
-		: hasConfiguredMissingBlock
-			? "missing"
-			: !defaultResultStorageBlockId
-				? "empty"
-				: undefined;
+		: defaultResultStorageBlock
+			? undefined
+			: "empty";
+	const hasVisibleDefaultResultStorage =
+		Boolean(defaultResultStorageBlock) || isLoadingDefaultResultStorageBlock;
 	const canClearDefaultResultStorage = Boolean(defaultResultStorageBlock);
 
 	return (
@@ -61,7 +57,7 @@ export const DefaultResultStorageCard = ({
 				<div className="flex min-w-0 flex-col gap-3">
 					<div className="flex flex-wrap items-center gap-2">
 						<h2 className="text-base font-semibold">Default result storage</h2>
-						{defaultResultStorageBlockId ? (
+						{hasVisibleDefaultResultStorage ? (
 							<Badge variant="secondary">Configured</Badge>
 						) : (
 							<Badge variant="outline">Not configured</Badge>
@@ -165,7 +161,7 @@ const DefaultResultStorageBlock = ({
 const DefaultResultStorageStatus = ({
 	state,
 }: {
-	state: "empty" | "loading" | "missing" | undefined;
+	state: "empty" | "loading" | undefined;
 }) => {
 	if (state === "loading") {
 		return (
@@ -174,25 +170,6 @@ const DefaultResultStorageStatus = ({
 					<Icon id="Loader2" className="size-4 animate-spin" />
 				</div>
 				Loading configured storage block...
-			</div>
-		);
-	}
-
-	if (state === "missing") {
-		return (
-			<div className="flex items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-muted-foreground">
-				<div className="flex size-8 items-center justify-center rounded border border-destructive/30 bg-background">
-					<Icon id="CircleAlert" className="size-4 text-destructive" />
-				</div>
-				<div>
-					<div className="font-medium text-foreground">
-						Default storage block not found
-					</div>
-					<div>
-						The configured default storage block could not be loaded. Select a
-						storage block to update the default.
-					</div>
-				</div>
 			</div>
 		);
 	}

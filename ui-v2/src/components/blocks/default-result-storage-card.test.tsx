@@ -153,7 +153,7 @@ describe("DefaultResultStorageCard", () => {
 		).not.toBeInTheDocument();
 	});
 
-	it("renders a missing state when the configured block cannot be resolved", async () => {
+	it("does not surface stale configured-block recovery UI", async () => {
 		await renderWithRouter(
 			<DefaultResultStorageCard
 				defaultResultStorageBlockId="block-1"
@@ -167,9 +167,13 @@ describe("DefaultResultStorageCard", () => {
 			/>,
 		);
 
-		expect(screen.getByText("Configured")).toBeVisible();
-		expect(screen.getByText("Default storage block not found")).toBeVisible();
-		expect(screen.getByText(/could not be loaded/)).toBeVisible();
+		expect(screen.getByText("Not configured")).toBeVisible();
+		expect(
+			screen.getByText("No default storage block is configured."),
+		).toBeVisible();
+		expect(
+			screen.queryByText("Default storage block not found"),
+		).not.toBeInTheDocument();
 		expect(
 			screen.queryByRole("button", { name: /remove stale default/i }),
 		).not.toBeInTheDocument();

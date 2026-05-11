@@ -6,6 +6,7 @@ export {
 	buildGetDefaultResultStorageQuery,
 	buildGetSettingsQuery,
 	buildGetVersionQuery,
+	queryKeyFactory,
 	useClearDefaultResultStorage,
 	useUpdateDefaultResultStorage,
 } from "./admin";
