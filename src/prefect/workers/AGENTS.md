@@ -17,9 +17,9 @@ This module does NOT manage the Runner execution model (no work pool) — see `r
 
 ## Worker Channel
 
-`BaseWorker` delegates heartbeating and work-pool sync to `_worker_channel.WorkPoolWorkerChannel`. It attempts a persistent WebSocket connection; when unavailable or unhealthy (`WorkerChannelState.rest_fallback_enabled=True`), it falls back to REST heartbeats each `sync_with_backend()` call.
+`BaseWorker.sync_with_backend()` is a thin boundary: it ensures a `WorkerChannel` exists and delegates to `_worker_channel.WorkPoolWorkerChannel.sync(...)`. The channel owns the WebSocket-first path and the REST fallback path, including work-pool read/create/template repair and worker heartbeat. Scheduled flow-run polling remains REST-based.
 
-**Testing**: Override `_ensure_worker_channel()` to inject a `WorkerChannel` test double — the old `_send_worker_heartbeat` mock no longer exists.
+**Anti-pattern**: Do not split heartbeat or work-pool sync responsibility back into `BaseWorker`; keep sync ownership at the channel boundary.
 
 ## Attribution Env Vars
 
