@@ -93,7 +93,7 @@ class WorkerChannelProtocolHandler:
                 auth, "Worker channel authentication failed"
             ) from exc
 
-        hello = await self._hello_frame()
+        hello = await self.build_hello_frame()
         await websocket.send(hello.model_dump_json())
 
         ready_payload = await self._recv_json(websocket)
@@ -110,7 +110,7 @@ class WorkerChannelProtocolHandler:
             self.record_worker_metadata_sent()
         return ready_frame
 
-    async def _hello_frame(self) -> WorkerHelloFrame:
+    async def build_hello_frame(self) -> WorkerHelloFrame:
         metadata_payload = None
         if not self._worker_metadata_sent:
             worker_metadata = await self._worker_metadata()

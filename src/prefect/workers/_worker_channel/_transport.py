@@ -70,14 +70,17 @@ class WorkerChannelTransport:
 
     async def connect_with_timeout(
         self,
-        connect_once: Callable[[], Awaitable[WorkerChannelConnection]],
+        handshake: Callable[
+            [websockets.asyncio.client.ClientConnection],
+            Awaitable[WorkerReadyFrame],
+        ],
     ) -> WorkerChannelConnection:
         if self._setup_timeout_seconds <= 0:
-            return await connect_once()
+            return await self.connect_once(handshake)
 
         try:
             with anyio.fail_after(self._setup_timeout_seconds):
-                return await connect_once()
+                return await self.connect_once(handshake)
         except TimeoutError as exc:
             raise WorkerChannelRetryableError(
                 "setup_timeout",

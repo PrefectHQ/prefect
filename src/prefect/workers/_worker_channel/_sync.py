@@ -24,7 +24,6 @@ from prefect.workers._worker_channel._state import (
     WorkerChannelTerminalError,
 )
 from prefect.workers._worker_channel._transport import (
-    WORKER_CHANNEL_SETUP_TIMEOUT_SECONDS,
     ConnectFactory,
     WorkerChannelTransport,
 )
@@ -81,11 +80,7 @@ class WorkPoolWorkerChannel:
             connect_factory=connect_factory,
             reconnect_base_seconds=reconnect_base_seconds,
             reconnect_max_seconds=reconnect_max_seconds,
-            setup_timeout_seconds=(
-                setup_timeout_seconds
-                if setup_timeout_seconds is not None
-                else WORKER_CHANNEL_SETUP_TIMEOUT_SECONDS
-            ),
+            setup_timeout_seconds=setup_timeout_seconds,
         )
         self._protocol = WorkerChannelProtocolHandler(
             consumer_id=self.consumer_id,
@@ -120,14 +115,6 @@ class WorkPoolWorkerChannel:
     def worker_metadata_sent(self) -> bool:
         return self._protocol.worker_metadata_sent
 
-    @property
-    def _connect_factory(self) -> ConnectFactory:
-        return self._transport._connect_factory
-
-    @_connect_factory.setter
-    def _connect_factory(self, connect_factory: ConnectFactory) -> None:
-        self._transport._connect_factory = connect_factory
-
     def set_client(self, client: PrefectClient) -> None:
         self._client = client
 
@@ -136,20 +123,23 @@ class WorkPoolWorkerChannel:
             self._run_scope.cancel()
 
     async def sync(self, task_group: anyio.abc.TaskGroup | None) -> None:
+        if self.state.healthy:
+            return
+
         if task_group is not None:
-            channel_started = await self.start_websocket(task_group)
+            channel_started = await self._start_websocket(task_group)
         else:
             channel_started = False
             if self.url is None:
                 self.state.mark_terminal("endpoint_unavailable")
 
-        if channel_started or self.state.healthy:
+        if channel_started:
             return
 
         await self._sync_rest_work_pool()
-        await self.send_rest_worker_heartbeat()
+        await self._send_rest_worker_heartbeat()
 
-    async def start_websocket(self, task_group: anyio.abc.TaskGroup) -> bool:
+    async def _start_websocket(self, task_group: anyio.abc.TaskGroup) -> bool:
         if self._websocket_started:
             return self.state.healthy
 
@@ -161,10 +151,12 @@ class WorkPoolWorkerChannel:
         connection: WorkerChannelConnection | None = None
         try:
             self.state.mark_connecting()
-            connection = await self._connect_with_timeout()
+            connection = await self._transport.connect_with_timeout(
+                self._protocol.handshake
+            )
             self._transport.mark_healthy_once()
             self.state.mark_healthy()
-            task_group.start_soon(self.run, connection)
+            task_group.start_soon(self._run, connection)
             return True
         except WorkerChannelTerminalError as exc:
             self.state.mark_terminal(exc.reason)
@@ -175,14 +167,14 @@ class WorkPoolWorkerChannel:
             self._logger.debug(
                 "Worker channel unhealthy, REST fallback is active: %s", exc
             )
-            task_group.start_soon(self.run)
+            task_group.start_soon(self._run)
             return False
         except BaseException:
             if connection is not None:
-                await self._close_connection(connection)
+                await self._transport.close_connection(connection)
             raise
 
-    async def send_rest_worker_heartbeat(self) -> UUID | None:
+    async def _send_rest_worker_heartbeat(self) -> UUID | None:
         if not self.state.rest_fallback_enabled:
             self._logger.debug(
                 "Skipping REST worker heartbeat because the worker channel is healthy."
@@ -235,7 +227,7 @@ class WorkPoolWorkerChannel:
 
         return worker_id
 
-    async def run(
+    async def _run(
         self, initial_connection: WorkerChannelConnection | None = None
     ) -> None:
         with anyio.CancelScope() as scope:
@@ -253,7 +245,9 @@ class WorkPoolWorkerChannel:
                     try:
                         if connection is None:
                             self.state.mark_connecting()
-                            connection = await self._connect_with_timeout()
+                            connection = await self._transport.connect_with_timeout(
+                                self._protocol.handshake
+                            )
                         reconnect_attempt = 0
                         self._transport.mark_healthy_once()
                         self.state.mark_healthy()
@@ -271,7 +265,7 @@ class WorkPoolWorkerChannel:
                         raise
                     finally:
                         if connection is not None:
-                            await self._close_connection(connection)
+                            await self._transport.close_connection(connection)
                             connection = None
 
                     reconnect_attempt += 1
@@ -329,15 +323,3 @@ class WorkPoolWorkerChannel:
             self._client.server_type == ServerType.CLOUD
             and self._protocol.worker_id is None
         )
-
-    async def _connect_with_timeout(self) -> WorkerChannelConnection:
-        return await self._transport.connect_with_timeout(self._connect_once)
-
-    async def _connect_once(self) -> WorkerChannelConnection:
-        return await self._transport.connect_once(self._protocol.handshake)
-
-    async def _hello_frame(self):
-        return await self._protocol._hello_frame()
-
-    async def _close_connection(self, connection: WorkerChannelConnection) -> None:
-        await self._transport.close_connection(connection)
