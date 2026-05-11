@@ -27,6 +27,13 @@ from prefect.client.schemas.worker_channel import (
     WorkerReadyFrame,
 )
 from prefect.types._datetime import DateTime, now
+from prefect.workers._cleanup import (
+    CleanupExecutionResult,
+    CleanupOperationFrame,
+    CleanupOperationResultAction,
+    WorkerCleanupExecutor,
+    WorkerCleanupHandlerRegistry,
+)
 from prefect.workers._worker_channel._protocol import WorkerChannelProtocolHandler
 from prefect.workers._worker_channel._state import (
     WorkerChannelConnection,
@@ -34,13 +41,6 @@ from prefect.workers._worker_channel._state import (
 )
 from prefect.workers._worker_channel._sync import WorkPoolWorkerChannel
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
-from prefect.workers.cleanup import (
-    CleanupExecutionResult,
-    CleanupOperationFrame,
-    CleanupOperationResultAction,
-    WorkerCleanupExecutor,
-    WorkerCleanupHandlerRegistry,
-)
 
 
 class WorkerTestImpl(BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]):

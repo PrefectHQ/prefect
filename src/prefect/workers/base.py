@@ -104,12 +104,12 @@ from prefect.utilities.templating import (
     resolve_variables,
 )
 from prefect.utilities.urls import url_for
-from prefect.workers._worker_channel import WorkerChannel, WorkPoolWorkerChannel
-from prefect.workers.cleanup import (
+from prefect.workers._cleanup import (
     WorkerCleanupExecutor,
     WorkerCleanupHandler,
     WorkerCleanupHandlerRegistry,
 )
+from prefect.workers._worker_channel import WorkerChannel, WorkPoolWorkerChannel
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun

@@ -31,13 +31,13 @@ from prefect.client.schemas.worker_channel import (
 )
 from prefect.settings import get_current_settings
 from prefect.types._datetime import now
+from prefect.workers._cleanup import CleanupOperationFrame, WorkerCleanupExecutor
 from prefect.workers._worker_channel._state import (
     WorkerChannelConnection,
     WorkerChannelError,
     WorkerChannelRetryableError,
     WorkerChannelTerminalError,
 )
-from prefect.workers.cleanup import CleanupOperationFrame, WorkerCleanupExecutor
 
 
 class WorkerChannelProtocolHandler:

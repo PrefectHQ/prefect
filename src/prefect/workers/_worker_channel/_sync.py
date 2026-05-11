@@ -17,6 +17,7 @@ from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.objects import WorkerMetadata, WorkPool
 from prefect.exceptions import ObjectNotFound
+from prefect.workers._cleanup import WorkerCleanupExecutor
 from prefect.workers._worker_channel._protocol import WorkerChannelProtocolHandler
 from prefect.workers._worker_channel._state import (
     WorkerChannelConnection,
@@ -28,7 +29,6 @@ from prefect.workers._worker_channel._transport import (
     ConnectFactory,
     WorkerChannelTransport,
 )
-from prefect.workers.cleanup import WorkerCleanupExecutor
 
 
 class WorkPoolWorkerChannel:
