@@ -33,10 +33,10 @@ from prefect.settings import get_current_settings
 from prefect.types._datetime import now
 from prefect.workers._cleanup import CleanupOperationFrame, WorkerCleanupExecutor
 from prefect.workers._worker_channel._state import (
-    ActiveWorkerChannelSession,
-    WorkerChannelConnection,
+    CurrentWorkerChannelSession,
     WorkerChannelError,
     WorkerChannelRetryableError,
+    WorkerChannelSession,
     WorkerChannelTerminalError,
 )
 
@@ -74,7 +74,7 @@ class WorkerChannelProtocolHandler:
         self._on_worker_id = on_worker_id
         self._on_work_pool_snapshot = on_work_pool_snapshot
         self._cleanup_executor = cleanup_executor
-        self._active_session = ActiveWorkerChannelSession()
+        self._current_session = CurrentWorkerChannelSession()
         self._worker_id: UUID | None = None
         self._worker_metadata_sent = False
 
@@ -192,31 +192,27 @@ class WorkerChannelProtocolHandler:
     def record_worker_metadata_sent(self) -> None:
         self._worker_metadata_sent = True
 
-    async def run_connected(self, connection: WorkerChannelConnection) -> None:
+    async def run_session(self, session: WorkerChannelSession) -> None:
         cleanup_delivery_enabled = (
-            CLEANUP_DELIVERY_CAPABILITY
-            in connection.ready.payload.accepted_capabilities
+            CLEANUP_DELIVERY_CAPABILITY in session.ready.payload.accepted_capabilities
         )
-        cleanup_connection_active = (
-            cleanup_delivery_enabled and self._cleanup_executor is not None
-        )
-        self._active_session.activate(connection)
-        if cleanup_connection_active and self._cleanup_executor is not None:
+        self._current_session.activate(session)
+        if cleanup_delivery_enabled and self._cleanup_executor is not None:
             self._cleanup_executor.set_max_concurrency(
-                connection.ready.payload.effective_max_cleanup_concurrency
+                session.ready.payload.effective_max_cleanup_concurrency
             )
             self._cleanup_executor.set_operation_sender(self._send_cleanup_operation)
 
         try:
             heartbeat_task = asyncio.create_task(
                 self._heartbeat_loop(
-                    connection.websocket,
-                    connection.ready.payload.effective_heartbeat_interval_seconds,
+                    session.websocket,
+                    session.ready.payload.effective_heartbeat_interval_seconds,
                 )
             )
             receive_task = asyncio.create_task(
                 self._receive_loop(
-                    connection.websocket,
+                    session.websocket,
                     cleanup_delivery_enabled=cleanup_delivery_enabled,
                 )
             )
@@ -255,7 +251,7 @@ class WorkerChannelProtocolHandler:
                 "Worker channel connection closed",
             )
         finally:
-            self._active_session.deactivate(connection)
+            self._current_session.deactivate(session)
 
     async def _heartbeat_loop(
         self,
@@ -329,7 +325,7 @@ class WorkerChannelProtocolHandler:
         self,
         frame: CleanupOperationFrame,
     ) -> None:
-        await self._active_session.send(
+        await self._current_session.send(
             frame,
             required_capability=CLEANUP_DELIVERY_CAPABILITY,
         )

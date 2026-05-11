@@ -20,8 +20,8 @@ from prefect.exceptions import ObjectNotFound
 from prefect.workers._cleanup import WorkerCleanupExecutor
 from prefect.workers._worker_channel._protocol import WorkerChannelProtocolHandler
 from prefect.workers._worker_channel._state import (
-    WorkerChannelConnection,
     WorkerChannelRetryableError,
+    WorkerChannelSession,
     WorkerChannelState,
     WorkerChannelTerminalError,
 )
@@ -153,15 +153,15 @@ class WorkPoolWorkerChannel:
             return False
 
         self._websocket_started = True
-        connection: WorkerChannelConnection | None = None
+        session: WorkerChannelSession | None = None
         try:
             self.state.mark_connecting()
-            connection = await self._transport.connect_with_timeout(
+            session = await self._transport.connect_with_timeout(
                 self._protocol.handshake
             )
             self._transport.mark_healthy_once()
             self.state.mark_healthy()
-            task_group.start_soon(self._run, connection)
+            task_group.start_soon(self._run, session)
             return True
         except WorkerChannelTerminalError as exc:
             self.state.mark_terminal(exc.reason)
@@ -175,8 +175,8 @@ class WorkPoolWorkerChannel:
             task_group.start_soon(self._run)
             return False
         except BaseException:
-            if connection is not None:
-                await self._transport.close_connection(connection)
+            if session is not None:
+                await self._transport.close_session(session)
             raise
 
     async def _send_rest_worker_heartbeat(self) -> UUID | None:
@@ -232,9 +232,7 @@ class WorkPoolWorkerChannel:
 
         return worker_id
 
-    async def _run(
-        self, initial_connection: WorkerChannelConnection | None = None
-    ) -> None:
+    async def _run(self, initial_session: WorkerChannelSession | None = None) -> None:
         with anyio.CancelScope() as scope:
             self._run_scope = scope
             try:
@@ -249,13 +247,13 @@ class WorkPoolWorkerChannel:
 
                         self._websocket_started = True
                         reconnect_attempt = 0
-                        connection = initial_connection
+                        session = initial_session
 
                         while not self.state.terminal:
                             try:
-                                if connection is None:
+                                if session is None:
                                     self.state.mark_connecting()
-                                    connection = (
+                                    session = (
                                         await self._transport.connect_with_timeout(
                                             self._protocol.handshake
                                         )
@@ -263,7 +261,7 @@ class WorkPoolWorkerChannel:
                                 reconnect_attempt = 0
                                 self._transport.mark_healthy_once()
                                 self.state.mark_healthy()
-                                await self._protocol.run_connected(connection)
+                                await self._protocol.run_session(session)
                             except WorkerChannelTerminalError as exc:
                                 self.state.mark_terminal(exc.reason)
                                 self._logger.debug("Worker channel disabled: %s", exc)
@@ -278,9 +276,9 @@ class WorkPoolWorkerChannel:
                             except BaseException:
                                 raise
                             finally:
-                                if connection is not None:
-                                    await self._transport.close_connection(connection)
-                                    connection = None
+                                if session is not None:
+                                    await self._transport.close_session(session)
+                                    session = None
 
                             reconnect_attempt += 1
                             await anyio.sleep(

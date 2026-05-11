@@ -78,24 +78,28 @@ WorkerChannelFallbackState = WorkerChannelState
 
 
 @dataclass
-class WorkerChannelConnection:
+class WorkerChannelSession:
+    """One successfully negotiated worker-channel WebSocket session."""
+
     connect_context: websockets.asyncio.client.connect
     websocket: websockets.asyncio.client.ClientConnection
     ready: WorkerReadyFrame
 
 
-class ActiveWorkerChannelSession:
+class CurrentWorkerChannelSession:
+    """Routes sends through the currently active session across reconnects."""
+
     def __init__(self) -> None:
-        self._connection: WorkerChannelConnection | None = None
+        self._session: WorkerChannelSession | None = None
         self._changed: asyncio.Event | None = None
 
-    def activate(self, connection: WorkerChannelConnection) -> None:
-        self._connection = connection
+    def activate(self, session: WorkerChannelSession) -> None:
+        self._session = session
         self._notify_changed()
 
-    def deactivate(self, connection: WorkerChannelConnection) -> None:
-        if self._connection is connection:
-            self._connection = None
+    def deactivate(self, session: WorkerChannelSession) -> None:
+        if self._session is session:
+            self._session = None
             self._notify_changed()
 
     async def send(
@@ -106,15 +110,13 @@ class ActiveWorkerChannelSession:
     ) -> None:
         while True:
             changed = self._changed_event()
-            connection = self._connection
-            if connection is not None and self._supports(
-                connection, required_capability
-            ):
+            session = self._session
+            if session is not None and self._supports(session, required_capability):
                 try:
-                    await connection.websocket.send(frame.model_dump_json())
+                    await session.websocket.send(frame.model_dump_json())
                     return
                 except websockets.exceptions.ConnectionClosed:
-                    self.deactivate(connection)
+                    self.deactivate(session)
 
             await changed.wait()
 
@@ -131,12 +133,12 @@ class ActiveWorkerChannelSession:
 
     @staticmethod
     def _supports(
-        connection: WorkerChannelConnection,
+        session: WorkerChannelSession,
         required_capability: WorkerChannelCapability | None,
     ) -> bool:
         return (
             required_capability is None
-            or required_capability in connection.ready.payload.accepted_capabilities
+            or required_capability in session.ready.payload.accepted_capabilities
         )
 
 

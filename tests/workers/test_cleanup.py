@@ -36,8 +36,8 @@ from prefect.workers._cleanup import (
 )
 from prefect.workers._worker_channel._protocol import WorkerChannelProtocolHandler
 from prefect.workers._worker_channel._state import (
-    ActiveWorkerChannelSession,
-    WorkerChannelConnection,
+    CurrentWorkerChannelSession,
+    WorkerChannelSession,
     WorkerChannelTerminalError,
 )
 from prefect.workers._worker_channel._sync import WorkPoolWorkerChannel
@@ -337,7 +337,7 @@ async def test_protocol_applies_effective_cleanup_concurrency_from_ready():
         cleanup_executor=executor,
     )
     websocket = QueueWorkerChannelWebSocket()
-    connection = WorkerChannelConnection(
+    session = WorkerChannelSession(
         FakeWorkerChannelConnect(websocket),
         websocket,
         _worker_ready_frame(
@@ -348,7 +348,7 @@ async def test_protocol_applies_effective_cleanup_concurrency_from_ready():
 
     async with executor:
         async with anyio.create_task_group() as task_group:
-            task_group.start_soon(protocol.run_connected, connection)
+            task_group.start_soon(protocol.run_session, session)
 
             with anyio.fail_after(1):
                 while executor.max_concurrency != 1:
@@ -359,8 +359,8 @@ async def test_protocol_applies_effective_cleanup_concurrency_from_ready():
     assert executor.max_concurrency == 1
 
 
-async def test_active_session_waits_for_required_capability_before_sending():
-    session = ActiveWorkerChannelSession()
+async def test_current_session_waits_for_required_capability_before_sending():
+    current_session = CurrentWorkerChannelSession()
     frame = CleanupAckFrame.model_validate(
         {
             "type": "cleanup.ack.v1",
@@ -374,31 +374,31 @@ async def test_active_session_waits_for_required_capability_before_sending():
     )
     websocket_without_cleanup = QueueWorkerChannelWebSocket()
     websocket_with_cleanup = QueueWorkerChannelWebSocket()
-    connection_without_cleanup = WorkerChannelConnection(
+    session_without_cleanup = WorkerChannelSession(
         FakeWorkerChannelConnect(websocket_without_cleanup),
         websocket_without_cleanup,
         _worker_ready_frame(uuid7(), cleanup_delivery=False),
     )
-    connection_with_cleanup = WorkerChannelConnection(
+    session_with_cleanup = WorkerChannelSession(
         FakeWorkerChannelConnect(websocket_with_cleanup),
         websocket_with_cleanup,
         _worker_ready_frame(uuid7(), cleanup_delivery=True),
     )
 
     async def send_frame():
-        await session.send(
+        await current_session.send(
             frame,
             required_capability=CLEANUP_DELIVERY_CAPABILITY,
         )
 
     async with anyio.create_task_group() as task_group:
         task_group.start_soon(send_frame)
-        session.activate(connection_without_cleanup)
+        current_session.activate(session_without_cleanup)
         await anyio.sleep(0)
 
         assert websocket_without_cleanup.sent == []
 
-        session.activate(connection_with_cleanup)
+        current_session.activate(session_with_cleanup)
 
         with anyio.fail_after(1):
             while not websocket_with_cleanup.sent:
@@ -724,14 +724,14 @@ async def test_channel_keeps_cleanup_execution_alive_across_reconnects():
         ]
     )
     first_connect = FakeWorkerChannelConnect(first_websocket)
-    initial_connection = WorkerChannelConnection(
+    initial_session = WorkerChannelSession(
         first_connect,
         first_websocket,
         _worker_ready_frame(channel.consumer_id),
     )
 
     async with anyio.create_task_group() as task_group:
-        task_group.start_soon(channel._run, initial_connection)
+        task_group.start_soon(channel._run, initial_session)
 
         with anyio.fail_after(1):
             await started.wait()
