@@ -1013,13 +1013,9 @@ class _WorkerChannelTestDouble:
     def set_client(self, client: PrefectClient) -> None:
         pass
 
-    async def start_websocket(self, task_group: Any) -> bool:
-        return False
-
-    async def send_rest_worker_heartbeat(self) -> uuid.UUID | None:
+    async def sync(self, task_group: Any) -> None:
         if self._worker_id is not None:
             self._worker._record_worker_id(self._worker_id)
-        return self._worker_id
 
     def stop(self) -> None:
         pass

@@ -39,7 +39,6 @@ from prefect._internal.schemas.validators import return_v_or_none
 from prefect._launchers import resolve_bundle_step_with_launcher
 from prefect._observers import FlowRunCancellingObserver
 from prefect.client.orchestration import PrefectClient, get_client
-from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.client.schemas.objects import (
     Integration,
@@ -100,7 +99,7 @@ from prefect.utilities.templating import (
     resolve_variables,
 )
 from prefect.utilities.urls import url_for
-from prefect.workers._worker_channel import WorkPoolWorkerChannel
+from prefect.workers._worker_channel import WorkerChannel, WorkPoolWorkerChannel
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
@@ -611,7 +610,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._limiter: Optional[anyio.CapacityLimiter] = None
         self._submitting_flow_run_ids: set[UUID] = set()
         self._scheduled_task_scopes: set[anyio.CancelScope] = set()
-        self._worker_channel: Optional[WorkPoolWorkerChannel] = None
+        self._worker_channel: Optional[WorkerChannel] = None
 
         # Cancellation handling
         self._cancelling_observer: Optional[FlowRunCancellingObserver] = None
@@ -1205,43 +1204,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
-    async def _update_local_work_pool_info(self) -> None:
-        if TYPE_CHECKING:
-            assert self._client is not None
-        try:
-            work_pool = await self._client.read_work_pool(
-                work_pool_name=self._work_pool_name
-            )
-
-        except ObjectNotFound:
-            if self._create_pool_if_not_found:
-                wp = WorkPoolCreate(
-                    name=self._work_pool_name,
-                    type=self.type,
-                )
-                if self._base_job_template is not None:
-                    wp.base_job_template = self._base_job_template
-
-                work_pool = await self._client.create_work_pool(work_pool=wp)
-                self._logger.info(f"Work pool {self._work_pool_name!r} created.")
-            else:
-                self._logger.warning(f"Work pool {self._work_pool_name!r} not found!")
-                if self._base_job_template is not None:
-                    self._logger.warning(
-                        "Ignoring supplied base job template because the work pool"
-                        " already exists"
-                    )
-                return
-
-        # once the work pool is loaded, verify that it has a `base_job_template` and
-        # set it if not
-        if not work_pool.base_job_template:
-            job_template = self.__class__.get_default_base_job_template()
-            await self._set_work_pool_template(work_pool, job_template)
-            work_pool.base_job_template = job_template
-
-        self._record_work_pool_snapshot(work_pool)
-
     def _record_work_pool_snapshot(self, work_pool: WorkPool) -> None:
         if not work_pool.base_job_template:
             work_pool.base_job_template = self.__class__.get_default_base_job_template()
@@ -1289,20 +1251,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             self._logger.warning("Client has not been initialized; skipping heartbeat.")
             return
 
-        channel_started = (
-            await self._worker_channel.start_websocket(self._runs_task_group)
-            if self._runs_task_group is not None
-            else False
-        )
-        if channel_started:
-            self._logger.debug(
-                "Worker synchronized with the Prefect API server. "
-                + (f"Remote ID: {self.backend_id}" if self.backend_id else "")
-            )
-            return
-
-        await self._update_local_work_pool_info()
-        await self._worker_channel.send_rest_worker_heartbeat()
+        await self._worker_channel.sync(self._runs_task_group)
 
         self._logger.debug(
             "Worker synchronized with the Prefect API server. "
@@ -1327,11 +1276,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             heartbeat_interval_seconds=self.heartbeat_interval_seconds,
             work_queue_names=sorted(self._work_queues),
             create_pool_if_not_found=self._create_pool_if_not_found,
-            default_base_job_template=(
-                self._base_job_template
-                if self._base_job_template is not None
-                else self.__class__.get_default_base_job_template()
-            ),
+            base_job_template=self._base_job_template,
+            default_base_job_template=self.__class__.get_default_base_job_template(),
             worker_metadata=self._worker_metadata,
             logger=self._logger,
             on_worker_id=self._record_worker_id,
@@ -1859,18 +1805,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         """
         raise NotImplementedError(
             f"Worker type {self.type!r} does not support killing infrastructure"
-        )
-
-    async def _set_work_pool_template(
-        self, work_pool: "WorkPool", job_template: dict[str, Any]
-    ):
-        """Updates the `base_job_template` for the worker's work pool server side."""
-
-        await self.client.update_work_pool(
-            work_pool_name=work_pool.name,
-            work_pool=WorkPoolUpdate(
-                base_job_template=job_template,
-            ),
         )
 
     async def _schedule_task(

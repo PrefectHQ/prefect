@@ -207,15 +207,11 @@ class _WorkerChannelTestDouble:
         self._worker = worker
         self._worker_id = worker_id
         self.set_client = mock.Mock()
-        self.start_websocket = mock.AsyncMock(return_value=False)
-        self.send_rest_worker_heartbeat = mock.AsyncMock(
-            side_effect=self._send_rest_worker_heartbeat
-        )
+        self.sync = mock.AsyncMock(side_effect=self._sync)
 
-    async def _send_rest_worker_heartbeat(self):
+    async def _sync(self, task_group):
         if self._worker_id is not None:
             self._worker._record_worker_id(self._worker_id)
-        return self._worker_id
 
     def stop(self):
         pass
@@ -253,8 +249,7 @@ class TestWorkerSelfAttribution:
 
             worker._client = mock.Mock()
             worker._worker_channel = _WorkerChannelTestDouble(worker, remote_id)
-            with mock.patch.object(worker, "_update_local_work_pool_info"):
-                await worker.sync_with_backend()
+            await worker.sync_with_backend()
 
             assert os.environ.get("PREFECT__WORKER_ID") == str(remote_id)
             assert worker.backend_id == remote_id
@@ -268,8 +263,7 @@ class TestWorkerSelfAttribution:
 
             worker._client = mock.Mock()
             worker._worker_channel = _WorkerChannelTestDouble(worker, None)
-            with mock.patch.object(worker, "_update_local_work_pool_info"):
-                await worker.sync_with_backend()
+            await worker.sync_with_backend()
 
             assert "PREFECT__WORKER_ID" not in os.environ
 
