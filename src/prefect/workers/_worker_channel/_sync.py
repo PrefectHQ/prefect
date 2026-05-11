@@ -321,11 +321,25 @@ class WorkPoolWorkerChannel:
                     )
                 return
 
+        if self.state.healthy and self.snapshots_available:
+            self._logger.debug(
+                "Skipping REST work pool sync because the worker channel applied a "
+                "snapshot while REST sync was in flight."
+            )
+            return
+
         if not work_pool.base_job_template:
             await self._set_work_pool_template(
                 work_pool, self.default_base_job_template
             )
             work_pool.base_job_template = self.default_base_job_template
+
+        if self.state.healthy and self.snapshots_available:
+            self._logger.debug(
+                "Skipping REST work pool snapshot because the worker channel applied "
+                "a snapshot while REST sync was in flight."
+            )
+            return
 
         self._protocol.record_rest_work_pool_snapshot(work_pool)
 

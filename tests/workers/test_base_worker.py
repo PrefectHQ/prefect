@@ -2840,6 +2840,93 @@ class TestWorkerChannelClient:
         assert work_pool.base_job_template == default_base_job_template
         snapshot.assert_called_once_with(work_pool)
 
+    async def test_sync_discards_rest_work_pool_if_snapshot_arrives_during_read(self):
+        stale_template = {"job_configuration": {"env": {"STALE": "true"}}}
+        fresh_template = {"job_configuration": {"env": {"FRESH": "true"}}}
+        stale_work_pool = WorkPool(
+            name="test-work-pool",
+            type="test",
+            base_job_template=stale_template,
+            default_queue_id=uuid.uuid4(),
+        )
+        snapshot = Mock()
+        client = worker_channel_test_client()
+
+        async def read_work_pool(work_pool_name: str) -> WorkPool:
+            assert work_pool_name == "test-work-pool"
+            channel._protocol.handle_work_pool_snapshot(
+                worker_channel_snapshot_payload(1, base_job_template=fresh_template)
+            )
+            channel.state.mark_healthy()
+            return stale_work_pool
+
+        client.read_work_pool = AsyncMock(side_effect=read_work_pool)
+        client.update_work_pool = AsyncMock()
+        channel = WorkPoolWorkerChannel(
+            client=client,
+            api_url="http://localhost:4200/api",
+            work_pool_is_available=lambda: True,
+            work_pool_name="test-work-pool",
+            worker_name="test-worker",
+            worker_type="test",
+            heartbeat_interval_seconds=30,
+            work_queue_names=[],
+            create_pool_if_not_found=True,
+            default_base_job_template={},
+            worker_metadata=no_worker_channel_metadata,
+            logger=logging.getLogger("test-worker-channel"),
+            on_work_pool_snapshot=snapshot,
+        )
+
+        await channel.sync(None)
+
+        client.update_work_pool.assert_not_awaited()
+        client.send_worker_heartbeat.assert_not_awaited()
+        snapshot.assert_called_once()
+        assert snapshot.call_args.args[0].base_job_template == fresh_template
+
+    async def test_sync_discards_rest_work_pool_if_snapshot_arrives_during_repair(self):
+        fresh_template = {"job_configuration": {"env": {"FRESH": "true"}}}
+        work_pool = WorkPool(
+            name="test-work-pool",
+            type="test",
+            base_job_template={},
+            default_queue_id=uuid.uuid4(),
+        )
+        snapshot = Mock()
+        client = worker_channel_test_client()
+        client.read_work_pool = AsyncMock(return_value=work_pool)
+
+        async def update_work_pool(*args: Any, **kwargs: Any) -> None:
+            channel._protocol.handle_work_pool_snapshot(
+                worker_channel_snapshot_payload(1, base_job_template=fresh_template)
+            )
+            channel.state.mark_healthy()
+
+        client.update_work_pool = AsyncMock(side_effect=update_work_pool)
+        channel = WorkPoolWorkerChannel(
+            client=client,
+            api_url="http://localhost:4200/api",
+            work_pool_is_available=lambda: True,
+            work_pool_name="test-work-pool",
+            worker_name="test-worker",
+            worker_type="test",
+            heartbeat_interval_seconds=30,
+            work_queue_names=[],
+            create_pool_if_not_found=True,
+            default_base_job_template={"job_configuration": {}, "variables": {}},
+            worker_metadata=no_worker_channel_metadata,
+            logger=logging.getLogger("test-worker-channel"),
+            on_work_pool_snapshot=snapshot,
+        )
+
+        await channel.sync(None)
+
+        client.update_work_pool.assert_awaited_once()
+        client.send_worker_heartbeat.assert_not_awaited()
+        snapshot.assert_called_once()
+        assert snapshot.call_args.args[0].base_job_template == fresh_template
+
     async def test_endpoint_unavailable_is_terminal_rest_fallback(self):
         client = worker_channel_test_client()
         client.read_work_pool = AsyncMock(
