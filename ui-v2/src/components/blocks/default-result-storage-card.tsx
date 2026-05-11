@@ -36,7 +36,14 @@ export const DefaultResultStorageCard = ({
 }: DefaultResultStorageCardProps) => {
 	const isMutating =
 		isUpdatingDefaultResultStorage || isClearingDefaultResultStorage;
-	const selectedBlockDocumentExists = storageBlockDocuments.some(
+	const selectableStorageBlockDocuments =
+		defaultResultStorageBlock &&
+		!storageBlockDocuments.some(
+			(blockDocument) => blockDocument.id === defaultResultStorageBlock.id,
+		)
+			? [defaultResultStorageBlock, ...storageBlockDocuments]
+			: storageBlockDocuments;
+	const selectedBlockDocumentExists = selectableStorageBlockDocuments.some(
 		(blockDocument) => blockDocument.id === defaultResultStorageBlockId,
 	);
 	const selectValue = selectedBlockDocumentExists
@@ -79,7 +86,9 @@ export const DefaultResultStorageCard = ({
 					<Select
 						value={selectValue}
 						onValueChange={onUpdateDefaultResultStorage}
-						disabled={isMutating || storageBlockDocuments.length === 0}
+						disabled={
+							isMutating || selectableStorageBlockDocuments.length === 0
+						}
 					>
 						<SelectTrigger
 							className="w-full sm:w-64"
@@ -88,7 +97,7 @@ export const DefaultResultStorageCard = ({
 							<SelectValue placeholder="Select storage block" />
 						</SelectTrigger>
 						<SelectContent>
-							{storageBlockDocuments.map((blockDocument) => (
+							{selectableStorageBlockDocuments.map((blockDocument) => (
 								<SelectItem key={blockDocument.id} value={blockDocument.id}>
 									{blockDocument.name ?? "Untitled block"}
 								</SelectItem>

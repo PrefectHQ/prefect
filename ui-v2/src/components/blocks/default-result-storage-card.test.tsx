@@ -102,6 +102,29 @@ describe("DefaultResultStorageCard", () => {
 		).not.toBeInTheDocument();
 	});
 
+	it("keeps the configured block selected when it is outside the selectable block list", async () => {
+		const blockDocument = createStorageBlockDocument();
+
+		await renderWithRouter(
+			<DefaultResultStorageCard
+				defaultResultStorageBlockId={blockDocument.id}
+				defaultResultStorageBlock={blockDocument}
+				storageBlockDocuments={[]}
+				onUpdateDefaultResultStorage={vi.fn()}
+				onClearDefaultResultStorage={vi.fn()}
+				isUpdatingDefaultResultStorage={false}
+				isClearingDefaultResultStorage={false}
+				isLoadingDefaultResultStorageBlock={false}
+			/>,
+		);
+
+		expect(
+			screen.getByRole("combobox", {
+				name: /default result storage block/i,
+			}),
+		).toHaveTextContent("s3-results");
+	});
+
 	it("renders the unconfigured state", async () => {
 		await renderWithRouter(
 			<DefaultResultStorageCard
