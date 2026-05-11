@@ -241,7 +241,8 @@ async def test_workspace_resolving_starter_delegates_to_engine_starter(
     )
 
     starter = WorkspaceResolvingEngineCommandStarter(
-        workspace_root=tmp_path / "workspace-root"
+        workspace_root=tmp_path / "workspace-root",
+        deployment_name="workspace-deployment",
     )
     await starter.start(flow_run)
 
@@ -294,7 +295,8 @@ async def test_workspace_resolving_starter_uses_uv_for_pyproject_workspace(
     )
 
     starter = WorkspaceResolvingEngineCommandStarter(
-        workspace_root=tmp_path / "workspace-root"
+        workspace_root=tmp_path / "workspace-root",
+        deployment_name="workspace-deployment",
     )
     await starter.start(flow_run)
 
@@ -311,6 +313,7 @@ async def test_workspace_resolving_starter_uses_uv_for_pyproject_workspace(
         workspace.runtime_entrypoint,
     ]
     assert instances[0].kwargs["cwd"] == workspace.working_directory
+    assert instances[0].kwargs["deployment_name"] == "workspace-deployment"
 
 
 async def test_load_flow_from_prepared_workspace_does_not_change_parent_cwd(

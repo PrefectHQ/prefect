@@ -25,7 +25,7 @@ from starlette import status
 import prefect
 import prefect.client.schemas as schemas
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
-from prefect._result_records import ResultRecord, ResultRecordMetadata
+from prefect._internal.result_records import ResultRecord, ResultRecordMetadata
 from prefect.blocks.core import Block
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
@@ -1924,6 +1924,7 @@ async def test_get_flow_run_logger_without_worker_id_set(
             "flow_run_name": flow_run.name,
             "flow_run_id": str(flow_run.id),
             "flow_name": "<unknown>",
+            "deployment_name": None,
             "worker_name": "test",
             "work_pool_name": work_pool.name,
             "work_pool_id": str(work_pool.id),
@@ -1952,6 +1953,7 @@ async def test_get_flow_run_logger_with_worker_id_set(
             "flow_run_name": flow_run.name,
             "flow_run_id": str(flow_run.id),
             "flow_name": "<unknown>",
+            "deployment_name": None,
             "worker_name": "test",
             "work_pool_name": work_pool.name,
             "work_pool_id": str(work_pool.id),

@@ -3,7 +3,7 @@ import asyncio
 import pytest
 
 from prefect import flow
-from prefect._waiters import FlowRunWaiter
+from prefect._internal.waiters import FlowRunWaiter
 from prefect.client.orchestration import PrefectClient
 from prefect.flow_engine import run_flow_async
 from prefect.server.events.pipeline import EventsPipeline

@@ -103,9 +103,16 @@ class TestCancellationManagerCancel:
         await mgr.cancel(flow_run)
 
         process_manager.kill.assert_awaited_once_with(flow_run.id, grace_seconds=30.0)
-        hook_runner.run_cancellation_hooks.assert_awaited_once_with(
-            flow_run, flow_run.state
+        # Hooks are invoked with a synthesized Cancelling state, not the
+        # snapshot state, to avoid silently skipping hooks when concurrent
+        # cancel paths race the API state past Cancelling.
+        hook_runner.run_cancellation_hooks.assert_awaited_once()
+        passed_flow_run, passed_state = (
+            hook_runner.run_cancellation_hooks.await_args.args
         )
+        assert passed_flow_run is flow_run
+        assert passed_state.type == StateType.CANCELLING
+        assert passed_state.is_cancelling()
         state_proposer.propose_cancelled.assert_awaited_once()
         event_emitter.get_flow_and_deployment.assert_awaited_once_with(flow_run)
         event_emitter.emit_flow_run_cancelled.assert_awaited_once()
@@ -317,8 +324,11 @@ class TestCancellationManagerCancel:
         state_proposer.propose_cancelled.assert_awaited_once()
         event_emitter.emit_flow_run_cancelled.assert_awaited_once()
 
-    async def test_cancel_omits_hooks_when_no_state(self):
-        """flow_run.state is None; hook call skipped; state and event still called."""
+    async def test_cancel_runs_hooks_with_synthesized_state_when_flow_run_state_is_none(
+        self,
+    ):
+        """flow_run.state is None; hooks still run with a synthesized Cancelling
+        state because `cancel()` is the explicit cancel sequence."""
         flow_run = _make_flow_run(has_state=False)
 
         process_manager = MagicMock()
@@ -344,7 +354,13 @@ class TestCancellationManagerCancel:
 
         await mgr.cancel(flow_run)
 
-        hook_runner.run_cancellation_hooks.assert_not_awaited()
+        hook_runner.run_cancellation_hooks.assert_awaited_once()
+        passed_flow_run, passed_state = (
+            hook_runner.run_cancellation_hooks.await_args.args
+        )
+        assert passed_flow_run is flow_run
+        assert passed_state.type == StateType.CANCELLING
+        assert passed_state.is_cancelling()
         state_proposer.propose_cancelled.assert_awaited_once()
         event_emitter.emit_flow_run_cancelled.assert_awaited_once()
 

@@ -7,7 +7,7 @@ from prefect.transactions import Transaction
 from prefect.tasks import task, Task
 from prefect.context import tags
 from prefect.utilities.annotations import unmapped, allow_failure
-from prefect._result_records import ResultRecordMetadata
+from prefect._internal.result_records import ResultRecordMetadata
 from prefect.flow_runs import (
     apause_flow_run,
     aresume_flow_run,

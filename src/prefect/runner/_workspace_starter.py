@@ -247,12 +247,14 @@ class WorkspaceResolvingEngineCommandStarter:
         command: str | None = None,
         stream_output: bool = True,
         heartbeat_seconds: int | None = None,
+        deployment_name: str | None = None,
         control_channel: ControlChannel | None = None,
     ) -> None:
         self._workspace_root = workspace_root
         self._command = command
         self._stream_output = stream_output
         self._heartbeat_seconds = heartbeat_seconds
+        self._deployment_name = deployment_name
         self._control_channel = control_channel
         self._workspace: PreparedWorkspace | None = None
 
@@ -280,6 +282,7 @@ class WorkspaceResolvingEngineCommandStarter:
             entrypoint=workspace.runtime_entrypoint,
             stream_output=self._stream_output,
             heartbeat_seconds=self._heartbeat_seconds,
+            deployment_name=self._deployment_name,
             control_channel=self._control_channel,
         )
         await starter.start(flow_run, task_status=task_status)

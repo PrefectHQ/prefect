@@ -118,7 +118,7 @@ class TestDockerImageBuildBackend:
         mock_build_image.assert_called_once()
 
     @patch("prefect.docker.docker_image._ensure_buildx_extra")
-    @patch("prefect.docker._buildx.buildx_build_image")
+    @patch("prefect._internal.buildx.buildx_build_image")
     @patch("prefect.docker.docker_image.generate_default_dockerfile")
     def test_buildx_backend_calls_buildx_build_image(
         self,
@@ -135,7 +135,7 @@ class TestDockerImageBuildBackend:
         mock_buildx_build.assert_called_once()
 
     @patch("prefect.docker.docker_image._ensure_buildx_extra")
-    @patch("prefect.docker._buildx.buildx_build_image")
+    @patch("prefect._internal.buildx.buildx_build_image")
     @patch("prefect.docker.docker_image.generate_default_dockerfile")
     def test_buildx_build_kwargs_forwarded(
         self,
@@ -160,7 +160,7 @@ class TestDockerImageBuildBackend:
         assert call_kwargs["cache_from"] == ["type=registry,ref=myimage:cache"]
 
     @patch("prefect.docker.docker_image._ensure_buildx_extra")
-    @patch("prefect.docker._buildx.buildx_build_image")
+    @patch("prefect._internal.buildx.buildx_build_image")
     def test_buildx_build_with_push(
         self, mock_buildx_build: MagicMock, _mock_guard: MagicMock
     ):
@@ -178,8 +178,8 @@ class TestDockerImageBuildBackend:
         assert image._pushed_during_build is True
 
     @patch("prefect.docker.docker_image._ensure_buildx_extra")
-    @patch("prefect.docker._buildx.buildx_push_image")
-    @patch("prefect.docker._buildx.buildx_build_image")
+    @patch("prefect._internal.buildx.buildx_push_image")
+    @patch("prefect._internal.buildx.buildx_build_image")
     def test_buildx_push_is_noop_after_push_build(
         self,
         mock_buildx_build: MagicMock,
@@ -199,8 +199,8 @@ class TestDockerImageBuildBackend:
         mock_buildx_push.assert_not_called()
 
     @patch("prefect.docker.docker_image._ensure_buildx_extra")
-    @patch("prefect.docker._buildx.buildx_push_image")
-    @patch("prefect.docker._buildx.buildx_build_image")
+    @patch("prefect._internal.buildx.buildx_push_image")
+    @patch("prefect._internal.buildx.buildx_build_image")
     def test_buildx_push_calls_buildx_push_image(
         self,
         mock_buildx_build: MagicMock,
