@@ -59,6 +59,9 @@
 	--link: hsl(217 90% 54%);
 	--link-hover: hsl(217 90% 42%);
 
+	/* Event token - purple used for event indicators and charts */
+	--event: hsl(262 83% 58%);
+
 	/* State colors - Default color mode (matches V1) */
 	/* Completed - Green */
 	--state-completed-50: #def8f0;
@@ -217,6 +220,9 @@
 	/* Link tokens - dark mode */
 	--link: hsl(217 90% 68%);
 	--link-hover: hsl(217 90% 78%);
+
+	/* Event token - dark mode */
+	--event: hsl(262 83% 70%);
 
 	/* Dark mode state color overrides */
 
@@ -2205,6 +2211,9 @@
 	/* Link tokens for Tailwind utilities */
 	--color-link: var(--link);
 	--color-link-hover: var(--link-hover);
+
+	/* Event token for Tailwind utilities */
+	--color-event: var(--event);
 
 	/* Sentiment colors for Tailwind utilities */
 	--color-sentiment-positive: var(--sentiment-positive);
