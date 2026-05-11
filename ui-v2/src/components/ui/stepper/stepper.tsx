@@ -83,8 +83,10 @@ const Step = ({
 			{isComplete ? (
 				<Icon
 					id="CircleCheck"
-					color={isActive ? "teal" : "grey"}
-					className="size-12"
+					className={cn(
+						"size-12",
+						isActive ? "text-primary" : "text-muted-foreground",
+					)}
 				/>
 			) : (
 				<StepIcon isActive={isActive} label={numberLabel} />
@@ -92,7 +94,7 @@ const Step = ({
 			<p
 				className={cn(
 					"text-lg text-muted-foreground border-muted-foreground whitespace-nowrap",
-					isActive && "text-teal-700 border-teal-700",
+					isActive && "text-primary border-primary",
 				)}
 			>
 				{name}
@@ -109,13 +111,13 @@ const StepIcon = ({ isActive = false, label }: StepIconProps) => (
 	<div
 		className={cn(
 			"flex items-center justify-center size-12 rounded-full border-4 text-muted-foreground border-muted-foreground",
-			isActive && "text-teal-700 border-teal-700",
+			isActive && "text-primary border-primary",
 		)}
 	>
 		<p
 			className={cn(
 				"text-lg text-muted-foreground border-muted-foreground",
-				isActive && "text-teal-700 border-teal-700",
+				isActive && "text-primary border-primary",
 			)}
 		>
 			{label}

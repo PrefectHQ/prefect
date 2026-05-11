@@ -184,6 +184,10 @@ Note that any explicit configuration of `result_storage` on either a flow or tas
 
 #### Specifying a default filesystem server-side
 
+<Warning>
+Server-side default result storage is currently in beta. APIs, CLI commands, and behaviors may change without notice. We encourage you to try it out and provide feedback through [GitHub issues](https://github.com/PrefectHQ/prefect/issues).
+</Warning>
+
 If many flow runs should use the same result storage, you can set a server-side default.
 This is useful when you want every client, worker, and deployment connected to the same Prefect Cloud
 workspace or self-hosted Prefect server to write persisted results to a shared location without setting
@@ -193,9 +197,9 @@ A configured server-side default result storage block also enables result persis
 flows and tasks that do not explicitly opt out. You do not need to set `PREFECT_RESULTS_PERSIST_BY_DEFAULT`
 in every worker environment when this default is configured.
 
-The `prefect experimental result-storage` commands use your active CLI profile and are subject to
-change while Prefect expands default storage configuration. Make sure the profile is connected to the
-API where you want to set the default. If you are running Prefect locally, start the server first:
+The `prefect experimental result-storage` commands use your active CLI profile. Make sure the profile
+is connected to the API where you want to set the default. If you are running Prefect locally, start
+the server first:
 
 {/* pmd-metadata: notest */}
 ```bash

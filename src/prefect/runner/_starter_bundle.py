@@ -45,7 +45,7 @@ class BundleExecutionStarter:
         flow_run: FlowRun,
         task_status: anyio.abc.TaskStatus[ProcessHandle] = anyio.TASK_STATUS_IGNORED,
     ) -> None:
-        env: dict[str, str | None] = {**self._env}
+        env = dict(self._env)
         control_registered = False
         if self._control_channel is not None:
             try:
