@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import logging
+import os
 import sys
 from builtins import print
 from contextlib import contextmanager
@@ -59,6 +60,14 @@ class PrefectLogAdapter(LoggingAdapter):
                 **_extra,
             },
         )
+
+
+def _get_deployment_name(flow_run: "FlowRun | None") -> str | None:
+    if flow_run is None:
+        return None
+    if flow_run.deployment_id is None or flow_run.parent_task_run_id is not None:
+        return None
+    return os.environ.get("PREFECT__DEPLOYMENT_NAME")
 
 
 @lru_cache()
@@ -159,6 +168,7 @@ def get_run_logger(
                             if flow_run_context.flow
                             else "<unknown>"
                         ),
+                        "deployment_name": None,
                     },
                     **kwargs,
                 },
@@ -179,7 +189,7 @@ def flow_run_logger(
     flow_run: "FlowRun | None" = None,
     flow: "Flow[Any, Any] | None" = None,
     flow_run_id: UUID | None = None,
-    **kwargs: str,
+    **kwargs: Any,
 ) -> PrefectLogAdapter:
     """
     Create a flow run logger with the run's metadata attached.
@@ -213,6 +223,7 @@ def flow_run_logger(
                 "flow_run_name": flow_run.name if flow_run else "<unknown>",
                 "flow_run_id": resolved_id,
                 "flow_name": flow.name if flow else "<unknown>",
+                "deployment_name": _get_deployment_name(flow_run),
             },
             **kwargs,
         },

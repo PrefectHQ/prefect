@@ -7,7 +7,8 @@ from opentelemetry import trace
 
 import prefect
 from prefect._internal.compatibility.async_dispatch import async_dispatch
-from prefect._result_records import ResultRecordMetadata
+from prefect._internal.engine import dynamic_key_for_task_run
+from prefect._internal.result_records import ResultRecordMetadata
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import FlowRun, TaskRunResult
 from prefect.client.utilities import get_or_create_client
@@ -17,7 +18,6 @@ from prefect.states import Pending, Scheduled
 from prefect.tasks import Task
 from prefect.telemetry.run_telemetry import LABELS_TRACEPARENT_KEY, RunTelemetry
 from prefect.types._datetime import now
-from prefect.utilities._engine import dynamic_key_for_task_run
 from prefect.utilities.engine import collect_task_run_inputs_sync
 from prefect.utilities.slugify import slugify
 
@@ -144,7 +144,7 @@ async def arun_deployment(
     task_run_ctx = TaskRunContext.get()
     if as_subflow and (flow_run_ctx or task_run_ctx):
         # TODO: this logic can likely be simplified by using `Task.create_run`
-        from prefect.utilities._engine import dynamic_key_for_task_run
+        from prefect._internal.engine import dynamic_key_for_task_run
         from prefect.utilities.engine import collect_task_run_inputs
 
         # This was called from a flow. Link the flow run as a subflow.

@@ -5,7 +5,7 @@ from typing import Generator
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from prefect_docker.experimental.decorators import docker
+from prefect_docker.decorators import docker
 from prefect_docker.worker import DockerWorker
 
 import prefect
@@ -287,6 +287,8 @@ async def test_uses_volume_mount_when_work_pool_has_storage_configuration(
     def test_flow():
         return "test"
 
+    from prefect.bundles import _pin_prefect_in_bundle_step_requires
+
     async with DockerWorker(
         work_pool_name=work_pool_without_storage_configuration.name
     ) as worker:
@@ -303,9 +305,13 @@ async def test_uses_volume_mount_when_work_pool_has_storage_configuration(
         assert configuration.volumes[0] == "/tmp/test:/tmp/test"
         assert configuration.volumes[1].endswith("/tmp/")
 
+        # `_pin_prefect_in_bundle_step_requires` appends `prefect==<version>`
+        # for non-local Prefect builds (CI) and is a no-op for editable
+        # installs (local dev). See PR #21651.
+        requires = ",".join(_pin_prefect_in_bundle_step_requires(["prefect"]))
         python_version = sys.version_info
         assert configuration.command.startswith(
-            f"uv run --with prefect --python {python_version.major}.{python_version.minor} -m prefect._experimental.bundles.execute"
+            f"uv run --with {requires} --python {python_version.major}.{python_version.minor} -m prefect.bundles.execute"
         )
 
 
@@ -338,7 +344,7 @@ async def test_uses_launcher_for_volume_mount_execution(
         expected_command = [
             "/opt/prefect runtime/bin/python",
             "-m",
-            "prefect._experimental.bundles.execute",
+            "prefect.bundles.execute",
             "--key",
             f"/tmp/{frozen_uuid}",
         ]

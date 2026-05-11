@@ -6,7 +6,7 @@ from subprocess import CompletedProcess
 import pytest
 from anyio import run_process
 
-from prefect._versioning import (
+from prefect._internal.versioning import (
     AzureDevopsVersionInfo,
     BitbucketVersionInfo,
     GithubVersionInfo,

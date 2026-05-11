@@ -37,6 +37,7 @@ from .experiments import ExperimentsSettings
 from .flows import FlowsSettings
 from .internal import InternalSettings
 from .logging import LoggingSettings
+from .plugins import PluginsSettings
 from .results import ResultsSettings
 from .runner import RunnerSettings
 from .server import ServerSettings
@@ -124,6 +125,11 @@ class Settings(PrefectBaseSettings):
         description="Settings for controlling logging behavior",
     )
 
+    plugins: PluginsSettings = Field(
+        default_factory=PluginsSettings,
+        description="Settings for the plugin system.",
+    )
+
     results: ResultsSettings = Field(
         default_factory=ResultsSettings,
         description="Settings for controlling result storage behavior",
@@ -195,6 +201,32 @@ class Settings(PrefectBaseSettings):
 
     ###########################################################################
 
+    @model_validator(mode="before")
+    @classmethod
+    def _hoist_legacy_experiments_plugins(cls, data: Any) -> Any:
+        """
+        Pull a legacy `experiments.plugins` payload up to the canonical
+        `plugins` key so `Settings(experiments={"plugins": {...}})` keeps
+        working. Canonical-location values win when both are provided.
+        """
+        if not isinstance(data, dict):
+            return data
+        experiments = data.get("experiments")
+        if not isinstance(experiments, dict):
+            return data
+        legacy = experiments.pop("plugins", None)
+        if legacy is None:
+            return data
+        canonical = data.get("plugins")
+        if isinstance(canonical, dict) and isinstance(legacy, dict):
+            merged = {**legacy, **canonical}  # canonical overrides legacy
+            data["plugins"] = merged
+        elif canonical is None:
+            data["plugins"] = legacy
+        # If canonical is set to a non-dict (e.g. a PluginsSettings instance),
+        # leave it alone — that user-supplied value is already explicit.
+        return data
+
     @model_validator(mode="after")
     def post_hoc_settings(self) -> Self:
         """Handle remaining complex default assignments that aren't yet migrated to dependent settings.
@@ -220,6 +252,32 @@ class Settings(PrefectBaseSettings):
             self.internal.logging_level = "DEBUG"
             self.logging.__pydantic_fields_set__.remove("level")
             self.internal.__pydantic_fields_set__.remove("logging_level")
+
+        # Hoist any legacy `plugins=...` payload that was passed through
+        # the typed `ExperimentsSettings` constructor (we couldn't catch
+        # those in the root before-validator because they had already
+        # been validated into an instance). Canonical-location overrides
+        # already on `self.plugins` win; legacy fills in the rest.
+        legacy = self.experiments._legacy_plugins_payload
+        if legacy is not None:
+            if isinstance(legacy, PluginsSettings):
+                legacy_dump = legacy.model_dump(exclude_unset=True)
+            elif isinstance(legacy, dict):
+                legacy_dump = legacy
+            else:
+                legacy_dump = {}
+            if legacy_dump:
+                canonical_set = self.plugins.model_fields_set
+                merged = {**legacy_dump}
+                for key in canonical_set:
+                    merged[key] = getattr(self.plugins, key)
+                self.plugins = PluginsSettings(**merged)
+            self.experiments._legacy_plugins_payload = None
+
+        # Bind the deprecated `experiments.plugins` accessor to this root's
+        # `plugins` instance so programmatic overrides on this Settings are
+        # reflected through the legacy path.
+        self.experiments._plugins_root = self.plugins
 
         # Set default database connection URL if not provided
         if self.server.database.connection_url is None:

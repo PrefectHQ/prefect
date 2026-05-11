@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 from typing import List
 from uuid import uuid4
@@ -9,8 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
 from prefect.server.database import orm_models
+from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.schemas import filters, states
 from prefect.server.schemas.states import StateType
+from prefect.server.schemas.statuses import DeploymentStatus
 from prefect.settings import PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS
 from prefect.types._datetime import now, start_of_day
 
@@ -2015,3 +2018,90 @@ class TestDeploymentLabels:
         )
 
         assert merged_labels == expected
+
+
+class TestMarkDeploymentsReady:
+    async def test_marks_not_ready_deployments_as_ready(
+        self,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
+    ):
+        assert deployment.status == DeploymentStatus.NOT_READY
+
+        await models.deployments.mark_deployments_ready(
+            db=provide_database_interface(),
+            deployment_ids=[deployment.id],
+        )
+
+        await session.refresh(deployment)
+        assert deployment.status == DeploymentStatus.READY
+        assert deployment.last_polled is not None
+
+    async def test_marks_ready_by_work_queue_id(
+        self,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
+    ):
+        await models.deployments.mark_deployments_ready(
+            db=provide_database_interface(),
+            work_queue_ids=[deployment.work_queue_id],
+        )
+
+        await session.refresh(deployment)
+        assert deployment.status == DeploymentStatus.READY
+
+    async def test_already_ready_is_idempotent(
+        self,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
+    ):
+        for _ in range(2):
+            await models.deployments.mark_deployments_ready(
+                db=provide_database_interface(),
+                deployment_ids=[deployment.id],
+            )
+        await session.refresh(deployment)
+        assert deployment.status == DeploymentStatus.READY
+
+    async def test_blocks_when_row_is_locked_by_concurrent_transition(
+        self,
+        deployment: orm_models.Deployment,
+    ):
+        # A concurrent transition holding the row must make us wait, not
+        # silently no-op (as SKIP LOCKED would) — otherwise the other
+        # transition commits and overwrites this fresh poll's state.
+        db = provide_database_interface()
+        if db.dialect.name != "postgresql":
+            pytest.skip("Row-level locking is PostgreSQL-only")
+
+        async with db.session_context(begin_transaction=True) as locker:
+            await locker.execute(
+                sa.select(db.Deployment.id)
+                .where(db.Deployment.id == deployment.id)
+                .with_for_update()
+            )
+            with pytest.raises(asyncio.TimeoutError):
+                await asyncio.wait_for(
+                    models.deployments.mark_deployments_ready(
+                        db=db, deployment_ids=[deployment.id]
+                    ),
+                    timeout=0.5,
+                )
+
+
+class TestMarkDeploymentsNotReady:
+    async def test_marks_ready_deployments_as_not_ready(
+        self,
+        session: AsyncSession,
+        deployment: orm_models.Deployment,
+    ):
+        await models.deployments.mark_deployments_ready(
+            db=provide_database_interface(),
+            deployment_ids=[deployment.id],
+        )
+
+        await models.deployments.mark_deployments_not_ready(
+            deployment_ids=[deployment.id],
+        )
+        await session.refresh(deployment)
+        assert deployment.status == DeploymentStatus.NOT_READY

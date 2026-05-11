@@ -137,6 +137,8 @@ In addition to its native properties, each object includes an `id` along with `c
 
 The `flow_run|ui_url` token returns the URL to view the flow run in the UI.
 
+Use `{{ value | tojson }}` to serialize any template variable to a JSON string. The filter handles Pydantic model objects such as `flow_run`, `deployment`, and `event` directly — for example, `{{ flow_run | tojson(indent=2) }}` renders the full flow run as formatted JSON. The optional `indent` argument controls pretty-printing.
+
 Here's an example relevant to a flow run state-based notification:
 
 ```

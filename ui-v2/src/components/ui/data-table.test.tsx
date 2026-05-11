@@ -14,7 +14,12 @@ const columnHelper = createColumnHelper<TestData>();
 const columns = [
 	columnHelper.accessor("name", {
 		header: "Name",
-		cell: (info) => info.getValue(),
+		cell: (info) => (
+			<>
+				<span>{info.getValue()}</span>
+				<button type="button">Row action {info.row.original.id}</button>
+			</>
+		),
 	}),
 ];
 
@@ -65,6 +70,15 @@ describe("DataTable", () => {
 
 		expect(onRowClick).toHaveBeenCalledOnce();
 		expect(onRowClick).toHaveBeenCalledWith({ id: "1", name: "Row 1" });
+	});
+
+	it("does not call onRowClick when a row action is clicked", async () => {
+		const onRowClick = vi.fn();
+		render(<TestTable data={testData} onRowClick={onRowClick} />);
+
+		await userEvent.click(screen.getByRole("button", { name: "Row action 1" }));
+
+		expect(onRowClick).not.toHaveBeenCalled();
 	});
 
 	it("does not call onRowClick when onRowClick is not provided and row is clicked", async () => {

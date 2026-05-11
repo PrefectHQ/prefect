@@ -399,11 +399,6 @@
                     ],
                     "title": "Warn",
                     "type": "boolean"
-                },
-                "plugins": {
-                    "$ref": "#/$defs/PluginsSettings",
-                    "description": "Settings for the experimental plugin system",
-                    "supported_environment_variables": []
                 }
             },
             "title": "ExperimentsSettings",
@@ -635,12 +630,13 @@
             "type": "object"
         },
         "PluginsSettings": {
-            "description": "Settings for configuring the experimental plugin system",
+            "description": "Settings for configuring the plugin system.\n\nEach field also accepts the legacy `PREFECT_EXPERIMENTS_PLUGINS_*` env-var\nname. The system warns once at import time when any of those legacy names\nis present in the environment. Legacy `[experiments.plugins]` TOML tables\nare read as a lower-priority fallback for the same backward-compat reason.",
             "properties": {
                 "enabled": {
                     "default": false,
-                    "description": "Enable the experimental plugin system.",
+                    "description": "Enable the plugin system.",
                     "supported_environment_variables": [
+                        "PREFECT_PLUGINS_ENABLED",
                         "PREFECT_EXPERIMENTS_PLUGINS_ENABLED"
                     ],
                     "title": "Enabled",
@@ -662,6 +658,7 @@
                     "default": null,
                     "description": "Comma-separated list of plugin names to allow. If set, only these plugins will be loaded.",
                     "supported_environment_variables": [
+                        "PREFECT_PLUGINS_ALLOW",
                         "PREFECT_EXPERIMENTS_PLUGINS_ALLOW"
                     ],
                     "title": "Allow"
@@ -682,6 +679,7 @@
                     "default": null,
                     "description": "Comma-separated list of plugin names to deny. These plugins will not be loaded.",
                     "supported_environment_variables": [
+                        "PREFECT_PLUGINS_DENY",
                         "PREFECT_EXPERIMENTS_PLUGINS_DENY"
                     ],
                     "title": "Deny"
@@ -690,6 +688,7 @@
                     "default": 20.0,
                     "description": "Maximum time in seconds for all plugins to complete their setup hooks.",
                     "supported_environment_variables": [
+                        "PREFECT_PLUGINS_SETUP_TIMEOUT_SECONDS",
                         "PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS"
                     ],
                     "title": "Setup Timeout Seconds",
@@ -699,6 +698,7 @@
                     "default": false,
                     "description": "If True, exit if a required plugin fails during setup.",
                     "supported_environment_variables": [
+                        "PREFECT_PLUGINS_STRICT",
                         "PREFECT_EXPERIMENTS_PLUGINS_STRICT"
                     ],
                     "title": "Strict",
@@ -708,6 +708,7 @@
                     "default": false,
                     "description": "If True, load plugins but do not execute their hooks. Useful for testing.",
                     "supported_environment_variables": [
+                        "PREFECT_PLUGINS_SAFE_MODE",
                         "PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE"
                     ],
                     "title": "Safe Mode",
@@ -3012,6 +3013,11 @@
         },
         "logging": {
             "$ref": "#/$defs/LoggingSettings",
+            "supported_environment_variables": []
+        },
+        "plugins": {
+            "$ref": "#/$defs/PluginsSettings",
+            "description": "Settings for the plugin system.",
             "supported_environment_variables": []
         },
         "results": {
