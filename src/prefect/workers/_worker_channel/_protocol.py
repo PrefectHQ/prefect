@@ -204,6 +204,8 @@ class WorkerChannelProtocolHandler:
             if exception:
                 if isinstance(exception, WorkerChannelError):
                     raise exception
+                if isinstance(exception, websockets.exceptions.ConnectionClosed):
+                    raise self._classify_closed_connection(exception) from exception
                 raise WorkerChannelRetryableError(
                     "connection_lost",
                     "Worker channel connection was lost",

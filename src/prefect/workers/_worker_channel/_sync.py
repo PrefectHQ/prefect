@@ -269,7 +269,9 @@ class WorkPoolWorkerChannel:
                             connection = None
 
                     reconnect_attempt += 1
-                    await anyio.sleep(self._transport.reconnect_delay(reconnect_attempt))
+                    await anyio.sleep(
+                        self._transport.reconnect_delay(reconnect_attempt)
+                    )
             finally:
                 if self._run_scope is scope:
                     self._run_scope = None

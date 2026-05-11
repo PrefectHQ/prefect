@@ -22,6 +22,8 @@ from exceptiongroup import ExceptionGroup
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
+from websockets.exceptions import ConnectionClosedError
+from websockets.frames import Close
 
 import prefect
 import prefect.client.schemas as schemas
@@ -47,6 +49,8 @@ from prefect.client.schemas.worker_channel import (
     WORK_POOL_WORKER_CHANNEL_VERSION,
     WORKER_CHANNEL_SUBPROTOCOL,
     WORKER_HEARTBEAT_CAPABILITY,
+    WorkerChannelCloseReason,
+    WorkerReadyFrame,
 )
 from prefect.context import FlowRunContext, TagsContext
 from prefect.exceptions import (
@@ -2430,6 +2434,52 @@ class TestWorkerChannelClient:
         await transport.close_connection(connection)
         assert connect_context.exited
 
+    async def test_run_connected_classifies_heartbeat_connection_close(
+        self, monkeypatch
+    ):
+        consumer_id = uuid7()
+        websocket = FakeWorkerChannelWebSocket([])
+        close_error = ConnectionClosedError(
+            Close(1008, WorkerChannelCloseReason.AUTHORIZATION_FAILED.value),
+            None,
+        )
+        websocket.send = AsyncMock(side_effect=close_error)
+
+        async def sleep_immediately(delay: float) -> None:
+            pass
+
+        monkeypatch.setattr(
+            "prefect.workers._worker_channel._protocol.anyio.sleep",
+            sleep_immediately,
+        )
+        transport = WorkerChannelTransport(
+            api_url=None,
+            work_pool_name="test-work-pool",
+            logger=logging.getLogger("test-worker-channel"),
+        )
+        protocol = WorkerChannelProtocolHandler(
+            consumer_id=consumer_id,
+            worker_name="test-worker",
+            worker_type="test",
+            heartbeat_interval_seconds=30,
+            work_queue_names=[],
+            create_pool_if_not_found=True,
+            default_base_job_template={},
+            worker_metadata=no_worker_channel_metadata,
+            classify_closed_connection=transport.classify_closed_connection,
+            logger=logging.getLogger("test-worker-channel"),
+        )
+        connection = WorkerChannelConnection(
+            FakeWorkerChannelConnect(websocket),
+            websocket,
+            WorkerReadyFrame.model_validate(worker_channel_ready_frame(consumer_id)),
+        )
+
+        with pytest.raises(WorkerChannelTerminalError) as exc_info:
+            await protocol.run_connected(connection)
+
+        assert exc_info.value.reason == WorkerChannelCloseReason.AUTHORIZATION_FAILED
+
     async def test_sync_uses_channel_before_rest_heartbeat(self):
         worker_id = uuid.uuid4()
         snapshot = Mock()
@@ -3054,9 +3104,7 @@ class TestBaseWorkerHeartbeat:
                 worker._runs_task_group
             )
 
-    async def test_sync_with_backend_updates_existing_channel_client(
-        self, work_pool
-    ):
+    async def test_sync_with_backend_updates_existing_channel_client(self, work_pool):
         async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
             worker._worker_channel = Mock(
                 set_client=Mock(),
@@ -3135,9 +3183,7 @@ class TestBaseWorkerHeartbeat:
         assert len(workers) == 1
         assert workers[0].name == worker.name
 
-    async def test_work_pool_snapshot_fills_default_base_job_template(
-        self, work_pool
-    ):
+    async def test_work_pool_snapshot_fills_default_base_job_template(self, work_pool):
         worker = WorkerTestImpl(work_pool_name=work_pool.name)
         snapshot = work_pool
         snapshot.base_job_template = {}
