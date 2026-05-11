@@ -5,13 +5,10 @@ Tests for FlowRunPolicy retry counters (in_process_retries and reschedule_retrie
 import contextlib
 from uuid import uuid4
 
-import pytest
-
 from prefect.server.orchestration.core_policy import (
     HandleFlowTerminalStateTransitions,
     RetryFailedFlows,
 )
-from prefect.server.schemas.responses import SetStateStatus
 from prefect.server.schemas.states import StateType
 
 
@@ -40,7 +37,9 @@ class TestInProcessRetryCounter:
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:
-                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+                ctx = await stack.enter_async_context(
+                    rule(ctx, *intended_transition)
+                )
             await ctx.validate_proposed_state()
 
         assert ctx.run.empirical_policy.retry_type == "in_process"
@@ -70,7 +69,9 @@ class TestInProcessRetryCounter:
 
             async with contextlib.AsyncExitStack() as stack:
                 for rule in retry_policy:
-                    ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+                        ctx = await stack.enter_async_context(
+                            rule(ctx, *intended_transition)
+                        )
                 await ctx.validate_proposed_state()
 
             assert ctx.run.empirical_policy.retry_type == "in_process"
@@ -91,14 +92,16 @@ class TestInProcessRetryCounter:
             "flow",
             *intended_transition,
         )
-        ctx.run.run_count = 2 
+        ctx.run.run_count = 2
         ctx.run_settings.retries = 1
         ctx.run.empirical_policy = ctx.run.empirical_policy.model_copy()
         ctx.run.empirical_policy.in_process_retries = 2
 
         async with contextlib.AsyncExitStack() as stack:
             for rule in retry_policy:
-                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+                ctx = await stack.enter_async_context(
+                    rule(ctx, *intended_transition)
+                )
             await ctx.validate_proposed_state()
 
         assert ctx.run.empirical_policy.retry_type is None
