@@ -603,7 +603,8 @@ async def logs(
                 if (
                     page_size is None
                     and limit is not None
-                    and exc.response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+                    and exc.response.status_code
+                    == status.HTTP_422_UNPROCESSABLE_CONTENT
                     and "Invalid limit" in exc.response.text
                 ):
                     limit = None
