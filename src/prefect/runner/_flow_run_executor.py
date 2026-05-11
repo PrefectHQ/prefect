@@ -7,7 +7,8 @@ from uuid import UUID
 import anyio
 import anyio.abc
 
-from prefect._observers import FlowRunCancellingObserver
+from prefect._internal.infrastructure_exit_codes import get_infrastructure_exit_info
+from prefect._internal.observers import FlowRunCancellingObserver
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.logging import get_logger
 from prefect.runner._cancellation_manager import CancellationManager
@@ -17,7 +18,6 @@ from prefect.runner._hook_runner import HookRunner
 from prefect.runner._process_manager import ProcessHandle, ProcessManager
 from prefect.runner._state_proposer import StateProposer
 from prefect.settings.context import get_current_settings
-from prefect.utilities._infrastructure_exit_codes import get_infrastructure_exit_info
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun

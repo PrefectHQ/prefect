@@ -18,6 +18,7 @@ from pydantic import (
 )
 
 import prefect.server.schemas as schemas
+from prefect._internal.schema import ParameterSchema
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
     normalize_schedule_rrule,
@@ -45,7 +46,6 @@ from prefect.types import (
     StrictVariableValue,
 )
 from prefect.types._datetime import now
-from prefect.types._schema import ParameterSchema
 from prefect.types.names import (
     ArtifactKey,
     BlockDocumentName,

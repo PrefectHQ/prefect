@@ -384,7 +384,7 @@ def _build_docker_image_buildx(
     auto_build: bool,
     build_kwargs: dict[str, Any],
 ) -> str:
-    from prefect.docker._buildx import buildx_build_image
+    from prefect._internal.buildx import buildx_build_image
 
     context = Path(build_kwargs.pop("path", os.getcwd()))
     push = build_kwargs.pop("push", False)
@@ -497,7 +497,7 @@ def push_docker_image(
         )
 
     if build_backend == "buildx":
-        from prefect.docker._buildx import buildx_push_image
+        from prefect._internal.buildx import buildx_push_image
 
         if credentials is not None:
             import python_on_whales

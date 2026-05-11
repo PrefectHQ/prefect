@@ -137,7 +137,7 @@ from prefect.settings import (
 )
 from prefect.types._datetime import now
 
-from prefect.client._version_checking import (
+from prefect._internal.version_checking import (
     _api_version_check_key,
     _cache_api_version_check,
     _clear_api_version_check_cache,

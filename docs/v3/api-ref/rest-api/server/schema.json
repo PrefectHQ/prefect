@@ -9572,6 +9572,134 @@
                 }
             }
         },
+        "/admin/storage": {
+            "get": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Read Server Default Result Storage",
+                "description": "Get the configured server default result storage block.",
+                "operationId": "read_server_default_result_storage_admin_storage_get",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ServerDefaultResultStorage"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Update Server Default Result Storage",
+                "description": "Set the server default result storage block.",
+                "operationId": "update_server_default_result_storage_admin_storage_put",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServerDefaultResultStorageUpdate"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ServerDefaultResultStorage"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Clear Server Default Result Storage",
+                "description": "Clear the configured server default result storage block.",
+                "operationId": "clear_server_default_result_storage_admin_storage_delete",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Successful Response"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/hello": {
             "get": {
                 "tags": [
@@ -18575,11 +18703,6 @@
                             "PREFECT_EXPERIMENTS_WARN",
                             "PREFECT_EXPERIMENTAL_WARN"
                         ]
-                    },
-                    "plugins": {
-                        "$ref": "#/components/schemas/PluginsSettings",
-                        "description": "Settings for the experimental plugin system",
-                        "supported_environment_variables": []
                     }
                 },
                 "type": "object",
@@ -21850,14 +21973,7 @@
             "IntervalSchedule": {
                 "properties": {
                     "interval": {
-                        "anyOf": [
-                            {
-                                "type": "number"
-                            },
-                            {
-                                "type": "string"
-                            }
-                        ],
+                        "type": "number",
                         "title": "Interval"
                     },
                     "anchor_date": {
@@ -22743,9 +22859,10 @@
                     "enabled": {
                         "type": "boolean",
                         "title": "Enabled",
-                        "description": "Enable the experimental plugin system.",
+                        "description": "Enable the plugin system.",
                         "default": false,
                         "supported_environment_variables": [
+                            "PREFECT_PLUGINS_ENABLED",
                             "PREFECT_EXPERIMENTS_PLUGINS_ENABLED"
                         ]
                     },
@@ -22765,6 +22882,7 @@
                         "title": "Allow",
                         "description": "Comma-separated list of plugin names to allow. If set, only these plugins will be loaded.",
                         "supported_environment_variables": [
+                            "PREFECT_PLUGINS_ALLOW",
                             "PREFECT_EXPERIMENTS_PLUGINS_ALLOW"
                         ]
                     },
@@ -22784,6 +22902,7 @@
                         "title": "Deny",
                         "description": "Comma-separated list of plugin names to deny. These plugins will not be loaded.",
                         "supported_environment_variables": [
+                            "PREFECT_PLUGINS_DENY",
                             "PREFECT_EXPERIMENTS_PLUGINS_DENY"
                         ]
                     },
@@ -22793,6 +22912,7 @@
                         "description": "Maximum time in seconds for all plugins to complete their setup hooks.",
                         "default": 20.0,
                         "supported_environment_variables": [
+                            "PREFECT_PLUGINS_SETUP_TIMEOUT_SECONDS",
                             "PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS"
                         ]
                     },
@@ -22802,6 +22922,7 @@
                         "description": "If True, exit if a required plugin fails during setup.",
                         "default": false,
                         "supported_environment_variables": [
+                            "PREFECT_PLUGINS_STRICT",
                             "PREFECT_EXPERIMENTS_PLUGINS_STRICT"
                         ]
                     },
@@ -22811,13 +22932,14 @@
                         "description": "If True, load plugins but do not execute their hooks. Useful for testing.",
                         "default": false,
                         "supported_environment_variables": [
+                            "PREFECT_PLUGINS_SAFE_MODE",
                             "PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE"
                         ]
                     }
                 },
                 "type": "object",
                 "title": "PluginsSettings",
-                "description": "Settings for configuring the experimental plugin system"
+                "description": "Settings for configuring the plugin system.\n\nEach field also accepts the legacy `PREFECT_EXPERIMENTS_PLUGINS_*` env-var\nname. The system warns once at import time when any of those legacy names\nis present in the environment. Legacy `[experiments.plugins]` TOML tables\nare read as a lower-priority fallback for the same backward-compat reason."
             },
             "QueueFilter": {
                 "properties": {
@@ -24266,6 +24388,42 @@
                 "title": "ServerDatabaseSettings",
                 "description": "Settings for controlling server database behavior"
             },
+            "ServerDefaultResultStorage": {
+                "properties": {
+                    "default_result_storage_block_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Default Result Storage Block Id",
+                        "description": "The block document ID of the server default result storage block."
+                    }
+                },
+                "type": "object",
+                "title": "ServerDefaultResultStorage",
+                "description": "Server-side default result storage configuration."
+            },
+            "ServerDefaultResultStorageUpdate": {
+                "properties": {
+                    "default_result_storage_block_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Default Result Storage Block Id",
+                        "description": "The block document ID of the server default result storage block."
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "default_result_storage_block_id"
+                ],
+                "title": "ServerDefaultResultStorageUpdate",
+                "description": "Request payload for setting the server default result storage block."
+            },
             "ServerDeploymentsSettings": {
                 "properties": {
                     "concurrency_slot_wait_seconds": {
@@ -25504,6 +25662,11 @@
                     },
                     "logging": {
                         "$ref": "#/components/schemas/LoggingSettings",
+                        "supported_environment_variables": []
+                    },
+                    "plugins": {
+                        "$ref": "#/components/schemas/PluginsSettings",
+                        "description": "Settings for the plugin system.",
                         "supported_environment_variables": []
                     },
                     "results": {

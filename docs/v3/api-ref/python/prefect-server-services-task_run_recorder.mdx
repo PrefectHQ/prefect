@@ -26,10 +26,15 @@ record_task_run_event(event: ReceivedEvent, depth: int = 0) -> None
 ```
 
 
-Record a single task run event in the database
+Record a single task run event in the database.
+
+Delegates to `record_bulk_task_run_events`, which already retries once on
+`IntegrityError` to recover from TOCTOU races against concurrent recorders.
+Any `IntegrityError` that survives the retry is treated as an unrecoverable
+duplicate and the event is discarded.
 
 
-### `record_bulk_task_run_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L186" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `record_bulk_task_run_events` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 record_bulk_task_run_events(events: list[ReceivedEvent]) -> None
@@ -38,8 +43,14 @@ record_bulk_task_run_events(events: list[ReceivedEvent]) -> None
 
 Record multiple task run events in the database, taking advantage of bulk inserts.
 
+Retries once on `IntegrityError` to handle TOCTOU races between concurrent
+recorder instances: when two batches reference the same `task_run.id` with
+different natural keys, one batch's existence-check SELECT may run before
+the other batch's INSERT commits. The retry re-runs the SELECT in a fresh
+session so the conflict target is chosen against the now-visible row.
 
-### `consumer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L419" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `consumer` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L439" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 consumer(write_batch_size: int, flush_every: int, max_persist_retries: int = DEFAULT_PERSIST_MAX_RETRIES) -> AsyncGenerator[MessageHandler, None]
@@ -47,9 +58,9 @@ consumer(write_batch_size: int, flush_every: int, max_persist_retries: int = DEF
 
 ## Classes
 
-### `RetryableEvent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L413" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RetryableEvent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L433" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `TaskRunRecorder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L502" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TaskRunRecorder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L522" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Constructs task runs and states from client-emitted events
@@ -109,7 +120,7 @@ A context manager that runs enabled services on entry and stops them on
 exit.
 
 
-#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L509" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `service_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L529" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 service_settings(cls) -> ServicesBaseSetting
@@ -124,7 +135,7 @@ service_settings(cls) -> ServicesBaseSetting
 The Prefect setting that controls whether the service is enabled
 
 
-#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L526" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L546" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 start(self, max_persist_retries: int = DEFAULT_PERSIST_MAX_RETRIES) -> NoReturn
@@ -139,19 +150,19 @@ start(self) -> NoReturn
 Start running the service, which may run indefinitely
 
 
-#### `started_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L517" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `started_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L537" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 started_event(self) -> asyncio.Event
 ```
 
-#### `started_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L523" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `started_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L543" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 started_event(self, value: asyncio.Event) -> None
 ```
 
-#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L553" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/task_run_recorder.py#L573" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 stop(self) -> None

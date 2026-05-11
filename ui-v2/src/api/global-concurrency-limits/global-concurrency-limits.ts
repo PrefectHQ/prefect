@@ -42,6 +42,7 @@ export const buildListGlobalConcurrencyLimitsQuery = (
 			);
 			return res.data ?? [];
 		},
+		refetchInterval: 30_000,
 	});
 
 /**

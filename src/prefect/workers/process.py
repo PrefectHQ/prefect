@@ -278,7 +278,7 @@ class ProcessWorker(
         task_status: anyio.abc.TaskStatus["FlowRun"] | None = None,
         flow_run: "FlowRun | None" = None,
     ):
-        from prefect._experimental.bundles import (
+        from prefect.bundles import (
             create_bundle_for_flow_run,
         )
 

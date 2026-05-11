@@ -150,13 +150,13 @@ if __name__ == "__main__":
     configure_from_env()
 
     with handle_engine_signals(flow_run_id):
+        from prefect._internal.metrics import RunMetrics
         from prefect.flow_engine import (
             flow_run_logger,
             load_flow,
             load_flow_run,
             run_flow,
         )
-        from prefect.telemetry._metrics import RunMetrics
 
         flow_run: "FlowRun" = load_flow_run(flow_run_id=flow_run_id)
         run_logger: "LoggingAdapter" = flow_run_logger(flow_run=flow_run)
