@@ -18,7 +18,7 @@ import sqlalchemy as sa
 from cachetools import Cache, TTLCache
 from jinja2 import Environment, PackageLoader, select_autoescape
 from sqlalchemy import orm
-from sqlalchemy.dialects import postgresql, sqlite
+from sqlalchemy.dialects import mysql, postgresql, sqlite
 from sqlalchemy.exc import NoResultFound
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.type_api import TypeEngine
@@ -80,7 +80,7 @@ class BaseQueryComponents(ABC):
     @abstractmethod
     def insert(
         self, obj: type[orm_models.Base]
-    ) -> Union[postgresql.Insert, sqlite.Insert]:
+    ) -> Union[mysql.Insert, postgresql.Insert, sqlite.Insert]:
         """dialect-specific insert statement"""
 
     # --- dialect-specific JSON handling
@@ -1085,3 +1085,356 @@ class AioSqliteQueryComponents(BaseQueryComponents):
             .limit(param_max_nodes)
         )
         return cast(sa.Select[FlowRunGraphV2Node], query)
+
+
+class AsyncMySQLQueryComponents(BaseQueryComponents):
+    """MySQL-specific query components."""
+
+    def insert(self, obj: type[orm_models.Base]) -> mysql.Insert:
+        return mysql.insert(obj)
+
+    @property
+    def uses_json_strings(self) -> bool:
+        return False
+
+    def cast_to_json(self, json_obj: sa.ColumnElement[T]) -> sa.ColumnElement[T]:
+        return json_obj
+
+    def build_json_object(
+        self, *args: Union[str, sa.ColumnElement[Any]]
+    ) -> sa.ColumnElement[Any]:
+        return sa.func.json_object(*args)
+
+    def json_arr_agg(self, json_array: sa.ColumnElement[Any]) -> sa.ColumnElement[Any]:
+        return sa.func.json_arrayagg(json_array)
+
+    def make_timestamp_intervals(
+        self,
+        start_time: datetime.datetime,
+        end_time: datetime.datetime,
+        interval: datetime.timedelta,
+    ) -> sa.Select[tuple[datetime.datetime, datetime.datetime]]:
+        start = sa.bindparam("start_time", start_time, Timestamp)
+        # subtract interval because recursive where clauses are effectively evaluated on a t-1 lag
+        stop = sa.bindparam("end_time", end_time - interval, Timestamp)
+        step = sa.bindparam("interval", interval, sa.Interval)
+
+        one = sa.literal(1, literal_execute=True)
+
+        # recursive CTE to mimic the behavior of `generate_series`
+        base_case = sa.select(
+            start.label("interval_start"),
+            sa.func.date_add(start, step).label("interval_end"),
+            one.label("counter"),
+        ).cte(recursive=True)
+        recursive_case = sa.select(
+            base_case.c.interval_end,
+            sa.func.date_add(base_case.c.interval_end, step),
+            base_case.c.counter + one,
+        ).where(
+            base_case.c.interval_start < stop,
+            # don't compute more than 500 intervals
+            base_case.c.counter < 500,
+        )
+        cte = base_case.union_all(recursive_case)
+
+        return sa.select(cte.c.interval_start, cte.c.interval_end)
+
+    @db_injector
+    def set_state_id_on_inserted_flow_runs_statement(
+        self,
+        db: PrefectDBInterface,
+        inserted_flow_run_ids: Sequence[UUID],
+        insert_flow_run_states: Iterable[dict[str, Any]],
+    ) -> sa.Update:
+        """Given a list of flow run ids and associated states, set state_id."""
+        fr_model, frs_model = db.FlowRun, db.FlowRunState
+        # MySQL uses a correlated subquery here to avoid dialect-specific UPDATE ... JOIN syntax.
+        subquery = (
+            sa.select(frs_model.id)
+            .where(
+                frs_model.flow_run_id == fr_model.id,
+                frs_model.id.in_([r["id"] for r in insert_flow_run_states]),
+            )
+            .limit(1)
+            .scalar_subquery()
+        )
+        stmt = (
+            sa.update(fr_model)
+            .where(fr_model.id.in_(inserted_flow_run_ids))
+            .values(state_id=subquery)
+            .execution_options(synchronize_session=False)
+        )
+        return stmt
+
+    @db_injector
+    def _get_scheduled_flow_runs_join(
+        self,
+        db: PrefectDBInterface,
+        work_queue_query: sa.CTE,
+        limit_per_queue: Optional[int],
+        scheduled_before: Optional[DateTime],
+    ) -> tuple[sa.FromClause, sa.ColumnExpressionArgument[bool]]:
+        FlowRun = db.FlowRun
+
+        scheduled_before_clause = (
+            FlowRun.next_scheduled_start_time <= scheduled_before
+            if scheduled_before is not None
+            else sa.true()
+        )
+
+        scheduled_flow_runs = (
+            sa.select(
+                (
+                    sa.func.row_number()
+                    .over(
+                        partition_by=[FlowRun.work_queue_name],
+                        order_by=FlowRun.next_scheduled_start_time,
+                    )
+                    .label("rank")
+                ),
+                FlowRun,
+            )
+            .where(FlowRun.state_type == StateType.SCHEDULED, scheduled_before_clause)
+            .subquery("scheduled_flow_runs")
+        )
+
+        # MySQL LEAST follows PostgreSQL semantics for NULL handling when wrapped with COALESCE.
+        limit = 999999 if limit_per_queue is None else limit_per_queue
+        join_criteria = sa.and_(
+            scheduled_flow_runs.c.work_queue_name == db.WorkQueue.name,
+            scheduled_flow_runs.c.rank
+            <= sa.func.least(
+                sa.func.coalesce(work_queue_query.c.available_slots, limit), limit
+            ),
+        )
+        return scheduled_flow_runs, join_criteria
+
+    @property
+    def _get_scheduled_flow_runs_from_work_pool_template_path(self) -> str:
+        return "mysql/get-runs-from-worker-queues.sql.jinja"
+
+    @db_injector
+    async def flow_run_graph_v2(
+        self,
+        db: PrefectDBInterface,
+        session: AsyncSession,
+        flow_run_id: UUID,
+        since: DateTime,
+        max_nodes: int,
+        max_artifacts: int,
+    ) -> Graph:
+        """
+        MySQL implementation of flow run graph v2.
+
+        Builds the graph in Python from ORM rows to avoid relying on PostgreSQL-
+        or SQLite-specific JSON table functions.
+        """
+        FlowRun, TaskRun, Flow = db.FlowRun, db.TaskRun, db.Flow
+        result = await session.execute(
+            sa.select(
+                sa.func.coalesce(
+                    FlowRun.start_time, FlowRun.expected_start_time, type_=Timestamp
+                ),
+                FlowRun.end_time,
+            ).where(FlowRun.id == flow_run_id)
+        )
+        try:
+            start_time, end_time = result.t.one()
+        except NoResultFound:
+            raise ObjectNotFoundError(f"Flow run {flow_run_id} not found")
+
+        row_result = await session.execute(
+            sa.select(TaskRun, FlowRun, Flow)
+            .join(
+                FlowRun,
+                isouter=True,
+                onclause=FlowRun.parent_task_run_id == TaskRun.id,
+            )
+            .join(Flow, isouter=True, onclause=Flow.id == FlowRun.flow_id)
+            .where(
+                TaskRun.flow_run_id == flow_run_id,
+                TaskRun.state_type != StateType.PENDING,
+                sa.func.coalesce(
+                    FlowRun.start_time,
+                    FlowRun.expected_start_time,
+                    TaskRun.start_time,
+                    TaskRun.expected_start_time,
+                ).is_not(None),
+            )
+            .order_by(sa.func.coalesce(FlowRun.id, TaskRun.id))
+        )
+
+        class _NodeData(NamedTuple):
+            kind: Literal["flow-run", "task-run"]
+            id: UUID
+            label: str
+            state_type: StateType
+            start_time: DateTime
+            end_time: Optional[DateTime]
+            raw_parent_ids: list[UUID]
+            raw_encapsulating_ids: list[UUID]
+
+        node_data_by_id: dict[UUID, _NodeData] = {}
+        node_order: list[UUID] = []
+
+        def _extract_parent_ids(task_inputs: Any) -> tuple[list[UUID], list[UUID]]:
+            parent_ids: list[UUID] = []
+            encapsulating_ids: list[UUID] = []
+            if not isinstance(task_inputs, dict):
+                return parent_ids, encapsulating_ids
+
+            for key, values in task_inputs.items():
+                if not isinstance(values, list):
+                    continue
+                for value in values:
+                    if not isinstance(value, dict):
+                        continue
+                    raw_id = value.get("id")
+                    if raw_id is None:
+                        continue
+                    try:
+                        parsed_id = raw_id if isinstance(raw_id, UUID) else UUID(raw_id)
+                    except (TypeError, ValueError):
+                        continue
+
+                    if key == "__parents__":
+                        encapsulating_ids.append(parsed_id)
+                    else:
+                        parent_ids.append(parsed_id)
+
+            return parent_ids, encapsulating_ids
+
+        for task_run, subflow_run, subflow in row_result.t:
+            parent_ids, encapsulating_ids = _extract_parent_ids(task_run.task_inputs)
+
+            if subflow_run is not None:
+                node_id = subflow_run.id
+                node = _NodeData(
+                    kind="flow-run",
+                    id=node_id,
+                    label=f"{subflow.name} / {subflow_run.name}"
+                    if subflow is not None
+                    else subflow_run.name,
+                    state_type=subflow_run.state_type,
+                    start_time=(
+                        subflow_run.start_time
+                        if subflow_run.start_time is not None
+                        else subflow_run.expected_start_time
+                    ),
+                    end_time=subflow_run.end_time,
+                    raw_parent_ids=parent_ids,
+                    raw_encapsulating_ids=encapsulating_ids,
+                )
+            else:
+                node_id = task_run.id
+                node = _NodeData(
+                    kind="task-run",
+                    id=node_id,
+                    label=task_run.name,
+                    state_type=task_run.state_type,
+                    start_time=(
+                        task_run.start_time
+                        if task_run.start_time is not None
+                        else task_run.expected_start_time
+                    ),
+                    end_time=(
+                        task_run.end_time
+                        if task_run.end_time is not None
+                        else (
+                            task_run.expected_start_time
+                            if task_run.state_type == StateType.COMPLETED
+                            else None
+                        )
+                    ),
+                    raw_parent_ids=parent_ids,
+                    raw_encapsulating_ids=encapsulating_ids,
+                )
+
+            if node.id not in node_data_by_id:
+                node_data_by_id[node.id] = node
+                node_order.append(node.id)
+
+        graph_artifacts = await self._get_flow_run_graph_artifacts(
+            db, session, flow_run_id, max_artifacts
+        )
+        graph_states = await self._get_flow_run_graph_states(session, flow_run_id)
+
+        existing_ids = set(node_data_by_id.keys())
+        filtered_nodes: list[_NodeData] = []
+        for node_id in node_order:
+            node = node_data_by_id[node_id]
+            if node.end_time is not None and node.end_time < since:
+                continue
+            filtered_nodes.append(node)
+
+        filtered_ids = {n.id for n in filtered_nodes}
+        child_ids_by_parent: dict[UUID, list[UUID]] = defaultdict(list)
+        for node in filtered_nodes:
+            for parent_id in node.raw_parent_ids:
+                if parent_id in filtered_ids:
+                    child_ids_by_parent[parent_id].append(node.id)
+
+        ordered_nodes = sorted(filtered_nodes, key=lambda n: (n.start_time, n.end_time))
+        nodes: list[tuple[UUID, Node]] = []
+        root_node_ids: list[UUID] = []
+
+        for node in ordered_nodes:
+            parent_ids = [pid for pid in node.raw_parent_ids if pid in filtered_ids]
+            if not parent_ids:
+                root_node_ids.append(node.id)
+
+            # Keep encapsulating IDs stable and ordered by parent start time.
+            encapsulating_ids = [
+                eid for eid in dict.fromkeys(node.raw_encapsulating_ids) if eid in existing_ids
+            ]
+            encapsulating_ids.sort(
+                key=lambda eid: (
+                    node_data_by_id[eid].start_time,
+                    node_data_by_id[eid].id,
+                )
+            )
+
+            nodes.append(
+                (
+                    node.id,
+                    Node(
+                        kind=node.kind,
+                        id=node.id,
+                        label=node.label,
+                        state_type=node.state_type,
+                        start_time=node.start_time,
+                        end_time=node.end_time,
+                        parents=[Edge(id=id) for id in parent_ids],
+                        children=[
+                            Edge(id=id)
+                            for id in dict.fromkeys(child_ids_by_parent.get(node.id, []))
+                        ],
+                        encapsulating=[Edge(id=id) for id in encapsulating_ids],
+                        artifacts=graph_artifacts.get(node.id, []),
+                    ),
+                )
+            )
+
+            if len(nodes) > max_nodes:
+                raise FlowRunGraphTooLarge(
+                    f"The graph of flow run {flow_run_id} has more than "
+                    f"{max_nodes} nodes."
+                )
+
+        return Graph(
+            start_time=start_time,
+            end_time=end_time,
+            root_node_ids=root_node_ids,
+            nodes=nodes,
+            artifacts=graph_artifacts.get(None, []),
+            states=graph_states,
+        )
+
+    @db_injector
+    def _build_flow_run_graph_v2_query(
+        self, db: PrefectDBInterface
+    ) -> sa.Select[FlowRunGraphV2Node]:
+        raise NotImplementedError(
+            "Flow run graph v2 query is not implemented for mysql dialect yet."
+        )

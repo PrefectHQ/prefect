@@ -247,6 +247,29 @@ async def average_flow_run_lateness(
                 ),
                 else_=0,
             )
+        elif db.dialect.name == "mysql":
+            # MySQL stores intervals without a native interval type; compute seconds directly.
+            base_query = sa.case(
+                (
+                    db.FlowRun.start_time > db.FlowRun.expected_start_time,
+                    sa.func.timestampdiff(
+                        sa.literal_column("SECOND"),
+                        db.FlowRun.expected_start_time,
+                        db.FlowRun.start_time,
+                    ),
+                ),
+                (
+                    db.FlowRun.start_time.is_(None)
+                    & db.FlowRun.state_type.notin_(schemas.states.TERMINAL_STATES)
+                    & (db.FlowRun.expected_start_time < sa.func.utc_timestamp()),
+                    sa.func.timestampdiff(
+                        sa.literal_column("SECOND"),
+                        db.FlowRun.expected_start_time,
+                        sa.func.utc_timestamp(),
+                    ),
+                ),
+                else_=0,
+            )
         else:
             base_query = db.FlowRun.estimated_start_time_delta
 

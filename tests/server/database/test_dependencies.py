@@ -9,25 +9,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prefect.server.database import PrefectDBInterface, dependencies
 from prefect.server.database.configurations import (
     AioSqliteConfiguration,
+    AsyncMySQLConfiguration,
     AsyncPostgresConfiguration,
     BaseDatabaseConfiguration,
 )
 from prefect.server.database.orm_models import (
     AioSqliteORMConfiguration,
+    AsyncMySQLORMConfiguration,
     AsyncPostgresORMConfiguration,
 )
 from prefect.server.database.query_components import (
     AioSqliteQueryComponents,
+    AsyncMySQLQueryComponents,
     AsyncPostgresQueryComponents,
     BaseQueryComponents,
 )
 from prefect.server.schemas.graph import Graph
+from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL, temporary_settings
 from prefect.types._datetime import DateTime
 
 
 @pytest.mark.parametrize(
     "ConnectionConfig",
-    (AsyncPostgresConfiguration, AioSqliteConfiguration),
+    (AsyncPostgresConfiguration, AsyncMySQLConfiguration, AioSqliteConfiguration),
 )
 async def test_injecting_an_existing_database_database_config(ConnectionConfig):
     with dependencies.temporary_database_config(ConnectionConfig(None)):
@@ -57,7 +61,8 @@ async def test_injecting_a_really_dumb_database_database_config():
 
 
 @pytest.mark.parametrize(
-    "QueryComponents", (AsyncPostgresQueryComponents, AioSqliteQueryComponents)
+    "QueryComponents",
+    (AsyncPostgresQueryComponents, AsyncMySQLQueryComponents, AioSqliteQueryComponents),
 )
 async def test_injecting_existing_query_components(QueryComponents):
     with dependencies.temporary_query_components(QueryComponents()):
@@ -125,7 +130,8 @@ async def test_injecting_really_dumb_query_components():
 
 
 @pytest.mark.parametrize(
-    "ORMConfig", (AsyncPostgresORMConfiguration, AioSqliteORMConfiguration)
+    "ORMConfig",
+    (AsyncPostgresORMConfiguration, AsyncMySQLORMConfiguration, AioSqliteORMConfiguration),
 )
 async def test_injecting_existing_orm_configs(ORMConfig):
     with dependencies.temporary_orm_config(ORMConfig()):
@@ -142,6 +148,24 @@ async def test_inject_interface_class():
     with dependencies.temporary_interface_class(TestInterface):
         db = dependencies.provide_database_interface()
         assert isinstance(db, TestInterface)
+
+
+async def test_infers_mysql_database_interface_components():
+    with temporary_settings(
+        {
+            PREFECT_API_DATABASE_CONNECTION_URL: "mysql+aiomysql://user:pass@localhost:3306/prefect"
+        }
+    ):
+        with dependencies.temporary_database_interface():
+            db = dependencies.provide_database_interface()
+
+    assert type(db.database_config) is AsyncMySQLConfiguration
+    assert type(db.queries) is AsyncMySQLQueryComponents
+    assert type(db.orm) is AsyncMySQLORMConfiguration
+    assert (
+        db.queries._get_scheduled_flow_runs_from_work_pool_template_path
+        == "mysql/get-runs-from-worker-queues.sql.jinja"
+    )
 
 
 class TestDBInject:

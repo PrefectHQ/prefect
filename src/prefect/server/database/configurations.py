@@ -417,6 +417,132 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
         return False
 
 
+class AsyncMySQLConfiguration(BaseDatabaseConfiguration):
+    async def engine(self) -> AsyncEngine:
+        """Retrieves an async SQLAlchemy engine."""
+
+        loop = get_running_loop()
+
+        cache_key = (
+            loop,
+            self.connection_url,
+            self.echo,
+            self.timeout,
+        )
+        if cache_key not in ENGINES:
+            kwargs: dict[str, Any] = (
+                get_current_settings().server.database.sqlalchemy.model_dump(
+                    mode="json", exclude={"connect_args"}
+                )
+            )
+            connect_args: dict[str, Any] = {}
+
+            # MySQL-compatible drivers use connect_timeout for handshake timeout.
+            connection_timeout = self.connection_timeout
+            if PREFECT_TESTING_UNIT_TEST_MODE.value() is True:
+                connection_timeout = max(connection_timeout or 0.0, 30.0)
+            if connection_timeout is not None:
+                connect_args["connect_timeout"] = connection_timeout
+
+            # Initialize plugin manager
+            if get_current_settings().plugins.enabled:
+                pm = build_manager(HookSpec)
+                load_entry_point_plugins(
+                    pm,
+                    allow=get_current_settings().plugins.allow,
+                    deny=get_current_settings().plugins.deny,
+                    logger=logging.getLogger("prefect.plugins"),
+                )
+
+                # Call set_database_connection_params hook
+                results = await call_async_hook(
+                    pm,
+                    "set_database_connection_params",
+                    connection_url=self.connection_url,
+                    settings=get_current_settings(),
+                )
+
+                for _, params, error in results:
+                    if error:
+                        # Log error but don't fail, other plugins might succeed
+                        logging.getLogger("prefect.server.database").warning(
+                            "Plugin failed to set database connection params: %s", error
+                        )
+                    elif params:
+                        connect_args.update(params)
+
+            if connect_args:
+                kwargs["connect_args"] = connect_args
+
+            if self.sqlalchemy_pool_size is not None:
+                kwargs["pool_size"] = self.sqlalchemy_pool_size
+
+            if self.sqlalchemy_max_overflow is not None:
+                kwargs["max_overflow"] = self.sqlalchemy_max_overflow
+
+            engine = create_async_engine(
+                self.connection_url,
+                echo=self.echo,
+                pool_pre_ping=True,
+                pool_use_lifo=True,
+                **kwargs,
+            )
+
+            if logfire:
+                logfire.instrument_sqlalchemy(engine)  # pyright: ignore
+
+            if TRACKER.active:
+                TRACKER.track_pool(engine.pool)
+
+            ENGINES[cache_key] = engine
+            await self.schedule_engine_disposal(cache_key)
+        return ENGINES[cache_key]
+
+    async def schedule_engine_disposal(self, cache_key: _EngineCacheKey) -> None:
+        async def dispose_engine(cache_key: _EngineCacheKey) -> None:
+            engine = ENGINES.pop(cache_key, None)
+            if engine:
+                await engine.dispose()
+
+        await add_event_loop_shutdown_callback(partial(dispose_engine, cache_key))
+
+    async def session(self, engine: AsyncEngine) -> AsyncSession:
+        """
+        Retrieves a SQLAlchemy session for an engine.
+
+        Args:
+            engine: a sqlalchemy engine
+        """
+        return AsyncSession(engine, expire_on_commit=False)
+
+    @asynccontextmanager
+    async def begin_transaction(
+        self, session: AsyncSession, with_for_update: bool = False
+    ) -> AsyncGenerator[AsyncSessionTransaction, None]:
+        # `with_for_update` does not require custom transaction begin behavior.
+        async with session.begin() as transaction:
+            yield transaction
+
+    async def create_db(
+        self, connection: AsyncConnection, base_metadata: sa.MetaData
+    ) -> None:
+        """Create the database"""
+
+        await connection.run_sync(base_metadata.create_all)
+
+    async def drop_db(
+        self, connection: AsyncConnection, base_metadata: sa.MetaData
+    ) -> None:
+        """Drop the database"""
+
+        await connection.run_sync(base_metadata.drop_all)
+
+    def is_inmemory(self) -> bool:
+        """Returns true if database is run in memory"""
+
+        return False
+
+
 class AioSqliteConfiguration(BaseDatabaseConfiguration):
     MIN_SQLITE_VERSION = (3, 24, 0)
 

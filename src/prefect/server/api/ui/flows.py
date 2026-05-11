@@ -139,6 +139,36 @@ def _get_sqlite_next_runs_query(flow_ids: List[UUID]):
     return query
 
 
+def _get_mysql_next_runs_query(flow_ids: List[UUID]):
+    raw_query = sa.text(
+        """
+        WITH min_times AS (
+            SELECT flow_id, MIN(next_scheduled_start_time) AS min_next_scheduled_start_time
+            FROM flow_run
+            WHERE flow_id IN :flow_ids
+            AND state_type = 'SCHEDULED'
+            GROUP BY flow_id
+        )
+        SELECT fr.id, fr.name, fr.flow_id, fr.state_name, fr.state_type, fr.next_scheduled_start_time
+        FROM flow_run fr
+        JOIN min_times mt ON fr.flow_id = mt.flow_id AND fr.next_scheduled_start_time = mt.min_next_scheduled_start_time
+        WHERE fr.state_type = 'SCHEDULED';
+        """
+    )
+
+    bindparams = [
+        sa.bindparam(
+            "flow_ids",
+            flow_ids,
+            expanding=True,
+            type_=UUIDTypeDecorator,
+        ),
+    ]
+
+    query = raw_query.bindparams(*bindparams)
+    return query
+
+
 @router.post("/next-runs")
 async def next_runs_by_flow(
     flow_ids: List[UUID] = Body(default=..., embed=True, max_items=200),
@@ -151,6 +181,8 @@ async def next_runs_by_flow(
     async with db.session_context() as session:
         if db.dialect.name == "postgresql":
             query = _get_postgres_next_runs_query(flow_ids=flow_ids)
+        elif db.dialect.name == "mysql":
+            query = _get_mysql_next_runs_query(flow_ids=flow_ids)
         else:
             query = _get_sqlite_next_runs_query(flow_ids=flow_ids)
 

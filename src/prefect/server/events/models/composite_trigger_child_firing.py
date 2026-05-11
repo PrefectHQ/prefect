@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Sequence
 from uuid import UUID
 
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
+from sqlalchemy.dialects import mysql, postgresql, sqlite
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.database import PrefectDBInterface, db_injector
@@ -57,17 +57,17 @@ async def upsert_child_firing(
     parent_trigger_id = firing.trigger.parent.id
     child_trigger_id = firing.trigger.id
 
-    upsert = (
-        postgresql.insert(db.CompositeTriggerChildFiring)
-        .values(
-            automation_id=automation_id,
-            parent_trigger_id=parent_trigger_id,
-            child_trigger_id=child_trigger_id,
-            child_firing_id=firing.id,
-            child_fired_at=firing.triggered,
-            child_firing=firing.model_dump(),
-        )
-        .on_conflict_do_update(
+    values = dict(
+        automation_id=automation_id,
+        parent_trigger_id=parent_trigger_id,
+        child_trigger_id=child_trigger_id,
+        child_firing_id=firing.id,
+        child_fired_at=firing.triggered,
+        child_firing=firing.model_dump(),
+    )
+    if db.dialect.name == "postgresql":
+        upsert = postgresql.insert(db.CompositeTriggerChildFiring).values(values)
+        upsert = upsert.on_conflict_do_update(
             index_elements=[
                 db.CompositeTriggerChildFiring.automation_id,
                 db.CompositeTriggerChildFiring.parent_trigger_id,
@@ -80,7 +80,33 @@ async def upsert_child_firing(
                 updated=now("UTC"),
             ),
         )
-    )
+    elif db.dialect.name == "sqlite":
+        upsert = sqlite.insert(db.CompositeTriggerChildFiring).values(values)
+        upsert = upsert.on_conflict_do_update(
+            index_elements=[
+                db.CompositeTriggerChildFiring.automation_id,
+                db.CompositeTriggerChildFiring.parent_trigger_id,
+                db.CompositeTriggerChildFiring.child_trigger_id,
+            ],
+            set_=dict(
+                child_firing_id=firing.id,
+                child_fired_at=firing.triggered,
+                child_firing=firing.model_dump(),
+                updated=now("UTC"),
+            ),
+        )
+    elif db.dialect.name == "mysql":
+        upsert = mysql.insert(db.CompositeTriggerChildFiring).values(values)
+        upsert = upsert.on_duplicate_key_update(
+            child_firing_id=firing.id,
+            child_fired_at=firing.triggered,
+            child_firing=firing.model_dump(),
+            updated=now("UTC"),
+        )
+    else:
+        raise NotImplementedError(
+            f"Dialect {db.dialect.name!r} is not supported for composite trigger upsert."
+        )
 
     await session.execute(upsert)
 
@@ -144,14 +170,33 @@ async def clear_child_firings(
     compare this to the expected firing_ids to detect races and avoid double-firing
     composite triggers.
     """
-    result = await session.execute(
-        sa.delete(db.CompositeTriggerChildFiring)
-        .filter(
-            db.CompositeTriggerChildFiring.automation_id == trigger.automation.id,
-            db.CompositeTriggerChildFiring.parent_trigger_id == trigger.id,
-            db.CompositeTriggerChildFiring.child_firing_id.in_(firing_ids),
+    if db.dialect.name == "mysql":
+        existing_result = await session.execute(
+            sa.select(db.CompositeTriggerChildFiring.child_firing_id).filter(
+                db.CompositeTriggerChildFiring.automation_id == trigger.automation.id,
+                db.CompositeTriggerChildFiring.parent_trigger_id == trigger.id,
+                db.CompositeTriggerChildFiring.child_firing_id.in_(firing_ids),
+            )
         )
-        .returning(db.CompositeTriggerChildFiring.child_firing_id)
-    )
+        existing_ids = set(existing_result.scalars().all())
+        if existing_ids:
+            await session.execute(
+                sa.delete(db.CompositeTriggerChildFiring).filter(
+                    db.CompositeTriggerChildFiring.automation_id == trigger.automation.id,
+                    db.CompositeTriggerChildFiring.parent_trigger_id == trigger.id,
+                    db.CompositeTriggerChildFiring.child_firing_id.in_(existing_ids),
+                )
+            )
+        return existing_ids
+    else:
+        result = await session.execute(
+            sa.delete(db.CompositeTriggerChildFiring)
+            .filter(
+                db.CompositeTriggerChildFiring.automation_id == trigger.automation.id,
+                db.CompositeTriggerChildFiring.parent_trigger_id == trigger.id,
+                db.CompositeTriggerChildFiring.child_firing_id.in_(firing_ids),
+            )
+            .returning(db.CompositeTriggerChildFiring.child_firing_id)
+        )
 
-    return set(result.scalars().all())
+        return set(result.scalars().all())

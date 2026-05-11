@@ -1608,6 +1608,22 @@ class AsyncPostgresORMConfiguration(BaseORMConfiguration):
         )
 
 
+class AsyncMySQLORMConfiguration(BaseORMConfiguration):
+    """MySQL specific orm configuration"""
+
+    @property
+    def versions_dir(self) -> Path:
+        """Directory containing migrations"""
+        import prefect.server.database
+
+        return (
+            Path(prefect.server.database.__file__).parent
+            / "_migrations"
+            / "versions"
+            / "mysql"
+        )
+
+
 class AioSqliteORMConfiguration(BaseORMConfiguration):
     """SQLite specific orm configuration"""
 

@@ -28,6 +28,7 @@ from typing_extensions import (
 
 from prefect.server.database.configurations import (
     AioSqliteConfiguration,
+    AsyncMySQLConfiguration,
     AsyncPostgresConfiguration,
     BaseDatabaseConfiguration,
 )
@@ -75,10 +76,12 @@ def provide_database_interface() -> PrefectDBInterface:
     from prefect.server.database.interface import PrefectDBInterface
     from prefect.server.database.orm_models import (
         AioSqliteORMConfiguration,
+        AsyncMySQLORMConfiguration,
         AsyncPostgresORMConfiguration,
     )
     from prefect.server.database.query_components import (
         AioSqliteQueryComponents,
+        AsyncMySQLQueryComponents,
         AsyncPostgresQueryComponents,
     )
 
@@ -93,6 +96,8 @@ def provide_database_interface() -> PrefectDBInterface:
     if database_config is None:
         if dialect.name == "postgresql":
             database_config = AsyncPostgresConfiguration(connection_url=connection_url)
+        elif dialect.name == "mysql":
+            database_config = AsyncMySQLConfiguration(connection_url=connection_url)
         elif dialect.name == "sqlite":
             database_config = AioSqliteConfiguration(connection_url=connection_url)
         else:
@@ -106,6 +111,8 @@ def provide_database_interface() -> PrefectDBInterface:
     if query_components is None:
         if dialect.name == "postgresql":
             query_components = AsyncPostgresQueryComponents()
+        elif dialect.name == "mysql":
+            query_components = AsyncMySQLQueryComponents()
         elif dialect.name == "sqlite":
             query_components = AioSqliteQueryComponents()
         else:
@@ -119,6 +126,8 @@ def provide_database_interface() -> PrefectDBInterface:
     if orm is None:
         if dialect.name == "postgresql":
             orm = AsyncPostgresORMConfiguration()
+        elif dialect.name == "mysql":
+            orm = AsyncMySQLORMConfiguration()
         elif dialect.name == "sqlite":
             orm = AioSqliteORMConfiguration()
         else:

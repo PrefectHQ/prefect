@@ -443,6 +443,68 @@ def date_diff_seconds_postgresql(
     return compiler.process(sa.func.extract("epoch", operator.sub(*as_utc)), **kwargs)
 
 
+# MySQL implementations for the Timestamp and Interval arithmetic functions.
+#
+# SQLAlchemy emulates Interval on non-native backends as a datetime value offset
+# from the unix epoch. We normalize via TIMESTAMPDIFF/TIMESTAMPADD in
+# microseconds to keep conversions stable across expressions.
+MYSQL_MICROSECOND = sa.literal_column("MICROSECOND")
+MYSQL_EPOCH = sa.literal("1970-01-01 00:00:00", literal_execute=True)
+
+
+def _mysql_interval_microseconds(
+    interval: _SQLExpressionOrLiteral[datetime.timedelta],
+) -> sa.ColumnElement[int]:
+    return sa.func.timestampdiff(MYSQL_MICROSECOND, MYSQL_EPOCH, interval)
+
+
+@compiles(functions.now, "mysql")
+def current_timestamp_mysql(
+    element: functions.now, compiler: SQLCompiler, **kwargs: Any
+) -> str:
+    """Generates the current timestamp for MySQL in UTC."""
+    return compiler.process(sa.func.utc_timestamp(), **kwargs)
+
+
+@compiles(date_add, "mysql")
+def date_add_mysql(element: date_add, compiler: SQLCompiler, **kwargs: Any) -> str:
+    dt, interval = element.clauses
+    return compiler.process(
+        sa.func.timestampadd(MYSQL_MICROSECOND, _mysql_interval_microseconds(interval), dt),
+        **kwargs,
+    )
+
+
+@compiles(interval_add, "mysql")
+def interval_add_mysql(
+    element: interval_add, compiler: SQLCompiler, **kwargs: Any
+) -> str:
+    i1, i2 = element.clauses
+    offset = _mysql_interval_microseconds(i1) + _mysql_interval_microseconds(i2)
+    return compiler.process(sa.func.timestampadd(MYSQL_MICROSECOND, offset, MYSQL_EPOCH), **kwargs)
+
+
+@compiles(date_diff, "mysql")
+def date_diff_mysql(element: date_diff, compiler: SQLCompiler, **kwargs: Any) -> str:
+    d1, d2 = element.clauses
+    offset = sa.func.timestampdiff(MYSQL_MICROSECOND, d2, d1)
+    return compiler.process(sa.func.timestampadd(MYSQL_MICROSECOND, offset, MYSQL_EPOCH), **kwargs)
+
+
+@compiles(date_diff_seconds, "mysql")
+def date_diff_seconds_mysql(
+    element: date_diff_seconds, compiler: SQLCompiler, **kwargs: Any
+) -> str:
+    # either 1 or 2 timestamps; if 1, subtract from 'now'
+    dts: list[sa.ColumnElement[datetime.datetime]] = list(element.clauses)
+    if len(dts) == 1:
+        dts = [sa.func.utc_timestamp(), *dts]
+    return compiler.process(
+        sa.func.timestampdiff(MYSQL_MICROSECOND, dts[1], dts[0]) / 1_000_000.0,
+        **kwargs,
+    )
+
+
 # SQLite implementations for the Timestamp and Interval arithmetic functions.
 #
 # The following concepts are at play here:

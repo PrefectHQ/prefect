@@ -469,6 +469,7 @@ class TestCustomFunctions:
         "dialect,expected_function",
         (
             (sa.dialects.sqlite.dialect(), "max"),
+            (sa.dialects.mysql.dialect(), "greatest"),
             (sa.dialects.postgresql.dialect(), "greatest"),
         ),
     )
@@ -478,6 +479,14 @@ class TestCustomFunctions:
         expression = sa.func.greatest(17, 42, 11)
         compiled = str(expression.compile(dialect=dialect))
         assert compiled.partition("(")[0] == expected_function
+
+    def test_mysql_now_compilation(self) -> None:
+        dialect = sa.dialects.mysql.dialect()
+        expression = sa.func.now()
+        compiled = expression.compile(
+            dialect=dialect, compile_kwargs={"render_postcompile": True}
+        )
+        assert str(compiled) == "utc_timestamp()"
 
 
 class TestDateFunctions:

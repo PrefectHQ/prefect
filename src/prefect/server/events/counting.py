@@ -127,6 +127,13 @@ class TimeUnit(AutoEnum):
                 ),
                 sa.Text,
             )
+        elif db.dialect.name == "mysql":
+            # Compute seconds from pivot and bucket by interval size.
+            seconds_since_pivot = sa.func.timestampdiff(
+                sa.literal_column("SECOND"), PIVOT_DATETIME, db.Event.occurred
+            )
+            bucket_index = sa.func.floor(seconds_since_pivot / delta.total_seconds())
+            return sa.cast(bucket_index, sa.Text)
         elif db.dialect.name == "sqlite":
             # Convert pivot date and event date to strings formatted as seconds since the epoch
             pivot_timestamp = sa.func.strftime(
@@ -154,6 +161,16 @@ class TimeUnit(AutoEnum):
                 sa.func.date_bin(time_delta, db.Event.occurred, PIVOT_DATETIME),
                 'YYYY-MM-DD"T"HH24:MI:SSTZH:TZM',
             )
+        elif db.dialect.name == "mysql":
+            bucket_size = time_delta.total_seconds()
+            seconds_since_pivot = sa.func.timestampdiff(
+                sa.literal_column("SECOND"), PIVOT_DATETIME, db.Event.occurred
+            )
+            bucket_start_seconds = sa.func.floor(seconds_since_pivot / bucket_size) * bucket_size
+            bucket_datetime = sa.func.timestampadd(
+                sa.literal_column("SECOND"), bucket_start_seconds, PIVOT_DATETIME
+            )
+            return sa.func.date_format(bucket_datetime, "%Y-%m-%dT%H:%i:%sZ")
         elif db.dialect.name == "sqlite":
             # We can't use date_bin in SQLite, so we have to do the bucketing manually
             seconds_since_epoch = sa.func.strftime("%s", db.Event.occurred)
