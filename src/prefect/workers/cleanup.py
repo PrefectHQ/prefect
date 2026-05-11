@@ -150,7 +150,7 @@ class WorkerCleanupExecutor:
     def __init__(
         self,
         handlers: WorkerCleanupHandlerRegistry | Iterable[WorkerCleanupHandler],
-        send_operation: CleanupOperationSender,
+        send_operation: CleanupOperationSender | None = None,
         max_concurrency: int | None = None,
         *,
         lease_renewal_buffer_seconds: float = 5.0,
@@ -173,7 +173,7 @@ class WorkerCleanupExecutor:
         if max_operation_attempts < 1:
             raise ValueError("Cleanup operation attempts must be positive")
 
-        self._send_operation = send_operation
+        self._send_operation = send_operation or self._missing_operation_sender
         self._limiter = (
             anyio.CapacityLimiter(self.max_concurrency)
             if self.max_concurrency > 0
@@ -199,6 +199,14 @@ class WorkerCleanupExecutor:
 
     def set_operation_sender(self, send_operation: CleanupOperationSender) -> None:
         self._send_operation = send_operation
+
+    @staticmethod
+    def _missing_operation_sender(
+        frame: CleanupOperationFrame,
+    ) -> CleanupOperationResultFrame | None:
+        raise RuntimeError(
+            f"Cleanup operation sender has not been configured for {frame.type!r}"
+        )
 
     async def __aenter__(self) -> WorkerCleanupExecutor:
         if self._task_group is not None:

@@ -1005,17 +1005,33 @@ class TestAPILogHandler:
 WORKER_ID = uuid.uuid4()
 
 
+class _WorkerChannelTestDouble:
+    def __init__(self, worker: BaseWorker[Any, Any, Any], worker_id: uuid.UUID | None):
+        self._worker = worker
+        self._worker_id = worker_id
+
+    def set_client(self, client: PrefectClient) -> None:
+        pass
+
+    async def sync(self, task_group: Any) -> None:
+        if self._worker_id is not None:
+            self._worker._record_worker_id(self._worker_id)
+
+    def stop(self) -> None:
+        pass
+
+
 class TestWorkerLogging:
     class CloudWorkerTestImpl(BaseWorker[Any, Any, Any]):
         type: str = "cloud_logging_test"
         job_configuration = BaseJobConfiguration
 
-        async def _send_worker_heartbeat(self, *_, **__):
-            """
-            Workers only return an ID here if they're connected to Cloud,
-            so this simulates the worker being connected to Cloud.
-            """
-            return WORKER_ID
+        def _ensure_worker_channel(self) -> None:
+            if self._worker_channel is not None:
+                self._worker_channel.set_client(self._client)
+                return
+
+            self._worker_channel = _WorkerChannelTestDouble(self, WORKER_ID)
 
         async def run(self, *_, **__):
             pass
@@ -1027,12 +1043,12 @@ class TestWorkerLogging:
         async def run(self, *_, **__):
             pass
 
-        async def _send_worker_heartbeat(self, *_, **__):
-            """
-            Workers only return an ID here if they're connected to Cloud,
-            so this simulates the worker not being connected to Cloud.
-            """
-            return None
+        def _ensure_worker_channel(self) -> None:
+            if self._worker_channel is not None:
+                self._worker_channel.set_client(self._client)
+                return
+
+            self._worker_channel = _WorkerChannelTestDouble(self, None)
 
     @pytest.fixture
     def logging_to_api_enabled(self):

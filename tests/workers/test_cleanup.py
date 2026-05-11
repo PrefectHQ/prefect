@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import timedelta
 from typing import Any
 from uuid import uuid4
@@ -21,6 +22,8 @@ from prefect.client.schemas.worker_channel import (
     CleanupRenewFrame,
 )
 from prefect.types._datetime import DateTime, now
+from prefect.workers._worker_channel._protocol import WorkerChannelProtocolHandler
+from prefect.workers._worker_channel._state import WorkerChannelTerminalError
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
 from prefect.workers.cleanup import (
     CleanupExecutionResult,
@@ -32,7 +35,7 @@ from prefect.workers.cleanup import (
 
 
 class WorkerTestImpl(BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]):
-    type = "test"
+    type = "cleanup-test"
 
     async def run(self):
         pass
@@ -151,10 +154,7 @@ async def test_worker_advertises_cleanup_only_when_handlers_are_available():
 
     assert no_cleanup_worker.handled_cleanup_kinds == ()
     assert no_cleanup_worker.max_cleanup_concurrency == 0
-    assert no_cleanup_worker._worker_channel_requested_capabilities() == [
-        WORK_POOL_SNAPSHOT_CAPABILITY,
-        WORKER_HEARTBEAT_CAPABILITY,
-    ]
+    assert no_cleanup_worker._cleanup_delivery_available() is False
 
     cleanup_worker = WorkerTestImpl(
         work_pool_name="test",
@@ -164,15 +164,43 @@ async def test_worker_advertises_cleanup_only_when_handlers_are_available():
 
     assert cleanup_worker.handled_cleanup_kinds == (CANCELLING_TIMEOUT_TEARDOWN,)
     assert cleanup_worker.max_cleanup_concurrency == 1
-    assert cleanup_worker._worker_channel_requested_capabilities() == [
-        WORK_POOL_SNAPSHOT_CAPABILITY,
+    assert cleanup_worker._cleanup_delivery_available() is True
+
+
+async def test_protocol_advertises_cleanup_capability_from_executor():
+    async def worker_metadata():
+        return None
+
+    cleanup_worker = WorkerTestImpl(
+        work_pool_name="test",
+        _cleanup_handlers=[RecordingCleanupHandler()],
+        _max_cleanup_concurrency=2,
+    )
+    protocol = WorkerChannelProtocolHandler(
+        consumer_id=uuid7(),
+        worker_name="test-worker",
+        worker_type="test",
+        heartbeat_interval_seconds=30,
+        work_queue_names=["default"],
+        create_pool_if_not_found=True,
+        default_base_job_template={},
+        worker_metadata=worker_metadata,
+        classify_closed_connection=lambda exc: WorkerChannelTerminalError(
+            "connection_lost", str(exc)
+        ),
+        logger=logging.getLogger("test-worker-channel"),
+        cleanup_executor=cleanup_worker._create_cleanup_executor(),
+    )
+
+    hello = await protocol.build_hello_frame()
+
+    assert hello.payload.requested_capabilities == [
         WORKER_HEARTBEAT_CAPABILITY,
+        WORK_POOL_SNAPSHOT_CAPABILITY,
         CLEANUP_DELIVERY_CAPABILITY,
     ]
-
-    payload = cleanup_worker._worker_channel_hello_payload(consumer_id=uuid7())
-    assert payload.handled_cleanup_kinds == [CANCELLING_TIMEOUT_TEARDOWN]
-    assert payload.max_cleanup_concurrency == 1
+    assert hello.payload.handled_cleanup_kinds == [CANCELLING_TIMEOUT_TEARDOWN]
+    assert hello.payload.max_cleanup_concurrency == 2
 
 
 async def test_worker_uses_cleanup_concurrency_override_separate_from_flow_limit():
