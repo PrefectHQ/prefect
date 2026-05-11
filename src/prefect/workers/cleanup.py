@@ -200,6 +200,10 @@ class WorkerCleanupExecutor:
     def set_operation_sender(self, send_operation: CleanupOperationSender) -> None:
         self._send_operation = send_operation
 
+    def cancel(self) -> None:
+        if self._task_group is not None:
+            self._task_group.cancel_scope.cancel()
+
     @staticmethod
     def _missing_operation_sender(
         frame: CleanupOperationFrame,

@@ -3,27 +3,36 @@ from __future__ import annotations
 import logging
 from datetime import timedelta
 from typing import Any
+from unittest.mock import Mock
 from uuid import uuid4
 
 import anyio
+import orjson
 import pytest
 
 from prefect._internal.uuid7 import uuid7
+from prefect.client.base import ServerType
 from prefect.client.schemas.worker_channel import (
     CANCELLING_TIMEOUT_TEARDOWN,
     CLEANUP_DELIVERY_CAPABILITY,
     PENDING_CLAIM_TEARDOWN,
     WORK_POOL_SNAPSHOT_CAPABILITY,
+    WORK_POOL_WORKER_CHANNEL_VERSION,
     WORKER_HEARTBEAT_CAPABILITY,
     CleanupAckFrame,
     CleanupMessageFrame,
     CleanupOperationResultFrame,
     CleanupReleaseFrame,
     CleanupRenewFrame,
+    WorkerReadyFrame,
 )
 from prefect.types._datetime import DateTime, now
 from prefect.workers._worker_channel._protocol import WorkerChannelProtocolHandler
-from prefect.workers._worker_channel._state import WorkerChannelTerminalError
+from prefect.workers._worker_channel._state import (
+    WorkerChannelConnection,
+    WorkerChannelTerminalError,
+)
+from prefect.workers._worker_channel._sync import WorkPoolWorkerChannel
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
 from prefect.workers.cleanup import (
     CleanupExecutionResult,
@@ -62,6 +71,80 @@ class RecordingCleanupHandler:
         if self.wait_for is not None:
             await self.wait_for.wait()
         return self.result
+
+
+class QueueWorkerChannelWebSocket:
+    def __init__(self, messages: list[dict[str, Any] | BaseException] | None = None):
+        self._send_stream, self._receive_stream = anyio.create_memory_object_stream[
+            dict[str, Any] | BaseException
+        ](100)
+        self.sent: list[dict[str, Any]] = []
+        for message in messages or []:
+            self._send_stream.send_nowait(message)
+
+    async def send(self, message: str) -> None:
+        self.sent.append(orjson.loads(message))
+
+    async def recv(self) -> str:
+        message = await self._receive_stream.receive()
+        if isinstance(message, BaseException):
+            raise message
+        return orjson.dumps(message).decode()
+
+    async def put(self, message: dict[str, Any] | BaseException) -> None:
+        await self._send_stream.send(message)
+
+
+class FakeWorkerChannelConnect:
+    def __init__(self, websocket: QueueWorkerChannelWebSocket):
+        self.websocket = websocket
+        self.exited = False
+
+    async def __aenter__(self) -> QueueWorkerChannelWebSocket:
+        return self.websocket
+
+    async def __aexit__(self, *exc_info: Any) -> None:
+        self.exited = True
+
+
+def _worker_ready_frame(consumer_id, *, cleanup_delivery: bool = True):
+    accepted_capabilities = [
+        WORKER_HEARTBEAT_CAPABILITY,
+        WORK_POOL_SNAPSHOT_CAPABILITY,
+    ]
+    if cleanup_delivery:
+        accepted_capabilities.append(CLEANUP_DELIVERY_CAPABILITY)
+
+    return WorkerReadyFrame.model_validate(
+        {
+            "type": "worker.ready.v1",
+            "id": str(uuid7()),
+            "sent_at": now("UTC").isoformat(),
+            "payload": {
+                "consumer_id": str(consumer_id),
+                "worker_id": None,
+                "selected_channel_version": WORK_POOL_WORKER_CHANNEL_VERSION,
+                "effective_heartbeat_interval_seconds": 30,
+                "accepted_capabilities": accepted_capabilities,
+                "rejected_capabilities": [],
+                "effective_max_cleanup_concurrency": 1 if cleanup_delivery else 0,
+                "resolved_work_queues": [],
+                "initial_snapshot": {
+                    "snapshot_sequence": 1,
+                    "reason": "initial",
+                    "work_pool": {
+                        "id": str(uuid4()),
+                        "name": "test-work-pool",
+                        "type": "test",
+                        "base_job_template": {},
+                        "is_paused": False,
+                        "storage_configuration": {},
+                        "default_queue_id": str(uuid4()),
+                    },
+                },
+            },
+        }
+    )
 
 
 def _message_frame(
@@ -369,6 +452,100 @@ async def test_executor_matches_async_operation_results_from_channel():
 
     assert len(sent) == 1
     assert isinstance(sent[0], CleanupAckFrame)
+
+
+async def test_channel_keeps_cleanup_execution_alive_across_reconnects():
+    started = anyio.Event()
+    finish_cleanup = anyio.Event()
+    handler = RecordingCleanupHandler(
+        result=CleanupExecutionResult.success(),
+        wait_for=finish_cleanup,
+        started=started,
+    )
+    executor = WorkerCleanupExecutor(
+        [handler],
+        operation_result_timeout_seconds=1,
+        operation_retry_delay_seconds=0,
+        max_operation_attempts=2,
+    )
+    second_websockets: list[QueueWorkerChannelWebSocket] = []
+    channel: WorkPoolWorkerChannel
+
+    async def worker_metadata():
+        return None
+
+    def connect_factory(*args: Any, **kwargs: Any) -> FakeWorkerChannelConnect:
+        websocket = QueueWorkerChannelWebSocket(
+            [
+                {"type": "auth_success"},
+                _worker_ready_frame(channel.consumer_id).model_dump(mode="json"),
+            ]
+        )
+        second_websockets.append(websocket)
+        return FakeWorkerChannelConnect(websocket)
+
+    channel = WorkPoolWorkerChannel(
+        client=Mock(server_type=ServerType.SERVER),
+        api_url="http://localhost:4200/api",
+        work_pool_is_available=lambda: True,
+        work_pool_name="test-work-pool",
+        worker_name="test-worker",
+        worker_type="test",
+        heartbeat_interval_seconds=30,
+        work_queue_names=[],
+        create_pool_if_not_found=True,
+        default_base_job_template={},
+        worker_metadata=worker_metadata,
+        logger=logging.getLogger("test-worker-channel"),
+        cleanup_executor=executor,
+        reconnect_base_seconds=0,
+        connect_factory=connect_factory,
+    )
+    message = _message_frame()
+    first_websocket = QueueWorkerChannelWebSocket(
+        [
+            message.model_dump(mode="json"),
+            OSError("connection dropped"),
+        ]
+    )
+    first_connect = FakeWorkerChannelConnect(first_websocket)
+    initial_connection = WorkerChannelConnection(
+        first_connect,
+        first_websocket,
+        _worker_ready_frame(channel.consumer_id),
+    )
+
+    async with anyio.create_task_group() as task_group:
+        task_group.start_soon(channel._run, initial_connection)
+
+        with anyio.fail_after(1):
+            await started.wait()
+            while not first_connect.exited or not second_websockets:
+                await anyio.sleep(0)
+
+        assert first_websocket.sent == []
+
+        finish_cleanup.set()
+
+        with anyio.fail_after(1):
+            ack_data = None
+            while ack_data is None:
+                for sent in second_websockets[-1].sent:
+                    if sent["type"] == "cleanup.ack.v1":
+                        ack_data = sent
+                        break
+                await anyio.sleep(0)
+
+        ack = CleanupAckFrame.model_validate(ack_data)
+        await second_websockets[-1].put(_operation_result(ack).model_dump(mode="json"))
+
+        with anyio.fail_after(1):
+            while executor.in_flight_count:
+                await anyio.sleep(0)
+
+        task_group.cancel_scope.cancel()
+
+    assert handler.messages == [message.payload]
 
 
 @pytest.mark.parametrize(

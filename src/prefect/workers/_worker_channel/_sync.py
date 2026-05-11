@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+from contextlib import AsyncExitStack
 from logging import Logger
 from typing import Any
 from uuid import UUID
@@ -72,6 +73,7 @@ class WorkPoolWorkerChannel:
         self._worker_metadata = worker_metadata
         self._work_pool_is_available = work_pool_is_available
         self._logger = logger
+        self._cleanup_executor = cleanup_executor
 
         self.consumer_id = uuid7()
         self.state = WorkerChannelState()
@@ -236,45 +238,57 @@ class WorkPoolWorkerChannel:
         with anyio.CancelScope() as scope:
             self._run_scope = scope
             try:
-                if self.url is None:
-                    self.state.mark_terminal("endpoint_unavailable")
-                    return
+                async with AsyncExitStack() as stack:
+                    if self._cleanup_executor is not None:
+                        await stack.enter_async_context(self._cleanup_executor)
 
-                self._websocket_started = True
-                reconnect_attempt = 0
-                connection = initial_connection
-
-                while not self.state.terminal:
                     try:
-                        if connection is None:
-                            self.state.mark_connecting()
-                            connection = await self._transport.connect_with_timeout(
-                                self._protocol.handshake
-                            )
-                        reconnect_attempt = 0
-                        self._transport.mark_healthy_once()
-                        self.state.mark_healthy()
-                        await self._protocol.run_connected(connection)
-                    except WorkerChannelTerminalError as exc:
-                        self.state.mark_terminal(exc.reason)
-                        self._logger.debug("Worker channel disabled: %s", exc)
-                        return
-                    except WorkerChannelRetryableError as exc:
-                        self.state.mark_unhealthy(exc.reason)
-                        self._logger.debug(
-                            "Worker channel unhealthy, REST fallback is active: %s", exc
-                        )
-                    except BaseException:
-                        raise
-                    finally:
-                        if connection is not None:
-                            await self._transport.close_connection(connection)
-                            connection = None
+                        if self.url is None:
+                            self.state.mark_terminal("endpoint_unavailable")
+                            return
 
-                    reconnect_attempt += 1
-                    await anyio.sleep(
-                        self._transport.reconnect_delay(reconnect_attempt)
-                    )
+                        self._websocket_started = True
+                        reconnect_attempt = 0
+                        connection = initial_connection
+
+                        while not self.state.terminal:
+                            try:
+                                if connection is None:
+                                    self.state.mark_connecting()
+                                    connection = (
+                                        await self._transport.connect_with_timeout(
+                                            self._protocol.handshake
+                                        )
+                                    )
+                                reconnect_attempt = 0
+                                self._transport.mark_healthy_once()
+                                self.state.mark_healthy()
+                                await self._protocol.run_connected(connection)
+                            except WorkerChannelTerminalError as exc:
+                                self.state.mark_terminal(exc.reason)
+                                self._logger.debug("Worker channel disabled: %s", exc)
+                                return
+                            except WorkerChannelRetryableError as exc:
+                                self.state.mark_unhealthy(exc.reason)
+                                self._logger.debug(
+                                    "Worker channel unhealthy, REST fallback is "
+                                    "active: %s",
+                                    exc,
+                                )
+                            except BaseException:
+                                raise
+                            finally:
+                                if connection is not None:
+                                    await self._transport.close_connection(connection)
+                                    connection = None
+
+                            reconnect_attempt += 1
+                            await anyio.sleep(
+                                self._transport.reconnect_delay(reconnect_attempt)
+                            )
+                    finally:
+                        if self._cleanup_executor is not None:
+                            self._cleanup_executor.cancel()
             finally:
                 if self._run_scope is scope:
                     self._run_scope = None
