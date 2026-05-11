@@ -113,6 +113,10 @@ class WorkPoolWorkerChannel:
         return self.state.rest_fallback_enabled
 
     @property
+    def snapshots_available(self) -> bool:
+        return self._protocol.work_pool_snapshots_available
+
+    @property
     def worker_id(self) -> UUID | None:
         return self._protocol.worker_id
 
@@ -128,7 +132,7 @@ class WorkPoolWorkerChannel:
             self._run_scope.cancel()
 
     async def sync(self, task_group: anyio.abc.TaskGroup | None) -> None:
-        if self.state.healthy:
+        if self.state.healthy and self.snapshots_available:
             return
 
         if task_group is not None:
@@ -138,7 +142,7 @@ class WorkPoolWorkerChannel:
             if self.url is None:
                 self.state.mark_terminal("endpoint_unavailable")
 
-        if channel_started:
+        if channel_started and self.snapshots_available:
             return
 
         await self._sync_rest_work_pool()
@@ -323,7 +327,7 @@ class WorkPoolWorkerChannel:
             )
             work_pool.base_job_template = self.default_base_job_template
 
-        self._protocol.handle_work_pool_snapshot(work_pool)
+        self._protocol.record_rest_work_pool_snapshot(work_pool)
 
     async def _set_work_pool_template(
         self, work_pool: WorkPool, job_template: dict[str, Any]

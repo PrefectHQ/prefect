@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 from dataclasses import dataclass
 from enum import Enum
 from typing import Protocol
@@ -10,10 +11,12 @@ import websockets.asyncio.client
 import websockets.exceptions
 
 from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.objects import WorkPool
 from prefect.client.schemas.worker_channel import (
     WorkerChannelCapability,
     WorkerChannelFrame,
     WorkerReadyFrame,
+    WorkPoolSnapshotPayload,
 )
 
 
@@ -75,6 +78,34 @@ class WorkerChannelState:
 
 
 WorkerChannelFallbackState = WorkerChannelState
+
+
+@dataclass
+class WorkPoolSnapshotState:
+    work_pool: WorkPool | None = None
+    last_applied_sequence: int | None = None
+
+    @property
+    def snapshots_available(self) -> bool:
+        return self.last_applied_sequence is not None
+
+    def reset_connection_sequence(self) -> None:
+        self.last_applied_sequence = None
+
+    def apply_snapshot(self, snapshot: WorkPoolSnapshotPayload) -> WorkPool | None:
+        if (
+            self.last_applied_sequence is not None
+            and snapshot.snapshot_sequence <= self.last_applied_sequence
+        ):
+            return None
+
+        self.last_applied_sequence = snapshot.snapshot_sequence
+        self.work_pool = copy.deepcopy(snapshot.work_pool)
+        return self.work_pool
+
+    def replace_from_rest(self, work_pool: WorkPool) -> WorkPool:
+        self.work_pool = copy.deepcopy(work_pool)
+        return self.work_pool
 
 
 @dataclass
@@ -145,6 +176,9 @@ class CurrentWorkerChannelSession:
 class WorkerChannel(Protocol):
     @property
     def rest_fallback_enabled(self) -> bool: ...
+
+    @property
+    def snapshots_available(self) -> bool: ...
 
     def set_client(self, client: PrefectClient) -> None: ...
 
