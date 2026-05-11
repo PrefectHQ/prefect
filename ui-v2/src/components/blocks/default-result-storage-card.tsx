@@ -41,7 +41,7 @@ export const DefaultResultStorageCard = ({
 	);
 	const selectValue = selectedBlockDocumentExists
 		? defaultResultStorageBlockId
-		: undefined;
+		: "";
 	const statusState = isLoadingDefaultResultStorageBlock
 		? "loading"
 		: defaultResultStorageBlock
