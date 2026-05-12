@@ -181,6 +181,7 @@ describe("TaskRunStateFilter", () => {
 			"AwaitingRetry",
 			"AwaitingConcurrencySlot",
 			"Pending",
+			"Submitting",
 			"Paused",
 			"Suspended",
 			"Running",
