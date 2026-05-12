@@ -182,14 +182,14 @@ async def create_deployment(
     if job_variables:
         conflict_update_fields["infra_overrides"] = job_variables
 
-    insert_stmt = (
-        db.queries.insert(db.Deployment)
-        .values(**insert_values)
-        .on_conflict_do_update(
+    insert_stmt = db.queries.insert(db.Deployment).values(**insert_values)
+    if db.dialect.name == "mysql":
+        insert_stmt = insert_stmt.on_duplicate_key_update(**conflict_update_fields)
+    else:
+        insert_stmt = insert_stmt.on_conflict_do_update(
             index_elements=db.orm.deployment_unique_upsert_columns,
             set_={**conflict_update_fields},
         )
-    )
 
     await session.execute(insert_stmt)
 
@@ -1006,12 +1006,14 @@ async def _insert_scheduled_flow_runs(
     # gracefully insert the flow runs against the idempotency key
     # this syntax (insert statement, values to insert) is most efficient
     # because it uses a single bind parameter
-    await session.execute(
-        db.queries.insert(db.FlowRun).on_conflict_do_nothing(
+    insert_fr = db.queries.insert(db.FlowRun)
+    if db.dialect.name == "mysql":
+        insert_fr = insert_fr.prefix_with("IGNORE")
+    else:
+        insert_fr = insert_fr.on_conflict_do_nothing(
             index_elements=db.orm.flow_run_unique_upsert_columns
-        ),
-        runs,
-    )
+        )
+    await session.execute(insert_fr, runs)
 
     # query for the rows that were newly inserted (by checking for any flow runs with
     # no corresponding flow run states)

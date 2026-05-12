@@ -34,13 +34,15 @@ async def create_flow(
         orm_models.Flow: the newly-created or existing flow
     """
 
-    insert_stmt = (
-        db.queries.insert(db.Flow)
-        .values(**flow.model_dump_for_orm(exclude_unset=True))
-        .on_conflict_do_nothing(
+    insert_stmt = db.queries.insert(db.Flow).values(
+        **flow.model_dump_for_orm(exclude_unset=True)
+    )
+    if db.dialect.name == "mysql":
+        insert_stmt = insert_stmt.prefix_with("IGNORE")
+    else:
+        insert_stmt = insert_stmt.on_conflict_do_nothing(
             index_elements=db.orm.flow_unique_upsert_columns,
         )
-    )
     await session.execute(insert_stmt)
 
     query = (
