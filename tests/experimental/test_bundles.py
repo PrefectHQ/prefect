@@ -10,9 +10,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 import uv
 
-import prefect._experimental.bundles as bundles_module
+import prefect.bundles as bundles_module
 from prefect import flow
-from prefect._experimental.bundles import (
+from prefect.bundles import (
     _discover_local_dependencies,
     _extract_imports_from_source,
     _is_local_module,
@@ -28,7 +28,7 @@ from prefect.exceptions import Abort
 
 def test_launcher_type_is_exported_from_bundles_module() -> None:
     import prefect.flows as flows
-    from prefect._experimental.bundles import BundleLauncher, BundleLauncherOverride
+    from prefect.bundles import BundleLauncher, BundleLauncherOverride
 
     launcher: BundleLauncher = ["python"]
     override: BundleLauncherOverride = {"execution": ["python"]}
@@ -346,6 +346,45 @@ class TestExecuteBundleInSubprocess:
             "INHERITED": "present",
             "KEEP_ME": "value",
         }
+
+    def test_extract_and_run_flow_removes_none_env_values(
+        self,
+        engine_type: Literal["sync", "async"],
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(
+            bundles_module.os,
+            "environ",
+            {"PREFECT__DEPLOYMENT_NAME": "stale-deployment"},
+        )
+        monkeypatch.setattr(bundles_module, "configure_from_env", MagicMock())
+        monkeypatch.setattr(
+            bundles_module, "_deserialize_bundle_object", MagicMock(return_value=flow)
+        )
+        monkeypatch.setattr(
+            bundles_module.FlowRun,
+            "model_validate",
+            MagicMock(return_value=MagicMock()),
+        )
+        monkeypatch.setattr(
+            bundles_module,
+            "handle_engine_signals",
+            lambda flow_run_id: nullcontext(),
+        )
+        monkeypatch.setattr(bundles_module, "run_flow", MagicMock())
+
+        bundles_module._extract_and_run_flow(
+            bundle={
+                "function": "function-payload",
+                "context": "context-payload",
+                "flow_run": {},
+                "dependencies": "",
+            },
+            env={"PREFECT__DEPLOYMENT_NAME": None, "KEEP_ME": "value"},
+        )
+
+        assert "PREFECT__DEPLOYMENT_NAME" not in bundles_module.os.environ
+        assert bundles_module.os.environ["KEEP_ME"] == "value"
 
     async def test_flow_raises_a_base_exception(
         self, prefect_client: PrefectClient, engine_type: Literal["sync", "async"]
@@ -834,7 +873,7 @@ from my_package.submodule import function
                 "cloudpickle.unregister_pickle_by_value", side_effect=mock_unregister
             ):
                 with patch(
-                    "prefect._experimental.bundles._discover_local_dependencies",
+                    "prefect.bundles._discover_local_dependencies",
                     return_value={"test_module"},
                 ):
                     with patch("importlib.import_module") as mock_import:
@@ -861,7 +900,7 @@ from my_package.submodule import function
             return "test"
 
         with patch(
-            "prefect._experimental.bundles._discover_local_dependencies",
+            "prefect.bundles._discover_local_dependencies",
             return_value={"nonexistent_module"},
         ):
             with _pickle_local_modules_by_value(test_flow):

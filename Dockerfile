@@ -99,7 +99,7 @@ COPY --from=ui-builder /opt/ui/dist ./src/prefect/server/ui
 COPY --from=ui-v2-builder /opt/ui-v2/dist ./src/prefect/server/ui-v2
 
 # Create a source distributable archive; ensuring existing dists are removed first
-RUN rm -rf dist && uv build --sdist --out-dir dist
+RUN rm -rf dist && PREFECT_REQUIRE_PACKAGED_UI_BUNDLES=1 uv build --sdist --out-dir dist
 RUN mv "dist/prefect-"*".tar.gz" "dist/prefect.tar.gz"
 
 

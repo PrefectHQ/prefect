@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { uiSettings } from "./ui-settings";
+import { resolveUiSettingsBaseUrl, uiSettings } from "./ui-settings";
 
 describe("UiSettingsService", () => {
 	const mockUiSettingsResponse = {
@@ -7,6 +7,10 @@ describe("UiSettingsService", () => {
 		csrf_enabled: false,
 		auth: null,
 		flags: ["feature-1", "feature-2"],
+		default_ui: "v1",
+		available_uis: ["v1", "v2"],
+		v1_base_url: "/",
+		v2_base_url: "/v2",
 	};
 
 	beforeEach(() => {
@@ -35,6 +39,10 @@ describe("UiSettingsService", () => {
 			csrfEnabled: false,
 			auth: null,
 			flags: ["feature-1", "feature-2"],
+			defaultUi: "v1",
+			availableUis: ["v1", "v2"],
+			v1BaseUrl: "/",
+			v2BaseUrl: "/v2",
 		});
 	});
 
@@ -89,6 +97,10 @@ describe("UiSettingsService", () => {
 			csrf_enabled: true,
 			auth: "oauth2",
 			flags: null,
+			default_ui: "v2",
+			available_uis: ["v2"],
+			v1_base_url: null,
+			v2_base_url: "/v2",
 		};
 
 		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
@@ -99,6 +111,8 @@ describe("UiSettingsService", () => {
 		const settings = await uiSettings.load();
 
 		expect(settings.flags).toEqual([]);
+		expect(settings.defaultUi).toBe("v2");
+		expect(settings.availableUis).toEqual(["v2"]);
 	});
 
 	test("getApiUrl() returns the api_url from settings", async () => {
@@ -136,6 +150,10 @@ describe("UiSettingsService", () => {
 			csrf_enabled: true,
 			auth: "bearer",
 			flags: ["flag-a"],
+			default_ui: "v1",
+			available_uis: ["v1"],
+			v1_base_url: "/",
+			v2_base_url: null,
 		};
 
 		vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
@@ -150,6 +168,31 @@ describe("UiSettingsService", () => {
 			csrfEnabled: true,
 			auth: "bearer",
 			flags: ["flag-a"],
+			defaultUi: "v1",
+			availableUis: ["v1"],
+			v1BaseUrl: "/",
+			v2BaseUrl: null,
 		});
+	});
+
+	test("resolveUiSettingsBaseUrl preserves runtime proxy prefixes", () => {
+		expect(
+			resolveUiSettingsBaseUrl({
+				appBasePath: "/prefect/v2",
+				pathname: "/proxy/prefect/v2/dashboard",
+			}),
+		).toBe("/proxy/prefect");
+		expect(
+			resolveUiSettingsBaseUrl({
+				appBasePath: "/v2",
+				pathname: "/proxy/v2/dashboard",
+			}),
+		).toBe("/proxy");
+		expect(
+			resolveUiSettingsBaseUrl({
+				appBasePath: "/v2",
+				pathname: "/company/v2/prefect/v2/settings",
+			}),
+		).toBe("/company/v2/prefect");
 	});
 });

@@ -28,7 +28,18 @@ track_viz_task(is_async: bool, task_name: str, parameters: dict[str, Any], viz_r
 Return a result if sync otherwise return a coroutine that returns the result
 
 
-### `build_task_dependencies` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/visualization.py#L152" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `build_mermaid_dependencies` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/visualization.py#L152" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+build_mermaid_dependencies(task_run_tracker: TaskVizTracker) -> str
+```
+
+
+Constructs a Mermaid flowchart string representing the dependencies between
+tasks in the given TaskVizTracker.
+
+
+### `build_task_dependencies` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/visualization.py#L170" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 build_task_dependencies(task_run_tracker: TaskVizTracker) -> graphviz.Digraph
@@ -51,7 +62,7 @@ Raises:
   specifying a `viz_return_value`.
 
 
-### `visualize_task_dependencies` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/visualization.py#L189" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `visualize_task_dependencies` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/visualization.py#L207" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 visualize_task_dependencies(graph: graphviz.Digraph, flow_run_name: str) -> None

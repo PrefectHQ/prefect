@@ -27,14 +27,14 @@ Builds REST API reference documentation for static display.
 ### `build_ui` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/dev.py#L87" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-build_ui(no_install: bool = False)
+build_ui(no_install: Annotated[bool, cyclopts.Parameter('--no-install', negative='', help='Skip installing npm dependencies before building.')] = False, include_v2: Annotated[bool, cyclopts.Parameter('--include-v2', negative='', help='Also build the React UI v2 bundle into the Prefect package.')] = False)
 ```
 
 
 Installs dependencies and builds UI locally. Requires npm.
 
 
-### `ui` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/dev.py#L122" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ui` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/dev.py#L164" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ui()
@@ -44,7 +44,7 @@ ui()
 Starts a hot-reloading development UI.
 
 
-### `api` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/dev.py#L138" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `api` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/dev.py#L180" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 api()
@@ -54,7 +54,7 @@ api()
 Starts a hot-reloading development API.
 
 
-### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/dev.py#L221" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/dev.py#L263" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 start()
@@ -64,7 +64,7 @@ start()
 Starts a hot-reloading development server with API, UI, and agent processes.
 
 
-### `build_image` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/dev.py#L255" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `build_image` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/dev.py#L297" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 build_image()
@@ -74,7 +74,7 @@ build_image()
 Build a docker image for development.
 
 
-### `container` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/dev.py#L351" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `container` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/dev.py#L393" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 container()

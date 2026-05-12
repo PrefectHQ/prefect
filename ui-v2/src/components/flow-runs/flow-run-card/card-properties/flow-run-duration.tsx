@@ -14,7 +14,7 @@ type FlowRunDurationProps = {
 
 export const FlowRunDuration = ({ flowRun }: FlowRunDurationProps) => {
 	const { estimated_run_time, total_run_time } = flowRun;
-	const duration = estimated_run_time || total_run_time;
+	const duration = (estimated_run_time || total_run_time) * 1000;
 	const durationLabel = humanizeDuration(duration, {
 		maxDecimalPoints: 2,
 		units: ["s"],

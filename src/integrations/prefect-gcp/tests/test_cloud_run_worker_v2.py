@@ -859,3 +859,77 @@ class TestCloudRunWorkerV2CreateJobRetries:
 
         assert mock_create.call_count == 3
         assert mock_sleep.call_count == 2
+
+
+class TestCloudRunWorkerV2CreateJobRetriesFromEnv:
+    def test_create_job_retries_use_custom_max_attempts_from_env(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        worker = CloudRunWorkerV2("my-work-pool")
+        mock_client = MagicMock()
+        mock_logger = MagicMock(spec=PrefectLogAdapter)
+
+        mock_resp = MagicMock()
+        mock_resp.status = 503
+        transient_error = HttpError(resp=mock_resp, content=b"Service unavailable")
+
+        with mock.patch.dict(
+            "os.environ",
+            {
+                "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_CREATE_JOB_MAX_ATTEMPTS": "5",
+            },
+        ):
+            with mock.patch(
+                "prefect_gcp.workers.cloud_run_v2.JobV2.create",
+                side_effect=[transient_error] * 5,
+            ) as mock_create:
+                with mock.patch.object(worker, "_wait_for_job_creation"):
+                    with mock.patch("prefect_gcp.workers.cloud_run_v2.time.sleep"):
+                        with pytest.raises(HttpError):
+                            worker._create_job_and_wait_for_registration(
+                                configuration=cloud_run_worker_v2_job_config,
+                                cr_client=mock_client,
+                                logger=mock_logger,
+                            )
+
+        assert mock_create.call_count == 5
+
+    def test_create_job_retries_use_custom_backoff_from_env(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        worker = CloudRunWorkerV2("my-work-pool")
+        mock_client = MagicMock()
+        mock_logger = MagicMock(spec=PrefectLogAdapter)
+
+        mock_resp = MagicMock()
+        mock_resp.status = 503
+        transient_error = HttpError(resp=mock_resp, content=b"Service unavailable")
+
+        with mock.patch.dict(
+            "os.environ",
+            {
+                "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_CREATE_JOB_INITIAL_DELAY_SECONDS": "2.5",
+                "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_CREATE_JOB_MAX_DELAY_SECONDS": "20.0",
+            },
+        ):
+            with mock.patch(
+                "prefect_gcp.workers.cloud_run_v2.JobV2.create",
+                side_effect=[transient_error, transient_error, transient_error],
+            ):
+                with mock.patch.object(worker, "_wait_for_job_creation"):
+                    with mock.patch(
+                        "prefect_gcp.workers.cloud_run_v2.time.sleep"
+                    ) as mock_sleep:
+                        with pytest.raises(HttpError):
+                            worker._create_job_and_wait_for_registration(
+                                configuration=cloud_run_worker_v2_job_config,
+                                cr_client=mock_client,
+                                logger=mock_logger,
+                            )
+
+        # wait_exponential_jitter: min(initial * 2 ** (n-1) + uniform(0, 1), max).
+        # initial=2.5, max=20.0 -> attempt 1 in [2.5, 3.5], attempt 2 in [5.0, 6.0].
+        sleeps = [call.args[0] for call in mock_sleep.call_args_list]
+        assert len(sleeps) == 2
+        assert 2.5 <= sleeps[0] <= 3.5
+        assert 5.0 <= sleeps[1] <= 6.0

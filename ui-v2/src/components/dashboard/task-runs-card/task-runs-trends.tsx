@@ -24,11 +24,11 @@ type ChartDataPoint = {
 const chartConfig = {
 	completed: {
 		label: "Completed",
-		color: "hsl(142.1 76.2% 36.3%)",
+		color: "var(--state-completed-500)",
 	},
 	failed: {
 		label: "Failed",
-		color: "hsl(0 84.2% 60.2%)",
+		color: "var(--state-failed-500)",
 	},
 } satisfies ChartConfig;
 

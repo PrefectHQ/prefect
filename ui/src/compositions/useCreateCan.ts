@@ -9,8 +9,10 @@ type UseCreateCan = {
   pending: Ref<boolean>,
 }
 
-export function useCreateCan(): UseCreateCan {
-  const flagsSubscription = useSubscription(uiSettings.getFeatureFlags, [])
+export function useCreateCan(currentRelativePathname?: string): UseCreateCan {
+  const flagsSubscription = useSubscription(uiSettings.getFeatureFlags, [
+    currentRelativePathname,
+  ])
 
   const permissions = computed<Permission[]>(() => [
     ...workspacePermissions,

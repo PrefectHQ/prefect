@@ -25,6 +25,12 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/utils";
 
+const shouldIgnoreRowClick = (target: EventTarget | null) =>
+	target instanceof Element &&
+	target.closest(
+		'a, button, input, select, textarea, [role="button"], [role="checkbox"], [role="menuitem"], [role="switch"], [data-row-click-ignore="true"]',
+	);
+
 export function DataTable<TData>({
 	table,
 	onPrefetchPage,
@@ -74,7 +80,12 @@ export function DataTable<TData>({
 										onRowClick ? "cursor-pointer hover:bg-muted" : undefined
 									}
 									onClick={
-										onRowClick ? () => onRowClick(row.original) : undefined
+										onRowClick
+											? (event) => {
+													if (shouldIgnoreRowClick(event.target)) return;
+													onRowClick(row.original);
+												}
+											: undefined
 									}
 								>
 									{row.getVisibleCells().map((cell) => (

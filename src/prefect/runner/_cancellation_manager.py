@@ -9,6 +9,7 @@ from prefect.runner._cancel_finalizer import (
     finalize_cancelled_state,
     should_skip_cancel_after_acked_process_exit,
 )
+from prefect.states import Cancelling
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -165,16 +166,26 @@ class CancellationManager:
             )
             return  # Unexpected errors abort; do not proceed to hooks/state/event
 
-        # Hooks: always continue on failure (log and continue pattern)
-        if flow_run.state:
-            try:
-                await self._hook_runner.run_cancellation_hooks(flow_run, flow_run.state)
-            except Exception:
-                self._logger.exception(
-                    "Error running cancellation hooks for flow run '%s'."
-                    " Proceeding with state proposal.",
-                    flow_run.id,
-                )
+        # Hooks: always continue on failure (log and continue pattern).
+        #
+        # We use a synthesized Cancelling state rather than `flow_run.state`
+        # because the latter is a snapshot taken by `cancel_by_id`. Concurrent
+        # cancellation paths (e.g. duplicate observer events, websocket+polling
+        # races) can advance the API state past Cancelling between that read
+        # and reaching this point, which would silently skip hooks via
+        # `run_cancellation_hooks`'s `state.is_cancelling()` guard. By the time
+        # we reach this code we have explicit cancel intent, so hooks must run.
+        try:
+            await self._hook_runner.run_cancellation_hooks(
+                flow_run,
+                Cancelling(message=state_msg or "Flow run was cancelled."),
+            )
+        except Exception:
+            self._logger.exception(
+                "Error running cancellation hooks for flow run '%s'."
+                " Proceeding with state proposal.",
+                flow_run.id,
+            )
 
         cancelled = await self._finalize_cancelled_state(
             flow_run,

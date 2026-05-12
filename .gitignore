@@ -54,6 +54,8 @@ src/mkdocs-material
 # UI artifacts
 src/prefect/server/ui/*
 src/prefect/server/ui_build/*
+src/prefect/server/ui-v2/*
+src/prefect/server/ui_v2_build/*
 **/node_modules
 
 # Databases

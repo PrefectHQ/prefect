@@ -36,13 +36,15 @@ from typing_extensions import ParamSpec, Self
 
 import prefect.states
 import prefect.types._datetime
+from prefect._flow_run_suspension import raise_if_flow_run_suspension_requested
 from prefect._internal.compatibility import deprecated
-from prefect._internal.uuid7 import uuid7
-from prefect._states import (
+from prefect._internal.engine import dynamic_key_for_task_run, get_hook_name
+from prefect._internal.states import (
     exception_to_crashed_state_sync,
     exception_to_failed_state_sync,
     return_value_to_state_sync,
 )
+from prefect._internal.uuid7 import uuid7
 from prefect.cache_policies import CachePolicy
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import TaskRun
@@ -76,7 +78,9 @@ from prefect.exceptions import (
 from prefect.logging.loggers import get_logger, patch_print, task_run_logger
 from prefect.results import (
     ResultRecord,
+    _aget_default_persist_result,
     _format_user_supplied_storage_key,  # type: ignore[reportPrivateUsage]
+    _get_default_persist_result,
     get_result_store,
     should_persist_result,
 )
@@ -103,7 +107,6 @@ from prefect.transactions import (
     atransaction,
     transaction,
 )
-from prefect.utilities._engine import dynamic_key_for_task_run, get_hook_name
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import call_with_parameters, parameters_to_args_kwargs
@@ -320,7 +323,7 @@ class BaseTaskRunEngine(Generic[P, R]):
         self.parameters = resolved_parameters
 
     def _set_custom_task_run_name(self):
-        from prefect.utilities._engine import resolve_custom_task_run_name
+        from prefect._internal.engine import resolve_custom_task_run_name
 
         # update the task run name if necessary
         if not self._task_name_set and self.task.task_run_name:
@@ -760,12 +763,13 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         with ExitStack() as stack:
             if log_prints := should_log_prints(self.task):
                 stack.enter_context(patch_print())
+            result_store = get_result_store().update_for_task(self.task, _sync=True)
             if self.task.persist_result is not None:
                 persist_result = self.task.persist_result
             elif settings.tasks.default_persist_result is not None:
                 persist_result = settings.tasks.default_persist_result
             else:
-                persist_result = should_persist_result()
+                persist_result = _get_default_persist_result()
 
             stack.enter_context(
                 TaskRunContext(
@@ -773,9 +777,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_store=get_result_store().update_for_task(
-                        self.task, _sync=True
-                    ),
+                    result_store=result_store,
                     client=client,
                     persist_result=persist_result,
                 )
@@ -817,6 +819,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         """
 
         with hydrated_context(self.context):
+            raise_if_flow_run_suspension_requested()
             with SyncClientContext.get_or_create() as client_ctx:
                 self._client = client_ctx.client
                 self._is_started = True
@@ -946,6 +949,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     lease_duration=60,
                     suppress_warnings=True,
                 ):
+                    raise_if_flow_run_suspension_requested()
                     self.begin_run()
                     try:
                         yield
@@ -1381,12 +1385,13 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         with ExitStack() as stack:
             if log_prints := should_log_prints(self.task):
                 stack.enter_context(patch_print())
+            result_store = await get_result_store().aupdate_for_task(self.task)
             if self.task.persist_result is not None:
                 persist_result = self.task.persist_result
             elif settings.tasks.default_persist_result is not None:
                 persist_result = settings.tasks.default_persist_result
             else:
-                persist_result = should_persist_result()
+                persist_result = await _aget_default_persist_result()
 
             stack.enter_context(
                 TaskRunContext(
@@ -1394,7 +1399,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     log_prints=log_prints,
                     task_run=self.task_run,
                     parameters=self.parameters,
-                    result_store=await get_result_store().aupdate_for_task(self.task),
+                    result_store=result_store,
                     client=client,
                     persist_result=persist_result,
                 )
@@ -1436,6 +1441,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         """
 
         with hydrated_context(self.context):
+            raise_if_flow_run_suspension_requested()
             async with AsyncClientContext.get_or_create():
                 self._client = get_client()
                 self._is_started = True
@@ -1566,6 +1572,7 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                     lease_duration=60,
                     suppress_warnings=True,
                 ):
+                    raise_if_flow_run_suspension_requested()
                     await self.begin_run()
                     try:
                         yield
@@ -1655,6 +1662,7 @@ def run_task_sync(
                 engine.transaction_context() as txn,
             ):
                 engine.call_task_fn(txn)
+            raise_if_flow_run_suspension_requested()
 
     return engine.state if return_type == "state" else engine.result()
 
@@ -1686,6 +1694,7 @@ async def run_task_async(
                 engine.transaction_context() as txn,
             ):
                 await engine.call_task_fn(txn)
+            raise_if_flow_run_suspension_requested()
 
     return engine.state if return_type == "state" else await engine.result()
 
@@ -1739,12 +1748,14 @@ def run_generator_task_sync(
                             # way to periodically clean it up (using
                             # weakrefs or similar) would be good
                             link_state_to_task_run_result(engine.state, gen_result)
+                            raise_if_flow_run_suspension_requested()
                             yield gen_result
                     except StopIteration as exc:
                         engine.handle_success(exc.value, transaction=txn)
                     except GeneratorExit as exc:
                         engine.handle_success(None, transaction=txn)
                         gen.throw(exc)
+            raise_if_flow_run_suspension_requested()
 
     return engine.result()
 
@@ -1798,11 +1809,13 @@ async def run_generator_task_async(
                             # way to periodically clean it up (using
                             # weakrefs or similar) would be good
                             link_state_to_task_run_result(engine.state, gen_result)
+                            raise_if_flow_run_suspension_requested()
                             yield gen_result
                     except (StopAsyncIteration, GeneratorExit) as exc:
                         await engine.handle_success(None, transaction=txn)
                         if isinstance(exc, GeneratorExit):
                             gen.throw(exc)
+            raise_if_flow_run_suspension_requested()
 
     # async generators can't return, but we can raise failures here
     if engine.state.is_failed():

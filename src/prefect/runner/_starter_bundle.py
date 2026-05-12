@@ -6,11 +6,11 @@ from typing import TYPE_CHECKING
 import anyio
 import anyio.abc
 
-from prefect._experimental.bundles import execute_bundle_in_subprocess
+from prefect.bundles import execute_bundle_in_subprocess
 from prefect.runner._process_manager import ProcessHandle
 
 if TYPE_CHECKING:
-    from prefect._experimental.bundles import SerializedBundle
+    from prefect.bundles import SerializedBundle
     from prefect.client.schemas.objects import FlowRun
     from prefect.runner._control_channel import ControlChannel
 
@@ -45,7 +45,7 @@ class BundleExecutionStarter:
         flow_run: FlowRun,
         task_status: anyio.abc.TaskStatus[ProcessHandle] = anyio.TASK_STATUS_IGNORED,
     ) -> None:
-        env: dict[str, str | None] = {**self._env}
+        env = dict(self._env)
         control_registered = False
         if self._control_channel is not None:
             try:

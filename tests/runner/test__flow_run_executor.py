@@ -9,9 +9,9 @@ import anyio
 import anyio.abc
 import pytest
 
+from prefect._internal.infrastructure_exit_codes import get_infrastructure_exit_info
 from prefect.runner._flow_run_executor import FlowRunExecutor, ProcessStarter
 from prefect.runner._process_manager import ProcessHandle
-from prefect.utilities._infrastructure_exit_codes import get_infrastructure_exit_info
 
 # ---------------------------------------------------------------------------
 # Helpers

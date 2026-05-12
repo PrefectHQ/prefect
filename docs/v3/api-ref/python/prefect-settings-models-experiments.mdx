@@ -7,43 +7,29 @@ sidebarTitle: experiments
 
 ## Classes
 
-### `PluginsSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/experiments.py#L13" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-
-Settings for configuring the experimental plugin system
-
-
-**Methods:**
-
-#### `settings_customise_sources` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/base.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-settings_customise_sources(cls, settings_cls: type[BaseSettings], init_settings: PydanticBaseSettingsSource, env_settings: PydanticBaseSettingsSource, dotenv_settings: PydanticBaseSettingsSource, file_secret_settings: PydanticBaseSettingsSource) -> tuple[PydanticBaseSettingsSource, ...]
-```
-
-Define an order for Prefect settings sources.
-
-The order of the returned callables decides the priority of inputs; first item is the highest priority.
-
-See https://docs.pydantic.dev/latest/concepts/pydantic_settings/#customise-settings-sources
-
-
-#### `to_environment_variables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/base.py#L124" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-to_environment_variables(self, exclude_unset: bool = False, include_secrets: bool = True, include_aliases: bool = False) -> dict[str, str]
-```
-
-Convert the settings object to a dictionary of environment variables.
-
-
-### `ExperimentsSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/experiments.py#L59" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ExperimentsSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/experiments.py#L20" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Settings for configuring experimental features
 
 
 **Methods:**
+
+#### `plugins` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/experiments.py#L64" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+plugins(self) -> PluginsSettings
+```
+
+Deprecated. Use `settings.plugins` instead.
+
+Returns the same `PluginsSettings` instance that lives on the root
+`Settings` this `ExperimentsSettings` was attached to, so programmatic
+overrides on the parent are visible here. Falls back to a freshly
+built `PluginsSettings` (which still resolves env vars including the
+legacy `PREFECT_EXPERIMENTS_PLUGINS_*` names via `AliasChoices`) when
+this instance was constructed standalone.
+
 
 #### `settings_customise_sources` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/base.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
