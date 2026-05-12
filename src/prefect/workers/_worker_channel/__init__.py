@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from prefect.workers._worker_channel._state import (
     WorkerChannel,
-    WorkerChannelConnection,
+    WorkerChannelSession,
     WorkerChannelError,
     WorkerChannelFallbackState,
     WorkerChannelRetryableError,
@@ -14,7 +14,7 @@ from prefect.workers._worker_channel._sync import WorkPoolWorkerChannel
 
 __all__ = [
     "WorkerChannel",
-    "WorkerChannelConnection",
+    "WorkerChannelSession",
     "WorkerChannelError",
     "WorkerChannelFallbackState",
     "WorkerChannelRetryableError",

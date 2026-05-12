@@ -19,7 +19,7 @@ docs/
     api-ref/              # API reference — mix of auto-generated and hand-authored
       python/             # SDK reference (auto-generated — do NOT edit directly)
       cli/                # CLI command reference (auto-generated — do NOT edit directly)
-      rest-api/           # REST API docs (server/ and cloud/) (auto-generated — do NOT edit directly)
+      rest-api/           # REST API docs (server/ and cloud/) — endpoint pages auto-generated; index.mdx overview pages are hand-authored
       events/             # Events reference catalog — hand-authored, editable
     release-notes/        # Version release notes
     img/                  # Images organized by section
@@ -35,7 +35,8 @@ docs/
 ## Auto-generated content — do not edit
 
 - `v3/examples/` — generated from top-level `examples/` Python files by `generate_example_pages.py`
-- `v3/api-ref/python/`, `v3/api-ref/cli/`, `v3/api-ref/rest-api/` — generated API reference (Python SDK, CLI, REST API)
+- `v3/api-ref/python/`, `v3/api-ref/cli/` — generated API reference (Python SDK, CLI)
+- `v3/api-ref/rest-api/` — individual endpoint pages are auto-generated; the `index.mdx` files at `rest-api/` and `rest-api/server/` are hand-authored and may be edited
 - `v3/api-ref/events/` is **hand-authored** and should be edited directly when event schemas change
 - `integrations/<name>/api-ref/` — generated per-integration API reference via `mdxify` (e.g., `integrations/prefect-kubernetes/api-ref/`); regenerated on each integration release
 

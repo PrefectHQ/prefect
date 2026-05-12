@@ -87,7 +87,7 @@ from prefect.types._datetime import travel_to
 from prefect.utilities.processutils import command_to_string
 from prefect.utilities.pydantic import parse_obj_as
 from prefect.workers._worker_channel import (
-    WorkerChannelConnection,
+    WorkerChannelSession,
     WorkerChannelState,
     WorkerChannelStatus,
     WorkerChannelTerminalError,
@@ -2394,9 +2394,9 @@ class TestWorkerChannelClient:
             connect_factory=connect_factory,
         )
 
-        connection = await transport.connect_once(protocol.handshake)
+        session = await transport.connect_once(protocol.handshake)
 
-        assert isinstance(connection, WorkerChannelConnection)
+        assert isinstance(session, WorkerChannelSession)
         assert captured_connect_kwargs["args"] == (
             "ws://localhost:4200/api/work_pools/test-work-pool/workers/connect",
         )
@@ -2431,12 +2431,10 @@ class TestWorkerChannelClient:
         assert protocol.worker_id == worker_id
         snapshot.assert_called_once()
 
-        await transport.close_connection(connection)
+        await transport.close_session(session)
         assert connect_context.exited
 
-    async def test_run_connected_classifies_heartbeat_connection_close(
-        self, monkeypatch
-    ):
+    async def test_run_session_classifies_heartbeat_connection_close(self, monkeypatch):
         consumer_id = uuid7()
         websocket = FakeWorkerChannelWebSocket([])
         close_error = ConnectionClosedError(
@@ -2469,14 +2467,14 @@ class TestWorkerChannelClient:
             classify_closed_connection=transport.classify_closed_connection,
             logger=logging.getLogger("test-worker-channel"),
         )
-        connection = WorkerChannelConnection(
+        session = WorkerChannelSession(
             FakeWorkerChannelConnect(websocket),
             websocket,
             WorkerReadyFrame.model_validate(worker_channel_ready_frame(consumer_id)),
         )
 
         with pytest.raises(WorkerChannelTerminalError) as exc_info:
-            await protocol.run_connected(connection)
+            await protocol.run_session(session)
 
         assert exc_info.value.reason == WorkerChannelCloseReason.AUTHORIZATION_FAILED
 

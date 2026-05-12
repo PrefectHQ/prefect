@@ -21,9 +21,9 @@ from prefect.client.schemas.worker_channel import (
     WorkerReadyFrame,
 )
 from prefect.workers._worker_channel._state import (
-    WorkerChannelConnection,
     WorkerChannelError,
     WorkerChannelRetryableError,
+    WorkerChannelSession,
     WorkerChannelTerminalError,
 )
 
@@ -74,7 +74,7 @@ class WorkerChannelTransport:
             [websockets.asyncio.client.ClientConnection],
             Awaitable[WorkerReadyFrame],
         ],
-    ) -> WorkerChannelConnection:
+    ) -> WorkerChannelSession:
         if self._setup_timeout_seconds <= 0:
             return await self.connect_once(handshake)
 
@@ -93,7 +93,7 @@ class WorkerChannelTransport:
             [websockets.asyncio.client.ClientConnection],
             Awaitable[WorkerReadyFrame],
         ],
-    ) -> WorkerChannelConnection:
+    ) -> WorkerChannelSession:
         if self.url is None:
             raise WorkerChannelTerminalError(
                 "endpoint_unavailable",
@@ -102,7 +102,7 @@ class WorkerChannelTransport:
 
         connect_context: websockets.asyncio.client.connect | None = None
         entered = False
-        connection_returned = False
+        session_returned = False
         try:
             connect_context = self._connect_factory(
                 self.url,
@@ -112,8 +112,8 @@ class WorkerChannelTransport:
             entered = True
 
             ready = await handshake(websocket)
-            connection_returned = True
-            return WorkerChannelConnection(connect_context, websocket, ready)
+            session_returned = True
+            return WorkerChannelSession(connect_context, websocket, ready)
         except asyncio.CancelledError:
             raise
         except (WorkerChannelTerminalError, WorkerChannelRetryableError):
@@ -128,7 +128,7 @@ class WorkerChannelTransport:
         except Exception as exc:
             raise self.classify_setup_exception(exc) from exc
         finally:
-            if entered and connect_context is not None and not connection_returned:
+            if entered and connect_context is not None and not session_returned:
                 try:
                     await connect_context.__aexit__(None, None, None)
                 except Exception:
@@ -243,8 +243,8 @@ class WorkerChannelTransport:
             self._reconnect_max_seconds,
         )
 
-    async def close_connection(self, connection: WorkerChannelConnection) -> None:
+    async def close_session(self, session: WorkerChannelSession) -> None:
         try:
-            await connection.connect_context.__aexit__(None, None, None)
+            await session.connect_context.__aexit__(None, None, None)
         except Exception:
             self._logger.debug("Failed to close worker channel", exc_info=True)

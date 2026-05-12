@@ -15,7 +15,9 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    ClassVar,
     Generic,
+    Iterable,
     Optional,
     Type,
 )
@@ -46,6 +48,9 @@ from prefect.client.schemas.objects import (
     StateType,
     WorkerMetadata,
     WorkPool,
+)
+from prefect.client.schemas.worker_channel import (
+    CleanupKind,
 )
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TagsContext
@@ -99,6 +104,11 @@ from prefect.utilities.templating import (
     resolve_variables,
 )
 from prefect.utilities.urls import url_for
+from prefect.workers._cleanup import (
+    WorkerCleanupExecutor,
+    WorkerCleanupHandler,
+    WorkerCleanupHandlerRegistry,
+)
 from prefect.workers._worker_channel import WorkerChannel, WorkPoolWorkerChannel
 
 if TYPE_CHECKING:
@@ -539,6 +549,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
     type: str
     job_configuration: Type[C] = BaseJobConfiguration  # type: ignore
     job_configuration_variables: Optional[Type[V]] = None
+    cleanup_handlers: ClassVar[tuple[WorkerCleanupHandler, ...]] = ()
+    cleanup_max_concurrency: ClassVar[int | None] = None
 
     _documentation_url = ""
     _logo_url = ""
@@ -555,6 +567,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         heartbeat_interval_seconds: int | None = None,
         *,
         base_job_template: dict[str, Any] | None = None,
+        _cleanup_handlers: Iterable[WorkerCleanupHandler] | None = None,
+        _max_cleanup_concurrency: int | None = None,
     ):
         """
         Base class for all Prefect workers.
@@ -593,6 +607,14 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._base_job_template = base_job_template
         self._work_pool_name = work_pool_name
         self._work_queues: set[str] = set(work_queues) if work_queues else set()
+        self._cleanup_handler_registry = WorkerCleanupHandlerRegistry(
+            _cleanup_handlers
+            if _cleanup_handlers is not None
+            else self.__class__.cleanup_handlers
+        )
+        if _max_cleanup_concurrency is not None and _max_cleanup_concurrency < 0:
+            raise ValueError("Cleanup concurrency cannot be negative")
+        self._max_cleanup_concurrency_override = _max_cleanup_concurrency
 
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
@@ -650,6 +672,40 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
     @classmethod
     def get_description(cls) -> str:
         return cls._description
+
+    @property
+    def cleanup_handler_registry(self) -> WorkerCleanupHandlerRegistry:
+        return self._cleanup_handler_registry
+
+    @property
+    def handled_cleanup_kinds(self) -> tuple[CleanupKind, ...]:
+        if not self._cleanup_delivery_available():
+            return ()
+        return self._cleanup_handler_registry.handled_cleanup_kinds
+
+    @property
+    def max_cleanup_concurrency(self) -> int:
+        if not self._cleanup_handler_registry:
+            return 0
+
+        concurrency = (
+            self._max_cleanup_concurrency_override
+            if self._max_cleanup_concurrency_override is not None
+            else self.__class__.cleanup_max_concurrency
+        )
+        if concurrency is None:
+            return 1
+        return concurrency
+
+    def _cleanup_delivery_available(self) -> bool:
+        return bool(self._cleanup_handler_registry) and self.max_cleanup_concurrency > 0
+
+    def _create_cleanup_executor(self) -> WorkerCleanupExecutor:
+        return WorkerCleanupExecutor(
+            handlers=self._cleanup_handler_registry,
+            max_concurrency=self.max_cleanup_concurrency,
+            logger=self._logger,
+        )
 
     @classmethod
     def get_default_base_job_template(cls) -> dict[str, Any]:
@@ -1282,6 +1338,11 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             logger=self._logger,
             on_worker_id=self._record_worker_id,
             on_work_pool_snapshot=self._record_work_pool_snapshot,
+            cleanup_executor=(
+                self._create_cleanup_executor()
+                if self._cleanup_delivery_available()
+                else None
+            ),
         )
 
     def _record_worker_id(self, remote_id: UUID) -> None:
