@@ -1,6 +1,8 @@
 import asyncio
 import logging
+import os
 import random
+import subprocess
 import sys
 import time
 import warnings
@@ -48,6 +50,71 @@ def event_loop(request):
         yield loop
     finally:
         loop.close()
+
+
+@pytest.fixture
+def machine_ray_instance():
+    """
+    Starts a ray instance for the current machine
+    """
+    subprocess.run(
+        ["ray", "stop", "--force"],
+        capture_output=True,
+    )
+
+    try:
+        subprocess.check_output(
+            [
+                "ray",
+                "start",
+                "--head",
+                "--include-dashboard",
+                "False",
+                "--disable-usage-stats",
+            ],
+            env={**os.environ, "RAY_RUNTIME_ENV_LOCAL_DEV_MODE": "1"},
+        )
+
+        # Wait for the Ray client server to be ready
+        address = "ray://127.0.0.1:10001"
+        for _ in range(10):
+            try:
+                ray.init(address)
+                ray.shutdown()
+                break
+            except Exception:
+                time.sleep(1)
+        else:
+            pytest.fail("Ray client server did not become ready in time")
+
+        yield address
+    except subprocess.CalledProcessError as exc:
+        pytest.fail(f"Failed to start ray: {exc.stderr or exc}")
+    finally:
+        subprocess.run(
+            ["ray", "stop", "--force"],
+            capture_output=True,
+        )
+
+
+@pytest.fixture
+def ray_task_runner_with_existing_cluster(
+    machine_ray_instance,
+    use_hosted_api_server,  # noqa: F811
+    hosted_api_server,  # noqa: F811
+):
+    """
+    Generate a ray task runner that's connected to a ray instance running in a separate
+    process.
+
+    This tests connection via `ray://` which is a client-based connection.
+    """
+    yield RayTaskRunner(
+        address=machine_ray_instance,
+        init_kwargs={
+            "runtime_env": {"env_vars": {"RAY_RUNTIME_ENV_LOCAL_DEV_MODE": "1"}}
+        },
+    )
 
 
 @pytest.fixture
@@ -111,6 +178,7 @@ task_runner_setups = [
     default_ray_task_runner,
     ray_task_runner_with_inprocess_cluster,
     ray_task_runner_with_temporary_cluster,
+    ray_task_runner_with_existing_cluster,
 ]
 
 
