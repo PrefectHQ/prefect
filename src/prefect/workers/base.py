@@ -957,12 +957,14 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             create_bundle_for_flow_run,
         )
 
+        work_pool = copy.deepcopy(self.work_pool)
+
         if (
-            self.work_pool.storage_configuration.bundle_upload_step is None
-            or self.work_pool.storage_configuration.bundle_execution_step is None
+            work_pool.storage_configuration.bundle_upload_step is None
+            or work_pool.storage_configuration.bundle_execution_step is None
         ):
             raise RuntimeError(
-                f"Storage is not configured for work pool {self.work_pool.name!r}. "
+                f"Storage is not configured for work pool {work_pool.name!r}. "
                 "Please configure storage for the work pool by running `prefect "
                 "work-pool storage configure`."
             )
@@ -982,11 +984,11 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         ):
             result_storage = None
             if (
-                self.work_pool.storage_configuration.default_result_storage_block_id
+                work_pool.storage_configuration.default_result_storage_block_id
                 is not None
             ):
                 result_storage = await aresolve_result_storage(
-                    self.work_pool.storage_configuration.default_result_storage_block_id
+                    work_pool.storage_configuration.default_result_storage_block_id
                 )
             else:
                 default_result_storage = await _aget_default_result_storage()
@@ -1010,12 +1012,12 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         bundle_key = str(uuid.uuid4())
         flow_launcher = getattr(flow, "launcher", None)
         upload_step = resolve_bundle_step_with_launcher(
-            self.work_pool.storage_configuration.bundle_upload_step,
+            work_pool.storage_configuration.bundle_upload_step,
             flow_launcher,
             "upload",
         )
         execute_step = resolve_bundle_step_with_launcher(
-            self.work_pool.storage_configuration.bundle_execution_step,
+            work_pool.storage_configuration.bundle_execution_step,
             flow_launcher,
             "execution",
         )
@@ -1051,7 +1053,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 parameters=flow.serialize_parameters(parameters),
                 state=Pending(),
                 job_variables=job_variables,
-                work_pool_name=self.work_pool.name,
+                work_pool_name=work_pool.name,
                 tags=TagsContext.get().current_tags,
                 parent_task_run_id=getattr(parent_task_run, "id", None),
             )
@@ -1073,14 +1075,14 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         logger = self.get_flow_run_logger(flow_run)
 
         configuration = await self.job_configuration.from_template_and_values(
-            base_job_template=self.work_pool.base_job_template,
+            base_job_template=work_pool.base_job_template,
             values=job_variables,
             client=self._client,
         )
         configuration.prepare_for_flow_run(
             flow_run=flow_run,
             flow=api_flow,
-            work_pool=self.work_pool,
+            work_pool=work_pool,
             worker_name=self.name,
             worker_id=self.backend_id,
         )
@@ -1261,6 +1263,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
     def _record_work_pool_snapshot(self, work_pool: WorkPool) -> None:
+        work_pool = copy.deepcopy(work_pool)
+
         if not work_pool.base_job_template:
             work_pool.base_job_template = self.__class__.get_default_base_job_template()
 
@@ -1612,6 +1616,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         flow_run: "FlowRun",
         deployment: Optional["DeploymentResponse"] = None,
     ) -> C:
+        work_pool = copy.deepcopy(self.work_pool)
+
         if not deployment and flow_run.deployment_id:
             deployment = await self.client.read_deployment(flow_run.deployment_id)
 
@@ -1627,7 +1633,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         job_variables.update(flow_run_vars)
 
         configuration = await self.job_configuration.from_template_and_values(
-            base_job_template=self.work_pool.base_job_template,
+            base_job_template=work_pool.base_job_template,
             values=job_variables,
             client=self.client,
         )
@@ -1636,7 +1642,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 flow_run=flow_run,
                 deployment=deployment,
                 flow=flow,
-                work_pool=self.work_pool,
+                work_pool=work_pool,
                 worker_name=self.name,
                 worker_id=self.backend_id,
             )

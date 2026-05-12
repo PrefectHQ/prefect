@@ -51,6 +51,7 @@ from prefect.client.schemas.worker_channel import (
     WORKER_HEARTBEAT_CAPABILITY,
     WorkerChannelCloseReason,
     WorkerReadyFrame,
+    WorkPoolSnapshotPayload,
 )
 from prefect.context import FlowRunContext, TagsContext
 from prefect.exceptions import (
@@ -91,6 +92,7 @@ from prefect.workers._worker_channel import (
     WorkerChannelState,
     WorkerChannelStatus,
     WorkerChannelTerminalError,
+    WorkPoolSnapshotState,
     WorkPoolWorkerChannel,
 )
 from prefect.workers._worker_channel._protocol import WorkerChannelProtocolHandler
@@ -2285,6 +2287,31 @@ def worker_channel_ready_frame(
     }
 
 
+def worker_channel_snapshot_payload(
+    sequence: int,
+    *,
+    base_job_template: dict[str, Any] | None = None,
+    is_paused: bool = False,
+    name: str = "test-work-pool",
+    default_queue_id: uuid.UUID | None = None,
+) -> WorkPoolSnapshotPayload:
+    return WorkPoolSnapshotPayload.model_validate(
+        {
+            "snapshot_sequence": sequence,
+            "reason": "work_pool_updated" if sequence != 1 else "initial",
+            "work_pool": {
+                "id": str(uuid.uuid4()),
+                "name": name,
+                "type": "test",
+                "base_job_template": base_job_template or {},
+                "is_paused": is_paused,
+                "storage_configuration": {},
+                "default_queue_id": str(default_queue_id or uuid.uuid4()),
+            },
+        }
+    )
+
+
 async def no_worker_channel_metadata() -> WorkerMetadata | None:
     return None
 
@@ -2345,6 +2372,132 @@ class TestWorkerChannelClient:
         assert state.healthy is False
         assert state.terminal is True
         assert state.reason == "endpoint_unavailable"
+
+    def test_work_pool_snapshot_state_applies_full_replacements_by_sequence(self):
+        state = WorkPoolSnapshotState()
+        initial_template = {"job_configuration": {"env": {"A": "1"}}, "variables": {}}
+        updated_template = {"job_configuration": {"env": {"B": "2"}}, "variables": {}}
+
+        first = state.apply_snapshot(
+            worker_channel_snapshot_payload(
+                1, base_job_template=initial_template, is_paused=False
+            )
+        )
+        second = state.apply_snapshot(
+            worker_channel_snapshot_payload(
+                3, base_job_template=updated_template, is_paused=True
+            )
+        )
+
+        assert first is not None
+        assert second is not None
+        assert second is not first
+        assert state.last_applied_sequence == 3
+        assert state.work_pool is not None
+        assert state.work_pool.base_job_template == updated_template
+        assert state.work_pool.is_paused is True
+
+    def test_work_pool_snapshot_state_ignores_stale_and_duplicate_sequences(self):
+        state = WorkPoolSnapshotState()
+        current_template = {
+            "job_configuration": {"env": {"CURRENT": "1"}},
+            "variables": {},
+        }
+        stale_template = {"job_configuration": {"env": {"STALE": "1"}}, "variables": {}}
+
+        state.apply_snapshot(
+            worker_channel_snapshot_payload(3, base_job_template=current_template)
+        )
+
+        assert (
+            state.apply_snapshot(
+                worker_channel_snapshot_payload(3, base_job_template=stale_template)
+            )
+            is None
+        )
+        assert (
+            state.apply_snapshot(
+                worker_channel_snapshot_payload(2, base_job_template=stale_template)
+            )
+            is None
+        )
+        assert state.work_pool is not None
+        assert state.work_pool.base_job_template == current_template
+
+    def test_work_pool_snapshot_state_resets_sequence_tracking_for_reconnect(self):
+        state = WorkPoolSnapshotState()
+        original_template = {
+            "job_configuration": {"env": {"ORIGINAL": "1"}},
+            "variables": {},
+        }
+        reconnected_template = {
+            "job_configuration": {"env": {"RECONNECTED": "1"}},
+            "variables": {},
+        }
+
+        state.apply_snapshot(
+            worker_channel_snapshot_payload(5, base_job_template=original_template)
+        )
+        state.reset_connection_sequence()
+        state.apply_snapshot(
+            worker_channel_snapshot_payload(1, base_job_template=reconnected_template)
+        )
+
+        assert state.last_applied_sequence == 1
+        assert state.work_pool is not None
+        assert state.work_pool.base_job_template == reconnected_template
+
+    def test_protocol_applies_work_pool_snapshots_through_sequence_state(self):
+        consumer_id = uuid7()
+        snapshot = Mock()
+        protocol = WorkerChannelProtocolHandler(
+            consumer_id=consumer_id,
+            worker_name="test-worker",
+            worker_type="test",
+            heartbeat_interval_seconds=30,
+            work_queue_names=[],
+            create_pool_if_not_found=True,
+            default_base_job_template={},
+            worker_metadata=no_worker_channel_metadata,
+            classify_closed_connection=lambda exc: WorkerChannelTerminalError(
+                "connection_lost", str(exc)
+            ),
+            logger=logging.getLogger("test-worker-channel"),
+            on_work_pool_snapshot=snapshot,
+        )
+
+        protocol.handle_work_pool_snapshot(
+            worker_channel_snapshot_payload(
+                1,
+                base_job_template={
+                    "job_configuration": {"env": {"FIRST": "1"}},
+                    "variables": {},
+                },
+            )
+        )
+        protocol.handle_work_pool_snapshot(
+            worker_channel_snapshot_payload(
+                3,
+                base_job_template={
+                    "job_configuration": {"env": {"THIRD": "1"}},
+                    "variables": {},
+                },
+            )
+        )
+        protocol.handle_work_pool_snapshot(
+            worker_channel_snapshot_payload(
+                2,
+                base_job_template={
+                    "job_configuration": {"env": {"STALE": "1"}},
+                    "variables": {},
+                },
+            )
+        )
+
+        assert snapshot.call_count == 2
+        assert snapshot.call_args_list[-1].args[0].base_job_template[
+            "job_configuration"
+        ]["env"] == {"THIRD": "1"}
 
     async def test_transport_connects_with_auth_and_hello_payload(self):
         captured_connect_kwargs: dict[str, Any] = {}
@@ -2687,6 +2840,93 @@ class TestWorkerChannelClient:
         assert work_pool.base_job_template == default_base_job_template
         snapshot.assert_called_once_with(work_pool)
 
+    async def test_sync_discards_rest_work_pool_if_snapshot_arrives_during_read(self):
+        stale_template = {"job_configuration": {"env": {"STALE": "true"}}}
+        fresh_template = {"job_configuration": {"env": {"FRESH": "true"}}}
+        stale_work_pool = WorkPool(
+            name="test-work-pool",
+            type="test",
+            base_job_template=stale_template,
+            default_queue_id=uuid.uuid4(),
+        )
+        snapshot = Mock()
+        client = worker_channel_test_client()
+
+        async def read_work_pool(work_pool_name: str) -> WorkPool:
+            assert work_pool_name == "test-work-pool"
+            channel._protocol.handle_work_pool_snapshot(
+                worker_channel_snapshot_payload(1, base_job_template=fresh_template)
+            )
+            channel.state.mark_healthy()
+            return stale_work_pool
+
+        client.read_work_pool = AsyncMock(side_effect=read_work_pool)
+        client.update_work_pool = AsyncMock()
+        channel = WorkPoolWorkerChannel(
+            client=client,
+            api_url="http://localhost:4200/api",
+            work_pool_is_available=lambda: True,
+            work_pool_name="test-work-pool",
+            worker_name="test-worker",
+            worker_type="test",
+            heartbeat_interval_seconds=30,
+            work_queue_names=[],
+            create_pool_if_not_found=True,
+            default_base_job_template={},
+            worker_metadata=no_worker_channel_metadata,
+            logger=logging.getLogger("test-worker-channel"),
+            on_work_pool_snapshot=snapshot,
+        )
+
+        await channel.sync(None)
+
+        client.update_work_pool.assert_not_awaited()
+        client.send_worker_heartbeat.assert_not_awaited()
+        snapshot.assert_called_once()
+        assert snapshot.call_args.args[0].base_job_template == fresh_template
+
+    async def test_sync_discards_rest_work_pool_if_snapshot_arrives_during_repair(self):
+        fresh_template = {"job_configuration": {"env": {"FRESH": "true"}}}
+        work_pool = WorkPool(
+            name="test-work-pool",
+            type="test",
+            base_job_template={},
+            default_queue_id=uuid.uuid4(),
+        )
+        snapshot = Mock()
+        client = worker_channel_test_client()
+        client.read_work_pool = AsyncMock(return_value=work_pool)
+
+        async def update_work_pool(*args: Any, **kwargs: Any) -> None:
+            channel._protocol.handle_work_pool_snapshot(
+                worker_channel_snapshot_payload(1, base_job_template=fresh_template)
+            )
+            channel.state.mark_healthy()
+
+        client.update_work_pool = AsyncMock(side_effect=update_work_pool)
+        channel = WorkPoolWorkerChannel(
+            client=client,
+            api_url="http://localhost:4200/api",
+            work_pool_is_available=lambda: True,
+            work_pool_name="test-work-pool",
+            worker_name="test-worker",
+            worker_type="test",
+            heartbeat_interval_seconds=30,
+            work_queue_names=[],
+            create_pool_if_not_found=True,
+            default_base_job_template={"job_configuration": {}, "variables": {}},
+            worker_metadata=no_worker_channel_metadata,
+            logger=logging.getLogger("test-worker-channel"),
+            on_work_pool_snapshot=snapshot,
+        )
+
+        await channel.sync(None)
+
+        client.update_work_pool.assert_awaited_once()
+        client.send_worker_heartbeat.assert_not_awaited()
+        snapshot.assert_called_once()
+        assert snapshot.call_args.args[0].base_job_template == fresh_template
+
     async def test_endpoint_unavailable_is_terminal_rest_fallback(self):
         client = worker_channel_test_client()
         client.read_work_pool = AsyncMock(
@@ -2864,6 +3104,7 @@ class TestWorkerChannelClient:
             worker_metadata=no_worker_channel_metadata,
             logger=logging.getLogger("test-worker-channel"),
         )
+        channel._protocol.handle_work_pool_snapshot(worker_channel_snapshot_payload(1))
         channel.state.mark_healthy()
 
         await channel.sync(None)
@@ -3086,6 +3327,106 @@ async def test_work_pool_env_from_job_configuration_merges_with_variable_default
     assert config.env["WORK_POOL_BASE_VAR"] == "from-job-config"
     assert config.env["WORK_POOL_DEFAULT_VAR"] == "from-variable-defaults"
     assert config.env["DEPLOYMENT_VAR"] == "from-deployment"
+
+
+async def test_get_configuration_uses_stable_work_pool_copy(
+    prefect_client: PrefectClient,
+    work_pool: WorkPool,
+):
+    @flow
+    def test_flow():
+        pass
+
+    flow_run = await prefect_client.create_flow_run(
+        test_flow,
+        work_pool_name=work_pool.name,
+    )
+    initial_template = {
+        "job_configuration": {"env": {"SNAPSHOT": "initial"}},
+        "variables": {"properties": {}},
+    }
+    updated_template = {
+        "job_configuration": {"env": {"SNAPSHOT": "updated"}},
+        "variables": {"properties": {}},
+    }
+    worker_ref: dict[str, BaseWorker[Any, Any, Any]] = {}
+    templates_used: list[dict[str, Any]] = []
+    prepared_work_pools: list[WorkPool | None] = []
+    worker_type = "stable-snapshot-test"
+
+    class StableSnapshotJobConfiguration(BaseJobConfiguration):
+        @classmethod
+        async def from_template_and_values(
+            cls,
+            base_job_template: dict[str, Any],
+            values: dict[str, Any],
+            client: PrefectClient | None = None,
+        ):
+            templates_used.append(copy.deepcopy(base_job_template))
+            worker_ref["worker"]._record_work_pool_snapshot(
+                WorkPool(
+                    name=work_pool.name,
+                    type=worker_type,
+                    base_job_template=updated_template,
+                    default_queue_id=work_pool.default_queue_id,
+                )
+            )
+            return await super().from_template_and_values(
+                base_job_template=base_job_template,
+                values=values,
+                client=client,
+            )
+
+        def prepare_for_flow_run(
+            self,
+            flow_run: FlowRun,
+            deployment: DeploymentResponse | None = None,
+            flow: Flow | None = None,
+            work_pool: WorkPool | None = None,
+            worker_name: str | None = None,
+            worker_id: uuid.UUID | None = None,
+        ) -> None:
+            prepared_work_pools.append(work_pool)
+            return super().prepare_for_flow_run(
+                flow_run=flow_run,
+                deployment=deployment,
+                flow=flow,
+                work_pool=work_pool,
+                worker_name=worker_name,
+                worker_id=worker_id,
+            )
+
+    class StableSnapshotWorker(
+        BaseWorker[StableSnapshotJobConfiguration, Any, BaseWorkerResult]
+    ):
+        type = worker_type
+        job_configuration = StableSnapshotJobConfiguration
+
+        async def run(
+            self,
+            flow_run: FlowRun,
+            configuration: StableSnapshotJobConfiguration,
+            task_status: anyio.abc.TaskStatus[int] | None = None,
+        ) -> BaseWorkerResult:
+            return BaseWorkerResult(identifier="test", status_code=0)
+
+    async with StableSnapshotWorker(work_pool_name=work_pool.name) as worker:
+        worker_ref["worker"] = worker
+        worker._work_pool = WorkPool(
+            name=work_pool.name,
+            type=worker_type,
+            base_job_template=initial_template,
+            default_queue_id=work_pool.default_queue_id,
+        )
+
+        config = await worker._get_configuration(flow_run)
+
+        assert worker._work_pool.base_job_template == updated_template
+
+    assert templates_used == [initial_template]
+    assert prepared_work_pools[0] is not None
+    assert prepared_work_pools[0].base_job_template == initial_template
+    assert config.env["SNAPSHOT"] == "initial"
 
 
 class TestBaseWorkerHeartbeat:
