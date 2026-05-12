@@ -141,6 +141,14 @@ def inprocess_ray_cluster():
         yield cluster
     finally:
         cluster.shutdown()
+        # `Cluster(initialize_head=True)` calls `ray.init()` internally, but
+        # `cluster.shutdown()` only tears down nodes — the driver-side Ray
+        # state stays attached. Tear it down explicitly so the next test
+        # starts with a clean slate. (Prior to ownership-aware shutdown in
+        # `RayTaskRunner.__exit__`, the runner did this incidentally on every
+        # flow exit; now the fixture has to do it itself.)
+        if ray.is_initialized():
+            ray.shutdown()
 
 
 @pytest.fixture
