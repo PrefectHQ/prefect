@@ -81,6 +81,7 @@ def test_lease_renewal_logs_once_after_max_retries_non_strict(
 ):
     mock_client = mock.MagicMock()
     mock_client.renew_concurrency_lease.side_effect = RuntimeError("server down")
+    continued_after_failure = False
 
     with _patch_renewal_client(mock_client):
         with caplog.at_level(logging.WARNING):
