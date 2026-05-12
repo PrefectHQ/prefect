@@ -593,8 +593,27 @@ def execute_bundle_in_subprocess(
 
     # Install dependencies if necessary
     if dependencies := bundle.get("dependencies"):
+        dep_lines = [
+            line.strip()
+            for line in dependencies.split("\n")
+            if line.strip()
+        ]
+        validated_deps: list[str] = []
+        for dep_line in dep_lines:
+            if dep_line.startswith("-"):
+                raise ValueError(
+                    f"Invalid dependency (command-line flags are not allowed): {dep_line!r}"
+                )
+            try:
+                Requirement(dep_line)
+            except InvalidRequirement as e:
+                raise ValueError(
+                    f"Invalid PEP 508 dependency specifier: {dep_line!r}"
+                ) from e
+            validated_deps.append(dep_line)
+
         subprocess.check_call(
-            [_get_uv_path(), "pip", "install", *dependencies.split("\n")],
+            [_get_uv_path(), "pip", "install", *validated_deps],
             # Copy the current environment to ensure we install into the correct venv
             env=os.environ,
         )
