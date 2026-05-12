@@ -198,10 +198,16 @@ class WorkerChannelProtocolHandler:
         )
         self._current_session.activate(session)
         if cleanup_delivery_enabled and self._cleanup_executor is not None:
-            self._cleanup_executor.set_max_concurrency(
-                session.ready.payload.effective_max_cleanup_concurrency
+            effective_max_cleanup_concurrency = min(
+                session.ready.payload.effective_max_cleanup_concurrency,
+                self._cleanup_executor.max_concurrency,
+            )
+            self._cleanup_executor.set_effective_max_concurrency(
+                effective_max_cleanup_concurrency
             )
             self._cleanup_executor.set_operation_sender(self._send_cleanup_operation)
+        elif self._cleanup_executor is not None:
+            self._cleanup_executor.cancel_in_flight()
 
         try:
             heartbeat_task = asyncio.create_task(

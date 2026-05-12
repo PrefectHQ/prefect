@@ -146,6 +146,12 @@ class _ReservationState:
     owns_reservation: bool = True
 
 
+@dataclass
+class _ActiveReservation:
+    state: _ReservationState
+    cleanup_scope: anyio.CancelScope
+
+
 class WorkerCleanupExecutor:
     def __init__(
         self,
@@ -174,9 +180,10 @@ class WorkerCleanupExecutor:
             raise ValueError("Cleanup operation attempts must be positive")
 
         self._send_operation = send_operation or self._missing_operation_sender
+        self.effective_max_concurrency = self.max_concurrency
         self._limiter = (
-            anyio.CapacityLimiter(self.max_concurrency)
-            if self.max_concurrency > 0
+            anyio.CapacityLimiter(self.effective_max_concurrency)
+            if self.effective_max_concurrency > 0
             else None
         )
         self._lease_renewal_buffer_seconds = lease_renewal_buffer_seconds
@@ -184,6 +191,7 @@ class WorkerCleanupExecutor:
         self._operation_retry_delay_seconds = operation_retry_delay_seconds
         self._max_operation_attempts = max_operation_attempts
         self._pending_operations: dict[UUID, _PendingOperation] = {}
+        self._active_reservations: dict[str, _ActiveReservation] = {}
         self._task_group: anyio.abc.TaskGroup | None = None
         self._logger = logger or get_logger(__name__)
 
@@ -200,22 +208,30 @@ class WorkerCleanupExecutor:
     def set_operation_sender(self, send_operation: CleanupOperationSender) -> None:
         self._send_operation = send_operation
 
-    def set_max_concurrency(self, max_concurrency: int) -> None:
-        if max_concurrency < 0:
+    def set_effective_max_concurrency(self, effective_max_concurrency: int) -> None:
+        if effective_max_concurrency < 0:
             raise ValueError("Cleanup concurrency cannot be negative")
-        self.max_concurrency = max_concurrency
-        if max_concurrency == 0:
+        effective_max_concurrency = min(
+            effective_max_concurrency,
+            self.max_concurrency,
+        )
+        self.effective_max_concurrency = effective_max_concurrency
+        if effective_max_concurrency == 0:
             self._limiter = None
             return
 
         if self._limiter is None:
-            self._limiter = anyio.CapacityLimiter(max_concurrency)
+            self._limiter = anyio.CapacityLimiter(effective_max_concurrency)
         else:
-            self._limiter.total_tokens = max_concurrency
+            self._limiter.total_tokens = effective_max_concurrency
 
     def cancel(self) -> None:
         if self._task_group is not None:
             self._task_group.cancel_scope.cancel()
+
+    def cancel_in_flight(self) -> None:
+        for active in tuple(self._active_reservations.values()):
+            self._lose_reservation(active.state, active.cleanup_scope)
 
     @staticmethod
     def _missing_operation_sender(
@@ -254,17 +270,9 @@ class WorkerCleanupExecutor:
             await self._release(payload, reason="unsupported_cleanup_kind")
             return
 
-        if self._limiter is None:
+        limiter = self._limiter
+        if limiter is None:
             await self._release(payload, reason="cleanup_delivery_unavailable")
-            return
-
-        try:
-            self._limiter.acquire_on_behalf_of_nowait(payload.reservation_token)
-        except anyio.WouldBlock:
-            await self._release(payload, reason="concurrency_limit_reached")
-            return
-        except RuntimeError:
-            await self._release(payload, reason="duplicate_reservation")
             return
 
         state = _ReservationState(
@@ -272,36 +280,68 @@ class WorkerCleanupExecutor:
             reservation_token=payload.reservation_token,
             lease_expires_at=payload.lease_expires_at,
         )
+        if self._lease_expired(state):
+            self._logger.debug(
+                "Skipping cleanup message %s because the reservation lease has expired",
+                payload.message_id,
+            )
+            return
+
+        if payload.reservation_token in self._active_reservations:
+            self._logger.debug(
+                "Ignoring duplicate cleanup delivery for active reservation %s",
+                payload.reservation_token,
+            )
+            return
+
+        try:
+            limiter.acquire_on_behalf_of_nowait(payload.reservation_token)
+        except anyio.WouldBlock:
+            await self._release(payload, reason="concurrency_limit_reached")
+            return
+        except RuntimeError:
+            self._logger.debug(
+                "Ignoring duplicate cleanup delivery for borrowed reservation %s",
+                payload.reservation_token,
+            )
+            return
+
         try:
             with anyio.CancelScope() as cleanup_scope:
-                async with anyio.create_task_group() as renewal_group:
-                    renewal_group.start_soon(
-                        self._renew_until_finished,
-                        state,
-                        cleanup_scope,
-                    )
-                    try:
-                        result = await self._run_handler(handler, payload)
-                    except Exception:
-                        self._logger.exception(
-                            "Cleanup handler failed for message %s",
-                            payload.message_id,
+                self._active_reservations[payload.reservation_token] = (
+                    _ActiveReservation(state, cleanup_scope)
+                )
+                try:
+                    async with anyio.create_task_group() as renewal_group:
+                        renewal_group.start_soon(
+                            self._renew_until_finished,
+                            state,
+                            cleanup_scope,
                         )
-                        result = CleanupExecutionResult.release("handler_failed")
-
-                    if state.owns_reservation:
-                        if result is None:
-                            result = CleanupExecutionResult.success()
-
-                        if result.operation == "ack":
-                            await self._ack(payload)
-                        else:
-                            await self._release(
-                                payload,
-                                reason=result.reason or "handler_released",
+                        try:
+                            result = await self._run_handler(handler, payload)
+                        except Exception:
+                            self._logger.exception(
+                                "Cleanup handler failed for message %s",
+                                payload.message_id,
                             )
+                            result = CleanupExecutionResult.release("handler_failed")
 
-                    renewal_group.cancel_scope.cancel()
+                        if state.owns_reservation:
+                            if result is None:
+                                result = CleanupExecutionResult.success()
+
+                            if result.operation == "ack":
+                                await self._ack(payload)
+                            else:
+                                await self._release(
+                                    payload,
+                                    reason=result.reason or "handler_released",
+                                )
+
+                        renewal_group.cancel_scope.cancel()
+                finally:
+                    self._active_reservations.pop(payload.reservation_token, None)
 
             if not state.owns_reservation:
                 self._logger.debug(
@@ -311,7 +351,7 @@ class WorkerCleanupExecutor:
                 )
                 return
         finally:
-            self._limiter.release_on_behalf_of(payload.reservation_token)
+            limiter.release_on_behalf_of(payload.reservation_token)
 
     async def _run_handler(
         self,
@@ -365,12 +405,15 @@ class WorkerCleanupExecutor:
                 operation="renew",
                 message_id=state.message_id,
                 reservation_token=state.reservation_token,
+                deadline=state.lease_expires_at,
             )
             if result is None:
                 if self._lease_expired(state):
                     self._lose_reservation(state, cleanup_scope)
                     return
-                await anyio.sleep(self._operation_retry_delay_seconds)
+                if not await self._sleep_before_operation_retry(state.lease_expires_at):
+                    self._lose_reservation(state, cleanup_scope)
+                    return
                 continue
             action = self.classify_operation_result(result)
             if action is CleanupOperationResultAction.ACCEPTED:
@@ -382,7 +425,9 @@ class WorkerCleanupExecutor:
                 if self._lease_expired(state):
                     self._lose_reservation(state, cleanup_scope)
                     return
-                await anyio.sleep(self._operation_retry_delay_seconds)
+                if not await self._sleep_before_operation_retry(state.lease_expires_at):
+                    self._lose_reservation(state, cleanup_scope)
+                    return
                 continue
 
             self._lose_reservation(state, cleanup_scope)
@@ -402,8 +447,7 @@ class WorkerCleanupExecutor:
     def _seconds_until_renewal(self, lease_expires_at: DateTime) -> float:
         return max(
             0.0,
-            (lease_expires_at - now("UTC")).total_seconds()
-            - self._lease_renewal_buffer_seconds,
+            self._seconds_until(lease_expires_at) - self._lease_renewal_buffer_seconds,
         )
 
     async def _send_operation_until_resolved(
@@ -414,6 +458,7 @@ class WorkerCleanupExecutor:
         message_id: UUID | None = None,
         reservation_token: str | None = None,
         reason: str | None = None,
+        deadline: DateTime | None = None,
     ) -> CleanupOperationResultFrame | None:
         if payload is not None:
             message_id = payload.message_id
@@ -424,6 +469,10 @@ class WorkerCleanupExecutor:
         last_result: CleanupOperationResultFrame | None = None
         last_exception: Exception | None = None
         for attempt in range(1, self._max_operation_attempts + 1):
+            attempt_timeout = self._operation_attempt_timeout(deadline)
+            if attempt_timeout <= 0:
+                break
+
             frame = self._build_operation_frame(
                 operation=operation,
                 message_id=message_id,
@@ -431,7 +480,10 @@ class WorkerCleanupExecutor:
                 reason=reason,
             )
             try:
-                result = await self._send_operation_once(frame)
+                result = await self._send_operation_once(
+                    frame,
+                    timeout=attempt_timeout,
+                )
             except Exception as exc:
                 self._logger.debug(
                     "Cleanup %s operation failed for message %s",
@@ -442,7 +494,8 @@ class WorkerCleanupExecutor:
                 last_exception = exc
                 if attempt == self._max_operation_attempts:
                     break
-                await anyio.sleep(self._operation_retry_delay_seconds)
+                if not await self._sleep_before_operation_retry(deadline):
+                    break
                 continue
 
             last_result = result
@@ -450,7 +503,8 @@ class WorkerCleanupExecutor:
             if action is CleanupOperationResultAction.RETRYABLE_ERROR:
                 if attempt == self._max_operation_attempts:
                     return result
-                await anyio.sleep(self._operation_retry_delay_seconds)
+                if not await self._sleep_before_operation_retry(deadline):
+                    return result
                 continue
             return result
 
@@ -465,7 +519,10 @@ class WorkerCleanupExecutor:
         return last_result
 
     async def _send_operation_once(
-        self, frame: CleanupOperationFrame
+        self,
+        frame: CleanupOperationFrame,
+        *,
+        timeout: float,
     ) -> CleanupOperationResultFrame:
         loop = asyncio.get_running_loop()
         future: asyncio.Future[CleanupOperationResultFrame] = loop.create_future()
@@ -474,24 +531,57 @@ class WorkerCleanupExecutor:
             future=future,
         )
         try:
-            result = self._send_operation(frame)
-            if inspect.isawaitable(result):
-                result = await result
-            if result is not None:
-                if isinstance(result, dict):
-                    result = CleanupOperationResultFrame.model_validate(result)
-                if not isinstance(result, CleanupOperationResultFrame):
-                    raise TypeError(
-                        "Cleanup operation senders must return "
-                        "CleanupOperationResultFrame, a frame dict, or None"
-                    )
-                return result
             return await asyncio.wait_for(
-                future,
-                timeout=self._operation_result_timeout_seconds,
+                self._send_operation_and_wait(frame, future),
+                timeout=timeout,
             )
         finally:
             self._pending_operations.pop(frame.id, None)
+
+    async def _send_operation_and_wait(
+        self,
+        frame: CleanupOperationFrame,
+        future: asyncio.Future[CleanupOperationResultFrame],
+    ) -> CleanupOperationResultFrame:
+        result = self._send_operation(frame)
+        if inspect.isawaitable(result):
+            result = await result
+        if result is not None:
+            if isinstance(result, dict):
+                result = CleanupOperationResultFrame.model_validate(result)
+            if not isinstance(result, CleanupOperationResultFrame):
+                raise TypeError(
+                    "Cleanup operation senders must return "
+                    "CleanupOperationResultFrame, a frame dict, or None"
+                )
+            return result
+        return await future
+
+    def _operation_attempt_timeout(self, deadline: DateTime | None) -> float:
+        timeout = self._operation_result_timeout_seconds
+        if deadline is not None:
+            timeout = min(timeout, self._seconds_until(deadline))
+        return max(0.0, timeout)
+
+    async def _sleep_before_operation_retry(
+        self,
+        deadline: DateTime | None,
+    ) -> bool:
+        sleep_seconds = self._operation_retry_delay_seconds
+        if deadline is not None:
+            remaining_seconds = self._seconds_until(deadline)
+            if remaining_seconds <= 0:
+                return False
+            sleep_seconds = min(sleep_seconds, remaining_seconds)
+
+        if sleep_seconds > 0:
+            await anyio.sleep(sleep_seconds)
+
+        return deadline is None or self._seconds_until(deadline) > 0
+
+    @staticmethod
+    def _seconds_until(deadline: DateTime) -> float:
+        return (deadline - now("UTC")).total_seconds()
 
     def handle_operation_result(
         self, frame: CleanupOperationResultFrame

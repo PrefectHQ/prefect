@@ -351,12 +351,63 @@ async def test_protocol_applies_effective_cleanup_concurrency_from_ready():
             task_group.start_soon(protocol.run_session, session)
 
             with anyio.fail_after(1):
-                while executor.max_concurrency != 1:
+                while executor.effective_max_concurrency != 1:
                     await anyio.sleep(0)
 
             task_group.cancel_scope.cancel()
 
-    assert executor.max_concurrency == 1
+    assert executor.max_concurrency == 2
+    assert executor.effective_max_concurrency == 1
+
+    hello = await protocol.build_hello_frame()
+    assert hello.payload.max_cleanup_concurrency == 2
+
+
+async def test_protocol_clamps_effective_cleanup_concurrency_to_requested_limit():
+    async def worker_metadata():
+        return None
+
+    executor = WorkerCleanupExecutor(
+        [RecordingCleanupHandler()],
+        max_concurrency=2,
+    )
+    protocol = WorkerChannelProtocolHandler(
+        consumer_id=uuid7(),
+        worker_name="test-worker",
+        worker_type="test",
+        heartbeat_interval_seconds=30,
+        work_queue_names=["default"],
+        create_pool_if_not_found=True,
+        default_base_job_template={},
+        worker_metadata=worker_metadata,
+        classify_closed_connection=lambda exc: WorkerChannelTerminalError(
+            "connection_lost", str(exc)
+        ),
+        logger=logging.getLogger("test-worker-channel"),
+        cleanup_executor=executor,
+    )
+    websocket = QueueWorkerChannelWebSocket()
+    session = WorkerChannelSession(
+        FakeWorkerChannelConnect(websocket),
+        websocket,
+        _worker_ready_frame(
+            protocol.consumer_id,
+            effective_max_cleanup_concurrency=10,
+        ),
+    )
+
+    async with executor:
+        async with anyio.create_task_group() as task_group:
+            task_group.start_soon(protocol.run_session, session)
+
+            with anyio.fail_after(1):
+                while executor.effective_max_concurrency != 2:
+                    await anyio.sleep(0)
+
+            task_group.cancel_scope.cancel()
+
+    assert executor.max_concurrency == 2
+    assert executor.effective_max_concurrency == 2
 
 
 async def test_current_session_waits_for_required_capability_before_sending():
@@ -405,6 +456,48 @@ async def test_current_session_waits_for_required_capability_before_sending():
                 await anyio.sleep(0)
 
     assert websocket_with_cleanup.sent[0]["type"] == "cleanup.ack.v1"
+
+
+async def test_protocol_cancels_in_flight_cleanup_when_delivery_not_accepted():
+    async def worker_metadata():
+        return None
+
+    handler = CancellableCleanupHandler()
+    executor = WorkerCleanupExecutor([handler])
+    protocol = WorkerChannelProtocolHandler(
+        consumer_id=uuid7(),
+        worker_name="test-worker",
+        worker_type="test",
+        heartbeat_interval_seconds=30,
+        work_queue_names=["default"],
+        create_pool_if_not_found=True,
+        default_base_job_template={},
+        worker_metadata=worker_metadata,
+        classify_closed_connection=lambda exc: WorkerChannelTerminalError(
+            "connection_lost", str(exc)
+        ),
+        logger=logging.getLogger("test-worker-channel"),
+        cleanup_executor=executor,
+    )
+    websocket = QueueWorkerChannelWebSocket()
+    session = WorkerChannelSession(
+        FakeWorkerChannelConnect(websocket),
+        websocket,
+        _worker_ready_frame(protocol.consumer_id, cleanup_delivery=False),
+    )
+
+    async with anyio.create_task_group() as task_group:
+        task_group.start_soon(executor.execute, _message_frame())
+        await handler.started.wait()
+
+        task_group.start_soon(protocol.run_session, session)
+
+        with anyio.fail_after(1):
+            await handler.cancelled.wait()
+            while executor.in_flight_count:
+                await anyio.sleep(0)
+
+        task_group.cancel_scope.cancel()
 
 
 async def test_worker_uses_cleanup_concurrency_override_separate_from_flow_limit():
@@ -504,6 +597,52 @@ async def test_executor_enforces_cleanup_concurrency():
 
     assert [type(frame) for frame in sent] == [CleanupReleaseFrame, CleanupAckFrame]
     assert sent[0].payload.reason == "concurrency_limit_reached"
+
+
+async def test_executor_skips_expired_cleanup_message_without_result():
+    sent: list[CleanupOperationFrame] = []
+
+    async def send(frame: CleanupOperationFrame):
+        sent.append(frame)
+        return _operation_result(frame)
+
+    handler = RecordingCleanupHandler()
+    executor = WorkerCleanupExecutor([handler], send_operation=send)
+
+    await executor.execute(
+        _message_frame(lease_expires_at=now("UTC") - timedelta(seconds=1))
+    )
+
+    assert handler.messages == []
+    assert sent == []
+    assert executor.in_flight_count == 0
+
+
+async def test_executor_ignores_duplicate_active_reservation():
+    sent: list[CleanupOperationFrame] = []
+    started = anyio.Event()
+    finish_first = anyio.Event()
+
+    async def send(frame: CleanupOperationFrame):
+        sent.append(frame)
+        return _operation_result(frame)
+
+    handler = RecordingCleanupHandler(wait_for=finish_first, started=started)
+    executor = WorkerCleanupExecutor([handler], send_operation=send)
+    first = _message_frame(reservation_token="shared-token")
+    duplicate = _message_frame(reservation_token="shared-token")
+
+    async with anyio.create_task_group() as task_group:
+        task_group.start_soon(executor.execute, first)
+        await started.wait()
+
+        await executor.execute(duplicate)
+
+        assert executor.in_flight_count == 1
+        finish_first.set()
+
+    assert handler.messages == [first.payload]
+    assert [type(frame) for frame in sent] == [CleanupAckFrame]
 
 
 async def test_executor_renews_lease_before_acknowledging_success():
@@ -614,11 +753,37 @@ async def test_executor_cancels_handler_when_renewal_misses_lease_deadline():
         [handler],
         send_operation=send,
         lease_renewal_buffer_seconds=30,
-        operation_result_timeout_seconds=0.01,
+        operation_result_timeout_seconds=30,
         operation_retry_delay_seconds=0,
         max_operation_attempts=1,
     )
-    message = _message_frame(lease_expires_at=now("UTC") + timedelta(seconds=0.01))
+    message = _message_frame(lease_expires_at=now("UTC") + timedelta(seconds=0.05))
+
+    with anyio.fail_after(1):
+        await executor.execute(message)
+
+    assert handler.started.is_set()
+    assert handler.cancelled.is_set()
+    assert [type(frame) for frame in sent] == [CleanupRenewFrame]
+
+
+async def test_executor_cancels_handler_when_renew_send_exceeds_lease_deadline():
+    sent: list[CleanupOperationFrame] = []
+
+    async def send(frame: CleanupOperationFrame):
+        sent.append(frame)
+        await anyio.sleep_forever()
+
+    handler = CancellableCleanupHandler()
+    executor = WorkerCleanupExecutor(
+        [handler],
+        send_operation=send,
+        lease_renewal_buffer_seconds=30,
+        operation_result_timeout_seconds=30,
+        operation_retry_delay_seconds=0,
+        max_operation_attempts=1,
+    )
+    message = _message_frame(lease_expires_at=now("UTC") + timedelta(seconds=0.05))
 
     with anyio.fail_after(1):
         await executor.execute(message)
