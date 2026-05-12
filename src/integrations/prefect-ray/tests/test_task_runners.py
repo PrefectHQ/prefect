@@ -606,3 +606,75 @@ class TestRayTaskRunner:
         ]
         assert len(related_assets) == 1
         assert related_assets[0]["prefect.resource.id"] == upstream.key
+
+
+class TestRayTaskRunnerOwnership:
+    """
+    Regression tests for ownership-aware shutdown in `RayTaskRunner.__exit__`.
+
+    `RayTaskRunner` should only call `ray.shutdown()` when it was the one to
+    initialize Ray. A Ray instance the user (or a previous task runner) brought
+    up must survive the flow run. See
+    https://github.com/PrefectHQ/prefect/issues/21920.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _shutdown_ray(self):
+        """Ensure each test starts and ends with no Ray instance running."""
+        if ray.is_initialized():
+            ray.shutdown()
+        yield
+        if ray.is_initialized():
+            ray.shutdown()
+
+    def test_default_task_runner_shuts_down_owned_ray(self):
+        @task
+        def double(x):
+            return x * 2
+
+        @flow(task_runner=RayTaskRunner())
+        def my_flow():
+            return double.submit(2).result()
+
+        assert my_flow() == 4
+        assert not ray.is_initialized(), (
+            "RayTaskRunner should shut down a Ray instance it started"
+        )
+
+    def test_preexisting_ray_is_not_shut_down(self):
+        ray.init()
+        assert ray.is_initialized()
+
+        @task
+        def square(x):
+            return x * x
+
+        @flow(task_runner=RayTaskRunner())
+        def my_flow():
+            return [f.result() for f in square.map([1, 2, 3])]
+
+        assert my_flow() == [1, 4, 9]
+        assert ray.is_initialized(), (
+            "RayTaskRunner.__exit__ should not shut down a Ray instance "
+            "that was already running before the task runner was started"
+        )
+
+    def test_multiple_flows_reuse_preexisting_ray(self):
+        ray.init()
+
+        @task
+        def echo(x):
+            return x
+
+        @flow(task_runner=RayTaskRunner())
+        def first():
+            return echo.submit("a").result()
+
+        @flow(task_runner=RayTaskRunner())
+        def second():
+            return echo.submit("b").result()
+
+        assert first() == "a"
+        assert ray.is_initialized()
+        assert second() == "b"
+        assert ray.is_initialized()
