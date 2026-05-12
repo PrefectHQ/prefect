@@ -16,7 +16,11 @@ export const TagBadge = ({
 	className,
 }: TagBadgeProps) => {
 	return (
-		<Badge variant={variant} className={cn("ml-1", className)} title={tag}>
+		<Badge
+			variant={variant}
+			className={cn("ml-1 max-w-40", className)}
+			title={tag}
+		>
 			<span className="truncate">{tag}</span>
 			{onRemove && (
 				<button
