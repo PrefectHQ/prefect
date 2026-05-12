@@ -19,6 +19,8 @@ from prefect.client.schemas.worker_channel import (
     WORK_POOL_SNAPSHOT_CAPABILITY,
     WORK_POOL_WORKER_CHANNEL_VERSION,
     WORKER_HEARTBEAT_CAPABILITY,
+    CleanupMessageFrame,
+    CleanupOperationResultFrame,
     WorkerChannelAuthSuccess,
     WorkerChannelCloseReason,
     WorkerHeartbeatFrame,
@@ -29,10 +31,12 @@ from prefect.client.schemas.worker_channel import (
 )
 from prefect.settings import get_current_settings
 from prefect.types._datetime import now
+from prefect.workers._cleanup import CleanupOperationFrame, WorkerCleanupExecutor
 from prefect.workers._worker_channel._state import (
-    WorkerChannelConnection,
+    CurrentWorkerChannelSession,
     WorkerChannelError,
     WorkerChannelRetryableError,
+    WorkerChannelSession,
     WorkerChannelTerminalError,
 )
 
@@ -55,6 +59,7 @@ class WorkerChannelProtocolHandler:
         logger: Logger,
         on_worker_id: Callable[[UUID], None] | None = None,
         on_work_pool_snapshot: Callable[[WorkPool], None] | None = None,
+        cleanup_executor: WorkerCleanupExecutor | None = None,
     ):
         self.consumer_id = consumer_id
         self.worker_name = worker_name
@@ -68,6 +73,8 @@ class WorkerChannelProtocolHandler:
         self._logger = logger
         self._on_worker_id = on_worker_id
         self._on_work_pool_snapshot = on_work_pool_snapshot
+        self._cleanup_executor = cleanup_executor
+        self._current_session = CurrentWorkerChannelSession()
         self._worker_id: UUID | None = None
         self._worker_metadata_sent = False
 
@@ -118,6 +125,18 @@ class WorkerChannelProtocolHandler:
                 worker_metadata.model_dump(mode="json") if worker_metadata else None
             )
 
+        requested_capabilities = [
+            WORKER_HEARTBEAT_CAPABILITY,
+            WORK_POOL_SNAPSHOT_CAPABILITY,
+        ]
+        handled_cleanup_kinds = []
+        max_cleanup_concurrency = 0
+        if self._cleanup_delivery_requested():
+            requested_capabilities.append(CLEANUP_DELIVERY_CAPABILITY)
+            assert self._cleanup_executor is not None
+            handled_cleanup_kinds = list(self._cleanup_executor.handled_cleanup_kinds)
+            max_cleanup_concurrency = self._cleanup_executor.max_concurrency
+
         return WorkerHelloFrame(
             type="worker.hello.v1",
             id=uuid7(),
@@ -128,13 +147,10 @@ class WorkerChannelProtocolHandler:
                 "worker_type": self.worker_type,
                 "heartbeat_interval_seconds": self.heartbeat_interval_seconds,
                 "supported_channel_versions": [WORK_POOL_WORKER_CHANNEL_VERSION],
-                "requested_capabilities": [
-                    WORKER_HEARTBEAT_CAPABILITY,
-                    WORK_POOL_SNAPSHOT_CAPABILITY,
-                ],
+                "requested_capabilities": requested_capabilities,
                 "work_queue_names": self.work_queue_names,
-                "handled_cleanup_kinds": [],
-                "max_cleanup_concurrency": 0,
+                "handled_cleanup_kinds": handled_cleanup_kinds,
+                "max_cleanup_concurrency": max_cleanup_concurrency,
                 "create_pool_if_not_found": self.create_pool_if_not_found,
                 "default_base_job_template": self.default_base_job_template,
                 "worker_metadata": metadata_payload,
@@ -148,7 +164,10 @@ class WorkerChannelProtocolHandler:
                 "Worker channel ready frame consumer_id did not match hello",
             )
 
-        if CLEANUP_DELIVERY_CAPABILITY in ready.payload.accepted_capabilities:
+        if (
+            CLEANUP_DELIVERY_CAPABILITY in ready.payload.accepted_capabilities
+            and not self._cleanup_delivery_requested()
+        ):
             raise WorkerChannelTerminalError(
                 WorkerChannelCloseReason.PROTOCOL_ERROR.value,
                 "Worker channel accepted cleanup_delivery.v1 even though the worker "
@@ -173,48 +192,72 @@ class WorkerChannelProtocolHandler:
     def record_worker_metadata_sent(self) -> None:
         self._worker_metadata_sent = True
 
-    async def run_connected(self, connection: WorkerChannelConnection) -> None:
-        heartbeat_task = asyncio.create_task(
-            self._heartbeat_loop(
-                connection.websocket,
-                connection.ready.payload.effective_heartbeat_interval_seconds,
-            )
+    async def run_session(self, session: WorkerChannelSession) -> None:
+        cleanup_delivery_enabled = (
+            CLEANUP_DELIVERY_CAPABILITY in session.ready.payload.accepted_capabilities
         )
-        receive_task = asyncio.create_task(self._receive_loop(connection.websocket))
-        tasks = {heartbeat_task, receive_task}
+        self._current_session.activate(session)
+        if cleanup_delivery_enabled and self._cleanup_executor is not None:
+            effective_max_cleanup_concurrency = min(
+                session.ready.payload.effective_max_cleanup_concurrency,
+                self._cleanup_executor.max_concurrency,
+            )
+            self._cleanup_executor.set_effective_max_concurrency(
+                effective_max_cleanup_concurrency
+            )
+            self._cleanup_executor.set_operation_sender(self._send_cleanup_operation)
+        elif self._cleanup_executor is not None:
+            self._cleanup_executor.cancel_in_flight()
 
         try:
-            done, pending = await asyncio.wait(
-                tasks, return_when=asyncio.FIRST_EXCEPTION
+            heartbeat_task = asyncio.create_task(
+                self._heartbeat_loop(
+                    session.websocket,
+                    session.ready.payload.effective_heartbeat_interval_seconds,
+                )
             )
-        except BaseException:
-            for task in tasks:
-                if not task.done():
-                    task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
-            raise
+            receive_task = asyncio.create_task(
+                self._receive_loop(
+                    session.websocket,
+                    cleanup_delivery_enabled=cleanup_delivery_enabled,
+                )
+            )
+            tasks = {heartbeat_task, receive_task}
 
-        for task in pending:
-            task.cancel()
+            try:
+                done, pending = await asyncio.wait(
+                    tasks, return_when=asyncio.FIRST_EXCEPTION
+                )
+            except BaseException:
+                for task in tasks:
+                    if not task.done():
+                        task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
+                raise
 
-        await asyncio.gather(*pending, return_exceptions=True)
+            for task in pending:
+                task.cancel()
 
-        for task in done:
-            exception = task.exception()
-            if exception:
-                if isinstance(exception, WorkerChannelError):
-                    raise exception
-                if isinstance(exception, websockets.exceptions.ConnectionClosed):
-                    raise self._classify_closed_connection(exception) from exception
-                raise WorkerChannelRetryableError(
-                    "connection_lost",
-                    "Worker channel connection was lost",
-                ) from exception
+            await asyncio.gather(*pending, return_exceptions=True)
 
-        raise WorkerChannelRetryableError(
-            "connection_closed",
-            "Worker channel connection closed",
-        )
+            for task in done:
+                exception = task.exception()
+                if exception:
+                    if isinstance(exception, WorkerChannelError):
+                        raise exception
+                    if isinstance(exception, websockets.exceptions.ConnectionClosed):
+                        raise self._classify_closed_connection(exception) from exception
+                    raise WorkerChannelRetryableError(
+                        "connection_lost",
+                        "Worker channel connection was lost",
+                    ) from exception
+
+            raise WorkerChannelRetryableError(
+                "connection_closed",
+                "Worker channel connection closed",
+            )
+        finally:
+            self._current_session.deactivate(session)
 
     async def _heartbeat_loop(
         self,
@@ -236,7 +279,10 @@ class WorkerChannelProtocolHandler:
             await websocket.send(frame.model_dump_json())
 
     async def _receive_loop(
-        self, websocket: websockets.asyncio.client.ClientConnection
+        self,
+        websocket: websockets.asyncio.client.ClientConnection,
+        *,
+        cleanup_delivery_enabled: bool,
     ) -> None:
         while True:
             try:
@@ -256,10 +302,46 @@ class WorkerChannelProtocolHandler:
                 self.handle_work_pool_snapshot(frame.payload.work_pool)
                 continue
 
+            if isinstance(frame, CleanupMessageFrame):
+                if not cleanup_delivery_enabled or self._cleanup_executor is None:
+                    raise WorkerChannelTerminalError(
+                        WorkerChannelCloseReason.PROTOCOL_ERROR.value,
+                        "Worker channel received cleanup work without accepted "
+                        "cleanup delivery",
+                    )
+                self._cleanup_executor.submit(frame)
+                continue
+
+            if isinstance(frame, CleanupOperationResultFrame):
+                if not cleanup_delivery_enabled or self._cleanup_executor is None:
+                    raise WorkerChannelTerminalError(
+                        WorkerChannelCloseReason.PROTOCOL_ERROR.value,
+                        "Worker channel received cleanup operation result without "
+                        "accepted cleanup delivery",
+                    )
+                self._cleanup_executor.handle_operation_result(frame)
+                continue
+
             raise WorkerChannelTerminalError(
                 WorkerChannelCloseReason.PROTOCOL_ERROR.value,
                 f"Worker channel received unsupported frame type {frame.type!r}",
             )
+
+    async def _send_cleanup_operation(
+        self,
+        frame: CleanupOperationFrame,
+    ) -> None:
+        await self._current_session.send(
+            frame,
+            required_capability=CLEANUP_DELIVERY_CAPABILITY,
+        )
+
+    def _cleanup_delivery_requested(self) -> bool:
+        return (
+            self._cleanup_executor is not None
+            and bool(self._cleanup_executor.handled_cleanup_kinds)
+            and self._cleanup_executor.max_concurrency > 0
+        )
 
     async def _recv_json(
         self, websocket: websockets.asyncio.client.ClientConnection
