@@ -4,7 +4,7 @@ Client-side concurrency limit enforcement: acquires and releases slots against s
 
 ## Purpose & Scope
 
-Manages concurrency slot acquisition/release for flows and tasks enforcing named concurrency limits. Handles the full lifecycle: acquire -> maintain lease -> release, with both sync and async paths.
+Manages concurrency slot acquisition/release for flows and tasks enforcing named concurrency limits. Handles the full lifecycle: acquire → maintain lease → release, with both sync and async paths.
 
 Does NOT define concurrency limits (server-side in `server/`). Does NOT handle task runner parallelism (separate concern).
 
@@ -24,10 +24,10 @@ Does NOT define concurrency limits (server-side in `server/`). Does NOT handle t
 
 ## Architecture
 
-Layered — public -> internal -> services, with leases and events as cross-cutting concerns:
+Layered — public → internal → services, with leases and events as cross-cutting concerns:
 
 - **Public** (`asyncio.py`, `sync.py`) — user-facing context managers; `rate_limit()` emits events directly
-- **Internal** (`_asyncio.py`, `_sync.py`) — orchestrates acquire -> lease -> release, emits events for `concurrency()`, handles cancellation cleanup via `ConcurrencyContext`
+- **Internal** (`_asyncio.py`, `_sync.py`) — orchestrates acquire → lease → release, emits events for `concurrency()`, handles cancellation cleanup via `ConcurrencyContext`
 - **Services** (`services.py`) — serializes API requests per `frozenset(names)` to prevent thundering herd; retries on HTTP 423 with `Retry-After` backoff
 
 ## Anti-Patterns
