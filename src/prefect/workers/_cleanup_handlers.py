@@ -35,9 +35,9 @@ class CancellingTimeoutTeardownHandler:
 
     Capable worker types — those that override `kill_infrastructure` —
     are auto-registered by `BaseWorker` via
-    `register_default_cleanup_handlers`. Workers that need different
-    behavior (e.g., a custom teardown strategy, or opt-out) can pass
-    `_cleanup_handlers=` explicitly to skip the auto-registration.
+    `build_cleanup_handler_registry`. A class-level `cleanup_handlers`
+    entry for the same cleanup kind takes precedence, letting workers
+    swap in a custom teardown strategy.
 
     Boundary contract:
     - Does not propose or force flow-run state transitions; the server has
