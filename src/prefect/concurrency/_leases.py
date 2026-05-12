@@ -1,7 +1,7 @@
 import contextvars
 import threading
 from contextlib import asynccontextmanager, contextmanager
-from typing import TYPE_CHECKING, Any, AsyncGenerator, Generator
+from typing import TYPE_CHECKING, AsyncGenerator, Generator
 from uuid import UUID
 
 from prefect._internal.concurrency.cancellation import (
@@ -11,7 +11,6 @@ from prefect._internal.concurrency.cancellation import (
 from prefect._internal.retries import exponential_backoff_with_jitter
 from prefect.client.orchestration import get_client
 from prefect.logging.loggers import get_logger, get_run_logger
-from prefect.settings import PREFECT_API_AUTH_STRING, PREFECT_API_KEY
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import SyncPrefectClient
@@ -20,53 +19,6 @@ _RENEWAL_FRACTION = 0.75
 _RENEWAL_MAX_ATTEMPTS = 3
 _RENEWAL_RETRY_BASE_DELAY = 1
 _RENEWAL_RETRY_MAX_DELAY = 10
-
-
-@contextmanager
-def _get_lease_renewal_client() -> Generator["SyncPrefectClient", None, None]:
-    """
-    Return a sync client for lease renewal.
-
-    Renewal runs on an OS thread. If the caller is already in a sync client
-    context, reuse that client. If the caller is async-only, create an
-    independent sync client pointed at the async client's API URL and HTTPX
-    settings.
-    """
-    import prefect.context
-    from prefect.client.orchestration import SyncPrefectClient
-
-    if sync_ctx := prefect.context.SyncClientContext.get():
-        if sync_ctx.client:
-            yield sync_ctx.client
-            return
-
-    if async_ctx := prefect.context.AsyncClientContext.get():
-        if async_ctx.client:
-            if getattr(async_ctx.client, "_ephemeral_app", None):
-                raise RuntimeError(
-                    "Cannot renew a concurrency lease from an in-process async "
-                    "client on a background thread. Set PREFECT_API_URL to point "
-                    "at a running Prefect server."
-                )
-
-            ctx_settings: dict[str, Any] | None = getattr(
-                async_ctx, "_httpx_settings", None
-            )
-            inherited_settings = ctx_settings.copy() if ctx_settings else {}
-            inherited_settings.pop("transport", None)
-
-            with SyncPrefectClient(
-                str(async_ctx.client.api_url),
-                auth_string=PREFECT_API_AUTH_STRING.value(),
-                api_key=PREFECT_API_KEY.value(),
-                httpx_settings=inherited_settings or None,
-                server_type=async_ctx.client.server_type,
-            ) as client:
-                yield client
-            return
-
-    with get_client(sync_client=True) as client:
-        yield client
 
 
 def _renew_concurrency_lease_with_retries(
@@ -128,7 +80,7 @@ def _lease_renewal_loop(
         lease_duration: The duration of the lease in seconds.
         stop_event: Event set by the owning context manager on exit.
     """
-    with _get_lease_renewal_client() as client:
+    with get_client(sync_client=True) as client:
         while not stop_event.is_set():
             renewed = _renew_concurrency_lease_with_retries(
                 client, lease_id, lease_duration, stop_event
