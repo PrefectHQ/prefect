@@ -130,6 +130,16 @@ def generate_uuid_sqlite(
     """
 
 
+@compiles(GenerateUUID, "mysql")
+def generate_uuid_mysql(
+    element: GenerateUUID, compiler: SQLCompiler, **kwargs: Any
+) -> str:
+    """
+    Generates a random UUID in MySQL-compatible databases.
+    """
+    return "(UUID())"
+
+
 class Timestamp(TypeDecorator[datetime.datetime]):
     """TypeDecorator that ensures that timestamps have a timezone.
 
@@ -462,8 +472,8 @@ def _mysql_interval_microseconds(
 def current_timestamp_mysql(
     element: functions.now, compiler: SQLCompiler, **kwargs: Any
 ) -> str:
-    """Generates the current timestamp for MySQL in UTC."""
-    return compiler.process(sa.func.utc_timestamp(), **kwargs)
+    """Generates a MySQL-compatible current timestamp."""
+    return "CURRENT_TIMESTAMP"
 
 
 @compiles(date_add, "mysql")
@@ -798,6 +808,24 @@ def sqlite_least_as_min(
     # Note: Like MAX(), SQLite MIN() returns NULL if _any_ clause is NULL,
     # whereas PostgreSQL LEAST() only returns NULL if _all_ clauses are NULL.
     return compiler.process(sa.func.min(*element.clauses), **kwargs)
+
+
+@compiles(sa.String, "mysql")
+def mysql_string_type(
+    type_: sa.String, compiler: SQLCompiler, **kwargs: Any
+) -> str:
+    """
+    MySQL requires VARCHAR columns to declare a length.
+
+    Prefect models often use unbounded String columns for PostgreSQL/SQLite.
+    Compiling those as VARCHAR(255) truncates real payloads (for example
+    ``block_type.description``). Use TEXT instead; the MySQL baseline migration
+    handles TEXT in indexes and unique constraints (prefix lengths / bounded
+    VARCHAR where required).
+    """
+    if type_.length is None:
+        return "TEXT"
+    return compiler.visit_VARCHAR(type_, **kwargs)
 
 
 def get_dialect(obj: Union[str, Session, sa.Engine]) -> type[sa.Dialect]:

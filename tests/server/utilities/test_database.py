@@ -486,7 +486,7 @@ class TestCustomFunctions:
         compiled = expression.compile(
             dialect=dialect, compile_kwargs={"render_postcompile": True}
         )
-        assert str(compiled) == "utc_timestamp()"
+        assert str(compiled) == "CURRENT_TIMESTAMP"
 
 
 class TestDateFunctions:

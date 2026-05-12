@@ -162,6 +162,8 @@ async def test_infers_mysql_database_interface_components():
     assert type(db.database_config) is AsyncMySQLConfiguration
     assert type(db.queries) is AsyncMySQLQueryComponents
     assert type(db.orm) is AsyncMySQLORMConfiguration
+    assert db.orm.versions_dir.name == "mysql"
+    assert db.orm.versions_dir.exists()
     assert (
         db.queries._get_scheduled_flow_runs_from_work_pool_template_path
         == "mysql/get-runs-from-worker-queues.sql.jinja"

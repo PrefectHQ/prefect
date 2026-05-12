@@ -964,17 +964,17 @@ async def worker_heartbeat(
     if heartbeat_interval_seconds is not None:
         update_values["heartbeat_interval_seconds"] = heartbeat_interval_seconds
 
-    insert_stmt = (
-        db.queries.insert(db.Worker)
-        .values(**base_values, **update_values)
-        .on_conflict_do_update(
+    insert_stmt = db.queries.insert(db.Worker).values(**base_values, **update_values)
+    if db.dialect.name == "mysql":
+        insert_stmt = insert_stmt.on_duplicate_key_update(**update_values)
+    else:
+        insert_stmt = insert_stmt.on_conflict_do_update(
             index_elements=[
                 db.Worker.work_pool_id,
                 db.Worker.name,
             ],
             set_=update_values,
         )
-    )
 
     result = await session.execute(insert_stmt)
     return result.rowcount > 0

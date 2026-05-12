@@ -114,10 +114,13 @@ async def create_block_schema(
 
     insert_stmt = db.queries.insert(db.BlockSchema).values(**insert_values)
     if override:
-        insert_stmt = insert_stmt.on_conflict_do_update(
-            index_elements=db.orm.block_schema_unique_upsert_columns,
-            set_=insert_values,
-        )
+        if db.dialect.name == "mysql":
+            insert_stmt = insert_stmt.on_duplicate_key_update(**insert_values)
+        else:
+            insert_stmt = insert_stmt.on_conflict_do_update(
+                index_elements=db.orm.block_schema_unique_upsert_columns,
+                set_=insert_values,
+            )
     await session.execute(insert_stmt)
 
     query = (
