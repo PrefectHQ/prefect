@@ -201,6 +201,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture[R]]):
 
         # Runtime attributes
         self._ray_context = None
+        self._owns_ray = False
 
         super().__init__()
 
@@ -384,6 +385,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture[R]]):
         super().__enter__()
 
         if ray.is_initialized():
+            self._owns_ray = False
             self.logger.debug(
                 "Local Ray instance is already initialized. "
                 "Using existing local instance."
@@ -398,6 +400,7 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture[R]]):
             self.logger.info("Creating a local Ray instance")
             init_args = ()
 
+        self._owns_ray = True
         self._ray_context = ray.init(*init_args, **self.init_kwargs)
         dashboard_url = getattr(self._ray_context, "dashboard_url", None)
 
@@ -415,12 +418,9 @@ class RayTaskRunner(TaskRunner[PrefectRayFuture[R]]):
 
     def __exit__(self, *exc_info: Any):
         """
-        Shuts down the driver/cluster.
+        Shuts down the Ray cluster if this task runner created it.
         """
-        # Check if we are running on the driver. Calling ray.shutdown() when running on a
-        # worker will crash the worker.
-        if ray.get_runtime_context().worker.mode == 0:
-            # Running on the driver. Will shutdown cluster if started by this task runner.
+        if self._owns_ray and ray.get_runtime_context().worker.mode == 0:
             self.logger.debug("Shutting down Ray driver...")
             ray.shutdown()
         super().__exit__(*exc_info)
