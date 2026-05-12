@@ -9,7 +9,6 @@ import pytest
 
 from prefect._internal.concurrency.cancellation import CancelledError
 from prefect.concurrency._leases import (
-    _get_lease_renewal_client,
     amaintain_concurrency_lease,
     maintain_concurrency_lease,
 )
@@ -23,8 +22,8 @@ def _mock_client_context(mock_client: mock.MagicMock):
 @contextmanager
 def _patch_renewal_client(mock_client: mock.MagicMock):
     with mock.patch(
-        "prefect.concurrency._leases._get_lease_renewal_client",
-        side_effect=lambda: _mock_client_context(mock_client),
+        "prefect.concurrency._leases.get_client",
+        side_effect=lambda *, sync_client: _mock_client_context(mock_client),
     ) as patched:
         yield patched
 
@@ -46,12 +45,13 @@ def test_maintain_concurrency_lease_renews_lease():
     mock_client = mock.MagicMock()
     lease_id = uuid4()
 
-    with _patch_renewal_client(mock_client):
+    with _patch_renewal_client(mock_client) as patched_get_client:
         with maintain_concurrency_lease(lease_id=lease_id, lease_duration=0.05):
             assert _wait_for(
                 lambda: mock_client.renew_concurrency_lease.call_count >= 2
             )
 
+    patched_get_client.assert_called_once_with(sync_client=True)
     mock_client.renew_concurrency_lease.assert_called_with(
         lease_id=lease_id, lease_duration=0.05
     )
@@ -158,70 +158,3 @@ async def test_lease_renewal_fires_when_event_loop_blocked():
                 pass
 
     assert mock_client.renew_concurrency_lease.call_count >= 2
-
-
-def test_lease_renewal_client_prefers_sync_client_context():
-    mock_sync_ctx = mock.MagicMock()
-    mock_sync_ctx.client = mock.MagicMock()
-
-    with mock.patch(
-        "prefect.context.SyncClientContext.get", return_value=mock_sync_ctx
-    ):
-        with _get_lease_renewal_client() as client:
-            assert client is mock_sync_ctx.client
-
-
-def test_lease_renewal_client_uses_async_client_api_url():
-    mock_async_client = mock.MagicMock()
-    mock_async_client.api_url = "http://custom-server:4200/api"
-    mock_async_client.server_type = None
-    mock_async_client._ephemeral_app = None
-
-    mock_async_ctx = mock.MagicMock()
-    mock_async_ctx.client = mock_async_client
-    mock_async_ctx._httpx_settings = {
-        "headers": {"x-test": "value"},
-        "timeout": 30,
-        "transport": mock.MagicMock(),
-    }
-
-    with (
-        mock.patch("prefect.context.SyncClientContext.get", return_value=None),
-        mock.patch(
-            "prefect.context.AsyncClientContext.get", return_value=mock_async_ctx
-        ),
-        mock.patch(
-            "prefect.client.orchestration.SyncPrefectClient"
-        ) as mock_sync_client_cls,
-    ):
-        mock_sync_client_cls.return_value.__enter__.return_value = mock.MagicMock()
-
-        with _get_lease_renewal_client():
-            pass
-
-    mock_sync_client_cls.assert_called_once()
-    call_args, call_kwargs = mock_sync_client_cls.call_args
-    assert call_args == ("http://custom-server:4200/api",)
-    assert call_kwargs["httpx_settings"] == {
-        "headers": {"x-test": "value"},
-        "timeout": 30,
-    }
-    assert call_kwargs["server_type"] is None
-
-
-def test_lease_renewal_client_rejects_in_process_async_client():
-    mock_async_client = mock.MagicMock()
-    mock_async_client._ephemeral_app = mock.MagicMock()
-
-    mock_async_ctx = mock.MagicMock()
-    mock_async_ctx.client = mock_async_client
-
-    with (
-        mock.patch("prefect.context.SyncClientContext.get", return_value=None),
-        mock.patch(
-            "prefect.context.AsyncClientContext.get", return_value=mock_async_ctx
-        ),
-    ):
-        with pytest.raises(RuntimeError, match="Cannot renew a concurrency lease"):
-            with _get_lease_renewal_client():
-                pass
