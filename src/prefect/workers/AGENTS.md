@@ -21,6 +21,10 @@ This module does NOT manage the Runner execution model (no work pool) — see `r
 
 **Anti-pattern**: Do not split heartbeat or work-pool sync responsibility back into `BaseWorker`; keep sync ownership at the channel boundary.
 
+**Snapshot sequencing**: `WorkPoolSnapshotState` deduplicates snapshots by `snapshot_sequence` — snapshots with a sequence ≤ the last applied are silently dropped. On WebSocket reconnect, `reset_connection_sequence()` is called before the initial snapshot is delivered, so sequence 1 is accepted again. Route all snapshot delivery through `WorkPoolSnapshotState.apply_snapshot()`.
+
+**REST/WebSocket race**: `sync()` only skips the REST fallback when the channel is healthy *and* `snapshots_available` is True (≥1 WebSocket snapshot applied). If a WebSocket snapshot arrives while a REST read is in flight, the REST result is discarded on landing to prevent stale data from clobbering the fresher snapshot.
+
 ## Attribution Env Vars
 
 Workers stamp two env vars into `os.environ` for their own process, so all API requests include attribution headers:
@@ -49,6 +53,7 @@ Work-pool-level launchers are configured via `prefect work-pool storage configur
 
 - `backend_id` is `None` until the first heartbeat succeeds; `PREFECT__WORKER_ID` is not set until then. Code that reads `self.backend_id` early in the lifecycle may get `None`.
 - `ProcessWorker` calls the deprecated `Runner.execute_flow_run()` / `Runner.execute_bundle()` paths (suppressing `PrefectDeprecationWarning` with `warnings.catch_warnings()`). It bypasses `FlowRunExecutor` and `ProcessStarter` — this is a known migration gap (see `runner/AGENTS.md`).
+- `self.work_pool` on `BaseWorker` is mutated in-place by the WebSocket snapshot callback at any time. Methods that read it across multiple `await` points (`_get_configuration`, `submit`) capture `copy.deepcopy(self.work_pool)` at entry — any new method with the same pattern must do the same.
 
 ## Related
 
