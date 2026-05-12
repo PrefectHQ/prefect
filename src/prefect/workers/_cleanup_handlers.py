@@ -13,7 +13,10 @@ from prefect.exceptions import (
     InfrastructureNotFound,
     ObjectNotFound,
 )
-from prefect.workers._cleanup import CleanupExecutionResult
+from prefect.workers._cleanup import (
+    CleanupExecutionResult,
+    WorkerCleanupHandlerRegistry,
+)
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
@@ -121,23 +124,21 @@ def _worker_implements_kill_infrastructure(
     return sum("kill_infrastructure" in vars(cls) for cls in type(worker).__mro__) > 1
 
 
-def register_default_cleanup_handlers(
+def build_cleanup_handler_registry(
     worker: "BaseWorker[Any, Any, Any]",
-) -> None:
+) -> "WorkerCleanupHandlerRegistry":
     """
-    Auto-register default cleanup handlers on a worker based on its
-    capabilities.
+    Build the cleanup handler registry for a worker.
 
-    Called from `BaseWorker.__init__` after the cleanup handler registry is
-    built, when the user has not explicitly supplied `_cleanup_handlers`.
+    Called from `BaseWorker.__init__`. Class-level `cleanup_handlers` are
+    registered first; per-instance default handlers are then added for
+    capabilities the worker exposes, but only when the class hasn't
+    already supplied a handler for the same cleanup kind.
 
-    Future cleanup kinds can hook in here without expanding conditionals in
-    `BaseWorker`. A handler is added only when:
-    - the worker exposes the capability it requires, AND
-    - no handler is already registered for that cleanup kind (so explicit
-      class-level `cleanup_handlers` or a custom strategy wins).
+    Future cleanup kinds can hook in here without expanding conditionals
+    in `BaseWorker`.
     """
-    registry = worker.cleanup_handler_registry
+    registry = WorkerCleanupHandlerRegistry(worker.__class__.cleanup_handlers)
 
     if (
         _worker_implements_kill_infrastructure(worker)
@@ -145,8 +146,10 @@ def register_default_cleanup_handlers(
     ):
         registry.register(CancellingTimeoutTeardownHandler(worker))
 
+    return registry
+
 
 __all__ = [
     "CancellingTimeoutTeardownHandler",
-    "register_default_cleanup_handlers",
+    "build_cleanup_handler_registry",
 ]

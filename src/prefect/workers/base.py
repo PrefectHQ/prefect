@@ -108,7 +108,7 @@ from prefect.workers._cleanup import (
     WorkerCleanupHandler,
     WorkerCleanupHandlerRegistry,
 )
-from prefect.workers._cleanup_handlers import register_default_cleanup_handlers
+from prefect.workers._cleanup_handlers import build_cleanup_handler_registry
 from prefect.workers._worker_channel import WorkerChannel, WorkPoolWorkerChannel
 
 if TYPE_CHECKING:
@@ -605,13 +605,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._base_job_template = base_job_template
         self._work_pool_name = work_pool_name
         self._work_queues: set[str] = set(work_queues) if work_queues else set()
-        self._cleanup_handler_registry = WorkerCleanupHandlerRegistry(
-            self.__class__.cleanup_handlers
-        )
-        # Auto-register default handlers (e.g., cancelling_timeout_teardown.v1)
-        # for workers that expose the required capability. Class-level
-        # `cleanup_handlers` for the same cleanup kind take precedence.
-        register_default_cleanup_handlers(self)
+        self._cleanup_handler_registry = build_cleanup_handler_registry(self)
 
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
