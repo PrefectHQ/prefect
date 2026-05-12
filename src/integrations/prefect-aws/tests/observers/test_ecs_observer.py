@@ -537,6 +537,35 @@ class TestEcsObserver:
             ecs_tags_reader=mock_tags_reader,
         )
 
+    def _setup_sqs_client(self, mock_get_session, receive_side_effect):
+        mock_session = Mock()
+        mock_sqs_client = AsyncMock()
+        mock_client_context = AsyncMock()
+        mock_client_context.__aenter__.return_value = mock_sqs_client
+        mock_session.create_client.return_value = mock_client_context
+        mock_get_session.return_value = mock_session
+
+        mock_sqs_client.get_queue_url.return_value = {
+            "QueueUrl": "https://sqs.us-east-1.amazonaws.com/123456789/test-queue"
+        }
+        mock_sqs_client.receive_message.side_effect = receive_side_effect
+        return mock_sqs_client
+
+    def _ecs_task_state_change_message(self):
+        return {
+            "Body": json.dumps(
+                {
+                    "detail-type": "ECS Task State Change",
+                    "detail": {
+                        "taskArn": "arn:aws:ecs:us-east-1:123456789:task/task-id",
+                        "clusterArn": "arn:aws:ecs:us-east-1:123456789:cluster/cluster",
+                        "lastStatus": "STOPPED",
+                    },
+                }
+            ),
+            "ReceiptHandle": "handle1",
+        }
+
     def test_init_with_defaults(self):
         observer = EcsObserver()
         assert isinstance(observer.settings, EcsObserverSettings)
@@ -617,6 +646,97 @@ class TestEcsObserver:
             await task
         except asyncio.CancelledError:
             pass
+
+    @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
+    async def test_run_waits_for_handlers_before_deleting_message(
+        self, mock_get_session, settings, mock_tags_reader
+    ):
+        message = self._ecs_task_state_change_message()
+        mock_sqs_client = self._setup_sqs_client(
+            mock_get_session,
+            [
+                {"Messages": [message]},
+                asyncio.CancelledError(),
+            ],
+        )
+
+        observer = EcsObserver(
+            settings=settings,
+            sqs_subscriber=SqsSubscriber("test-queue", "us-east-1"),
+            ecs_tags_reader=mock_tags_reader,
+        )
+
+        handler_started = asyncio.Event()
+        handler_finished = asyncio.Event()
+
+        async def handler(event, tags):
+            handler_started.set()
+            await handler_finished.wait()
+
+        observer.on_event("task", tags={"prefect": "test"})(handler)
+        mock_tags_reader.read_tags.return_value = {"prefect": "test"}
+
+        task = asyncio.create_task(observer.run())
+        await asyncio.wait_for(handler_started.wait(), timeout=1)
+        await asyncio.sleep(0.05)
+
+        mock_sqs_client.delete_message.assert_not_called()
+
+        handler_finished.set()
+        for _ in range(10):
+            if mock_sqs_client.delete_message.called:
+                break
+            await asyncio.sleep(0.05)
+
+        mock_sqs_client.delete_message.assert_called_once_with(
+            QueueUrl="https://sqs.us-east-1.amazonaws.com/123456789/test-queue",
+            ReceiptHandle="handle1",
+        )
+
+        try:
+            await asyncio.wait_for(task, timeout=1)
+        except asyncio.CancelledError:
+            pass
+
+    @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
+    async def test_run_does_not_delete_message_when_handler_fails(
+        self, mock_get_session, settings, mock_tags_reader
+    ):
+        message = self._ecs_task_state_change_message()
+        mock_sqs_client = self._setup_sqs_client(
+            mock_get_session,
+            [{"Messages": [message]}],
+        )
+
+        observer = EcsObserver(
+            settings=settings,
+            sqs_subscriber=SqsSubscriber("test-queue", "us-east-1"),
+            ecs_tags_reader=mock_tags_reader,
+        )
+
+        handler_started = asyncio.Event()
+        handler_finished = asyncio.Event()
+
+        async def handler(event, tags):
+            handler_started.set()
+            await handler_finished.wait()
+            raise RuntimeError("handler failed")
+
+        observer.on_event("task", tags={"prefect": "test"})(handler)
+        mock_tags_reader.read_tags.return_value = {"prefect": "test"}
+
+        task = asyncio.create_task(observer.run())
+        await asyncio.wait_for(handler_started.wait(), timeout=1)
+        await asyncio.sleep(0.05)
+
+        mock_sqs_client.delete_message.assert_not_called()
+
+        handler_finished.set()
+        done, _ = await asyncio.wait({task}, timeout=1)
+
+        assert task in done
+        assert task.exception() is not None
+        mock_sqs_client.delete_message.assert_not_called()
 
     async def test_run_skips_message_without_body(
         self, observer, mock_sqs_subscriber, mock_tags_reader
@@ -977,6 +1097,31 @@ class TestMarkRunsAsCrashed:
         assert proposed_state.name == "Crashed"
         assert call_args["flow_run_id"] == flow_run_id
         assert call_args["client"] == mock_client
+
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    async def test_mark_runs_as_crashed_reraises_crash_proposal_errors(
+        self, mock_propose_state, mock_get_client, sample_event, sample_tags
+    ):
+        flow_run_id = uuid.UUID(sample_tags["prefect.io/flow-run-id"])
+        mock_client = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
+        mock_propose_state.side_effect = RuntimeError("api unavailable")
+
+        flow_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="RUNNING", name="Running"),
+        )
+        mock_client.read_flow_run.return_value = flow_run
+
+        with pytest.raises(RuntimeError, match="api unavailable"):
+            await mark_runs_as_crashed(sample_event, sample_tags)
+
+        mock_propose_state.assert_called_once()
 
     @patch("prefect_aws.observers.ecs.prefect.get_client")
     @patch("prefect_aws.observers.ecs.propose_state")

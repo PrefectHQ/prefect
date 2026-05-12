@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import enum
+import inspect
 import json
 import logging
 import uuid
@@ -236,29 +237,14 @@ class SqsSubscriber:
             )
             backoff_count = 0
 
-            while True:
-                try:
-                    messages = await sqs_client.receive_message(
-                        QueueUrl=queue_url,
-                        MaxNumberOfMessages=10,
-                        WaitTimeSeconds=20,
-                    )
-                    for message in messages.get("Messages", []):
-                        if not (receipt_handle := message.get("ReceiptHandle")):
-                            continue
+            async def handle_sqs_failure(e: Exception) -> None:
+                nonlocal backoff_count
 
-                        yield message
-
-                        await sqs_client.delete_message(
-                            QueueUrl=queue_url,
-                            ReceiptHandle=receipt_handle,
-                        )
-
-                    backoff_count = 0
-                except Exception as e:
-                    track_record.append(False)
-                    failures.append((e, e.__traceback__))
-                    logger.debug("Failed to receive messages from SQS", exc_info=e)
+                track_record.append(False)
+                failures.append((e, e.__traceback__))
+                logger.debug(
+                    "Failed to receive or delete messages from SQS", exc_info=e
+                )
 
                 if not any(track_record):
                     backoff_count += 1
@@ -273,7 +259,7 @@ class SqsSubscriber:
                         )
                         raise RuntimeError(
                             f"SQS polling failed after {SQS_MAX_BACKOFF_ATTEMPTS} backoff attempts"
-                        )
+                        ) from e
 
                     track_record.extend([True] * SQS_CONSECUTIVE_FAILURES)
                     failures.clear()
@@ -283,6 +269,39 @@ class SqsSubscriber:
                         backoff_seconds,
                     )
                     await asyncio.sleep(backoff_seconds)
+
+            while True:
+                try:
+                    messages = await sqs_client.receive_message(
+                        QueueUrl=queue_url,
+                        MaxNumberOfMessages=10,
+                        WaitTimeSeconds=20,
+                    )
+                except Exception as e:
+                    await handle_sqs_failure(e)
+                    continue
+
+                backoff_count = 0
+                track_record.append(True)
+                failures.clear()
+
+                for message in messages.get("Messages", []):
+                    if not (receipt_handle := message.get("ReceiptHandle")):
+                        continue
+
+                    yield message
+
+                    try:
+                        await sqs_client.delete_message(
+                            QueueUrl=queue_url,
+                            ReceiptHandle=receipt_handle,
+                        )
+                    except Exception as e:
+                        await handle_sqs_failure(e)
+                    else:
+                        backoff_count = 0
+                        track_record.append(True)
+                        failures.clear()
 
 
 class EcsObserver:
@@ -310,7 +329,6 @@ class EcsObserver:
 
     async def run(self):
         async with AsyncExitStack() as stack:
-            task_group = await stack.enter_async_context(anyio.create_task_group())
             await stack.enter_async_context(self.ecs_tags_reader)
 
             async for message in self.sqs_subscriber.stream_messages():
@@ -345,6 +363,9 @@ class EcsObserver:
 
                 last_status = body.get("detail", {}).get("lastStatus")
                 event_type = _ECS_EVENT_DETAIL_MAP[detail_type]
+                matching_handlers: list[
+                    Union[EcsEventHandler, AsyncEcsEventHandler]
+                ] = []
                 for handler, filters in self.event_handlers[event_type]:
                     if filters["tags"].is_match(tags) and filters[
                         "last_status"
@@ -354,12 +375,25 @@ class EcsObserver:
                             handler.__name__,
                             extra={"sqs_message": message},
                         )
-                        if asyncio.iscoroutinefunction(handler):
-                            task_group.start_soon(handler, body, tags)
-                        else:
+                        matching_handlers.append(handler)
+
+                if matching_handlers:
+                    async with anyio.create_task_group() as task_group:
+                        for handler in matching_handlers:
                             task_group.start_soon(
-                                asyncio.to_thread, partial(handler, body, tags)
+                                self._run_handler, handler, body, tags
                             )
+
+    async def _run_handler(
+        self,
+        handler: Union[EcsEventHandler, AsyncEcsEventHandler],
+        event: dict[str, Any],
+        tags: dict[str, str],
+    ) -> None:
+        if inspect.iscoroutinefunction(handler):
+            await handler(event, tags)
+        else:
+            await asyncio.to_thread(partial(handler, event, tags))
 
     def on_event(
         self,
@@ -802,6 +836,7 @@ async def mark_runs_as_crashed(event: dict[str, Any], tags: dict[str, str]):
                     "Failed to propose Crashed state for flow run %s",
                     flow_run_id,
                 )
+                raise
 
         # Forward CloudWatch container logs for runs that never connected
         # to the Prefect server (never reached Running state). This runs
