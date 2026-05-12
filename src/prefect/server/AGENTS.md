@@ -53,6 +53,8 @@ alembic_revision("description")      # Create a new migration
 
 Both V1 and V2 UI bundles are served simultaneously when available: V1 at `PREFECT_UI_SERVE_BASE` (default `/`), V2 at `{base_url}/v2`. The `redirect_to_preferred_ui` middleware routes neutral entry points using the `prefect_ui_version` cookie. `PREFECT_SERVER_UI_V2_ENABLED` sets the *default* for browsers with no saved preference — it does not remove V1 or force all users to V2. Both bundles must be built before packaging (`PREFECT_REQUIRE_PACKAGED_UI_BUNDLES=1` enforces this via `hatch_build.py`).
 
+**V2 redirect must include a trailing slash** — Starlette's `Mount` only routes requests whose path starts with `{mount}/`; a bare `{mount}` falls through to the V1 SPA mount and serves V1's bundle at the wrong URL. `_build_ui_path` in `api/server.py` always appends `/` when redirecting to the V2 root; preserve this invariant when modifying redirect logic.
+
 ## Main Subsystems
 
 - `api/` — FastAPI REST endpoints
