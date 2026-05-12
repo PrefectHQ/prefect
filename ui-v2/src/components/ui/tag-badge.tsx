@@ -1,15 +1,26 @@
 import { Icon } from "@/components/ui/icons";
+import { cn } from "@/utils";
 import { Badge, type BadgeProps } from "./badge";
 
 type TagBadgeProps = {
 	tag: string;
 	variant?: BadgeProps["variant"];
 	onRemove?: () => void;
+	className?: string;
 };
 
-export const TagBadge = ({ tag, variant, onRemove }: TagBadgeProps) => {
+export const TagBadge = ({
+	tag,
+	variant,
+	onRemove,
+	className,
+}: TagBadgeProps) => {
 	return (
-		<Badge variant={variant} className="ml-1 max-w-20" title={tag}>
+		<Badge
+			variant={variant}
+			className={cn("ml-1 max-w-40", className)}
+			title={tag}
+		>
 			<span className="truncate">{tag}</span>
 			{onRemove && (
 				<button
