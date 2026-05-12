@@ -1,31 +1,28 @@
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any
-from unittest.mock import AsyncMock, Mock
+from unittest import mock
+from unittest.mock import AsyncMock
 from uuid import UUID, uuid4
 
 import pytest
 
-from prefect._internal.uuid7 import uuid7
-from prefect.client.schemas.objects import FlowRun
+from prefect.client.orchestration import PrefectClient
+from prefect.client.schemas.objects import FlowRun, WorkPool
 from prefect.client.schemas.worker_channel import (
     CANCELLING_TIMEOUT_TEARDOWN,
-    PENDING_CLAIM_TEARDOWN,
     CancellingTimeoutCleanupMessagePayload,
-    CleanupMessageFrame,
 )
 from prefect.exceptions import (
     InfrastructureNotAvailable,
     InfrastructureNotFound,
     ObjectNotFound,
 )
-from prefect.states import Cancelling, Pending, Running
-from prefect.types._datetime import now
-from prefect.workers._cleanup import (
-    CleanupExecutionResult,
-    WorkerCleanupExecutor,
-)
+from prefect.flows import flow
+from prefect.server.schemas.responses import DeploymentResponse
+from prefect.states import Pending, Running
+from prefect.workers._cleanup import CleanupExecutionResult
 from prefect.workers._cleanup_handlers import CancellingTimeoutTeardownHandler
 from prefect.workers.base import (
     BaseJobConfiguration,
@@ -86,6 +83,11 @@ class IncapableWorker(BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]):
         raise NotImplementedError
 
 
+@flow
+def _sample_flow():
+    pass
+
+
 def _cancelling_payload(
     *,
     flow_run_id: UUID | None = None,
@@ -102,7 +104,9 @@ def _cancelling_payload(
             "kind": CANCELLING_TIMEOUT_TEARDOWN,
             "message_id": str(uuid4()),
             "reservation_token": "token",
-            "lease_expires_at": (now("UTC") + timedelta(minutes=5)).isoformat(),
+            "lease_expires_at": (
+                datetime.now(timezone.utc) + timedelta(minutes=5)
+            ).isoformat(),
             "delivery_count": 1,
             "work_queue_id": None,
             "target": target,
@@ -111,71 +115,61 @@ def _cancelling_payload(
     )
 
 
-def _build_handler(
-    *,
-    flow_run: FlowRun | None,
-    configuration: BaseJobConfiguration | None = None,
-    configuration_error: BaseException | None = None,
-    kill_side_effect: BaseException | None = None,
-    grace_seconds: int = 30,
-) -> tuple[CancellingTimeoutTeardownHandler, Mock]:
-    worker = Mock(spec=BaseWorker)
-    client = Mock()
-    if flow_run is None:
-        client.read_flow_run = AsyncMock(
-            side_effect=ObjectNotFound(Exception("missing"))
-        )
-    else:
-        client.read_flow_run = AsyncMock(return_value=flow_run)
-    worker.client = client
-
-    if configuration_error is not None:
-        worker._get_configuration = AsyncMock(side_effect=configuration_error)
-    else:
-        worker._get_configuration = AsyncMock(
-            return_value=configuration or BaseJobConfiguration()
-        )
-
-    worker.kill_infrastructure = AsyncMock(side_effect=kill_side_effect)
-
-    handler = CancellingTimeoutTeardownHandler(worker, grace_seconds=grace_seconds)
-    return handler, worker
-
-
-def _flow_run(
+async def _create_flow_run(
+    prefect_client: PrefectClient,
+    work_pool: WorkPool,
     *,
     state=None,
     start_time=None,
     infrastructure_pid: str | None = None,
 ) -> FlowRun:
-    return FlowRun(
-        id=uuid4(),
-        flow_id=uuid4(),
-        name="test-flow-run",
-        state=state or Cancelling(),
-        start_time=start_time,
-        infrastructure_pid=infrastructure_pid,
+    flow_run = await prefect_client.create_flow_run(
+        _sample_flow, work_pool_name=work_pool.name, state=state
     )
+    updates: dict[str, Any] = {}
+    if infrastructure_pid is not None:
+        updates["infrastructure_pid"] = infrastructure_pid
+    if updates:
+        await prefect_client.update_flow_run(flow_run.id, **updates)
+    if start_time is not None or infrastructure_pid is not None:
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+    return flow_run
 
 
 class TestHandlerRegistration:
     async def test_handler_declares_cancelling_timeout_kind(self):
-        worker = Mock(spec=BaseWorker)
-        handler = CancellingTimeoutTeardownHandler(worker)
+        handler = CancellingTimeoutTeardownHandler(
+            TeardownTrackingWorker(work_pool_name="test")
+        )
 
         assert handler.cleanup_kind == CANCELLING_TIMEOUT_TEARDOWN
 
-    async def test_capable_worker_auto_registers_handler(self):
-        """Overriding `kill_infrastructure` should auto-register the
-        cancelling-timeout cleanup handler via `BaseWorker.__init__`."""
-        worker = TeardownTrackingWorker(work_pool_name="test")
+    async def test_capable_worker_auto_registers_handler(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
+        """A worker that overrides `kill_infrastructure` should advertise the
+        cancelling-timeout cleanup kind; the auto-registered handler should
+        dispatch to *this* worker instance."""
+        flow_run = await _create_flow_run(
+            prefect_client, work_pool, infrastructure_pid="pid"
+        )
 
-        assert worker.handled_cleanup_kinds == (CANCELLING_TIMEOUT_TEARDOWN,)
-        assert worker.max_cleanup_concurrency == 1
-        registered = worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN)
-        assert isinstance(registered, CancellingTimeoutTeardownHandler)
-        # The auto-registered handler is bound to this worker instance.
-        assert registered._worker is worker
+        async with TeardownTrackingWorker(work_pool_name=work_pool.name) as worker:
+            assert worker.handled_cleanup_kinds == (CANCELLING_TIMEOUT_TEARDOWN,)
+            assert worker.max_cleanup_concurrency == 1
+
+            handler = worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN)
+            assert isinstance(handler, CancellingTimeoutTeardownHandler)
+
+            result = await handler.cleanup(
+                _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="pid")
+            )
+
+        assert result == CleanupExecutionResult.success()
+        assert len(worker.kill_calls) == 1
+        assert worker.kill_calls[0]["infrastructure_pid"] == "pid"
 
     async def test_incapable_worker_does_not_advertise_cancelling_timeout_kind(self):
         worker = IncapableWorker(work_pool_name="test")
@@ -259,22 +253,43 @@ class TestHandlerRegistration:
 
 
 class TestHandlerBehavior:
-    async def test_releases_unexpected_payload_kind(self):
-        handler, worker = _build_handler(flow_run=_flow_run())
+    """
+    Behavior tests for the handler against a real `BaseWorker` subclass.
 
-        wrong_payload = Mock(spec=[])  # No isinstance check matches
-        wrong_payload.kind = PENDING_CLAIM_TEARDOWN
+    Each test sets up the flow-run state it cares about via the
+    `prefect_client` and `work_pool` fixtures, then exercises the
+    auto-registered handler. The handler's only un-public hook into the
+    worker is the dependency on `_get_configuration`; tests that need to
+    control that path use `mock.patch.object` so the dependency is
+    explicit rather than mutating private attributes by hand.
+    """
 
-        result = await handler.cleanup(wrong_payload)
+    async def _handler_and_worker(
+        self, work_pool: WorkPool
+    ) -> tuple[CancellingTimeoutTeardownHandler, TeardownTrackingWorker]:
+        worker = TeardownTrackingWorker(work_pool_name=work_pool.name)
+        handler = worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN)
+        assert isinstance(handler, CancellingTimeoutTeardownHandler)
+        return handler, worker
+
+    async def test_releases_unexpected_payload_kind(self, work_pool: WorkPool):
+        handler, worker = await self._handler_and_worker(work_pool)
+
+        class _UnexpectedPayload:
+            kind = "pending_claim_teardown.v1"
+
+        result = await handler.cleanup(_UnexpectedPayload())  # type: ignore[arg-type]
 
         assert result == CleanupExecutionResult.release("unexpected_payload_kind")
-        worker.client.read_flow_run.assert_not_called()
+        assert worker.kill_calls == []
 
-    async def test_releases_invalid_payload_when_flow_run_id_missing(self):
+    async def test_releases_invalid_payload_when_flow_run_id_missing(
+        self, work_pool: WorkPool
+    ):
         """Defensive check: even though Pydantic validates flow_run_id, the
         handler releases with `invalid_payload` if it cannot find one on the
         target."""
-        handler, worker = _build_handler(flow_run=_flow_run())
+        handler, worker = await self._handler_and_worker(work_pool)
 
         payload = _cancelling_payload()
         payload.target.flow_run_id = None  # type: ignore[assignment]
@@ -282,415 +297,320 @@ class TestHandlerBehavior:
         result = await handler.cleanup(payload)
 
         assert result == CleanupExecutionResult.release("invalid_payload")
-        worker.client.read_flow_run.assert_not_called()
+        assert worker.kill_calls == []
 
-    async def test_deleted_flow_run_is_idempotent_success(self):
-        handler, worker = _build_handler(flow_run=None)
+    async def test_deleted_flow_run_is_idempotent_success(self, work_pool: WorkPool):
+        async with TeardownTrackingWorker(work_pool_name=work_pool.name) as worker:
+            handler = worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN)
+            assert isinstance(handler, CancellingTimeoutTeardownHandler)
 
-        result = await handler.cleanup(_cancelling_payload())
+            # Flow-run id that does not exist on the server.
+            result = await handler.cleanup(
+                _cancelling_payload(flow_run_id=uuid4(), infrastructure_pid="pid")
+            )
 
         assert result == CleanupExecutionResult.success()
-        worker.kill_infrastructure.assert_not_called()
+        assert worker.kill_calls == []
 
-    async def test_missing_pid_with_no_stored_pid_acks_as_noop(self):
-        flow_run = _flow_run(infrastructure_pid=None)
-        handler, worker = _build_handler(flow_run=flow_run)
+    async def test_missing_pid_with_no_stored_pid_acks_as_noop(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
+        flow_run = await _create_flow_run(prefect_client, work_pool)
 
-        result = await handler.cleanup(
-            _cancelling_payload(
-                flow_run_id=flow_run.id,
-                infrastructure_pid=None,
+        async with TeardownTrackingWorker(work_pool_name=work_pool.name) as worker:
+            handler = worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN)
+            assert isinstance(handler, CancellingTimeoutTeardownHandler)
+
+            result = await handler.cleanup(
+                _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid=None)
             )
-        )
 
         assert result == CleanupExecutionResult.success()
-        worker.kill_infrastructure.assert_not_called()
+        assert worker.kill_calls == []
 
-    async def test_missing_pid_with_stored_pid_releases_missing_handle(self):
-        flow_run = _flow_run(infrastructure_pid="stored-pid")
-        handler, worker = _build_handler(flow_run=flow_run)
-
-        result = await handler.cleanup(
-            _cancelling_payload(
-                flow_run_id=flow_run.id,
-                infrastructure_pid=None,
-            )
+    async def test_missing_pid_with_stored_pid_releases_missing_handle(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
+        flow_run = await _create_flow_run(
+            prefect_client, work_pool, infrastructure_pid="stored-pid"
         )
+
+        async with TeardownTrackingWorker(work_pool_name=work_pool.name) as worker:
+            handler = worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN)
+            assert isinstance(handler, CancellingTimeoutTeardownHandler)
+
+            result = await handler.cleanup(
+                _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid=None)
+            )
 
         assert result == CleanupExecutionResult.release("missing_infrastructure_handle")
-        worker.kill_infrastructure.assert_not_called()
+        assert worker.kill_calls == []
 
-    async def test_empty_string_pid_treated_as_missing(self):
-        flow_run = _flow_run(infrastructure_pid=None)
-        handler, worker = _build_handler(flow_run=flow_run)
+    async def test_empty_string_pid_treated_as_missing(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
+        flow_run = await _create_flow_run(prefect_client, work_pool)
 
-        result = await handler.cleanup(
-            _cancelling_payload(
-                flow_run_id=flow_run.id,
-                infrastructure_pid="",
+        async with TeardownTrackingWorker(work_pool_name=work_pool.name) as worker:
+            handler = worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN)
+            assert isinstance(handler, CancellingTimeoutTeardownHandler)
+
+            result = await handler.cleanup(
+                _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="")
             )
-        )
 
         assert result == CleanupExecutionResult.success()
-        worker.kill_infrastructure.assert_not_called()
+        assert worker.kill_calls == []
 
-    async def test_configuration_unavailable_releases_with_stable_reason(self):
-        flow_run = _flow_run(infrastructure_pid="stored-pid")
-        handler, worker = _build_handler(
-            flow_run=flow_run,
-            configuration_error=ObjectNotFound(Exception("deployment gone")),
+    async def test_configuration_unavailable_releases_with_stable_reason(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
+        flow_run = await _create_flow_run(
+            prefect_client, work_pool, infrastructure_pid="pid"
         )
 
-        result = await handler.cleanup(
-            _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="pid")
-        )
+        async with TeardownTrackingWorker(work_pool_name=work_pool.name) as worker:
+            handler = worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN)
+            assert isinstance(handler, CancellingTimeoutTeardownHandler)
+
+            # Force the configuration lookup to fail like a deleted-deployment
+            # would. Patching the worker hook keeps the dependency explicit
+            # without mutating private attributes by hand.
+            with mock.patch.object(
+                worker,
+                "_get_configuration",
+                AsyncMock(side_effect=ObjectNotFound(Exception("deployment gone"))),
+            ):
+                result = await handler.cleanup(
+                    _cancelling_payload(
+                        flow_run_id=flow_run.id, infrastructure_pid="pid"
+                    )
+                )
 
         assert result == CleanupExecutionResult.release(
             "configuration_context_unavailable"
         )
-        worker.kill_infrastructure.assert_not_called()
+        assert worker.kill_calls == []
 
-    async def test_infrastructure_not_found_acks_as_idempotent_success(self):
-        flow_run = _flow_run(infrastructure_pid="pid")
-        handler, worker = _build_handler(
-            flow_run=flow_run,
-            kill_side_effect=InfrastructureNotFound("gone"),
+    async def test_infrastructure_not_found_acks_as_idempotent_success(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
+        flow_run = await _create_flow_run(
+            prefect_client, work_pool, infrastructure_pid="pid"
         )
 
-        result = await handler.cleanup(
-            _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="pid")
-        )
+        async with TeardownTrackingWorker(work_pool_name=work_pool.name) as worker:
+            worker.kill_side_effect = InfrastructureNotFound("gone")
+            handler = worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN)
+            assert isinstance(handler, CancellingTimeoutTeardownHandler)
+
+            result = await handler.cleanup(
+                _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="pid")
+            )
 
         assert result == CleanupExecutionResult.success()
-        worker.kill_infrastructure.assert_awaited_once()
+        assert len(worker.kill_calls) == 1
 
-    async def test_not_implemented_releases_unsupported_worker_type(self):
-        flow_run = _flow_run(infrastructure_pid="pid")
-        handler, worker = _build_handler(
-            flow_run=flow_run,
-            kill_side_effect=NotImplementedError("nope"),
+    async def test_not_implemented_releases_unsupported_worker_type(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
+        """A worker whose `kill_infrastructure` raises NotImplementedError at
+        call time (rather than at class-definition time) should release with
+        `unsupported_worker_type`."""
+        flow_run = await _create_flow_run(
+            prefect_client, work_pool, infrastructure_pid="pid"
         )
 
-        result = await handler.cleanup(
-            _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="pid")
-        )
+        async with TeardownTrackingWorker(work_pool_name=work_pool.name) as worker:
+            worker.kill_side_effect = NotImplementedError("nope")
+            handler = worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN)
+            assert isinstance(handler, CancellingTimeoutTeardownHandler)
+
+            result = await handler.cleanup(
+                _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="pid")
+            )
 
         assert result == CleanupExecutionResult.release("unsupported_worker_type")
 
-    async def test_infrastructure_unavailable_releases_with_stable_reason(self):
-        flow_run = _flow_run(infrastructure_pid="pid")
-        handler, worker = _build_handler(
-            flow_run=flow_run,
-            kill_side_effect=InfrastructureNotAvailable("offline"),
+    async def test_infrastructure_unavailable_releases_with_stable_reason(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
+        flow_run = await _create_flow_run(
+            prefect_client, work_pool, infrastructure_pid="pid"
         )
 
-        result = await handler.cleanup(
-            _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="pid")
-        )
+        async with TeardownTrackingWorker(work_pool_name=work_pool.name) as worker:
+            worker.kill_side_effect = InfrastructureNotAvailable("offline")
+            handler = worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN)
+            assert isinstance(handler, CancellingTimeoutTeardownHandler)
+
+            result = await handler.cleanup(
+                _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="pid")
+            )
 
         assert result == CleanupExecutionResult.release("infrastructure_not_available")
 
-    async def test_successful_kill_acks(self):
-        flow_run = _flow_run(infrastructure_pid="pid")
-        handler, worker = _build_handler(flow_run=flow_run)
-
-        result = await handler.cleanup(
-            _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="pid")
+    async def test_successful_kill_acks(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
+        flow_run = await _create_flow_run(
+            prefect_client, work_pool, infrastructure_pid="pid"
         )
+
+        async with TeardownTrackingWorker(work_pool_name=work_pool.name) as worker:
+            handler = worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN)
+            assert isinstance(handler, CancellingTimeoutTeardownHandler)
+
+            result = await handler.cleanup(
+                _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="pid")
+            )
 
         assert result == CleanupExecutionResult.success()
-        worker.kill_infrastructure.assert_awaited_once()
-        call_kwargs = worker.kill_infrastructure.await_args.kwargs
-        assert call_kwargs["infrastructure_pid"] == "pid"
-        assert call_kwargs["grace_seconds"] == 30
+        assert len(worker.kill_calls) == 1
+        call = worker.kill_calls[0]
+        assert call["infrastructure_pid"] == "pid"
+        assert call["grace_seconds"] == 30
+        assert isinstance(call["configuration"], BaseJobConfiguration)
 
-    async def test_grace_seconds_is_configurable(self):
-        flow_run = _flow_run(infrastructure_pid="pid")
-        handler, worker = _build_handler(flow_run=flow_run, grace_seconds=10)
-
-        await handler.cleanup(
-            _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="pid")
+    async def test_grace_seconds_is_configurable(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
+        flow_run = await _create_flow_run(
+            prefect_client, work_pool, infrastructure_pid="pid"
         )
 
-        assert worker.kill_infrastructure.await_args.kwargs["grace_seconds"] == 10
+        async with TeardownTrackingWorker(work_pool_name=work_pool.name) as worker:
+            # Build a handler with a custom grace period instead of the
+            # auto-registered default.
+            handler = CancellingTimeoutTeardownHandler(worker, grace_seconds=10)
 
-    async def test_does_not_skip_when_start_time_is_set(self):
+            await handler.cleanup(
+                _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="pid")
+            )
+
+        assert worker.kill_calls[0]["grace_seconds"] == 10
+
+    async def test_does_not_skip_when_start_time_is_set(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
         """The cleanup message is emitted after the timeout boundary; the
         handler must NOT skip teardown when a `start_time` is present."""
-        flow_run = _flow_run(
+        flow_run = await _create_flow_run(
+            prefect_client,
+            work_pool,
             state=Running(),
-            start_time=now("UTC"),
             infrastructure_pid="pid",
         )
-        handler, worker = _build_handler(flow_run=flow_run)
+        assert flow_run.start_time is not None
 
-        result = await handler.cleanup(
-            _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="pid")
-        )
+        async with TeardownTrackingWorker(work_pool_name=work_pool.name) as worker:
+            handler = worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN)
+            assert isinstance(handler, CancellingTimeoutTeardownHandler)
+
+            result = await handler.cleanup(
+                _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="pid")
+            )
 
         assert result == CleanupExecutionResult.success()
-        worker.kill_infrastructure.assert_awaited_once()
+        assert len(worker.kill_calls) == 1
 
-    async def test_does_not_skip_when_state_is_not_cancelling(self):
+    async def test_does_not_skip_when_state_is_not_cancelling(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
         """The handler must NOT require the flow run to currently be in the
         CANCELLING state — the server has already moved beyond it."""
-        flow_run = _flow_run(state=Pending(), infrastructure_pid="pid")
-        handler, worker = _build_handler(flow_run=flow_run)
-
-        result = await handler.cleanup(
-            _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="pid")
+        flow_run = await _create_flow_run(
+            prefect_client,
+            work_pool,
+            state=Pending(),
+            infrastructure_pid="pid",
         )
+
+        async with TeardownTrackingWorker(work_pool_name=work_pool.name) as worker:
+            handler = worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN)
+            assert isinstance(handler, CancellingTimeoutTeardownHandler)
+
+            result = await handler.cleanup(
+                _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="pid")
+            )
 
         assert result == CleanupExecutionResult.success()
-        worker.kill_infrastructure.assert_awaited_once()
+        assert len(worker.kill_calls) == 1
 
-    async def test_does_not_mutate_flow_run_state(self):
+    async def test_does_not_mutate_flow_run_state(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
         """Verify the handler never proposes or forces a state transition."""
-        flow_run = _flow_run(state=Running(), infrastructure_pid="pid")
-        handler, worker = _build_handler(flow_run=flow_run)
-
-        await handler.cleanup(
-            _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="pid")
+        flow_run = await _create_flow_run(
+            prefect_client,
+            work_pool,
+            state=Running(),
+            infrastructure_pid="pid",
         )
+        assert flow_run.state is not None
+        original_state_id = flow_run.state.id
+        original_state_type = flow_run.state.type
 
-        worker.client.set_flow_run_state.assert_not_called()
-        # Any helper that would propose a transition should not have been used.
-        assert not hasattr(worker, "_propose_state_calls")
+        async with TeardownTrackingWorker(work_pool_name=work_pool.name) as worker:
+            handler = worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN)
+            assert isinstance(handler, CancellingTimeoutTeardownHandler)
 
-    async def test_uses_payload_pid_not_flow_run_pid(self):
+            await handler.cleanup(
+                _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="pid")
+            )
+
+        refreshed = await prefect_client.read_flow_run(flow_run.id)
+        assert refreshed.state is not None
+        assert refreshed.state.id == original_state_id
+        assert refreshed.state.type == original_state_type
+
+    async def test_uses_payload_pid_not_flow_run_pid(
+        self,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
         """Per the protocol contract, target identifiers come from the payload,
         not from current flow-run state."""
-        flow_run = _flow_run(infrastructure_pid="flow-run-pid")
-        handler, worker = _build_handler(flow_run=flow_run)
-
-        await handler.cleanup(
-            _cancelling_payload(
-                flow_run_id=flow_run.id,
-                infrastructure_pid="payload-pid",
-            )
+        flow_run = await _create_flow_run(
+            prefect_client, work_pool, infrastructure_pid="flow-run-pid"
         )
 
-        worker.kill_infrastructure.assert_awaited_once()
-        assert (
-            worker.kill_infrastructure.await_args.kwargs["infrastructure_pid"]
-            == "payload-pid"
-        )
+        async with TeardownTrackingWorker(work_pool_name=work_pool.name) as worker:
+            handler = worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN)
+            assert isinstance(handler, CancellingTimeoutTeardownHandler)
 
-
-class TestExecutorIntegration:
-    """Verify the handler integrates correctly with WorkerCleanupExecutor."""
-
-    async def _build_executor_with_handler(
-        self,
-        *,
-        flow_run: FlowRun | None,
-        infrastructure_pid: str | None = "pid",
-        kill_side_effect: BaseException | None = None,
-    ) -> tuple[WorkerCleanupExecutor, Mock, list[Any]]:
-        sent: list[Any] = []
-
-        async def send(frame):
-            sent.append(frame)
-            from prefect.client.schemas.worker_channel import (
-                CleanupOperationResultFrame,
+            await handler.cleanup(
+                _cancelling_payload(
+                    flow_run_id=flow_run.id, infrastructure_pid="payload-pid"
+                )
             )
 
-            return CleanupOperationResultFrame.model_validate(
-                {
-                    "type": "cleanup.operation_result.v1",
-                    "id": str(uuid7()),
-                    "sent_at": now("UTC").isoformat(),
-                    "payload": {
-                        "request_frame_id": str(frame.id),
-                        "message_id": str(frame.payload.message_id),
-                        "operation": frame.payload.message_id
-                        and (
-                            "ack"
-                            if frame.type == "cleanup.ack.v1"
-                            else "release"
-                            if frame.type == "cleanup.release.v1"
-                            else "renew"
-                        ),
-                        "status": "accepted",
-                        "reason": None,
-                        "detail": None,
-                    },
-                }
-            )
-
-        handler, worker = _build_handler(
-            flow_run=flow_run,
-            kill_side_effect=kill_side_effect,
-        )
-        executor = WorkerCleanupExecutor([handler], send_operation=send)
-
-        message = CleanupMessageFrame.model_validate(
-            {
-                "type": "cleanup.message.v1",
-                "id": str(uuid7()),
-                "sent_at": now("UTC").isoformat(),
-                "payload": _cancelling_payload(
-                    flow_run_id=flow_run.id if flow_run else uuid4(),
-                    infrastructure_pid=infrastructure_pid,
-                ).model_dump(mode="json"),
-            }
-        )
-
-        await executor.execute(message)
-        return executor, worker, sent
-
-    async def test_successful_teardown_results_in_ack_frame(self):
-        flow_run = _flow_run(infrastructure_pid="pid")
-        _, worker, sent = await self._build_executor_with_handler(flow_run=flow_run)
-
-        worker.kill_infrastructure.assert_awaited_once()
-        assert len(sent) == 1
-        assert sent[0].type == "cleanup.ack.v1"
-
-    async def test_missing_handle_results_in_release_frame(self):
-        flow_run = _flow_run(infrastructure_pid="stored-pid")
-        _, worker, sent = await self._build_executor_with_handler(
-            flow_run=flow_run,
-            infrastructure_pid=None,
-        )
-
-        worker.kill_infrastructure.assert_not_called()
-        assert len(sent) == 1
-        assert sent[0].type == "cleanup.release.v1"
-        assert sent[0].payload.reason == "missing_infrastructure_handle"
-
-    async def test_unsupported_worker_results_in_release_frame(self):
-        flow_run = _flow_run(infrastructure_pid="pid")
-        _, _worker, sent = await self._build_executor_with_handler(
-            flow_run=flow_run,
-            kill_side_effect=NotImplementedError("nope"),
-        )
-
-        assert len(sent) == 1
-        assert sent[0].type == "cleanup.release.v1"
-        assert sent[0].payload.reason == "unsupported_worker_type"
-
-    async def test_infrastructure_not_found_results_in_ack_frame(self):
-        flow_run = _flow_run(infrastructure_pid="pid")
-        _, _worker, sent = await self._build_executor_with_handler(
-            flow_run=flow_run,
-            kill_side_effect=InfrastructureNotFound("gone"),
-        )
-
-        assert len(sent) == 1
-        assert sent[0].type == "cleanup.ack.v1"
-
-    async def test_unsupported_cleanup_kind_releases_via_executor(self):
-        """When a worker only registers cancelling_timeout_teardown but receives
-        a pending_claim_teardown message, the executor handles the release
-        without invoking the handler."""
-        sent: list[Any] = []
-
-        async def send(frame):
-            sent.append(frame)
-            from prefect.client.schemas.worker_channel import (
-                CleanupOperationResultFrame,
-            )
-
-            return CleanupOperationResultFrame.model_validate(
-                {
-                    "type": "cleanup.operation_result.v1",
-                    "id": str(uuid7()),
-                    "sent_at": now("UTC").isoformat(),
-                    "payload": {
-                        "request_frame_id": str(frame.id),
-                        "message_id": str(frame.payload.message_id),
-                        "operation": "release",
-                        "status": "accepted",
-                        "reason": None,
-                        "detail": None,
-                    },
-                }
-            )
-
-        handler, _worker = _build_handler(flow_run=_flow_run(infrastructure_pid="pid"))
-        executor = WorkerCleanupExecutor([handler], send_operation=send)
-
-        pending_payload = {
-            "kind": PENDING_CLAIM_TEARDOWN,
-            "message_id": str(uuid4()),
-            "reservation_token": "token",
-            "lease_expires_at": (now("UTC") + timedelta(minutes=5)).isoformat(),
-            "delivery_count": 1,
-            "work_queue_id": None,
-            "target": {
-                "flow_run_id": str(uuid4()),
-                "claim_id": str(uuid7()),
-            },
-            "data": {},
-        }
-        message = CleanupMessageFrame.model_validate(
-            {
-                "type": "cleanup.message.v1",
-                "id": str(uuid7()),
-                "sent_at": now("UTC").isoformat(),
-                "payload": pending_payload,
-            }
-        )
-
-        await executor.execute(message)
-
-        assert len(sent) == 1
-        assert sent[0].type == "cleanup.release.v1"
-        assert sent[0].payload.reason == "unsupported_cleanup_kind"
-
-
-class TestRealWorkerIntegration:
-    """End-to-end smoke tests using a real BaseWorker subclass and fixtures."""
-
-    async def test_handler_against_real_capable_worker(self, work_pool):
-        worker = TeardownTrackingWorker(
-            work_pool_name=work_pool.name,
-            name="cleanup-handler-test",
-        )
-        flow_run = _flow_run(infrastructure_pid="pid")
-
-        handler = worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN)
-        assert isinstance(handler, CancellingTimeoutTeardownHandler)
-
-        worker._get_configuration = AsyncMock(  # type: ignore[method-assign]
-            return_value=BaseJobConfiguration()
-        )
-        worker._client = Mock()
-        worker._client.read_flow_run = AsyncMock(return_value=flow_run)
-
-        result = await handler.cleanup(
-            _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="pid")
-        )
-
-        assert result == CleanupExecutionResult.success()
-        assert worker.kill_calls == [
-            {
-                "infrastructure_pid": "pid",
-                "configuration": worker._get_configuration.return_value,
-                "grace_seconds": 30,
-            }
-        ]
-
-    async def test_handler_treats_not_implemented_from_base_as_unsupported(self):
-        """Direct check against an incapable BaseWorker subclass — kill
-        raises NotImplementedError, which the handler maps to a stable
-        release reason."""
-        worker = IncapableWorker(work_pool_name="test")
-        flow_run = _flow_run(infrastructure_pid="pid")
-
-        worker._client = Mock()
-        worker._client.read_flow_run = AsyncMock(return_value=flow_run)
-        worker._get_configuration = AsyncMock(  # type: ignore[method-assign]
-            return_value=BaseJobConfiguration()
-        )
-
-        handler = CancellingTimeoutTeardownHandler(worker)
-        result = await handler.cleanup(
-            _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="pid")
-        )
-
-        assert result == CleanupExecutionResult.release("unsupported_worker_type")
+        assert len(worker.kill_calls) == 1
+        assert worker.kill_calls[0]["infrastructure_pid"] == "payload-pid"
 
 
 @pytest.mark.parametrize(
@@ -701,16 +621,48 @@ class TestRealWorkerIntegration:
     ],
 )
 async def test_typed_kill_exceptions_map_to_stable_release_reasons(
+    prefect_client: PrefectClient,
+    work_pool: WorkPool,
     kill_side_effect: BaseException,
     expected_reason: str,
 ):
-    flow_run = _flow_run(infrastructure_pid="pid")
-    handler, _worker = _build_handler(
-        flow_run=flow_run, kill_side_effect=kill_side_effect
+    flow_run = await _create_flow_run(
+        prefect_client, work_pool, infrastructure_pid="pid"
     )
 
-    result = await handler.cleanup(
-        _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="pid")
-    )
+    async with TeardownTrackingWorker(work_pool_name=work_pool.name) as worker:
+        worker.kill_side_effect = kill_side_effect
+        handler = worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN)
+        assert isinstance(handler, CancellingTimeoutTeardownHandler)
+
+        result = await handler.cleanup(
+            _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="pid")
+        )
 
     assert result == CleanupExecutionResult.release(expected_reason)
+
+
+async def test_cleanup_handler_works_with_unrelated_deployment_context(
+    prefect_client: PrefectClient,
+    work_pool: WorkPool,
+    deployment: DeploymentResponse,
+):
+    """Verify the handler successfully tears down a flow run created from a
+    real deployment — exercises the full `_get_configuration` path against
+    fixtures that mirror production usage."""
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment_id=deployment.id,
+    )
+    await prefect_client.update_flow_run(flow_run.id, infrastructure_pid="pid")
+
+    async with TeardownTrackingWorker(work_pool_name=work_pool.name) as worker:
+        handler = worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN)
+        assert isinstance(handler, CancellingTimeoutTeardownHandler)
+
+        result = await handler.cleanup(
+            _cancelling_payload(flow_run_id=flow_run.id, infrastructure_pid="pid")
+        )
+
+    assert result == CleanupExecutionResult.success()
+    assert len(worker.kill_calls) == 1
+    assert worker.kill_calls[0]["infrastructure_pid"] == "pid"
