@@ -23,7 +23,12 @@ TASK_COUNT = 30
 @task
 def write_task_marker(marker_dir: str, index: int) -> None:
     Path(marker_dir, f"{TASK_MARKER_PREFIX}{index}").write_text("done")
-    time.sleep(0.2)
+    # Each task must take long enough that, after the test calls
+    # `suspend_flow_run`, the `FlowRunSuspendingObserver` running in the
+    # subprocess has time to receive the suspension event (or fall back to
+    # polling with a 10s default interval) before the flow exhausts all
+    # task boundaries and completes successfully.
+    time.sleep(1)
 
 
 @flow(log_prints=True, persist_result=True)
