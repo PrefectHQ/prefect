@@ -1,7 +1,7 @@
 import contextvars
 import threading
 from contextlib import asynccontextmanager, contextmanager
-from typing import TYPE_CHECKING, AsyncGenerator, Generator
+from typing import TYPE_CHECKING, Any, AsyncGenerator, Generator
 from uuid import UUID
 
 from prefect._internal.concurrency.cancellation import (
@@ -49,8 +49,10 @@ def _get_lease_renewal_client() -> Generator["SyncPrefectClient", None, None]:
                     "at a running Prefect server."
                 )
 
-            ctx_settings = getattr(async_ctx, "_httpx_settings", None)
-            inherited_settings = dict(ctx_settings) if ctx_settings else {}
+            ctx_settings: dict[str, Any] | None = getattr(
+                async_ctx, "_httpx_settings", None
+            )
+            inherited_settings = ctx_settings.copy() if ctx_settings else {}
             inherited_settings.pop("transport", None)
 
             with SyncPrefectClient(
