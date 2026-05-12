@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prefect.server import schemas
 from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.database.orm_models import BlockType
+from prefect.server.models import storage_defaults
 
 if TYPE_CHECKING:
     from prefect.client.schemas import BlockType as ClientBlockType
@@ -202,7 +203,7 @@ async def update_block_type(
 
 @db_injector
 async def delete_block_type(
-    db: PrefectDBInterface, session: AsyncSession, block_type_id: str
+    db: PrefectDBInterface, session: AsyncSession, block_type_id: UUID
 ) -> bool:
     """
     Delete a block type by id.
@@ -215,7 +216,20 @@ async def delete_block_type(
         bool: True if the block type was updated
     """
 
+    default_references_block_type = (
+        await storage_defaults.server_default_result_storage_references_block_type(
+            session=session,
+            block_type_id=block_type_id,
+        )
+    )
+
     result = await session.execute(
         sa.delete(db.BlockType).where(db.BlockType.id == block_type_id)
     )
-    return result.rowcount > 0
+    if result.rowcount <= 0:
+        return False
+
+    if default_references_block_type:
+        await storage_defaults.clear_server_default_result_storage(session=session)
+
+    return True

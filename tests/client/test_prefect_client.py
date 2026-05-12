@@ -26,7 +26,7 @@ import prefect.context
 import prefect.exceptions
 import prefect.server.api
 from prefect import flow, tags
-from prefect.client._version_checking import check_server_version
+from prefect._internal.version_checking import check_server_version
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import (
     PrefectClient,

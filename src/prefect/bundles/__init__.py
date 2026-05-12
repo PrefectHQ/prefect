@@ -39,7 +39,7 @@ from prefect.settings.models.root import Settings
 from prefect.utilities.processutils import sanitize_subprocess_env
 from prefect.utilities.slugify import slugify
 
-from prefect._launchers import (
+from prefect._internal.launchers import (
     get_launcher_for_side,
     validate_bundle_step_launcher,
 )
@@ -539,7 +539,7 @@ def _extract_and_run_flow(
         env: The environment to use when running the flow.
     """
 
-    os.environ.update(sanitize_subprocess_env(env))
+    os.environ.update(sanitize_subprocess_env(env, remove_from=os.environ))
     # TODO: make this a thing we can pass directly to the engine
     os.environ["PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS"] = "false"
     settings_context = get_settings_context()

@@ -29,6 +29,7 @@ docs/
   images/                 # Legacy images
   logos/                  # Brand assets
   styles/                 # Vale linting styles
+  resources/              # Unlisted pages (hidden: true) outside the v3/ versioning tree
 ```
 
 ## Auto-generated content — do not edit
@@ -49,7 +50,8 @@ title: Page Title
 description: Brief description for SEO and navigation
 sidebarTitle: Optional shorter sidebar label   # optional
 icon: icon-name                                # optional, Mintlify icon
-mode: wide                                     # optional
+mode: wide                                     # optional; use "custom" for raw JSX/HTML layouts
+hidden: true                                   # optional; unlisted page — no nav registration needed
 keywords: ["keyword1", "keyword2"]             # optional, for search
 ---
 ```
@@ -86,7 +88,7 @@ Preferred terms are enforced by Vale via `docs/styles/CustomStyles/WordList.yml`
 
 ## Versioning
 
-All new content goes in `docs/v3/`. Do not create pages outside `v3/` for current Prefect 3.x features.
+All new content goes in `docs/v3/`. Do not create pages outside `v3/` for current Prefect 3.x features. Exception: unlisted pages (`hidden: true`) can live in `docs/resources/`.
 
 ## Local development
 
@@ -98,8 +100,8 @@ just lint     # Run Vale linter
 
 ## Key rules
 
-1. **Do not edit auto-generated files.** Pages under `v3/examples/`, `v3/api-ref/python/`, `v3/api-ref/cli/`, and `integrations/<name>/api-ref/` are generated from source code. Within `v3/api-ref/rest-api/`, individual endpoint pages are auto-generated — do not edit them; the `index.mdx` overview pages are hand-authored exceptions. `v3/api-ref/events/` is hand-authored and should be edited when event schemas change.
-2. **Register new pages in `docs/docs.json`.** An unregistered page won't appear in navigation.
+1. **Do not edit auto-generated files.** Pages under `v3/examples/`, `v3/api-ref/python/`, `v3/api-ref/cli/`, `v3/api-ref/rest-api/`, and `integrations/<name>/api-ref/` are generated from source code. The exception is `v3/api-ref/events/`, which is hand-authored and should be edited when event schemas change.
+2. **Register new pages in `docs/docs.json`.** An unregistered page won't appear in navigation. Exception: pages with `hidden: true` are unlisted and do not require navigation registration.
 3. **Use `.mdx` extension** for all new documentation files.
 4. **Use Mintlify components** (`<Note>`, `<Tabs>`, `<Steps>`, etc.) rather than Markdown-native admonition syntax.
 5. **Keep code examples working.** They are tested in CI via `pytest-markdown-docs`. Two skip mechanisms exist:
