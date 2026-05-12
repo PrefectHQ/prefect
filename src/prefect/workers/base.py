@@ -17,7 +17,6 @@ from typing import (
     Callable,
     ClassVar,
     Generic,
-    Iterable,
     Optional,
     Type,
 )
@@ -568,8 +567,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         heartbeat_interval_seconds: int | None = None,
         *,
         base_job_template: dict[str, Any] | None = None,
-        _cleanup_handlers: Iterable[WorkerCleanupHandler] | None = None,
-        _max_cleanup_concurrency: int | None = None,
     ):
         """
         Base class for all Prefect workers.
@@ -609,20 +606,12 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._work_pool_name = work_pool_name
         self._work_queues: set[str] = set(work_queues) if work_queues else set()
         self._cleanup_handler_registry = WorkerCleanupHandlerRegistry(
-            _cleanup_handlers
-            if _cleanup_handlers is not None
-            else self.__class__.cleanup_handlers
+            self.__class__.cleanup_handlers
         )
-        # When the caller did not pass an explicit handler list, auto-register
-        # default handlers (e.g., cancelling_timeout_teardown.v1) for workers
-        # that expose the required capability. Passing _cleanup_handlers (even
-        # as an empty tuple) opts out of auto-registration so callers retain
-        # full control over what the worker advertises.
-        if _cleanup_handlers is None:
-            register_default_cleanup_handlers(self)
-        if _max_cleanup_concurrency is not None and _max_cleanup_concurrency < 0:
-            raise ValueError("Cleanup concurrency cannot be negative")
-        self._max_cleanup_concurrency_override = _max_cleanup_concurrency
+        # Auto-register default handlers (e.g., cancelling_timeout_teardown.v1)
+        # for workers that expose the required capability. Class-level
+        # `cleanup_handlers` for the same cleanup kind take precedence.
+        register_default_cleanup_handlers(self)
 
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
@@ -695,15 +684,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
     def max_cleanup_concurrency(self) -> int:
         if not self._cleanup_handler_registry:
             return 0
-
-        concurrency = (
-            self._max_cleanup_concurrency_override
-            if self._max_cleanup_concurrency_override is not None
-            else self.__class__.cleanup_max_concurrency
-        )
-        if concurrency is None:
-            return 1
-        return concurrency
+        concurrency = self.__class__.cleanup_max_concurrency
+        return 1 if concurrency is None else concurrency
 
     def _cleanup_delivery_available(self) -> bool:
         return bool(self._cleanup_handler_registry) and self.max_cleanup_concurrency > 0
