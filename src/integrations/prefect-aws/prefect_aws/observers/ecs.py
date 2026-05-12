@@ -189,6 +189,8 @@ SQS_MEMORY = 10
 SQS_CONSECUTIVE_FAILURES = 3
 SQS_BACKOFF = 1
 SQS_MAX_BACKOFF_ATTEMPTS = 5
+SQS_MESSAGE_VISIBILITY_TIMEOUT_SECONDS = 300
+SQS_VISIBILITY_EXTENSION_INTERVAL_SECONDS = 240
 
 OBSERVER_RESTART_BASE_DELAY = 30
 OBSERVER_MAX_RESTART_ATTEMPTS = 5
@@ -197,6 +199,7 @@ OBSERVER_MAX_RESTART_ATTEMPTS = 5
 class SqsMessage(NamedTuple):
     message: "MessageTypeDef"
     ack: Callable[[], Awaitable[bool]]
+    extend_visibility: Callable[[], Awaitable[bool]]
 
 
 class _SqsBackoffState:
@@ -284,6 +287,7 @@ class SqsSubscriber:
 
             receive_backoff = _SqsBackoffState("receive")
             delete_backoff = _SqsBackoffState("delete")
+            visibility_backoff = _SqsBackoffState("change visibility for")
 
             while True:
                 try:
@@ -315,7 +319,27 @@ class SqsSubscriber:
                             delete_backoff.record_success()
                             return True
 
-                    yield SqsMessage(message=message, ack=ack)
+                    async def extend_visibility(
+                        receipt_handle: str = receipt_handle,
+                    ) -> bool:
+                        try:
+                            await sqs_client.change_message_visibility(
+                                QueueUrl=queue_url,
+                                ReceiptHandle=receipt_handle,
+                                VisibilityTimeout=SQS_MESSAGE_VISIBILITY_TIMEOUT_SECONDS,
+                            )
+                        except Exception as e:
+                            await visibility_backoff.record_failure(e)
+                            return False
+                        else:
+                            visibility_backoff.record_success()
+                            return True
+
+                    yield SqsMessage(
+                        message=message,
+                        ack=ack,
+                        extend_visibility=extend_visibility,
+                    )
 
 
 class EcsObserver:
@@ -397,11 +421,20 @@ class EcsObserver:
 
                 if matching_handlers:
                     try:
-                        async with anyio.create_task_group() as task_group:
-                            for handler in matching_handlers:
-                                task_group.start_soon(
-                                    self._run_handler, handler, body, tags
-                                )
+                        async with anyio.create_task_group() as visibility_group:
+                            visibility_group.start_soon(
+                                self._extend_message_visibility_while_processing,
+                                sqs_message,
+                                message,
+                            )
+                            try:
+                                async with anyio.create_task_group() as task_group:
+                                    for handler in matching_handlers:
+                                        task_group.start_soon(
+                                            self._run_handler, handler, body, tags
+                                        )
+                            finally:
+                                visibility_group.cancel_scope.cancel()
                     except Exception:
                         logger.exception(
                             "Failed to process ECS observer message",
@@ -421,6 +454,21 @@ class EcsObserver:
             await handler(event, tags)
         else:
             await asyncio.to_thread(partial(handler, event, tags))
+
+    async def _extend_message_visibility_while_processing(
+        self,
+        sqs_message: SqsMessage,
+        message: "MessageTypeDef",
+    ) -> None:
+        while True:
+            await asyncio.sleep(SQS_VISIBILITY_EXTENSION_INTERVAL_SECONDS)
+            try:
+                await sqs_message.extend_visibility()
+            except Exception:
+                logger.exception(
+                    "Failed to extend ECS observer message visibility",
+                    extra={"sqs_message": message},
+                )
 
     def on_event(
         self,

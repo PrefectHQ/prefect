@@ -12,6 +12,7 @@ import pytest
 from botocore.exceptions import ClientError
 from cachetools import LRUCache
 from prefect_aws.observers.ecs import (
+    SQS_MESSAGE_VISIBILITY_TIMEOUT_SECONDS,
     EcsObserver,
     EcsTaskTagsReader,
     FilterCase,
@@ -296,8 +297,8 @@ class TestSqsSubscriber:
         for call in mock_sqs_client.receive_message.call_args_list:
             assert call.kwargs["MaxNumberOfMessages"] == 1
 
-        # Note: Only 2 deletes will be called because we break after the 3rd yield
-        # but before its delete can execute
+        # Only 2 deletes are called because this test acknowledges the first two
+        # messages before breaking on the third.
         assert mock_sqs_client.delete_message.call_count == 2
         delete_calls = mock_sqs_client.delete_message.call_args_list
 
@@ -353,8 +354,37 @@ class TestSqsSubscriber:
         assert messages[0]["Body"] == "message2"
         assert messages[0]["ReceiptHandle"] == "handle2"
 
-        # Note: delete may not be called if we break immediately after yield
-        # The generator is interrupted before the delete after yield can execute
+        mock_sqs_client.delete_message.assert_not_called()
+
+    @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
+    async def test_stream_messages_can_extend_message_visibility(
+        self, mock_get_session, subscriber
+    ):
+        mock_session = Mock()
+        mock_sqs_client = AsyncMock()
+        mock_client_context = AsyncMock()
+        mock_client_context.__aenter__.return_value = mock_sqs_client
+        mock_session.create_client.return_value = mock_client_context
+        mock_get_session.return_value = mock_session
+
+        mock_sqs_client.get_queue_url.return_value = {
+            "QueueUrl": "https://sqs.us-east-1.amazonaws.com/123456789/test-queue"
+        }
+        mock_sqs_client.receive_message.return_value = {
+            "Messages": [{"Body": "message1", "ReceiptHandle": "handle1"}],
+        }
+
+        message_generator = subscriber.stream_messages()
+        sqs_message = await anext(message_generator)
+
+        assert await sqs_message.extend_visibility() is True
+        mock_sqs_client.change_message_visibility.assert_awaited_once_with(
+            QueueUrl="https://sqs.us-east-1.amazonaws.com/123456789/test-queue",
+            ReceiptHandle="handle1",
+            VisibilityTimeout=SQS_MESSAGE_VISIBILITY_TIMEOUT_SECONDS,
+        )
+
+        await message_generator.aclose()
 
     @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
     @patch("prefect_aws.observers.ecs.asyncio.sleep")
@@ -738,6 +768,70 @@ class TestEcsObserver:
             await asyncio.sleep(0.05)
 
         mock_sqs_client.delete_message.assert_called_once_with(
+            QueueUrl="https://sqs.us-east-1.amazonaws.com/123456789/test-queue",
+            ReceiptHandle="handle1",
+        )
+
+        try:
+            await asyncio.wait_for(task, timeout=1)
+        except asyncio.CancelledError:
+            pass
+
+    @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
+    async def test_run_extends_message_visibility_while_handlers_run(
+        self, mock_get_session, settings, mock_tags_reader
+    ):
+        message = self._ecs_task_state_change_message()
+        mock_sqs_client = self._setup_sqs_client(
+            mock_get_session,
+            [
+                {"Messages": [message]},
+                asyncio.CancelledError(),
+            ],
+        )
+
+        observer = EcsObserver(
+            settings=settings,
+            sqs_subscriber=SqsSubscriber("test-queue", "us-east-1"),
+            ecs_tags_reader=mock_tags_reader,
+        )
+
+        handler_started = asyncio.Event()
+        handler_finished = asyncio.Event()
+
+        async def handler(event, tags):
+            handler_started.set()
+            await handler_finished.wait()
+
+        observer.on_event("task", tags={"prefect": "test"})(handler)
+        mock_tags_reader.read_tags.return_value = {"prefect": "test"}
+
+        with patch(
+            "prefect_aws.observers.ecs.SQS_VISIBILITY_EXTENSION_INTERVAL_SECONDS", 0.01
+        ):
+            task = asyncio.create_task(observer.run())
+            await asyncio.wait_for(handler_started.wait(), timeout=1)
+
+            for _ in range(10):
+                if mock_sqs_client.change_message_visibility.await_count:
+                    break
+                await asyncio.sleep(0.01)
+
+            mock_sqs_client.change_message_visibility.assert_awaited()
+            mock_sqs_client.delete_message.assert_not_called()
+
+            handler_finished.set()
+            for _ in range(10):
+                if mock_sqs_client.delete_message.await_count:
+                    break
+                await asyncio.sleep(0.01)
+
+        mock_sqs_client.change_message_visibility.assert_any_await(
+            QueueUrl="https://sqs.us-east-1.amazonaws.com/123456789/test-queue",
+            ReceiptHandle="handle1",
+            VisibilityTimeout=SQS_MESSAGE_VISIBILITY_TIMEOUT_SECONDS,
+        )
+        mock_sqs_client.delete_message.assert_awaited_once_with(
             QueueUrl="https://sqs.us-east-1.amazonaws.com/123456789/test-queue",
             ReceiptHandle="handle1",
         )
@@ -2591,4 +2685,5 @@ async def async_generator_from_list(items: list) -> AsyncGenerator[Any, None]:
             yield item
         else:
             ack = AsyncMock(return_value=True)
-            yield SqsMessage(message=item, ack=ack)
+            extend_visibility = AsyncMock(return_value=True)
+            yield SqsMessage(message=item, ack=ack, extend_visibility=extend_visibility)
