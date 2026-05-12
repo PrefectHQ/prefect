@@ -639,6 +639,43 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
             .table_valued(sa.column("value", postgresql.JSONB()))
             .render_derived(name="argument")
         )
+
+        # Only use `expected_start_time` as a substitute for missing `start_time` when
+        # a run is terminal. For non-terminal runs, the expected start does not
+        # necessarily indicate the run has begun.
+        flow_run_start_time = sa.func.coalesce(
+            FlowRun.start_time,
+            sa.case(
+                (
+                    FlowRun.state_type.in_(schemas.states.TERMINAL_STATES),
+                    FlowRun.expected_start_time,
+                ),
+                else_=sa.null(),
+            ),
+        )
+        task_run_start_time = sa.func.coalesce(
+            TaskRun.start_time,
+            sa.case(
+                (
+                    TaskRun.state_type.in_(schemas.states.TERMINAL_STATES),
+                    TaskRun.expected_start_time,
+                ),
+                else_=sa.null(),
+            ),
+        )
+        start_time = sa.func.coalesce(flow_run_start_time, task_run_start_time)
+
+        end_time = sa.func.coalesce(
+            FlowRun.end_time,
+            TaskRun.end_time,
+            sa.case(
+                (
+                    TaskRun.state_type.in_(schemas.states.TERMINAL_STATES),
+                    TaskRun.expected_start_time,
+                ),
+                else_=sa.null(),
+            ),
+        )
         edges = (
             sa.select(
                 sa.case((FlowRun.id.is_not(None), "flow-run"), else_="task-run").label(
@@ -651,23 +688,8 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                 sa.func.coalesce(FlowRun.state_type, TaskRun.state_type).label(
                     "state_type"
                 ),
-                sa.func.coalesce(
-                    FlowRun.start_time,
-                    FlowRun.expected_start_time,
-                    TaskRun.start_time,
-                    TaskRun.expected_start_time,
-                ).label("start_time"),
-                sa.func.coalesce(
-                    FlowRun.end_time,
-                    TaskRun.end_time,
-                    sa.case(
-                        (
-                            TaskRun.state_type == StateType.COMPLETED,
-                            TaskRun.expected_start_time,
-                        ),
-                        else_=sa.null(),
-                    ),
-                ).label("end_time"),
+                start_time.label("start_time"),
+                end_time.label("end_time"),
                 sa.cast(argument.c.value["id"].astext, type_=UUIDTypeDecorator).label(
                     "parent"
                 ),
@@ -683,12 +705,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
             .join(Flow, isouter=True, onclause=Flow.id == FlowRun.flow_id)
             .where(
                 TaskRun.flow_run_id == param_flow_run_id,
-                sa.func.coalesce(
-                    FlowRun.start_time,
-                    FlowRun.expected_start_time,
-                    TaskRun.start_time,
-                    TaskRun.expected_start_time,
-                ).is_not(None),
+                start_time.is_not(None),
             )
             # -- the order here is important to speed up building the two sets of
             # -- edges in the with_parents and with_children CTEs below
@@ -767,7 +784,15 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                 graph.c.child_ids,
                 graph.c.encapsulating_ids,
             )
-            .where(sa.or_(graph.c.end_time.is_(None), graph.c.end_time >= param_since))
+            .where(
+                sa.or_(
+                    graph.c.start_time >= param_since,
+                    sa.and_(
+                        graph.c.state_type.in_(schemas.states.TERMINAL_STATES),
+                        graph.c.end_time >= param_since,
+                    ),
+                )
+            )
             .order_by(graph.c.start_time, graph.c.end_time)
             .limit(param_max_nodes)
         )
@@ -958,6 +983,43 @@ class AioSqliteQueryComponents(BaseQueryComponents):
         argument = sa.func.json_each(
             input.c.value, type_=postgresql.JSON()
         ).table_valued("key", sa.column("value", postgresql.JSON()), name="argument")
+
+        # Only use `expected_start_time` as a substitute for missing `start_time` when
+        # a run is terminal. For non-terminal runs, the expected start does not
+        # necessarily indicate the run has begun.
+        flow_run_start_time = sa.func.coalesce(
+            FlowRun.start_time,
+            sa.case(
+                (
+                    FlowRun.state_type.in_(schemas.states.TERMINAL_STATES),
+                    FlowRun.expected_start_time,
+                ),
+                else_=sa.null(),
+            ),
+        )
+        task_run_start_time = sa.func.coalesce(
+            TaskRun.start_time,
+            sa.case(
+                (
+                    TaskRun.state_type.in_(schemas.states.TERMINAL_STATES),
+                    TaskRun.expected_start_time,
+                ),
+                else_=sa.null(),
+            ),
+        )
+        start_time = sa.func.coalesce(flow_run_start_time, task_run_start_time)
+
+        end_time = sa.func.coalesce(
+            FlowRun.end_time,
+            TaskRun.end_time,
+            sa.case(
+                (
+                    TaskRun.state_type.in_(schemas.states.TERMINAL_STATES),
+                    TaskRun.expected_start_time,
+                ),
+                else_=sa.null(),
+            ),
+        )
         edges = (
             sa.select(
                 sa.case((FlowRun.id.is_not(None), "flow-run"), else_="task-run").label(
@@ -970,23 +1032,8 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                 sa.func.coalesce(FlowRun.state_type, TaskRun.state_type).label(
                     "state_type"
                 ),
-                sa.func.coalesce(
-                    FlowRun.start_time,
-                    FlowRun.expected_start_time,
-                    TaskRun.start_time,
-                    TaskRun.expected_start_time,
-                ).label("start_time"),
-                sa.func.coalesce(
-                    FlowRun.end_time,
-                    TaskRun.end_time,
-                    sa.case(
-                        (
-                            TaskRun.state_type == StateType.COMPLETED,
-                            TaskRun.expected_start_time,
-                        ),
-                        else_=sa.null(),
-                    ),
-                ).label("end_time"),
+                start_time.label("start_time"),
+                end_time.label("end_time"),
                 argument.c.value["id"].astext.label("parent"),
                 (input.c.key == "__parents__").label("has_encapsulating_task"),
             )
@@ -1000,12 +1047,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
             .join(Flow, isouter=True, onclause=Flow.id == FlowRun.flow_id)
             .where(
                 TaskRun.flow_run_id == param_flow_run_id,
-                sa.func.coalesce(
-                    FlowRun.start_time,
-                    FlowRun.expected_start_time,
-                    TaskRun.start_time,
-                    TaskRun.expected_start_time,
-                ).is_not(None),
+                start_time.is_not(None),
             )
             # -- the order here is important to speed up building the two sets of
             # -- edges in the with_parents and with_children CTEs below
@@ -1078,7 +1120,15 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                 sa.type_coerce(graph.c.child_ids, UUIDList),
                 sa.type_coerce(graph.c.encapsulating_ids, UUIDList),
             )
-            .where(sa.or_(graph.c.end_time.is_(None), graph.c.end_time >= param_since))
+            .where(
+                sa.or_(
+                    graph.c.start_time >= param_since,
+                    sa.and_(
+                        graph.c.state_type.in_(schemas.states.TERMINAL_STATES),
+                        graph.c.end_time >= param_since,
+                    ),
+                )
+            )
             .order_by(graph.c.start_time, graph.c.end_time)
             .limit(param_max_nodes)
         )
