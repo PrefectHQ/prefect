@@ -3339,10 +3339,14 @@ async def test_work_pool_env_from_job_configuration_merges_with_variable_default
     assert config.env["DEPLOYMENT_VAR"] == "from-deployment"
 
 
-async def test_get_configuration_uses_stable_work_pool_copy(
+async def test_configuration_build_uses_stable_work_pool_copy(
     prefect_client: PrefectClient,
     work_pool: WorkPool,
 ):
+    """A mid-build snapshot apply must not retemplate the configuration the
+    worker is currently assembling. Callers deepcopy `self.work_pool` before
+    handing it to `BaseJobConfiguration.resolve_for_flow_run`."""
+
     @flow
     def test_flow():
         pass
@@ -3429,7 +3433,15 @@ async def test_get_configuration_uses_stable_work_pool_copy(
             default_queue_id=work_pool.default_queue_id,
         )
 
-        config = await worker._get_configuration(flow_run)
+        # Mirror the worker's internal call pattern: deepcopy then resolve.
+        frozen_work_pool = copy.deepcopy(worker.work_pool)
+        config = await worker.job_configuration.resolve_for_flow_run(
+            flow_run,
+            client=worker.client,
+            work_pool=frozen_work_pool,
+            worker_name=worker.name,
+            worker_id=worker.backend_id,
+        )
 
         assert worker._work_pool.base_job_template == updated_template
 
