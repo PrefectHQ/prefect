@@ -59,12 +59,28 @@ export const WorkersTable = ({
 		[pagination, onPaginationChange],
 	);
 
+	const sortedWorkers = useMemo(() => {
+		// Match v1 behaviour: ONLINE workers first, then by most recent heartbeat.
+		return [...workers].sort((a, b) => {
+			if (a.status !== b.status) {
+				return a.status === "ONLINE" ? -1 : 1;
+			}
+			const aTime = a.last_heartbeat_time
+				? new Date(a.last_heartbeat_time).getTime()
+				: 0;
+			const bTime = b.last_heartbeat_time
+				? new Date(b.last_heartbeat_time).getTime()
+				: 0;
+			return bTime - aTime;
+		});
+	}, [workers]);
+
 	const filteredWorkers = useMemo(() => {
-		if (!searchQuery) return workers;
-		return workers.filter((worker) =>
+		if (!searchQuery) return sortedWorkers;
+		return sortedWorkers.filter((worker) =>
 			worker.name.toLowerCase().includes(searchQuery.toLowerCase()),
 		);
-	}, [workers, searchQuery]);
+	}, [sortedWorkers, searchQuery]);
 
 	const columns = useMemo(
 		() =>
@@ -86,9 +102,6 @@ export const WorkersTable = ({
 			pagination,
 		},
 		onPaginationChange: handlePaginationChange,
-		initialState: {
-			sorting: [{ id: "name", desc: false }],
-		},
 	});
 
 	// Show empty state when no workers at all or no search results

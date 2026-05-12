@@ -60,7 +60,7 @@ export type EventsLineChartRef = {
 const chartConfig = {
 	count: {
 		label: "Events",
-		color: "hsl(262.1 83.3% 57.8%)",
+		color: "var(--event)",
 	},
 };
 
