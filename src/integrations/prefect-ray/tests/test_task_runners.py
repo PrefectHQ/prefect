@@ -469,6 +469,28 @@ class TestRayTaskRunner:
         base_flow()
         assert tmp_file.read_text() == "d"
 
+    def test_exit_does_not_shutdown_pre_existing_ray(self):
+        """Regression test: __exit__ must not shut down a Ray cluster that was
+        already running before the task runner entered."""
+        ray.init(ignore_reinit_error=True)
+        try:
+            runner = RayTaskRunner()
+            with runner:
+                assert ray.is_initialized()
+            # Ray should still be running after the task runner exits
+            assert ray.is_initialized()
+        finally:
+            ray.shutdown()
+
+    def test_exit_shuts_down_ray_it_started(self):
+        """When the task runner itself starts Ray, __exit__ should shut it down."""
+        if ray.is_initialized():
+            ray.shutdown()
+        runner = RayTaskRunner()
+        with runner:
+            assert ray.is_initialized()
+        assert not ray.is_initialized()
+
     def test_ray_options(self):
         @task
         def process(x):
