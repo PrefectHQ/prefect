@@ -308,9 +308,7 @@ class WorkPoolWorkerChannel:
 
                 try:
                     work_pool = await self._client.create_work_pool(work_pool=wp)
-                    self._logger.info(
-                        f"Work pool {self.work_pool_name!r} created."
-                    )
+                    self._logger.info(f"Work pool {self.work_pool_name!r} created.")
                 except ObjectAlreadyExists:
                     # Another worker created the pool between our read and
                     # create. Re-read so we can continue with the existing
