@@ -40,6 +40,15 @@ When a flow is decorated with an infrastructure decorator (`@docker`, `@ecs`, `@
 
 Work-pool-level launchers are configured via `prefect work-pool storage configure s3|gcs|azure --launcher <executable>` and are stored in the step dict itself. Flow-level launchers (via the decorator) are resolved at submit time and win over the work-pool step configuration.
 
+## Cleanup Delivery
+
+Workers can receive server-initiated cleanup messages (e.g., crash detection) by setting class variables on the subclass:
+
+- `cleanup_handlers: ClassVar[tuple[WorkerCleanupHandler, ...]] = (MyHandler(),)` — registers handlers; delivery is disabled when empty (default)
+- `cleanup_max_concurrency: ClassVar[int | None] = None` — defaults to 1 when handlers are present
+
+**Handler contract**: Handlers must expose `cleanup_kind: CleanupKind` or `cleanup_kinds` as a class attribute — missing it raises `ValueError` at registration (not import). Handlers must be idempotent; returning `None` is treated as success.
+
 ## Anti-Patterns
 
 - Do not set `PREFECT__WORKER_NAME` / `PREFECT__WORKER_ID` in `os.environ` from outside `BaseWorker` — setup/teardown own this lifecycle.
