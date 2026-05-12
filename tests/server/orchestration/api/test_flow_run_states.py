@@ -4,6 +4,9 @@ from starlette import status
 
 from prefect.server import models, schemas
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 class TestReadFlowRunStateById:
     async def test_read_flow_run_state(self, flow_run, client, session):

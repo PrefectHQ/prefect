@@ -4,6 +4,9 @@ from prefect import __development_base_path__
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 TEST_PROJECTS_DIR = __development_base_path__ / "tests" / "test-projects"
 
 _TASK_SERVE_PATCH_TARGET = "prefect.cli.task.task_serve"

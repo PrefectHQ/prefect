@@ -49,6 +49,8 @@ from prefect.settings import (
     temporary_settings,
 )
 
+pytestmark = pytest.mark.clear_db
+
 
 async def test_validation_error_handler_422(client):
     bad_flow_data = {"name": "my-flow", "tags": "this should be a list not a string"}

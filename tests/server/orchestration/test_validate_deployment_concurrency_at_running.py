@@ -24,6 +24,9 @@ from prefect.server.schemas import states
 from prefect.server.schemas.core import ConcurrencyLimitStrategy
 from prefect.server.schemas.responses import SetStateStatus
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 class TestValidateDeploymentConcurrencyAtRunning:
     """Tests for ValidateDeploymentConcurrencyAtRunning orchestration rule."""

@@ -14,6 +14,8 @@ from prefect.server.events.filters import (
 from prefect.server.events.schemas.events import Event, ReceivedEvent, Resource
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 async def anext_event(
     subscription: AsyncIterator[ReceivedEvent | None],

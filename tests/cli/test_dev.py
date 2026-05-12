@@ -7,6 +7,9 @@ import prefect
 import prefect.cli.dev
 from prefect.testing.cli import invoke_and_assert
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 def _setup_ui_build_paths(monkeypatch, tmp_path: Path) -> tuple[Path, Path]:
     development_base_path = tmp_path / "repo"

@@ -14,6 +14,8 @@ import pytest
 
 from prefect.types._datetime import end_of_period, in_local_tz, now, start_of_day
 
+pytestmark = pytest.mark.clear_db
+
 # Saturday 2024-06-15 14:30:45 America/New_York (UTC-4, i.e. EDT)
 FIXED = datetime.datetime(2024, 6, 15, 14, 30, 45, tzinfo=ZoneInfo("America/New_York"))
 EDT = datetime.timedelta(hours=-4)

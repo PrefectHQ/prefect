@@ -26,6 +26,8 @@ from prefect.server.orchestration.rules import (
 from prefect.server.schemas import actions, core, states
 from prefect.server.schemas.responses import SetStateStatus
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestSecureTaskConcurrencySlotsV2Integration:
     """Test SecureTaskConcurrencySlots with V2 Global Concurrency Limits."""

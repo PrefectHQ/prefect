@@ -6,6 +6,8 @@ import pytest
 
 from prefect.concurrency._leases import _lease_renewal_loop
 
+pytestmark = pytest.mark.clear_db
+
 
 async def test_lease_renewal_loop_renews_lease():
     mock_client = mock.AsyncMock()

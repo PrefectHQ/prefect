@@ -13,6 +13,8 @@ from prefect._internal.infrastructure_exit_codes import get_infrastructure_exit_
 from prefect.runner._flow_run_executor import FlowRunExecutor, ProcessStarter
 from prefect.runner._process_manager import ProcessHandle
 
+pytestmark = pytest.mark.clear_db
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

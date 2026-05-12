@@ -6,6 +6,9 @@ from prefect.server.services.perpetual_services import (
     get_perpetual_services,
 )
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 def test_db_vacuum_service_registered():
     """Test that db vacuum perpetual service is registered."""

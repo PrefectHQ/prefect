@@ -10,6 +10,9 @@ from uuid import uuid4
 
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 class TestBaseAttributionEnvironment:
     """Tests for the _base_attribution_environment method."""

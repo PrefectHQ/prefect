@@ -7,6 +7,9 @@ from prefect.server.logs.stream import LogDistributor
 from prefect.server.services.base import RunInEphemeralServers, RunInWebservers, Service
 from prefect.server.services.task_run_recorder import TaskRunRecorder
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 def test_the_all_service_subset():
     """The following services should be enabled on background servers or full-featured

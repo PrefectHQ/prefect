@@ -2,6 +2,9 @@ from unittest.mock import AsyncMock
 
 from starlette import status
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 async def test_hello_world(client):
     response = await client.get("/hello")

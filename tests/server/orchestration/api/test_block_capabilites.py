@@ -4,6 +4,8 @@ from starlette import status
 from prefect.blocks.core import Block
 from prefect.server import models
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def block_schemas(session):

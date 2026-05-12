@@ -19,6 +19,9 @@ from starlette import status
 from prefect._internal.testing import retry_asserts
 from prefect.server import models, schemas
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 class TestFlowRunBulkDelete:
     """Tests for POST /flow_runs/bulk_delete endpoint."""

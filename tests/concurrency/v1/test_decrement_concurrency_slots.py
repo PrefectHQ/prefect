@@ -6,6 +6,9 @@ from httpx import Response
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
 from prefect.concurrency.v1._asyncio import release_concurrency_slots
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 async def test_calls_release_client_method():
     task_run_id = uuid.UUID("00000000-0000-0000-0000-000000000000")

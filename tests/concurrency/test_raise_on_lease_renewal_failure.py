@@ -6,6 +6,9 @@ from uuid import uuid4
 
 from prefect.concurrency._sync import concurrency
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 @contextmanager
 def mock_concurrency_internals(*, limits_exist: bool = True):

@@ -11,6 +11,8 @@ from prefect.server.services.telemetry import (
     send_telemetry_heartbeat,
 )
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def sens_o_matic_mock():

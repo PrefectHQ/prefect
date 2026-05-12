@@ -7,6 +7,9 @@ from cachetools import LRUCache
 
 from prefect.runner._deployment_registry import DeploymentRegistry
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 class TestDeploymentRegistryIDs:
     def test_register_deployment_adds_to_set(self):

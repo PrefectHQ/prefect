@@ -3,6 +3,9 @@ from uuid import uuid4
 
 from prefect.server import models, schemas
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 class TestCreatingConcurrencyLimits:
     async def test_creating_concurrency_limits(self, session):

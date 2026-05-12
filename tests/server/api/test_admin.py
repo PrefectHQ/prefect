@@ -14,6 +14,9 @@ from prefect.server.models.block_registration import (
     register_block_type,
 )
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 async def create_server_block_document(
     session: AsyncSession,

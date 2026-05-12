@@ -1,5 +1,8 @@
 from prefect.server import models, schemas
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 async def test_write_and_read_new_configuration(session):
     new_config = schemas.core.Configuration(key="foo", value={"foo": "bar"})

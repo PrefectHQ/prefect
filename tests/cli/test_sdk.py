@@ -17,6 +17,9 @@ import prefect._sdk.generator  # noqa: F401
 import prefect.cli.sdk  # noqa: F401
 from prefect.testing.cli import invoke_and_assert
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 _GET_CLIENT_PATCH_TARGET = "prefect.cli.sdk.get_client"
 
 

@@ -6,6 +6,9 @@ from prefect.filesystems import LocalFileSystem
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 async def test_result_storage_cli_e2e(
     enable_ephemeral_server,

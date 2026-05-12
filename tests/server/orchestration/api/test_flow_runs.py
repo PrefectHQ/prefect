@@ -44,6 +44,8 @@ from prefect.states import (
 from prefect.types._datetime import now
 from prefect.utilities.pydantic import parse_obj_as
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestCreateFlowRun:
     async def test_create_flow_run(self, flow, client, session):

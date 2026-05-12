@@ -28,6 +28,8 @@ from prefect.server.events.storage.database import (
 )
 from prefect.types._datetime import Date, now, start_of_day
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture(scope="module")
 def known_dates() -> tuple[Date, ...]:

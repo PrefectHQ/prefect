@@ -27,6 +27,8 @@ from prefect.workers.process import (
     ProcessWorkerResult,
 )
 
+pytestmark = pytest.mark.clear_db
+
 
 @flow
 def example_process_worker_flow():

@@ -17,6 +17,8 @@ from prefect.events.clients import AssertingEventsClient
 from prefect.events.worker import EventsWorker
 from prefect.server.schemas.core import ConcurrencyLimit
 
+pytestmark = pytest.mark.clear_db
+
 
 def test_concurrency_orchestrates_api(concurrency_limit: ConcurrencyLimit):
     executed = False

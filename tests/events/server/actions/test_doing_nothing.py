@@ -3,6 +3,8 @@ import pytest
 from prefect.server.events import actions
 from prefect.server.events.schemas.automations import TriggeredAction
 
+pytestmark = pytest.mark.clear_db
+
 
 async def test_doing_nothing(
     caplog: pytest.LogCaptureFixture,

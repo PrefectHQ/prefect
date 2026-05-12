@@ -5,6 +5,9 @@ from prefect.server.orchestration.rules import (
 )
 from prefect.server.schemas import states
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 class TestPoliciesRespectOrdering:
     def test_policies_return_rules_in_priority_order(self):

@@ -4,6 +4,9 @@ from starlette import status
 
 from prefect.server import models, schemas
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 class TestReadTaskRunStateById:
     async def test_read_task_run_state(self, task_run, client, session):

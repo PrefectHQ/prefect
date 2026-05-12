@@ -5,6 +5,9 @@ from unittest.mock import MagicMock, patch
 from prefect.runner._process_manager import ProcessHandle
 from prefect.runner._starter_direct import DirectSubprocessStarter
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 class TestDirectSubprocessStarter:
     async def test_start_calls_run_flow_in_subprocess(self):

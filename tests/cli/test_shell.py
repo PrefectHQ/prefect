@@ -5,6 +5,9 @@ from prefect.cli.shell import run_shell_process
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 async def test_shell_serve(prefect_client):
     flow_name = "Flood Brothers"

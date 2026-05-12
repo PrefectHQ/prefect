@@ -14,6 +14,8 @@ from prefect.server.schemas.actions import WorkQueueCreate, WorkQueueUpdate
 from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.utilities.pydantic import parse_obj_as
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture(autouse=True)
 def patch_events_client(monkeypatch: pytest.MonkeyPatch) -> None:

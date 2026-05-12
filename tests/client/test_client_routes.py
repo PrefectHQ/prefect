@@ -3,6 +3,9 @@ from typing import get_args
 from prefect.client.orchestration.routes import ServerRoutes
 from prefect.server.api.server import create_api_app
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 def test_server_routes_match_openapi_schema():
     """Test that all ServerRoutes are present in the OpenAPI schema"""

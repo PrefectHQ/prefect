@@ -6,6 +6,9 @@ from httpx import Response
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
 from prefect.concurrency._asyncio import aacquire_concurrency_slots
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 async def test_calls_increment_client_method():
     limits = [

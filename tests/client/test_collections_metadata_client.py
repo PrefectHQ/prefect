@@ -6,6 +6,9 @@ from prefect.client.collections import (
 )
 from prefect.client.orchestration import PrefectClient, ServerType
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 class TestGetCollectionsMetadataClient:
     async def test_returns_cloud_client_when_server_type_is_cloud(self, monkeypatch):

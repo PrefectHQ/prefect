@@ -8,6 +8,9 @@ from prefect import flows as flows_mod
 from prefect.flows import load_flow_from_flow_run
 from prefect.runner._hook_runner import HookRunner, _run_hooks
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 def _make_flow_run():
     flow_run = MagicMock()

@@ -8,6 +8,9 @@ from prefect.server.models.storage_defaults import (
     SERVER_DEFAULT_RESULT_STORAGE_CONFIGURATION_KEY,
 )
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 async def test_write_read_and_clear_server_default_result_storage(session):
     block_document_id = uuid4()

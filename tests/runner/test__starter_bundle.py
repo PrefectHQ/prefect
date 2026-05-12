@@ -6,6 +6,9 @@ from unittest.mock import MagicMock, patch
 from prefect.runner._process_manager import ProcessHandle
 from prefect.runner._starter_bundle import BundleExecutionStarter
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 class TestBundleExecutionStarter:
     async def test_start_calls_execute_bundle_in_subprocess(self):

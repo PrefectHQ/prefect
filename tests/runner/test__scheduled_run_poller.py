@@ -8,6 +8,9 @@ import anyio
 
 from prefect.runner._scheduled_run_poller import ScheduledRunPoller, StarterResolver
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

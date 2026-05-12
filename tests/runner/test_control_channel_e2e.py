@@ -30,6 +30,8 @@ import pytest
 
 from prefect.runner._control_channel import ControlChannel
 
+pytestmark = pytest.mark.clear_db
+
 CHILD_PROGRAM = textwrap.dedent(
     """
     import os

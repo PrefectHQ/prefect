@@ -1,5 +1,8 @@
 from prefect.server.events.jinja_filters import flow_run_id
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 
 def test_flow_run_id_extraction():
     url = "https://app.prefect.cloud/account/abc/workspace/xyz/runs/flow-run/12345678-1234-5678-1234-567812345678"

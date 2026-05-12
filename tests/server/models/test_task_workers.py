@@ -2,6 +2,8 @@ import pytest
 
 from prefect.server.models.task_workers import InMemoryTaskWorkerTracker
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def tracker():

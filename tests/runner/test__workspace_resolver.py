@@ -17,6 +17,8 @@ from prefect.runner.storage import BlockStorageAdapter, RemoteStorage
 from prefect.settings import get_current_settings
 from prefect.utilities.filesystem import tmpchdir
 
+pytestmark = pytest.mark.clear_db
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CUSTOM_STEP_FQN = "tests.utilities.workspace_resolver_steps"
 

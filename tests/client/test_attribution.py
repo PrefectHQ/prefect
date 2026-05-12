@@ -13,6 +13,9 @@ from prefect._internal.compatibility.starlette import status
 from prefect.client.attribution import get_attribution_headers
 from prefect.client.base import PrefectHttpxAsyncClient, PrefectHttpxSyncClient
 
+import pytest
+pytestmark = pytest.mark.clear_db
+
 RESPONSE_200 = Response(
     status.HTTP_200_OK,
     request=Request("a test request", "fake.url/fake/route"),

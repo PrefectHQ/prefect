@@ -31,6 +31,8 @@ from prefect.settings import (
 )
 from prefect.settings.context import temporary_settings
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def use_filesystem_lease_storage():
