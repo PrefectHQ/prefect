@@ -1,13 +1,13 @@
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 import watchfiles
 
 import prefect
 import prefect.cli.dev
 from prefect.testing.cli import invoke_and_assert
 
-import pytest
 pytestmark = pytest.mark.clear_db
 
 

@@ -1,6 +1,7 @@
+import pytest
+
 from prefect.server.events.jinja_filters import flow_run_id
 
-import pytest
 pytestmark = pytest.mark.clear_db
 
 

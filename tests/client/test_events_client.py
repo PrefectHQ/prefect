@@ -1,11 +1,12 @@
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
+import pytest
+
 import prefect.types._datetime
 from prefect.client.orchestration import get_client
 from prefect.events.filters import EventFilter, EventOccurredFilter
 
-import pytest
 pytestmark = pytest.mark.clear_db
 
 if TYPE_CHECKING:

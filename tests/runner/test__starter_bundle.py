@@ -3,10 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from prefect.runner._process_manager import ProcessHandle
 from prefect.runner._starter_bundle import BundleExecutionStarter
 
-import pytest
 pytestmark = pytest.mark.clear_db
 
 

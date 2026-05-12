@@ -3,11 +3,11 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 from uuid import uuid4
 
+import pytest
 from cachetools import LRUCache
 
 from prefect.runner._deployment_registry import DeploymentRegistry
 
-import pytest
 pytestmark = pytest.mark.clear_db
 
 

@@ -1,9 +1,10 @@
 from typing import get_args
 
+import pytest
+
 from prefect.client.orchestration.routes import ServerRoutes
 from prefect.server.api.server import create_api_app
 
-import pytest
 pytestmark = pytest.mark.clear_db
 
 

@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+import pytest
 import sqlalchemy as sa
 
 from prefect.server import models, schemas
@@ -8,7 +9,6 @@ from prefect.server.models.storage_defaults import (
     SERVER_DEFAULT_RESULT_STORAGE_CONFIGURATION_KEY,
 )
 
-import pytest
 pytestmark = pytest.mark.clear_db
 
 

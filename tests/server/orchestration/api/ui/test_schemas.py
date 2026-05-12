@@ -1,6 +1,6 @@
+import pytest
 from httpx import AsyncClient
 
-import pytest
 pytestmark = pytest.mark.clear_db
 
 

@@ -1,8 +1,8 @@
 from unittest.mock import AsyncMock
 
+import pytest
 from starlette import status
 
-import pytest
 pytestmark = pytest.mark.clear_db
 
 

@@ -6,6 +6,7 @@ import contextlib
 import datetime
 from uuid import UUID, uuid4
 
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.models as models
@@ -24,7 +25,6 @@ from prefect.server.schemas import states
 from prefect.server.schemas.core import ConcurrencyLimitStrategy
 from prefect.server.schemas.responses import SetStateStatus
 
-import pytest
 pytestmark = pytest.mark.clear_db
 
 

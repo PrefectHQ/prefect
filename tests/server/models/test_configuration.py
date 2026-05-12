@@ -1,6 +1,7 @@
+import pytest
+
 from prefect.server import models, schemas
 
-import pytest
 pytestmark = pytest.mark.clear_db
 
 

@@ -1,10 +1,10 @@
 from uuid import uuid4
 
+import pytest
 from starlette import status
 
 from prefect.server import models, schemas
 
-import pytest
 pytestmark = pytest.mark.clear_db
 
 

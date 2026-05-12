@@ -4,9 +4,10 @@ from contextlib import contextmanager
 from unittest import mock
 from uuid import uuid4
 
+import pytest
+
 from prefect.concurrency._sync import concurrency
 
-import pytest
 pytestmark = pytest.mark.clear_db
 
 

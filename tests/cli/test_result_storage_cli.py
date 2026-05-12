@@ -1,12 +1,13 @@
 import json
 from uuid import uuid4
 
+import pytest
+
 from prefect.client.orchestration import PrefectClient
 from prefect.filesystems import LocalFileSystem
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
-import pytest
 pytestmark = pytest.mark.clear_db
 
 

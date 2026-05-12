@@ -1,9 +1,10 @@
 import time
 from uuid import uuid4
 
+import pytest
+
 from prefect.server import models, schemas
 
-import pytest
 pytestmark = pytest.mark.clear_db
 
 
