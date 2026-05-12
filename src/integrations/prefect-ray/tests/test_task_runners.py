@@ -1,8 +1,6 @@
 import asyncio
 import logging
-import os
 import random
-import subprocess
 import sys
 import time
 import warnings
@@ -13,7 +11,6 @@ import ray.cluster_utils
 from prefect_ray import RayTaskRunner
 from prefect_ray.context import remote_options
 
-import prefect
 from prefect import flow, task
 from prefect.assets import Asset, materialize
 from prefect.client.orchestration import get_client
@@ -54,53 +51,6 @@ def event_loop(request):
 
 
 @pytest.fixture
-def machine_ray_instance():
-    """
-    Starts a ray instance for the current machine
-    """
-    # First ensure any existing Ray processes are stopped
-    try:
-        subprocess.run(
-            ["ray", "stop"],
-            check=True,
-            capture_output=True,
-            cwd=str(prefect.__development_base_path__),
-        )
-    except subprocess.CalledProcessError:
-        # It's okay if ray stop fails - it might not be running
-        pass
-
-    try:
-        # Start Ray with clean session
-        subprocess.check_output(
-            [
-                "ray",
-                "start",
-                "--head",
-                "--include-dashboard",
-                "False",
-                "--disable-usage-stats",
-            ],
-            cwd=str(prefect.__development_base_path__),
-            env={**os.environ, "RAY_RUNTIME_ENV_LOCAL_DEV_MODE": "1"},
-        )
-        yield "ray://127.0.0.1:10001"
-    except subprocess.CalledProcessError as exc:
-        pytest.fail(f"Failed to start ray: {exc.stderr or exc}")
-    finally:
-        # Always try to stop Ray in the cleanup
-        try:
-            subprocess.run(
-                ["ray", "stop"],
-                check=True,
-                capture_output=True,
-                cwd=str(prefect.__development_base_path__),
-            )
-        except subprocess.CalledProcessError:
-            pass  # Best effort cleanup
-
-
-@pytest.fixture
 def default_ray_task_runner():
     with warnings.catch_warnings():
         # Ray does not properly close resources and we do not want their warnings to
@@ -111,23 +61,6 @@ def default_ray_task_runner():
         yield RayTaskRunner(
             init_kwargs={"runtime_env": {"RAY_RUNTIME_ENV_LOCAL_DEV_MODE": "1"}}
         )
-
-
-@pytest.fixture
-def ray_task_runner_with_existing_cluster(
-    machine_ray_instance,
-    use_hosted_api_server,  # noqa: F811
-    hosted_api_server,  # noqa: F811
-):
-    """
-    Generate a ray task runner that's connected to a ray instance running in a separate
-    process.
-
-    This tests connection via `ray://` which is a client-based connection.
-    """
-    yield RayTaskRunner(
-        address=machine_ray_instance,
-    )
 
 
 @pytest.fixture
@@ -179,9 +112,6 @@ task_runner_setups = [
     ray_task_runner_with_inprocess_cluster,
     ray_task_runner_with_temporary_cluster,
 ]
-
-if sys.version_info >= (3, 10):
-    task_runner_setups.append(ray_task_runner_with_existing_cluster)
 
 
 class TestRayTaskRunner:
