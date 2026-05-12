@@ -258,20 +258,23 @@ class TestSqsSubscriber:
         messages_batch_1 = {
             "Messages": [
                 {"Body": "message1", "ReceiptHandle": "handle1"},
-                {"Body": "message2", "ReceiptHandle": "handle2"},
             ]
         }
         messages_batch_2 = {
             "Messages": [
+                {"Body": "message2", "ReceiptHandle": "handle2"},
+            ]
+        }
+        messages_batch_3 = {
+            "Messages": [
                 {"Body": "message3", "ReceiptHandle": "handle3"},
             ]
         }
-        empty_batch = {"Messages": []}
 
         mock_sqs_client.receive_message.side_effect = [
             messages_batch_1,
             messages_batch_2,
-            empty_batch,
+            messages_batch_3,
         ]
 
         messages = []
@@ -287,6 +290,9 @@ class TestSqsSubscriber:
         assert messages[0]["Body"] == "message1"
         assert messages[1]["Body"] == "message2"
         assert messages[2]["Body"] == "message3"
+
+        for call in mock_sqs_client.receive_message.call_args_list:
+            assert call.kwargs["MaxNumberOfMessages"] == 1
 
         # Note: Only 2 deletes will be called because we break after the 3rd yield
         # but before its delete can execute
@@ -320,16 +326,17 @@ class TestSqsSubscriber:
         messages_batch = {
             "Messages": [
                 {"Body": "message1"},  # No ReceiptHandle, should be skipped
+            ]
+        }
+        messages_batch_2 = {
+            "Messages": [
                 {"Body": "message2", "ReceiptHandle": "handle2"},
             ]
         }
 
-        # Second batch to ensure we can break out
-        empty_batch = {"Messages": []}
-
         mock_sqs_client.receive_message.side_effect = [
             messages_batch,
-            empty_batch,
+            messages_batch_2,
         ]
 
         messages = []

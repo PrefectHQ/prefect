@@ -274,7 +274,7 @@ class SqsSubscriber:
                 try:
                     messages = await sqs_client.receive_message(
                         QueueUrl=queue_url,
-                        MaxNumberOfMessages=10,
+                        MaxNumberOfMessages=1,
                         WaitTimeSeconds=20,
                     )
                 except Exception as e:
