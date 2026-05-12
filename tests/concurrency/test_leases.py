@@ -190,8 +190,9 @@ def test_lease_renewal_client_uses_async_client_api_url():
         mock.patch(
             "prefect.context.AsyncClientContext.get", return_value=mock_async_ctx
         ),
-        mock.patch("prefect.client.orchestration.SyncPrefectClient")
-        as mock_sync_client_cls,
+        mock.patch(
+            "prefect.client.orchestration.SyncPrefectClient"
+        ) as mock_sync_client_cls,
     ):
         mock_sync_client_cls.return_value.__enter__.return_value = mock.MagicMock()
 
