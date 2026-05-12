@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -24,33 +25,22 @@ if TYPE_CHECKING:
 
 
 class CancellingTimeoutTeardownHandler:
-    """
-    Cleanup handler for `cancelling_timeout_teardown.v1`.
+    """Idempotent infrastructure teardown for `cancelling_timeout_teardown.v1`.
 
-    Performs idempotent infrastructure teardown for a flow run after the
-    server has already committed the state-machine outcome that requires
-    cleanup. The handler uses stable target identifiers from the cleanup
-    payload (`target.flow_run_id`, `target.infrastructure_pid`) and reuses
-    the worker's existing `kill_infrastructure` semantics.
+    The cleanup message is enqueued after the server has already committed
+    the CANCELLING-timeout state outcome. Boundary contract:
 
-    Capable worker types — those that override `kill_infrastructure` —
-    are auto-registered by `BaseWorker` via
-    `build_cleanup_handler_registry`. A class-level `cleanup_handlers`
-    entry for the same cleanup kind takes precedence, letting workers
-    swap in a custom teardown strategy.
-
-    Boundary contract:
-    - Does not propose or force flow-run state transitions; the server has
-      already crossed the timeout boundary by the time cleanup is enqueued.
-    - Does not require the current flow-run state to be `CANCELLING` and
+    - Does not propose or force flow-run state transitions.
+    - Does not require the flow run to currently be in `CANCELLING` and
       does not skip teardown when the flow run has a `start_time`.
     - Treats `InfrastructureNotFound` and an absent infrastructure handle
       (when no actionable handle can be determined) as idempotent success.
-    - Treats `InfrastructureNotAvailable`, `NotImplementedError`, and
-      missing configuration context as stable release reasons rather than
-      generic errors so the cleanup executor can release with intent.
-    - Does not depend on an immutable submission-time job configuration
-      record; current worker configuration is used only for provider access.
+    - Maps `InfrastructureNotAvailable`, `NotImplementedError`, and missing
+      configuration context to stable release reasons rather than generic
+      errors so the executor can release with intent.
+    - Uses the cleanup payload's stable target identifiers; current worker
+      configuration is consulted only for provider access, not as proof of
+      submission-time configuration.
     """
 
     cleanup_kind = CANCELLING_TIMEOUT_TEARDOWN
@@ -112,36 +102,23 @@ class CancellingTimeoutTeardownHandler:
             return None
 
 
-def _worker_implements_kill_infrastructure(
-    worker: "BaseWorker[Any, Any, Any]",
-) -> bool:
-    """Return True when the worker subclass overrides `kill_infrastructure`.
-
-    Walks the worker's MRO and counts the classes that define the method
-    directly in their `__dict__`. The abstract base contributes one; any
-    additional class means the subclass overrides it.
-    """
-    return sum("kill_infrastructure" in vars(cls) for cls in type(worker).__mro__) > 1
+@lru_cache(maxsize=None)
+def _class_implements_kill_infrastructure(cls: type) -> bool:
+    return sum("kill_infrastructure" in vars(c) for c in cls.__mro__) > 1
 
 
 def build_cleanup_handler_registry(
     worker: "BaseWorker[Any, Any, Any]",
 ) -> "WorkerCleanupHandlerRegistry":
-    """
-    Build the cleanup handler registry for a worker.
+    """Build the cleanup handler registry for a worker.
 
-    Called from `BaseWorker.__init__`. Class-level `cleanup_handlers` are
-    registered first; per-instance default handlers are then added for
-    capabilities the worker exposes, but only when the class hasn't
-    already supplied a handler for the same cleanup kind.
-
-    Future cleanup kinds can hook in here without expanding conditionals
-    in `BaseWorker`.
+    Class-level `cleanup_handlers` for a given cleanup kind take precedence
+    over the per-instance default registered here.
     """
     registry = WorkerCleanupHandlerRegistry(worker.__class__.cleanup_handlers)
 
     if (
-        _worker_implements_kill_infrastructure(worker)
+        _class_implements_kill_infrastructure(type(worker))
         and registry.get(CANCELLING_TIMEOUT_TEARDOWN) is None
     ):
         registry.register(CancellingTimeoutTeardownHandler(worker))
