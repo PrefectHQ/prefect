@@ -140,7 +140,6 @@ executes with the snapshotted context active. Logs emitted with
 `get_run_logger()` in the worker thread are then associated with the
 parent flow run and task run and appear in the Prefect UI.
 
-{/* pmd-metadata: notest */}
 ```python
 from concurrent.futures import ThreadPoolExecutor
 from contextvars import copy_context
