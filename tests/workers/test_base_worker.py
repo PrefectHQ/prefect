@@ -3245,8 +3245,13 @@ async def test_env_merge_logic_is_deep(
         work_pool_name=work_pool.name if work_pool_env else "test-work-pool",
     ) as worker:
         await worker.sync_with_backend()
-        config = await worker.get_configuration(
-            flow_run, schemas.responses.DeploymentResponse.model_validate(deployment)
+        config = await worker.job_configuration.resolve_for_flow_run(
+            flow_run,
+            client=worker.client,
+            work_pool=worker.work_pool,
+            worker_name=worker.name,
+            worker_id=worker.backend_id,
+            deployment=schemas.responses.DeploymentResponse.model_validate(deployment),
         )
 
     for key, value in expected_env.items():
@@ -3319,8 +3324,13 @@ async def test_work_pool_env_from_job_configuration_merges_with_variable_default
         work_pool_name=work_pool.name,
     ) as worker:
         await worker.sync_with_backend()
-        config = await worker.get_configuration(
-            flow_run, schemas.responses.DeploymentResponse.model_validate(deployment)
+        config = await worker.job_configuration.resolve_for_flow_run(
+            flow_run,
+            client=worker.client,
+            work_pool=worker.work_pool,
+            worker_name=worker.name,
+            worker_id=worker.backend_id,
+            deployment=schemas.responses.DeploymentResponse.model_validate(deployment),
         )
 
     # All env vars should be present: job_configuration + variable defaults + deployment
@@ -4535,7 +4545,13 @@ class TestBackwardsCompatibility:
         # Should warn and not raise an error
         with pytest.warns(PrefectDeprecationWarning):
             async with OldStyleWorker(work_pool_name=work_pool.name) as worker:
-                await worker.get_configuration(flow_run=flow_run)
+                await worker.job_configuration.resolve_for_flow_run(
+                    flow_run,
+                    client=worker.client,
+                    work_pool=worker.work_pool,
+                    worker_name=worker.name,
+                    worker_id=worker.backend_id,
+                )
 
 
 class TestWorkerCancellationHandling:

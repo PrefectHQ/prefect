@@ -307,8 +307,8 @@ class TestHandlerBehavior:
         async with TeardownTrackingWorker(work_pool_name=work_pool.name) as worker:
             handler = _handler_for(worker)
             with mock.patch.object(
-                worker,
-                "get_configuration",
+                worker.job_configuration,
+                "resolve_for_flow_run",
                 AsyncMock(side_effect=ObjectNotFound(Exception("deployment gone"))),
             ):
                 result = await handler.cleanup(

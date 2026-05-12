@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 from functools import lru_cache
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -75,8 +76,17 @@ class CancellingTimeoutTeardownHandler:
                 return CleanupExecutionResult.success()
             return CleanupExecutionResult.release("missing_infrastructure_handle")
 
+        # Freeze the worker's work-pool view so a mid-flight snapshot apply
+        # cannot retemplate the configuration we're handing to kill_infrastructure.
+        work_pool = copy.deepcopy(self._worker.work_pool)
         try:
-            configuration = await self._worker.get_configuration(flow_run)
+            configuration = await self._worker.job_configuration.resolve_for_flow_run(
+                flow_run,
+                client=self._worker.client,
+                work_pool=work_pool,
+                worker_name=self._worker.name,
+                worker_id=self._worker.backend_id,
+            )
         except ObjectNotFound:
             return CleanupExecutionResult.release("configuration_context_unavailable")
 

@@ -220,7 +220,13 @@ async def test_worker_process_run_flow_run(
     ) as worker:
         result = await worker.run(
             flow_run,
-            configuration=await worker.get_configuration(flow_run),
+            configuration=await worker.job_configuration.resolve_for_flow_run(
+                flow_run,
+                client=worker.client,
+                work_pool=worker.work_pool,
+                worker_name=worker.name,
+                worker_id=worker.backend_id,
+            ),
         )
 
         assert isinstance(result, ProcessWorkerResult)
@@ -242,7 +248,13 @@ async def test_worker_process_run_flow_run_with_env_variables_job_config_default
     async with ProcessWorker(
         work_pool_name=work_pool_with_default_env.name,
     ) as worker:
-        configuration = await worker.get_configuration(flow_run)
+        configuration = await worker.job_configuration.resolve_for_flow_run(
+            flow_run,
+            client=worker.client,
+            work_pool=worker.work_pool,
+            worker_name=worker.name,
+            worker_id=worker.backend_id,
+        )
         assert configuration.working_dir is None, (
             "This test assumes no configured working_dir"
         )
@@ -281,8 +293,12 @@ async def test_worker_process_run_flow_run_with_env_variables_from_overrides(
     async with ProcessWorker(
         work_pool_name=work_pool_with_default_env.name,
     ) as worker:
-        configuration = await worker.get_configuration(
-            flow_run_with_deployment_overrides
+        configuration = await worker.job_configuration.resolve_for_flow_run(
+            flow_run_with_deployment_overrides,
+            client=worker.client,
+            work_pool=worker.work_pool,
+            worker_name=worker.name,
+            worker_id=worker.backend_id,
         )
         result = await worker.run(
             flow_run_with_deployment_overrides,
@@ -317,8 +333,12 @@ async def test_flow_run_without_job_vars(
     async with ProcessWorker(
         work_pool_name=work_pool_with_default_env.name,
     ) as worker:
-        configuration = await worker.get_configuration(
-            flow_run_with_deployment_overrides
+        configuration = await worker.job_configuration.resolve_for_flow_run(
+            flow_run_with_deployment_overrides,
+            client=worker.client,
+            work_pool=worker.work_pool,
+            worker_name=worker.name,
+            worker_id=worker.backend_id,
         )
         assert str(configuration.working_dir) == deployment.job_variables["working_dir"]
 
@@ -342,7 +362,13 @@ async def test_flow_run_vars_take_precedence(
     async with ProcessWorker(
         work_pool_name=work_pool_with_default_env.name,
     ) as worker:
-        config = await worker.get_configuration(flow_run_with_overrides)
+        config = await worker.job_configuration.resolve_for_flow_run(
+            flow_run_with_overrides,
+            client=worker.client,
+            work_pool=worker.work_pool,
+            worker_name=worker.name,
+            worker_id=worker.backend_id,
+        )
         assert (
             str(config.working_dir)
             == flow_run_with_overrides.job_variables["working_dir"]
@@ -368,7 +394,13 @@ async def test_flow_run_vars_and_deployment_vars_get_merged(
     async with ProcessWorker(
         work_pool_name=work_pool_with_default_env.name,
     ) as worker:
-        config = await worker.get_configuration(flow_run_with_overrides)
+        config = await worker.job_configuration.resolve_for_flow_run(
+            flow_run_with_overrides,
+            client=worker.client,
+            work_pool=worker.work_pool,
+            worker_name=worker.name,
+            worker_id=worker.backend_id,
+        )
         assert (
             str(config.working_dir)
             == flow_run_with_overrides.job_variables["working_dir"]
@@ -386,7 +418,13 @@ async def test_process_worker_working_dir_override(
 
     # Check default is not the mock_path
     async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
-        configuration = await worker.get_configuration(flow_run)
+        configuration = await worker.job_configuration.resolve_for_flow_run(
+            flow_run,
+            client=worker.client,
+            work_pool=worker.work_pool,
+            worker_name=worker.name,
+            worker_id=worker.backend_id,
+        )
         result = await worker.run(
             flow_run=flow_run,
             configuration=configuration,
@@ -407,7 +445,13 @@ async def test_process_worker_working_dir_override(
         ),
     )
     async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
-        configuration = await worker.get_configuration(flow_run)
+        configuration = await worker.job_configuration.resolve_for_flow_run(
+            flow_run,
+            client=worker.client,
+            work_pool=worker.work_pool,
+            worker_name=worker.name,
+            worker_id=worker.backend_id,
+        )
         result = await worker.run(
             flow_run=flow_run,
             configuration=configuration,
@@ -427,7 +471,13 @@ async def test_process_worker_stream_output_override(
     prefect_client: PrefectClient,
 ):
     async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
-        configuration = await worker.get_configuration(flow_run)
+        configuration = await worker.job_configuration.resolve_for_flow_run(
+            flow_run,
+            client=worker.client,
+            work_pool=worker.work_pool,
+            worker_name=worker.name,
+            worker_id=worker.backend_id,
+        )
         result = await worker.run(
             flow_run=flow_run,
             configuration=configuration,
@@ -446,7 +496,13 @@ async def test_process_worker_stream_output_override(
     )
 
     async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
-        configuration = await worker.get_configuration(flow_run)
+        configuration = await worker.job_configuration.resolve_for_flow_run(
+            flow_run,
+            client=worker.client,
+            work_pool=worker.work_pool,
+            worker_name=worker.name,
+            worker_id=worker.backend_id,
+        )
         result = await worker.run(
             flow_run=flow_run,
             configuration=configuration,
@@ -464,7 +520,13 @@ async def test_process_worker_executes_flow_run_with_runner(
     monkeypatch: pytest.MonkeyPatch,
 ):
     async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
-        configuration = await worker.get_configuration(flow_run)
+        configuration = await worker.job_configuration.resolve_for_flow_run(
+            flow_run,
+            client=worker.client,
+            work_pool=worker.work_pool,
+            worker_name=worker.name,
+            worker_id=worker.backend_id,
+        )
         assert configuration.working_dir is None, (
             "This test assumes no configured working_dir"
         )
@@ -498,8 +560,12 @@ async def test_process_worker_command_override(
 ):
     override_command = deployment_with_overrides.job_variables["command"]
     async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
-        configuration = await worker.get_configuration(
-            flow_run_with_deployment_overrides
+        configuration = await worker.job_configuration.resolve_for_flow_run(
+            flow_run_with_deployment_overrides,
+            client=worker.client,
+            work_pool=worker.work_pool,
+            worker_name=worker.name,
+            worker_id=worker.backend_id,
         )
         result = await worker.run(
             flow_run=flow_run_with_deployment_overrides,
@@ -526,7 +592,13 @@ async def test_task_status_receives_pid(
     async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
         result = await worker.run(
             flow_run=flow_run,
-            configuration=await worker.get_configuration(flow_run),
+            configuration=await worker.job_configuration.resolve_for_flow_run(
+                flow_run,
+                client=worker.client,
+                work_pool=worker.work_pool,
+                worker_name=worker.name,
+                worker_id=worker.backend_id,
+            ),
             task_status=fake_status,
         )
 
