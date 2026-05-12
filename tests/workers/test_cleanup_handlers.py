@@ -36,8 +36,8 @@ from prefect.workers.base import (
 
 class TeardownTrackingWorker(BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]):
     """
-    Test worker that overrides `kill_infrastructure` so the handler has a
-    capable target to dispatch to.
+    Test worker that overrides `kill_infrastructure` so `BaseWorker` will
+    auto-register the cancelling-timeout cleanup handler.
     """
 
     type = "cleanup-handler-test-capable"
@@ -46,7 +46,6 @@ class TeardownTrackingWorker(BaseWorker[BaseJobConfiguration, Any, BaseWorkerRes
         super().__init__(*args, **kwargs)
         self.kill_calls: list[dict[str, Any]] = []
         self.kill_side_effect: BaseException | None = None
-        self._cleanup_handler_registry.register(CancellingTimeoutTeardownHandler(self))
 
     async def run(  # type: ignore[override]
         self,
@@ -166,20 +165,28 @@ class TestHandlerRegistration:
 
         assert handler.cleanup_kind == CANCELLING_TIMEOUT_TEARDOWN
 
-    async def test_capable_worker_advertises_cancelling_timeout_kind(self):
+    async def test_capable_worker_auto_registers_handler(self):
+        """Overriding `kill_infrastructure` should auto-register the
+        cancelling-timeout cleanup handler via `BaseWorker.__init__`."""
         worker = TeardownTrackingWorker(work_pool_name="test")
 
         assert worker.handled_cleanup_kinds == (CANCELLING_TIMEOUT_TEARDOWN,)
         assert worker.max_cleanup_concurrency == 1
+        registered = worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN)
+        assert isinstance(registered, CancellingTimeoutTeardownHandler)
+        # The auto-registered handler is bound to this worker instance.
+        assert registered._worker is worker
 
     async def test_incapable_worker_does_not_advertise_cancelling_timeout_kind(self):
         worker = IncapableWorker(work_pool_name="test")
 
         assert worker.handled_cleanup_kinds == ()
         assert worker.max_cleanup_concurrency == 0
+        assert worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN) is None
 
     async def test_base_worker_does_not_register_handler_by_default(self):
-        """The base worker should not auto-register the cancelling timeout handler."""
+        """A subclass that inherits the base `kill_infrastructure` should not
+        get the handler auto-registered."""
 
         class NoCleanupWorker(BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]):
             type = "cleanup-handler-test-no-cleanup"
@@ -193,6 +200,62 @@ class TestHandlerRegistration:
 
         assert worker.handled_cleanup_kinds == ()
         assert worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN) is None
+
+    async def test_explicit_cleanup_handlers_opts_out_of_auto_registration(self):
+        """Passing `_cleanup_handlers` (even an empty tuple) should fully
+        override the auto-registration so callers retain control over what
+        the worker advertises."""
+        worker = TeardownTrackingWorker(
+            work_pool_name="test",
+            _cleanup_handlers=(),
+        )
+
+        assert worker.handled_cleanup_kinds == ()
+        assert worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN) is None
+
+    async def test_explicit_cleanup_handlers_replaces_default(self):
+        """A capable worker that supplies a custom handler for the cancelling
+        timeout kind should keep its custom handler instead of getting the
+        default auto-registered."""
+
+        class CustomHandler:
+            cleanup_kind = CANCELLING_TIMEOUT_TEARDOWN
+
+            async def cleanup(self, message):
+                return CleanupExecutionResult.success()
+
+        custom = CustomHandler()
+        worker = TeardownTrackingWorker(
+            work_pool_name="test",
+            _cleanup_handlers=(custom,),
+        )
+
+        assert (
+            worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN) is custom
+        )
+
+    async def test_class_level_cleanup_handlers_take_precedence(self):
+        """A capable subclass that sets `cleanup_handlers` to its own handler
+        for the cancelling timeout kind keeps that handler — the
+        auto-registration only fills in when the kind is unhandled."""
+
+        class CustomHandler:
+            cleanup_kind = CANCELLING_TIMEOUT_TEARDOWN
+
+            async def cleanup(self, message):
+                return CleanupExecutionResult.success()
+
+        custom = CustomHandler()
+
+        class CapableCustomWorker(TeardownTrackingWorker):
+            type = "cleanup-handler-test-capable-custom"
+            cleanup_handlers = (custom,)
+
+        worker = CapableCustomWorker(work_pool_name="test")
+
+        assert (
+            worker.cleanup_handler_registry.get(CANCELLING_TIMEOUT_TEARDOWN) is custom
+        )
 
 
 class TestHandlerBehavior:

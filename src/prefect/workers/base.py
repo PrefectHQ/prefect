@@ -612,6 +612,17 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             if _cleanup_handlers is not None
             else self.__class__.cleanup_handlers
         )
+        # When the caller did not pass an explicit handler list, auto-register
+        # default handlers (e.g., cancelling_timeout_teardown.v1) for workers
+        # that expose the required capability. Passing _cleanup_handlers (even
+        # as an empty tuple) opts out of auto-registration so callers retain
+        # full control over what the worker advertises.
+        if _cleanup_handlers is None:
+            from prefect.workers._cleanup_handlers import (
+                register_default_cleanup_handlers,
+            )
+
+            register_default_cleanup_handlers(self)
         if _max_cleanup_concurrency is not None and _max_cleanup_concurrency < 0:
             raise ValueError("Cleanup concurrency cannot be negative")
         self._max_cleanup_concurrency_override = _max_cleanup_concurrency

@@ -30,16 +30,11 @@ class CancellingTimeoutTeardownHandler:
     payload (`target.flow_run_id`, `target.infrastructure_pid`) and reuses
     the worker's existing `kill_infrastructure` semantics.
 
-    The handler is opt-in: capable worker types (those that implement
-    `kill_infrastructure`) should register it on their cleanup handler
-    registry, typically in their constructor:
-
-        class MyWorker(BaseWorker[...]):
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self._cleanup_handler_registry.register(
-                    CancellingTimeoutTeardownHandler(self)
-                )
+    Capable worker types — those that override `kill_infrastructure` —
+    are auto-registered by `BaseWorker` via
+    `register_default_cleanup_handlers`. Workers that need different
+    behavior (e.g., a custom teardown strategy, or opt-out) can pass
+    `_cleanup_handlers=` explicitly to skip the auto-registration.
 
     Boundary contract:
     - Does not propose or force flow-run state transitions; the server has
@@ -114,4 +109,41 @@ class CancellingTimeoutTeardownHandler:
             return None
 
 
-__all__ = ["CancellingTimeoutTeardownHandler"]
+def _worker_implements_kill_infrastructure(
+    worker: "BaseWorker[Any, Any, Any]",
+) -> bool:
+    """Return True when the worker subclass overrides `kill_infrastructure`."""
+    from prefect.workers.base import BaseWorker as _BaseWorker
+
+    return type(worker).kill_infrastructure is not _BaseWorker.kill_infrastructure
+
+
+def register_default_cleanup_handlers(
+    worker: "BaseWorker[Any, Any, Any]",
+) -> None:
+    """
+    Auto-register default cleanup handlers on a worker based on its
+    capabilities.
+
+    Called from `BaseWorker.__init__` after the cleanup handler registry is
+    built, when the user has not explicitly supplied `_cleanup_handlers`.
+
+    Future cleanup kinds can hook in here without expanding conditionals in
+    `BaseWorker`. A handler is added only when:
+    - the worker exposes the capability it requires, AND
+    - no handler is already registered for that cleanup kind (so explicit
+      class-level `cleanup_handlers` or a custom strategy wins).
+    """
+    registry = worker.cleanup_handler_registry
+
+    if (
+        _worker_implements_kill_infrastructure(worker)
+        and registry.get(CANCELLING_TIMEOUT_TEARDOWN) is None
+    ):
+        registry.register(CancellingTimeoutTeardownHandler(worker))
+
+
+__all__ = [
+    "CancellingTimeoutTeardownHandler",
+    "register_default_cleanup_handlers",
+]
