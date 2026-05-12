@@ -109,6 +109,7 @@ from prefect.workers._cleanup import (
     WorkerCleanupHandler,
     WorkerCleanupHandlerRegistry,
 )
+from prefect.workers._cleanup_handlers import register_default_cleanup_handlers
 from prefect.workers._worker_channel import WorkerChannel, WorkPoolWorkerChannel
 
 if TYPE_CHECKING:
@@ -618,10 +619,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         # as an empty tuple) opts out of auto-registration so callers retain
         # full control over what the worker advertises.
         if _cleanup_handlers is None:
-            from prefect.workers._cleanup_handlers import (
-                register_default_cleanup_handlers,
-            )
-
             register_default_cleanup_handlers(self)
         if _max_cleanup_concurrency is not None and _max_cleanup_concurrency < 0:
             raise ValueError("Cleanup concurrency cannot be negative")

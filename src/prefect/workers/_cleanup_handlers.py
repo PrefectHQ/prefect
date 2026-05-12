@@ -112,10 +112,13 @@ class CancellingTimeoutTeardownHandler:
 def _worker_implements_kill_infrastructure(
     worker: "BaseWorker[Any, Any, Any]",
 ) -> bool:
-    """Return True when the worker subclass overrides `kill_infrastructure`."""
-    from prefect.workers.base import BaseWorker as _BaseWorker
+    """Return True when the worker subclass overrides `kill_infrastructure`.
 
-    return type(worker).kill_infrastructure is not _BaseWorker.kill_infrastructure
+    Walks the worker's MRO and counts the classes that define the method
+    directly in their `__dict__`. The abstract base contributes one; any
+    additional class means the subclass overrides it.
+    """
+    return sum("kill_infrastructure" in vars(cls) for cls in type(worker).__mro__) > 1
 
 
 def register_default_cleanup_handlers(
