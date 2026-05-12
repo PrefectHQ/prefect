@@ -606,3 +606,127 @@ class TestRayTaskRunner:
         ]
         assert len(related_assets) == 1
         assert related_assets[0]["prefect.resource.id"] == upstream.key
+
+
+@pytest.fixture
+def cleanup_ray():
+    """Ensure Ray is shut down before and after a test."""
+    if ray.is_initialized():
+        ray.shutdown()
+    try:
+        yield
+    finally:
+        if ray.is_initialized():
+            ray.shutdown()
+
+
+class TestRayTaskRunnerOwnership:
+    """
+    Tests that `RayTaskRunner.__exit__` only shuts down Ray when this task
+    runner is the one that initialized it.
+
+    Regression coverage for
+    https://github.com/PrefectHQ/prefect/issues/21920.
+    """
+
+    def test_existing_ray_instance_is_preserved_after_flow(
+        self,
+        cleanup_ray,
+        use_hosted_api_server,  # noqa: F811
+        hosted_api_server,  # noqa: F811
+    ):
+        @task
+        def square(x: int) -> int:
+            return x * x
+
+        @flow(task_runner=RayTaskRunner())
+        def run_one():
+            return [f.result() for f in square.map([1, 2, 3])]
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", ResourceWarning)
+            ray.init(
+                runtime_env={"RAY_RUNTIME_ENV_LOCAL_DEV_MODE": "1"},
+            )
+            assert ray.is_initialized()
+
+            results = run_one()
+
+        assert results == [1, 4, 9]
+        assert ray.is_initialized(), (
+            "RayTaskRunner.__exit__ tore down a Ray instance it did not start"
+        )
+
+    def test_temporary_cluster_is_shut_down_after_flow(
+        self,
+        cleanup_ray,
+        use_hosted_api_server,  # noqa: F811
+        hosted_api_server,  # noqa: F811
+    ):
+        @task
+        def square(x: int) -> int:
+            return x * x
+
+        @flow(task_runner=RayTaskRunner())
+        def run_one():
+            return [f.result() for f in square.map([1, 2, 3])]
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", ResourceWarning)
+            assert not ray.is_initialized()
+            results = run_one()
+
+        assert results == [1, 4, 9]
+        assert not ray.is_initialized(), (
+            "RayTaskRunner.__exit__ failed to shut down a cluster it started"
+        )
+
+    def test_existing_ray_instance_survives_multiple_flows(
+        self,
+        cleanup_ray,
+        use_hosted_api_server,  # noqa: F811
+        hosted_api_server,  # noqa: F811
+    ):
+        @task
+        def square(x: int) -> int:
+            return x * x
+
+        @flow(task_runner=RayTaskRunner())
+        def run_one():
+            return [f.result() for f in square.map([1, 2, 3])]
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", ResourceWarning)
+            ray.init(
+                runtime_env={"RAY_RUNTIME_ENV_LOCAL_DEV_MODE": "1"},
+            )
+            assert ray.is_initialized()
+
+            for _ in range(3):
+                assert run_one() == [1, 4, 9]
+                assert ray.is_initialized()
+
+    def test_owns_ray_flag_is_set_correctly(
+        self,
+        cleanup_ray,
+    ):
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", ResourceWarning)
+
+            # No pre-existing Ray instance: task runner owns the cluster.
+            runner = RayTaskRunner(
+                init_kwargs={"runtime_env": {"RAY_RUNTIME_ENV_LOCAL_DEV_MODE": "1"}},
+            )
+            with runner:
+                assert runner._owns_ray is True
+            assert not ray.is_initialized()
+
+            # Pre-existing Ray instance: task runner does not own the cluster.
+            ray.init(
+                runtime_env={"RAY_RUNTIME_ENV_LOCAL_DEV_MODE": "1"},
+            )
+            assert ray.is_initialized()
+            runner = RayTaskRunner()
+            with runner:
+                assert runner._owns_ray is False
+            assert ray.is_initialized()
