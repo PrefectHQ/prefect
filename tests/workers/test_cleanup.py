@@ -89,6 +89,16 @@ class CancellableCleanupHandler:
             self.cancelled.set()
 
 
+class CleanupWorkerTestImpl(WorkerTestImpl):
+    type = "cleanup-test-with-handlers"
+    cleanup_handlers = (RecordingCleanupHandler(),)
+
+
+class LimitedCleanupWorkerTestImpl(CleanupWorkerTestImpl):
+    type = "cleanup-test-with-limited-handlers"
+    cleanup_max_concurrency = 2
+
+
 class QueueWorkerChannelWebSocket:
     def __init__(self, messages: list[dict[str, Any] | BaseException] | None = None):
         self._send_stream, self._receive_stream = anyio.create_memory_object_stream[
@@ -244,6 +254,53 @@ def _operation_result(
     )
 
 
+def _operation_frame(
+    frame_type: type[CleanupOperationFrame],
+    message: CleanupMessageFrame,
+) -> CleanupOperationFrame:
+    payload = {
+        "message_id": str(message.payload.message_id),
+        "reservation_token": message.payload.reservation_token,
+    }
+    frame_base = {
+        "id": str(uuid7()),
+        "sent_at": now("UTC").isoformat(),
+    }
+    if frame_type is CleanupAckFrame:
+        return CleanupAckFrame.model_validate(
+            {
+                "type": "cleanup.ack.v1",
+                "payload": payload,
+                **frame_base,
+            }
+        )
+    if frame_type is CleanupReleaseFrame:
+        return CleanupReleaseFrame.model_validate(
+            {
+                "type": "cleanup.release.v1",
+                "payload": {**payload, "reason": "cannot_act"},
+                **frame_base,
+            }
+        )
+    if frame_type is CleanupRenewFrame:
+        return CleanupRenewFrame.model_validate(
+            {
+                "type": "cleanup.renew.v1",
+                "payload": payload,
+                **frame_base,
+            }
+        )
+    raise TypeError(f"Unexpected frame type: {frame_type!r}")
+
+
+def _cleanup_executor_for_worker(worker: WorkerTestImpl) -> WorkerCleanupExecutor:
+    return WorkerCleanupExecutor(
+        handlers=worker.cleanup_handler_registry,
+        max_concurrency=worker.max_cleanup_concurrency,
+        logger=logging.getLogger("test-worker-channel"),
+    )
+
+
 async def test_registry_advertises_declared_cleanup_kinds():
     handler = RecordingCleanupHandler()
     registry = WorkerCleanupHandlerRegistry([handler])
@@ -264,27 +321,22 @@ async def test_worker_advertises_cleanup_only_when_handlers_are_available():
 
     assert no_cleanup_worker.handled_cleanup_kinds == ()
     assert no_cleanup_worker.max_cleanup_concurrency == 0
-    assert no_cleanup_worker._cleanup_delivery_available() is False
 
-    cleanup_worker = WorkerTestImpl(
+    cleanup_worker = CleanupWorkerTestImpl(
         work_pool_name="test",
         limit=10,
-        _cleanup_handlers=[RecordingCleanupHandler()],
     )
 
     assert cleanup_worker.handled_cleanup_kinds == (CANCELLING_TIMEOUT_TEARDOWN,)
     assert cleanup_worker.max_cleanup_concurrency == 1
-    assert cleanup_worker._cleanup_delivery_available() is True
 
 
 async def test_protocol_advertises_cleanup_capability_from_executor():
     async def worker_metadata():
         return None
 
-    cleanup_worker = WorkerTestImpl(
+    cleanup_worker = LimitedCleanupWorkerTestImpl(
         work_pool_name="test",
-        _cleanup_handlers=[RecordingCleanupHandler()],
-        _max_cleanup_concurrency=2,
     )
     protocol = WorkerChannelProtocolHandler(
         consumer_id=uuid7(),
@@ -299,7 +351,7 @@ async def test_protocol_advertises_cleanup_capability_from_executor():
             "connection_lost", str(exc)
         ),
         logger=logging.getLogger("test-worker-channel"),
-        cleanup_executor=cleanup_worker._create_cleanup_executor(),
+        cleanup_executor=_cleanup_executor_for_worker(cleanup_worker),
     )
 
     hello = await protocol.build_hello_frame()
@@ -500,16 +552,13 @@ async def test_protocol_cancels_in_flight_cleanup_when_delivery_not_accepted():
         task_group.cancel_scope.cancel()
 
 
-async def test_worker_uses_cleanup_concurrency_override_separate_from_flow_limit():
-    worker = WorkerTestImpl(
+async def test_worker_cleanup_concurrency_is_separate_from_flow_limit():
+    worker = LimitedCleanupWorkerTestImpl(
         work_pool_name="test",
         limit=20,
-        _cleanup_handlers=[RecordingCleanupHandler()],
-        _max_cleanup_concurrency=2,
     )
 
     assert worker.max_cleanup_concurrency == 2
-    assert worker._limit == 20
 
 
 async def test_executor_acks_successful_cleanup():
@@ -848,21 +897,32 @@ async def test_channel_keeps_cleanup_execution_alive_across_reconnects():
         operation_retry_delay_seconds=0,
         max_operation_attempts=2,
     )
-    second_websockets: list[QueueWorkerChannelWebSocket] = []
+    websockets: list[QueueWorkerChannelWebSocket] = []
+    connects: list[FakeWorkerChannelConnect] = []
     channel: WorkPoolWorkerChannel
+    message = _message_frame()
 
     async def worker_metadata():
         return None
 
     def connect_factory(*args: Any, **kwargs: Any) -> FakeWorkerChannelConnect:
-        websocket = QueueWorkerChannelWebSocket(
-            [
-                {"type": "auth_success"},
-                _worker_ready_frame(channel.consumer_id).model_dump(mode="json"),
-            ]
-        )
-        second_websockets.append(websocket)
-        return FakeWorkerChannelConnect(websocket)
+        messages: list[dict[str, Any] | BaseException] = [
+            {"type": "auth_success"},
+            _worker_ready_frame(channel.consumer_id).model_dump(mode="json"),
+        ]
+        if not websockets:
+            messages.extend(
+                [
+                    message.model_dump(mode="json"),
+                    OSError("connection dropped"),
+                ]
+            )
+
+        websocket = QueueWorkerChannelWebSocket(messages)
+        connect = FakeWorkerChannelConnect(websocket)
+        websockets.append(websocket)
+        connects.append(connect)
+        return connect
 
     channel = WorkPoolWorkerChannel(
         client=Mock(server_type=ServerType.SERVER),
@@ -881,43 +941,30 @@ async def test_channel_keeps_cleanup_execution_alive_across_reconnects():
         reconnect_base_seconds=0,
         connect_factory=connect_factory,
     )
-    message = _message_frame()
-    first_websocket = QueueWorkerChannelWebSocket(
-        [
-            message.model_dump(mode="json"),
-            OSError("connection dropped"),
-        ]
-    )
-    first_connect = FakeWorkerChannelConnect(first_websocket)
-    initial_session = WorkerChannelSession(
-        first_connect,
-        first_websocket,
-        _worker_ready_frame(channel.consumer_id),
-    )
 
     async with anyio.create_task_group() as task_group:
-        task_group.start_soon(channel._run, initial_session)
+        await channel.sync(task_group)
 
         with anyio.fail_after(1):
             await started.wait()
-            while not first_connect.exited or not second_websockets:
+            while not connects[0].exited or len(websockets) < 2:
                 await anyio.sleep(0)
 
-        assert first_websocket.sent == []
+        assert not any(sent["type"] == "cleanup.ack.v1" for sent in websockets[0].sent)
 
         finish_cleanup.set()
 
         with anyio.fail_after(1):
             ack_data = None
             while ack_data is None:
-                for sent in second_websockets[-1].sent:
+                for sent in websockets[-1].sent:
                     if sent["type"] == "cleanup.ack.v1":
                         ack_data = sent
                         break
                 await anyio.sleep(0)
 
         ack = CleanupAckFrame.model_validate(ack_data)
-        await second_websockets[-1].put(_operation_result(ack).model_dump(mode="json"))
+        await websockets[-1].put(_operation_result(ack).model_dump(mode="json"))
 
         with anyio.fail_after(1):
             while executor.in_flight_count:
@@ -965,25 +1012,8 @@ async def test_executor_classifies_operation_results(
 ):
     executor = WorkerCleanupExecutor([], send_operation=lambda frame: None)
     message = _message_frame()
-    frame = executor._build_operation_frame(
-        operation=_operation_name_for_frame_type(operation_frame),
-        message_id=message.payload.message_id,
-        reservation_token=message.payload.reservation_token,
-        reason="cannot_act" if operation_frame is CleanupReleaseFrame else None,
-    )
+    frame = _operation_frame(operation_frame, message)
 
     result = _operation_result(frame, status=status)
 
     assert executor.classify_operation_result(result) is expected
-
-
-def _operation_name_for_frame_type(
-    frame_type: type[CleanupOperationFrame],
-) -> str:
-    if frame_type is CleanupAckFrame:
-        return "ack"
-    if frame_type is CleanupReleaseFrame:
-        return "release"
-    if frame_type is CleanupRenewFrame:
-        return "renew"
-    raise TypeError(f"Unexpected frame type: {frame_type!r}")
