@@ -308,7 +308,7 @@ class TestHandlerBehavior:
             handler = _handler_for(worker)
             with mock.patch.object(
                 worker,
-                "_get_configuration",
+                "get_configuration",
                 AsyncMock(side_effect=ObjectNotFound(Exception("deployment gone"))),
             ):
                 result = await handler.cleanup(

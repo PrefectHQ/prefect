@@ -76,7 +76,7 @@ class CancellingTimeoutTeardownHandler:
             return CleanupExecutionResult.release("missing_infrastructure_handle")
 
         try:
-            configuration = await self._worker._get_configuration(flow_run)
+            configuration = await self._worker.get_configuration(flow_run)
         except ObjectNotFound:
             return CleanupExecutionResult.release("configuration_context_unavailable")
 

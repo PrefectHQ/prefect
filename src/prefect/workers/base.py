@@ -1498,7 +1498,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         run_logger = self.get_flow_run_logger(flow_run)
 
         try:
-            configuration = await self._get_configuration(flow_run)
+            configuration = await self.get_configuration(flow_run)
             submitted_event = self._emit_flow_run_submitted_event(configuration)
             await self._give_worker_labels_to_flow_run(flow_run.id)
 
@@ -1595,7 +1595,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             },
         }
 
-    async def _get_configuration(
+    async def get_configuration(
         self,
         flow_run: "FlowRun",
         deployment: Optional["DeploymentResponse"] = None,
@@ -1790,7 +1790,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         # Get configuration and kill infrastructure
         try:
-            configuration = await self._get_configuration(flow_run)
+            configuration = await self.get_configuration(flow_run)
         except ObjectNotFound:
             run_logger.warning(
                 "Cannot kill infrastructure: deployment not found. "

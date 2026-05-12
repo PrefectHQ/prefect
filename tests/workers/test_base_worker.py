@@ -3245,7 +3245,7 @@ async def test_env_merge_logic_is_deep(
         work_pool_name=work_pool.name if work_pool_env else "test-work-pool",
     ) as worker:
         await worker.sync_with_backend()
-        config = await worker._get_configuration(
+        config = await worker.get_configuration(
             flow_run, schemas.responses.DeploymentResponse.model_validate(deployment)
         )
 
@@ -3319,7 +3319,7 @@ async def test_work_pool_env_from_job_configuration_merges_with_variable_default
         work_pool_name=work_pool.name,
     ) as worker:
         await worker.sync_with_backend()
-        config = await worker._get_configuration(
+        config = await worker.get_configuration(
             flow_run, schemas.responses.DeploymentResponse.model_validate(deployment)
         )
 
@@ -4535,7 +4535,7 @@ class TestBackwardsCompatibility:
         # Should warn and not raise an error
         with pytest.warns(PrefectDeprecationWarning):
             async with OldStyleWorker(work_pool_name=work_pool.name) as worker:
-                await worker._get_configuration(flow_run=flow_run)
+                await worker.get_configuration(flow_run=flow_run)
 
 
 class TestWorkerCancellationHandling:
