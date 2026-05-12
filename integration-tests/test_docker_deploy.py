@@ -1,4 +1,5 @@
 import asyncio
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -7,6 +8,7 @@ from textwrap import dedent
 from prefect import flow, get_client
 from prefect.deployments import run_deployment
 from prefect.docker.docker_image import DockerImage
+from prefect.settings import PREFECT_API_URL
 
 
 async def read_flow_run(flow_run_id: str):
@@ -33,6 +35,10 @@ def test_docker_deploy():
     Demonstrates using EXTRA_PIP_PACKAGES to install dependencies at runtime.
     """
     try:
+        env = os.environ.copy()
+        if not env.get("PREFECT_API_URL") and PREFECT_API_URL.value():
+            env["PREFECT_API_URL"] = str(PREFECT_API_URL.value())
+
         subprocess.check_call(
             [
                 "uv",
@@ -47,6 +53,7 @@ def test_docker_deploy():
             ],
             stdout=sys.stdout,
             stderr=sys.stderr,
+            env=env,
         )
 
         dockerfile = Path("docker-deploy.Dockerfile")
@@ -99,6 +106,7 @@ def test_docker_deploy():
             ],
             stdout=sys.stdout,
             stderr=sys.stderr,
+            env=env,
         )
 
         # Check the flow run state
@@ -120,4 +128,5 @@ def test_docker_deploy():
             ],
             stdout=sys.stdout,
             stderr=sys.stderr,
+            env=env,
         )
