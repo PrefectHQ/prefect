@@ -16,6 +16,8 @@ from typing import (
     TYPE_CHECKING,
     Any,
     AsyncGenerator,
+    Awaitable,
+    Callable,
     Literal,
     NamedTuple,
     Protocol,
@@ -192,6 +194,57 @@ OBSERVER_RESTART_BASE_DELAY = 30
 OBSERVER_MAX_RESTART_ATTEMPTS = 5
 
 
+class SqsMessage(NamedTuple):
+    message: "MessageTypeDef"
+    ack: Callable[[], Awaitable[bool]]
+
+
+class _SqsBackoffState:
+    def __init__(self, operation: str):
+        self.operation = operation
+        self.track_record: deque[bool] = deque(
+            [True] * SQS_CONSECUTIVE_FAILURES, maxlen=SQS_CONSECUTIVE_FAILURES
+        )
+        self.failures: deque[tuple[Exception, TracebackType | None]] = deque(
+            maxlen=SQS_MEMORY
+        )
+        self.backoff_count = 0
+
+    async def record_failure(self, e: Exception) -> None:
+        self.track_record.append(False)
+        self.failures.append((e, e.__traceback__))
+        logger.debug("Failed to %s messages from SQS", self.operation, exc_info=e)
+
+        if not any(self.track_record):
+            self.backoff_count += 1
+
+            if self.backoff_count > SQS_MAX_BACKOFF_ATTEMPTS:
+                logger.error(
+                    "SQS polling exceeded maximum backoff attempts (%s). "
+                    "Last %s errors: %s",
+                    SQS_MAX_BACKOFF_ATTEMPTS,
+                    len(self.failures),
+                    [str(e) for e, _ in self.failures],
+                )
+                raise RuntimeError(
+                    f"SQS polling failed after {SQS_MAX_BACKOFF_ATTEMPTS} backoff attempts"
+                ) from e
+
+            self.track_record.extend([True] * SQS_CONSECUTIVE_FAILURES)
+            self.failures.clear()
+            backoff_seconds = SQS_BACKOFF * 2**self.backoff_count
+            logger.debug(
+                "Backing off due to consecutive errors, using increased interval of %s seconds.",
+                backoff_seconds,
+            )
+            await asyncio.sleep(backoff_seconds)
+
+    def record_success(self) -> None:
+        self.backoff_count = 0
+        self.track_record.append(True)
+        self.failures.clear()
+
+
 class SqsSubscriber:
     def __init__(self, queue_name: str, queue_region: str | None = None):
         self.queue_name = queue_name
@@ -199,7 +252,7 @@ class SqsSubscriber:
 
     async def stream_messages(
         self,
-    ) -> AsyncGenerator["MessageTypeDef", None]:
+    ) -> AsyncGenerator[SqsMessage, None]:
         session = aiobotocore.session.get_session()
         async with session.create_client(
             "sqs", region_name=self.queue_region
@@ -229,46 +282,8 @@ class SqsSubscriber:
                     return
                 raise
 
-            track_record: deque[bool] = deque(
-                [True] * SQS_CONSECUTIVE_FAILURES, maxlen=SQS_CONSECUTIVE_FAILURES
-            )
-            failures: deque[tuple[Exception, TracebackType | None]] = deque(
-                maxlen=SQS_MEMORY
-            )
-            backoff_count = 0
-
-            async def handle_sqs_failure(e: Exception) -> None:
-                nonlocal backoff_count
-
-                track_record.append(False)
-                failures.append((e, e.__traceback__))
-                logger.debug(
-                    "Failed to receive or delete messages from SQS", exc_info=e
-                )
-
-                if not any(track_record):
-                    backoff_count += 1
-
-                    if backoff_count > SQS_MAX_BACKOFF_ATTEMPTS:
-                        logger.error(
-                            "SQS polling exceeded maximum backoff attempts (%s). "
-                            "Last %s errors: %s",
-                            SQS_MAX_BACKOFF_ATTEMPTS,
-                            len(failures),
-                            [str(e) for e, _ in failures],
-                        )
-                        raise RuntimeError(
-                            f"SQS polling failed after {SQS_MAX_BACKOFF_ATTEMPTS} backoff attempts"
-                        ) from e
-
-                    track_record.extend([True] * SQS_CONSECUTIVE_FAILURES)
-                    failures.clear()
-                    backoff_seconds = SQS_BACKOFF * 2**backoff_count
-                    logger.debug(
-                        "Backing off due to consecutive errors, using increased interval of %s seconds.",
-                        backoff_seconds,
-                    )
-                    await asyncio.sleep(backoff_seconds)
+            receive_backoff = _SqsBackoffState("receive")
+            delete_backoff = _SqsBackoffState("delete")
 
             while True:
                 try:
@@ -278,30 +293,29 @@ class SqsSubscriber:
                         WaitTimeSeconds=20,
                     )
                 except Exception as e:
-                    await handle_sqs_failure(e)
+                    await receive_backoff.record_failure(e)
                     continue
 
-                backoff_count = 0
-                track_record.append(True)
-                failures.clear()
+                receive_backoff.record_success()
 
                 for message in messages.get("Messages", []):
                     if not (receipt_handle := message.get("ReceiptHandle")):
                         continue
 
-                    yield message
+                    async def ack(receipt_handle: str = receipt_handle) -> bool:
+                        try:
+                            await sqs_client.delete_message(
+                                QueueUrl=queue_url,
+                                ReceiptHandle=receipt_handle,
+                            )
+                        except Exception as e:
+                            await delete_backoff.record_failure(e)
+                            return False
+                        else:
+                            delete_backoff.record_success()
+                            return True
 
-                    try:
-                        await sqs_client.delete_message(
-                            QueueUrl=queue_url,
-                            ReceiptHandle=receipt_handle,
-                        )
-                    except Exception as e:
-                        await handle_sqs_failure(e)
-                    else:
-                        backoff_count = 0
-                        track_record.append(True)
-                        failures.clear()
+                    yield SqsMessage(message=message, ack=ack)
 
 
 class EcsObserver:
@@ -331,12 +345,14 @@ class EcsObserver:
         async with AsyncExitStack() as stack:
             await stack.enter_async_context(self.ecs_tags_reader)
 
-            async for message in self.sqs_subscriber.stream_messages():
+            async for sqs_message in self.sqs_subscriber.stream_messages():
+                message = sqs_message.message
                 if not (body := message.get("Body")):
                     logger.debug(
                         "No body in message. Skipping.",
                         extra={"sqs_message": message},
                     )
+                    await sqs_message.ack()
                     continue
 
                 body = json.loads(body)
@@ -355,10 +371,12 @@ class EcsObserver:
                         "No event type in message. Skipping.",
                         extra={"sqs_message": message},
                     )
+                    await sqs_message.ack()
                     continue
 
                 if detail_type not in _ECS_EVENT_DETAIL_MAP:
                     logger.debug("Unknown event type: %s. Skipping.", detail_type)
+                    await sqs_message.ack()
                     continue
 
                 last_status = body.get("detail", {}).get("lastStatus")
@@ -378,11 +396,20 @@ class EcsObserver:
                         matching_handlers.append(handler)
 
                 if matching_handlers:
-                    async with anyio.create_task_group() as task_group:
-                        for handler in matching_handlers:
-                            task_group.start_soon(
-                                self._run_handler, handler, body, tags
-                            )
+                    try:
+                        async with anyio.create_task_group() as task_group:
+                            for handler in matching_handlers:
+                                task_group.start_soon(
+                                    self._run_handler, handler, body, tags
+                                )
+                    except Exception:
+                        logger.exception(
+                            "Failed to process ECS observer message",
+                            extra={"sqs_message": message},
+                        )
+                        continue
+
+                await sqs_message.ack()
 
     async def _run_handler(
         self,

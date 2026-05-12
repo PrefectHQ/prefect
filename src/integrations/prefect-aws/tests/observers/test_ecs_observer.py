@@ -16,6 +16,7 @@ from prefect_aws.observers.ecs import (
     EcsTaskTagsReader,
     FilterCase,
     LastStatusFilter,
+    SqsMessage,
     SqsSubscriber,
     TagsFilter,
     _related_resources_from_tags,
@@ -279,12 +280,13 @@ class TestSqsSubscriber:
 
         messages = []
         message_generator = subscriber.stream_messages()
-        async for message in message_generator:
-            messages.append(message)
+        async for sqs_message in message_generator:
+            messages.append(sqs_message.message)
             if len(messages) >= 3:
                 # Close the generator properly to avoid pending task warning
                 await message_generator.aclose()
                 break
+            await sqs_message.ack()
 
         assert len(messages) == 3
         assert messages[0]["Body"] == "message1"
@@ -341,8 +343,8 @@ class TestSqsSubscriber:
 
         messages = []
         message_generator = subscriber.stream_messages()
-        async for message in message_generator:
-            messages.append(message)
+        async for sqs_message in message_generator:
+            messages.append(sqs_message.message)
             # Since message1 is skipped (no receipt handle), we only get message2
             await message_generator.aclose()
             break
@@ -382,8 +384,8 @@ class TestSqsSubscriber:
 
         messages = []
         message_generator = subscriber.stream_messages()
-        async for message in message_generator:
-            messages.append(message)
+        async for sqs_message in message_generator:
+            messages.append(sqs_message.message)
             await message_generator.aclose()
             break
 
@@ -429,8 +431,8 @@ class TestSqsSubscriber:
 
         messages = []
         message_generator = subscriber.stream_messages()
-        async for message in message_generator:
-            messages.append(message)
+        async for sqs_message in message_generator:
+            messages.append(sqs_message.message)
             await message_generator.aclose()
             break
 
@@ -475,6 +477,46 @@ class TestSqsSubscriber:
 
     @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
     @patch("prefect_aws.observers.ecs.asyncio.sleep")
+    async def test_stream_messages_delete_failures_backoff_independent_of_receive_success(
+        self, mock_sleep, mock_get_session, subscriber
+    ):
+        """Delete failures should back off even when receives keep succeeding."""
+        mock_session = Mock()
+        mock_sqs_client = AsyncMock()
+        mock_client_context = AsyncMock()
+        mock_client_context.__aenter__.return_value = mock_sqs_client
+        mock_session.create_client.return_value = mock_client_context
+        mock_get_session.return_value = mock_session
+
+        mock_sqs_client.get_queue_url.return_value = {
+            "QueueUrl": "https://sqs.us-east-1.amazonaws.com/123456789/test-queue"
+        }
+
+        mock_sqs_client.receive_message.side_effect = [
+            {
+                "Messages": [
+                    {"Body": f"message{i}", "ReceiptHandle": f"handle{i}"},
+                ]
+            }
+            for i in range(18)
+        ]
+        failure_exception = Exception("Persistent delete error")
+        mock_sqs_client.delete_message.side_effect = [failure_exception] * 18
+
+        message_generator = subscriber.stream_messages()
+
+        with pytest.raises(
+            RuntimeError, match="SQS polling failed after 5 backoff attempts"
+        ):
+            async for sqs_message in message_generator:
+                await sqs_message.ack()
+
+        assert mock_sleep.call_count == 5
+        sleep_calls = [call.args[0] for call in mock_sleep.call_args_list]
+        assert sleep_calls == [2, 4, 8, 16, 32]
+
+    @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
+    @patch("prefect_aws.observers.ecs.asyncio.sleep")
     async def test_stream_messages_resets_backoff_on_success(
         self, mock_sleep, mock_get_session, subscriber
     ):
@@ -508,8 +550,8 @@ class TestSqsSubscriber:
 
         messages = []
         message_generator = subscriber.stream_messages()
-        async for message in message_generator:
-            messages.append(message)
+        async for sqs_message in message_generator:
+            messages.append(sqs_message.message)
             if len(messages) >= 2:
                 await message_generator.aclose()
                 break
@@ -712,7 +754,10 @@ class TestEcsObserver:
         message = self._ecs_task_state_change_message()
         mock_sqs_client = self._setup_sqs_client(
             mock_get_session,
-            [{"Messages": [message]}],
+            [
+                {"Messages": [message]},
+                asyncio.CancelledError(),
+            ],
         )
 
         observer = EcsObserver(
@@ -739,10 +784,11 @@ class TestEcsObserver:
         mock_sqs_client.delete_message.assert_not_called()
 
         handler_finished.set()
-        done, _ = await asyncio.wait({task}, timeout=1)
 
-        assert task in done
-        assert task.exception() is not None
+        try:
+            await asyncio.wait_for(task, timeout=1)
+        except asyncio.CancelledError:
+            pass
         mock_sqs_client.delete_message.assert_not_called()
 
     async def test_run_skips_message_without_body(
@@ -2541,4 +2587,8 @@ class TestObserverManagement:
 
 async def async_generator_from_list(items: list) -> AsyncGenerator[Any, None]:
     for item in items:
-        yield item
+        if isinstance(item, SqsMessage):
+            yield item
+        else:
+            ack = AsyncMock(return_value=True)
+            yield SqsMessage(message=item, ack=ack)
