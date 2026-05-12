@@ -79,24 +79,25 @@ async def _insert_task_run_states(
 
     now = prefect.types._datetime.now("UTC")
 
-    await session.execute(
-        db.queries.insert(db.TaskRunState)
-        .values(
-            [
-                {
-                    "created": now,
-                    "task_run_id": task_run.id,
-                    **task_run.state.model_dump(),
-                }
-                for task_run in task_runs
-            ]
-        )
-        .on_conflict_do_nothing(
+    trs_insert = db.queries.insert(db.TaskRunState).values(
+        [
+            {
+                "created": now,
+                "task_run_id": task_run.id,
+                **task_run.state.model_dump(),
+            }
+            for task_run in task_runs
+        ]
+    )
+    if db.dialect.name == "mysql":
+        trs_insert = trs_insert.prefix_with("IGNORE")
+    else:
+        trs_insert = trs_insert.on_conflict_do_nothing(
             index_elements=[
                 "id",
             ]
         )
-    )
+    await session.execute(trs_insert)
 
     logger.debug(f"Recorded {len(task_runs)} task run state change(s)")
 
@@ -362,20 +363,36 @@ async def _record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
                 if conflict_target_name == "natural-key"
                 else ["id"]
             )
-            upsert_statement = insert_statement.on_conflict_do_update(
-                index_elements=index_elements,
-                set_={
-                    # See https://www.postgresql.org/docs/current/sql-insert.html for details on excluded.
-                    # Idea is excluded.x references the proposed insertion value for column x.
+            cols_to_update = (update_cols | {"updated"}) - {"id"}
+            if db.dialect.name == "mysql":
+                inserted = insert_statement.inserted
+                upsert_statement = insert_statement.on_duplicate_key_update(
                     **{
-                        col.name: getattr(insert_statement.excluded, col.name)
-                        for col in insert_statement.excluded
-                        if col.name in (update_cols | {"updated"}) - {"id"}
+                        col_name: sa.case(
+                            (
+                                db.TaskRun.state_timestamp < inserted.state_timestamp,
+                                getattr(inserted, col_name),
+                            ),
+                            else_=getattr(db.TaskRun, col_name),
+                        )
+                        for col_name in cols_to_update
                     },
-                },
-                where=db.TaskRun.state_timestamp
-                < insert_statement.excluded.state_timestamp,
-            )
+                )
+            else:
+                upsert_statement = insert_statement.on_conflict_do_update(
+                    index_elements=index_elements,
+                    set_={
+                        # See https://www.postgresql.org/docs/current/sql-insert.html for details on excluded.
+                        # Idea is excluded.x references the proposed insertion value for column x.
+                        **{
+                            col.name: getattr(insert_statement.excluded, col.name)
+                            for col in insert_statement.excluded
+                            if col.name in cols_to_update
+                        },
+                    },
+                    where=db.TaskRun.state_timestamp
+                    < insert_statement.excluded.state_timestamp,
+                )
             await session.execute(upsert_statement)
 
             logger.debug(f"Finished bulk inserting {len(batch)} task runs")
