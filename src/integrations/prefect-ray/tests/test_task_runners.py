@@ -75,17 +75,39 @@ def machine_ray_instance():
             env={**os.environ, "RAY_RUNTIME_ENV_LOCAL_DEV_MODE": "1"},
         )
 
-        # Wait for the Ray client server to be ready
+        # Wait for the Ray head node to be fully ready via `ray status`
+        for attempt in range(15):
+            result = subprocess.run(
+                ["ray", "status"],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode == 0 and "1 node" in result.stdout:
+                break
+            time.sleep(1)
+        else:
+            pytest.fail(
+                f"Ray head node did not become ready in time. "
+                f"Last status output: {result.stdout} {result.stderr}"
+            )
+
+        # Verify the client server (port 10001) accepts connections with
+        # exponential backoff
         address = "ray://127.0.0.1:10001"
-        for _ in range(10):
+        last_error = None
+        for attempt in range(5):
             try:
                 ray.init(address)
                 ray.shutdown()
                 break
-            except Exception:
-                time.sleep(1)
+            except Exception as exc:
+                last_error = exc
+                time.sleep(2**attempt)
         else:
-            pytest.fail("Ray client server did not become ready in time")
+            pytest.fail(
+                f"Ray client server not accepting connections after retries. "
+                f"Last error: {last_error}"
+            )
 
         yield address
     except subprocess.CalledProcessError as exc:
