@@ -4,6 +4,8 @@ import ast
 import asyncio
 import base64
 import gzip
+import hashlib
+import hmac
 import importlib
 import inspect
 import json
@@ -59,6 +61,18 @@ class BundleLauncherOverride(TypedDict, total=False):
 BundleLauncher: TypeAlias = list[str] | BundleLauncherOverride
 
 logger: logging.Logger = get_logger(__name__)
+
+
+def _get_bundle_signing_key() -> bytes:
+    """
+    Return the bundle signing key from the environment.
+
+    When ``PREFECT_BUNDLE_SIGNING_KEY`` is set, bundle serialization will
+    prepend an HMAC-SHA256 signature and deserialization will verify it
+    before calling ``cloudpickle.loads()``.  When unset (the default),
+    signing is disabled and behaviour is unchanged.
+    """
+    return os.environ.get("PREFECT_BUNDLE_SIGNING_KEY", "").encode("utf-8")
 
 
 def _get_uv_path() -> str:
@@ -130,14 +144,45 @@ class BundleCreationResult(TypedDict):
 def _serialize_bundle_object(obj: Any) -> str:
     """
     Serializes an object to a string.
+
+    When ``PREFECT_BUNDLE_SIGNING_KEY`` is set, the serialized payload is
+    prepended with an HMAC-SHA256 signature separated by a colon::
+
+        "<hex_signature>:<base64_payload>"
     """
-    return base64.b64encode(gzip.compress(cloudpickle.dumps(obj))).decode()  # pyright: ignore[reportUnknownMemberType]
+    payload = base64.b64encode(gzip.compress(cloudpickle.dumps(obj))).decode()  # pyright: ignore[reportUnknownMemberType]
+    signing_key = _get_bundle_signing_key()
+    if signing_key:
+        sig = hmac.new(
+            signing_key, payload.encode("utf-8"), hashlib.sha256
+        ).hexdigest()
+        return f"{sig}:{payload}"
+    return payload
 
 
 def _deserialize_bundle_object(serialized_obj: str) -> Any:
     """
     Deserializes an object from a string.
+
+    When ``PREFECT_BUNDLE_SIGNING_KEY`` is set, the HMAC-SHA256 signature is
+    verified before deserialization.  Raises ``ValueError`` if the signature
+    is missing or does not match.
     """
+    signing_key = _get_bundle_signing_key()
+    if signing_key:
+        if ":" not in serialized_obj:
+            raise ValueError(
+                "Bundle signature verification failed: unsigned bundle rejected. "
+                "Set PREFECT_BUNDLE_SIGNING_KEY on both the submitting client and "
+                "the executing worker to the same secret value."
+            )
+        sig, payload = serialized_obj.split(":", 1)
+        expected_sig = hmac.new(
+            signing_key, payload.encode("utf-8"), hashlib.sha256
+        ).hexdigest()
+        if not hmac.compare_digest(sig, expected_sig):
+            raise ValueError("Bundle signature verification failed")
+        serialized_obj = payload
     return cloudpickle.loads(gzip.decompress(base64.b64decode(serialized_obj)))
 
 
