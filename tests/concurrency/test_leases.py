@@ -82,6 +82,7 @@ def test_lease_renewal_logs_once_after_max_retries_non_strict(
     mock_client = mock.MagicMock()
     mock_client.renew_concurrency_lease.side_effect = RuntimeError("server down")
     continued_after_failure = False
+    failure_message = "Concurrency lease renewal failed - slots are no longer reserved."
 
     with _patch_renewal_client(mock_client):
         with caplog.at_level(logging.WARNING):
@@ -90,19 +91,12 @@ def test_lease_renewal_logs_once_after_max_retries_non_strict(
                 lease_duration=60,
                 raise_on_lease_renewal_failure=False,
             ):
-                assert _wait_for(
-                    lambda: mock_client.renew_concurrency_lease.call_count == 3
-                )
+                assert _wait_for(lambda: caplog.text.count(failure_message) == 1)
                 continued_after_failure = True
 
     assert continued_after_failure is True
     assert mock_client.renew_concurrency_lease.call_count == 3
-    assert (
-        caplog.text.count(
-            "Concurrency lease renewal failed - slots are no longer reserved."
-        )
-        == 1
-    )
+    assert caplog.text.count(failure_message) == 1
 
 
 @mock.patch(
