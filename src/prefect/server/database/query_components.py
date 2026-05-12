@@ -33,7 +33,7 @@ from prefect.server.schemas.graph import Edge, Graph, GraphArtifact, GraphState,
 from prefect.server.schemas.states import StateType
 from prefect.server.utilities.database import UUID as UUIDTypeDecorator
 from prefect.server.utilities.database import Timestamp, bindparams_from_clause
-from prefect.types._datetime import DateTime
+from prefect.types._datetime import DateTime, now
 
 T = TypeVar("T", infer_variance=True)
 
@@ -51,6 +51,41 @@ class FlowRunGraphV2Node(NamedTuple):
 
 
 ONE_HOUR = 60 * 60
+
+
+async def _mysql_flow_run_ids_in_task_subflow_tree(
+    session: AsyncSession,
+    TaskRun: type,
+    FlowRun: type,
+    root_flow_run_id: UUID,
+) -> set[UUID]:
+    """Expand root flow run id to all descendant flow runs reachable via task→subflow links.
+
+    The SQL graph on PostgreSQL/SQLite still only *selects* task runs whose
+    ``flow_run_id`` equals the single bind param, but the orchestration model
+    attaches child flow runs with ``parent_task_run_id``. For a faithful graph
+    (including tasks inside subflows) we must include every ``flow_run_id`` in
+    that tree.
+    """
+    collected: set[UUID] = {root_flow_run_id}
+    frontier: set[UUID] = {root_flow_run_id}
+    while frontier:
+        task_ids = (
+            await session.scalars(sa.select(TaskRun.id).where(TaskRun.flow_run_id.in_(frontier)))
+        ).all()
+        if not task_ids:
+            break
+        child_flow_run_ids = (
+            await session.scalars(
+                sa.select(FlowRun.id).where(FlowRun.parent_task_run_id.in_(task_ids))
+            )
+        ).all()
+        new_ids = set(child_flow_run_ids) - collected
+        if not new_ids:
+            break
+        collected.update(new_ids)
+        frontier = new_ids
+    return collected
 
 
 jinja_env: Environment = Environment(
@@ -1244,6 +1279,12 @@ class AsyncMySQLQueryComponents(BaseQueryComponents):
         except NoResultFound:
             raise ObjectNotFoundError(f"Flow run {flow_run_id} not found")
 
+        graph_start = start_time or now("UTC")
+        default_node_start = graph_start
+        flow_run_scope = await _mysql_flow_run_ids_in_task_subflow_tree(
+            session, TaskRun, FlowRun, flow_run_id
+        )
+
         row_result = await session.execute(
             sa.select(TaskRun, FlowRun, Flow)
             .join(
@@ -1253,14 +1294,8 @@ class AsyncMySQLQueryComponents(BaseQueryComponents):
             )
             .join(Flow, isouter=True, onclause=Flow.id == FlowRun.flow_id)
             .where(
-                TaskRun.flow_run_id == flow_run_id,
+                TaskRun.flow_run_id.in_(flow_run_scope),
                 TaskRun.state_type != StateType.PENDING,
-                sa.func.coalesce(
-                    FlowRun.start_time,
-                    FlowRun.expected_start_time,
-                    TaskRun.start_time,
-                    TaskRun.expected_start_time,
-                ).is_not(None),
             )
             .order_by(sa.func.coalesce(FlowRun.id, TaskRun.id))
         )
@@ -1310,6 +1345,13 @@ class AsyncMySQLQueryComponents(BaseQueryComponents):
 
             if subflow_run is not None:
                 node_id = subflow_run.id
+                resolved_start = (
+                    subflow_run.start_time
+                    if subflow_run.start_time is not None
+                    else subflow_run.expected_start_time
+                )
+                if resolved_start is None:
+                    resolved_start = default_node_start
                 node = _NodeData(
                     kind="flow-run",
                     id=node_id,
@@ -1317,27 +1359,26 @@ class AsyncMySQLQueryComponents(BaseQueryComponents):
                     if subflow is not None
                     else subflow_run.name,
                     state_type=subflow_run.state_type,
-                    start_time=(
-                        subflow_run.start_time
-                        if subflow_run.start_time is not None
-                        else subflow_run.expected_start_time
-                    ),
+                    start_time=resolved_start,
                     end_time=subflow_run.end_time,
                     raw_parent_ids=parent_ids,
                     raw_encapsulating_ids=encapsulating_ids,
                 )
             else:
                 node_id = task_run.id
+                resolved_start = (
+                    task_run.start_time
+                    if task_run.start_time is not None
+                    else task_run.expected_start_time
+                )
+                if resolved_start is None:
+                    resolved_start = default_node_start
                 node = _NodeData(
                     kind="task-run",
                     id=node_id,
                     label=task_run.name,
                     state_type=task_run.state_type,
-                    start_time=(
-                        task_run.start_time
-                        if task_run.start_time is not None
-                        else task_run.expected_start_time
-                    ),
+                    start_time=resolved_start,
                     end_time=(
                         task_run.end_time
                         if task_run.end_time is not None
@@ -1423,7 +1464,7 @@ class AsyncMySQLQueryComponents(BaseQueryComponents):
                 )
 
         return Graph(
-            start_time=start_time,
+            start_time=graph_start,
             end_time=end_time,
             root_node_ids=root_node_ids,
             nodes=nodes,

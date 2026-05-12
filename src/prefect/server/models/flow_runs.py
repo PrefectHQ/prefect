@@ -105,13 +105,13 @@ async def create_flow_run(
 
     # otherwise let the database take care of enforcing idempotency
     else:
-        insert_stmt = (
-            db.queries.insert(db.FlowRun)
-            .values(**flow_run_dict)
-            .on_conflict_do_nothing(
+        insert_stmt = db.queries.insert(db.FlowRun).values(**flow_run_dict)
+        if db.dialect.name == "mysql":
+            insert_stmt = insert_stmt.prefix_with("IGNORE")
+        else:
+            insert_stmt = insert_stmt.on_conflict_do_nothing(
                 index_elements=db.orm.flow_run_unique_upsert_columns,
             )
-        )
         await session.execute(insert_stmt)
 
         # read the run to see if idempotency was applied or not

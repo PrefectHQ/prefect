@@ -78,18 +78,18 @@ async def create_task_run(
 
     # if a dynamic key exists, we need to guard against conflicts
     if task_run.flow_run_id:
-        insert_stmt = (
-            db.queries.insert(db.TaskRun)
-            .values(
-                created=right_now,
-                **task_run.model_dump_for_orm(
-                    exclude={"state", "created"}, exclude_unset=True
-                ),
-            )
-            .on_conflict_do_nothing(
+        insert_stmt = db.queries.insert(db.TaskRun).values(
+            created=right_now,
+            **task_run.model_dump_for_orm(
+                exclude={"state", "created"}, exclude_unset=True
+            ),
+        )
+        if db.dialect.name == "mysql":
+            insert_stmt = insert_stmt.prefix_with("IGNORE")
+        else:
+            insert_stmt = insert_stmt.on_conflict_do_nothing(
                 index_elements=db.orm.task_run_unique_upsert_columns,
             )
-        )
         await session.execute(insert_stmt)
 
         query = (
