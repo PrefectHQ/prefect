@@ -1,0 +1,249 @@
+---
+title: Configure workload identity federation for push work pools
+sidebarTitle: Configure workload identity federation
+description: Authenticate AWS, Azure, and GCP push work pools with short-lived credentials from Prefect Cloud's OIDC provider instead of static keys.
+keywords: ["workload identity federation", "wif", "oidc", "push work pool", "federated identity", "short-lived credentials"]
+---
+
+<span class="badge cloud"></span> Push [work pools](/v3/concepts/work-pools) for AWS ECS, Azure Container Instances, and Google Cloud Run can authenticate to your cloud provider with workload identity federation instead of long-lived secrets.
+Prefect Cloud signs a short-lived OIDC token for each flow run and exchanges it for cloud credentials at submission time, so you never have to store an AWS access key, an Azure client secret, or a GCP service account key in Prefect Cloud.
+
+<Note>
+This guide applies to push work pools (`ecs:push`, `azure-container-instance:push`, `cloud-run:push`, and `cloud-run-v2:push`). For workload identity on Prefect Managed work pools, see [Using cloud workload identity with Prefect Managed work pools](/v3/how-to-guides/deployment_infra/managed-aws-federated-identity).
+</Note>
+
+## How it works
+
+When Prefect Cloud submits a flow run to a push work pool that is configured for workload identity, it:
+
+1. Mints a short-lived JWT signed by the Prefect Cloud OIDC provider.
+2. Exchanges that JWT for short-lived cloud credentials with the appropriate trust path you configured (STS `AssumeRoleWithWebIdentity` for AWS, a federated credential on an app registration for Azure, or a workload identity pool provider for GCP).
+3. Uses those credentials to submit the container job to your cloud account.
+
+The OIDC issuer is the same for every push work pool:
+
+| Field                  | Value                                                             |
+| ---------------------- | ----------------------------------------------------------------- |
+| Issuer URL             | `https://api.prefect.cloud/oidc-provider`                         |
+| OpenID configuration   | `https://api.prefect.cloud/oidc-provider/.well-known/openid-configuration` |
+| JWKS URL               | `https://api.prefect.cloud/oidc-provider/.well-known/jwks.json`   |
+| Audience (`aud` claim) | `prefect-cloud`                                                   |
+| Subject (`sub` claim)  | `prefect:account:<PREFECT_CLOUD_ACCOUNT_ID>`                      |
+| Signing algorithm      | `RS256`                                                           |
+
+Tokens are signed per-run and carry these additional claims that you can match against in policies and attribute mappings:
+
+- `account_id`
+- `workspace_id`
+- `work_pool_name`
+- `work_queue_name`
+- `deployment_name`
+- `flow_name`
+- `flow_run_id`
+
+You can find your Prefect Cloud account ID in the URL when browsing the Prefect Cloud UI (`https://app.prefect.cloud/account/<PREFECT_CLOUD_ACCOUNT_ID>/...`) or by running `prefect cloud workspace ls`.
+
+## Prerequisites
+
+- A Prefect Cloud workspace with permission to create work pools.
+- Permission in your cloud provider to create an identity provider, IAM role or service account, and the trust relationship between them.
+- A push work pool already created, or the ability to create one. See [Run flows on serverless compute](/v3/how-to-guides/deployment_infra/serverless) for the base setup.
+
+## Configure your cloud provider
+
+<Tabs>
+  <Tab title="AWS ECS">
+
+    ### Create the IAM identity provider
+
+    Create an OpenID Connect identity provider in your AWS account for Prefect Cloud's issuer.
+    You only need to do this once per AWS account.
+
+    ```bash
+    aws iam create-open-id-connect-provider \
+      --url https://api.prefect.cloud/oidc-provider \
+      --client-id-list prefect-cloud
+    ```
+
+    This returns an ARN similar to `arn:aws:iam::123456789012:oidc-provider/api.prefect.cloud/oidc-provider`. Use that ARN in the trust policy for any IAM role that Prefect Cloud should assume.
+
+    ### Create the IAM role
+
+    Create an IAM role with a trust policy that lets Prefect Cloud call `sts:AssumeRoleWithWebIdentity`:
+
+    ```json trust-policy.json
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Effect": "Allow",
+          "Principal": {
+            "Federated": "arn:aws:iam::123456789012:oidc-provider/api.prefect.cloud/oidc-provider"
+          },
+          "Action": "sts:AssumeRoleWithWebIdentity",
+          "Condition": {
+            "StringEquals": {
+              "api.prefect.cloud/oidc-provider:aud": "prefect-cloud",
+              "api.prefect.cloud/oidc-provider:sub": "prefect:account:<PREFECT_CLOUD_ACCOUNT_ID>"
+            }
+          }
+        }
+      ]
+    }
+    ```
+
+    Attach a permissions policy to the role that grants the access an ECS push work pool needs. At a minimum the role must be able to run ECS tasks; if you push images to ECR or pull deployment code from S3, include those permissions too.
+
+    The AWS managed policy `AmazonECS_FullAccess` covers the ECS task lifecycle, but you should prefer a least-privilege custom policy in production.
+
+    ### Configure the work pool
+
+    Open the configuration page for your push work pool in the Prefect Cloud UI. In the **AWS Credentials** section choose the **OIDC** credentials type and set:
+
+    - **Role ARN**: the ARN of the IAM role created above
+    - **Region Name**: the AWS region where ECS tasks should run
+
+    Save the work pool. New flow runs submitted to this pool will use AssumeRoleWithWebIdentity instead of static keys.
+
+  </Tab>
+  <Tab title="Azure Container Instances">
+
+    ### Create the app registration and federated credential
+
+    In Microsoft Entra ID, create an app registration that Prefect Cloud will impersonate. Then add a federated credential to it that trusts the Prefect Cloud OIDC issuer.
+
+    Using the Azure CLI, save the federated credential definition to a file:
+
+    ```json federated-credential.json
+    {
+      "name": "prefect-cloud-push-pool",
+      "issuer": "https://api.prefect.cloud/oidc-provider",
+      "subject": "prefect:account:<PREFECT_CLOUD_ACCOUNT_ID>",
+      "audiences": ["prefect-cloud"],
+      "description": "Prefect Cloud push work pool"
+    }
+    ```
+
+    Then create it on the app registration:
+
+    ```bash
+    az ad app federated-credential create \
+      --id <APP_OBJECT_ID> \
+      --parameters @federated-credential.json
+    ```
+
+    <Note>
+    Azure's default federated credential audience is `api://AzureADTokenExchange`. Prefect Cloud signs tokens with an `aud` claim of `prefect-cloud`, so the federated credential must list `prefect-cloud` in its `audiences` array.
+    </Note>
+
+    ### Grant the app registration permissions on the target resource group
+
+    Give the service principal backing the app registration the **Contributor** role (or a least-privilege custom role) on the resource group where ACI containers will run:
+
+    ```bash
+    az role assignment create \
+      --assignee <APP_CLIENT_ID> \
+      --role Contributor \
+      --scope /subscriptions/<SUBSCRIPTION_ID>/resourceGroups/<RESOURCE_GROUP>
+    ```
+
+    The exact permissions required depend on the operations your work pool performs. See the [Azure Container Instances documentation](https://learn.microsoft.com/en-us/azure/container-instances/) for finer-grained role recommendations.
+
+    ### Configure the work pool
+
+    Open the configuration page for your Azure Container Instances push work pool in Prefect Cloud. In the **Azure Container Instance Credentials** section choose the **OIDC** credentials type and set:
+
+    - **Tenant ID**: the Microsoft Entra tenant ID
+    - **Client ID**: the application (client) ID of the app registration
+
+    Save the work pool. New flow runs will authenticate via the federated credential without a stored client secret.
+
+  </Tab>
+  <Tab title="Google Cloud Run">
+
+    ### Create a workload identity pool and provider
+
+    In your GCP project, create a workload identity pool and add an OIDC provider that trusts Prefect Cloud's issuer:
+
+    ```bash
+    gcloud iam workload-identity-pools create prefect-cloud \
+      --location=global \
+      --display-name="Prefect Cloud"
+
+    gcloud iam workload-identity-pools providers create-oidc prefect-cloud \
+      --location=global \
+      --workload-identity-pool=prefect-cloud \
+      --issuer-uri="https://api.prefect.cloud/oidc-provider" \
+      --allowed-audiences="prefect-cloud" \
+      --attribute-mapping="google.subject=assertion.sub,attribute.account_id=assertion.account_id" \
+      --attribute-condition="assertion.sub == 'prefect:account:<PREFECT_CLOUD_ACCOUNT_ID>'"
+    ```
+
+    GCP fetches signing keys from the issuer's discovery document automatically; you do not need to upload the JWKS yourself.
+
+    The provider resource name follows this format and is what Prefect Cloud uses to exchange tokens:
+
+    ```
+    //iam.googleapis.com/projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/prefect-cloud/providers/prefect-cloud
+    ```
+
+    ### Create a service account and grant it impersonation
+
+    Create the service account that Prefect Cloud will impersonate to submit Cloud Run jobs, then let the workload identity pool impersonate it:
+
+    ```bash
+    gcloud iam service-accounts create prefect-cloud-push \
+      --display-name="Prefect Cloud Push Pool"
+
+    gcloud iam service-accounts add-iam-policy-binding \
+      prefect-cloud-push@<PROJECT_ID>.iam.gserviceaccount.com \
+      --role=roles/iam.workloadIdentityUser \
+      --member="principal://iam.googleapis.com/projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/prefect-cloud/subjects/prefect:account:<PREFECT_CLOUD_ACCOUNT_ID>"
+    ```
+
+    Grant the service account the project roles required to run Cloud Run jobs (typically **Cloud Run Developer** and **Service Account User**, plus **Artifact Registry Reader** if you store images in Artifact Registry):
+
+    ```bash
+    gcloud projects add-iam-policy-binding <PROJECT_ID> \
+      --member="serviceAccount:prefect-cloud-push@<PROJECT_ID>.iam.gserviceaccount.com" \
+      --role=roles/run.developer
+
+    gcloud projects add-iam-policy-binding <PROJECT_ID> \
+      --member="serviceAccount:prefect-cloud-push@<PROJECT_ID>.iam.gserviceaccount.com" \
+      --role=roles/iam.serviceAccountUser
+    ```
+
+    ### Configure the work pool
+
+    Open the configuration page for your Cloud Run push work pool in Prefect Cloud. In the **GCP Credentials** section choose the **OIDC** credentials type and set:
+
+    - **Project**: your GCP project ID (e.g. `my-project-123`)
+    - **Workload Identity Audience**: the full provider resource name from the previous step, for example `//iam.googleapis.com/projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/prefect-cloud/providers/prefect-cloud`
+    - **Service Account Email**: the email of the service account to impersonate, for example `prefect-cloud-push@<PROJECT_ID>.iam.gserviceaccount.com`
+
+    <Tip>
+    The **Workload Identity Audience** field takes the GCP provider resource name (starting with `//iam.googleapis.com/...`), not the JWT `aud` value of `prefect-cloud`. The `prefect-cloud` audience is what GCP validates against the `--allowed-audiences` you configured on the provider; the resource name is what the Google Auth library uses when it exchanges the JWT at `sts.googleapis.com`.
+    </Tip>
+
+    Save the work pool. New flow runs will impersonate the service account via workload identity federation, without a downloaded service account key.
+
+  </Tab>
+</Tabs>
+
+## Verify the work pool
+
+After saving the configuration, trigger a flow run on a deployment that targets the work pool and watch its logs in Prefect Cloud.
+If the credentials exchange fails, the run will transition to `Crashed` and the work pool event will include the cloud provider's error message.
+
+Common causes of a failed exchange:
+
+- The `sub` claim does not match the trust policy, federated credential subject, or workload identity pool attribute condition. Confirm the Prefect Cloud account ID in the configured subject matches the account running the flow.
+- The `aud` claim does not match the allowed audience on the cloud provider side. Prefect Cloud always signs push pool tokens with `aud=prefect-cloud`.
+- The role or service account is missing the permissions needed to submit the underlying job (ECS `RunTask`, ACI container group create, or Cloud Run job submit).
+
+## Further reading
+
+- [Run flows on serverless compute](/v3/how-to-guides/deployment_infra/serverless)
+- [Using cloud workload identity with Prefect Managed work pools](/v3/how-to-guides/deployment_infra/managed-aws-federated-identity)
+- [Work pools](/v3/concepts/work-pools)
+- [Override job variables](/v3/how-to-guides/deployments/customize-job-variables)

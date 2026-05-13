@@ -735,6 +735,13 @@ to your serverless infrastructure, created a job, ran the job, and reported on i
 
 Push work pool usage is unlimited. However push work pools limit flow runs to 24 hours.
 
+## Authenticate with workload identity federation
+
+AWS ECS, Azure Container Instances, and Google Cloud Run push work pools can authenticate to your cloud provider with short-lived OIDC credentials instead of static keys.
+Prefect Cloud signs a JWT for each flow run and exchanges it for cloud credentials at submission time, so you don't have to store long-lived secrets in Prefect Cloud.
+
+See [Configure workload identity federation for push work pools](/v3/how-to-guides/deployment_infra/serverless-workload-identity) for the issuer URL and per-provider setup steps.
+
 ## Next steps
 
 Learn more about [work pools](/v3/deploy/infrastructure-concepts/work-pools/) and [workers](/v3/deploy/infrastructure-concepts/workers/).
