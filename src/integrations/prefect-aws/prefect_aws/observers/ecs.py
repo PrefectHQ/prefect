@@ -191,6 +191,7 @@ SQS_BACKOFF = 1
 SQS_MAX_BACKOFF_ATTEMPTS = 5
 SQS_MESSAGE_VISIBILITY_TIMEOUT_SECONDS = 300
 SQS_VISIBILITY_EXTENSION_INTERVAL_SECONDS = 240
+SQS_VISIBILITY_EXTENSION_RETRY_INTERVAL_SECONDS = 5
 
 OBSERVER_RESTART_BASE_DELAY = 30
 OBSERVER_MAX_RESTART_ATTEMPTS = 5
@@ -295,6 +296,7 @@ class SqsSubscriber:
                         QueueUrl=queue_url,
                         MaxNumberOfMessages=1,
                         WaitTimeSeconds=20,
+                        VisibilityTimeout=SQS_MESSAGE_VISIBILITY_TIMEOUT_SECONDS,
                     )
                 except Exception as e:
                     await receive_backoff.record_failure(e)
@@ -460,14 +462,22 @@ class EcsObserver:
         sqs_message: SqsMessage,
         message: "MessageTypeDef",
     ) -> None:
+        sleep_interval = SQS_VISIBILITY_EXTENSION_INTERVAL_SECONDS
         while True:
-            await asyncio.sleep(SQS_VISIBILITY_EXTENSION_INTERVAL_SECONDS)
+            await asyncio.sleep(sleep_interval)
             try:
-                await sqs_message.extend_visibility()
+                extended = await sqs_message.extend_visibility()
             except Exception:
                 logger.exception(
                     "Failed to extend ECS observer message visibility",
                     extra={"sqs_message": message},
+                )
+                sleep_interval = SQS_VISIBILITY_EXTENSION_RETRY_INTERVAL_SECONDS
+            else:
+                sleep_interval = (
+                    SQS_VISIBILITY_EXTENSION_INTERVAL_SECONDS
+                    if extended
+                    else SQS_VISIBILITY_EXTENSION_RETRY_INTERVAL_SECONDS
                 )
 
     def on_event(

@@ -13,6 +13,8 @@ from botocore.exceptions import ClientError
 from cachetools import LRUCache
 from prefect_aws.observers.ecs import (
     SQS_MESSAGE_VISIBILITY_TIMEOUT_SECONDS,
+    SQS_VISIBILITY_EXTENSION_INTERVAL_SECONDS,
+    SQS_VISIBILITY_EXTENSION_RETRY_INTERVAL_SECONDS,
     EcsObserver,
     EcsTaskTagsReader,
     FilterCase,
@@ -296,6 +298,10 @@ class TestSqsSubscriber:
 
         for call in mock_sqs_client.receive_message.call_args_list:
             assert call.kwargs["MaxNumberOfMessages"] == 1
+            assert (
+                call.kwargs["VisibilityTimeout"]
+                == SQS_MESSAGE_VISIBILITY_TIMEOUT_SECONDS
+            )
 
         # Only 2 deletes are called because this test acknowledges the first two
         # messages before breaking on the third.
@@ -840,6 +846,33 @@ class TestEcsObserver:
             await asyncio.wait_for(task, timeout=1)
         except asyncio.CancelledError:
             pass
+
+    async def test_message_visibility_extension_failures_retry_soon(self, observer):
+        extend_visibility = AsyncMock(side_effect=[False, asyncio.CancelledError()])
+        sqs_message = SqsMessage(
+            message={},
+            ack=AsyncMock(return_value=True),
+            extend_visibility=extend_visibility,
+        )
+        sleep_calls = []
+
+        async def sleep(interval):
+            sleep_calls.append(interval)
+
+        with (
+            patch("prefect_aws.observers.ecs.asyncio.sleep", sleep),
+            pytest.raises(asyncio.CancelledError),
+        ):
+            await observer._extend_message_visibility_while_processing(
+                sqs_message,
+                sqs_message.message,
+            )
+
+        assert sleep_calls == [
+            SQS_VISIBILITY_EXTENSION_INTERVAL_SECONDS,
+            SQS_VISIBILITY_EXTENSION_RETRY_INTERVAL_SECONDS,
+        ]
+        assert extend_visibility.await_count == 2
 
     @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
     async def test_run_does_not_delete_message_when_handler_fails(
