@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-from uuid import uuid4
-
 import pytest
 
-from prefect.server import models, schemas
-from prefect.server.schemas import core
-from prefect.server.schemas.responses import OrchestrationResult
-from prefect.states import Failed, Scheduled, to_state_create
 from prefect.client.schemas import actions as client_actions
+from prefect.server import models
+from prefect.server.schemas import core
+from prefect.states import Failed, Scheduled, to_state_create
 
 
 @pytest.mark.usefixtures("client", "session", "flow")
@@ -31,7 +28,10 @@ class TestRetryCountersPersistence:
         flow_run_id = resp.json()["id"]
 
         sched_state = to_state_create(Scheduled())
-        set_resp = await client.post(f"/flow_runs/{flow_run_id}/set_state", json=sched_state.model_dump(mode="json"))
+        set_resp = await client.post(
+            f"/flow_runs/{flow_run_id}/set_state",
+            json=sched_state.model_dump(mode="json"),
+        )
         assert set_resp.status_code in (200, 201)
 
         read_resp = await client.get(f"/flow_runs/{flow_run_id}")
