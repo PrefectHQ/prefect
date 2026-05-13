@@ -25,7 +25,7 @@ type TriggerDetailsFlowRunStateProps = {
  * and maps them to the uppercase StateType values expected by StateBadge.
  */
 function mapStateNameToStateType(stateName: string): StateType | null {
-	if (stateName in STATE_NAME_TO_TYPE) {
+	if (Object.hasOwn(STATE_NAME_TO_TYPE, stateName)) {
 		return STATE_NAME_TO_TYPE[stateName as StateName];
 	}
 
@@ -92,7 +92,9 @@ export const TriggerDetailsFlowRunState = ({
 							<StateBadge
 								key={state}
 								type={stateType}
-								name={state in STATE_NAME_TO_TYPE ? state : undefined}
+								name={
+									Object.hasOwn(STATE_NAME_TO_TYPE, state) ? state : undefined
+								}
 							/>
 						);
 					}

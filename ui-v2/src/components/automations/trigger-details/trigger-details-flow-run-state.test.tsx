@@ -85,6 +85,20 @@ describe("TriggerDetailsFlowRunState", () => {
 		expect(screen.getByText("InfrastructurePending")).toBeInTheDocument();
 	});
 
+	it("does not render badges for inherited object keys", () => {
+		render(
+			<TriggerDetailsFlowRunState
+				flowIds={[]}
+				tags={[]}
+				posture="Reactive"
+				states={["constructor"]}
+			/>,
+			{ wrapper: QueryWrapper },
+		);
+
+		expect(screen.queryByText("constructor")).not.toBeInTheDocument();
+	});
+
 	it("renders 'stays in' for Proactive posture", () => {
 		render(
 			<TriggerDetailsFlowRunState
