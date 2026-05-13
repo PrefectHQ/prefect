@@ -75,6 +75,46 @@ def _get_bundle_signing_key() -> bytes:
     return os.environ.get("PREFECT_BUNDLE_SIGNING_KEY", "").encode("utf-8")
 
 
+def _sign_bundle(bundle: SerializedBundle) -> None:
+    """Add an HMAC-SHA256 signature to the bundle if a signing key is configured.
+
+    The signature covers the JSON-serialized bundle (all fields except
+    ``signature`` itself), using deterministic key ordering.  When
+    ``PREFECT_BUNDLE_SIGNING_KEY`` is not set, this is a no-op and the
+    bundle is left unsigned.
+    """
+    signing_key = _get_bundle_signing_key()
+    if not signing_key:
+        return
+    content = {k: v for k, v in bundle.items() if k != "signature"}
+    payload = json.dumps(content, sort_keys=True).encode("utf-8")
+    bundle["signature"] = hmac.new(signing_key, payload, hashlib.sha256).hexdigest()
+
+
+def _verify_bundle_signature(bundle: SerializedBundle) -> None:
+    """Verify the HMAC-SHA256 signature on a bundle.
+
+    Raises ``ValueError`` when ``PREFECT_BUNDLE_SIGNING_KEY`` is set but
+    the bundle is unsigned or the signature does not match.  When the key
+    is not set, verification is skipped (backwards-compatible default).
+    """
+    signing_key = _get_bundle_signing_key()
+    if not signing_key:
+        return
+    sig = bundle.get("signature")
+    if not sig:
+        raise ValueError(
+            "Bundle signature verification failed: unsigned bundle rejected. "
+            "Set PREFECT_BUNDLE_SIGNING_KEY on both the submitting client and "
+            "the executing worker to the same secret value."
+        )
+    content = {k: v for k, v in bundle.items() if k != "signature"}
+    payload = json.dumps(content, sort_keys=True).encode("utf-8")
+    expected = hmac.new(signing_key, payload, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(sig, expected):
+        raise ValueError("Bundle signature verification failed: HMAC mismatch.")
+
+
 def _get_uv_path() -> str:
     """
     Get the path to the uv binary.
@@ -124,6 +164,7 @@ class SerializedBundle(TypedDict):
     flow_run: dict[str, Any]
     dependencies: str
     files_key: NotRequired[str | None]
+    signature: NotRequired[str | None]
 
 
 class BundleCreationResult(TypedDict):
@@ -142,47 +183,12 @@ class BundleCreationResult(TypedDict):
 
 
 def _serialize_bundle_object(obj: Any) -> str:
-    """
-    Serializes an object to a string.
-
-    When ``PREFECT_BUNDLE_SIGNING_KEY`` is set, the serialized payload is
-    prepended with an HMAC-SHA256 signature separated by a colon::
-
-        "<hex_signature>:<base64_payload>"
-    """
-    payload = base64.b64encode(gzip.compress(cloudpickle.dumps(obj))).decode()  # pyright: ignore[reportUnknownMemberType]
-    signing_key = _get_bundle_signing_key()
-    if signing_key:
-        sig = hmac.new(
-            signing_key, payload.encode("utf-8"), hashlib.sha256
-        ).hexdigest()
-        return f"{sig}:{payload}"
-    return payload
+    """Serializes an object to a string."""
+    return base64.b64encode(gzip.compress(cloudpickle.dumps(obj))).decode()  # pyright: ignore[reportUnknownMemberType]
 
 
 def _deserialize_bundle_object(serialized_obj: str) -> Any:
-    """
-    Deserializes an object from a string.
-
-    When ``PREFECT_BUNDLE_SIGNING_KEY`` is set, the HMAC-SHA256 signature is
-    verified before deserialization.  Raises ``ValueError`` if the signature
-    is missing or does not match.
-    """
-    signing_key = _get_bundle_signing_key()
-    if signing_key:
-        if ":" not in serialized_obj:
-            raise ValueError(
-                "Bundle signature verification failed: unsigned bundle rejected. "
-                "Set PREFECT_BUNDLE_SIGNING_KEY on both the submitting client and "
-                "the executing worker to the same secret value."
-            )
-        sig, payload = serialized_obj.split(":", 1)
-        expected_sig = hmac.new(
-            signing_key, payload.encode("utf-8"), hashlib.sha256
-        ).hexdigest()
-        if not hmac.compare_digest(sig, expected_sig):
-            raise ValueError("Bundle signature verification failed")
-        serialized_obj = payload
+    """Deserializes an object from a string."""
     return cloudpickle.loads(gzip.decompress(base64.b64decode(serialized_obj)))
 
 
@@ -558,6 +564,7 @@ def create_bundle_for_flow_run(
             "dependencies": dependencies,
             "files_key": files_key,
         }
+        _sign_bundle(bundle)
         return BundleCreationResult(bundle=bundle, zip_path=zip_path)
 
 
@@ -565,6 +572,7 @@ def extract_flow_from_bundle(bundle: SerializedBundle) -> Flow[Any, Any]:
     """
     Extracts a flow from a bundle.
     """
+    _verify_bundle_signature(bundle)
     return _deserialize_bundle_object(bundle["function"])
 
 
@@ -589,6 +597,8 @@ def _extract_and_run_flow(
     os.environ["PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS"] = "false"
     settings_context = get_settings_context()
     flow_run = FlowRun.model_validate(bundle["flow_run"])
+
+    _verify_bundle_signature(bundle)
 
     # Consume the runner control-channel bootstrap env before deserializing
     # bundled function/context objects, but do not connect yet. The actual
@@ -635,6 +645,8 @@ def execute_bundle_in_subprocess(
 
     ctx = multiprocessing.get_context("spawn")
     env = env or {}
+
+    _verify_bundle_signature(bundle)
 
     # Install dependencies if necessary
     if dependencies := bundle.get("dependencies"):
@@ -913,6 +925,9 @@ async def aupload_bundle_to_storage(
 
 __all__ = [
     "BundleCreationResult",
+    "_get_bundle_signing_key",
+    "_sign_bundle",
+    "_verify_bundle_signature",
     "convert_step_to_command",
     "create_bundle_for_flow_run",
     "execute_bundle_from_file",
