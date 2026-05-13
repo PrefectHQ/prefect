@@ -259,7 +259,7 @@ class BaseJobConfiguration(BaseModel):
         client: PrefectClient,
         work_pool: WorkPool,
         worker_name: str,
-        worker_id: Optional[UUID] = None,
+        worker_id: UUID | None = None,
         deployment: "DeploymentResponse | None" = None,
     ) -> Self:
         """Build a fully-prepared job configuration for an existing flow run.
