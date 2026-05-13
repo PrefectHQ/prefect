@@ -93,12 +93,12 @@ You must store flow code in an accessible remote location.
 Prefect supports git-based cloud providers such as GitHub, Bitbucket, or GitLab.
 Remote block-based storage is also supported, so S3, GCS, and Azure Blob are additional code storage options.
 
-## Access AWS without static credentials
+## Access cloud providers without static credentials
 
-Prefect Managed work pools can assume an AWS IAM role with web identity federation and inject temporary AWS credentials into each run.
-This lets pull steps and flow code access AWS services without storing static access keys in Prefect Cloud.
+Prefect Managed work pools support cloud workload identity federation to inject short-lived credentials into each run.
+This lets pull steps and flow code access cloud services without storing static keys in Prefect Cloud.
 
-See [Use AWS workload identity with Prefect Managed work pools](/v3/how-to-guides/deployment_infra/managed-aws-federated-identity) for setup instructions.
+See [Using cloud workload identity](/v3/how-to-guides/deployment_infra/managed-federated-identity) for setup instructions covering AWS and GCP.
 
 ## Resources & Limitations
 

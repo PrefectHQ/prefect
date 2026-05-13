@@ -187,7 +187,7 @@
                 "group": "Managed Infrastructure",
                 "pages": [
                   "v3/how-to-guides/deployment_infra/managed",
-                  "v3/how-to-guides/deployment_infra/managed-aws-federated-identity"
+                  "v3/how-to-guides/deployment_infra/managed-federated-identity"
                 ]
               },
               "v3/how-to-guides/deployment_infra/serverless",
@@ -1914,6 +1914,10 @@
     ]
   },
   "redirects": [
+    {
+      "destination": "/v3/how-to-guides/deployment_infra/managed-federated-identity",
+      "source": "/v3/how-to-guides/deployment_infra/managed-aws-federated-identity"
+    },
     {
       "destination": "/v3/advanced/plugins",
       "source": "/v3/advanced/experimental-plugins"

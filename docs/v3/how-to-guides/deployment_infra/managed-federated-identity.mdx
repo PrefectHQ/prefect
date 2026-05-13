@@ -1,13 +1,19 @@
 ---
 title: Using cloud workload identity with Prefect Managed work pools
 sidebarTitle: Using cloud workload identity
-description: Learn how to configure cloud provider workload identity with short-lived credentials in Prefect Managed work pools.
-keywords: ["assumerole", "assume role", "oidc", "web identity", "sts", "iam role", "temporary credentials", "federation", "cloud identity", "aws", "amazon web services"]
+description: Learn how to configure cloud provider workload identity with short-lived credentials in Prefect Managed work pools for AWS and GCP.
+keywords: ["assumerole", "assume role", "oidc", "web identity", "sts", "iam role", "temporary credentials", "federation", "cloud identity", "aws", "amazon web services", "gcp", "google cloud", "workload identity federation", "cloud run", "service account"]
 ---
 
 <Note>
 This guide applies only to work pools of type [`prefect:managed`](/v3/how-to-guides/deployment_infra/managed).
 </Note>
+
+Prefect Cloud can authenticate to your cloud provider using OpenID Connect (OIDC) and inject short-lived credentials into each flow run.
+This eliminates the need to store long-lived secrets in Prefect Cloud.
+
+- **Amazon Web Services**—Prefect Cloud assumes an IAM role and injects temporary AWS credentials.
+- **Google Cloud**—Prefect Cloud uses Workload Identity Federation to impersonate a GCP service account and authenticate Cloud Run jobs.
 
 ## Assume IAM Roles in Amazon Web Services
 
@@ -309,9 +315,105 @@ AwsCredentials(
 
 With that configuration in place, your flow code can load the block (using `AwsCredentials.load("application-admin-role")`) and assume `arn:aws:iam::123456789012:role/application-admin` without storing another long-lived AWS credential.
 
+## Use Workload Identity Federation with Google Cloud
+
+<span class="badge cloud"></span> Prefect Cloud can use [Workload Identity Federation](https://cloud.google.com/iam/docs/workload-identity-federation) to impersonate a GCP service account and authenticate Cloud Run jobs without storing static service account keys.
+
+### How it works
+
+When a flow run starts in a Prefect Managed work pool backed by Cloud Run, Prefect Cloud:
+
+1. Issues a short-lived JWT from its OIDC provider.
+2. Exchanges the JWT with GCP's Security Token Service for a federated access token.
+3. Impersonates the service account you configure, producing short-lived GCP credentials.
+4. Uses those credentials to create and manage the Cloud Run job for the flow run.
+
+### Prerequisites
+
+- A GCP project with the [IAM Service Account Credentials API](https://console.cloud.google.com/apis/library/iamcredentials.googleapis.com) enabled.
+- The `gcloud` CLI, authenticated with permissions to manage Workload Identity pools and service accounts.
+
+### Create a Workload Identity Pool and OIDC provider
+
+Create a Workload Identity Pool to act as the trust boundary for external identities.
+You only need one pool per GCP project.
+
+{/* pmd-metadata: notest */}
+```bash
+gcloud iam workload-identity-pools create prefect-cloud-pool \
+  --location="global" \
+  --display-name="Prefect Cloud Pool"
+```
+
+Add an OIDC provider to the pool that trusts Prefect Cloud's token issuer:
+
+{/* pmd-metadata: notest */}
+```bash
+gcloud iam workload-identity-pools providers create-oidc prefect-cloud-provider \
+  --location="global" \
+  --workload-identity-pool="prefect-cloud-pool" \
+  --issuer-uri="https://api.prefect.cloud/oidc-provider" \
+  --allowed-audiences="prefect-cloud" \
+  --attribute-mapping="google.subject=assertion.sub"
+```
+
+### Create and configure a service account
+
+Create a service account that Prefect Cloud will impersonate to run Cloud Run jobs:
+
+{/* pmd-metadata: notest */}
+```bash
+gcloud iam service-accounts create prefect-cloud-runner \
+  --display-name="Prefect Cloud Runner"
+```
+
+Grant the service account the permissions your flow runs need.
+For example, to create and manage Cloud Run jobs:
+
+{/* pmd-metadata: notest */}
+```bash
+gcloud projects add-iam-policy-binding <PROJECT_ID> \
+  --member="serviceAccount:prefect-cloud-runner@<PROJECT_ID>.iam.gserviceaccount.com" \
+  --role="roles/run.developer"
+```
+
+Allow the Workload Identity Pool to impersonate this service account:
+
+{/* pmd-metadata: notest */}
+```bash
+gcloud iam service-accounts add-iam-policy-binding \
+  prefect-cloud-runner@<PROJECT_ID>.iam.gserviceaccount.com \
+  --role="roles/iam.workloadIdentityUser" \
+  --member="principalSet://iam.googleapis.com/projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/prefect-cloud-pool/*"
+```
+
+Replace `<PROJECT_ID>` with your GCP project ID and `<PROJECT_NUMBER>` with the numeric project number.
+
+<Tip>
+To restrict which Prefect Cloud accounts can impersonate the service account, replace the `*` wildcard in the `--member` flag with a specific subject claim, for example: `principal://iam.googleapis.com/projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/prefect-cloud-pool/subject/prefect:account:<PREFECT_CLOUD_ACCOUNT_ID>`.
+</Tip>
+
+### Configure OIDC credentials on the work pool
+
+In Prefect Cloud, open the configuration page for a Cloud Run Push work pool.
+In the **GCP Credentials** section, select **OidcGcpCredentials** and set these fields:
+
+- **Project**: your GCP project ID (for example, `my-project-123`)
+- **Workload Identity Audience**: the full audience URL for the provider, in this format:
+  ```
+  //iam.googleapis.com/projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/prefect-cloud-pool/providers/prefect-cloud-provider
+  ```
+- **Service Account Email**: the service account email to impersonate (for example, `prefect-cloud-runner@my-project-123.iam.gserviceaccount.com`)
+
+### Update an existing work pool schema
+
+If the **OidcGcpCredentials** option does not appear in the credentials dropdown for an existing Cloud Run Push work pool, refresh its base job template with the latest schema.
+Use the same [shell script or Python script](#update-an-existing-work-pool-schema) from the AWS section above, substituting your Cloud Run Push pool name.
+
 ## Further reading
 
 - [Run flows on Prefect Managed infrastructure](/v3/how-to-guides/deployment_infra/managed)
 - [Define deployments with YAML](/v3/how-to-guides/deployments/prefect-yaml)
 - [Override job variables](/v3/how-to-guides/deployments/customize-job-variables)
 - [Store flow code for deployments](/v3/how-to-guides/deployments/store-flow-code)
+- [GCP Workload Identity Federation documentation](https://cloud.google.com/iam/docs/workload-identity-federation)
