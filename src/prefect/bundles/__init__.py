@@ -593,11 +593,7 @@ def execute_bundle_in_subprocess(
 
     # Install dependencies if necessary
     if dependencies := bundle.get("dependencies"):
-        dep_lines = [
-            line.strip()
-            for line in dependencies.split("\n")
-            if line.strip()
-        ]
+        dep_lines = [line.strip() for line in dependencies.split("\n") if line.strip()]
         validated_deps: list[str] = []
         for dep_line in dep_lines:
             if dep_line.startswith("-"):
