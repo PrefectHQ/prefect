@@ -30,7 +30,10 @@ class TestRetryCountersPersistence:
         sched_state = to_state_create(Scheduled())
         set_resp = await client.post(
             f"/flow_runs/{flow_run_id}/set_state",
-            json=sched_state.model_dump(mode="json"),
+            json={
+                "state": sched_state.model_dump(mode="json"),
+                "force": False,
+            },
         )
         assert set_resp.status_code in (200, 201)
 
