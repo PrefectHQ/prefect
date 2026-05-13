@@ -69,6 +69,22 @@ describe("TriggerDetailsFlowRunState", () => {
 		expect(screen.getByText("Failed")).toBeInTheDocument();
 	});
 
+	it("renders named pending state badges", () => {
+		render(
+			<TriggerDetailsFlowRunState
+				flowIds={[]}
+				tags={[]}
+				posture="Reactive"
+				states={["Pending", "Submitting", "InfrastructurePending"]}
+			/>,
+			{ wrapper: QueryWrapper },
+		);
+
+		expect(screen.getByText("Pending")).toBeInTheDocument();
+		expect(screen.getByText("Submitting")).toBeInTheDocument();
+		expect(screen.getByText("InfrastructurePending")).toBeInTheDocument();
+	});
+
 	it("renders 'stays in' for Proactive posture", () => {
 		render(
 			<TriggerDetailsFlowRunState

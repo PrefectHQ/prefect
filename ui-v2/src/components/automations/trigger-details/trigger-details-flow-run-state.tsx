@@ -1,3 +1,4 @@
+import { STATE_NAME_TO_TYPE, type StateName } from "@/api/flow-runs/constants";
 import type { components } from "@/api/prefect";
 import { FlowLink } from "@/components/flows/flow-link";
 import { StateBadge } from "@/components/ui/state-badge";
@@ -24,6 +25,10 @@ type TriggerDetailsFlowRunStateProps = {
  * and maps them to the uppercase StateType values expected by StateBadge.
  */
 function mapStateNameToStateType(stateName: string): StateType | null {
+	if (stateName in STATE_NAME_TO_TYPE) {
+		return STATE_NAME_TO_TYPE[stateName as StateName];
+	}
+
 	const normalizedName = stateName.toUpperCase();
 
 	const validStateTypes: StateType[] = [
@@ -83,7 +88,13 @@ export const TriggerDetailsFlowRunState = ({
 				states.map((state) => {
 					const stateType = mapStateNameToStateType(state);
 					if (stateType) {
-						return <StateBadge key={state} type={stateType} />;
+						return (
+							<StateBadge
+								key={state}
+								type={stateType}
+								name={state in STATE_NAME_TO_TYPE ? state : undefined}
+							/>
+						);
 					}
 					return null;
 				})
