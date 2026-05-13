@@ -127,6 +127,32 @@ class EcsWorkerSettings(PrefectBaseSettings):
         ge=0,
     )
 
+    recover_stale_pending_flow_runs: bool = Field(
+        default=True,
+        description=(
+            "Whether the ECS worker should recover stale flow runs that are stuck in "
+            "Pending/Submitting before infrastructure is created."
+        ),
+    )
+
+    stale_pending_flow_run_age_seconds: int = Field(
+        default=60,
+        description=(
+            "Minimum age in seconds for Pending/Submitting flow runs to be "
+            "considered stale and eligible for recovery."
+        ),
+        ge=1,
+    )
+
+    stale_pending_flow_run_query_limit: int = Field(
+        default=200,
+        description=(
+            "Maximum number of Pending/Submitting flow runs to scan for recovery "
+            "per polling cycle."
+        ),
+        ge=1,
+    )
+
 
 class EcsSettings(PrefectBaseSettings):
     model_config = build_settings_config(("integrations", "aws", "ecs"))

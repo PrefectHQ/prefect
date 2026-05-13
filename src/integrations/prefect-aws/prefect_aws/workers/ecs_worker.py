@@ -48,6 +48,7 @@ ignored.
 from __future__ import annotations
 
 import copy
+import datetime
 import json
 import logging
 from copy import deepcopy
@@ -77,8 +78,22 @@ from tenacity import (
 )
 from typing_extensions import Literal, Self
 
-from prefect.client.schemas.objects import FlowRun
+from prefect.client.schemas.filters import (
+    FlowRunFilter,
+    FlowRunFilterStartTime,
+    FlowRunFilterState,
+    FlowRunFilterStateName,
+    FlowRunFilterStateType,
+    WorkPoolFilter,
+    WorkPoolFilterName,
+    WorkQueueFilter,
+    WorkQueueFilterName,
+)
+from prefect.client.schemas.objects import FlowRun, StateType
+from prefect.client.schemas.responses import WorkerFlowRunResponse
+from prefect.client.schemas.sorting import FlowRunSort
 from prefect.exceptions import InfrastructureNotFound
+from prefect.types._datetime import now
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.processutils import command_from_string
@@ -701,6 +716,90 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
     _display_name = "AWS Elastic Container Service"
     _documentation_url = "https://docs.prefect.io/integrations/prefect-aws/"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/d74b16fe84ce626345adf235a47008fea2869a60-225x225.png"  # noqa
+
+    async def get_and_submit_flow_runs(self) -> list[FlowRun]:
+        runs_response = await self._get_scheduled_flow_runs()
+        self._last_polled_time = now("UTC")
+
+        recovered_runs = await self._get_stale_pending_flow_run_responses()
+
+        if recovered_runs:
+            seen_run_ids = {entry.flow_run.id for entry in runs_response}
+            new_recovered_runs = [
+                entry
+                for entry in recovered_runs
+                if entry.flow_run.id not in seen_run_ids
+            ]
+            if new_recovered_runs:
+                self._logger.info(
+                    "Recovered %s stale flow run(s) in Pending/Submitting state.",
+                    len(new_recovered_runs),
+                )
+                runs_response.extend(new_recovered_runs)
+
+        return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
+
+    async def _get_stale_pending_flow_run_responses(
+        self,
+    ) -> list[WorkerFlowRunResponse]:
+        settings = EcsWorkerSettings()
+        if not settings.recover_stale_pending_flow_runs:
+            return []
+
+        stale_before = now("UTC") - datetime.timedelta(
+            seconds=settings.stale_pending_flow_run_age_seconds
+        )
+
+        flow_run_filter = FlowRunFilter(
+            state=FlowRunFilterState(
+                type=FlowRunFilterStateType(any_=[StateType.PENDING]),
+                name=FlowRunFilterStateName(any_=["Pending", "Submitting"]),
+            ),
+            start_time=FlowRunFilterStartTime(is_null_=True),
+        )
+        work_pool_filter = WorkPoolFilter(
+            name=WorkPoolFilterName(any_=[self._work_pool_name])
+        )
+        work_queue_filter = None
+        if self._work_queues:
+            work_queue_filter = WorkQueueFilter(
+                name=WorkQueueFilterName(any_=sorted(self._work_queues))
+            )
+
+        try:
+            candidate_runs = await self.client.read_flow_runs(
+                flow_run_filter=flow_run_filter,
+                work_pool_filter=work_pool_filter,
+                work_queue_filter=work_queue_filter,
+                sort=FlowRunSort.EXPECTED_START_TIME_ASC,
+                limit=settings.stale_pending_flow_run_query_limit,
+            )
+        except Exception:
+            self._logger.exception(
+                "Failed to query Pending/Submitting flow runs for stale-run recovery"
+            )
+            return []
+
+        stale_run_responses: list[WorkerFlowRunResponse] = []
+        for flow_run in candidate_runs:
+            if flow_run.infrastructure_pid:
+                continue
+
+            if flow_run.work_pool_id is None or flow_run.work_queue_id is None:
+                continue
+
+            if flow_run.state is None or flow_run.state.timestamp > stale_before:
+                continue
+
+            stale_run_responses.append(
+                WorkerFlowRunResponse(
+                    work_pool_id=flow_run.work_pool_id,
+                    work_queue_id=flow_run.work_queue_id,
+                    flow_run=flow_run,
+                )
+            )
+
+        return stale_run_responses
 
     async def _initiate_run(
         self,

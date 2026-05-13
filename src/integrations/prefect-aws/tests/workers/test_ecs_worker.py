@@ -1,5 +1,7 @@
 import json
 import logging
+import os
+from datetime import timedelta
 from functools import partial
 from itertools import product
 from unittest.mock import ANY, AsyncMock, MagicMock, patch
@@ -31,10 +33,12 @@ from prefect_aws.workers.ecs_worker import (
 )
 from pydantic import ValidationError
 
-from prefect.client.schemas.objects import FlowRun
+from prefect.client.schemas.objects import FlowRun, State, StateType
+from prefect.client.schemas.responses import WorkerFlowRunResponse
 from prefect.exceptions import InfrastructureNotFound
 from prefect.settings import PREFECT_API_AUTH_STRING, PREFECT_API_KEY
 from prefect.settings.context import temporary_settings
+from prefect.types._datetime import now as now_fn
 from prefect.utilities.slugify import slugify
 from prefect.utilities.templating import find_placeholders
 
@@ -2589,6 +2593,140 @@ async def test_retry_on_failed_task_definition_registration_with_custom_settings
     finally:
         ecs_client.register_task_definition = original_register
 
+
+async def test_get_stale_pending_flow_run_responses_filters_recoverable_runs():
+    stale_pending = FlowRun(
+        flow_id=uuid4(),
+        deployment_id=uuid4(),
+        work_pool_id=uuid4(),
+        work_queue_id=uuid4(),
+        state=State(
+            type=StateType.PENDING,
+            name="Pending",
+            timestamp=now_fn("UTC") - timedelta(seconds=120),
+        ),
+    )
+    stale_submitting = FlowRun(
+        flow_id=uuid4(),
+        deployment_id=uuid4(),
+        work_pool_id=uuid4(),
+        work_queue_id=uuid4(),
+        state=State(
+            type=StateType.PENDING,
+            name="Submitting",
+            timestamp=now_fn("UTC") - timedelta(seconds=120),
+        ),
+    )
+    fresh_pending = FlowRun(
+        flow_id=uuid4(),
+        deployment_id=uuid4(),
+        work_pool_id=uuid4(),
+        work_queue_id=uuid4(),
+        state=State(
+            type=StateType.PENDING,
+            name="Pending",
+            timestamp=now_fn("UTC") - timedelta(seconds=5),
+        ),
+    )
+    stale_with_pid = FlowRun(
+        flow_id=uuid4(),
+        deployment_id=uuid4(),
+        work_pool_id=uuid4(),
+        work_queue_id=uuid4(),
+        infrastructure_pid="cluster::task",
+        state=State(
+            type=StateType.PENDING,
+            name="Pending",
+            timestamp=now_fn("UTC") - timedelta(seconds=120),
+        ),
+    )
+
+    worker = ECSWorker(work_pool_name="test-pool")
+    worker._client = AsyncMock()
+    worker._client.read_flow_runs = AsyncMock(
+        return_value=[stale_pending, stale_submitting, fresh_pending, stale_with_pid]
+    )
+
+    recovered = await worker._get_stale_pending_flow_run_responses()
+
+    assert {entry.flow_run.id for entry in recovered} == {
+        stale_pending.id,
+        stale_submitting.id,
+    }
+
+
+async def test_get_stale_pending_flow_run_responses_can_be_disabled():
+    worker = ECSWorker(work_pool_name="test-pool")
+    worker._client = AsyncMock()
+    worker._client.read_flow_runs = AsyncMock(return_value=[])
+
+    with mock_patch.dict(
+        os.environ,
+        {
+            "PREFECT_INTEGRATIONS_AWS_ECS_WORKER_RECOVER_STALE_PENDING_FLOW_RUNS": (
+                "false"
+            )
+        },
+    ):
+        recovered = await worker._get_stale_pending_flow_run_responses()
+
+    assert recovered == []
+    worker._client.read_flow_runs.assert_not_called()
+
+
+async def test_get_and_submit_flow_runs_merges_recovered_without_duplicates():
+    existing_run = FlowRun(
+        flow_id=uuid4(),
+        deployment_id=uuid4(),
+        work_pool_id=uuid4(),
+        work_queue_id=uuid4(),
+    )
+    recovered_run = FlowRun(
+        flow_id=uuid4(),
+        deployment_id=uuid4(),
+        work_pool_id=uuid4(),
+        work_queue_id=uuid4(),
+    )
+
+    worker = ECSWorker(work_pool_name="test-pool")
+    worker._get_scheduled_flow_runs = AsyncMock(
+        return_value=[
+            WorkerFlowRunResponse(
+                work_pool_id=existing_run.work_pool_id,
+                work_queue_id=existing_run.work_queue_id,
+                flow_run=existing_run,
+            )
+        ]
+    )
+    worker._get_stale_pending_flow_run_responses = AsyncMock(
+        return_value=[
+            WorkerFlowRunResponse(
+                work_pool_id=existing_run.work_pool_id,
+                work_queue_id=existing_run.work_queue_id,
+                flow_run=existing_run,
+            ),
+            WorkerFlowRunResponse(
+                work_pool_id=recovered_run.work_pool_id,
+                work_queue_id=recovered_run.work_queue_id,
+                flow_run=recovered_run,
+            ),
+        ]
+    )
+    worker._submit_scheduled_flow_runs = AsyncMock(
+        return_value=[existing_run, recovered_run]
+    )
+
+    submitted = await worker.get_and_submit_flow_runs()
+
+    assert submitted == [existing_run, recovered_run]
+    assert worker._submit_scheduled_flow_runs.await_count == 1
+    merged_payload = worker._submit_scheduled_flow_runs.await_args.kwargs[
+        "flow_run_response"
+    ]
+    assert [entry.flow_run.id for entry in merged_payload] == [
+        existing_run.id,
+        recovered_run.id,
+    ]
 
 async def test_mask_sensitive_env_values():
     task_run_request = {
