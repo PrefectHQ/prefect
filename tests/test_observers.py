@@ -683,6 +683,74 @@ class TestFlowRunSuspendingObserver:
             with suppress(asyncio.CancelledError):
                 await observer._polling_task
 
+    async def test_polling_task_runs_as_backstop_when_websocket_connects(self):
+        """
+        Polling must run as a backstop alongside the websocket consumer.
+
+        The websocket consumer can wait forever on `recv()` while the
+        connection stays open but events silently stop arriving (e.g.
+        server-side queue overflow or CPU starvation in the subprocess).
+        In that scenario the websocket-failure fallback never triggers,
+        so polling must always be started in `__aenter__`.
+        """
+        callback = MagicMock()
+        observer = FlowRunSuspendingObserver(on_suspended=callback, polling_interval=60)
+
+        async def never_finish(*args, **kwargs):
+            await asyncio.Event().wait()
+
+        fake_subscriber = AsyncMock()
+        fake_subscriber.__aenter__.return_value = fake_subscriber
+        fake_subscriber.__aiter__.return_value = iter([])
+        # Block the consumer so the websocket-fail fallback can't fire.
+        fake_subscriber.__anext__.side_effect = never_finish
+
+        with patch(
+            "prefect._internal.observers.get_events_subscriber",
+            return_value=fake_subscriber,
+        ):
+            async with observer:
+                assert observer._consumer_task is not None
+                assert not observer._consumer_task.done()
+                assert observer._polling_task is not None
+                assert not observer._polling_task.done()
+
+    async def test_start_polling_task_is_idempotent_when_backstop_running(self):
+        """
+        When polling is already running as a backstop, the websocket-failure
+        callback should not spawn a second polling task that would orphan
+        the first one.
+        """
+        callback = MagicMock()
+        observer = FlowRunSuspendingObserver(on_suspended=callback)
+
+        async def never_finish(*args, **kwargs):
+            await asyncio.Event().wait()
+
+        consumer_task = asyncio.create_task(asyncio.sleep(0))
+        await consumer_task
+
+        with patch(
+            "prefect._internal.observers.critical_service_loop",
+            AsyncMock(side_effect=never_finish),
+        ) as critical_service_loop:
+            observer._start_polling_task(consumer_task)
+            await asyncio.sleep(0)
+            backstop = observer._polling_task
+            assert backstop is not None
+            assert critical_service_loop.call_count == 1
+
+            # Simulate the websocket consumer completing -- polling is already
+            # running, so we should not spawn a second polling task.
+            observer._start_polling_task(consumer_task)
+            await asyncio.sleep(0)
+            assert observer._polling_task is backstop
+            assert critical_service_loop.call_count == 1
+
+            backstop.cancel()
+            with suppress(asyncio.CancelledError):
+                await backstop
+
     @pytest.mark.parametrize("task_state", ["completed", "cancelled"])
     async def test_event_consumer_completion_does_not_poll_during_shutdown(
         self, task_state: str

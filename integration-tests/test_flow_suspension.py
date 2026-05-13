@@ -17,14 +17,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 STARTED_MARKER = "flow-started"
 COMPLETED_MARKER = "flow-completed"
 TASK_MARKER_PREFIX = "task-"
-# Upper bound large enough that the flow keeps producing orchestration
-# boundaries until the in-subprocess `FlowRunSuspendingObserver` has received
-# the Suspended event (or fallen back to polling) and marked the
-# `FlowRunSuspensionRequest`. The original ~6s window raced event propagation
-# under CI load; a much larger window virtually eliminates that race while
-# still letting `pytest-timeout` (90s) bound a true regression.
-TASK_COUNT = 1000
-TASK_SLEEP = 0.1
+# Keep producing orchestration boundaries for long enough that the
+# in-subprocess `FlowRunSuspendingObserver` polling backstop
+# (~10s interval) is guaranteed to fire at least once. Suspension propagates
+# through whichever channel reports it first (events websocket or polling);
+# the websocket is normally faster, polling is the safety net.
+TASK_COUNT = 150
+TASK_SLEEP = 0.2
 
 
 @task
