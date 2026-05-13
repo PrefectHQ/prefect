@@ -1,3 +1,6 @@
+// Static decorative illustration — hardcoded fill values are intentional.
+// These pixel-art SVGs use multiple artistic color shades that don't map
+// cleanly to semantic design tokens and are not affected by theme switching.
 import type { SVGProps } from "react";
 
 type FlowRunStateTypeEmptyAwaitingImageProps = SVGProps<SVGSVGElement>;

@@ -39,7 +39,10 @@ export const ActionsCell = ({ row, onDelete }: ActionsCellProps) => {
 						<Icon id="MoreVertical" className="size-4" />
 					</Button>
 				</DropdownMenuTrigger>
-				<DropdownMenuContent align="end">
+				<DropdownMenuContent
+					align="end"
+					onClick={(event) => event.stopPropagation()}
+				>
 					<DropdownMenuLabel>Actions</DropdownMenuLabel>
 					<DropdownMenuItem disabled={isPending} onClick={() => onQuickRun(id)}>
 						Quick Run

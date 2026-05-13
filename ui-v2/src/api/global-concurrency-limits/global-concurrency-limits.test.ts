@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { createFakeGlobalConcurrencyLimit } from "@/mocks";
 import {
+	buildListGlobalConcurrencyLimitsQuery,
 	type GlobalConcurrencyLimit,
 	queryKeyFactory,
 	useCreateGlobalConcurrencyLimit,
@@ -53,6 +54,11 @@ describe("global concurrency limits hooks", () => {
 		// ------------ Assert
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));
 		expect(result.current.data).toEqual(mockList);
+	});
+
+	it("has a 30s refetch interval", () => {
+		const query = buildListGlobalConcurrencyLimitsQuery();
+		expect(query.refetchInterval).toBe(30_000);
 	});
 
 	/**

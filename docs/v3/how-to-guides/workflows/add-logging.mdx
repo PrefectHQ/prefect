@@ -1,7 +1,7 @@
 ---
 title: How to add logging to a workflow
 sidebarTitle: Add logging
-keywords: ["logging", "log", "print", "debug", "log_prints", "get_run_logger", "subprocess", "multiprocessing", "with_context"]
+keywords: ["logging", "log", "print", "debug", "log_prints", "get_run_logger", "subprocess", "multiprocessing", "with_context", "thread", "ThreadPoolExecutor", "copy_context"]
 ---
 
 ### Emit custom logs
@@ -124,6 +124,71 @@ def my_flow():
 ```
 
 `with_context` also works with `concurrent.futures.ProcessPoolExecutor` and `multiprocessing.Process`.
+
+## Log from threads
+
+When you spawn threads inside a flow or task — for example, with
+`concurrent.futures.ThreadPoolExecutor` or `threading.Thread` — the
+Prefect run context lives in [`contextvars`](https://docs.python.org/3/library/contextvars.html)
+and is **not** automatically propagated to manually created worker
+threads. Calling `get_run_logger()` from such a worker raises
+`MissingContextError`.
+
+Use `contextvars.copy_context()` to snapshot the current context in the
+parent thread, then call your worker via `Context.run(...)` so it
+executes with the snapshotted context active. Logs emitted with
+`get_run_logger()` in the worker thread are then associated with the
+parent flow run and task run and appear in the Prefect UI.
+
+```python
+from concurrent.futures import ThreadPoolExecutor
+from contextvars import copy_context
+
+from prefect import flow, task
+from prefect.logging import get_run_logger
+
+
+def process_single_file(path: str) -> str:
+    # Runs in a worker thread; works because the caller invoked us via
+    # ctx.run(...), so the parent's run context is active here.
+    logger = get_run_logger()
+    logger.info(f"Processing {path}")
+    return path
+
+
+@task
+def process_files(files: list[str]) -> list[str]:
+    # Snapshot the parent thread's context once per worker invocation.
+    # Each ctx.run(...) runs the worker with that context active.
+    contexts = [copy_context() for _ in files]
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        return list(
+            executor.map(
+                lambda ctx, f: ctx.run(process_single_file, f),
+                contexts,
+                files,
+            )
+        )
+
+
+@flow
+def my_flow() -> None:
+    process_files(["file1.txt", "file2.txt", "file3.txt"])
+```
+
+If you control the task body but not the worker function (for example,
+you call into a third-party library), the same pattern applies: build a
+small wrapper that takes a copied context plus the worker arguments,
+and submit the wrapper to the thread pool.
+
+<Tip>
+Prefect's built-in [`ThreadPoolTaskRunner`](/v3/api-ref/python/prefect-task_runners#threadpooltaskrunner)
+already propagates the run context for you, so prefer it when you can
+express your parallelism as Prefect tasks. The pattern above is for
+cases where you need a raw `ThreadPoolExecutor` — for example, when
+parallelizing inside a single task to avoid per-task overhead, or when
+calling library code that manages its own thread pool.
+</Tip>
 
 ## Access logs from the command line
 

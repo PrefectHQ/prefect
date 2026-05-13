@@ -18,6 +18,7 @@ All settings are rooted in the `Settings` class in `models/root.py`, which compo
 | `flows` | `models/flows.py` | Flow behavior defaults |
 | `internal` | `models/internal.py` | Internal machinery |
 | `logging` | `models/logging.py` | Logging config (levels, API log shipping) |
+| `plugins` | `models/plugins.py` | Plugin system config (`PREFECT_PLUGINS_*`); graduated from `experiments.plugins` |
 | `results` | `models/results.py` | Result storage |
 | `runner` | `models/runner.py` | Runner/serve behavior |
 | `server` | `models/server/` | Server-side config (database, services, events, API, UI) — subdirectory with its own nested models |

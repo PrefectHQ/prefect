@@ -105,6 +105,7 @@ Before committing any changes, always run:
 - **Query factories** in `/api` directories with standardized key patterns
 - **Mutation hooks** in `/api` directories
 - **No data transformation** in query factories - do it in components
+- **Duration fields** (`estimated_run_time`, `total_run_time`, etc.) are returned in **seconds** by the API; `humanizeDuration` and similar JS libraries expect milliseconds — always multiply by 1000 before passing to them
 
 ## Forms
 
@@ -112,6 +113,7 @@ Before committing any changes, always run:
 - **zod** for validation
 - **Form** and **FormField** components from shadcn/ui
 - **Stepper** component for wizard flows
+- **Forms bound to refetched queries**: Entity queries (deployments, etc.) refetch on a 30-second interval and on window focus, returning new object references each time. Use `useState` lazy initializers to capture default values once — do not sync form state via `useEffect`, which overwrites in-flight user edits on every refetch. Add `key={entity.id}` on the form component so it fully resets when the entity changes.
 
 ## Testing
 

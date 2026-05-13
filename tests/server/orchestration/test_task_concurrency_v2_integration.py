@@ -7,7 +7,9 @@ Global Concurrency Limits V2 in SecureTaskConcurrencySlots and ReleaseTaskConcur
 
 import contextlib
 from typing import Any, Callable
+from unittest import mock
 
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.concurrency.lease_storage import get_concurrency_lease_storage
@@ -16,6 +18,10 @@ from prefect.server.models import concurrency_limits, concurrency_limits_v2
 from prefect.server.orchestration.core_policy import (
     ReleaseTaskConcurrencySlots,
     SecureTaskConcurrencySlots,
+)
+from prefect.server.orchestration.rules import (
+    ALL_ORCHESTRATION_STATES,
+    BaseOrchestrationRule,
 )
 from prefect.server.schemas import actions, core, states
 from prefect.server.schemas.responses import SetStateStatus
@@ -263,6 +269,45 @@ class TestSecureTaskConcurrencySlotsV2Integration:
 
         assert ctx2.response_status == SetStateStatus.WAIT
 
+    async def test_v2_cleanup_failure_on_fizzle_propagates(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Any],
+    ) -> None:
+        class StateMutatingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                await self.reject_transition(
+                    states.Pending(), reason="force secure concurrency cleanup"
+                )
+
+        v2_limit = await self.create_v2_concurrency_limit(session, "fizzle-tag", 1)
+
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+        ctx = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["fizzle-tag"]
+        )
+
+        async def flaky_decrement(*args: Any, **kwargs: Any) -> bool:
+            raise RuntimeError("storage flake during task cleanup")
+
+        with mock.patch(
+            "prefect.server.models.concurrency_limits_v2.bulk_decrement_active_slots",
+            side_effect=flaky_decrement,
+        ):
+            with pytest.raises(RuntimeError, match="storage flake during task cleanup"):
+                async with contextlib.AsyncExitStack() as stack:
+                    for rule in [SecureTaskConcurrencySlots, StateMutatingRule]:
+                        ctx = await stack.enter_async_context(
+                            rule(ctx, *running_transition)
+                        )
+                    await ctx.validate_proposed_state()
+
+        await session.refresh(v2_limit)
+        assert v2_limit.active_slots == 1
+
     async def test_v2_inactive_limits_ignored(
         self,
         session: AsyncSession,
@@ -431,6 +476,52 @@ class TestReleaseTaskConcurrencySlotsV2Integration:
 
         await session.refresh(v1_limit)
         assert str(ctx1.run.id) not in v1_limit.active_slots
+
+    async def test_v2_release_failure_propagates(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Any],
+    ) -> None:
+        v2_limit = await self.create_v2_concurrency_limit(session, "release-fails", 1)
+
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+        completed_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
+
+        ctx1 = await initialize_orchestration(
+            session, "task", *running_transition, run_tags=["release-fails"]
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            ctx1 = await stack.enter_async_context(
+                SecureTaskConcurrencySlots(ctx1, *running_transition)
+            )
+            await ctx1.validate_proposed_state()
+
+        assert ctx1.response_status == SetStateStatus.ACCEPT
+
+        ctx2 = await initialize_orchestration(
+            session,
+            "task",
+            *completed_transition,
+            run_override=ctx1.run,
+            run_tags=["release-fails"],
+        )
+        ctx2.validated_state = states.State(type=states.StateType.COMPLETED)
+
+        async def flaky_decrement(*args: Any, **kwargs: Any) -> bool:
+            raise RuntimeError("storage flake during task release")
+
+        with mock.patch(
+            "prefect.server.models.concurrency_limits_v2.bulk_decrement_active_slots",
+            side_effect=flaky_decrement,
+        ):
+            with pytest.raises(RuntimeError, match="storage flake during task release"):
+                async with contextlib.AsyncExitStack() as stack:
+                    ctx2 = await stack.enter_async_context(
+                        ReleaseTaskConcurrencySlots(ctx2, *completed_transition)
+                    )
+
+        await session.refresh(v2_limit)
+        assert v2_limit.active_slots == 1
 
     async def test_release_only_on_terminal_transitions(
         self,

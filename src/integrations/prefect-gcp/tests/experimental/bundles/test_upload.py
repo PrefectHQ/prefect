@@ -2,8 +2,8 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from prefect_gcp.bundles.upload import upload_bundle_to_gcs
 from prefect_gcp.credentials import GcpCredentials
-from prefect_gcp.experimental.bundles.upload import upload_bundle_to_gcs
 
 
 @pytest.fixture

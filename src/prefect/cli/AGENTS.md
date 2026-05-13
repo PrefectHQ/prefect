@@ -15,6 +15,7 @@ Prefect command-line interface, powered by **cyclopts**.
 - `deploy/` — `prefect deploy` subcommand — the most complex subcommand with its own internal module structure
 - `cloud/` — `prefect cloud` subcommands (login, workspace, webhooks, IP allowlists)
 - `transfer/` — `prefect transfer` subcommands
+- `experimental.py` — `prefect experimental` command group; register new subcommands via lazy string references (`experimental_app.command("prefect.cli.module:app_object", name="...")`) to defer imports until the subcommand is invoked
 - `_utilities.py`, `_prompts.py`, `_server_utils.py`, `_cloud_utils.py`, `_worker_utils.py` — Internal helpers (prefixed with `_`)
 - `flow_runs_watching.py` — Command-specific support module for `flow-run watch`; provides `watch_flow_run()` and `FlowRunFormatter`. Not prefixed with `_` — command-specific helpers may omit the prefix.
 

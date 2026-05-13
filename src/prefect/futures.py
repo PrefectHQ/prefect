@@ -13,7 +13,8 @@ from typing import TYPE_CHECKING, Any, Callable, Generic
 
 from typing_extensions import NamedTuple, Self, TypeVar
 
-from prefect._waiters import FlowRunWaiter
+from prefect._flow_run_suspension import raise_if_flow_run_suspension_requested
+from prefect._internal.waiters import FlowRunWaiter
 from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
 from prefect.logging.loggers import get_logger
@@ -236,9 +237,11 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future[
         try:
             result = self._wrapped_future.result(timeout=timeout)
         except concurrent.futures.TimeoutError:
+            raise_if_flow_run_suspension_requested()
             return
         if isinstance(result, State):
             self._final_state = result
+        raise_if_flow_run_suspension_requested()
 
     def result(
         self,
@@ -249,6 +252,7 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future[
             try:
                 future_result = self._wrapped_future.result(timeout=timeout)
             except concurrent.futures.TimeoutError as exc:
+                raise_if_flow_run_suspension_requested()
                 raise TimeoutError(
                     f"Task run {self.task_run_id} did not complete within {timeout} seconds"
                 ) from exc
@@ -257,8 +261,10 @@ class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future[
                 self._final_state = future_result
 
             else:
+                raise_if_flow_run_suspension_requested()
                 return future_result
 
+        raise_if_flow_run_suspension_requested()
         _result = self._final_state.result(
             raise_on_failure=raise_on_failure, _sync=True
         )
@@ -285,6 +291,7 @@ class PrefectDistributedFuture(PrefectTaskRunFuture[R]):
             logger.debug(
                 "Final state already set for %s. Returning...", self.task_run_id
             )
+            raise_if_flow_run_suspension_requested()
             return
 
         # Ask for the instance of TaskRunWaiter _now_ so that it's already running and
@@ -304,6 +311,7 @@ class PrefectDistributedFuture(PrefectTaskRunFuture[R]):
                     self.task_run_id,
                 )
                 self._final_state = task_run.state
+                raise_if_flow_run_suspension_requested()
                 return
 
             # If still running, wait for a completed event from the server
@@ -323,6 +331,7 @@ class PrefectDistributedFuture(PrefectTaskRunFuture[R]):
                     self.task_run_id,
                     state_from_event.type,
                 )
+            raise_if_flow_run_suspension_requested()
             return
 
     def result(
@@ -349,10 +358,12 @@ class PrefectDistributedFuture(PrefectTaskRunFuture[R]):
                     if task_run.state and task_run.state.is_final():
                         self._final_state = task_run.state
                     else:
+                        raise_if_flow_run_suspension_requested()
                         raise TimeoutError(
                             f"Task run {self.task_run_id} did not complete within {timeout} seconds"
                         )
 
+        raise_if_flow_run_suspension_requested()
         return await self._final_state.aresult(raise_on_failure=raise_on_failure)
 
     def add_done_callback(self, fn: Callable[[PrefectFuture[R]], None]) -> None:
@@ -415,6 +426,7 @@ class PrefectFlowRunFuture(PrefectFuture[R]):
             logger.debug(
                 "Final state already set for %s. Returning...", self.flow_run_id
             )
+            raise_if_flow_run_suspension_requested()
             return
 
         # Ask for the instance of FlowRunWaiter _now_ so that it's already running and
@@ -434,6 +446,7 @@ class PrefectFlowRunFuture(PrefectFuture[R]):
                     self.flow_run_id,
                 )
                 self._final_state = flow_run.state
+                raise_if_flow_run_suspension_requested()
                 return
 
             # If still running, wait for a completed event from the server
@@ -450,11 +463,13 @@ class PrefectFlowRunFuture(PrefectFuture[R]):
                 flow_run = await client.read_flow_run(flow_run_id=self._flow_run_id)
                 if flow_run.state and flow_run.state.is_final():
                     self._final_state = flow_run.state
+                    raise_if_flow_run_suspension_requested()
                     return
                 # Check if timeout has been exceeded
                 if timeout is not None:
                     elapsed = time.monotonic() - start_time
                     if elapsed >= timeout:
+                        raise_if_flow_run_suspension_requested()
                         return
                 # Brief sleep before polling again to avoid hammering the API
                 await asyncio.sleep(0.1)
@@ -476,10 +491,12 @@ class PrefectFlowRunFuture(PrefectFuture[R]):
         if not self._final_state:
             await self.wait_async(timeout=timeout)
             if not self._final_state:
+                raise_if_flow_run_suspension_requested()
                 raise TimeoutError(
                     f"Flow run {self.flow_run_id} did not complete within {timeout} seconds"
                 )
 
+        raise_if_flow_run_suspension_requested()
         return await self._final_state.aresult(raise_on_failure=raise_on_failure)
 
     def add_done_callback(self, fn: Callable[[PrefectFuture[R]], None]) -> None:
@@ -675,6 +692,7 @@ def wait(
     done = {f for f in _futures if f._final_state}
     not_done = _futures - done
     if len(done) == len(_futures):
+        raise_if_flow_run_suspension_requested()
         return DoneAndNotDoneFutures(done, not_done)
 
     # If no timeout, wait for all futures sequentially
@@ -683,6 +701,7 @@ def wait(
             future.wait()
             done.add(future)
             not_done.remove(future)
+        raise_if_flow_run_suspension_requested()
         return DoneAndNotDoneFutures(done, not_done)
 
     # With timeout, monitor all futures concurrently
@@ -725,9 +744,11 @@ def wait(
                         not_done.remove(future)
                         done.add(future)
 
+            raise_if_flow_run_suspension_requested()
             return DoneAndNotDoneFutures(done, not_done)
     except TimeoutError:
         logger.debug("Timed out waiting for all futures to complete.")
+        raise_if_flow_run_suspension_requested()
         return DoneAndNotDoneFutures(done, not_done)
 
 

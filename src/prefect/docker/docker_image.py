@@ -125,7 +125,7 @@ class DockerImage:
     def _build_with_buildx(
         self, full_image_name: str, build_kwargs: dict[str, Any]
     ) -> None:
-        from prefect.docker._buildx import buildx_build_image
+        from prefect._internal.buildx import buildx_build_image
 
         context = build_kwargs.pop("context", Path.cwd())
         push = build_kwargs.pop("push", False)
@@ -176,7 +176,7 @@ class DockerImage:
         if self._pushed_during_build:
             return
 
-        from prefect.docker._buildx import buildx_push_image
+        from prefect._internal.buildx import buildx_push_image
 
         buildx_push_image(
             name=self.name,

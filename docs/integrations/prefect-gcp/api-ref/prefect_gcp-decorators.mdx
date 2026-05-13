@@ -1,0 +1,46 @@
+---
+title: decorators
+sidebarTitle: decorators
+---
+
+# `prefect_gcp.decorators`
+
+## Functions
+
+### `cloud_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/decorators.py#L53" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+cloud_run(work_pool: str, include_files: Sequence[str] | None = None, launcher: BundleLauncher | None = None, **job_variables: Any) -> Callable[[Flow[P, R]], InfrastructureBoundFlow[P, R]]
+```
+
+
+Decorator that binds execution of a flow to a Cloud Run V2 work pool
+
+**Args:**
+- `work_pool`: The name of the Cloud Run V2 work pool to use
+- `include_files`: Optional sequence of file patterns to include in the bundle.
+Patterns are relative to the flow file location. Supports glob patterns
+(e.g., "*.yaml", "data/**/*.csv"). Files matching these patterns will
+be bundled and available in the remote execution environment.
+- `launcher`: Optional upload and execution launcher override.
+- `**job_variables`: Additional job variables to use for infrastructure configuration
+
+
+### `vertex_ai` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/decorators.py#L108" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+vertex_ai(work_pool: str, include_files: Sequence[str] | None = None, launcher: BundleLauncher | None = None, **job_variables: Any) -> Callable[[Flow[P, R]], InfrastructureBoundFlow[P, R]]
+```
+
+
+Decorator that binds execution of a flow to a Vertex AI work pool
+
+**Args:**
+- `work_pool`: The name of the Vertex AI work pool to use
+- `include_files`: Optional sequence of file patterns to include in the bundle.
+Patterns are relative to the flow file location. Supports glob patterns
+(e.g., "*.yaml", "data/**/*.csv"). Files matching these patterns will
+be bundled and available in the remote execution environment.
+- `launcher`: Optional upload and execution launcher override.
+- `**job_variables`: Additional job variables to use for infrastructure configuration
+

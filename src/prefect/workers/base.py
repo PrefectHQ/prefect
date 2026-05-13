@@ -15,7 +15,9 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
+    ClassVar,
     Generic,
+    Iterable,
     Optional,
     Type,
 )
@@ -24,7 +26,6 @@ from zoneinfo import ZoneInfo
 
 import anyio
 import anyio.abc
-import httpx
 from exceptiongroup import BaseExceptionGroup, ExceptionGroup
 from importlib_metadata import (
     distributions,  # type: ignore[reportUnknownVariableType] incomplete typing
@@ -35,19 +36,21 @@ from typing_extensions import Literal, Self, TypeVar
 
 import prefect
 import prefect.types._datetime
-from prefect._experimental._launchers import resolve_bundle_step_with_launcher
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
+from prefect._internal.infrastructure_exit_codes import get_infrastructure_exit_info
+from prefect._internal.launchers import resolve_bundle_step_with_launcher
+from prefect._internal.observers import FlowRunCancellingObserver
 from prefect._internal.schemas.validators import return_v_or_none
-from prefect._observers import FlowRunCancellingObserver
-from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, get_client
-from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.client.schemas.objects import (
     Integration,
     StateType,
     WorkerMetadata,
     WorkPool,
+)
+from prefect.client.schemas.worker_channel import (
+    CleanupKind,
 )
 from prefect.client.utilities import inject_client
 from prefect.context import FlowRunContext, TagsContext
@@ -60,7 +63,6 @@ from prefect.exceptions import (
     InfrastructureNotFound,
     ObjectNotFound,
 )
-from prefect.filesystems import LocalFileSystem
 from prefect.futures import PrefectFlowRunFuture
 from prefect.logging.loggers import (
     PrefectLogAdapter,
@@ -85,7 +87,6 @@ from prefect.states import (
 )
 from prefect.tasks import Task
 from prefect.types import KeyValueLabels
-from prefect.utilities._infrastructure_exit_codes import get_infrastructure_exit_info
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.collections import deep_merge, set_in_dict
 from prefect.utilities.dispatch import get_registry_for_type, register_base_type
@@ -103,6 +104,12 @@ from prefect.utilities.templating import (
     resolve_variables,
 )
 from prefect.utilities.urls import url_for
+from prefect.workers._cleanup import (
+    WorkerCleanupExecutor,
+    WorkerCleanupHandler,
+    WorkerCleanupHandlerRegistry,
+)
+from prefect.workers._worker_channel import WorkerChannel, WorkPoolWorkerChannel
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
@@ -542,6 +549,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
     type: str
     job_configuration: Type[C] = BaseJobConfiguration  # type: ignore
     job_configuration_variables: Optional[Type[V]] = None
+    cleanup_handlers: ClassVar[tuple[WorkerCleanupHandler, ...]] = ()
+    cleanup_max_concurrency: ClassVar[int | None] = None
 
     _documentation_url = ""
     _logo_url = ""
@@ -558,6 +567,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         heartbeat_interval_seconds: int | None = None,
         *,
         base_job_template: dict[str, Any] | None = None,
+        _cleanup_handlers: Iterable[WorkerCleanupHandler] | None = None,
+        _max_cleanup_concurrency: int | None = None,
     ):
         """
         Base class for all Prefect workers.
@@ -596,6 +607,14 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._base_job_template = base_job_template
         self._work_pool_name = work_pool_name
         self._work_queues: set[str] = set(work_queues) if work_queues else set()
+        self._cleanup_handler_registry = WorkerCleanupHandlerRegistry(
+            _cleanup_handlers
+            if _cleanup_handlers is not None
+            else self.__class__.cleanup_handlers
+        )
+        if _max_cleanup_concurrency is not None and _max_cleanup_concurrency < 0:
+            raise ValueError("Cleanup concurrency cannot be negative")
+        self._max_cleanup_concurrency_override = _max_cleanup_concurrency
 
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
@@ -613,7 +632,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._limiter: Optional[anyio.CapacityLimiter] = None
         self._submitting_flow_run_ids: set[UUID] = set()
         self._scheduled_task_scopes: set[anyio.CancelScope] = set()
-        self._worker_metadata_sent = False
+        self._worker_channel: Optional[WorkerChannel] = None
 
         # Cancellation handling
         self._cancelling_observer: Optional[FlowRunCancellingObserver] = None
@@ -653,6 +672,40 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
     @classmethod
     def get_description(cls) -> str:
         return cls._description
+
+    @property
+    def cleanup_handler_registry(self) -> WorkerCleanupHandlerRegistry:
+        return self._cleanup_handler_registry
+
+    @property
+    def handled_cleanup_kinds(self) -> tuple[CleanupKind, ...]:
+        if not self._cleanup_delivery_available():
+            return ()
+        return self._cleanup_handler_registry.handled_cleanup_kinds
+
+    @property
+    def max_cleanup_concurrency(self) -> int:
+        if not self._cleanup_handler_registry:
+            return 0
+
+        concurrency = (
+            self._max_cleanup_concurrency_override
+            if self._max_cleanup_concurrency_override is not None
+            else self.__class__.cleanup_max_concurrency
+        )
+        if concurrency is None:
+            return 1
+        return concurrency
+
+    def _cleanup_delivery_available(self) -> bool:
+        return bool(self._cleanup_handler_registry) and self.max_cleanup_concurrency > 0
+
+    def _create_cleanup_executor(self) -> WorkerCleanupExecutor:
+        return WorkerCleanupExecutor(
+            handlers=self._cleanup_handler_registry,
+            max_concurrency=self.max_cleanup_concurrency,
+            logger=self._logger,
+        )
 
     @classmethod
     def get_default_base_job_template(cls) -> dict[str, Any]:
@@ -898,56 +951,73 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             task_status: Task status for signaling when the flow run is ready
             flow_run: Optional existing flow run to retry (reuses ID instead of creating new)
         """
-        from prefect._experimental.bundles import (
+        from prefect.bundles import (
             aupload_bundle_to_storage,
             convert_step_to_command,
             create_bundle_for_flow_run,
         )
 
+        work_pool = copy.deepcopy(self.work_pool)
+
         if (
-            self.work_pool.storage_configuration.bundle_upload_step is None
-            or self.work_pool.storage_configuration.bundle_execution_step is None
+            work_pool.storage_configuration.bundle_upload_step is None
+            or work_pool.storage_configuration.bundle_execution_step is None
         ):
             raise RuntimeError(
-                f"Storage is not configured for work pool {self.work_pool.name!r}. "
+                f"Storage is not configured for work pool {work_pool.name!r}. "
                 "Please configure storage for the work pool by running `prefect "
                 "work-pool storage configure`."
             )
 
-        from prefect.results import aresolve_result_storage, get_result_store
+        from prefect.results import (
+            _aget_default_result_storage,
+            _DefaultResultStorageSource,
+            _result_storage_is_configured_for_remote_retrieval,
+            aresolve_result_storage,
+            get_result_store,
+        )
 
         current_result_store = get_result_store()
-        # Check result storage and use the work pool default if needed
-        if flow.result_storage is None and (
-            current_result_store.result_storage is None
-            or isinstance(current_result_store.result_storage, LocalFileSystem)
+        if not _result_storage_is_configured_for_remote_retrieval(
+            flow.result_storage,
+            current_result_store.result_storage,
         ):
+            result_storage = None
             if (
-                self.work_pool.storage_configuration.default_result_storage_block_id
-                is None
+                work_pool.storage_configuration.default_result_storage_block_id
+                is not None
             ):
+                result_storage = await aresolve_result_storage(
+                    work_pool.storage_configuration.default_result_storage_block_id
+                )
+            else:
+                default_result_storage = await _aget_default_result_storage()
+                if (
+                    default_result_storage.source
+                    is not _DefaultResultStorageSource.LOCAL_STORAGE_PATH
+                ):
+                    result_storage = default_result_storage.storage
+
+            if result_storage is None:
                 self._logger.warning(
                     f"Flow {flow.name!r} has no result storage configured. Please configure "
                     "result storage for the flow if you want to retrieve the result for the flow run."
                 )
             else:
-                # Use the work pool's default result storage block for the flow run to ensure the caller can retrieve the result
                 flow = flow.with_options(
-                    result_storage=await aresolve_result_storage(
-                        self.work_pool.storage_configuration.default_result_storage_block_id
-                    ),
+                    result_storage=result_storage,
                     persist_result=True,
                 )
 
         bundle_key = str(uuid.uuid4())
         flow_launcher = getattr(flow, "launcher", None)
         upload_step = resolve_bundle_step_with_launcher(
-            self.work_pool.storage_configuration.bundle_upload_step,
+            work_pool.storage_configuration.bundle_upload_step,
             flow_launcher,
             "upload",
         )
         execute_step = resolve_bundle_step_with_launcher(
-            self.work_pool.storage_configuration.bundle_execution_step,
+            work_pool.storage_configuration.bundle_execution_step,
             flow_launcher,
             "execution",
         )
@@ -983,7 +1053,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 parameters=flow.serialize_parameters(parameters),
                 state=Pending(),
                 job_variables=job_variables,
-                work_pool_name=self.work_pool.name,
+                work_pool_name=work_pool.name,
                 tags=TagsContext.get().current_tags,
                 parent_task_run_id=getattr(parent_task_run, "id", None),
             )
@@ -1005,14 +1075,14 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         logger = self.get_flow_run_logger(flow_run)
 
         configuration = await self.job_configuration.from_template_and_values(
-            base_job_template=self.work_pool.base_job_template,
+            base_job_template=work_pool.base_job_template,
             values=job_variables,
             client=self._client,
         )
         configuration.prepare_for_flow_run(
             flow_run=flow_run,
             flow=api_flow,
-            work_pool=self.work_pool,
+            work_pool=work_pool,
             worker_name=self.name,
             worker_id=self.backend_id,
         )
@@ -1141,6 +1211,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             os.environ.pop("PREFECT__WORKER_ID", None)
         for scope in self._scheduled_task_scopes:
             scope.cancel()
+        if self._worker_channel is not None:
+            self._worker_channel.stop()
 
         # Emit stopped event before closing client
         if self._started_event:
@@ -1152,6 +1224,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         await self._exit_stack.__aexit__(*exc_info)
         self._runs_task_group = None
         self._client = None
+        self._worker_channel = None
 
     def is_worker_still_polling(self, query_interval_seconds: float) -> bool:
         """
@@ -1189,33 +1262,11 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         return await self._submit_scheduled_flow_runs(flow_run_response=runs_response)
 
-    async def _update_local_work_pool_info(self) -> None:
-        if TYPE_CHECKING:
-            assert self._client is not None
-        try:
-            work_pool = await self._client.read_work_pool(
-                work_pool_name=self._work_pool_name
-            )
+    def _record_work_pool_snapshot(self, work_pool: WorkPool) -> None:
+        work_pool = copy.deepcopy(work_pool)
 
-        except ObjectNotFound:
-            if self._create_pool_if_not_found:
-                wp = WorkPoolCreate(
-                    name=self._work_pool_name,
-                    type=self.type,
-                )
-                if self._base_job_template is not None:
-                    wp.base_job_template = self._base_job_template
-
-                work_pool = await self._client.create_work_pool(work_pool=wp)
-                self._logger.info(f"Work pool {self._work_pool_name!r} created.")
-            else:
-                self._logger.warning(f"Work pool {self._work_pool_name!r} not found!")
-                if self._base_job_template is not None:
-                    self._logger.warning(
-                        "Ignoring supplied base job template because the work pool"
-                        " already exists"
-                    )
-                return
+        if not work_pool.base_job_template:
+            work_pool.base_job_template = self.__class__.get_default_base_job_template()
 
         # if the remote config type changes (or if it's being loaded for the
         # first time), check if it matches the local type and warn if not
@@ -1226,13 +1277,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                     f"{self.type!r} but received {work_pool.type!r}"
                     " from the server. Unexpected behavior may occur."
                 )
-
-        # once the work pool is loaded, verify that it has a `base_job_template` and
-        # set it if not
-        if not work_pool.base_job_template:
-            job_template = self.__class__.get_default_base_job_template()
-            await self._set_work_pool_template(work_pool, job_template)
-            work_pool.base_job_template = job_template
 
         self._work_pool = work_pool
 
@@ -1256,81 +1300,61 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             return WorkerMetadata(integrations=integration_versions)
         return None
 
-    async def _send_worker_heartbeat(self) -> Optional[UUID]:
-        """
-        Sends a heartbeat to the API.
-        """
-        if not self._client:
-            self._logger.warning("Client has not been initialized; skipping heartbeat.")
-            return None
-        if not self._work_pool:
-            self._logger.debug("Worker has no work pool; skipping heartbeat.")
-            return None
-
-        should_get_worker_id = self._should_get_worker_id()
-
-        params: dict[str, Any] = {
-            "work_pool_name": self._work_pool_name,
-            "worker_name": self.name,
-            "heartbeat_interval_seconds": self.heartbeat_interval_seconds,
-            "get_worker_id": should_get_worker_id,
-        }
-        if (
-            self._client.server_type == ServerType.CLOUD
-            and not self._worker_metadata_sent
-        ):
-            worker_metadata = await self._worker_metadata()
-            if worker_metadata:
-                params["worker_metadata"] = worker_metadata
-                self._worker_metadata_sent = True
-
-        worker_id = None
-        try:
-            worker_id = await self._client.send_worker_heartbeat(**params)
-        except httpx.HTTPStatusError as e:
-            if e.response.status_code == 422 and should_get_worker_id:
-                self._logger.warning(
-                    "Failed to retrieve worker ID from the Prefect API server."
-                )
-                params["get_worker_id"] = False
-                worker_id = await self._client.send_worker_heartbeat(**params)
-            else:
-                raise e
-
-        if should_get_worker_id and worker_id is None:
-            self._logger.warning(
-                "Failed to retrieve worker ID from the Prefect API server."
-            )
-
-        return worker_id
-
     async def sync_with_backend(self) -> None:
         """
         Updates the worker's local information about it's current work pool and
         queues. Sends a worker heartbeat to the API.
         """
-        await self._update_local_work_pool_info()
+        self._ensure_worker_channel()
 
-        remote_id = await self._send_worker_heartbeat()
-        if remote_id:
-            self.backend_id = remote_id
-            # Set worker ID in os.environ so get_attribution_headers() includes
-            # it in all API requests made by this worker process.
-            os.environ["PREFECT__WORKER_ID"] = str(remote_id)
-            self._logger = get_worker_logger(self)
+        if self._worker_channel is None:
+            self._logger.warning("Client has not been initialized; skipping heartbeat.")
+            return
+
+        await self._worker_channel.sync(self._runs_task_group)
 
         self._logger.debug(
             "Worker synchronized with the Prefect API server. "
             + (f"Remote ID: {self.backend_id}" if self.backend_id else "")
         )
 
-    def _should_get_worker_id(self):
-        """Determines if the worker should request an ID from the API server."""
-        return (
-            self._client
-            and self._client.server_type == ServerType.CLOUD
-            and self.backend_id is None
+    def _ensure_worker_channel(self) -> None:
+        if self._client is None:
+            return
+
+        if self._worker_channel is not None:
+            self._worker_channel.set_client(self._client)
+            return
+
+        self._worker_channel = WorkPoolWorkerChannel(
+            client=self._client,
+            api_url=PREFECT_API_URL.value(),
+            work_pool_is_available=lambda: self._work_pool is not None,
+            work_pool_name=self._work_pool_name,
+            worker_name=self.name,
+            worker_type=self.type,
+            heartbeat_interval_seconds=self.heartbeat_interval_seconds,
+            work_queue_names=sorted(self._work_queues),
+            create_pool_if_not_found=self._create_pool_if_not_found,
+            base_job_template=self._base_job_template,
+            default_base_job_template=self.__class__.get_default_base_job_template(),
+            worker_metadata=self._worker_metadata,
+            logger=self._logger,
+            on_worker_id=self._record_worker_id,
+            on_work_pool_snapshot=self._record_work_pool_snapshot,
+            cleanup_executor=(
+                self._create_cleanup_executor()
+                if self._cleanup_delivery_available()
+                else None
+            ),
         )
+
+    def _record_worker_id(self, remote_id: UUID) -> None:
+        self.backend_id = remote_id
+        # Set worker ID in os.environ so get_attribution_headers() includes
+        # it in all API requests made by this worker process.
+        os.environ["PREFECT__WORKER_ID"] = str(remote_id)
+        self._logger = get_worker_logger(self)
 
     async def _get_scheduled_flow_runs(
         self,
@@ -1592,6 +1616,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         flow_run: "FlowRun",
         deployment: Optional["DeploymentResponse"] = None,
     ) -> C:
+        work_pool = copy.deepcopy(self.work_pool)
+
         if not deployment and flow_run.deployment_id:
             deployment = await self.client.read_deployment(flow_run.deployment_id)
 
@@ -1607,7 +1633,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         job_variables.update(flow_run_vars)
 
         configuration = await self.job_configuration.from_template_and_values(
-            base_job_template=self.work_pool.base_job_template,
+            base_job_template=work_pool.base_job_template,
             values=job_variables,
             client=self.client,
         )
@@ -1616,7 +1642,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 flow_run=flow_run,
                 deployment=deployment,
                 flow=flow,
-                work_pool=self.work_pool,
+                work_pool=work_pool,
                 worker_name=self.name,
                 worker_id=self.backend_id,
             )
@@ -1846,18 +1872,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         """
         raise NotImplementedError(
             f"Worker type {self.type!r} does not support killing infrastructure"
-        )
-
-    async def _set_work_pool_template(
-        self, work_pool: "WorkPool", job_template: dict[str, Any]
-    ):
-        """Updates the `base_job_template` for the worker's work pool server side."""
-
-        await self.client.update_work_pool(
-            work_pool_name=work_pool.name,
-            work_pool=WorkPoolUpdate(
-                base_job_template=job_template,
-            ),
         )
 
     async def _schedule_task(

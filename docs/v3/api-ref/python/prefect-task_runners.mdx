@@ -144,49 +144,49 @@ def my_flow():
 
 **Methods:**
 
-#### `cancel_all` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L442" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `cancel_all` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L503" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 cancel_all(self) -> None
 ```
 
-#### `duplicate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L324" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `duplicate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L335" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 duplicate(self) -> 'ThreadPoolTaskRunner[R]'
 ```
 
-#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L419" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L480" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 map(self, task: 'Task[P, CoroutineType[Any, Any, R]]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None) -> PrefectFutureList[PrefectConcurrentFuture[R]]
 ```
 
-#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L427" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L488" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 map(self, task: 'Task[Any, R]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None) -> PrefectFutureList[PrefectConcurrentFuture[R]]
 ```
 
-#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L434" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L495" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 map(self, task: 'Task[P, R | CoroutineType[Any, Any, R]]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None) -> PrefectFutureList[PrefectConcurrentFuture[R]]
 ```
 
-#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L328" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L339" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 submit(self, task: 'Task[P, CoroutineType[Any, Any, R]]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None, dependencies: dict[str, set[RunInput]] | None = None) -> PrefectConcurrentFuture[R]
 ```
 
-#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L337" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L348" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 submit(self, task: 'Task[Any, R]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None, dependencies: dict[str, set[RunInput]] | None = None) -> PrefectConcurrentFuture[R]
 ```
 
-#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L345" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L356" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 submit(self, task: 'Task[P, R | CoroutineType[Any, Any, R]]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None, dependencies: dict[str, set[RunInput]] | None = None) -> PrefectConcurrentFuture[R]
@@ -204,7 +204,7 @@ Submit a task to the task run engine running in a separate thread.
 - retrieve the result.
 
 
-### `ProcessPoolTaskRunner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L658" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ProcessPoolTaskRunner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L737" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A task runner that executes tasks in a separate process pool.
@@ -275,55 +275,55 @@ def my_flow():
 
 **Methods:**
 
-#### `cancel_all` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1146" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `cancel_all` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1225" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 cancel_all(self) -> None
 ```
 
-#### `duplicate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L763" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `duplicate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L842" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 duplicate(self) -> Self
 ```
 
-#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1123" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1202" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 map(self, task: 'Task[P, CoroutineType[Any, Any, R]]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None) -> PrefectFutureList[PrefectConcurrentFuture[R]]
 ```
 
-#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1131" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1210" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 map(self, task: 'Task[Any, R]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None) -> PrefectFutureList[PrefectConcurrentFuture[R]]
 ```
 
-#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1138" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1217" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 map(self, task: 'Task[P, R | CoroutineType[Any, Any, R]]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None) -> PrefectFutureList[PrefectConcurrentFuture[R]]
 ```
 
-#### `set_subprocess_message_processor_factories` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L791" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_subprocess_message_processor_factories` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L870" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_subprocess_message_processor_factories(self, subprocess_message_processor_factories: Iterable[_SubprocessMessageProcessorFactory] | None = None) -> None
 ```
 
-#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1023" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1102" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 submit(self, task: 'Task[P, CoroutineType[Any, Any, R]]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None, dependencies: dict[str, set[RunInput]] | None = None) -> PrefectConcurrentFuture[R]
 ```
 
-#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1032" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1111" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 submit(self, task: 'Task[Any, R]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None, dependencies: dict[str, set[RunInput]] | None = None) -> PrefectConcurrentFuture[R]
 ```
 
-#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1040" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1119" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 submit(self, task: 'Task[P, R | CoroutineType[Any, Any, R]]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None, dependencies: dict[str, set[RunInput]] | None = None) -> PrefectConcurrentFuture[R]
@@ -342,59 +342,59 @@ Submit a task to the task run engine running in a separate process.
 - retrieve the result.
 
 
-#### `subprocess_message_processor_factories` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L771" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `subprocess_message_processor_factories` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L850" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 subprocess_message_processor_factories(self) -> tuple[_SubprocessMessageProcessorFactory, ...]
 ```
 
-#### `subprocess_message_processor_factories` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L777" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `subprocess_message_processor_factories` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L856" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 subprocess_message_processor_factories(self, subprocess_message_processor_factories: Iterable[_SubprocessMessageProcessorFactory] | None = None) -> None
 ```
 
-### `PrefectTaskRunner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1216" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PrefectTaskRunner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1295" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `duplicate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1220" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `duplicate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1299" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 duplicate(self) -> 'PrefectTaskRunner[R]'
 ```
 
-#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1279" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1358" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 map(self, task: 'Task[P, CoroutineType[Any, Any, R]]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None) -> PrefectFutureList[PrefectDistributedFuture[R]]
 ```
 
-#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1287" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1366" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 map(self, task: 'Task[Any, R]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None) -> PrefectFutureList[PrefectDistributedFuture[R]]
 ```
 
-#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1294" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1373" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 map(self, task: 'Task[P, R | CoroutineType[Any, Any, R]]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None) -> PrefectFutureList[PrefectDistributedFuture[R]]
 ```
 
-#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1224" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1303" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 submit(self, task: 'Task[P, CoroutineType[Any, Any, R]]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None, dependencies: dict[str, set[RunInput]] | None = None) -> PrefectDistributedFuture[R]
 ```
 
-#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1233" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1312" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 submit(self, task: 'Task[Any, R]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None, dependencies: dict[str, set[RunInput]] | None = None) -> PrefectDistributedFuture[R]
 ```
 
-#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1241" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_runners.py#L1320" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 submit(self, task: 'Task[P, R | CoroutineType[Any, Any, R]]', parameters: dict[str, Any], wait_for: Iterable[PrefectFuture[Any]] | None = None, dependencies: dict[str, set[RunInput]] | None = None) -> PrefectDistributedFuture[R]

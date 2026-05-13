@@ -6,6 +6,14 @@ import type {
 import { waitForConfig } from "@/graphs/objects/config";
 import { emitter, waitForEvent } from "@/graphs/objects/events";
 
+function getCssVar(name: string, fallback: string): string {
+	if (typeof document === "undefined") return fallback;
+	const value = getComputedStyle(document.documentElement)
+		.getPropertyValue(name)
+		.trim();
+	return value || fallback;
+}
+
 const defaults: (theme: RunGraphTheme) => Required<RunGraphStyles> = (
 	theme,
 ) => ({
@@ -16,9 +24,9 @@ const defaults: (theme: RunGraphTheme) => Required<RunGraphStyles> = (
 	},
 	rowGap: 24,
 	columnGap: 32,
-	textDefault: theme === "dark" ? "#ffffff" : "#161618",
-	textInverse: theme === "dark" ? "#161618" : "#ffffff",
-	selectedBorderColor: theme === "dark" ? "#3fa2c3" : "#297f9c",
+	textDefault: getCssVar("--foreground", theme === "dark" ? "#ffffff" : "#161618"),
+	textInverse: getCssVar("--background", theme === "dark" ? "#161618" : "#ffffff"),
+	selectedBorderColor: getCssVar("--primary", theme === "dark" ? "#3fa2c3" : "#297f9c"),
 	selectedBorderWidth: 2,
 	selectedBorderOffset: 4,
 	selectedBorderRadius: 9,
@@ -28,21 +36,21 @@ const defaults: (theme: RunGraphTheme) => Required<RunGraphStyles> = (
 	nodeRadius: 6,
 	nodeBorderRadius: 9,
 	nodeToggleSize: 28,
-	nodeToggleBgColor: "#35363C",
+	nodeToggleBgColor: getCssVar("--muted", "#35363C"),
 	nodeToggleBorderRadius: 6,
-	nodeToggleBorderColor: theme === "dark" ? "#4d4f56" : "#bbbec9",
+	nodeToggleBorderColor: getCssVar("--border", theme === "dark" ? "#4d4f56" : "#bbbec9"),
 	nodeUnselectedAlpha: 0.2,
 	artifactsGap: 4,
 	artifactsNodeOverlap: 4,
 	artifactPaddingLeft: 2,
 	artifactPaddingRight: 4,
 	artifactPaddingY: 2,
-	artifactTextColor: "#ffffff",
-	artifactBgColor: "#35363b",
+	artifactTextColor: getCssVar("--primary-foreground", "#ffffff"),
+	artifactBgColor: getCssVar("--secondary", "#35363b"),
 	artifactBorderRadius: 4,
 	artifactContentGap: 4,
 	artifactIconSize: 16,
-	artifactIconColor: "#ffffff",
+	artifactIconColor: getCssVar("--primary-foreground", "#ffffff"),
 	flowStateBarHeight: 8,
 	flowStateSelectedBarHeight: 10,
 	flowStateAreaAlpha: 0.1,
@@ -50,23 +58,23 @@ const defaults: (theme: RunGraphTheme) => Required<RunGraphStyles> = (
 	eventBottomMargin: 4,
 	eventSelectedBorderInset: 8,
 	eventRadiusDefault: 4,
-	eventColor: "#A564F9",
+	eventColor: getCssVar("--event", "#A564F9"),
 	eventClusterRadiusDefault: 6,
-	eventClusterColor: "#A564F9",
-	edgeColor: theme === "dark" ? "#adadad" : "#737682",
+	eventClusterColor: getCssVar("--event", "#A564F9"),
+	edgeColor: getCssVar("--muted-foreground", theme === "dark" ? "#adadad" : "#737682"),
 	guideLineWidth: 1,
-	guideLineColor: theme === "dark" ? "#4d4f56" : "#bbbec9",
+	guideLineColor: getCssVar("--border", theme === "dark" ? "#4d4f56" : "#bbbec9"),
 	guideTextTopPadding: 8,
 	guideTextLeftPadding: 8,
 	guideTextSize: 12,
-	guideTextColor: theme === "dark" ? "#adadad" : "#737682",
+	guideTextColor: getCssVar("--muted-foreground", theme === "dark" ? "#adadad" : "#737682"),
 	playheadWidth: 2,
-	playheadColor: "#6272FF",
+	playheadColor: getCssVar("--primary", "#6272FF"),
 	node: () => ({
-		background: "#ffffff",
+		background: getCssVar("--card", "#ffffff"),
 	}),
 	state: () => ({
-		background: "#ffffff",
+		background: getCssVar("--card", "#ffffff"),
 	}),
 });
 
