@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import datetime
+from collections import defaultdict
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, AsyncGenerator, NoReturn, Optional
 from uuid import UUID
@@ -44,6 +46,25 @@ DEFAULT_PERSIST_MAX_RETRIES = 5
 TaskRunUpsertKey = tuple[str, UUID] | tuple[str, UUID, str, str]
 
 
+def _mysql_integrity_error_is_duplicate_primary_key(exc: IntegrityError) -> bool:
+    """Match MySQL / OceanBase duplicate-key on the primary index only (error 1062)."""
+    parts = [str(exc)]
+    if getattr(exc, "orig", None) is not None:
+        parts.append(str(exc.orig))
+    text = " ".join(parts).lower()
+    if "duplicate" not in text:
+        return False
+    if "1062" not in text and "23000" not in text:
+        # asyncmy may surface only the wrapped message
+        if "duplicate entry" not in text:
+            return False
+    # Named PRIMARY or generic .PRIMARY suffix; do not match uq_* composite indexes.
+    if "for key" in text:
+        key_part = text.rsplit("for key", maxsplit=1)[-1]
+        return "primary" in key_part
+    return "primary" in text
+
+
 def _task_run_upsert_key(task_run: TaskRun) -> TaskRunUpsertKey:
     if task_run.flow_run_id is None:
         return ("id", task_run.id)
@@ -79,25 +100,42 @@ async def _insert_task_run_states(
 
     now = prefect.types._datetime.now("UTC")
 
-    trs_insert = db.queries.insert(db.TaskRunState).values(
-        [
-            {
-                "created": now,
-                "task_run_id": task_run.id,
-                **task_run.state.model_dump(),
-            }
-            for task_run in task_runs
-        ]
-    )
+    rows = [
+        {
+            "created": now,
+            "task_run_id": task_run.id,
+            **task_run.state.model_dump(),
+        }
+        for task_run in task_runs
+    ]
     if db.dialect.name == "mysql":
-        trs_insert = trs_insert.prefix_with("IGNORE")
+        # ``INSERT IGNORE`` drops rows on *any* unique violation. ``task_run_state``
+        # also has ``UNIQUE(task_run_id, timestamp)``; collisions (e.g. second
+        # precision) must surface or succeed—not silently lose terminal states.
+        # Match PostgreSQL ``on_conflict_do_nothing`` on ``id`` only: skip duplicate PK.
+        table = db.TaskRunState.__table__
+        for row in rows:
+            try:
+                await session.execute(table.insert().values(row))
+            except IntegrityError as exc:
+                if _mysql_integrity_error_is_duplicate_primary_key(exc):
+                    logger.debug(
+                        "Skipped duplicate task_run_state primary key %r",
+                        row.get("id"),
+                    )
+                    continue
+                raise
     else:
-        trs_insert = trs_insert.on_conflict_do_nothing(
-            index_elements=[
-                "id",
-            ]
+        trs_insert = (
+            db.queries.insert(db.TaskRunState)
+            .values(rows)
+            .on_conflict_do_nothing(
+                index_elements=[
+                    "id",
+                ]
+            )
         )
-    await session.execute(trs_insert)
+        await session.execute(trs_insert)
 
     logger.debug(f"Recorded {len(task_runs)} task run state change(s)")
 
@@ -130,11 +168,40 @@ def task_run_from_event(event: ReceivedEvent) -> TaskRun:
     )
 
 
-def db_recordable_task_run_from_event(
-    event: ReceivedEvent,
-) -> tuple[TaskRun, dict[str, Any]]:
-    task_run: TaskRun = task_run_from_event(event)
+def _materialize_task_run_times_for_recorder(task_run: TaskRun) -> None:
+    """
+    Ensure start_time / end_time (and total_run_time when trivially derivable) are set
+    before persisting from client events.
 
+    The API orchestration path applies ``SetStartTime`` / ``SetEndTime``, but the
+    recorder persists from ``emit_task_run_state_change_event`` payloads where
+    ``task_run`` is dumped with ``exclude_none=True``. Missing keys deserialize to
+    defaults and are then omitted by ``model_dump_for_orm(..., exclude_unset=True)``,
+    leaving ``start_time`` / ``end_time`` NULL in the database and breaking graphs.
+    """
+    state = task_run.state
+    if state is None:
+        return
+
+    if state.is_running() and task_run.start_time is None:
+        task_run.start_time = state.timestamp
+    if state.is_final():
+        if task_run.start_time is None:
+            task_run.start_time = state.timestamp
+        if task_run.end_time is None:
+            task_run.end_time = state.timestamp
+        if (
+            task_run.start_time is not None
+            and task_run.end_time is not None
+            and task_run.total_run_time == datetime.timedelta(0)
+        ):
+            delta = task_run.end_time - task_run.start_time
+            if delta > datetime.timedelta(0):
+                task_run.total_run_time = delta
+
+
+def _task_run_row_dict_from_model(task_run: TaskRun) -> dict[str, Any]:
+    """Build columns for upsert; caller must finalize timings on ``task_run`` first."""
     task_run_attributes = task_run.model_dump_for_orm(
         exclude={
             "state_id",
@@ -155,10 +222,22 @@ def db_recordable_task_run_from_event(
         "state_timestamp": task_run.state.timestamp,
     }
 
-    return task_run, {
+    return {
         **task_run_attributes,
         **denormalized_state_attributes,
     }
+
+
+def _task_run_upsert_dict(task_run: TaskRun) -> dict[str, Any]:
+    _materialize_task_run_times_for_recorder(task_run)
+    return _task_run_row_dict_from_model(task_run)
+
+
+def db_recordable_task_run_from_event(
+    event: ReceivedEvent,
+) -> tuple[TaskRun, dict[str, Any]]:
+    task_run: TaskRun = task_run_from_event(event)
+    return task_run, _task_run_upsert_dict(task_run)
 
 
 async def record_task_run_event(event: ReceivedEvent, depth: int = 0) -> None:
@@ -250,6 +329,44 @@ async def _record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
         tr["conflict_group"] = conflict_group
         unique_task_runs_by_group[conflict_group] = tr
         conflict_keys_by_group.setdefault(conflict_group, set()).update(conflict_keys)
+
+    group_members: dict[TaskRunUpsertKey, list[dict[str, Any]]] = defaultdict(list)
+    for tr in all_task_runs:
+        group_members[tr["conflict_group"]].append(tr)
+
+    for conflict_group, members in group_members.items():
+        if conflict_group not in unique_task_runs_by_group:
+            continue
+        rep_entry = unique_task_runs_by_group[conflict_group]
+        rep_task = rep_entry["task_run"]
+        start_candidates: list[Any] = []
+        end_candidates: list[Any] = []
+        for m in members:
+            mtr, st = m["task_run"], m["task_run"].state
+            if st is None:
+                continue
+            if mtr.start_time is not None:
+                start_candidates.append(mtr.start_time)
+            if st.is_running():
+                start_candidates.append(st.timestamp)
+            if mtr.end_time is not None:
+                end_candidates.append(mtr.end_time)
+            if st.is_final():
+                end_candidates.append(st.timestamp)
+        if start_candidates:
+            rep_task.start_time = min(start_candidates)
+        if end_candidates:
+            rep_task.end_time = max(end_candidates)
+        if (
+            rep_task.start_time is not None
+            and rep_task.end_time is not None
+            and rep_task.total_run_time == datetime.timedelta(0)
+        ):
+            delta = rep_task.end_time - rep_task.start_time
+            if delta > datetime.timedelta(0):
+                rep_task.total_run_time = delta
+        _materialize_task_run_times_for_recorder(rep_task)
+        rep_entry["task_run_dict"] = _task_run_row_dict_from_model(rep_task)
 
     for tr in all_task_runs:
         conflict_group = tr["conflict_group"]

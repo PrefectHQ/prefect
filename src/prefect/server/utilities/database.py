@@ -26,7 +26,7 @@ from zoneinfo import ZoneInfo
 
 import pydantic
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql, sqlite
+from sqlalchemy.dialects import mysql, postgresql, sqlite
 from sqlalchemy.dialects.postgresql.operators import (
     # these are all incompletely annotated
     ASTEXT,  # type: ignore
@@ -159,6 +159,12 @@ class Timestamp(TypeDecorator[datetime.datetime]):
             # arithmetic below would require updating if a different format was to
             # be configured here.
             return dialect.type_descriptor(sqlite.DATETIME())
+        elif dialect.name == "mysql":
+            # Microsecond precision reduces collisions on the unique
+            # (task_run_id, timestamp) index when many states are written in the same
+            # wall-clock second; plain TIMESTAMP/DATETIME(0) can drop rows if combined
+            # with mistaken INSERT IGNORE semantics.
+            return dialect.type_descriptor(mysql.DATETIME(fsp=6))
         else:
             return dialect.type_descriptor(sa.TIMESTAMP(timezone=True))
 
