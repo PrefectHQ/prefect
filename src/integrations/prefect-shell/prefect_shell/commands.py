@@ -33,10 +33,6 @@ def _is_powershell_executable(token: str) -> bool:
     return name in ("powershell", "pwsh")
 
 
-def _argv_has_execution_policy_flag(argv: list[str]) -> bool:
-    return any("executionpolicy" in arg.lower() for arg in argv)
-
-
 def _argv_to_run_script_file(
     shell: str | None, extension: str, script_path: str
 ) -> list[str]:
@@ -59,9 +55,14 @@ def _argv_to_run_script_file(
 
     use_powershell = is_ps1 or _is_powershell_executable(argv[0])
     if use_powershell:
-        if not _argv_has_execution_policy_flag(argv):
+        if not any("executionpolicy" in arg.lower() for arg in argv):
             argv = [argv[0], "-ExecutionPolicy", "Bypass", *argv[1:]]
         return [*argv, "-File", script_path]
+
+    # Preserve prior behavior for simple shell names used by existing tests
+    # while still supporting command-style shell strings.
+    if len(argv) == 1:
+        argv[0] = argv[0].lower()
     return [*argv, script_path]
 
 
