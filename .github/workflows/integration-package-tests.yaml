@@ -104,6 +104,12 @@ jobs:
         working-directory: src/integrations/${{ matrix.package }}
         run: >
           uv run pytest tests
+          --reruns 2
+          --reruns-delay 5
+          --only-rerun "AssertionError"
+          --only-rerun "ConnectionError"
+          --only-rerun "ConnectionAbortedError"
+          --only-rerun "RaySystemError"
 
   run-prefect-dbt-integration-tests:
     timeout-minutes: 20

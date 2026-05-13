@@ -13,7 +13,6 @@ import ray.cluster_utils
 from prefect_ray import RayTaskRunner
 from prefect_ray.context import remote_options
 
-import prefect
 from prefect import flow, task
 from prefect.assets import Asset, materialize
 from prefect.client.orchestration import get_client
@@ -58,20 +57,12 @@ def machine_ray_instance():
     """
     Starts a ray instance for the current machine
     """
-    # First ensure any existing Ray processes are stopped
-    try:
-        subprocess.run(
-            ["ray", "stop"],
-            check=True,
-            capture_output=True,
-            cwd=str(prefect.__development_base_path__),
-        )
-    except subprocess.CalledProcessError:
-        # It's okay if ray stop fails - it might not be running
-        pass
+    subprocess.run(
+        ["ray", "stop", "--force"],
+        capture_output=True,
+    )
 
     try:
-        # Start Ray with clean session
         subprocess.check_output(
             [
                 "ray",
@@ -81,35 +72,50 @@ def machine_ray_instance():
                 "False",
                 "--disable-usage-stats",
             ],
-            cwd=str(prefect.__development_base_path__),
             env={**os.environ, "RAY_RUNTIME_ENV_LOCAL_DEV_MODE": "1"},
         )
-        yield "ray://127.0.0.1:10001"
+
+        # Wait for the Ray head node to be fully ready via `ray status`
+        for attempt in range(15):
+            result = subprocess.run(
+                ["ray", "status"],
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode == 0 and "1 node" in result.stdout:
+                break
+            time.sleep(1)
+        else:
+            pytest.fail(
+                f"Ray head node did not become ready in time. "
+                f"Last status output: {result.stdout} {result.stderr}"
+            )
+
+        # Verify the client server (port 10001) accepts connections with
+        # exponential backoff
+        address = "ray://127.0.0.1:10001"
+        last_error = None
+        for attempt in range(5):
+            try:
+                ray.init(address)
+                ray.shutdown()
+                break
+            except Exception as exc:
+                last_error = exc
+                time.sleep(2**attempt)
+        else:
+            pytest.fail(
+                f"Ray client server not accepting connections after retries. "
+                f"Last error: {last_error}"
+            )
+
+        yield address
     except subprocess.CalledProcessError as exc:
         pytest.fail(f"Failed to start ray: {exc.stderr or exc}")
     finally:
-        # Always try to stop Ray in the cleanup
-        try:
-            subprocess.run(
-                ["ray", "stop"],
-                check=True,
-                capture_output=True,
-                cwd=str(prefect.__development_base_path__),
-            )
-        except subprocess.CalledProcessError:
-            pass  # Best effort cleanup
-
-
-@pytest.fixture
-def default_ray_task_runner():
-    with warnings.catch_warnings():
-        # Ray does not properly close resources and we do not want their warnings to
-        # bubble into our test suite
-        # https://github.com/ray-project/ray/pull/22419
-        warnings.simplefilter("ignore", ResourceWarning)
-
-        yield RayTaskRunner(
-            init_kwargs={"runtime_env": {"RAY_RUNTIME_ENV_LOCAL_DEV_MODE": "1"}}
+        subprocess.run(
+            ["ray", "stop", "--force"],
+            capture_output=True,
         )
 
 
@@ -127,7 +133,23 @@ def ray_task_runner_with_existing_cluster(
     """
     yield RayTaskRunner(
         address=machine_ray_instance,
+        init_kwargs={
+            "runtime_env": {"env_vars": {"RAY_RUNTIME_ENV_LOCAL_DEV_MODE": "1"}}
+        },
     )
+
+
+@pytest.fixture
+def default_ray_task_runner():
+    with warnings.catch_warnings():
+        # Ray does not properly close resources and we do not want their warnings to
+        # bubble into our test suite
+        # https://github.com/ray-project/ray/pull/22419
+        warnings.simplefilter("ignore", ResourceWarning)
+
+        yield RayTaskRunner(
+            init_kwargs={"runtime_env": {"RAY_RUNTIME_ENV_LOCAL_DEV_MODE": "1"}}
+        )
 
 
 @pytest.fixture
@@ -178,10 +200,8 @@ task_runner_setups = [
     default_ray_task_runner,
     ray_task_runner_with_inprocess_cluster,
     ray_task_runner_with_temporary_cluster,
+    ray_task_runner_with_existing_cluster,
 ]
-
-if sys.version_info >= (3, 10):
-    task_runner_setups.append(ray_task_runner_with_existing_cluster)
 
 
 class TestRayTaskRunner:
@@ -448,6 +468,28 @@ class TestRayTaskRunner:
 
         base_flow()
         assert tmp_file.read_text() == "d"
+
+    def test_exit_does_not_shutdown_pre_existing_ray(self):
+        """Regression test: __exit__ must not shut down a Ray cluster that was
+        already running before the task runner entered."""
+        ray.init(ignore_reinit_error=True)
+        try:
+            runner = RayTaskRunner()
+            with runner:
+                assert ray.is_initialized()
+            # Ray should still be running after the task runner exits
+            assert ray.is_initialized()
+        finally:
+            ray.shutdown()
+
+    def test_exit_shuts_down_ray_it_started(self):
+        """When the task runner itself starts Ray, __exit__ should shut it down."""
+        if ray.is_initialized():
+            ray.shutdown()
+        runner = RayTaskRunner()
+        with runner:
+            assert ray.is_initialized()
+        assert not ray.is_initialized()
 
     def test_ray_options(self):
         @task

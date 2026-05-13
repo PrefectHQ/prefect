@@ -243,4 +243,5 @@ jobs:
             --title "$PR_TITLE" \
             --body "$PR_BODY" \
             --base main \
-            --head "$BRANCH"
+            --head "$BRANCH" \
+            --label "agents-md"

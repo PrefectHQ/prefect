@@ -22,6 +22,7 @@ export const CustomRunPage = ({
 				<DeploymentLinks deployment={data} />
 			</div>
 			<CreateFlowRunForm
+				key={data.id}
 				deployment={data}
 				overrideParameters={overrideParameters}
 			/>
