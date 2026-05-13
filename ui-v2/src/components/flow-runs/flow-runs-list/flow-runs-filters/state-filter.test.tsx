@@ -33,6 +33,27 @@ describe("FlowRunsDataTable -- StateFilter", () => {
 		).toBeVisible();
 	});
 
+	it("includes all pending state names in All except scheduled", async () => {
+		// Setup
+		const user = userEvent.setup();
+		render(<TestStateFilter />);
+		// Test
+		await user.click(screen.getByRole("button", { name: /all run states/i }));
+		await user.click(
+			screen.getByRole("menuitem", { name: /all except scheduled/i }),
+		);
+
+		// Assert
+		expect(screen.getByRole("menuitem", { name: /submitting/i })).toBeVisible();
+		expect(
+			screen.getByRole("menuitem", { name: /infrastructurepending/i }),
+		).toBeVisible();
+		await user.keyboard("{Escape}");
+		expect(
+			screen.getByRole("button", { name: /all except scheduled/i }),
+		).toBeVisible();
+	});
+
 	it("selects All run states option", async () => {
 		// Setup
 		const user = userEvent.setup();

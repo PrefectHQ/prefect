@@ -8,6 +8,7 @@ export const FLOW_RUN_STATES = [
 	"AwaitingConcurrencySlot",
 	"Pending",
 	"Submitting",
+	"InfrastructurePending",
 	"Paused",
 	"Suspended",
 	"Running",
@@ -34,6 +35,7 @@ export const FLOW_RUN_STATES_NO_SCHEDULED = FLOW_RUN_STATES.filter(
 export const FLOW_RUN_STATES_WITHOUT_SCHEDULED: FlowRunState[] = [
 	"Pending",
 	"Submitting",
+	"InfrastructurePending",
 	"Paused",
 	"Suspended",
 	"Running",
@@ -53,6 +55,7 @@ export const FLOW_RUN_STATES_MAP = {
 	AwaitingConcurrencySlot: "SCHEDULED",
 	Pending: "PENDING",
 	Submitting: "PENDING",
+	InfrastructurePending: "PENDING",
 	Paused: "PAUSED",
 	Suspended: "PAUSED",
 	Running: "RUNNING",
