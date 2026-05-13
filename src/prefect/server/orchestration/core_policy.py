@@ -865,6 +865,12 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
 
     This rule releases a concurrency slot for a deployment when a flow run
     transitions out of the Running or Cancelling state.
+
+    Exception: in-process retries (``retry_type == "in_process"``) are exempt.
+    The flow engine keeps the same process alive during the retry delay and
+    continuously renews the concurrency lease.  Releasing the slot here would
+    invalidate the lease mid-delay, causing a spurious "Concurrency lease renewal
+    failed" crash instead of a successful retry.
     """
 
     async def after_transition(
@@ -901,6 +907,21 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
         ):
             return
         if not context.session or not context.run.deployment_id:
+            return
+
+        # For in-process retries the flow engine remains alive across the retry delay
+        # and actively renews the concurrency lease.  Releasing the lease here would
+        # cause the renewal task to hit a "lease not found" error at
+        # lease_duration * 0.75 seconds (225 s for the default 300 s lease), which
+        # terminates the execution with a spurious crash instead of completing the
+        # retry.  The slot and lease remain valid — skip the release and let the
+        # engine hold them until the retry run finishes normally.
+        # See: https://github.com/PrefectHQ/prefect/issues/20251
+        if (
+            proposed_state_type == states.StateType.SCHEDULED
+            and context.run.empirical_policy
+            and context.run.empirical_policy.retry_type == "in_process"
+        ):
             return
 
         if (

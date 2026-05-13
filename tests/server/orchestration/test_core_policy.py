@@ -4984,6 +4984,184 @@ class TestFlowConcurrencyLimits:
         actual_ttl_seconds = (lease.expiration - created_at).total_seconds()
         assert abs(actual_ttl_seconds - 720.0) < 5
 
+    async def test_in_process_retry_preserves_concurrency_slot_and_lease(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/20251
+
+        When a flow with a deployment concurrency limit fails and schedules an
+        in-process retry (retry_type == "in_process"), ReleaseFlowConcurrencySlots
+        must NOT revoke the lease or decrement the active slot count.
+
+        The flow engine remains alive across the retry delay and keeps renewing the
+        lease.  If the server releases the lease here, the renewal task hits a
+        "lease not found" error at lease_duration * 0.75 seconds (225 s for the
+        default 300 s lease) and terminates the execution with a spurious crash.
+        """
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+        # Simulates the RUNNING → FAILED → AwaitingRetry path that RetryFailedFlows
+        # produces when a retry is still available.
+        awaiting_retry_transition = (
+            states.StateType.RUNNING,
+            states.StateType.SCHEDULED,
+        )
+
+        # Acquire the concurrency slot (SCHEDULED → PENDING)
+        ctx = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            ctx = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx, *pending_transition)
+            )
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+        assert lease_id is not None
+
+        # Transition to RUNNING, copying the lease forward
+        ctx_running = await initialize_orchestration(
+            session,
+            "flow",
+            *running_transition,
+            deployment_id=deployment.id,
+            run_override=ctx.run,
+            initial_details=ctx.validated_state.state_details,
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            ctx_running = await stack.enter_async_context(
+                ValidateDeploymentConcurrencyAtRunning(ctx_running, *running_transition)
+            )
+            await ctx_running.validate_proposed_state()
+
+        assert (
+            ctx_running.validated_state.state_details.deployment_concurrency_lease_id
+            == lease_id
+        )
+
+        # Set retry_type = "in_process" on the run — this is what RetryFailedFlows
+        # does before ReleaseFlowConcurrencySlots runs in the real policy chain.
+        ctx_running.run.empirical_policy = schemas.core.FlowRunPolicy(
+            retries=3, retry_type="in_process"
+        )
+
+        # Now simulate RUNNING → SCHEDULED (AwaitingRetry) with in-process retry.
+        ctx_retry = await initialize_orchestration(
+            session,
+            "flow",
+            *awaiting_retry_transition,
+            deployment_id=deployment.id,
+            run_override=ctx_running.run,
+            initial_details=ctx_running.validated_state.state_details,
+        )
+        ctx_retry.run.empirical_policy = schemas.core.FlowRunPolicy(
+            retries=3, retry_type="in_process"
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx_retry = await stack.enter_async_context(
+                ReleaseFlowConcurrencySlots(ctx_retry, *awaiting_retry_transition)
+            )
+            await ctx_retry.validate_proposed_state()
+
+        assert ctx_retry.response_status == SetStateStatus.ACCEPT
+
+        # The slot must still be held — the engine is alive and renewing the lease.
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=1
+        )
+
+        # The lease must still be valid.
+        lease_storage = get_concurrency_lease_storage()
+        lease = await lease_storage.read_lease(lease_id=lease_id)
+        assert lease is not None, "Lease must not be revoked for an in-process retry"
+
+    async def test_exhausted_retries_release_slot_normally(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        """
+        When retries are exhausted (retry_type cleared to None by RetryFailedFlows),
+        ReleaseFlowConcurrencySlots must still release the slot and revoke the lease.
+        """
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+        failed_transition = (states.StateType.RUNNING, states.StateType.FAILED)
+
+        ctx = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            ctx = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx, *pending_transition)
+            )
+            await ctx.validate_proposed_state()
+
+        lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+        assert lease_id is not None
+
+        ctx_running = await initialize_orchestration(
+            session,
+            "flow",
+            *running_transition,
+            deployment_id=deployment.id,
+            run_override=ctx.run,
+            initial_details=ctx.validated_state.state_details,
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            ctx_running = await stack.enter_async_context(
+                ValidateDeploymentConcurrencyAtRunning(ctx_running, *running_transition)
+            )
+            await ctx_running.validate_proposed_state()
+
+        # Exhausted retries: retry_type is None (cleared by RetryFailedFlows).
+        ctx_running.run.empirical_policy = schemas.core.FlowRunPolicy(
+            retries=1, retry_type=None
+        )
+
+        ctx_failed = await initialize_orchestration(
+            session,
+            "flow",
+            *failed_transition,
+            deployment_id=deployment.id,
+            run_override=ctx_running.run,
+            initial_details=ctx_running.validated_state.state_details,
+        )
+        ctx_failed.run.empirical_policy = schemas.core.FlowRunPolicy(
+            retries=1, retry_type=None
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx_failed = await stack.enter_async_context(
+                ReleaseFlowConcurrencySlots(ctx_failed, *failed_transition)
+            )
+            await ctx_failed.validate_proposed_state()
+
+        # Slot must be released now that retries are exhausted.
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=0
+        )
+
+        lease_storage = get_concurrency_lease_storage()
+        lease = await lease_storage.read_lease(lease_id=lease_id)
+        assert lease is None, "Lease must be revoked when retries are exhausted"
+
 
 class TestPreserveDeploymentConcurrencyLeaseId:
     """Tests for PreserveDeploymentConcurrencyLeaseId transform."""
