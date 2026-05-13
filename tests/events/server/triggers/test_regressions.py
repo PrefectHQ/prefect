@@ -912,6 +912,98 @@ async def test_zombie_flow_detection_fires_when_heartbeats_stop(
     )
 
 
+async def test_zombie_flow_detection_does_not_fire_when_flow_completes(
+    act: mock.AsyncMock,
+    frozen_time: DateTime,
+    zombie_flow_detection_automation: Automation,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/21932
+
+    A healthy flow emits heartbeats and then a terminal state event. The terminal
+    state event matches the trigger's wildcard `expect` set and should satisfy
+    the proactive threshold, preventing the zombie trigger from firing.
+    """
+    assert isinstance(zombie_flow_detection_automation.trigger, EventTrigger)
+    flow_run_id = uuid4()
+    resource_id = f"prefect.flow-run.{flow_run_id}"
+
+    # Several heartbeats followed by a terminal Completed event
+    for i in range(3):
+        await triggers.reactive_evaluation(
+            Event(
+                occurred=frozen_time + timedelta(seconds=30 * i),
+                event="prefect.flow-run.heartbeat",
+                resource={"prefect.resource.id": resource_id},
+                id=uuid4(),
+            ).receive()
+        )
+
+    await triggers.reactive_evaluation(
+        Event(
+            occurred=frozen_time + timedelta(seconds=60),
+            event="prefect.flow-run.Completed",
+            resource={"prefect.resource.id": resource_id},
+            id=uuid4(),
+        ).receive()
+    )
+
+    await triggers.proactive_evaluation(
+        zombie_flow_detection_automation.trigger,
+        frozen_time + timedelta(seconds=60 + 90 + 1),
+    )
+    act.assert_not_awaited()
+
+
+async def test_zombie_flow_detection_does_not_fire_when_heartbeat_races_terminal(
+    act: mock.AsyncMock,
+    frozen_time: DateTime,
+    zombie_flow_detection_automation: Automation,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/21932
+
+    The heartbeat thread can emit a final heartbeat at almost the same instant
+    the flow completes. Regardless of which order the events arrive, the
+    Completed event must keep the proactive trigger from firing.
+    """
+    assert isinstance(zombie_flow_detection_automation.trigger, EventTrigger)
+    flow_run_id = uuid4()
+    resource_id = f"prefect.flow-run.{flow_run_id}"
+
+    for i in range(3):
+        await triggers.reactive_evaluation(
+            Event(
+                occurred=frozen_time + timedelta(seconds=30 * i),
+                event="prefect.flow-run.heartbeat",
+                resource={"prefect.resource.id": resource_id},
+                id=uuid4(),
+            ).receive()
+        )
+
+    await triggers.reactive_evaluation(
+        Event(
+            occurred=frozen_time + timedelta(seconds=60),
+            event="prefect.flow-run.Completed",
+            resource={"prefect.resource.id": resource_id},
+            id=uuid4(),
+        ).receive()
+    )
+    # Heartbeat arrives after Completed at the same occurred timestamp
+    await triggers.reactive_evaluation(
+        Event(
+            occurred=frozen_time + timedelta(seconds=60),
+            event="prefect.flow-run.heartbeat",
+            resource={"prefect.resource.id": resource_id},
+            id=uuid4(),
+        ).receive()
+    )
+
+    await triggers.proactive_evaluation(
+        zombie_flow_detection_automation.trigger,
+        frozen_time + timedelta(seconds=60 + 90 + 1),
+    )
+    act.assert_not_awaited()
+
+
 @pytest.fixture
 async def proactive_extended_expect_and_after_with_threshold_1(
     cleared_buckets: None,

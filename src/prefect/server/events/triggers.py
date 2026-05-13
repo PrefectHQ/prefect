@@ -152,6 +152,11 @@ async def evaluate(
         )
         return bucket
 
+    # Capture the bucket's last_event before it's overwritten by increment_bucket
+    # so the proactive same-event reset below can tell whether the threshold was
+    # already satisfied by an `expect`-only event (e.g. a terminal flow-run state).
+    previous_last_event = bucket.last_event
+
     if count and (trigger.immediate or bucket.start <= now < bucket.end):
         # we are still within the automation time period, so spend the count in the
         # current bucket
@@ -229,12 +234,23 @@ async def evaluate(
         #
         # If we've already reached the proactive threshold, we need to remove the
         # current bucket and start a new one for the latest event.
+        #
+        # However, if the threshold was already satisfied by an `expect`-only event
+        # (one that matches `expect` but not `after`, e.g. `prefect.flow-run.Completed`
+        # for a heartbeat-based zombie trigger), we must not reset.  Resetting would
+        # discard the terminal event's contribution and re-arm the trigger to fire
+        # falsely after the new window expires.
         if (
             triggering_event
             and trigger.posture == Posture.Proactive
             and not meets_threshold
             and trigger.starts_after(triggering_event.event)
             and trigger.expects(triggering_event.event)
+            and not (
+                previous_last_event
+                and trigger.expects(previous_last_event.event)
+                and not trigger.starts_after(previous_last_event.event)
+            )
         ):
             await remove_bucket(session, bucket)
             return await start_new_bucket(
@@ -1064,9 +1080,6 @@ async def ensure_bucket(
     """Ensures that a bucket has been started for the given automation and key,
     returning the current bucket.  Will not modify the existing bucket."""
     automation = trigger.automation
-    additional_updates: dict[str, ReceivedEvent] = (
-        {"last_event": last_event} if last_event else {}
-    )
     await session.execute(
         db.queries.insert(db.AutomationBucket)
         .values(
@@ -1085,10 +1098,13 @@ async def ensure_bucket(
                 db.AutomationBucket.trigger_id,
                 db.AutomationBucket.bucketing_key,
             ],
+            # no-op, but this counts as an update so the query returns a row.
+            # Importantly, the existing bucket's `last_event` is preserved so that
+            # downstream evaluation can see prior `expect`-only events (e.g. a
+            # terminal flow-run state) that may have already satisfied the
+            # threshold.
             set_=dict(
-                # no-op, but this counts as an update so the query returns a row
                 count=db.AutomationBucket.count,
-                **additional_updates,
             ),
         )
     )
