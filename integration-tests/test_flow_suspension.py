@@ -17,13 +17,20 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 STARTED_MARKER = "flow-started"
 COMPLETED_MARKER = "flow-completed"
 TASK_MARKER_PREFIX = "task-"
-TASK_COUNT = 30
+# Upper bound large enough that the flow keeps producing orchestration
+# boundaries until the in-subprocess `FlowRunSuspendingObserver` has received
+# the Suspended event (or fallen back to polling) and marked the
+# `FlowRunSuspensionRequest`. The original ~6s window raced event propagation
+# under CI load; a much larger window virtually eliminates that race while
+# still letting `pytest-timeout` (90s) bound a true regression.
+TASK_COUNT = 1000
+TASK_SLEEP = 0.1
 
 
 @task
 def write_task_marker(marker_dir: str, index: int) -> None:
     Path(marker_dir, f"{TASK_MARKER_PREFIX}{index}").write_text("done")
-    time.sleep(0.2)
+    time.sleep(TASK_SLEEP)
 
 
 @flow(log_prints=True, persist_result=True)
