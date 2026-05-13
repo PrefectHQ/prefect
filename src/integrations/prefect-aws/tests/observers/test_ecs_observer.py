@@ -875,6 +875,65 @@ class TestEcsObserver:
         assert extend_visibility.await_count == 2
 
     @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
+    async def test_run_stops_processing_when_visibility_backoff_is_exhausted(
+        self, mock_get_session, settings, mock_tags_reader
+    ):
+        message = self._ecs_task_state_change_message()
+        mock_sqs_client = self._setup_sqs_client(
+            mock_get_session,
+            [
+                {"Messages": [message]},
+                asyncio.CancelledError(),
+            ],
+        )
+        mock_sqs_client.change_message_visibility.side_effect = [
+            Exception("Persistent visibility error") for _ in range(18)
+        ]
+
+        observer = EcsObserver(
+            settings=settings,
+            sqs_subscriber=SqsSubscriber("test-queue", "us-east-1"),
+            ecs_tags_reader=mock_tags_reader,
+        )
+
+        handler_started = asyncio.Event()
+        handler_exited = asyncio.Event()
+        handler_finished = asyncio.Event()
+
+        async def handler(event, tags):
+            handler_started.set()
+            try:
+                await handler_finished.wait()
+            finally:
+                handler_exited.set()
+
+        observer.on_event("task", tags={"prefect": "test"})(handler)
+        mock_tags_reader.read_tags.return_value = {"prefect": "test"}
+
+        with (
+            patch("prefect_aws.observers.ecs.SQS_BACKOFF", 0),
+            patch(
+                "prefect_aws.observers.ecs.SQS_VISIBILITY_EXTENSION_INTERVAL_SECONDS",
+                0.01,
+            ),
+            patch(
+                "prefect_aws.observers.ecs.SQS_VISIBILITY_EXTENSION_RETRY_INTERVAL_SECONDS",
+                0,
+            ),
+        ):
+            task = asyncio.create_task(observer.run())
+            await asyncio.wait_for(handler_started.wait(), timeout=1)
+            await asyncio.wait_for(handler_exited.wait(), timeout=1)
+
+        assert mock_sqs_client.change_message_visibility.await_count == 18
+        mock_sqs_client.delete_message.assert_not_called()
+
+        try:
+            await asyncio.wait_for(task, timeout=1)
+        except asyncio.CancelledError:
+            pass
+
+    @patch("prefect_aws.observers.ecs.aiobotocore.session.get_session")
     async def test_run_does_not_delete_message_when_handler_fails(
         self, mock_get_session, settings, mock_tags_reader
     ):

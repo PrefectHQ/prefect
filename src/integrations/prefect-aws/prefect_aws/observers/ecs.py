@@ -467,6 +467,8 @@ class EcsObserver:
             await asyncio.sleep(sleep_interval)
             try:
                 extended = await sqs_message.extend_visibility()
+            except RuntimeError:
+                raise
             except Exception:
                 logger.exception(
                     "Failed to extend ECS observer message visibility",
