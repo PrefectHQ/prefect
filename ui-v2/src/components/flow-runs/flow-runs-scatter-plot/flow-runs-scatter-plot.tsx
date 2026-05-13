@@ -53,15 +53,14 @@ const CustomDot = ({ cx, cy, payload }: CustomDotProps) => {
 		return null;
 	}
 
-	// Use 500 shade for fill, 600 shade for border (matching V1)
 	const fillColor =
 		getStateColor(payload.stateType, 500) ||
 		STATE_COLORS[payload.stateType] ||
-		"#6b7280";
+		"var(--muted-foreground)";
 	const strokeColor =
 		getStateColor(payload.stateType, 600) ||
 		STATE_COLORS[payload.stateType] ||
-		"#6b7280";
+		"var(--muted-foreground)";
 
 	return (
 		<circle
@@ -209,7 +208,7 @@ export const FlowRunsScatterPlot = ({
 					<CartesianGrid
 						horizontal={true}
 						vertical={false}
-						stroke="#cacccf"
+						stroke="var(--border)"
 						strokeDasharray=""
 					/>
 					<XAxis
@@ -221,7 +220,7 @@ export const FlowRunsScatterPlot = ({
 						tickFormatter={formatXAxisTick}
 						tick={{ fontSize: 12 }}
 						tickLine={false}
-						axisLine={{ stroke: "#e5e7eb" }}
+						axisLine={{ stroke: "var(--border)" }}
 					/>
 					<YAxis
 						type="number"
@@ -229,7 +228,7 @@ export const FlowRunsScatterPlot = ({
 						tickFormatter={formatYAxisTick}
 						tick={{ fontSize: 12 }}
 						tickLine={false}
-						axisLine={{ stroke: "#e5e7eb" }}
+						axisLine={{ stroke: "var(--border)" }}
 						width={60}
 					/>
 					<Tooltip

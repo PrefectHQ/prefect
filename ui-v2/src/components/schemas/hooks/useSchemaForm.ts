@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import useDebounceCallback from "@/hooks/use-debounce-callback";
+import type { SchemaFormValues } from "../types/values";
 import { validateSchemaValues } from "../utilities/validate";
 import { useSchemaFormErrors } from "./useSchemaFormErrors";
 import { useSchemaFormValues } from "./useSchemaValues";
@@ -32,8 +33,8 @@ import { useSchemaFormValues } from "./useSchemaValues";
  * };
  * ```
  */
-export const useSchemaForm = () => {
-	const [values, setValues] = useSchemaFormValues();
+export const useSchemaForm = (initialValues?: SchemaFormValues) => {
+	const [values, setValues] = useSchemaFormValues(initialValues);
 	const [errors, setErrors] = useSchemaFormErrors();
 	const [hasValidatedOnce, setHasValidatedOnce] = useState(false);
 	const schemaRef = useRef<Record<string, unknown> | null>(null);

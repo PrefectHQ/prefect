@@ -482,7 +482,14 @@ async def delete_block_document(
 ) -> bool:
     query = sa.delete(db.BlockDocument).where(db.BlockDocument.id == block_document_id)
     result = await session.execute(query)
-    return result.rowcount > 0
+    if result.rowcount <= 0:
+        return False
+
+    await models.storage_defaults.clear_server_default_result_storage_for_block(
+        session=session,
+        block_document_id=block_document_id,
+    )
+    return True
 
 
 @db_injector
