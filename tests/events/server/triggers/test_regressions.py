@@ -1031,24 +1031,21 @@ async def after_a_expect_a_or_b_proactive(
     return automation
 
 
-async def test_after_then_expect_only_then_after_does_not_re_arm_within_window(
+async def test_after_then_expect_only_then_after_re_arms_when_not_concurrent(
     act: mock.AsyncMock,
+    assert_acted_with: Callable[[Union[Firing, List[Firing]]], None],
     frozen_time: DateTime,
     after_a_expect_a_or_b_proactive: Automation,
 ):
-    """Documents the trade-off chosen by the zombie-detection fix.
+    """Documents the carry-forward behaviour of the zombie-detection fix.
 
-    For a proactive trigger with `expect` strictly containing `after`, once the
-    threshold has been satisfied by an `expect`-only event, a subsequent
-    `after`-matching event does NOT re-arm a fresh monitoring window inside
-    the original bucket.  This is intentional: it prevents a stray heartbeat
-    arriving after a terminal flow-run state from re-arming and falsely
-    crashing the completed run (see
-    https://github.com/PrefectHQ/prefect/issues/21932).
-
-    The next `after` event that arrives after the satisfied bucket has been
-    reaped by `remove_buckets_exceeding_threshold` will create a fresh bucket
-    and monitor normally.
+    For a proactive trigger with `expect` strictly containing `after`, an
+    `expect`-only event followed by a later `after` event re-arms a fresh
+    monitoring window because the `expect`-only event occurred BEFORE the new
+    window starts.  Only `expect`-only events that occurred at or after the new
+    window's start time are carried forward (handling the zombie race condition
+    where a terminal flow-run state event arrives at the same instant as a
+    heartbeat, see https://github.com/PrefectHQ/prefect/issues/21932).
     """
     assert isinstance(after_a_expect_a_or_b_proactive.trigger, EventTrigger)
     resource_id = "some.resource"
@@ -1069,23 +1066,31 @@ async def test_after_then_expect_only_then_after_does_not_re_arm_within_window(
             id=uuid4(),
         ).receive()
     )
-    await triggers.reactive_evaluation(
-        Event(
-            occurred=frozen_time + timedelta(seconds=2),
-            event="A",
-            resource={"prefect.resource.id": resource_id},
-            id=uuid4(),
-        ).receive()
-    )
+    last_a = Event(
+        occurred=frozen_time + timedelta(seconds=2),
+        event="A",
+        resource={"prefect.resource.id": resource_id},
+        id=uuid4(),
+    ).receive()
+    await triggers.reactive_evaluation(last_a)
 
-    # The bucket reaches count >= threshold and is removed by
-    # `remove_buckets_exceeding_threshold` on the next proactive sweep, so the
-    # trigger does not fire after the original window expires.
+    # The second `A` resets the bucket to a fresh window [t=2, t=12].  `B` at
+    # t=1 is strictly before the new window's start, so it is NOT carried
+    # forward.  With silence afterwards, the proactive trigger fires once the
+    # window elapses.
     await triggers.proactive_evaluation(
         after_a_expect_a_or_b_proactive.trigger,
         frozen_time + timedelta(seconds=13),
     )
-    act.assert_not_awaited()
+    assert_acted_with(
+        Firing(
+            trigger=after_a_expect_a_or_b_proactive.trigger,
+            trigger_states={TriggerState.Triggered},
+            triggered=frozen_time,  # type: ignore
+            triggering_labels={"prefect.resource.id": resource_id},
+            triggering_event=last_a,
+        )
+    )
 
 
 @pytest.fixture

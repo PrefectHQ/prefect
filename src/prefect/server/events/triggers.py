@@ -153,8 +153,9 @@ async def evaluate(
         return bucket
 
     # Capture the bucket's last_event before it's overwritten by increment_bucket
-    # so the proactive same-event reset below can tell whether the threshold was
-    # already satisfied by an `expect`-only event (e.g. a terminal flow-run state).
+    # so the proactive same-event reset below can carry forward an `expect`-only
+    # event (e.g. a terminal flow-run state) that arrived concurrently with the
+    # triggering `after` event.
     previous_last_event = bucket.last_event
 
     if count and (trigger.immediate or bucket.start <= now < bucket.end):
@@ -233,34 +234,43 @@ async def evaluate(
         # terminal state within a given time.
         #
         # If we've already reached the proactive threshold, we need to remove the
-        # current bucket and start a new one for the latest event.
-        #
-        # However, if the threshold was already satisfied by an `expect`-only event
-        # (one that matches `expect` but not `after`, e.g. `prefect.flow-run.Completed`
-        # for a heartbeat-based zombie trigger), we must not reset.  Resetting would
-        # discard the terminal event's contribution and re-arm the trigger to fire
-        # falsely after the new window expires.
+        # current bucket and start a new one for the latest event.  When an
+        # `expect`-only event (one that matches `expect` but not `after`, e.g.
+        # `prefect.flow-run.Completed` for a heartbeat-based zombie trigger)
+        # arrived at or after the new window's start, carry its contribution
+        # forward so the new window is born already satisfied and gets reaped by
+        # `remove_buckets_exceeding_threshold` instead of firing falsely after
+        # the window expires.  Events that occurred strictly before the new
+        # window's start belong to the prior monitoring period and are not
+        # carried.
         if (
             triggering_event
             and trigger.posture == Posture.Proactive
             and not meets_threshold
             and trigger.starts_after(triggering_event.event)
             and trigger.expects(triggering_event.event)
-            and not (
+        ):
+            await remove_bucket(session, bucket)
+
+            carried_count = 0
+            carried_last_event = triggering_event
+            if (
                 previous_last_event
                 and trigger.expects(previous_last_event.event)
                 and not trigger.starts_after(previous_last_event.event)
-            )
-        ):
-            await remove_bucket(session, bucket)
+                and previous_last_event.occurred >= triggering_event.occurred
+            ):
+                carried_count = 1
+                carried_last_event = previous_last_event
+
             return await start_new_bucket(
                 session,
                 trigger,
                 bucketing_key=bucket.bucketing_key,
                 start=triggering_event.occurred,
                 end=triggering_event.occurred + trigger.within,
-                count=0,
-                last_event=triggering_event,
+                count=carried_count,
+                last_event=carried_last_event,
             )
 
         return bucket
