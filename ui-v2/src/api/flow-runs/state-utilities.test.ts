@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	isPausedState,
+	isPendingLikeState,
 	isRunningState,
 	isStuckState,
 	isTerminalState,
@@ -85,6 +86,24 @@ describe("state-utilities", () => {
 			"PAUSED",
 		] as const)("returns false for non-terminal state %s", (state) => {
 			expect(isTerminalState(state)).toBe(false);
+		});
+	});
+
+	describe("isPendingLikeState", () => {
+		it.each([
+			"Pending",
+			"Submitting",
+			"InfrastructurePending",
+		] as const)("returns true for PENDING/%s", (stateName) => {
+			expect(isPendingLikeState("PENDING", stateName)).toBe(true);
+		});
+
+		it("returns true for Scheduled", () => {
+			expect(isPendingLikeState("SCHEDULED", "Scheduled")).toBe(true);
+		});
+
+		it("returns false for AwaitingRetry", () => {
+			expect(isPendingLikeState("SCHEDULED", "AwaitingRetry")).toBe(false);
 		});
 	});
 
