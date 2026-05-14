@@ -235,7 +235,13 @@ source = "versioningit"
 # It must stay above the highest prefect>= floor declared by in-repo integrations
 # (currently >=3.6.22 in prefect-aws / prefect-kubernetes) so that uv lock can
 # resolve integration dependencies against the local package.
-default-version = "3.6.24+nogit"
+# No "+local": PyPI rejects PEP 440 local versions in uploads.
+default-version = "3.6.24"
+
+[tool.versioningit.next-version]
+# For tags like 3.7.1.devN, minor-release yields the release base (3.7.1) so
+# "{next_version}.post{distance}" is valid (not 3.7.1.devN.postM, which PEP 440 rejects).
+method = "minor-release"
 
 [tool.versioningit.vcs]
 match = ["[0-9]*.[0-9]*.[0-9]*", "[0-9]*.[0-9]*.[0-9]*.dev[0-9]*"]
@@ -250,9 +256,10 @@ method = { module = "write_build_info", value = "write_build_info", module-dir =
 path = "src/prefect/_build_info.py"
 
 [tool.versioningit.format]
-distance = "{base_version}+{distance}.{vcs}{rev}"
-dirty = "{base_version}+{distance}.{vcs}{rev}.dirty"
-distance-dirty = "{base_version}+{distance}.{vcs}{rev}.dirty"
+# PyPI forbids local labels ("+" and after). Use post releases, not .dev*, for distance.
+distance = "{next_version}.post{distance}"
+dirty = "{next_version}.post{build_date:%Y%m%d%H%M%S}"
+distance-dirty = "{next_version}.post{distance}"
 
 [tool.hatch.build]
 artifacts = ["src/prefect/_build_info.py", "src/prefect/_internal/analytics/_config.py", "src/prefect/server/ui", "src/prefect/server/ui-v2"]

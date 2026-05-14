@@ -101,3 +101,4 @@ AGENTS.md
 .planning/
 repros/
 
+docs/v3/how-to-guides/deployment_infra/worker-concurrency.mdx
