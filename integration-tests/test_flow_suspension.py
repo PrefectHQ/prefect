@@ -17,13 +17,18 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 STARTED_MARKER = "flow-started"
 COMPLETED_MARKER = "flow-completed"
 TASK_MARKER_PREFIX = "task-"
-TASK_COUNT = 30
+# Keep enough task boundaries that the in-subprocess FlowRunSuspendingObserver
+# has time to receive the Suspended event via the events websocket before the
+# flow completes.  The original 30 × 0.2 s ≈ 6 s window was too narrow under
+# CI load; 150 × 0.2 s ≈ 30 s absorbs realistic event-propagation latency.
+TASK_COUNT = 150
+TASK_SLEEP = 0.2
 
 
 @task
 def write_task_marker(marker_dir: str, index: int) -> None:
     Path(marker_dir, f"{TASK_MARKER_PREFIX}{index}").write_text("done")
-    time.sleep(0.2)
+    time.sleep(TASK_SLEEP)
 
 
 @flow(log_prints=True, persist_result=True)
