@@ -947,11 +947,11 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             flow_run_filter=FlowRunFilter(
                 parent_task_run_id={"any_": [parent_task_run.id]}
             ),
-            sort=FlowRunSort.EXPECTED_START_TIME_ASC,
+            sort=FlowRunSort.EXPECTED_START_TIME_DESC,
             limit=1,
         )
         if flow_runs:
-            loaded_flow_run = flow_runs[-1]
+            loaded_flow_run = flow_runs[0]
             # When the parent task run is final the subflow has already
             # finished; cache the result so the engine skips re-execution.
             if parent_task_run.state.is_final():
@@ -1642,11 +1642,11 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             flow_run_filter=FlowRunFilter(
                 parent_task_run_id={"any_": [parent_task_run.id]}
             ),
-            sort=FlowRunSort.EXPECTED_START_TIME_ASC,
+            sort=FlowRunSort.EXPECTED_START_TIME_DESC,
             limit=1,
         )
         if flow_runs:
-            loaded_flow_run = flow_runs[-1]
+            loaded_flow_run = flow_runs[0]
             # When the parent task run is final the subflow has already
             # finished; cache the result so the engine skips re-execution.
             if parent_task_run.state.is_final():
