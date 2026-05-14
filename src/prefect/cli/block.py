@@ -348,7 +348,7 @@ async def block_delete(
                 block_document = await client.read_block_document_by_name(
                     block_document_name, block_type_slug, include_secrets=False
                 )
-                
+
                 referencing_pools = (
                     await block_docs_models.find_work_pools_referencing_block(
                         block_type_slug=block_type_slug,

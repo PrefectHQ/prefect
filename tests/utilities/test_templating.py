@@ -1,5 +1,4 @@
 import uuid
-
 from typing import Any, Dict
 
 import pytest
@@ -554,14 +553,13 @@ class TestResolveBlockDocumentReferences:
     ):
         """Test that missing blocks by ID raise helpful error messages."""
         import uuid
+
         fake_id = uuid.uuid4()
         template = {"block_ref": {"$ref": {"block_document_id": fake_id}}}
 
-        
         with pytest.raises(ValueError) as exc_info:
             await resolve_block_document_references(template, client=prefect_client)
 
-        
         error_msg = str(exc_info.value)
         assert "Block not found" in error_msg
         assert str(fake_id) in error_msg
@@ -578,14 +576,14 @@ class TestFindBlockDocumentReferences:
 
     def test_find_block_references_in_string_placeholder(self):
         from prefect.utilities.templating import find_block_document_references
-        
+
         template = {"block_ref": "{{ prefect.blocks.aws-credentials.my-creds }}"}
         references = find_block_document_references(template)
         assert ("aws-credentials", "my-creds") in references
 
     def test_find_multiple_block_references(self):
         from prefect.utilities.templating import find_block_document_references
-        
+
         template = {
             "creds": "{{ prefect.blocks.aws-credentials.my-creds }}",
             "token": "{{ prefect.blocks.secret.my-token }}",
@@ -609,7 +607,7 @@ class TestFindBlockDocumentReferences:
         template = {
             "items": [
                 "{{ prefect.blocks.secret.token1 }}",
-                "{{ prefect.blocks.secret.token2 }}"
+                "{{ prefect.blocks.secret.token2 }}",
             ]
         }
         references = find_block_document_references(template)
@@ -629,7 +627,7 @@ class TestFindBlockDocumentReferences:
 
     def test_find_block_references_ignores_block_refs_by_id(self):
         from prefect.utilities.templating import find_block_document_references
-        
+
         template = {
             "block_ref": {"$ref": {"block_document_id": "some-id"}},
             "string_ref": "{{ prefect.blocks.secret.token }}",
@@ -638,7 +636,6 @@ class TestFindBlockDocumentReferences:
         # Block ID references can't be easily resolved to names, so they're skipped
         assert ("secret", "token") in references
         assert len(references) == 1
-
 
 
 class TestResolveVariables:
