@@ -770,8 +770,6 @@ async def find_work_pools_referencing_block(
         references = find_block_document_references(base_job_template)
 
         if (block_type_slug, block_document_name) in references:
-            referencing_pools.append(
-                {"id": str(work_pool_id), "name": work_pool_name}
-            )
+            referencing_pools.append({"id": str(work_pool_id), "name": work_pool_name})
 
     return referencing_pools

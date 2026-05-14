@@ -349,9 +349,11 @@ async def block_delete(
                     block_document_name, block_type_slug, include_secrets=False
                 )
                 
-                referencing_pools = await block_docs_models.find_work_pools_referencing_block(
-                    block_type_slug=block_type_slug,
-                    block_document_name=block_document_name,
+                referencing_pools = (
+                    await block_docs_models.find_work_pools_referencing_block(
+                        block_type_slug=block_type_slug,
+                        block_document_name=block_document_name,
+                    )
                 )
                 if referencing_pools:
                     pool_names = ", ".join(pool["name"] for pool in referencing_pools)
@@ -361,7 +363,7 @@ async def block_delete(
                     _cli.console.print(
                         "[yellow]Deleting this block may cause flow runs to fail.[/yellow]"
                     )
-                
+
                 if _cli.is_interactive() and not confirm(
                     f"Are you sure you want to delete block with slug {slug!r}?",
                     default=False,
