@@ -162,7 +162,7 @@ describe("DataTable", () => {
 			fireEvent.mouseUp(document, { clientX: 320 });
 			expect(nameHeader).toHaveStyle({ width: "320px" });
 
-			fireEvent.doubleClick(handle);
+			fireEvent(handle, new MouseEvent("dblclick", { bubbles: true }));
 			expect(nameHeader).toHaveStyle({ width: "200px" });
 		});
 	});
