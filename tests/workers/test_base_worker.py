@@ -3245,8 +3245,13 @@ async def test_env_merge_logic_is_deep(
         work_pool_name=work_pool.name if work_pool_env else "test-work-pool",
     ) as worker:
         await worker.sync_with_backend()
-        config = await worker._get_configuration(
-            flow_run, schemas.responses.DeploymentResponse.model_validate(deployment)
+        config = await worker.job_configuration.resolve_for_flow_run(
+            flow_run,
+            client=worker.client,
+            work_pool=worker.work_pool,
+            worker_name=worker.name,
+            worker_id=worker.backend_id,
+            deployment=schemas.responses.DeploymentResponse.model_validate(deployment),
         )
 
     for key, value in expected_env.items():
@@ -3319,8 +3324,13 @@ async def test_work_pool_env_from_job_configuration_merges_with_variable_default
         work_pool_name=work_pool.name,
     ) as worker:
         await worker.sync_with_backend()
-        config = await worker._get_configuration(
-            flow_run, schemas.responses.DeploymentResponse.model_validate(deployment)
+        config = await worker.job_configuration.resolve_for_flow_run(
+            flow_run,
+            client=worker.client,
+            work_pool=worker.work_pool,
+            worker_name=worker.name,
+            worker_id=worker.backend_id,
+            deployment=schemas.responses.DeploymentResponse.model_validate(deployment),
         )
 
     # All env vars should be present: job_configuration + variable defaults + deployment
@@ -3329,10 +3339,14 @@ async def test_work_pool_env_from_job_configuration_merges_with_variable_default
     assert config.env["DEPLOYMENT_VAR"] == "from-deployment"
 
 
-async def test_get_configuration_uses_stable_work_pool_copy(
+async def test_configuration_build_uses_stable_work_pool_copy(
     prefect_client: PrefectClient,
     work_pool: WorkPool,
 ):
+    """A mid-build snapshot apply must not retemplate the configuration the
+    worker is currently assembling. Callers deepcopy `self.work_pool` before
+    handing it to `BaseJobConfiguration.resolve_for_flow_run`."""
+
     @flow
     def test_flow():
         pass
@@ -3419,7 +3433,15 @@ async def test_get_configuration_uses_stable_work_pool_copy(
             default_queue_id=work_pool.default_queue_id,
         )
 
-        config = await worker._get_configuration(flow_run)
+        # Mirror the worker's internal call pattern: deepcopy then resolve.
+        frozen_work_pool = copy.deepcopy(worker.work_pool)
+        config = await worker.job_configuration.resolve_for_flow_run(
+            flow_run,
+            client=worker.client,
+            work_pool=frozen_work_pool,
+            worker_name=worker.name,
+            worker_id=worker.backend_id,
+        )
 
         assert worker._work_pool.base_job_template == updated_template
 
@@ -4535,7 +4557,13 @@ class TestBackwardsCompatibility:
         # Should warn and not raise an error
         with pytest.warns(PrefectDeprecationWarning):
             async with OldStyleWorker(work_pool_name=work_pool.name) as worker:
-                await worker._get_configuration(flow_run=flow_run)
+                await worker.job_configuration.resolve_for_flow_run(
+                    flow_run,
+                    client=worker.client,
+                    work_pool=worker.work_pool,
+                    worker_name=worker.name,
+                    worker_id=worker.backend_id,
+                )
 
 
 class TestWorkerCancellationHandling:
