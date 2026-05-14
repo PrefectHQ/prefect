@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/unbound-method */
 import { QueryClient } from "@tanstack/react-query";
 import {
 	createMemoryHistory,
@@ -405,22 +404,20 @@ describe("DeploymentsDataTable", () => {
 
 		const installLocalStorageBacking = () => {
 			const store = new Map<string, string>();
-			vi.mocked(localStorage.getItem).mockImplementation(
+			vi.spyOn(localStorage, "getItem").mockImplementation(
 				(key) => store.get(key) ?? null,
 			);
-			vi.mocked(localStorage.setItem).mockImplementation((key, value) => {
+			vi.spyOn(localStorage, "setItem").mockImplementation((key, value) => {
 				store.set(key, value);
 			});
-			vi.mocked(localStorage.removeItem).mockImplementation((key) => {
+			vi.spyOn(localStorage, "removeItem").mockImplementation((key) => {
 				store.delete(key);
 			});
 			return store;
 		};
 
 		afterEach(() => {
-			vi.mocked(localStorage.getItem).mockReset();
-			vi.mocked(localStorage.setItem).mockReset();
-			vi.mocked(localStorage.removeItem).mockReset();
+			vi.restoreAllMocks();
 		});
 
 		it("renders a draggable resize handle for the Deployment column", async () => {
