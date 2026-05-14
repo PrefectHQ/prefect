@@ -349,12 +349,19 @@ async def block_delete(
                     block_document_name, block_type_slug, include_secrets=False
                 )
 
-                referencing_pools = (
-                    await block_docs_models.find_work_pools_referencing_block(
-                        block_type_slug=block_type_slug,
-                        block_document_name=block_document_name,
-                    )
+                from prefect.server.database.dependencies import (
+                    provide_database_interface,
                 )
+
+                db = provide_database_interface()
+                async with db.session_context() as session:
+                    referencing_pools = (
+                        await block_docs_models.find_work_pools_referencing_block(
+                            session=session,
+                            block_type_slug=block_type_slug,
+                            block_document_name=block_document_name,
+                        )
+                    )
                 if referencing_pools:
                     pool_names = ", ".join(pool["name"] for pool in referencing_pools)
                     _cli.console.print(
