@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { QueryClient } from "@tanstack/react-query";
 import {
 	createMemoryHistory,
@@ -5,12 +6,12 @@ import {
 	createRouter,
 	RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
 import { HttpResponse, http } from "msw";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DeploymentWithFlow } from "@/api/deployments";
 import { Toaster } from "@/components/ui/sonner";
 import {
@@ -397,6 +398,97 @@ describe("DeploymentsDataTable", () => {
 		// First row is the header; data rows start at index 1
 		const dataRow = rows[1];
 		expect(dataRow).toHaveClass("cursor-pointer");
+	});
+
+	describe("column resizing", () => {
+		const STORAGE_KEY = "deployments-table-column-sizing";
+
+		const installLocalStorageBacking = () => {
+			const store = new Map<string, string>();
+			vi.mocked(localStorage.getItem).mockImplementation(
+				(key) => store.get(key) ?? null,
+			);
+			vi.mocked(localStorage.setItem).mockImplementation((key, value) => {
+				store.set(key, value);
+			});
+			vi.mocked(localStorage.removeItem).mockImplementation((key) => {
+				store.delete(key);
+			});
+			return store;
+		};
+
+		afterEach(() => {
+			vi.mocked(localStorage.getItem).mockReset();
+			vi.mocked(localStorage.setItem).mockReset();
+			vi.mocked(localStorage.removeItem).mockReset();
+		});
+
+		it("renders a draggable resize handle for the Deployment column", async () => {
+			installLocalStorageBacking();
+
+			await waitFor(() =>
+				render(<DeploymentsDataTableRouter {...defaultProps} />, {
+					wrapper: createWrapper(),
+				}),
+			);
+
+			expect(
+				screen.getByTestId("column-resize-handle-name"),
+			).toBeInTheDocument();
+		});
+
+		it("does not render a resize handle for the actions column", async () => {
+			installLocalStorageBacking();
+
+			await waitFor(() =>
+				render(<DeploymentsDataTableRouter {...defaultProps} />, {
+					wrapper: createWrapper(),
+				}),
+			);
+
+			expect(
+				screen.queryByTestId("column-resize-handle-actions"),
+			).not.toBeInTheDocument();
+		});
+
+		it("persists resized column widths to localStorage", async () => {
+			const store = installLocalStorageBacking();
+
+			await waitFor(() =>
+				render(<DeploymentsDataTableRouter {...defaultProps} />, {
+					wrapper: createWrapper(),
+				}),
+			);
+
+			const handle = screen.getByTestId("column-resize-handle-name");
+
+			fireEvent.mouseDown(handle, { clientX: 200 });
+			fireEvent.mouseMove(document, { clientX: 360 });
+			fireEvent.mouseUp(document, { clientX: 360 });
+
+			await waitFor(() => {
+				const stored = store.get(STORAGE_KEY);
+				expect(stored).toBeDefined();
+				const parsed = JSON.parse(stored ?? "{}") as Record<string, number>;
+				expect(parsed.name).toBe(360);
+			});
+		});
+
+		it("restores resized column widths from localStorage on mount", async () => {
+			const store = installLocalStorageBacking();
+			store.set(STORAGE_KEY, JSON.stringify({ name: 420 }));
+
+			await waitFor(() =>
+				render(<DeploymentsDataTableRouter {...defaultProps} />, {
+					wrapper: createWrapper(),
+				}),
+			);
+
+			const nameHeader = screen.getByRole("columnheader", {
+				name: "Deployment",
+			});
+			expect(nameHeader).toHaveStyle({ width: "420px" });
+		});
 	});
 
 	it("calls onColumnFiltersChange on tags search", async () => {
