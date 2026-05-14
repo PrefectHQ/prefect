@@ -323,6 +323,7 @@ async def block_delete(
     from prefect.cli._prompts import confirm
     from prefect.client.orchestration import get_client
     from prefect.exceptions import ObjectNotFound
+    from prefect.server.models import block_documents as block_docs_models
 
     async with get_client() as client:
         if slug is None and block_id is not None:
@@ -347,6 +348,20 @@ async def block_delete(
                 block_document = await client.read_block_document_by_name(
                     block_document_name, block_type_slug, include_secrets=False
                 )
+                
+                referencing_pools = await block_docs_models.find_work_pools_referencing_block(
+                    block_type_slug=block_type_slug,
+                    block_document_name=block_document_name,
+                )
+                if referencing_pools:
+                    pool_names = ", ".join(pool["name"] for pool in referencing_pools)
+                    _cli.console.print(
+                        f"[yellow]⚠️  WARNING: Block '{slug}' is being used by work pool(s): {pool_names}[/yellow]"
+                    )
+                    _cli.console.print(
+                        "[yellow]Deleting this block may cause flow runs to fail.[/yellow]"
+                    )
+                
                 if _cli.is_interactive() and not confirm(
                     f"Are you sure you want to delete block with slug {slug!r}?",
                     default=False,

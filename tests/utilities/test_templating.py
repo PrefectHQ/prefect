@@ -532,6 +532,120 @@ class TestResolveBlockDocumentReferences:
             "block_attribute": "https://example.com",
         }
 
+    async def test_resolve_block_document_references_raises_helpful_error_for_missing_block_by_name(
+        self, prefect_client
+    ):
+        """Test that missing blocks raise helpful error messages."""
+        template = {
+            "block_ref": "{{ prefect.blocks.aws-credentials.nonexistent-block }}"
+        }
+        
+        with pytest.raises(ValueError) as exc_info:
+            await resolve_block_document_references(
+                template, 
+                client=prefect_client
+            )
+        
+        error_msg = str(exc_info.value)
+        assert "Block not found: 'nonexistent-block'" in error_msg
+        assert "aws-credentials" in error_msg
+        assert "no longer exists" in error_msg
+
+    async def test_resolve_block_document_references_raises_helpful_error_for_missing_block_by_id(
+        self, prefect_client
+    ):
+        """Test that missing blocks by ID raise helpful error messages."""
+        import uuid
+        fake_id = uuid.uuid4()
+        template = {
+            "block_ref": {"$ref": {"block_document_id": fake_id}}
+        }
+        
+        with pytest.raises(ValueError) as exc_info:
+            await resolve_block_document_references(
+                template, 
+                client=prefect_client
+            )
+        
+        error_msg = str(exc_info.value)
+        assert "Block not found" in error_msg
+        assert str(fake_id) in error_msg
+        assert "no longer exists" in error_msg
+
+
+class TestFindBlockDocumentReferences:
+    def test_find_no_block_references_in_empty_template(self):
+        from prefect.utilities.templating import find_block_document_references
+        
+        template = {"key": "value"}
+        references = find_block_document_references(template)
+        assert references == set()
+
+    def test_find_block_references_in_string_placeholder(self):
+        from prefect.utilities.templating import find_block_document_references
+        
+        template = {
+            "block_ref": "{{ prefect.blocks.aws-credentials.my-creds }}"
+        }
+        references = find_block_document_references(template)
+        assert ("aws-credentials", "my-creds") in references
+
+    def test_find_multiple_block_references(self):
+        from prefect.utilities.templating import find_block_document_references
+        
+        template = {
+            "creds": "{{ prefect.blocks.aws-credentials.my-creds }}",
+            "token": "{{ prefect.blocks.secret.my-token }}",
+        }
+        references = find_block_document_references(template)
+        assert ("aws-credentials", "my-creds") in references
+        assert ("secret", "my-token") in references
+
+    def test_find_block_references_in_nested_dict(self):
+        from prefect.utilities.templating import find_block_document_references
+        
+        template = {
+            "nested": {
+                "block_ref": "{{ prefect.blocks.aws-credentials.my-creds }}"
+            }
+        }
+        references = find_block_document_references(template)
+        assert ("aws-credentials", "my-creds") in references
+
+    def test_find_block_references_in_list(self):
+        from prefect.utilities.templating import find_block_document_references
+        
+        template = {
+            "items": ["{{ prefect.blocks.secret.token1 }}", "{{ prefect.blocks.secret.token2 }}"]
+        }
+        references = find_block_document_references(template)
+        assert ("secret", "token1") in references
+        assert ("secret", "token2") in references
+
+    def test_find_block_references_ignores_non_block_placeholders(self):
+        from prefect.utilities.templating import find_block_document_references
+        
+        template = {
+            "block_ref": "{{ prefect.blocks.aws-credentials.my-creds }}",
+            "var_ref": "{{ my_variable }}",
+        }
+        references = find_block_document_references(template)
+        assert ("aws-credentials", "my-creds") in references
+        assert len(references) == 1
+
+    def test_find_block_references_ignores_block_refs_by_id(self):
+        from prefect.utilities.templating import find_block_document_references
+        
+        template = {
+            "block_ref": {"$ref": {"block_document_id": "some-id"}},
+            "string_ref": "{{ prefect.blocks.secret.token }}"
+        }
+        references = find_block_document_references(template)
+        # Block ID references can't be easily resolved to names, so they're skipped
+        assert ("secret", "token") in references
+        assert len(references) == 1
+
+
 
 class TestResolveVariables:
     @pytest.fixture
