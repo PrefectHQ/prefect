@@ -116,7 +116,10 @@ class Event(PrefectBaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="ignore")
 
-    occurred: prefect.types._datetime.DateTime = Field(
+    occurred: Annotated[
+        prefect.types._datetime.DateTime,
+        AfterValidator(prefect.types._datetime.create_datetime_instance),
+    ] = Field(  # pyright: ignore[reportAssignmentType]
         default_factory=lambda: prefect.types._datetime.now("UTC"),
         description="When the event happened from the sender's perspective",
     )
@@ -189,7 +192,10 @@ class ReceivedEvent(Event):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)
 
-    received: prefect.types._datetime.DateTime = Field(
+    received: Annotated[
+        prefect.types._datetime.DateTime,
+        AfterValidator(prefect.types._datetime.create_datetime_instance),
+    ] = Field(  # pyright: ignore[reportAssignmentType]
         ...,
         description="When the event was received by Prefect Cloud",
     )

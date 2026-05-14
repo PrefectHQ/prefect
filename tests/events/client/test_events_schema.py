@@ -1,10 +1,13 @@
+import datetime
 import json
 from datetime import timezone
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
 
 from prefect.events import Event, RelatedResource, Resource
+from prefect.events.schemas.events import ReceivedEvent
 from prefect.types import DateTime
 from prefect.types._datetime import now
 
@@ -20,6 +23,39 @@ def test_client_events_generate_an_id_by_default():
 def test_client_events_generate_occurred_by_default(start_of_test: DateTime):
     event = Event(event="hello", resource={"prefect.resource.id": "hello"})
     assert start_of_test <= event.occurred <= now("UTC")
+
+
+def test_client_event_naive_occurred_coerced_to_utc():
+    naive = datetime.datetime(2024, 6, 15, 12, 0, 0)
+    event = Event(
+        event="hello",
+        resource={"prefect.resource.id": "hello"},
+        occurred=naive,
+    )
+    assert event.occurred.tzinfo is not None
+    assert event.occurred == naive.replace(tzinfo=datetime.timezone.utc)
+
+
+def test_client_event_aware_occurred_preserved():
+    aware = datetime.datetime(2024, 6, 15, 12, 0, 0, tzinfo=ZoneInfo("US/Eastern"))
+    event = Event(
+        event="hello",
+        resource={"prefect.resource.id": "hello"},
+        occurred=aware,
+    )
+    assert event.occurred.tzinfo is not None
+
+
+def test_client_received_event_naive_received_coerced_to_utc():
+    naive = datetime.datetime(2024, 6, 15, 12, 0, 0)
+    event = ReceivedEvent(
+        event="hello",
+        resource={"prefect.resource.id": "hello"},
+        occurred=now("UTC"),
+        received=naive,
+    )
+    assert event.received.tzinfo is not None
+    assert event.received == naive.replace(tzinfo=datetime.timezone.utc)
 
 
 def test_client_events_may_have_empty_related_resources():

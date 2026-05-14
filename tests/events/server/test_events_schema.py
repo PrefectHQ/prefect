@@ -2,6 +2,7 @@ import datetime
 import json
 from datetime import timezone
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
 from pydantic import ValidationError
@@ -45,6 +46,42 @@ def test_client_events_do_not_have_defaults_for_the_fields_it_seems_they_should(
     assert error["loc"] == ("id",)
     assert error["msg"] == "Field required"
     assert error["type"] == "missing"
+
+
+def test_server_event_naive_occurred_coerced_to_utc():
+    naive = datetime.datetime(2024, 6, 15, 12, 0, 0)
+    event = Event(
+        occurred=naive,
+        event="hello",
+        resource={"prefect.resource.id": "hello"},
+        id=uuid4(),
+    )
+    assert event.occurred.tzinfo is not None
+    assert event.occurred == naive.replace(tzinfo=datetime.timezone.utc)
+
+
+def test_server_event_aware_occurred_preserved():
+    aware = datetime.datetime(2024, 6, 15, 12, 0, 0, tzinfo=ZoneInfo("US/Eastern"))
+    event = Event(
+        occurred=aware,
+        event="hello",
+        resource={"prefect.resource.id": "hello"},
+        id=uuid4(),
+    )
+    assert event.occurred.tzinfo is not None
+
+
+def test_server_received_event_naive_received_coerced_to_utc():
+    naive = datetime.datetime(2024, 6, 15, 12, 0, 0)
+    event = ReceivedEvent(
+        occurred=now("UTC"),
+        event="hello",
+        resource={"prefect.resource.id": "hello"},
+        id=uuid4(),
+        received=naive,
+    )
+    assert event.received.tzinfo is not None
+    assert event.received == naive.replace(tzinfo=datetime.timezone.utc)
 
 
 def test_client_events_may_have_empty_related_resources():

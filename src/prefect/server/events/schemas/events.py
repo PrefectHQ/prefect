@@ -116,7 +116,10 @@ def _validate_event_name_length(value: str) -> str:
 class Event(PrefectBaseModel):
     """The client-side view of an event that has happened to a Resource"""
 
-    occurred: prefect.types._datetime.DateTime = Field(
+    occurred: Annotated[
+        prefect.types._datetime.DateTime,
+        AfterValidator(prefect.types._datetime.create_datetime_instance),
+    ] = Field(  # pyright: ignore[reportAssignmentType]
         description="When the event happened from the sender's perspective",
     )
     event: Annotated[str, AfterValidator(_validate_event_name_length)] = Field(
@@ -209,7 +212,10 @@ class ReceivedEvent(Event):
         extra="ignore", from_attributes=True
     )
 
-    received: prefect.types._datetime.DateTime = Field(
+    received: Annotated[
+        prefect.types._datetime.DateTime,
+        AfterValidator(prefect.types._datetime.create_datetime_instance),
+    ] = Field(  # pyright: ignore[reportAssignmentType]
         default_factory=lambda: prefect.types._datetime.now("UTC"),
         description="When the event was received by Prefect Cloud",
     )
