@@ -11,7 +11,7 @@ This module does NOT manage the Runner execution model (no work pool) — see `r
 ## Key Classes
 
 - `BaseWorker` — abstract base; handles heartbeating, polling, cancellation, and attribution env vars
-- `BaseJobConfiguration` — Pydantic model for per-run infrastructure config; `prepare_for_flow_run()` stamps attribution variables into `env`
+- `BaseJobConfiguration` — Pydantic model for per-run infrastructure config; `prepare_for_flow_run()` stamps attribution variables into `env`; `resolve_for_flow_run()` builds a fully-prepared config from a live flow run (pass `copy.deepcopy(self.work_pool)` to prevent mid-flight snapshot retemplating)
 - `ProcessWorker` (`process.py`) — runs flow runs as local subprocesses via `Runner.execute_bundle()`
 - `BaseWorkerResult` — result returned by `run()`; wraps infrastructure status codes
 
@@ -39,6 +39,14 @@ When a flow is decorated with an infrastructure decorator (`@docker`, `@ecs`, `@
 **Non-obvious:** the launcher replaces the `uv run ...` prefix entirely. With a launcher, the resulting command is `[*launcher, "-m", "<module>", "--key", "<path>"]` rather than `["uv", "run", "--with", "...", "--python", "X.Y", "-m", "<module>", "--key", "<path>"]`. Launchers and `requires` are mutually exclusive — `convert_step_to_command` raises `ValueError` if a step has both.
 
 Work-pool-level launchers are configured via `prefect work-pool storage configure s3|gcs|azure --launcher <executable>` and are stored in the step dict itself. Flow-level launchers (via the decorator) are resolved at submit time and win over the work-pool step configuration.
+
+## Cleanup Handlers
+
+`_cleanup_handlers.py` implements `CancellingTimeoutTeardownHandler` (handles `cancelling_timeout_teardown.v1`) and `build_cleanup_handler_registry()`.
+
+**Auto-registration invariant**: any worker class that overrides `kill_infrastructure` automatically gets `CancellingTimeoutTeardownHandler` registered. Class-level `cleanup_handlers` take precedence and suppress auto-registration for their covered kinds.
+
+**State-transition contract**: cleanup handlers must never propose or force flow-run state transitions — infrastructure teardown only. `InfrastructureNotFound` is treated as idempotent success.
 
 ## Anti-Patterns
 
