@@ -4245,7 +4245,7 @@ requires-dist = [
     { name = "prefect-docker", marker = "extra == 'docker'", specifier = ">=0.6.0" },
     { name = "prefect-email", marker = "extra == 'email'", specifier = ">=0.4.0" },
     { name = "prefect-gcp", marker = "extra == 'gcp'", specifier = ">=0.6.0" },
-    { name = "prefect-github", marker = "extra == 'github'", specifier = ">=0.3.0" },
+    { name = "prefect-github", marker = "extra == 'github'", specifier = ">=0.4.2" },
     { name = "prefect-gitlab", marker = "extra == 'gitlab'", specifier = ">=0.3.0" },
     { name = "prefect-kubernetes", marker = "extra == 'kubernetes'", specifier = ">=0.4.0" },
     { name = "prefect-ray", marker = "extra == 'ray'", specifier = ">=0.4.0" },
