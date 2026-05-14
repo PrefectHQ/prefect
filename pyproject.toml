@@ -3,9 +3,9 @@ requires = ["hatchling", "versioningit"]
 build-backend = "hatchling.build"
 
 [project]
-name = "prefect"
+name = "prefect-oceanbase"
 dynamic = ["version"]
-description = "Workflow orchestration and management."
+description = "Workflow orchestration and management (OceanBase/MySQL-compatible fork)."
 readme = "README.md"
 requires-python = ">=3.10,<3.15"
 license = { text = "Apache-2.0" }
@@ -200,22 +200,22 @@ cli-bench = ["python-cli-bench @ git+https://github.com/zzstoatzz/python-cli-ben
 
 markdown-docs = [
     "pytest-markdown-docs>=0.6.0",
-    "prefect[aws]",
-    "prefect[azure]",
-    "prefect[bitbucket]",
-    "prefect[dask]",
-    "prefect[databricks]",
-    "prefect[email]",
-    "prefect[gcp]",
-    "prefect[github]",
-    "prefect[gitlab]",
-    "prefect[kubernetes]",
-    "prefect[ray]",
-    "prefect[redis]",
-    "prefect[shell]",
-    "prefect[slack]",
-    "prefect[snowflake]",
-    "prefect[sqlalchemy]",
+    "prefect-oceanbase[aws]",
+    "prefect-oceanbase[azure]",
+    "prefect-oceanbase[bitbucket]",
+    "prefect-oceanbase[dask]",
+    "prefect-oceanbase[databricks]",
+    "prefect-oceanbase[email]",
+    "prefect-oceanbase[gcp]",
+    "prefect-oceanbase[github]",
+    "prefect-oceanbase[gitlab]",
+    "prefect-oceanbase[kubernetes]",
+    "prefect-oceanbase[ray]",
+    "prefect-oceanbase[redis]",
+    "prefect-oceanbase[shell]",
+    "prefect-oceanbase[slack]",
+    "prefect-oceanbase[snowflake]",
+    "prefect-oceanbase[sqlalchemy]",
 ]
 
 type-checking = [
