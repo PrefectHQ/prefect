@@ -1416,7 +1416,11 @@ class AsyncMySQLQueryComponents(BaseQueryComponents):
                 if parent_id in filtered_ids:
                     child_ids_by_parent[parent_id].append(node.id)
 
-        ordered_nodes = sorted(filtered_nodes, key=lambda n: (n.start_time, n.end_time))
+        _MAX_DT = datetime.datetime.max.replace(tzinfo=datetime.timezone.utc)
+        ordered_nodes = sorted(
+            filtered_nodes,
+            key=lambda n: (n.start_time or _MAX_DT, n.end_time or _MAX_DT),
+        )
         nodes: list[tuple[UUID, Node]] = []
         root_node_ids: list[UUID] = []
 
