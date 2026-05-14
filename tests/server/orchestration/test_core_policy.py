@@ -38,6 +38,7 @@ from prefect.server.orchestration.core_policy import (
     PreserveDeploymentConcurrencyLeaseId,
     PreventDuplicateTransitions,
     PreventPendingTransitions,
+    PreventResultDataLoss,
     PreventRunningTasksFromStoppedFlows,
     ReleaseFlowConcurrencySlots,
     ReleaseTaskConcurrencySlots,
@@ -1516,6 +1517,95 @@ class TestTransitionsFromTerminalStatesRule:
             await ctx.validate_proposed_state()
 
         assert ctx.response_status == SetStateStatus.ACCEPT
+
+
+@pytest.mark.parametrize("run_type", ["flow"])
+class TestPreventResultDataLoss:
+    """Prevent COMPLETED → COMPLETED transitions that would discard result data.
+
+    See https://github.com/PrefectHQ/prefect/issues/21955
+    """
+
+    async def test_rejects_completed_to_completed_when_result_data_is_lost(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        intended_transition = (StateType.COMPLETED, StateType.COMPLETED)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data=ResultRecordMetadata.model_construct().model_dump(),
+        )
+
+        rule = PreventResultDataLoss(ctx, *intended_transition)
+        async with rule as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+
+    async def test_allows_completed_to_completed_without_result_data(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        intended_transition = (StateType.COMPLETED, StateType.COMPLETED)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data=None,
+        )
+
+        rule = PreventResultDataLoss(ctx, *intended_transition)
+        async with rule as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_allows_completed_to_completed_with_unpersisted_initial(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        intended_transition = (StateType.COMPLETED, StateType.COMPLETED)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data={"type": "unpersisted"},
+        )
+
+        rule = PreventResultDataLoss(ctx, *intended_transition)
+        async with rule as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_handle_flow_terminal_also_rejects_data_loss(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        """HandleFlowTerminalStateTransitions also guards against data loss."""
+        intended_transition = (StateType.COMPLETED, StateType.COMPLETED)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data=ResultRecordMetadata.model_construct().model_dump(),
+        )
+
+        rule = HandleFlowTerminalStateTransitions(ctx, *intended_transition)
+        async with rule as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
 
 
 @pytest.mark.parametrize("run_type", ["flow"])
