@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import os
+import textwrap
+from datetime import datetime, timezone
 from pathlib import Path
+from subprocess import CalledProcessError, check_output
 from typing import Any
 
 try:
@@ -13,6 +16,51 @@ except ModuleNotFoundError:  # pragma: no cover - only used when testing helpers
         target_name: str
 
 
+def _write_analytics_config(project_dir: Path) -> None:
+    """Write analytics config with Amplitude API key from environment."""
+    config_path = project_dir / "src/prefect/_internal/analytics/_config.py"
+    api_key = os.environ.get("AMPLITUDE_API_KEY", "YOUR_AMPLITUDE_API_KEY_HERE")
+
+    config_content = textwrap.dedent(f"""\
+        # Generated at build time - DO NOT EDIT
+        AMPLITUDE_API_KEY = "{api_key}"
+    """)
+
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(config_path, "w") as f:
+        f.write(config_content)
+
+
+def _write_build_info_py(project_dir: Path, package_version: str) -> None:
+    path = project_dir / "src/prefect/_build_info.py"
+    try:
+        git_hash = check_output(
+            ["git", "rev-parse", "HEAD"], cwd=project_dir
+        ).decode().strip()
+    except CalledProcessError:
+        git_hash = "unknown"
+    try:
+        check_output(["git", "diff-index", "--quiet", "HEAD", "--"], cwd=project_dir)
+        dirty = False
+    except CalledProcessError:
+        dirty = True
+
+    build_dt_str = datetime.now(timezone.utc).isoformat()
+    build_info = textwrap.dedent(
+        f"""\
+            # Generated at package build time - DO NOT EDIT
+            __version__ = "{package_version}"
+            __build_date__ = "{build_dt_str}"
+            __git_commit__ = "{git_hash}"
+            __dirty__ = {dirty}
+            """
+    )
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as f:
+        f.write(build_info)
+
+    _write_analytics_config(project_dir)
 PACKAGED_UI_INDEX_FILES = (
     Path("src/prefect/server/ui/index.html"),
     Path("src/prefect/server/ui-v2/index.html"),
@@ -53,6 +101,8 @@ def validate_packaged_ui_index_files(root: str | Path) -> None:
 
 class CustomBuildHook(BuildHookInterface):
     def initialize(self, version: str, build_data: dict[str, Any]) -> None:
+        if version != "editable" and self.target_name in {"sdist", "wheel"}:
+            _write_build_info_py(Path(self.root), version)
         if (
             version != "editable"
             and self.target_name in {"sdist", "wheel"}

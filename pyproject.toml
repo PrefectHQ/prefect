@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling", "versioningit"]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
 name = "prefect-oceanbase"
-dynamic = ["version"]
+version = "3.7.0"
 description = "Workflow orchestration and management (OceanBase/MySQL-compatible fork)."
 readme = "README.md"
 requires-python = ">=3.10,<3.15"
@@ -226,40 +226,6 @@ type-checking = [
 
 
 benchmark = ["pytest-benchmark>=5.1.0", "pytest-codspeed>=2.2.1"]
-
-[tool.hatch.version]
-source = "versioningit"
-
-[tool.versioningit]
-# This fallback is used in git-less environments (e.g. archive builds).
-# It must stay above the highest prefect>= floor declared by in-repo integrations
-# (currently >=3.6.22 in prefect-aws / prefect-kubernetes) so that uv lock can
-# resolve integration dependencies against the local package.
-# No "+local": PyPI rejects PEP 440 local versions in uploads.
-default-version = "3.6.24"
-
-[tool.versioningit.next-version]
-# For tags like 3.7.1.devN, minor-release yields the release base (3.7.1) so
-# "{next_version}.post{distance}" is valid (not 3.7.1.devN.postM, which PEP 440 rejects).
-method = "minor-release"
-
-[tool.versioningit.vcs]
-match = ["[0-9]*.[0-9]*.[0-9]*", "[0-9]*.[0-9]*.[0-9]*.dev[0-9]*"]
-# Dependabot clones with `--no-tags --depth 1`, so .git exists but
-# `git describe` finds no tags.  versioningit then uses default-tag as the
-# base version.  Keep this above the highest in-repo prefect>= floor
-# (currently >=3.6.22) so the local wheel satisfies integration constraints.
-default-tag = "3.6.24"
-
-[tool.versioningit.write]
-method = { module = "write_build_info", value = "write_build_info", module-dir = "tools" }
-path = "src/prefect/_build_info.py"
-
-[tool.versioningit.format]
-# PyPI forbids local labels ("+" and after). Use post releases, not .dev*, for distance.
-distance = "{next_version}.post{distance}"
-dirty = "{next_version}.post{build_date:%Y%m%d%H%M%S}"
-distance-dirty = "{next_version}.post{distance}"
 
 [tool.hatch.build]
 artifacts = ["src/prefect/_build_info.py", "src/prefect/_internal/analytics/_config.py", "src/prefect/server/ui", "src/prefect/server/ui-v2"]
