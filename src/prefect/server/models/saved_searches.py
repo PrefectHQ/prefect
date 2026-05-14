@@ -33,14 +33,18 @@ async def create_saved_search(
         orm_models.SavedSearch: the newly-created or updated SavedSearch
     """
 
-    insert_stmt = (
-        db.queries.insert(db.SavedSearch)
-        .values(**saved_search.model_dump_for_orm(exclude_unset=True))
-        .on_conflict_do_update(
+    insert_stmt = db.queries.insert(db.SavedSearch).values(
+        **saved_search.model_dump_for_orm(exclude_unset=True)
+    )
+    if db.dialect.name == "mysql":
+        insert_stmt = insert_stmt.on_duplicate_key_update(
+            **saved_search.model_dump_for_orm(include={"filters"})
+        )
+    else:
+        insert_stmt = insert_stmt.on_conflict_do_update(
             index_elements=db.orm.saved_search_unique_upsert_columns,
             set_=saved_search.model_dump_for_orm(include={"filters"}),
         )
-    )
 
     await session.execute(insert_stmt)
 

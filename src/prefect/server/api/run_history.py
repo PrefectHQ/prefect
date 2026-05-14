@@ -14,6 +14,7 @@ import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect.logging import get_logger
 from prefect.server.database import PrefectDBInterface, db_injector
+from prefect.server.utilities.database import MYSQL_EPOCH, MYSQL_MICROSECOND
 from prefect.types import DateTime
 
 if TYPE_CHECKING:
@@ -106,14 +107,32 @@ async def run_history(
                     "sum_estimated_run_time",
                     sa.func.sum(
                         sa.func.greatest(
-                            0, sa.extract("epoch", runs.c.estimated_run_time)
+                            0,
+                            # MySQL stores Interval as DATETIME offset from epoch; convert to seconds
+                            # via TIMESTAMPDIFF. PG/SQLite use EXTRACT(epoch FROM ...).
+                            sa.func.timestampdiff(
+                                MYSQL_MICROSECOND,
+                                MYSQL_EPOCH,
+                                runs.c.estimated_run_time,
+                            ) / 1_000_000.0
+                            if db.dialect.name == "mysql"
+                            else sa.extract("epoch", runs.c.estimated_run_time),
                         )
                     ),
                     # estimated lateness is the sum of any positive start time deltas
                     "sum_estimated_lateness",
                     sa.func.sum(
                         sa.func.greatest(
-                            0, sa.extract("epoch", runs.c.estimated_start_time_delta)
+                            0,
+                            sa.func.timestampdiff(
+                                MYSQL_MICROSECOND,
+                                MYSQL_EPOCH,
+                                runs.c.estimated_start_time_delta,
+                            ) / 1_000_000.0
+                            if db.dialect.name == "mysql"
+                            else sa.extract(
+                                "epoch", runs.c.estimated_start_time_delta
+                            ),
                         )
                     ),
                 ),
@@ -137,15 +156,26 @@ async def run_history(
     ).alias("counts")
 
     # aggregate all state-aggregate objects into a single array for each interval,
-    # ensuring that intervals with no runs have an empty array
+    # ensuring that intervals with no runs have an empty array.
+    # MySQL/OceanBase does not support the FILTER (WHERE ...) clause on aggregate
+    # functions; use CASE WHEN inside json_arrayagg to skip NULL entries instead.
+    if db.dialect.name == "mysql":
+        states_agg = db.queries.json_arr_agg(
+            sa.case(
+                (counts.c.state_agg.is_not(None), db.queries.cast_to_json(counts.c.state_agg)),
+            )
+        )
+    else:
+        states_agg = db.queries.json_arr_agg(
+            db.queries.cast_to_json(counts.c.state_agg)
+        ).filter(counts.c.state_agg.is_not(None))
+
     query = (
         sa.select(
             counts.c.interval_start,
             counts.c.interval_end,
             sa.func.coalesce(
-                db.queries.json_arr_agg(
-                    db.queries.cast_to_json(counts.c.state_agg)
-                ).filter(counts.c.state_agg.is_not(None)),
+                states_agg,
                 sa.literal("[]", literal_execute=True),
             ).label("states"),
         )

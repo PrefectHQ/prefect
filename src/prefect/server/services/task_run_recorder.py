@@ -365,16 +365,13 @@ async def _record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
             )
             cols_to_update = (update_cols | {"updated"}) - {"id"}
             if db.dialect.name == "mysql":
-                inserted = insert_statement.inserted
+                # MySQL TIMESTAMP has second precision; the PG-style guard
+                # (state_timestamp < new_state_timestamp) silently rejects
+                # updates within the same second.  Safe to update unconditionally
+                # because the input is already sorted/deduped by timestamp above.
                 upsert_statement = insert_statement.on_duplicate_key_update(
                     **{
-                        col_name: sa.case(
-                            (
-                                db.TaskRun.state_timestamp < inserted.state_timestamp,
-                                getattr(inserted, col_name),
-                            ),
-                            else_=getattr(db.TaskRun, col_name),
-                        )
+                        col_name: getattr(insert_statement.inserted, col_name)
                         for col_name in cols_to_update
                     },
                 )

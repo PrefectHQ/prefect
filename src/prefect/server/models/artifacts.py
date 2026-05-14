@@ -27,10 +27,17 @@ async def _insert_into_artifact_collection(
     insert_values = artifact.model_dump_for_orm(
         exclude_unset=True, exclude={"id", "updated", "created"}
     )
-    upsert_new_latest_id = (
-        db.queries.insert(db.ArtifactCollection)
-        .values(latest_id=artifact.id, updated=now, created=now, **insert_values)
-        .on_conflict_do_update(
+    upsert_new_latest_id = db.queries.insert(db.ArtifactCollection).values(
+        latest_id=artifact.id, updated=now, created=now, **insert_values
+    )
+    if db.dialect.name == "mysql":
+        upsert_new_latest_id = upsert_new_latest_id.on_duplicate_key_update(
+            latest_id=artifact.id,
+            updated=now,
+            **insert_values,
+        )
+    else:
+        upsert_new_latest_id = upsert_new_latest_id.on_conflict_do_update(
             index_elements=db.orm.artifact_collection_unique_upsert_columns,
             set_=dict(
                 latest_id=artifact.id,
@@ -38,7 +45,6 @@ async def _insert_into_artifact_collection(
                 **insert_values,
             ),
         )
-    )
 
     await session.execute(upsert_new_latest_id)
 

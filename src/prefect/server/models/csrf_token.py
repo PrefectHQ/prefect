@@ -33,18 +33,21 @@ async def create_or_update_csrf_token(
     )
     token = secrets.token_hex(32)
 
-    await session.execute(
-        db.queries.insert(db.CsrfToken)
-        .values(
-            client=client,
-            token=token,
-            expiration=expiration,
+    insert_stmt = db.queries.insert(db.CsrfToken).values(
+        client=client,
+        token=token,
+        expiration=expiration,
+    )
+    if db.dialect.name == "mysql":
+        insert_stmt = insert_stmt.on_duplicate_key_update(
+            token=token, expiration=expiration
         )
-        .on_conflict_do_update(
+    else:
+        insert_stmt = insert_stmt.on_conflict_do_update(
             index_elements=[db.CsrfToken.client],
             set_={"token": token, "expiration": expiration},
-        ),
-    )
+        )
+    await session.execute(insert_stmt)
 
     # Return the created / updated token object
     csrf_token = await read_token_for_client(session=session, client=client)

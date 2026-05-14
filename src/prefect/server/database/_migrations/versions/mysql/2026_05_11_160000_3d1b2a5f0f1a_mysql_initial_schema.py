@@ -52,6 +52,31 @@ def _index_expr_base_column(expr: object) -> sa.Column | None:
     return None
 
 
+def _index_references_timestamp(table: sa.Table, index: sa.Index) -> bool:
+    """True if any column in this index has a TIMESTAMP/DATETIME type.
+
+    Unique indexes on timestamp columns cannot be reliably enforced at second
+    precision: MySQL truncates sub-second values, causing false duplicates
+    when two state transitions occur within the same second.
+    """
+    _TIMESTAMP_TYPES = (sa.DateTime, sa.TIMESTAMP)
+    for expr in index.expressions:
+        base = _index_expr_base_column(expr)
+        if base is None:
+            continue
+        col = table.c.get(base.key)
+        if col is None:
+            continue
+        col_type = col.type
+        # unwrap TypeDecorator to its impl
+        impl = getattr(col_type, "impl", col_type)
+        if isinstance(impl, type):
+            impl = impl()
+        if isinstance(col_type, _TIMESTAMP_TYPES) or isinstance(impl, _TIMESTAMP_TYPES):
+            return True
+    return False
+
+
 def _mysql_requires_simple_column_index(index: sa.Index) -> bool:
     """True if this index should be created on MySQL/OceanBase as-is.
 
@@ -106,6 +131,12 @@ def upgrade() -> None:
             if not _mysql_requires_simple_column_index(index):
                 copied.indexes.discard(index)
                 continue
+            # Unique indexes on (run_id, timestamp) cannot be enforced at second
+            # precision: two state transitions within the same second produce
+            # identical truncated timestamps and collide on the constraint.
+            # Demote these to plain (non-unique) indexes for MySQL.
+            if index.unique and _index_references_timestamp(copied, index):
+                index.unique = False
 
             length_by_name: dict[str, int] = {}
             for expr in index.expressions:

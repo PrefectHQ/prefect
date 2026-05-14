@@ -358,14 +358,21 @@ async def relate_automation_to_resource(
     resource_id: str,
     owned_by_resource: bool,
 ) -> None:
-    await session.execute(
-        db.queries.insert(db.AutomationRelatedResource)
-        .values(
-            automation_id=automation_id,
-            resource_id=resource_id,
-            automation_owned_by_resource=owned_by_resource,
+    _insert_stmt = db.queries.insert(db.AutomationRelatedResource).values(
+        automation_id=automation_id,
+        resource_id=resource_id,
+        automation_owned_by_resource=owned_by_resource,
+    )
+    if db.dialect.name == "mysql":
+        _insert_stmt = _insert_stmt.on_duplicate_key_update(
+            automation_owned_by_resource=sa.or_(
+                db.AutomationRelatedResource.automation_owned_by_resource,
+                sa.true() if owned_by_resource else sa.false(),
+            ),
+            updated=now("UTC"),
         )
-        .on_conflict_do_update(
+    else:
+        _insert_stmt = _insert_stmt.on_conflict_do_update(
             index_elements=[
                 db.AutomationRelatedResource.automation_id,
                 db.AutomationRelatedResource.resource_id,
@@ -378,7 +385,7 @@ async def relate_automation_to_resource(
                 updated=now("UTC"),
             ),
         )
-    )
+    await session.execute(_insert_stmt)
 
 
 @db_injector

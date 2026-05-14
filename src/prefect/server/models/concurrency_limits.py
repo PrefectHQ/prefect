@@ -34,16 +34,20 @@ async def create_concurrency_limit(
     # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#the-set-clause
     concurrency_limit.updated = now("UTC")  # type: ignore[assignment]
 
-    insert_stmt = (
-        db.queries.insert(db.ConcurrencyLimit)
-        .values(**insert_values)
-        .on_conflict_do_update(
+    insert_stmt = db.queries.insert(db.ConcurrencyLimit).values(**insert_values)
+    if db.dialect.name == "mysql":
+        insert_stmt = insert_stmt.on_duplicate_key_update(
+            **concurrency_limit.model_dump_for_orm(
+                include={"concurrency_limit", "updated"}
+            )
+        )
+    else:
+        insert_stmt = insert_stmt.on_conflict_do_update(
             index_elements=db.orm.concurrency_limit_unique_upsert_columns,
             set_=concurrency_limit.model_dump_for_orm(
                 include={"concurrency_limit", "updated"}
             ),
         )
-    )
 
     await session.execute(insert_stmt)
 

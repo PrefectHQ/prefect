@@ -951,18 +951,24 @@ async def increment_bucket(
     additional_updates: dict[str, ReceivedEvent] = (
         {"last_event": last_event} if last_event else {}
     )
-    await session.execute(
-        db.queries.insert(db.AutomationBucket)
-        .values(
-            automation_id=bucket.automation_id,
-            trigger_id=bucket.trigger_id,
-            bucketing_key=bucket.bucketing_key,
-            start=bucket.start,
-            end=bucket.end,
-            count=count,
-            last_operation="increment_bucket[insert]",
+    _insert_stmt = db.queries.insert(db.AutomationBucket).values(
+        automation_id=bucket.automation_id,
+        trigger_id=bucket.trigger_id,
+        bucketing_key=bucket.bucketing_key,
+        start=bucket.start,
+        end=bucket.end,
+        count=count,
+        last_operation="increment_bucket[insert]",
+    )
+    if db.dialect.name == "mysql":
+        _insert_stmt = _insert_stmt.on_duplicate_key_update(
+            count=db.AutomationBucket.count + count,
+            last_operation="increment_bucket[update]",
+            updated=prefect.types._datetime.now("UTC"),
+            **additional_updates,
         )
-        .on_conflict_do_update(
+    else:
+        _insert_stmt = _insert_stmt.on_conflict_do_update(
             index_elements=[
                 db.AutomationBucket.automation_id,
                 db.AutomationBucket.trigger_id,
@@ -975,7 +981,7 @@ async def increment_bucket(
                 **additional_updates,
             ),
         )
-    )
+    await session.execute(_insert_stmt)
 
     read_bucket = await read_bucket_by_trigger_id(
         session,
@@ -1006,20 +1012,29 @@ async def start_new_bucket(
     returning the new bucket"""
     automation = trigger.automation
 
-    await session.execute(
-        db.queries.insert(db.AutomationBucket)
-        .values(
-            automation_id=automation.id,
-            trigger_id=trigger.id,
-            bucketing_key=bucketing_key,
+    _insert_stmt = db.queries.insert(db.AutomationBucket).values(
+        automation_id=automation.id,
+        trigger_id=trigger.id,
+        bucketing_key=bucketing_key,
+        start=start,
+        end=end,
+        count=count,
+        last_operation="start_new_bucket[insert]",
+        triggered_at=triggered_at,
+        last_event=last_event,
+    )
+    if db.dialect.name == "mysql":
+        _insert_stmt = _insert_stmt.on_duplicate_key_update(
             start=start,
             end=end,
             count=count,
-            last_operation="start_new_bucket[insert]",
+            last_operation="start_new_bucket[update]",
+            updated=prefect.types._datetime.now("UTC"),
             triggered_at=triggered_at,
             last_event=last_event,
         )
-        .on_conflict_do_update(
+    else:
+        _insert_stmt = _insert_stmt.on_conflict_do_update(
             index_elements=[
                 db.AutomationBucket.automation_id,
                 db.AutomationBucket.trigger_id,
@@ -1035,7 +1050,7 @@ async def start_new_bucket(
                 last_event=last_event,
             ),
         )
-    )
+    await session.execute(_insert_stmt)
 
     read_bucket = await read_bucket_by_trigger_id(
         session,
@@ -1067,19 +1082,24 @@ async def ensure_bucket(
     additional_updates: dict[str, ReceivedEvent] = (
         {"last_event": last_event} if last_event else {}
     )
-    await session.execute(
-        db.queries.insert(db.AutomationBucket)
-        .values(
-            automation_id=automation.id,
-            trigger_id=trigger.id,
-            bucketing_key=bucketing_key,
-            last_event=last_event,
-            start=start,
-            end=end,
-            count=initial_count,
-            last_operation="ensure_bucket[insert]",
+    _insert_stmt = db.queries.insert(db.AutomationBucket).values(
+        automation_id=automation.id,
+        trigger_id=trigger.id,
+        bucketing_key=bucketing_key,
+        last_event=last_event,
+        start=start,
+        end=end,
+        count=initial_count,
+        last_operation="ensure_bucket[insert]",
+    )
+    if db.dialect.name == "mysql":
+        _insert_stmt = _insert_stmt.on_duplicate_key_update(
+            # no-op, but this counts as an update so the query returns a row
+            count=db.AutomationBucket.count,
+            **additional_updates,
         )
-        .on_conflict_do_update(
+    else:
+        _insert_stmt = _insert_stmt.on_conflict_do_update(
             index_elements=[
                 db.AutomationBucket.automation_id,
                 db.AutomationBucket.trigger_id,
@@ -1091,7 +1111,7 @@ async def ensure_bucket(
                 **additional_updates,
             ),
         )
-    )
+    await session.execute(_insert_stmt)
 
     read_bucket = await read_bucket_by_trigger_id(
         session, automation.id, trigger.id, tuple(bucketing_key)
