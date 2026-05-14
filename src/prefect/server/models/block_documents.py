@@ -758,7 +758,6 @@ async def find_work_pools_referencing_block(
     """
     from prefect.utilities.templating import find_block_document_references
 
-    # Get all work pools
     query = sa.select(db.WorkPool.id, db.WorkPool.name, db.WorkPool.base_job_template)
     result = await session.execute(query)
     work_pools = result.fetchall()
@@ -770,7 +769,6 @@ async def find_work_pools_referencing_block(
 
         references = find_block_document_references(base_job_template)
 
-        # Check if this block is referenced
         if (block_type_slug, block_document_name) in references:
             referencing_pools.append(
                 {"id": str(work_pool_id), "name": work_pool_name}

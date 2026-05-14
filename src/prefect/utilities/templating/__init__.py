@@ -525,20 +525,15 @@ def find_block_document_references(
 
     def extract_from_template(obj: Any) -> None:
         if isinstance(obj, dict):
-            # Check for block reference by ID
             if "$ref" in obj and isinstance(obj["$ref"], dict):
-                # Block ID references are not easily reversible to names, skip them
                 pass
             else:
-                # Recurse into dict values
                 for value in obj.values():
                     extract_from_template(value)
         elif isinstance(obj, list):
-            # Recurse into list items
             for item in obj:
                 extract_from_template(item)
         elif isinstance(obj, str):
-            # Find block placeholders in strings
             placeholders = find_placeholders(obj)
             for placeholder in placeholders:
                 if placeholder.type is PlaceholderType.BLOCK_DOCUMENT:
