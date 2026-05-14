@@ -17,7 +17,6 @@ from typing import (
     Callable,
     ClassVar,
     Generic,
-    Iterable,
     Optional,
     Type,
 )
@@ -109,6 +108,7 @@ from prefect.workers._cleanup import (
     WorkerCleanupHandler,
     WorkerCleanupHandlerRegistry,
 )
+from prefect.workers._cleanup_handlers import build_cleanup_handler_registry
 from prefect.workers._worker_channel import WorkerChannel, WorkPoolWorkerChannel
 
 if TYPE_CHECKING:
@@ -250,6 +250,65 @@ class BaseJobConfiguration(BaseModel):
             template=populated_configuration, client=client
         )
         return cls(**populated_configuration)
+
+    @classmethod
+    async def resolve_for_flow_run(
+        cls,
+        flow_run: "FlowRun",
+        *,
+        client: PrefectClient,
+        work_pool: WorkPool,
+        worker_name: str,
+        worker_id: UUID | None = None,
+        deployment: "DeploymentResponse | None" = None,
+    ) -> Self:
+        """Build a fully-prepared job configuration for an existing flow run.
+
+        Reads the flow run's deployment (when present) and flow, merges
+        deployment- and flow-run-level job variables over the work pool's
+        base template, instantiates the configuration, and stamps
+        attribution metadata via `prepare_for_flow_run`.
+        """
+        if not deployment and flow_run.deployment_id:
+            deployment = await client.read_deployment(flow_run.deployment_id)
+
+        flow = await client.read_flow(flow_run.flow_id)
+
+        deployment_vars = getattr(deployment, "job_variables", {}) or {}
+        flow_run_vars = flow_run.job_variables or {}
+        job_variables = {**deployment_vars}
+
+        # merge environment variables carefully, otherwise full override
+        if isinstance(job_variables.get("env"), dict):
+            job_variables["env"].update(flow_run_vars.pop("env", {}))
+        job_variables.update(flow_run_vars)
+
+        configuration = await cls.from_template_and_values(
+            base_job_template=work_pool.base_job_template,
+            values=job_variables,
+            client=client,
+        )
+        try:
+            configuration.prepare_for_flow_run(
+                flow_run=flow_run,
+                deployment=deployment,
+                flow=flow,
+                work_pool=work_pool,
+                worker_name=worker_name,
+                worker_id=worker_id,
+            )
+        except TypeError:
+            warnings.warn(
+                "This worker is missing the `work_pool`, `worker_name`, or `worker_id` arguments "
+                "in its JobConfiguration.prepare_for_flow_run method. Please update "
+                "the worker's JobConfiguration class to accept these arguments to "
+                "avoid this warning.",
+                category=PrefectDeprecationWarning,
+            )
+            configuration.prepare_for_flow_run(
+                flow_run=flow_run, deployment=deployment, flow=flow
+            )
+        return configuration
 
     @classmethod
     def json_template(cls) -> dict[str, Any]:
@@ -567,8 +626,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         heartbeat_interval_seconds: int | None = None,
         *,
         base_job_template: dict[str, Any] | None = None,
-        _cleanup_handlers: Iterable[WorkerCleanupHandler] | None = None,
-        _max_cleanup_concurrency: int | None = None,
     ):
         """
         Base class for all Prefect workers.
@@ -607,14 +664,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._base_job_template = base_job_template
         self._work_pool_name = work_pool_name
         self._work_queues: set[str] = set(work_queues) if work_queues else set()
-        self._cleanup_handler_registry = WorkerCleanupHandlerRegistry(
-            _cleanup_handlers
-            if _cleanup_handlers is not None
-            else self.__class__.cleanup_handlers
-        )
-        if _max_cleanup_concurrency is not None and _max_cleanup_concurrency < 0:
-            raise ValueError("Cleanup concurrency cannot be negative")
-        self._max_cleanup_concurrency_override = _max_cleanup_concurrency
+        self._cleanup_handler_registry = build_cleanup_handler_registry(self)
 
         self._prefetch_seconds: float = (
             prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
@@ -687,15 +737,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
     def max_cleanup_concurrency(self) -> int:
         if not self._cleanup_handler_registry:
             return 0
-
-        concurrency = (
-            self._max_cleanup_concurrency_override
-            if self._max_cleanup_concurrency_override is not None
-            else self.__class__.cleanup_max_concurrency
-        )
-        if concurrency is None:
-            return 1
-        return concurrency
+        concurrency = self.__class__.cleanup_max_concurrency
+        return 1 if concurrency is None else concurrency
 
     def _cleanup_delivery_available(self) -> bool:
         return bool(self._cleanup_handler_registry) and self.max_cleanup_concurrency > 0
@@ -1514,7 +1557,16 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         run_logger = self.get_flow_run_logger(flow_run)
 
         try:
-            configuration = await self._get_configuration(flow_run)
+            # Freeze a local copy of the work pool so a mid-flight snapshot
+            # apply cannot retemplate the configuration we're building.
+            work_pool = copy.deepcopy(self.work_pool)
+            configuration = await self.job_configuration.resolve_for_flow_run(
+                flow_run,
+                client=self.client,
+                work_pool=work_pool,
+                worker_name=self.name,
+                worker_id=self.backend_id,
+            )
             submitted_event = self._emit_flow_run_submitted_event(configuration)
             await self._give_worker_labels_to_flow_run(flow_run.id)
 
@@ -1610,55 +1662,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 "prefetch_seconds": self._prefetch_seconds,
             },
         }
-
-    async def _get_configuration(
-        self,
-        flow_run: "FlowRun",
-        deployment: Optional["DeploymentResponse"] = None,
-    ) -> C:
-        work_pool = copy.deepcopy(self.work_pool)
-
-        if not deployment and flow_run.deployment_id:
-            deployment = await self.client.read_deployment(flow_run.deployment_id)
-
-        flow = await self.client.read_flow(flow_run.flow_id)
-
-        deployment_vars = getattr(deployment, "job_variables", {}) or {}
-        flow_run_vars = flow_run.job_variables or {}
-        job_variables = {**deployment_vars}
-
-        # merge environment variables carefully, otherwise full override
-        if isinstance(job_variables.get("env"), dict):
-            job_variables["env"].update(flow_run_vars.pop("env", {}))
-        job_variables.update(flow_run_vars)
-
-        configuration = await self.job_configuration.from_template_and_values(
-            base_job_template=work_pool.base_job_template,
-            values=job_variables,
-            client=self.client,
-        )
-        try:
-            configuration.prepare_for_flow_run(
-                flow_run=flow_run,
-                deployment=deployment,
-                flow=flow,
-                work_pool=work_pool,
-                worker_name=self.name,
-                worker_id=self.backend_id,
-            )
-        except TypeError:
-            warnings.warn(
-                "This worker is missing the `work_pool`, `worker_name`, or `worker_id` arguments "
-                "in its JobConfiguration.prepare_for_flow_run method. Please update "
-                "the worker's JobConfiguration class to accept these arguments to "
-                "avoid this warning.",
-                category=PrefectDeprecationWarning,
-            )
-            # Handle older subclasses that don't accept work_pool, worker_name, and worker_id
-            configuration.prepare_for_flow_run(
-                flow_run=flow_run, deployment=deployment, flow=flow
-            )
-        return configuration
 
     async def _propose_pending_state(self, flow_run: "FlowRun") -> bool:
         run_logger = self.get_flow_run_logger(flow_run)
@@ -1804,9 +1807,17 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             )
             return
 
-        # Get configuration and kill infrastructure
+        # Get configuration and kill infrastructure. Freeze a local work
+        # pool copy so a mid-flight snapshot cannot retemplate the build.
         try:
-            configuration = await self._get_configuration(flow_run)
+            work_pool = copy.deepcopy(self.work_pool)
+            configuration = await self.job_configuration.resolve_for_flow_run(
+                flow_run,
+                client=self.client,
+                work_pool=work_pool,
+                worker_name=self.name,
+                worker_id=self.backend_id,
+            )
         except ObjectNotFound:
             run_logger.warning(
                 "Cannot kill infrastructure: deployment not found. "
