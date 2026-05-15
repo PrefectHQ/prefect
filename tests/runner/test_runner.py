@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import multiprocessing
 import os
 import re
 import signal
@@ -2239,27 +2240,43 @@ class TestRunner:
         monkeypatch: pytest.MonkeyPatch,
         prefect_client: PrefectClient,
     ):
-        # Create a flow run that will take a while to run
         deployment_id = await (await tired_flow.to_deployment(__file__)).apply()
 
         flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id
         )
 
+        # Use a lightweight subprocess that just sleeps instead of running
+        # the full flow engine in a SpawnProcess. The real subprocess imports
+        # all of prefect from scratch, which can exceed the 90s test timeout
+        # under CI load.
+        ctx = multiprocessing.get_context("spawn")
+        fake_process = ctx.Process(target=time.sleep, args=(3600,))
+        fake_process.start()
+
+        monkeypatch.setattr(
+            "prefect.runner.runner.run_flow_in_subprocess",
+            lambda *args, **kwargs: fake_process,
+        )
+
         runner = Runner()
 
-        # Run the flow run in a new process with a Runner
         execute_flow_run_task = asyncio.create_task(
             runner.execute_flow_run(flow_run_id=flow_run.id)
         )
 
-        # Wait for the flow run to start
-        while True:
-            await anyio.sleep(0.5)
-            flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-            assert flow_run.state
-            if flow_run.state.is_running():
-                break
+        # Wait for the process to be registered in the runner's process map
+        # before forcing the Running state and rescheduling
+        while flow_run.id not in runner._flow_run_process_map:
+            await anyio.sleep(0.1)
+
+        # Force the flow run to Running since the mock subprocess doesn't
+        # run the flow engine that would normally propose this transition
+        await prefect_client.set_flow_run_state(
+            flow_run_id=flow_run.id,
+            state=State(type=StateType.RUNNING, name="Running"),
+            force=True,
+        )
 
         runner.reschedule_current_flow_runs()
 
