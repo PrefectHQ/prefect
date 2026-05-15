@@ -41,6 +41,8 @@ Shared fixtures live in `fixtures/` (see fixtures/AGENTS.md) and root `conftest.
 ### Flaky Tests
 We have a workflow that identifies and fixes tests that flake after merging to main. Check CI test output to see which tests are currently slow or flaky.
 
+**Runner subprocess tests**: Spawning via `run_flow_in_subprocess` (or `DirectSubprocessStarter`) imports all of prefect in the child process, which can exhaust CI timeout budgets (≥ 90 s). Replace with a lightweight fake subprocess and monkeypatch the import target; then force state transitions with `prefect_client.set_flow_run_state(..., force=True)` because the fake process does not run the flow engine. Wait for `flow_run.id in runner._flow_run_process_map` rather than polling state transitions.
+
 **Flow timeout tests**: `pytest-timeout` defaults to SIGALRM on Unix, which interferes with Prefect's own SIGALRM-based flow timeout mechanism. Any test that exercises flow timeouts must opt into thread-based timeouts:
 ```python
 @pytest.mark.timeout(method="thread")  # alarm-based pytest-timeout will interfere
