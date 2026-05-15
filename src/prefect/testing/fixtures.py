@@ -1,4 +1,5 @@
 import asyncio
+import inspect
 import json
 import os
 import signal
@@ -451,7 +452,7 @@ def asserting_events_worker(
     try:
         yield worker
     finally:
-        worker.drain()
+        run_coro_as_sync(_drain_events_worker(worker))
 
 
 @pytest.fixture
@@ -464,7 +465,12 @@ def asserting_and_emitting_events_worker(
     try:
         yield worker
     finally:
-        worker.drain()
+        run_coro_as_sync(_drain_events_worker(worker))
+
+async def _drain_events_worker(worker: EventsWorker) -> None:
+    drain_result = worker.drain()
+    if inspect.isawaitable(drain_result):
+        await drain_result
 
 
 @pytest.fixture
