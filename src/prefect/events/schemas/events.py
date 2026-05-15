@@ -123,12 +123,12 @@ class Event(PrefectBaseModel):
         description="When the event happened from the sender's perspective",
     )
 
-    @field_validator("occurred", mode="before")
+    @field_validator("occurred", mode="after")
     @classmethod
-    def ensure_occurred_is_tz_aware(cls, v: object) -> object:
-        if isinstance(v, datetime.datetime):
-            return prefect.types._datetime.create_datetime_instance(v)
-        return v
+    def ensure_occurred_is_tz_aware(
+        cls, v: prefect.types._datetime.DateTime
+    ) -> prefect.types._datetime.DateTime:
+        return prefect.types._datetime.create_datetime_instance(v)
 
     event: str = Field(description="The name of the event that happened")
     resource: Resource = Field(

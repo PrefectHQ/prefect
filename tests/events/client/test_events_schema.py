@@ -262,6 +262,24 @@ def test_non_utc_aware_occurred_is_unchanged():
     assert event.occurred.utcoffset().total_seconds() == -4 * 3600  # type: ignore[union-attr]
 
 
+def test_naive_iso_string_occurred_is_coerced_to_utc():
+    """A naive ISO-8601 string passed to Event.occurred must also be coerced to UTC.
+
+    On Python >= 3.13 Pydantic parses the string into a bare datetime.datetime
+    before validators run, so a mode='before' isinstance check would miss it.
+    The mode='after' validator catches it regardless of the input type.
+    """
+    event = Event(
+        occurred="2024-06-01T12:00:00",
+        event="test.naive.string",
+        resource={"prefect.resource.id": "test"},
+    )
+    assert event.occurred.tzinfo is not None, (
+        "occurred must be tz-aware when constructed from a naive ISO string"
+    )
+    assert event.occurred.utcoffset().total_seconds() == 0  # type: ignore[union-attr]
+
+
 @pytest.mark.skipif(
     sys.version_info < (3, 13),
     reason="Naive datetime was only silently accepted on Python >= 3.13",
