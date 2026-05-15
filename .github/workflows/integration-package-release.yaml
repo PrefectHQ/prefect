@@ -64,6 +64,11 @@ jobs:
           pip install --upgrade build
         working-directory: src/integrations/${{ steps.package_name.outputs.PACKAGE_NAME }}
 
+      - name: Install locked CDK CLI
+        if: steps.package_name.outputs.PACKAGE_NAME == 'prefect-aws'
+        run: npm ci
+        working-directory: src/integrations/prefect-aws/infra
+
       - name: Generate CloudFormation templates
         if: steps.package_name.outputs.PACKAGE_NAME == 'prefect-aws'
         run: |

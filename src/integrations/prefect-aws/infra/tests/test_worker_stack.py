@@ -166,6 +166,27 @@ def test_auth_conditions():
     )
 
 
+def test_deployment_circuit_breaker():
+    """Test that the ECS service has a deployment circuit breaker with rollback."""
+    app = core.App()
+    stack = EcsServiceStack(app, "TestServiceStack")
+    template = assertions.Template.from_stack(stack)
+
+    template.has_resource_properties(
+        "AWS::ECS::Service",
+        {
+            "DeploymentConfiguration": assertions.Match.object_like(
+                {
+                    "DeploymentCircuitBreaker": {
+                        "Enable": True,
+                        "Rollback": True,
+                    }
+                }
+            )
+        },
+    )
+
+
 def test_iam_permissions():
     """Test that IAM roles have correct permissions."""
     app = core.App()

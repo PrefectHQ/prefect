@@ -1,0 +1,490 @@
+{
+ "Parameters": {
+  "WorkPoolName": {
+   "Type": "String",
+   "Default": "ecs-work-pool",
+   "Description": "Name of the Prefect work pool"
+  },
+  "ExistingClusterArn": {
+   "Type": "String",
+   "Description": "ARN of existing ECS cluster to monitor"
+  }
+ },
+ "Resources": {
+  "EcsEventsDLQ29DDC233": {
+   "Type": "AWS::SQS::Queue",
+   "Properties": {
+    "MessageRetentionPeriod": 1209600,
+    "QueueName": {
+     "Fn::Join": [
+      "",
+      [
+       {
+        "Ref": "WorkPoolName"
+       },
+       "-ecs-events-dlq"
+      ]
+     ]
+    },
+    "VisibilityTimeout": 60
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsEventsStack/EcsEventsDLQ/Resource"
+   }
+  },
+  "EcsEventsQueueC6389C93": {
+   "Type": "AWS::SQS::Queue",
+   "Properties": {
+    "MessageRetentionPeriod": 604800,
+    "QueueName": {
+     "Fn::Join": [
+      "",
+      [
+       {
+        "Ref": "WorkPoolName"
+       },
+       "-ecs-events"
+      ]
+     ]
+    },
+    "RedrivePolicy": {
+     "deadLetterTargetArn": {
+      "Fn::GetAtt": [
+       "EcsEventsDLQ29DDC233",
+       "Arn"
+      ]
+     },
+     "maxReceiveCount": 3
+    },
+    "VisibilityTimeout": 300
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsEventsStack/EcsEventsQueue/Resource"
+   }
+  },
+  "EcsEventsQueuePolicy5B74B767": {
+   "Type": "AWS::SQS::QueuePolicy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "sqs:GetQueueAttributes",
+        "sqs:GetQueueUrl",
+        "sqs:SendMessage"
+       ],
+       "Condition": {
+        "ArnEquals": {
+         "aws:SourceArn": {
+          "Fn::GetAtt": [
+           "EcsTaskStateChangeRuleC4D798EC",
+           "Arn"
+          ]
+         }
+        }
+       },
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "events.amazonaws.com"
+       },
+       "Resource": {
+        "Fn::GetAtt": [
+         "EcsEventsQueueC6389C93",
+         "Arn"
+        ]
+       }
+      },
+      {
+       "Action": [
+        "sqs:GetQueueAttributes",
+        "sqs:GetQueueUrl",
+        "sqs:SendMessage"
+       ],
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "events.amazonaws.com"
+       },
+       "Resource": {
+        "Fn::GetAtt": [
+         "EcsEventsQueueC6389C93",
+         "Arn"
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Queues": [
+     {
+      "Ref": "EcsEventsQueueC6389C93"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsEventsStack/EcsEventsQueue/Policy/Resource"
+   }
+  },
+  "EcsTaskStateChangeRuleC4D798EC": {
+   "Type": "AWS::Events::Rule",
+   "Properties": {
+    "Description": "Capture ECS task state changes for Prefect workers",
+    "EventPattern": {
+     "detail": {
+      "clusterArn": [
+       {
+        "Ref": "ExistingClusterArn"
+       }
+      ]
+     },
+     "detail-type": [
+      "ECS Task State Change"
+     ],
+     "source": [
+      "aws.ecs"
+     ]
+    },
+    "Name": {
+     "Fn::Join": [
+      "",
+      [
+       {
+        "Ref": "WorkPoolName"
+       },
+       "-ecs-task-events"
+      ]
+     ]
+    },
+    "State": "ENABLED",
+    "Targets": [
+     {
+      "Arn": {
+       "Fn::GetAtt": [
+        "EcsEventsQueueC6389C93",
+        "Arn"
+       ]
+      },
+      "Id": "Target0"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsEventsStack/EcsTaskStateChangeRule/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/6WQy07DMBBFv6VeVq6BABLqtmKHIITsogq58QBDE7u1xymRlX9HdtKqLCs2Hs/rXh9nIru/E9czeXCLWm0XDW5EeCNZb/nqQ+fSyhYILJcH9x7c3onw6sFDFdg+xmfZAluyOePMAoEmNDoHi0ZN1Q4dbrBB6ktswXhK9YEHpkCqJyACmxTZMrBW/hRQA3awMl7TJLEf22ntf67ryJTceDpz02DdH1kcW1ZsztZnY+PAwKEDTU6EwjcRXYGrLe6i7WSYBnIZaXQkUUASm6k5JmW/Oz7aGW/rE5L1zTkRSfsJ5E7/JJV6/KNeXSK/niTKpBqXhwkwsgxDvL142nkaeN7Tl9FXt+ImEw+zb4e4sF4TtiCKMf4C5+nkHC4CAAA="
+   },
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsEventsStack/CDKMetadata/Default"
+   },
+   "Condition": "CDKMetadataAvailable"
+  }
+ },
+ "Outputs": {
+  "EcsEventsQueueUrl": {
+   "Description": "URL of the SQS queue receiving ECS events",
+   "Value": {
+    "Ref": "EcsEventsQueueC6389C93"
+   }
+  },
+  "EcsEventsQueueArn": {
+   "Description": "ARN of the SQS queue receiving ECS events",
+   "Value": {
+    "Fn::GetAtt": [
+     "EcsEventsQueueC6389C93",
+     "Arn"
+    ]
+   }
+  },
+  "EventBridgeRuleArn": {
+   "Description": "ARN of the EventBridge rule for ECS events",
+   "Value": {
+    "Fn::GetAtt": [
+     "EcsTaskStateChangeRuleC4D798EC",
+     "Arn"
+    ]
+   }
+  },
+  "EcsEventsQueueName": {
+   "Description": "Name of the SQS queue receiving ECS events",
+   "Value": {
+    "Fn::GetAtt": [
+     "EcsEventsQueueC6389C93",
+     "QueueName"
+    ]
+   }
+  }
+ },
+ "Conditions": {
+  "CDKMetadataAvailable": {
+   "Fn::Or": [
+    {
+     "Fn::Or": [
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "af-south-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-east-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-northeast-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-northeast-2"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-northeast-3"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-south-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-south-2"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-southeast-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-southeast-2"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-southeast-3"
+       ]
+      }
+     ]
+    },
+    {
+     "Fn::Or": [
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ap-southeast-4"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ca-central-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "ca-west-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "cn-north-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "cn-northwest-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-central-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-central-2"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-north-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-south-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-south-2"
+       ]
+      }
+     ]
+    },
+    {
+     "Fn::Or": [
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-west-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-west-2"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "eu-west-3"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "il-central-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "me-central-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "me-south-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "sa-east-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "us-east-1"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "us-east-2"
+       ]
+      },
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "AWS::Region"
+        },
+        "us-west-1"
+       ]
+      }
+     ]
+    },
+    {
+     "Fn::Equals": [
+      {
+       "Ref": "AWS::Region"
+      },
+      "us-west-2"
+     ]
+    }
+   ]
+  }
+ }
+}
