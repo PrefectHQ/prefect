@@ -129,6 +129,7 @@ from prefect.settings import (
 from prefect.states import (
     AwaitingRetry,
 )
+from prefect.types._datetime import now
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
@@ -1054,7 +1055,7 @@ class Runner:
             if (
                 last_adhoc_pull is None
                 or last_adhoc_pull
-                < datetime.datetime.now()
+                < now("UTC")
                 - datetime.timedelta(seconds=storage.pull_interval)
             ):
                 self._logger.debug(
@@ -1063,7 +1064,7 @@ class Runner:
                     storage,
                 )
                 await storage.pull_code()
-                setattr(storage, "last_adhoc_pull", datetime.datetime.now())
+                setattr(storage, "last_adhoc_pull", now("UTC"))
 
         handed_off = False
 

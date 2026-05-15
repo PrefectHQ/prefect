@@ -185,7 +185,7 @@ class ScheduledRunPoller:
                 if (
                     last_adhoc_pull is None
                     or last_adhoc_pull
-                    < datetime.datetime.now()
+                    < now("UTC")
                     - datetime.timedelta(seconds=storage.pull_interval)
                 ):
                     self._logger.debug(
@@ -193,7 +193,7 @@ class ScheduledRunPoller:
                         flow_run.id,
                     )
                     await storage.pull_code()
-                    storage.last_adhoc_pull = datetime.datetime.now()
+                    storage.last_adhoc_pull = now("UTC")
 
             executor = FlowRunExecutor(
                 flow_run=flow_run,
