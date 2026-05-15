@@ -75,6 +75,16 @@ jobs:
           just generate-cfn
         working-directory: src/integrations/prefect-aws/infra
 
+      - name: Verify CloudFormation templates are up to date
+        if: steps.package_name.outputs.PACKAGE_NAME == 'prefect-aws'
+        run: |
+          if ! git -C "$GITHUB_WORKSPACE" diff --exit-code -- \
+            src/integrations/prefect-aws/prefect_aws/templates/ecs/service.json \
+            src/integrations/prefect-aws/prefect_aws/templates/ecs/events-only.json; then
+            echo "::error::Generated CloudFormation templates are out of date. Run 'just generate-cfn' from src/integrations/prefect-aws/infra and commit the updated templates before releasing."
+            exit 1
+          fi
+
       - name: Build a binary wheel and a source tarball
         run: |
           python -m build --wheel
