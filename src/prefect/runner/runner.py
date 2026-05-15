@@ -1055,8 +1055,7 @@ class Runner:
             if (
                 last_adhoc_pull is None
                 or last_adhoc_pull
-                < now("UTC")
-                - datetime.timedelta(seconds=storage.pull_interval)
+                < now("UTC") - datetime.timedelta(seconds=storage.pull_interval)
             ):
                 self._logger.debug(
                     "Performing adhoc pull of code for flow run %s with storage %r",
