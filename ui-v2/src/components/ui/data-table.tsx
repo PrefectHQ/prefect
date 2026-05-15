@@ -51,7 +51,7 @@ function ColumnResizeHandle<TData, TValue>({
 			onTouchStart={header.getResizeHandler()}
 			onDoubleClick={() => header.column.resetSize()}
 			className={cn(
-				"absolute right-0 top-0 h-full w-1 cursor-col-resize touch-none select-none bg-transparent hover:bg-primary/50",
+				"absolute right-0 top-0 z-10 h-full w-1 cursor-col-resize touch-none select-none bg-transparent hover:bg-primary/50",
 				isResizing && "bg-primary",
 			)}
 			style={{ transform: "translateX(50%)" }}
