@@ -232,7 +232,6 @@ def test_naive_occurred_is_coerced_to_utc():
     assert event.occurred.tzinfo is not None, "occurred must be tz-aware after coercion"
     assert event.occurred.replace(tzinfo=None) == naive
     # Naive datetimes are assumed to be UTC
-    utc = ZoneInfo("UTC")
     assert event.occurred.utcoffset().total_seconds() == 0  # type: ignore[union-attr]
 
 
