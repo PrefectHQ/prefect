@@ -129,6 +129,7 @@ from prefect.settings import (
 from prefect.states import (
     AwaitingRetry,
 )
+from prefect.types._datetime import now
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
@@ -1051,19 +1052,16 @@ class Runner:
             # adhoc pull hasn't been performed in the last pull_interval
             # TODO: Explore integrating this behavior with global concurrency.
             last_adhoc_pull = getattr(storage, "last_adhoc_pull", None)
-            if (
-                last_adhoc_pull is None
-                or last_adhoc_pull
-                < datetime.datetime.now()
-                - datetime.timedelta(seconds=storage.pull_interval)
-            ):
+            if last_adhoc_pull is None or last_adhoc_pull < now(
+                "UTC"
+            ) - datetime.timedelta(seconds=storage.pull_interval):
                 self._logger.debug(
                     "Performing adhoc pull of code for flow run %s with storage %r",
                     flow_run.id,
                     storage,
                 )
                 await storage.pull_code()
-                setattr(storage, "last_adhoc_pull", datetime.datetime.now())
+                setattr(storage, "last_adhoc_pull", now("UTC"))
 
         handed_off = False
 
