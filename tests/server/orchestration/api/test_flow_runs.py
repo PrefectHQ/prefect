@@ -2388,6 +2388,87 @@ class TestPreventResultDataLossAPI:
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["status"] == "ACCEPT"
 
+    async def test_force_set_state_scalar_current_data_does_not_error(
+        self, flow_run, client
+    ):
+        """Scalar state.data on the current completed state must not cause an ISE."""
+        # Set COMPLETED with scalar data
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(
+                state=dict(type="COMPLETED", name="Completed", data=1),
+                force=True,
+            ),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+
+        # Try to overwrite with bare COMPLETED (no data) — should NOT 500
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(
+                state=dict(type="COMPLETED", name="Completed"),
+                force=True,
+            ),
+        )
+        assert response.status_code in {
+            status.HTTP_200_OK,
+            status.HTTP_201_CREATED,
+        }
+        assert response.json()["status"] == "ACCEPT"
+
+    async def test_force_set_state_scalar_proposed_data_does_not_error(
+        self, flow_run, client
+    ):
+        """Scalar proposed data against persisted current must not cause an ISE."""
+        from prefect._internal.result_records import ResultRecordMetadata
+
+        result_data = ResultRecordMetadata.model_construct().model_dump(mode="json")
+
+        # Set COMPLETED with persisted result metadata
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(
+                state=dict(type="COMPLETED", name="Completed", data=result_data),
+                force=True,
+            ),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+
+        # Try to overwrite with scalar data — should reject, not 500
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(
+                state=dict(type="COMPLETED", name="Completed", data=1),
+                force=True,
+            ),
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["status"] == "REJECT"
+
+    async def test_force_set_state_list_data_does_not_error(self, flow_run, client):
+        """List state.data must not cause an ISE."""
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(
+                state=dict(type="COMPLETED", name="Completed", data=[1, 2, 3]),
+                force=True,
+            ),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(
+                state=dict(type="COMPLETED", name="Completed"),
+                force=True,
+            ),
+        )
+        assert response.status_code in {
+            status.HTTP_200_OK,
+            status.HTTP_201_CREATED,
+        }
+        assert response.json()["status"] == "ACCEPT"
+
 
 class TestManuallyRetryingFlowRuns:
     async def test_manual_flow_run_retries(
