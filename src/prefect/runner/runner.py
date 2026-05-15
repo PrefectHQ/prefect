@@ -1052,11 +1052,9 @@ class Runner:
             # adhoc pull hasn't been performed in the last pull_interval
             # TODO: Explore integrating this behavior with global concurrency.
             last_adhoc_pull = getattr(storage, "last_adhoc_pull", None)
-            if (
-                last_adhoc_pull is None
-                or last_adhoc_pull
-                < now("UTC") - datetime.timedelta(seconds=storage.pull_interval)
-            ):
+            if last_adhoc_pull is None or last_adhoc_pull < now(
+                "UTC"
+            ) - datetime.timedelta(seconds=storage.pull_interval):
                 self._logger.debug(
                     "Performing adhoc pull of code for flow run %s with storage %r",
                     flow_run.id,

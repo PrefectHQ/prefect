@@ -182,11 +182,9 @@ class ScheduledRunPoller:
             pull_interval = getattr(storage, "pull_interval", None)
             if storage and isinstance(pull_interval, (int, float)) and pull_interval:
                 last_adhoc_pull = getattr(storage, "last_adhoc_pull", None)
-                if (
-                    last_adhoc_pull is None
-                    or last_adhoc_pull
-                    < now("UTC") - datetime.timedelta(seconds=storage.pull_interval)
-                ):
+                if last_adhoc_pull is None or last_adhoc_pull < now(
+                    "UTC"
+                ) - datetime.timedelta(seconds=storage.pull_interval):
                     self._logger.debug(
                         "Performing adhoc pull of code for flow run %s",
                         flow_run.id,
