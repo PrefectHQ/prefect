@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import type {
 	ColumnFiltersState,
+	ColumnSizingState,
 	OnChangeFn,
 	PaginationState,
 } from "@tanstack/react-table";
@@ -29,6 +30,7 @@ import {
 import { StatusBadge } from "@/components/ui/status-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 import { TagsInput } from "@/components/ui/tags-input";
+import { useLocalStorage } from "@/hooks/use-local-storage";
 import { pluralize } from "@/utils";
 import { ActionsCell, ActivityCell } from "./cells";
 
@@ -74,7 +76,8 @@ const createColumns = ({
 				)}
 			</div>
 		),
-		size: 100,
+		size: 200,
+		minSize: 120,
 	}),
 	columnHelper.accessor("status", {
 		id: "status",
@@ -88,7 +91,8 @@ const createColumns = ({
 				</div>
 			);
 		},
-		size: 50,
+		size: 120,
+		minSize: 100,
 	}),
 	columnHelper.display({
 		id: "activity",
@@ -99,11 +103,14 @@ const createColumns = ({
 			</div>
 		),
 		size: 300,
+		minSize: 160,
 	}),
 	columnHelper.display({
 		id: "tags",
 		header: () => null,
 		cell: ({ row }) => <TagBadgeGroup tags={row.original.tags ?? []} />,
+		size: 160,
+		minSize: 100,
 	}),
 	columnHelper.display({
 		id: "schedules",
@@ -113,13 +120,18 @@ const createColumns = ({
 			if (!schedules || schedules.length === 0) return null;
 			return <ScheduleBadgeGroup schedules={schedules} />;
 		},
-		size: 150,
+		size: 180,
+		minSize: 120,
 	}),
 	columnHelper.display({
 		id: "actions",
 		cell: (props) => <ActionsCell {...props} onDelete={onDelete} />,
+		enableResizing: false,
+		size: 60,
 	}),
 ];
+
+const COLUMN_SIZING_STORAGE_KEY = "deployments-table-column-sizing";
 
 export const DeploymentsDataTable = ({
 	deployments,
@@ -175,6 +187,20 @@ export const DeploymentsDataTable = ({
 		[pagination, onPaginationChange],
 	);
 
+	const [columnSizing, setColumnSizing] = useLocalStorage<ColumnSizingState>(
+		COLUMN_SIZING_STORAGE_KEY,
+		{},
+	);
+
+	const handleColumnSizingChange: OnChangeFn<ColumnSizingState> = useCallback(
+		(updater) => {
+			setColumnSizing((prev) =>
+				typeof updater === "function" ? updater(prev) : updater,
+			);
+		},
+		[setColumnSizing],
+	);
+
 	const table = useReactTable({
 		data: deployments,
 		columns: createColumns({
@@ -188,13 +214,14 @@ export const DeploymentsDataTable = ({
 		getCoreRowModel: getCoreRowModel(),
 		pageCount,
 		manualPagination: true,
-		defaultColumn: {
-			maxSize: 300,
-		},
+		enableColumnResizing: true,
+		columnResizeMode: "onChange",
 		state: {
 			pagination,
+			columnSizing,
 		},
 		onPaginationChange: handlePaginationChange,
+		onColumnSizingChange: handleColumnSizingChange,
 	});
 	return (
 		<div>
