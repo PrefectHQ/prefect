@@ -50,10 +50,18 @@ scheduled_flow_runs AS (
         JOIN (
             SELECT 
                 fr.*,
-                ROW_NUMBER() OVER (PARTITION BY work_queue_id ORDER BY next_scheduled_start_time) AS work_queue_rank
+                ROW_NUMBER() OVER (PARTITION BY fr.work_queue_id ORDER BY fr.next_scheduled_start_time) AS work_queue_rank
             FROM flow_run fr
+            LEFT JOIN deployment d ON fr.deployment_id = d.id
+            LEFT JOIN concurrency_limit_v2 dcl ON d.concurrency_limit_id = dcl.id
             WHERE fr.state_type = 'SCHEDULED'
             AND (json_extract(fr.empirical_policy, '$.retry_type') IS NULL OR json_extract(fr.empirical_policy, '$.retry_type') != 'in_process')
+            AND (
+                fr.deployment_id IS NULL
+                OR d.concurrency_limit_id IS NULL
+                OR dcl.active IS FALSE
+                OR dcl.active_slots < dcl."limit"
+            )
             {% if scheduled_after %}
             AND fr.next_scheduled_start_time >= :scheduled_after
             {% endif %}

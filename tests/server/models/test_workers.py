@@ -872,6 +872,80 @@ class TestGetScheduledRuns:
         )
         assert len(runs) == 0
 
+    async def test_saturated_deployment_concurrency_limits_are_skipped(
+        self, session, flow
+    ):
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(name=f"pool-{uuid4()}"),
+        )
+        work_queue = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name=f"q-{uuid4()}"),
+        )
+
+        limited_deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name=f"limited-{uuid4()}",
+                flow_id=flow.id,
+                work_queue_name=work_queue.name,
+                concurrency_limit=1,
+            ),
+        )
+        unconstrained_deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name=f"unconstrained-{uuid4()}",
+                flow_id=flow.id,
+                work_queue_name=work_queue.name,
+            ),
+        )
+
+        limited_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=limited_deployment.id,
+                work_queue_id=work_queue.id,
+                state=schemas.states.Scheduled(
+                    scheduled_time=now("UTC") - datetime.timedelta(minutes=5)
+                ),
+            ),
+        )
+        unconstrained_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=unconstrained_deployment.id,
+                work_queue_id=work_queue.id,
+                state=schemas.states.Scheduled(
+                    scheduled_time=now("UTC") - datetime.timedelta(minutes=4)
+                ),
+            ),
+        )
+
+        acquired = await models.concurrency_limits_v2.bulk_increment_active_slots(
+            session=session,
+            concurrency_limit_ids=[limited_deployment.concurrency_limit_id],
+            slots=1,
+        )
+        assert acquired is True
+
+        await session.commit()
+
+        runs = await models.workers.get_scheduled_flow_runs(
+            session=session,
+            work_pool_ids=[work_pool.id],
+            limit=1,
+            respect_queue_priorities=False,
+        )
+
+        assert len(runs) == 1
+        assert runs[0].flow_run.id == unconstrained_run.id
+        assert runs[0].flow_run.id != limited_run.id
+
 
 class TestDeleteWorker:
     async def test_delete_worker(self, session, work_pool):
