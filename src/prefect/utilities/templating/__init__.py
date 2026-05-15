@@ -354,10 +354,13 @@ async def resolve_block_document_references(
                 name=block_document_name, block_type_slug=block_type_slug
             )
         except prefect.exceptions.ObjectNotFound as exc:
-            raise ValueError(
-                f"Block not found: '{block_document_name}' of type '{block_type_slug}'. "
-                f"This block was referenced in your deployment or work pool configuration but no longer exists. "
-                f"It may have been deleted. Please check your configuration or create a new block."
+            raise prefect.exceptions.ObjectNotFound(
+                http_exc=exc.http_exc,
+                help_message=(
+                    f"Block not found: '{block_document_name}' of type '{block_type_slug}'. "
+                    f"This block was referenced in your deployment or work pool configuration but no longer exists. "
+                    f"It may have been deleted. Please check your configuration or create a new block."
+                ),
             ) from exc
 
         data = block_document.data
@@ -388,10 +391,13 @@ async def resolve_block_document_references(
             try:
                 block_document = await client.read_block_document(block_document_id)
             except prefect.exceptions.ObjectNotFound as exc:
-                raise ValueError(
-                    f"Block not found: block with ID '{block_document_id}'. "
-                    f"This block was referenced in your deployment or work pool configuration but no longer exists. "
-                    f"It may have been deleted. Please check your configuration or create a new block."
+                raise prefect.exceptions.ObjectNotFound(
+                    http_exc=exc.http_exc,
+                    help_message=(
+                        f"Block not found: ID '{block_document_id}'. "
+                        f"This block was referenced in your deployment or work pool configuration but no longer exists. "
+                        f"It may have been deleted. Please check your configuration or create a new block."
+                    ),
                 ) from exc
             return block_document.data
         updated_template: dict[str, Any] = {}

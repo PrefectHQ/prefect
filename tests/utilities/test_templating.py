@@ -3,6 +3,7 @@ from typing import Any, Dict
 
 import pytest
 
+import prefect.exceptions
 from prefect.blocks.core import Block
 from prefect.blocks.system import Secret
 from prefect.blocks.webhook import Webhook
@@ -540,7 +541,7 @@ class TestResolveBlockDocumentReferences:
             "block_ref": "{{ prefect.blocks.aws-credentials.nonexistent-block }}"
         }
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(prefect.exceptions.ObjectNotFound) as exc_info:
             await resolve_block_document_references(template, client=prefect_client)
 
         error_msg = str(exc_info.value)
@@ -557,7 +558,7 @@ class TestResolveBlockDocumentReferences:
         fake_id = uuid.uuid4()
         template = {"block_ref": {"$ref": {"block_document_id": fake_id}}}
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(prefect.exceptions.ObjectNotFound) as exc_info:
             await resolve_block_document_references(template, client=prefect_client)
 
         error_msg = str(exc_info.value)
