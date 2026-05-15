@@ -126,7 +126,6 @@ class ScheduledRunPoller:
             ),
         )
 
-        submitted_ids: set[UUID] = set()
         for flow_run in submittable_flow_runs:
             if flow_run.id in self._submitting_flow_run_ids:
                 continue
@@ -135,13 +134,12 @@ class ScheduledRunPoller:
             except anyio.WouldBlock:
                 break  # sorted: no earlier run fits
             self._submitting_flow_run_ids.add(flow_run.id)
-            submitted_ids.add(flow_run.id)
             task_group.start_soon(self._submit_run, flow_run, task_group, slot_token)
 
         skipped_count = sum(
             1
             for r in submittable_flow_runs
-            if r.id not in self._submitting_flow_run_ids and r.id not in submitted_ids
+            if r.id not in self._submitting_flow_run_ids
         )
         if skipped_count > 0:
             self._logger.info("%d scheduled runs skipped (at capacity)", skipped_count)
