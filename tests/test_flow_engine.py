@@ -48,6 +48,7 @@ from prefect.flow_engine import (
     MINIMUM_HEARTBEAT_INTERVAL,
     AsyncFlowRunEngine,
     FlowRunEngine,
+    NotSet,
     _load_flow_from_runtime_entrypoint,
     _main,
     _run_flow_from_runtime_entrypoint,
@@ -64,10 +65,12 @@ from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
 from prefect.input.actions import read_flow_run_input
 from prefect.input.run_input import RunInput
 from prefect.logging import get_run_logger
+from prefect.results import get_result_store
 from prefect.runtime import flow_run as runtime_flow_run
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
 from prefect.settings import PREFECT_LOGGING_LOG_PRINTS, temporary_settings
+from prefect.states import Running
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import capture_sigterm, propose_state, propose_state_sync
 from prefect.utilities.filesystem import tmpchdir
@@ -1369,6 +1372,266 @@ class TestFlowRetries:
         assert flow_run_count == 2, "Parent flow should exhaust retries"
         assert child_flow_run_count == 4, (
             "Child flow should run 2 times for each parent run"
+        )
+
+
+class TestLoadSubflowRun:
+    """Tests for load_subflow_run reattach behavior to prevent duplicate
+    subflow runs when a process is re-executed (e.g. K8s pod restart)."""
+
+    async def test_sync_reattaches_to_existing_subflow_when_parent_task_run_is_running(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        """When the parent_task_run is still Running (non-final), load_subflow_run
+        should find and return the existing subflow run instead of returning None,
+        which would cause a duplicate to be created."""
+        child_flow_run_ids: list[UUID] = []
+
+        @flow
+        def child():
+            child_flow_run_ids.append(FlowRunContext.get().flow_run.id)
+
+        @flow
+        def parent():
+            child()
+
+        # Run the parent flow normally; this creates the child subflow run
+        parent()
+
+        assert len(child_flow_run_ids) == 1
+        first_child_id = child_flow_run_ids[0]
+
+        # Look up the child flow run and its parent_task_run
+        child_run = sync_prefect_client.read_flow_run(first_child_id)
+        assert child_run.parent_task_run_id is not None
+        parent_task_run = sync_prefect_client.read_task_run(
+            child_run.parent_task_run_id
+        )
+
+        # Simulate the pod-restart scenario: set the parent_task_run to Running
+        # (as if the orphaned subflow's Running state was synced back via
+        # UpdateSubflowParentTaskRun before the process died)
+        sync_prefect_client.set_task_run_state(
+            parent_task_run.id, Running(), force=True
+        )
+        parent_task_run = sync_prefect_client.read_task_run(parent_task_run.id)
+        assert parent_task_run.state.is_running()
+
+        # Now simulate what the engine does on re-execution: call
+        # load_subflow_run with the Running parent_task_run
+        parent_run = sync_prefect_client.read_flow_run(parent_task_run.flow_run_id)
+        engine = FlowRunEngine(flow=child, flow_run=None)
+        context = FlowRunContext(
+            flow=parent,
+            flow_run=parent_run,
+            client=sync_prefect_client,
+            task_runner=parent.task_runner,
+            result_store=get_result_store(),
+        )
+        result = engine.load_subflow_run(
+            parent_task_run=parent_task_run,
+            client=sync_prefect_client,
+            context=context,
+        )
+
+        assert result is not None, (
+            "load_subflow_run should reattach to the existing subflow run"
+        )
+        assert result.id == first_child_id
+
+    async def test_async_reattaches_to_existing_subflow_when_parent_task_run_is_running(
+        self, prefect_client: PrefectClient
+    ):
+        """Async variant: same reattach behavior for AsyncFlowRunEngine."""
+        child_flow_run_ids: list[UUID] = []
+
+        @flow
+        async def child():
+            child_flow_run_ids.append(FlowRunContext.get().flow_run.id)
+
+        @flow
+        async def parent():
+            await child()
+
+        await parent()
+
+        assert len(child_flow_run_ids) == 1
+        first_child_id = child_flow_run_ids[0]
+
+        child_run = await prefect_client.read_flow_run(first_child_id)
+        assert child_run.parent_task_run_id is not None
+        parent_task_run = await prefect_client.read_task_run(
+            child_run.parent_task_run_id
+        )
+
+        await prefect_client.set_task_run_state(
+            parent_task_run.id, Running(), force=True
+        )
+        parent_task_run = await prefect_client.read_task_run(parent_task_run.id)
+        assert parent_task_run.state.is_running()
+
+        parent_run = await prefect_client.read_flow_run(parent_task_run.flow_run_id)
+        engine = AsyncFlowRunEngine(flow=child, flow_run=None)
+        context = FlowRunContext(
+            flow=parent,
+            flow_run=parent_run,
+            client=prefect_client,
+            task_runner=parent.task_runner,
+            result_store=get_result_store(),
+        )
+        result = await engine.load_subflow_run(
+            parent_task_run=parent_task_run,
+            client=prefect_client,
+            context=context,
+        )
+
+        assert result is not None, (
+            "load_subflow_run should reattach to the existing subflow run"
+        )
+        assert result.id == first_child_id
+
+    async def test_does_not_set_return_value_when_reattaching_to_nonfinal_subflow(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        """When reattaching to a non-final subflow run, _return_value should
+        NOT be set so the engine re-executes the flow code."""
+        child_flow_run_id: UUID | None = None
+
+        @flow
+        def child():
+            nonlocal child_flow_run_id
+            child_flow_run_id = FlowRunContext.get().flow_run.id
+
+        @flow
+        def parent():
+            child()
+
+        parent()
+
+        assert child_flow_run_id is not None
+        child_run = sync_prefect_client.read_flow_run(child_flow_run_id)
+        assert child_run.parent_task_run_id is not None
+
+        parent_task_run = sync_prefect_client.read_task_run(
+            child_run.parent_task_run_id
+        )
+
+        # Force parent_task_run to Running
+        sync_prefect_client.set_task_run_state(
+            parent_task_run.id, Running(), force=True
+        )
+        parent_task_run = sync_prefect_client.read_task_run(parent_task_run.id)
+
+        parent_run = sync_prefect_client.read_flow_run(parent_task_run.flow_run_id)
+        engine = FlowRunEngine(flow=child, flow_run=None)
+        context = FlowRunContext(
+            flow=parent,
+            flow_run=parent_run,
+            client=sync_prefect_client,
+            task_runner=parent.task_runner,
+            result_store=get_result_store(),
+        )
+        result = engine.load_subflow_run(
+            parent_task_run=parent_task_run,
+            client=sync_prefect_client,
+            context=context,
+        )
+
+        assert result is not None
+        assert engine._return_value is NotSet, (
+            "_return_value should not be set for non-final parent task runs"
+        )
+
+    async def test_returns_none_when_no_existing_subflow_run(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        """When there is no existing subflow run, load_subflow_run should
+        return None regardless of parent_task_run state."""
+        parent_flow_run_id: UUID | None = None
+
+        @flow
+        def child():
+            pass
+
+        @flow
+        def parent():
+            nonlocal parent_flow_run_id
+            parent_flow_run_id = FlowRunContext.get().flow_run.id
+
+        parent()
+
+        assert parent_flow_run_id is not None
+        parent_run = sync_prefect_client.read_flow_run(parent_flow_run_id)
+
+        # Use a mock task run with a UUID that has no matching subflow runs
+        mock_task_run = MagicMock()
+        mock_task_run.id = uuid.uuid4()
+        mock_task_run.state = Running()
+
+        engine = FlowRunEngine(flow=child, flow_run=None)
+        context = FlowRunContext(
+            flow=parent,
+            flow_run=parent_run,
+            client=sync_prefect_client,
+            task_runner=parent.task_runner,
+            result_store=get_result_store(),
+        )
+        result = engine.load_subflow_run(
+            parent_task_run=mock_task_run,
+            client=sync_prefect_client,
+            context=context,
+        )
+
+        assert result is None
+
+    async def test_sets_return_value_when_parent_task_run_is_final(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        """When parent_task_run is final, _return_value should be set
+        to cache the result (existing behavior preserved)."""
+        child_flow_run_id: UUID | None = None
+
+        @flow
+        def child():
+            nonlocal child_flow_run_id
+            child_flow_run_id = FlowRunContext.get().flow_run.id
+            return 42
+
+        @flow
+        def parent():
+            return child()
+
+        parent()
+
+        assert child_flow_run_id is not None
+        child_run = sync_prefect_client.read_flow_run(child_flow_run_id)
+        assert child_run.parent_task_run_id is not None
+
+        parent_task_run = sync_prefect_client.read_task_run(
+            child_run.parent_task_run_id
+        )
+        # After normal completion, parent_task_run should be final
+        assert parent_task_run.state.is_final()
+
+        parent_run = sync_prefect_client.read_flow_run(parent_task_run.flow_run_id)
+        engine = FlowRunEngine(flow=child, flow_run=None)
+        context = FlowRunContext(
+            flow=parent,
+            flow_run=parent_run,
+            client=sync_prefect_client,
+            task_runner=parent.task_runner,
+            result_store=get_result_store(),
+        )
+        result = engine.load_subflow_run(
+            parent_task_run=parent_task_run,
+            client=sync_prefect_client,
+            context=context,
+        )
+
+        assert result is not None
+        assert result.id == child_run.id
+        assert engine._return_value is not NotSet, (
+            "_return_value should be set for final parent task runs"
         )
 
 
