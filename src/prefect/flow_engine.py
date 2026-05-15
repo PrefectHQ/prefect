@@ -909,10 +909,15 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         This method attempts to load an existing flow run for a subflow task
         run, if appropriate.
 
-        If the parent task run is in a final but not COMPLETED state, and not
-        being rerun, then we attempt to load an existing flow run instead of
-        creating a new one. This will prevent the engine from running the
-        subflow again.
+        If the parent task run is in a final state, we return the existing
+        subflow run to avoid re-execution (unless the parent is being rerun
+        and the subflow did not complete, in which case a fresh run is
+        desired).
+
+        If the parent task run is in a non-final state (e.g. still Running
+        after a process restart), we also look for an existing subflow run
+        to reattach to, preventing duplicate subflow runs from being created
+        under the same parent task run.
 
         If no existing flow run is found, or if the subflow should be rerun,
         then no flow run is returned.
@@ -926,27 +931,32 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             else False
         )
 
-        # if the parent task run is in a final but not completed state, and
-        # not rerunning, then retrieve the most recent flow run instead of
-        # creating a new one. This effectively loads a cached flow run for
-        # situations where we are confident the flow should not be run
-        # again.
         assert isinstance(parent_task_run.state, State)
-        if parent_task_run.state.is_final() and not (
-            rerunning and not parent_task_run.state.is_completed()
+
+        # If the user explicitly triggered a re-run and the subflow did not
+        # complete, allow a fresh subflow to be created.
+        if (
+            parent_task_run.state.is_final()
+            and rerunning
+            and not parent_task_run.state.is_completed()
         ):
-            # return the most recent flow run, if it exists
-            flow_runs = client.read_flow_runs(
-                flow_run_filter=FlowRunFilter(
-                    parent_task_run_id={"any_": [parent_task_run.id]}
-                ),
-                sort=FlowRunSort.EXPECTED_START_TIME_ASC,
-                limit=1,
-            )
-            if flow_runs:
-                loaded_flow_run = flow_runs[-1]
+            return None
+
+        # Look for an existing subflow run attached to this parent task run.
+        flow_runs = client.read_flow_runs(
+            flow_run_filter=FlowRunFilter(
+                parent_task_run_id={"any_": [parent_task_run.id]}
+            ),
+            sort=FlowRunSort.EXPECTED_START_TIME_DESC,
+            limit=1,
+        )
+        if flow_runs:
+            loaded_flow_run = flow_runs[0]
+            # When the parent task run is final the subflow has already
+            # finished; cache the result so the engine skips re-execution.
+            if parent_task_run.state.is_final():
                 self._return_value = loaded_flow_run.state
-                return loaded_flow_run
+            return loaded_flow_run
 
     def create_flow_run(self, client: SyncPrefectClient) -> FlowRun:
         flow_run_ctx = FlowRunContext.get()
@@ -1594,10 +1604,15 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         This method attempts to load an existing flow run for a subflow task
         run, if appropriate.
 
-        If the parent task run is in a final but not COMPLETED state, and not
-        being rerun, then we attempt to load an existing flow run instead of
-        creating a new one. This will prevent the engine from running the
-        subflow again.
+        If the parent task run is in a final state, we return the existing
+        subflow run to avoid re-execution (unless the parent is being rerun
+        and the subflow did not complete, in which case a fresh run is
+        desired).
+
+        If the parent task run is in a non-final state (e.g. still Running
+        after a process restart), we also look for an existing subflow run
+        to reattach to, preventing duplicate subflow runs from being created
+        under the same parent task run.
 
         If no existing flow run is found, or if the subflow should be rerun,
         then no flow run is returned.
@@ -1611,27 +1626,32 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             else False
         )
 
-        # if the parent task run is in a final but not completed state, and
-        # not rerunning, then retrieve the most recent flow run instead of
-        # creating a new one. This effectively loads a cached flow run for
-        # situations where we are confident the flow should not be run
-        # again.
         assert isinstance(parent_task_run.state, State)
-        if parent_task_run.state.is_final() and not (
-            rerunning and not parent_task_run.state.is_completed()
+
+        # If the user explicitly triggered a re-run and the subflow did not
+        # complete, allow a fresh subflow to be created.
+        if (
+            parent_task_run.state.is_final()
+            and rerunning
+            and not parent_task_run.state.is_completed()
         ):
-            # return the most recent flow run, if it exists
-            flow_runs = await client.read_flow_runs(
-                flow_run_filter=FlowRunFilter(
-                    parent_task_run_id={"any_": [parent_task_run.id]}
-                ),
-                sort=FlowRunSort.EXPECTED_START_TIME_ASC,
-                limit=1,
-            )
-            if flow_runs:
-                loaded_flow_run = flow_runs[-1]
+            return None
+
+        # Look for an existing subflow run attached to this parent task run.
+        flow_runs = await client.read_flow_runs(
+            flow_run_filter=FlowRunFilter(
+                parent_task_run_id={"any_": [parent_task_run.id]}
+            ),
+            sort=FlowRunSort.EXPECTED_START_TIME_DESC,
+            limit=1,
+        )
+        if flow_runs:
+            loaded_flow_run = flow_runs[0]
+            # When the parent task run is final the subflow has already
+            # finished; cache the result so the engine skips re-execution.
+            if parent_task_run.state.is_final():
                 self._return_value = loaded_flow_run.state
-                return loaded_flow_run
+            return loaded_flow_run
 
     async def create_flow_run(self, client: PrefectClient) -> FlowRun:
         flow_run_ctx = FlowRunContext.get()
