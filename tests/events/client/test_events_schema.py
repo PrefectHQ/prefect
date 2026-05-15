@@ -1,6 +1,8 @@
 import json
-from datetime import timezone
+import sys
+from datetime import datetime, timezone
 from uuid import UUID, uuid4
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -210,3 +212,69 @@ def test_finding_resources_in_role(example_event: Event):
     ]
     assert [r.id for r in example_event.resources_in_role["role-2"]] == ["related-3"]
     assert example_event.resources_in_role["role-3"] == []
+
+
+# Tests for naive datetime coercion (issue #21949)
+
+
+def test_naive_occurred_is_coerced_to_utc():
+    """A naive datetime passed to Event.occurred must be treated as UTC, not silently
+    dropped by the server's SQL bind layer."""
+    naive = datetime(2024, 6, 1, 12, 0, 0)
+    assert naive.tzinfo is None
+
+    event = Event(
+        occurred=naive,
+        event="test.naive",
+        resource={"prefect.resource.id": "test"},
+    )
+
+    assert event.occurred.tzinfo is not None, "occurred must be tz-aware after coercion"
+    assert event.occurred.replace(tzinfo=None) == naive
+    # Naive datetimes are assumed to be UTC
+    utc = ZoneInfo("UTC")
+    assert event.occurred.utcoffset().total_seconds() == 0  # type: ignore[union-attr]
+
+
+def test_tz_aware_occurred_is_unchanged():
+    """A tz-aware datetime must pass through the validator without modification."""
+    aware = datetime(2024, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
+    event = Event(
+        occurred=aware,
+        event="test.aware",
+        resource={"prefect.resource.id": "test"},
+    )
+    assert event.occurred == aware
+    assert event.occurred.tzinfo is not None
+
+
+def test_non_utc_aware_occurred_is_unchanged():
+    """A tz-aware datetime in a non-UTC zone must not be altered."""
+    eastern = ZoneInfo("America/New_York")
+    aware = datetime(2024, 6, 1, 12, 0, 0, tzinfo=eastern)
+    event = Event(
+        occurred=aware,
+        event="test.aware.eastern",
+        resource={"prefect.resource.id": "test"},
+    )
+    assert event.occurred.tzinfo is not None
+    # Offset for America/New_York in summer (EDT) is -4h
+    assert event.occurred.utcoffset().total_seconds() == -4 * 3600  # type: ignore[union-attr]
+
+
+@pytest.mark.skipif(
+    sys.version_info < (3, 13),
+    reason="Naive datetime was only silently accepted on Python >= 3.13",
+)
+def test_naive_occurred_has_tz_on_py313_plus():
+    """Regression test: on Python >= 3.13 DateTime is a bare datetime.datetime, which
+    previously allowed naive values to bypass validation entirely (issue #21949)."""
+    naive = datetime(2026, 1, 1, 0, 0, 0)
+    event = Event(
+        occurred=naive,
+        event="prefect.regression.21949",
+        resource={"prefect.resource.id": "test"},
+    )
+    assert event.occurred.tzinfo is not None, (
+        "Event.occurred must be tz-aware on Python 3.13+ (regression: issue #21949)"
+    )

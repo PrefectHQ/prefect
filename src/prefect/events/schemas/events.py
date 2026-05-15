@@ -1,4 +1,5 @@
 import copy
+import datetime
 from collections import defaultdict
 from typing import (
     TYPE_CHECKING,
@@ -20,6 +21,7 @@ from pydantic import (
     ConfigDict,
     Field,
     RootModel,
+    field_validator,
     model_validator,
 )
 from typing_extensions import Annotated, Self
@@ -120,6 +122,14 @@ class Event(PrefectBaseModel):
         default_factory=lambda: prefect.types._datetime.now("UTC"),
         description="When the event happened from the sender's perspective",
     )
+
+    @field_validator("occurred", mode="before")
+    @classmethod
+    def ensure_occurred_is_tz_aware(cls, v: object) -> object:
+        if isinstance(v, datetime.datetime):
+            return prefect.types._datetime.create_datetime_instance(v)
+        return v
+
     event: str = Field(description="The name of the event that happened")
     resource: Resource = Field(
         description="The primary Resource this event concerns",
