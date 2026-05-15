@@ -64,6 +64,17 @@ from .instrumentation_policies import InstrumentFlowRunStateTransitions
 logger: logging.Logger = get_logger(__name__)
 
 
+def _has_persisted_result(data: Any) -> bool:
+    """Return True if *data* looks like persisted Prefect result metadata.
+
+    `StateCreate.data` accepts `Any`, so callers must never assume
+    dict-like access.  This helper centralises the check so that both
+    `HandleFlowTerminalStateTransitions` and `PreventResultDataLoss`
+    use the same logic.
+    """
+    return isinstance(data, dict) and data.get("type") != "unpersisted"
+
+
 async def _release_concurrency_lease(
     session: AsyncSession,
     lease_id: UUID,
@@ -1604,7 +1615,7 @@ class HandleFlowTerminalStateTransitions(FlowRunOrchestrationRule):
             initial_state.is_completed()
             and not proposed_state.is_final()
             and initial_state.data
-            and initial_state.data.get("type") != "unpersisted"
+            and _has_persisted_result(initial_state.data)
         ):
             await self.reject_transition(None, "Run is already COMPLETED.")
             return
@@ -1615,11 +1626,8 @@ class HandleFlowTerminalStateTransitions(FlowRunOrchestrationRule):
             initial_state.is_completed()
             and proposed_state.is_completed()
             and initial_state.data
-            and initial_state.data.get("type") != "unpersisted"
-            and (
-                not proposed_state.data
-                or proposed_state.data.get("type") == "unpersisted"
-            )
+            and _has_persisted_result(initial_state.data)
+            and not _has_persisted_result(proposed_state.data)
         ):
             await self.reject_transition(
                 None,
@@ -1683,11 +1691,8 @@ class PreventResultDataLoss(FlowRunOrchestrationRule):
             initial_state.is_completed()
             and proposed_state.is_completed()
             and initial_state.data
-            and initial_state.data.get("type") != "unpersisted"
-            and (
-                not proposed_state.data
-                or proposed_state.data.get("type") == "unpersisted"
-            )
+            and _has_persisted_result(initial_state.data)
+            and not _has_persisted_result(proposed_state.data)
         ):
             await self.reject_transition(
                 None,
