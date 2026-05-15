@@ -64,13 +64,12 @@ logger: logging.Logger = get_logger(__name__)
 
 
 def _get_bundle_signing_key() -> bytes:
-    """
-    Return the bundle signing key from the environment.
+    """Return the bundle signing key from the environment.
 
-    When ``PREFECT_BUNDLE_SIGNING_KEY`` is set, bundle serialization will
+    When PREFECT_BUNDLE_SIGNING_KEY is set, bundle serialization will
     prepend an HMAC-SHA256 signature and deserialization will verify it
-    before calling ``cloudpickle.loads()``.  When unset (the default),
-    signing is disabled and behaviour is unchanged.
+    before calling cloudpickle.loads().  When unset (the default),
+    signing is disabled and behavior is unchanged.
     """
     return os.environ.get("PREFECT_BUNDLE_SIGNING_KEY", "").encode("utf-8")
 
@@ -79,8 +78,8 @@ def _sign_bundle(bundle: SerializedBundle) -> None:
     """Add an HMAC-SHA256 signature to the bundle if a signing key is configured.
 
     The signature covers the JSON-serialized bundle (all fields except
-    ``signature`` itself), using deterministic key ordering.  When
-    ``PREFECT_BUNDLE_SIGNING_KEY`` is not set, this is a no-op and the
+    the signature itself), using deterministic key ordering.  When
+    PREFECT_BUNDLE_SIGNING_KEY is not set, this is a no-op and the
     bundle is left unsigned.
     """
     signing_key = _get_bundle_signing_key()
@@ -94,8 +93,8 @@ def _sign_bundle(bundle: SerializedBundle) -> None:
 def _verify_bundle_signature(bundle: SerializedBundle) -> None:
     """Verify the HMAC-SHA256 signature on a bundle.
 
-    Raises ``ValueError`` when ``PREFECT_BUNDLE_SIGNING_KEY`` is set but
-    the bundle is unsigned or the signature does not match.  When the key
+    Raises ValueError when PREFECT_BUNDLE_SIGNING_KEY is set but the
+    bundle is unsigned or the signature does not match.  When the key
     is not set, verification is skipped (backwards-compatible default).
     """
     signing_key = _get_bundle_signing_key()
