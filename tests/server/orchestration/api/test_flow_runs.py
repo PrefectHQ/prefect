@@ -2314,6 +2314,81 @@ class TestSetFlowRunState:
             assert concurrency_limit.json()["active_slots"] == 0
 
 
+class TestPreventResultDataLossAPI:
+    """API-level regression test: force=True routes through MinimalFlowPolicy
+    and PreventResultDataLoss rejects COMPLETED→COMPLETED when result data
+    would be discarded.
+
+    See https://github.com/PrefectHQ/prefect/issues/21955
+    """
+
+    async def test_force_set_state_rejects_completed_overwrite_without_data(
+        self, flow_run, client
+    ):
+        from prefect._internal.result_records import ResultRecordMetadata
+
+        result_data = ResultRecordMetadata.model_construct().model_dump(mode="json")
+
+        # Transition to COMPLETED with persisted result data
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(
+                state=dict(type="COMPLETED", name="Completed", data=result_data),
+                force=True,
+            ),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["status"] == "ACCEPT"
+
+        # Try to overwrite with a bare COMPLETED (no data) using force=True
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(
+                state=dict(type="COMPLETED", name="Completed"),
+                force=True,
+            ),
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["status"] == "REJECT"
+
+        # Verify the original state is still intact via the API
+        response = await client.get(f"/flow_runs/{flow_run.id}")
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["state"]["type"] == "COMPLETED"
+        assert response.json()["state"]["data"] is not None
+
+    async def test_force_set_state_allows_completed_to_completed_with_data(
+        self, flow_run, client
+    ):
+        from prefect._internal.result_records import ResultRecordMetadata
+
+        result_data = ResultRecordMetadata.model_construct().model_dump(mode="json")
+
+        # Transition to COMPLETED with persisted result data
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(
+                state=dict(type="COMPLETED", name="Completed", data=result_data),
+                force=True,
+            ),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+
+        # Overwrite with another COMPLETED that also carries result data
+        new_result_data = ResultRecordMetadata.model_construct(
+            storage_key="new-key"
+        ).model_dump(mode="json")
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(
+                state=dict(type="COMPLETED", name="Completed", data=new_result_data),
+                force=True,
+            ),
+        )
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["status"] == "ACCEPT"
+
+
 class TestManuallyRetryingFlowRuns:
     async def test_manual_flow_run_retries(
         self, failed_flow_run_with_deployment, client, session

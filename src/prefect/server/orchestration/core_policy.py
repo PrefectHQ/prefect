@@ -260,6 +260,7 @@ class MinimalFlowPolicy(FlowRunOrchestrationPolicy):
         ]
     ]:
         return [
+            PreventResultDataLoss,
             BypassCancellingFlowRunsWithNoInfra,  # cancel scheduled or suspended runs from the UI
             InstrumentFlowRunStateTransitions,
             ReleaseFlowConcurrencySlots,
@@ -1608,6 +1609,25 @@ class HandleFlowTerminalStateTransitions(FlowRunOrchestrationRule):
             await self.reject_transition(None, "Run is already COMPLETED.")
             return
 
+        # Prevent COMPLETED → COMPLETED transitions that would discard result data.
+        # See https://github.com/PrefectHQ/prefect/issues/21955
+        if (
+            initial_state.is_completed()
+            and proposed_state.is_completed()
+            and initial_state.data
+            and initial_state.data.get("type") != "unpersisted"
+            and (
+                not proposed_state.data
+                or proposed_state.data.get("type") == "unpersisted"
+            )
+        ):
+            await self.reject_transition(
+                None,
+                "Cannot overwrite a COMPLETED state that carries persisted result "
+                "data with one that does not.",
+            )
+            return
+
         # Do not allows runs to be rescheduled without a deployment
         if proposed_state.is_scheduled() and not context.run.deployment_id:
             await self.abort_transition(
@@ -1635,6 +1655,46 @@ class HandleFlowTerminalStateTransitions(FlowRunOrchestrationRule):
         context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
     ) -> None:
         context.run.empirical_policy = core.FlowRunPolicy(**self.original_flow_policy)
+
+
+class PreventResultDataLoss(FlowRunOrchestrationRule):
+    """Reject terminal-to-terminal transitions that would discard persisted result data.
+
+    This is intentionally lightweight so it can be included in MinimalFlowPolicy
+    (used by force=True transitions) without pulling in the full
+    HandleFlowTerminalStateTransitions rule.
+
+    See https://github.com/PrefectHQ/prefect/issues/21955
+    """
+
+    FROM_STATES: set[states.StateType | None] = TERMINAL_STATES  # pyright: ignore[reportAssignmentType]
+    TO_STATES: set[states.StateType | None] = TERMINAL_STATES  # pyright: ignore[reportAssignmentType]
+
+    async def before_transition(
+        self,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
+        context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
+    ) -> None:
+        if initial_state is None or proposed_state is None:
+            return
+
+        if (
+            initial_state.is_completed()
+            and proposed_state.is_completed()
+            and initial_state.data
+            and initial_state.data.get("type") != "unpersisted"
+            and (
+                not proposed_state.data
+                or proposed_state.data.get("type") == "unpersisted"
+            )
+        ):
+            await self.reject_transition(
+                None,
+                "Cannot overwrite a COMPLETED state that carries persisted result "
+                "data with one that does not.",
+            )
+            return
 
 
 class PreventPendingTransitions(GenericOrchestrationRule):
