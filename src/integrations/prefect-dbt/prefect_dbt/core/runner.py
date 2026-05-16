@@ -236,15 +236,15 @@ class PrefectDbtRunner(DbtHookMixin):
 
     def _get_upstream_manifest_nodes_and_configs(
         self,
-        manifest_node: Union[ManifestNode, UnitTestDefinition],
-    ) -> list[tuple[Union[ManifestNode, SourceDefinition], dict[str, Any]]]:
+        manifest_node: ManifestNode | UnitTestDefinition,
+    ) -> list[tuple[ManifestNode | SourceDefinition, dict[str, Any]]]:
         """
         Get upstream nodes for a given node.
         Ephemeral nodes are traversed recursively to find non-ephemeral dependencies.
         Sources without relation_name are ignored.
         """
         upstream_manifest_nodes: list[
-            tuple[Union[ManifestNode, SourceDefinition], dict[str, Any]]
+            tuple[ManifestNode | SourceDefinition, dict[str, Any]]
         ] = []
         visited: set[str] = set()
 
@@ -377,8 +377,8 @@ class PrefectDbtRunner(DbtHookMixin):
 
     def _create_task_options(
         self,
-        manifest_node: Union[ManifestNode, UnitTestDefinition],
-        upstream_assets: Optional[list[Asset]] = None,
+        manifest_node: ManifestNode | UnitTestDefinition,
+        upstream_assets: list[Asset] | None = None,
     ) -> TaskOptions:
         """Create TaskOptions for a manifest node."""
         return TaskOptions(
@@ -389,9 +389,9 @@ class PrefectDbtRunner(DbtHookMixin):
 
     def _get_manifest_node_and_config(
         self, node_id: str
-    ) -> tuple[Optional[Union[ManifestNode, UnitTestDefinition]], dict[str, Any]]:
+    ) -> tuple[ManifestNode | UnitTestDefinition | None, dict[str, Any]]:
         """Get manifest node and its prefect config."""
-        manifest_node: Union[ManifestNode, UnitTestDefinition, None] = (
+        manifest_node: ManifestNode | UnitTestDefinition | None = (
             self.manifest.nodes.get(node_id)
         )
         if manifest_node is None:
@@ -483,7 +483,7 @@ class PrefectDbtRunner(DbtHookMixin):
     def _call_task(
         self,
         task_state: NodeTaskTracker,
-        manifest_node: Union[ManifestNode, UnitTestDefinition],
+        manifest_node: ManifestNode | UnitTestDefinition,
         context: dict[str, Any],
         enable_assets: bool,
     ):
