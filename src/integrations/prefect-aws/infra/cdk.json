@@ -1,5 +1,6 @@
 {
   "app": "uv run -s app.py",
+  "versionReporting": false,
   "watch": {
     "include": ["**"],
     "exclude": ["cdk*.json", "**/__init__.py", "**/__pycache__", "tests"]
