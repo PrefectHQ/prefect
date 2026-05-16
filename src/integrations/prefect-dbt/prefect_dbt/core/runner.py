@@ -22,7 +22,7 @@ from dbt.cli.main import cli, dbtRunner
 from dbt.compilation import Linker
 from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
-from dbt.contracts.graph.nodes import ManifestNode, SourceDefinition
+from dbt.contracts.graph.nodes import ManifestNode, SourceDefinition, UnitTestDefinition
 from dbt.contracts.state import (
     load_result_state,  # type: ignore[reportUnknownMemberType]
 )
@@ -236,7 +236,7 @@ class PrefectDbtRunner(DbtHookMixin):
 
     def _get_upstream_manifest_nodes_and_configs(
         self,
-        manifest_node: ManifestNode,
+        manifest_node: Union[ManifestNode, UnitTestDefinition],
     ) -> list[tuple[Union[ManifestNode, SourceDefinition], dict[str, Any]]]:
         """
         Get upstream nodes for a given node.
@@ -248,7 +248,7 @@ class PrefectDbtRunner(DbtHookMixin):
         ] = []
         visited: set[str] = set()
 
-        def collect(node: ManifestNode | SourceDefinition):
+        def collect(node: ManifestNode | SourceDefinition | UnitTestDefinition):
             for depends_on_node in node.depends_on_nodes:  # type: ignore[reportUnknownMemberType]
                 if depends_on_node in visited:
                     continue
@@ -376,7 +376,9 @@ class PrefectDbtRunner(DbtHookMixin):
         )
 
     def _create_task_options(
-        self, manifest_node: ManifestNode, upstream_assets: Optional[list[Asset]] = None
+        self,
+        manifest_node: Union[ManifestNode, UnitTestDefinition],
+        upstream_assets: Optional[list[Asset]] = None,
     ) -> TaskOptions:
         """Create TaskOptions for a manifest node."""
         return TaskOptions(
@@ -387,9 +389,13 @@ class PrefectDbtRunner(DbtHookMixin):
 
     def _get_manifest_node_and_config(
         self, node_id: str
-    ) -> tuple[Optional[ManifestNode], dict[str, Any]]:
+    ) -> tuple[Optional[Union[ManifestNode, UnitTestDefinition]], dict[str, Any]]:
         """Get manifest node and its prefect config."""
-        manifest_node = self.manifest.nodes.get(node_id)
+        manifest_node: Union[ManifestNode, UnitTestDefinition, None] = (
+            self.manifest.nodes.get(node_id)
+        )
+        if manifest_node is None:
+            manifest_node = self.manifest.unit_tests.get(node_id)
         if manifest_node:
             prefect_config = manifest_node.config.meta.get("prefect", {})
             return manifest_node, prefect_config
@@ -477,7 +483,7 @@ class PrefectDbtRunner(DbtHookMixin):
     def _call_task(
         self,
         task_state: NodeTaskTracker,
-        manifest_node: ManifestNode,
+        manifest_node: Union[ManifestNode, UnitTestDefinition],
         context: dict[str, Any],
         enable_assets: bool,
     ):
@@ -773,7 +779,10 @@ class PrefectDbtRunner(DbtHookMixin):
             if not manifest_node:
                 return
 
-            if manifest_node.config.materialized == "ephemeral":
+            if (
+                isinstance(manifest_node, ManifestNode)
+                and manifest_node.config.materialized == "ephemeral"
+            ):
                 self._skipped_nodes.add(node_id)
                 return
 
