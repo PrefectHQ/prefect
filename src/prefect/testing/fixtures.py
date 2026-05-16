@@ -467,6 +467,7 @@ def asserting_and_emitting_events_worker(
     finally:
         run_coro_as_sync(_drain_events_worker(worker))
 
+
 async def _drain_events_worker(worker: EventsWorker) -> None:
     drain_result = worker.drain()
     if inspect.isawaitable(drain_result):

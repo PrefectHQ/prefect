@@ -83,8 +83,8 @@ FROM
                 ORDER BY
                     fr.next_scheduled_start_time ASC
                 LIMIT LEAST (:queue_limit, queue_slots.available_slots)
-                -- lock runs
-                FOR UPDATE SKIP LOCKED
+                -- lock runs without locking the joined deployment tables
+                FOR UPDATE OF fr SKIP LOCKED
                 ) fr_inner
         
         WHERE
