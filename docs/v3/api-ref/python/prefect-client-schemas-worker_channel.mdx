@@ -1,0 +1,215 @@
+---
+title: worker_channel
+sidebarTitle: worker_channel
+---
+
+# `prefect.client.schemas.worker_channel`
+
+
+
+Shared v1 worker-channel protocol contract.
+
+
+## Functions
+
+### `validate_worker_channel_frame` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L521" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+validate_worker_channel_frame(frame: Any) -> WorkerChannelApplicationFrame
+```
+
+### `select_worker_channel_version` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L525" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+select_worker_channel_version(supported_versions: Iterable[str]) -> WorkerChannelVersion
+```
+
+## Classes
+
+### `WorkerChannelCloseReason` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `WorkerChannelClosePolicy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate_list(cls, obj: Any) -> list[Self]
+```
+
+#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_fields(self: Self) -> Self
+```
+
+Reset the fields of the model that are in the `_reset_fields` set.
+
+**Returns:**
+- A new instance of the model with the reset fields.
+
+
+### `WorkerChannelProtocolError` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L160" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `WorkerChannelContract` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L166" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate_list(cls, obj: Any) -> list[Self]
+```
+
+#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_fields(self: Self) -> Self
+```
+
+Reset the fields of the model that are in the `_reset_fields` set.
+
+**Returns:**
+- A new instance of the model with the reset fields.
+
+
+### `WorkerChannelAuthRequest` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L211" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `WorkerChannelAuthSuccess` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L216" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `WorkerChannelFrame` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L220" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `WorkerHelloPayload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L226" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `default_cleanup_concurrency` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L242" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+default_cleanup_concurrency(cls, data: Any) -> Any
+```
+
+#### `required_capabilities_are_requested` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L270" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+required_capabilities_are_requested(self) -> WorkerHelloPayload
+```
+
+### `WorkerHelloFrame` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L289" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `ResolvedWorkQueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L294" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `WorkPoolSnapshot` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L299" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `helpful_error_for_missing_default_queue_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1625" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+helpful_error_for_missing_default_queue_id(cls, v: Optional[UUID]) -> UUID
+```
+
+#### `is_managed_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1620" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_managed_pool(self) -> bool
+```
+
+#### `is_push_pool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/objects.py#L1616" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_push_pool(self) -> bool
+```
+
+### `WorkPoolSnapshotPayload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L307" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `WorkerReadyPayload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L313" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `validate_capability_decision` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L325" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+validate_capability_decision(self) -> WorkerReadyPayload
+```
+
+### `WorkerReadyFrame` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L372" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `WorkerHeartbeatPayload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L377" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `WorkerHeartbeatFrame` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L383" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `WorkPoolSnapshotFrame` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L388" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `CancellingTimeoutTeardownTarget` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L393" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate_list(cls, obj: Any) -> list[Self]
+```
+
+#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_fields(self: Self) -> Self
+```
+
+Reset the fields of the model that are in the `_reset_fields` set.
+
+**Returns:**
+- A new instance of the model with the reset fields.
+
+
+### `PendingClaimTeardownTarget` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L400" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate_list(cls, obj: Any) -> list[Self]
+```
+
+#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_fields(self: Self) -> Self
+```
+
+Reset the fields of the model that are in the `_reset_fields` set.
+
+**Returns:**
+- A new instance of the model with the reset fields.
+
+
+### `CancellingTimeoutCleanupMessagePayload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L418" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `PendingClaimCleanupMessagePayload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L423" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `CleanupMessageFrame` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L434" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `CleanupOperationPayload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L439" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `CleanupReleasePayload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L444" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `CleanupAckFrame` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L448" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `CleanupReleaseFrame` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L453" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `CleanupRenewFrame` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L458" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `CleanupOperationResultPayload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L463" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `validate_result_contract` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L473" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+validate_result_contract(self) -> CleanupOperationResultPayload
+```
+
+### `CleanupOperationResultFrame` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/schemas/worker_channel.py#L496" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
