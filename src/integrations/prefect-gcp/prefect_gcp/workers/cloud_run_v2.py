@@ -908,6 +908,7 @@ class CloudRunWorkerV2(
     ) -> ExecutionV2:
         """
         Begins the Cloud Run job execution.
+        Includes retry logic for transient errors (HTTP 500, 503, 429).
 
         Args:
             cr_client: The Cloud Run client.
@@ -917,17 +918,52 @@ class CloudRunWorkerV2(
         Returns:
             The Cloud Run job execution.
         """
-        try:
-            logger.info(
-                f"Submitting Cloud Run Job V2 {configuration.job_name} for execution..."
-            )
+        settings = CloudRunV2WorkerSettings()
+        max_attempts = settings.submit_job_max_attempts
+        retry_statuses = {500, 503, 429}
 
-            submission = JobV2.run(
-                cr_client=cr_client,
-                project=configuration.project,
-                location=configuration.region,
-                job_name=configuration.job_name,
-            )
+        def _is_transient_error(exc: Exception) -> bool:
+            return isinstance(exc, HttpError) and exc.status_code in retry_statuses
+
+        def _log_retry(retry_state) -> None:
+            exc = retry_state.outcome.exception()
+            if isinstance(exc, HttpError):
+                delay = retry_state.next_action.sleep
+                logger.warning(
+                    "Transient error (HTTP %s) when submitting Cloud Run job for "
+                    "execution. Retrying in %.2fs... (Attempt %s/%s)",
+                    exc.status_code,
+                    delay,
+                    retry_state.attempt_number,
+                    max_attempts,
+                )
+
+        retrying = Retrying(
+            reraise=True,
+            stop=stop_after_attempt(max_attempts),
+            wait=wait_exponential_jitter(
+                initial=settings.submit_job_initial_delay_seconds,
+                max=settings.submit_job_max_delay_seconds,
+            ),
+            retry=retry_if_exception(_is_transient_error),
+            before_sleep=_log_retry,
+            sleep=time.sleep,
+        )
+
+        try:
+            submission = None
+            for attempt in retrying:
+                with attempt:
+                    logger.info(
+                        f"Submitting Cloud Run Job V2 {configuration.job_name} for execution..."
+                    )
+
+                    submission = JobV2.run(
+                        cr_client=cr_client,
+                        project=configuration.project,
+                        location=configuration.region,
+                        job_name=configuration.job_name,
+                    )
 
             job_execution = ExecutionV2.get(
                 cr_client=cr_client,

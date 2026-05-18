@@ -933,3 +933,166 @@ class TestCloudRunWorkerV2CreateJobRetriesFromEnv:
         assert len(sleeps) == 2
         assert 2.5 <= sleeps[0] <= 3.5
         assert 5.0 <= sleeps[1] <= 6.0
+
+
+class TestCloudRunWorkerV2SubmitJobRetries:
+    def test_submit_job_retries_on_transient_error_then_succeeds(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        worker = CloudRunWorkerV2("my-work-pool")
+        mock_client = MagicMock()
+        mock_logger = MagicMock(spec=PrefectLogAdapter)
+
+        mock_resp = MagicMock()
+        mock_resp.status = 503
+        transient_error = HttpError(resp=mock_resp, content=b"Service unavailable")
+        successful_submission = {"metadata": {"name": "test-execution"}}
+
+        with mock.patch(
+            "prefect_gcp.workers.cloud_run_v2.JobV2.run",
+            side_effect=[transient_error, successful_submission],
+        ) as mock_run:
+            with mock.patch(
+                "prefect_gcp.workers.cloud_run_v2.ExecutionV2.get"
+            ) as mock_get:
+                with mock.patch(
+                    "prefect_gcp.workers.cloud_run_v2.time.sleep"
+                ) as mock_sleep:
+                    result = worker._begin_job_execution(
+                        cr_client=mock_client,
+                        configuration=cloud_run_worker_v2_job_config,
+                        logger=mock_logger,
+                    )
+
+        assert mock_run.call_count == 2
+        mock_sleep.assert_called_once()
+        mock_logger.warning.assert_called_once()
+        assert result is mock_get.return_value
+
+    def test_submit_job_does_not_retry_on_non_transient_error(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        worker = CloudRunWorkerV2("my-work-pool")
+        mock_client = MagicMock()
+        mock_logger = MagicMock(spec=PrefectLogAdapter)
+
+        mock_resp = MagicMock()
+        mock_resp.status = 400
+        non_transient_error = HttpError(resp=mock_resp, content=b"Bad request")
+
+        with mock.patch(
+            "prefect_gcp.workers.cloud_run_v2.JobV2.run",
+            side_effect=non_transient_error,
+        ) as mock_run:
+            with mock.patch(
+                "prefect_gcp.workers.cloud_run_v2.time.sleep"
+            ) as mock_sleep:
+                with pytest.raises(HttpError):
+                    worker._begin_job_execution(
+                        cr_client=mock_client,
+                        configuration=cloud_run_worker_v2_job_config,
+                        logger=mock_logger,
+                    )
+
+        assert mock_run.call_count == 1
+        mock_sleep.assert_not_called()
+
+    def test_submit_job_retries_until_max_attempts_then_raises(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        worker = CloudRunWorkerV2("my-work-pool")
+        mock_client = MagicMock()
+        mock_logger = MagicMock(spec=PrefectLogAdapter)
+
+        mock_resp = MagicMock()
+        mock_resp.status = 503
+        transient_error = HttpError(resp=mock_resp, content=b"Service unavailable")
+
+        with mock.patch(
+            "prefect_gcp.workers.cloud_run_v2.JobV2.run",
+            side_effect=[transient_error, transient_error, transient_error],
+        ) as mock_run:
+            with mock.patch(
+                "prefect_gcp.workers.cloud_run_v2.time.sleep"
+            ) as mock_sleep:
+                with pytest.raises(HttpError):
+                    worker._begin_job_execution(
+                        cr_client=mock_client,
+                        configuration=cloud_run_worker_v2_job_config,
+                        logger=mock_logger,
+                    )
+
+        assert mock_run.call_count == 3
+        assert mock_sleep.call_count == 2
+
+
+class TestCloudRunWorkerV2SubmitJobRetriesFromEnv:
+    def test_submit_job_retries_use_custom_max_attempts_from_env(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        worker = CloudRunWorkerV2("my-work-pool")
+        mock_client = MagicMock()
+        mock_logger = MagicMock(spec=PrefectLogAdapter)
+
+        mock_resp = MagicMock()
+        mock_resp.status = 503
+        transient_error = HttpError(resp=mock_resp, content=b"Service unavailable")
+
+        with mock.patch.dict(
+            "os.environ",
+            {
+                "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_SUBMIT_JOB_MAX_ATTEMPTS": "5",
+            },
+        ):
+            with mock.patch(
+                "prefect_gcp.workers.cloud_run_v2.JobV2.run",
+                side_effect=[transient_error] * 5,
+            ) as mock_run:
+                with mock.patch("prefect_gcp.workers.cloud_run_v2.time.sleep"):
+                    with pytest.raises(HttpError):
+                        worker._begin_job_execution(
+                            cr_client=mock_client,
+                            configuration=cloud_run_worker_v2_job_config,
+                            logger=mock_logger,
+                        )
+
+        assert mock_run.call_count == 5
+
+    def test_submit_job_retries_use_custom_backoff_from_env(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        worker = CloudRunWorkerV2("my-work-pool")
+        mock_client = MagicMock()
+        mock_logger = MagicMock(spec=PrefectLogAdapter)
+
+        mock_resp = MagicMock()
+        mock_resp.status = 503
+        transient_error = HttpError(resp=mock_resp, content=b"Service unavailable")
+
+        with mock.patch.dict(
+            "os.environ",
+            {
+                "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_SUBMIT_JOB_INITIAL_DELAY_SECONDS": "2.5",
+                "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_SUBMIT_JOB_MAX_DELAY_SECONDS": "20.0",
+            },
+        ):
+            with mock.patch(
+                "prefect_gcp.workers.cloud_run_v2.JobV2.run",
+                side_effect=[transient_error, transient_error, transient_error],
+            ):
+                with mock.patch(
+                    "prefect_gcp.workers.cloud_run_v2.time.sleep"
+                ) as mock_sleep:
+                    with pytest.raises(HttpError):
+                        worker._begin_job_execution(
+                            cr_client=mock_client,
+                            configuration=cloud_run_worker_v2_job_config,
+                            logger=mock_logger,
+                        )
+
+        # wait_exponential_jitter: min(initial * 2 ** (n-1) + uniform(0, 1), max).
+        # initial=2.5, max=20.0 -> attempt 1 in [2.5, 3.5], attempt 2 in [5.0, 6.0].
+        sleeps = [call.args[0] for call in mock_sleep.call_args_list]
+        assert len(sleeps) == 2
+        assert 2.5 <= sleeps[0] <= 3.5
+        assert 5.0 <= sleeps[1] <= 6.0
