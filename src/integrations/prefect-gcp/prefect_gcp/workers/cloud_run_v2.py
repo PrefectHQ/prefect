@@ -900,6 +900,94 @@ class CloudRunWorkerV2(
 
         raise exc
 
+    def _snapshot_latest_execution_name(
+        self,
+        cr_client: Resource,
+        configuration: CloudRunWorkerJobV2Configuration,
+        logger: PrefectLogAdapter,
+    ) -> Optional[str]:
+        """
+        Return the resource name of the job's most recent execution.
+
+        Used by the submission retry path to detect whether a transient error
+        masked a submission that actually succeeded.
+
+        Args:
+            cr_client: The Cloud Run client.
+            configuration: The configuration for the job.
+            logger: The logger to use.
+
+        Returns:
+            The resource name of the most recent execution, or None if the
+            job has not run before or the lookup fails.
+        """
+        try:
+            job = JobV2.get(
+                cr_client=cr_client,
+                project=configuration.project,
+                location=configuration.region,
+                job_name=configuration.job_name,
+            )
+        except Exception as exc:
+            logger.debug(
+                "Could not read the latest execution for %s (%s); "
+                "skipping duplicate-execution check for this submit.",
+                configuration.job_name,
+                exc,
+            )
+            return None
+        return (job.latestCreatedExecution or {}).get("name")
+
+    def _recover_after_transient_error(
+        self,
+        cr_client: Resource,
+        configuration: CloudRunWorkerJobV2Configuration,
+        baseline_execution_name: Optional[str],
+        exc: HttpError,
+        logger: PrefectLogAdapter,
+    ) -> Optional[str]:
+        """
+        Check whether a transient submission error actually started an execution.
+
+        Submitting a Cloud Run job is not idempotent: the server may have
+        already started an execution before returning the transient error, so
+        retrying would risk starting a second one for the same flow run. This
+        method looks at the job again to see whether a new execution appeared
+        on the server.
+
+        Args:
+            cr_client: The Cloud Run client.
+            configuration: The configuration for the job.
+            baseline_execution_name: The latest execution name observed before
+                the submission attempt, or None if the job had no execution
+                yet.
+            exc: The transient error returned by the submission attempt.
+            logger: The logger to use.
+
+        Returns:
+            The name of the newly created execution if the server started one
+            despite the error, so the caller can use it instead of retrying.
+            None if no new execution appeared, meaning a normal retry is safe.
+        """
+        current = self._snapshot_latest_execution_name(
+            cr_client=cr_client,
+            configuration=configuration,
+            logger=logger,
+        )
+        if current is None or current == baseline_execution_name:
+            return None
+        logger.warning(
+            "Cloud Run Job V2 %s: submission returned HTTP %s, but a new "
+            "execution %s was already started on the server (previous latest "
+            "execution: %s). Using the existing execution instead of "
+            "retrying, to avoid starting a duplicate run.",
+            configuration.job_name,
+            exc.status_code,
+            current,
+            baseline_execution_name,
+        )
+        return current
+
     def _begin_job_execution(
         self,
         cr_client: Resource,
@@ -907,8 +995,13 @@ class CloudRunWorkerV2(
         logger: PrefectLogAdapter,
     ) -> ExecutionV2:
         """
-        Begins the Cloud Run job execution.
-        Includes retry logic for transient errors (HTTP 500, 503, 429).
+        Submit the Cloud Run job and return its execution.
+
+        Retries transient HTTP errors (500, 503, 429). Because submitting a
+        Cloud Run job is not idempotent, before each retry the worker checks
+        whether the server already started an execution for this job. If so,
+        that execution is used instead of submitting again, to avoid starting
+        a duplicate run.
 
         Args:
             cr_client: The Cloud Run client.
@@ -951,23 +1044,49 @@ class CloudRunWorkerV2(
         )
 
         try:
+            baseline_execution_name = self._snapshot_latest_execution_name(
+                cr_client=cr_client,
+                configuration=configuration,
+                logger=logger,
+            )
             submission = None
+            recovered_execution_name: Optional[str] = None
+
             for attempt in retrying:
                 with attempt:
                     logger.info(
                         f"Submitting Cloud Run Job V2 {configuration.job_name} for execution..."
                     )
+                    try:
+                        submission = JobV2.run(
+                            cr_client=cr_client,
+                            project=configuration.project,
+                            location=configuration.region,
+                            job_name=configuration.job_name,
+                        )
+                    except HttpError as exc:
+                        if _is_transient_error(exc):
+                            recovered_execution_name = (
+                                self._recover_after_transient_error(
+                                    cr_client=cr_client,
+                                    configuration=configuration,
+                                    baseline_execution_name=baseline_execution_name,
+                                    exc=exc,
+                                    logger=logger,
+                                )
+                            )
+                            if recovered_execution_name is not None:
+                                break
+                        raise
 
-                    submission = JobV2.run(
-                        cr_client=cr_client,
-                        project=configuration.project,
-                        location=configuration.region,
-                        job_name=configuration.job_name,
-                    )
-
+            execution_name = (
+                recovered_execution_name
+                if recovered_execution_name is not None
+                else submission["metadata"]["name"]
+            )
             job_execution = ExecutionV2.get(
                 cr_client=cr_client,
-                execution_id=submission["metadata"]["name"],
+                execution_id=execution_name,
             )
 
             command_list = configuration.job_body["template"]["template"]["containers"][
