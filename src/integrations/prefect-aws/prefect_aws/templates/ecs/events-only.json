@@ -1,0 +1,214 @@
+{
+ "Parameters": {
+  "WorkPoolName": {
+   "Type": "String",
+   "Default": "ecs-work-pool",
+   "Description": "Name of the Prefect work pool"
+  },
+  "ExistingClusterArn": {
+   "Type": "String",
+   "Description": "ARN of existing ECS cluster to monitor"
+  }
+ },
+ "Resources": {
+  "EcsEventsDLQ29DDC233": {
+   "Type": "AWS::SQS::Queue",
+   "Properties": {
+    "MessageRetentionPeriod": 1209600,
+    "QueueName": {
+     "Fn::Join": [
+      "",
+      [
+       {
+        "Ref": "WorkPoolName"
+       },
+       "-ecs-events-dlq"
+      ]
+     ]
+    },
+    "VisibilityTimeout": 60
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsEventsStack/EcsEventsDLQ/Resource"
+   }
+  },
+  "EcsEventsQueueC6389C93": {
+   "Type": "AWS::SQS::Queue",
+   "Properties": {
+    "MessageRetentionPeriod": 604800,
+    "QueueName": {
+     "Fn::Join": [
+      "",
+      [
+       {
+        "Ref": "WorkPoolName"
+       },
+       "-ecs-events"
+      ]
+     ]
+    },
+    "RedrivePolicy": {
+     "deadLetterTargetArn": {
+      "Fn::GetAtt": [
+       "EcsEventsDLQ29DDC233",
+       "Arn"
+      ]
+     },
+     "maxReceiveCount": 3
+    },
+    "VisibilityTimeout": 300
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsEventsStack/EcsEventsQueue/Resource"
+   }
+  },
+  "EcsEventsQueuePolicy5B74B767": {
+   "Type": "AWS::SQS::QueuePolicy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "sqs:GetQueueAttributes",
+        "sqs:GetQueueUrl",
+        "sqs:SendMessage"
+       ],
+       "Condition": {
+        "ArnEquals": {
+         "aws:SourceArn": {
+          "Fn::GetAtt": [
+           "EcsTaskStateChangeRuleC4D798EC",
+           "Arn"
+          ]
+         }
+        }
+       },
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "events.amazonaws.com"
+       },
+       "Resource": {
+        "Fn::GetAtt": [
+         "EcsEventsQueueC6389C93",
+         "Arn"
+        ]
+       }
+      },
+      {
+       "Action": [
+        "sqs:GetQueueAttributes",
+        "sqs:GetQueueUrl",
+        "sqs:SendMessage"
+       ],
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "events.amazonaws.com"
+       },
+       "Resource": {
+        "Fn::GetAtt": [
+         "EcsEventsQueueC6389C93",
+         "Arn"
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Queues": [
+     {
+      "Ref": "EcsEventsQueueC6389C93"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsEventsStack/EcsEventsQueue/Policy/Resource"
+   }
+  },
+  "EcsTaskStateChangeRuleC4D798EC": {
+   "Type": "AWS::Events::Rule",
+   "Properties": {
+    "Description": "Capture ECS task state changes for Prefect workers",
+    "EventPattern": {
+     "detail": {
+      "clusterArn": [
+       {
+        "Ref": "ExistingClusterArn"
+       }
+      ]
+     },
+     "detail-type": [
+      "ECS Task State Change"
+     ],
+     "source": [
+      "aws.ecs"
+     ]
+    },
+    "Name": {
+     "Fn::Join": [
+      "",
+      [
+       {
+        "Ref": "WorkPoolName"
+       },
+       "-ecs-task-events"
+      ]
+     ]
+    },
+    "State": "ENABLED",
+    "Targets": [
+     {
+      "Arn": {
+       "Fn::GetAtt": [
+        "EcsEventsQueueC6389C93",
+        "Arn"
+       ]
+      },
+      "Id": "Target0"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsEventsStack/EcsTaskStateChangeRule/Resource"
+   }
+  }
+ },
+ "Outputs": {
+  "EcsEventsQueueUrl": {
+   "Description": "URL of the SQS queue receiving ECS events",
+   "Value": {
+    "Ref": "EcsEventsQueueC6389C93"
+   }
+  },
+  "EcsEventsQueueArn": {
+   "Description": "ARN of the SQS queue receiving ECS events",
+   "Value": {
+    "Fn::GetAtt": [
+     "EcsEventsQueueC6389C93",
+     "Arn"
+    ]
+   }
+  },
+  "EventBridgeRuleArn": {
+   "Description": "ARN of the EventBridge rule for ECS events",
+   "Value": {
+    "Fn::GetAtt": [
+     "EcsTaskStateChangeRuleC4D798EC",
+     "Arn"
+    ]
+   }
+  },
+  "EcsEventsQueueName": {
+   "Description": "Name of the SQS queue receiving ECS events",
+   "Value": {
+    "Fn::GetAtt": [
+     "EcsEventsQueueC6389C93",
+     "QueueName"
+    ]
+   }
+  }
+ }
+}

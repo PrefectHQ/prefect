@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import enum
+import inspect
 import json
 import logging
 import uuid
@@ -15,6 +16,8 @@ from typing import (
     TYPE_CHECKING,
     Any,
     AsyncGenerator,
+    Awaitable,
+    Callable,
     Literal,
     NamedTuple,
     Protocol,
@@ -186,9 +189,64 @@ SQS_MEMORY = 10
 SQS_CONSECUTIVE_FAILURES = 3
 SQS_BACKOFF = 1
 SQS_MAX_BACKOFF_ATTEMPTS = 5
+SQS_MESSAGE_VISIBILITY_TIMEOUT_SECONDS = 300
+SQS_VISIBILITY_EXTENSION_INTERVAL_SECONDS = 240
+SQS_VISIBILITY_EXTENSION_RETRY_INTERVAL_SECONDS = 5
 
 OBSERVER_RESTART_BASE_DELAY = 30
 OBSERVER_MAX_RESTART_ATTEMPTS = 5
+
+
+class SqsMessage(NamedTuple):
+    message: "MessageTypeDef"
+    ack: Callable[[], Awaitable[bool]]
+    extend_visibility: Callable[[], Awaitable[bool]]
+
+
+class _SqsBackoffState:
+    def __init__(self, operation: str):
+        self.operation = operation
+        self.track_record: deque[bool] = deque(
+            [True] * SQS_CONSECUTIVE_FAILURES, maxlen=SQS_CONSECUTIVE_FAILURES
+        )
+        self.failures: deque[tuple[Exception, TracebackType | None]] = deque(
+            maxlen=SQS_MEMORY
+        )
+        self.backoff_count = 0
+
+    async def record_failure(self, e: Exception) -> None:
+        self.track_record.append(False)
+        self.failures.append((e, e.__traceback__))
+        logger.debug("Failed to %s messages from SQS", self.operation, exc_info=e)
+
+        if not any(self.track_record):
+            self.backoff_count += 1
+
+            if self.backoff_count > SQS_MAX_BACKOFF_ATTEMPTS:
+                logger.error(
+                    "SQS polling exceeded maximum backoff attempts (%s). "
+                    "Last %s errors: %s",
+                    SQS_MAX_BACKOFF_ATTEMPTS,
+                    len(self.failures),
+                    [str(e) for e, _ in self.failures],
+                )
+                raise RuntimeError(
+                    f"SQS polling failed after {SQS_MAX_BACKOFF_ATTEMPTS} backoff attempts"
+                ) from e
+
+            self.track_record.extend([True] * SQS_CONSECUTIVE_FAILURES)
+            self.failures.clear()
+            backoff_seconds = SQS_BACKOFF * 2**self.backoff_count
+            logger.debug(
+                "Backing off due to consecutive errors, using increased interval of %s seconds.",
+                backoff_seconds,
+            )
+            await asyncio.sleep(backoff_seconds)
+
+    def record_success(self) -> None:
+        self.backoff_count = 0
+        self.track_record.append(True)
+        self.failures.clear()
 
 
 class SqsSubscriber:
@@ -198,7 +256,7 @@ class SqsSubscriber:
 
     async def stream_messages(
         self,
-    ) -> AsyncGenerator["MessageTypeDef", None]:
+    ) -> AsyncGenerator[SqsMessage, None]:
         session = aiobotocore.session.get_session()
         async with session.create_client(
             "sqs", region_name=self.queue_region
@@ -228,61 +286,62 @@ class SqsSubscriber:
                     return
                 raise
 
-            track_record: deque[bool] = deque(
-                [True] * SQS_CONSECUTIVE_FAILURES, maxlen=SQS_CONSECUTIVE_FAILURES
-            )
-            failures: deque[tuple[Exception, TracebackType | None]] = deque(
-                maxlen=SQS_MEMORY
-            )
-            backoff_count = 0
+            receive_backoff = _SqsBackoffState("receive")
+            delete_backoff = _SqsBackoffState("delete")
+            visibility_backoff = _SqsBackoffState("change visibility for")
 
             while True:
                 try:
                     messages = await sqs_client.receive_message(
                         QueueUrl=queue_url,
-                        MaxNumberOfMessages=10,
+                        MaxNumberOfMessages=1,
                         WaitTimeSeconds=20,
+                        VisibilityTimeout=SQS_MESSAGE_VISIBILITY_TIMEOUT_SECONDS,
                     )
-                    for message in messages.get("Messages", []):
-                        if not (receipt_handle := message.get("ReceiptHandle")):
-                            continue
-
-                        yield message
-
-                        await sqs_client.delete_message(
-                            QueueUrl=queue_url,
-                            ReceiptHandle=receipt_handle,
-                        )
-
-                    backoff_count = 0
                 except Exception as e:
-                    track_record.append(False)
-                    failures.append((e, e.__traceback__))
-                    logger.debug("Failed to receive messages from SQS", exc_info=e)
+                    await receive_backoff.record_failure(e)
+                    continue
 
-                if not any(track_record):
-                    backoff_count += 1
+                receive_backoff.record_success()
 
-                    if backoff_count > SQS_MAX_BACKOFF_ATTEMPTS:
-                        logger.error(
-                            "SQS polling exceeded maximum backoff attempts (%s). "
-                            "Last %s errors: %s",
-                            SQS_MAX_BACKOFF_ATTEMPTS,
-                            len(failures),
-                            [str(e) for e, _ in failures],
-                        )
-                        raise RuntimeError(
-                            f"SQS polling failed after {SQS_MAX_BACKOFF_ATTEMPTS} backoff attempts"
-                        )
+                for message in messages.get("Messages", []):
+                    if not (receipt_handle := message.get("ReceiptHandle")):
+                        continue
 
-                    track_record.extend([True] * SQS_CONSECUTIVE_FAILURES)
-                    failures.clear()
-                    backoff_seconds = SQS_BACKOFF * 2**backoff_count
-                    logger.debug(
-                        "Backing off due to consecutive errors, using increased interval of %s seconds.",
-                        backoff_seconds,
+                    async def ack(receipt_handle: str = receipt_handle) -> bool:
+                        try:
+                            await sqs_client.delete_message(
+                                QueueUrl=queue_url,
+                                ReceiptHandle=receipt_handle,
+                            )
+                        except Exception as e:
+                            await delete_backoff.record_failure(e)
+                            return False
+                        else:
+                            delete_backoff.record_success()
+                            return True
+
+                    async def extend_visibility(
+                        receipt_handle: str = receipt_handle,
+                    ) -> bool:
+                        try:
+                            await sqs_client.change_message_visibility(
+                                QueueUrl=queue_url,
+                                ReceiptHandle=receipt_handle,
+                                VisibilityTimeout=SQS_MESSAGE_VISIBILITY_TIMEOUT_SECONDS,
+                            )
+                        except Exception as e:
+                            await visibility_backoff.record_failure(e)
+                            return False
+                        else:
+                            visibility_backoff.record_success()
+                            return True
+
+                    yield SqsMessage(
+                        message=message,
+                        ack=ack,
+                        extend_visibility=extend_visibility,
                     )
-                    await asyncio.sleep(backoff_seconds)
 
 
 class EcsObserver:
@@ -310,15 +369,16 @@ class EcsObserver:
 
     async def run(self):
         async with AsyncExitStack() as stack:
-            task_group = await stack.enter_async_context(anyio.create_task_group())
             await stack.enter_async_context(self.ecs_tags_reader)
 
-            async for message in self.sqs_subscriber.stream_messages():
+            async for sqs_message in self.sqs_subscriber.stream_messages():
+                message = sqs_message.message
                 if not (body := message.get("Body")):
                     logger.debug(
                         "No body in message. Skipping.",
                         extra={"sqs_message": message},
                     )
+                    await sqs_message.ack()
                     continue
 
                 body = json.loads(body)
@@ -337,14 +397,19 @@ class EcsObserver:
                         "No event type in message. Skipping.",
                         extra={"sqs_message": message},
                     )
+                    await sqs_message.ack()
                     continue
 
                 if detail_type not in _ECS_EVENT_DETAIL_MAP:
                     logger.debug("Unknown event type: %s. Skipping.", detail_type)
+                    await sqs_message.ack()
                     continue
 
                 last_status = body.get("detail", {}).get("lastStatus")
                 event_type = _ECS_EVENT_DETAIL_MAP[detail_type]
+                matching_handlers: list[
+                    Union[EcsEventHandler, AsyncEcsEventHandler]
+                ] = []
                 for handler, filters in self.event_handlers[event_type]:
                     if filters["tags"].is_match(tags) and filters[
                         "last_status"
@@ -354,12 +419,68 @@ class EcsObserver:
                             handler.__name__,
                             extra={"sqs_message": message},
                         )
-                        if asyncio.iscoroutinefunction(handler):
-                            task_group.start_soon(handler, body, tags)
-                        else:
-                            task_group.start_soon(
-                                asyncio.to_thread, partial(handler, body, tags)
+                        matching_handlers.append(handler)
+
+                if matching_handlers:
+                    try:
+                        async with anyio.create_task_group() as visibility_group:
+                            visibility_group.start_soon(
+                                self._extend_message_visibility_while_processing,
+                                sqs_message,
+                                message,
                             )
+                            try:
+                                async with anyio.create_task_group() as task_group:
+                                    for handler in matching_handlers:
+                                        task_group.start_soon(
+                                            self._run_handler, handler, body, tags
+                                        )
+                            finally:
+                                visibility_group.cancel_scope.cancel()
+                    except Exception:
+                        logger.exception(
+                            "Failed to process ECS observer message",
+                            extra={"sqs_message": message},
+                        )
+                        continue
+
+                await sqs_message.ack()
+
+    async def _run_handler(
+        self,
+        handler: Union[EcsEventHandler, AsyncEcsEventHandler],
+        event: dict[str, Any],
+        tags: dict[str, str],
+    ) -> None:
+        if inspect.iscoroutinefunction(handler):
+            await handler(event, tags)
+        else:
+            await asyncio.to_thread(partial(handler, event, tags))
+
+    async def _extend_message_visibility_while_processing(
+        self,
+        sqs_message: SqsMessage,
+        message: "MessageTypeDef",
+    ) -> None:
+        sleep_interval = SQS_VISIBILITY_EXTENSION_INTERVAL_SECONDS
+        while True:
+            await asyncio.sleep(sleep_interval)
+            try:
+                extended = await sqs_message.extend_visibility()
+            except RuntimeError:
+                raise
+            except Exception:
+                logger.exception(
+                    "Failed to extend ECS observer message visibility",
+                    extra={"sqs_message": message},
+                )
+                sleep_interval = SQS_VISIBILITY_EXTENSION_RETRY_INTERVAL_SECONDS
+            else:
+                sleep_interval = (
+                    SQS_VISIBILITY_EXTENSION_INTERVAL_SECONDS
+                    if extended
+                    else SQS_VISIBILITY_EXTENSION_RETRY_INTERVAL_SECONDS
+                )
 
     def on_event(
         self,
@@ -802,6 +923,7 @@ async def mark_runs_as_crashed(event: dict[str, Any], tags: dict[str, str]):
                     "Failed to propose Crashed state for flow run %s",
                     flow_run_id,
                 )
+                raise
 
         # Forward CloudWatch container logs for runs that never connected
         # to the Prefect server (never reached Running state). This runs

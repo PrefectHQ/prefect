@@ -7,8 +7,12 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from dbt.artifacts.resources.types import NodeType
-from dbt_common.events.base_types import EventLevel
+from dbt.node_types import NodeType
+
+try:
+    from dbt_common.events.base_types import EventLevel
+except ImportError:
+    from dbt.events.base_types import EventLevel  # type: ignore[no-redef]
 from prefect_dbt.core._executor import DbtCoreExecutor, DbtExecutor, ExecutionResult
 from prefect_dbt.core._manifest import DbtNode
 

@@ -22,7 +22,7 @@ from typing import Any
 from uuid import uuid4
 
 from cachetools import LFUCache
-from dbt.artifacts.resources.types import NodeType
+from dbt.node_types import NodeType
 
 from prefect import task as prefect_task
 from prefect.artifacts import create_markdown_artifact

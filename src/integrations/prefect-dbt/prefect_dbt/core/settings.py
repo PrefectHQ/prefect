@@ -8,7 +8,11 @@ from pathlib import Path
 from typing import Any, Generator
 
 import yaml
-from dbt_common.events.base_types import EventLevel
+
+try:
+    from dbt_common.events.base_types import EventLevel
+except ImportError:
+    from dbt.events.base_types import EventLevel  # type: ignore[no-redef]
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 

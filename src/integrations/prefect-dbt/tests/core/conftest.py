@@ -7,7 +7,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-from dbt.artifacts.resources.types import NodeType
+from dbt.node_types import NodeType
 from prefect_dbt.core._executor import DbtExecutor, ExecutionResult
 from prefect_dbt.core._manifest import DbtNode
 

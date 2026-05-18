@@ -9,6 +9,7 @@ from prefect.workers._worker_channel._state import (
     WorkerChannelState,
     WorkerChannelStatus,
     WorkerChannelTerminalError,
+    WorkPoolSnapshotState,
 )
 from prefect.workers._worker_channel._sync import WorkPoolWorkerChannel
 
@@ -21,5 +22,6 @@ __all__ = [
     "WorkerChannelState",
     "WorkerChannelStatus",
     "WorkerChannelTerminalError",
+    "WorkPoolSnapshotState",
     "WorkPoolWorkerChannel",
 ]

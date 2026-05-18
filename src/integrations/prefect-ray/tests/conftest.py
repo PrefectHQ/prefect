@@ -1,6 +1,7 @@
 from typing import Optional
 
 import pytest
+import ray
 
 from prefect.testing.utilities import prefect_test_harness
 
@@ -21,3 +22,11 @@ def test_database_connection_url() -> Optional[str]:
 def prefect_db():
     with prefect_test_harness():
         yield
+
+
+@pytest.fixture(autouse=True)
+def _shutdown_ray_between_tests():
+    """Ensure Ray is fully shut down between tests for isolation."""
+    yield
+    if ray.is_initialized():
+        ray.shutdown()
