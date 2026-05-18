@@ -58,6 +58,7 @@ Non-obvious behaviors:
 
 ## Pitfalls
 
+- `UnitTestDefinition` (dbt-core 1.8+) lacks `config.materialized` and `relation_name`. When adding any attribute access on a manifest node, guard with `isinstance(node, ManifestNode)` for attributes that don't exist on `UnitTestDefinition`. Unit test nodes come from `manifest.unit_tests`, not `manifest.nodes`.
 - `_initialize_dbt_hooks()` must be called in `__init__`; both runner and orchestrator already do this. If you subclass either without calling `super().__init__()`, `_dbt_hooks` will be absent and `_has_dbt_hooks()` will raise `AttributeError`.
 - The selection cache is built once before execution begins; hook selectors that reference nodes not in the resolved manifest will match nothing silently.
 - `post_model` hooks in `PrefectDbtRunner` run in the background callback thread, not the main thread. Avoid thread-unsafe side effects.
