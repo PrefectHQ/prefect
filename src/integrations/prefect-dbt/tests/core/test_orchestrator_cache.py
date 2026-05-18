@@ -13,7 +13,7 @@ from conftest import (
     write_manifest,
     write_sql_files,
 )
-from dbt.artifacts.resources.types import NodeType
+from dbt.node_types import NodeType
 from prefect_dbt.core._cache import (
     DbtNodeCachePolicy,
     _hash_macro_dependencies,

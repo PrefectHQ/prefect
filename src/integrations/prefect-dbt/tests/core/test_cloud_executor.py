@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import httpx
 import pytest
 import respx
-from dbt.artifacts.resources.types import NodeType
+from dbt.node_types import NodeType
 from prefect_dbt.cloud import DbtCloudExecutor
 from prefect_dbt.cloud.runs import DbtCloudJobRunStatus
 from prefect_dbt.core._executor import ExecutionResult
