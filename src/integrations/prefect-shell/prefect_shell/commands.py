@@ -23,9 +23,47 @@ from prefect import task
 from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.blocks.abstract import JobBlock, JobRun
 from prefect.logging import get_run_logger
-from prefect.utilities.processutils import open_process
+from prefect.utilities.processutils import command_from_string, open_process
 
 _SHELL_TERMINATE_GRACE_SECONDS = 5.0
+
+
+def _is_powershell_executable(token: str) -> bool:
+    name = os.path.splitext(os.path.basename(token))[0].lower()
+    return name in ("powershell", "pwsh")
+
+
+def _argv_to_run_script_file(
+    shell: str | None, extension: str, script_path: str
+) -> list[str]:
+    """Build argv to execute a temporary script (PowerShell uses -File)."""
+    is_ps1 = extension == ".ps1"
+    if shell is None:
+        if sys.platform == "win32" or is_ps1:
+            return [
+                "powershell",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                script_path,
+            ]
+        return ["bash", script_path]
+
+    argv = command_from_string(shell)
+    if not argv:
+        return [shell, script_path]
+
+    use_powershell = is_ps1 or _is_powershell_executable(argv[0])
+    if use_powershell:
+        if not any("executionpolicy" in arg.lower() for arg in argv):
+            argv = [argv[0], "-ExecutionPolicy", "Bypass", *argv[1:]]
+        return [*argv, "-File", script_path]
+
+    # Preserve prior behavior for simple shell names used by existing tests
+    # while still supporting command-style shell strings.
+    if len(argv) == 1:
+        argv[0] = argv[0].lower()
+    return [*argv, script_path]
 
 
 def _process_isolation_kwargs() -> dict[str, Any]:
@@ -157,12 +195,11 @@ async def shell_run_command(
     current_env.update(env or {})
 
     if shell is None:
-        # if shell is not specified:
-        # use powershell for windows
-        # use bash for other platforms
         shell = "powershell" if sys.platform == "win32" else "bash"
 
-    extension = ".ps1" if shell.lower() == "powershell" else extension
+    shell_argv = command_from_string(shell)
+    exe_token = shell_argv[0] if shell_argv else shell
+    extension = ".ps1" if _is_powershell_executable(exe_token) else extension
 
     tmp = tempfile.NamedTemporaryFile(prefix="prefect-", suffix=extension, delete=False)
     try:
@@ -170,12 +207,10 @@ async def shell_run_command(
             tmp.write(helper_command.encode())
             tmp.write(os.linesep.encode())
         tmp.write(command.encode())
-        if shell.lower() == "powershell":
-            # if powershell, set exit code to that of command
+        shell_command = _argv_to_run_script_file(shell, extension or ".sh", tmp.name)
+        if shell_command and _is_powershell_executable(shell_command[0]):
             tmp.write("\r\nExit $LastExitCode".encode())
         tmp.close()
-
-        shell_command = [shell, tmp.name]
 
         lines: list[str] = []
         async with await anyio.open_process(
@@ -476,19 +511,15 @@ class ShellOperation(JobBlock[list[str]]):
             )
             temp_file.write(joined_commands.encode())
 
-            if self.shell is None and sys.platform == "win32" or extension == ".ps1":
-                shell = "powershell"
-            elif self.shell is None:
-                shell = "bash"
-            else:
-                shell = self.shell.lower()
-
-            if shell == "powershell":
-                # if powershell, set exit code to that of command
+            trigger_command = _argv_to_run_script_file(
+                self.shell,
+                extension,
+                temp_file.name,
+            )
+            if trigger_command and _is_powershell_executable(trigger_command[0]):
                 temp_file.write("\r\nExit $LastExitCode".encode())
             temp_file.close()
 
-            trigger_command = [shell, temp_file.name]
             yield trigger_command
         finally:
             if temp_file is not None and os.path.exists(temp_file.name):
