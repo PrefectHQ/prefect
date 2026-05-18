@@ -17,6 +17,7 @@ from packaging.utils import canonicalize_name
 from prefect._internal.compatibility.backports import tomllib
 from prefect.exceptions import MissingFlowError
 from prefect.flows import load_flow_from_entrypoint, load_function_and_convert_to_flow
+from prefect.logging import get_logger
 from prefect.runner._process_manager import ProcessHandle
 from prefect.runner._starter_engine import EngineCommandStarter
 from prefect.runner._workspace_resolver import (
@@ -32,6 +33,8 @@ if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
     from prefect.flows import Flow
     from prefect.runner._control_channel import ControlChannel
+
+logger = get_logger(__name__)
 
 
 def _decode_process_output(output: bytes | str | None) -> str:
@@ -166,7 +169,7 @@ def _pyproject_declares_prefect_dependency(pyproject: Path) -> bool:
     return _dependencies_include_prefect(project.get("dependencies"))
 
 
-def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
+def _uv_run_base_command(workspace: PreparedWorkspace) -> list[str] | None:
     project_root = workspace.project_root
     if project_root is None:
         return None
@@ -184,25 +187,65 @@ def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
     if uv_executable is None:
         return None
 
+    return [uv_executable, "run", "--project", str(project_root)]
+
+
+async def _uv_run_can_import_prefect(
+    workspace: PreparedWorkspace, uv_run_base_command: list[str]
+) -> bool:
+    try:
+        process = await anyio.run_process(
+            [
+                *uv_run_base_command,
+                "python",
+                "-c",
+                "import prefect",
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            cwd=workspace.working_directory,
+            env=sanitize_subprocess_env(workspace_environment(workspace)),
+            check=False,
+        )
+    except OSError as exc:
+        logger.warning(
+            "Falling back to the default flow-run command because `uv run` could "
+            "not start in the prepared workspace: %s",
+            exc,
+        )
+        return False
+
+    if process.returncode == 0:
+        return True
+
+    logger.warning(
+        "Falling back to the default flow-run command because `uv run` could not "
+        "import Prefect in the prepared workspace."
+    )
+    return False
+
+
+async def _workspace_command(
+    workspace: PreparedWorkspace, explicit_command: str | None
+) -> str | None:
+    if explicit_command is not None:
+        return explicit_command
+
+    uv_run_base_command = _uv_run_base_command(workspace)
+    if uv_run_base_command is None:
+        return None
+
+    if not await _uv_run_can_import_prefect(workspace, uv_run_base_command):
+        return None
+
     return command_to_string(
         [
-            uv_executable,
-            "run",
-            "--project",
-            str(project_root),
+            *uv_run_base_command,
             "-m",
             "prefect.flow_engine",
             workspace.runtime_entrypoint,
         ]
     )
-
-
-def _workspace_command(
-    workspace: PreparedWorkspace, explicit_command: str | None
-) -> str | None:
-    if explicit_command is not None:
-        return explicit_command
-    return _uv_run_command(workspace)
 
 
 @contextmanager
@@ -276,7 +319,7 @@ class WorkspaceResolvingEngineCommandStarter:
     ) -> None:
         workspace = await self._resolve_workspace(flow_run.id)
         starter = EngineCommandStarter(
-            command=_workspace_command(workspace, self._command),
+            command=await _workspace_command(workspace, self._command),
             cwd=workspace.working_directory,
             env=workspace_environment(workspace),
             entrypoint=workspace.runtime_entrypoint,
