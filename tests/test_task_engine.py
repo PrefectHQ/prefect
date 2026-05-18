@@ -2284,18 +2284,22 @@ class TestCachePolicy:
         fs = LocalFileSystem(basepath=tmp_path)
         await fs.save("param-test")
 
+        call_count = 0
+
         @task(
             cache_policy=FLOW_PARAMETERS,
             result_storage=fs,
             persist_result=True,
         )
-        def my_random_task(x: int):
-            return random.randint(0, x)
+        def my_counting_task(x: int):
+            nonlocal call_count
+            call_count += 1
+            return call_count
 
         @flow
         def my_param_flow(x: int, other_val: str):
-            first_val = my_random_task(x, return_state=True)
-            second_val = my_random_task(x, return_state=True)
+            first_val = my_counting_task(x, return_state=True)
+            second_val = my_counting_task(x, return_state=True)
             return first_val, second_val
 
         first, second = my_param_flow(4200, other_val="foo")
