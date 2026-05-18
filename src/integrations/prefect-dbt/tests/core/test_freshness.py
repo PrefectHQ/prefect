@@ -13,7 +13,11 @@ from conftest import (
     write_sources_json,
 )
 from dbt.node_types import NodeType
-from dbt_common.events.base_types import EventLevel
+
+try:
+    from dbt_common.events.base_types import EventLevel
+except ImportError:
+    from dbt.events.base_types import EventLevel  # type: ignore[no-redef]
 from prefect_dbt.core._freshness import (
     SourceFreshnessResult,
     _period_to_timedelta,

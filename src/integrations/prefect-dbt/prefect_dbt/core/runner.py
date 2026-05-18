@@ -33,7 +33,11 @@ from dbt.contracts.state import (
     load_result_state,  # type: ignore[reportUnknownMemberType]
 )
 from dbt.graph.graph import Graph, UniqueId
-from dbt_common.events.base_types import EventLevel, EventMsg
+
+try:
+    from dbt_common.events.base_types import EventLevel, EventMsg
+except ImportError:
+    from dbt.events.base_types import EventLevel, EventMsg  # type: ignore[no-redef]
 from google.protobuf.json_format import MessageToDict
 
 from prefect import get_client, get_run_logger

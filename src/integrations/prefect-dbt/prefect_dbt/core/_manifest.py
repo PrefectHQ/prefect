@@ -17,7 +17,11 @@ from typing import Any
 
 from dbt.cli.main import dbtRunner
 from dbt.node_types import NodeType
-from dbt_common.events.base_types import EventLevel, EventMsg
+
+try:
+    from dbt_common.events.base_types import EventLevel, EventMsg
+except ImportError:
+    from dbt.events.base_types import EventLevel, EventMsg  # type: ignore[no-redef]
 
 logger = logging.getLogger(__name__)
 

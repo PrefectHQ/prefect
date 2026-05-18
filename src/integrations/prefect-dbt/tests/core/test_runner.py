@@ -18,7 +18,10 @@ try:
     from dbt.contracts.graph.nodes import UnitTestDefinition
 except ImportError:
     UnitTestDefinition = None  # type: ignore[assignment,misc]
-from dbt_common.events.base_types import EventLevel, EventMsg
+try:
+    from dbt_common.events.base_types import EventLevel, EventMsg
+except ImportError:
+    from dbt.events.base_types import EventLevel, EventMsg  # type: ignore[no-redef]
 from prefect_dbt.core._tracker import NodeTaskTracker
 from prefect_dbt.core.runner import PrefectDbtRunner, execute_dbt_node
 from prefect_dbt.core.settings import PrefectDbtSettings
@@ -1757,6 +1760,9 @@ class TestPrefectDbtRunnerManifestNodeLookup:
         assert result_node is None
         assert result_config == {}
 
+    @pytest.mark.skipif(
+        UnitTestDefinition is None, reason="UnitTestDefinition requires dbt-core 1.8+"
+    )
     def test_get_manifest_node_and_config_returns_unit_test_node(self, mock_manifest):
         """Test that unit test nodes are found in manifest.unit_tests."""
         runner = PrefectDbtRunner(manifest=mock_manifest)
@@ -1777,6 +1783,9 @@ class TestPrefectDbtRunnerManifestNodeLookup:
         assert result_node == unit_test_node
         assert result_config == {"enable_assets": False}
 
+    @pytest.mark.skipif(
+        UnitTestDefinition is None, reason="UnitTestDefinition requires dbt-core 1.8+"
+    )
     def test_get_manifest_node_and_config_prefers_nodes_over_unit_tests(
         self, mock_manifest, mock_manifest_node
     ):
@@ -1796,6 +1805,9 @@ class TestPrefectDbtRunnerManifestNodeLookup:
         assert result_node == mock_manifest_node
 
 
+@pytest.mark.skipif(
+    UnitTestDefinition is None, reason="UnitTestDefinition requires dbt-core 1.8+"
+)
 class TestPrefectDbtRunnerUnitTestSupport:
     """Test unit test (dbt-core 1.8+) support in PrefectDbtRunner."""
 

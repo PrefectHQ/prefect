@@ -8,7 +8,11 @@ from unittest.mock import Mock
 
 import pytest
 import yaml
-from dbt_common.events.base_types import EventLevel
+
+try:
+    from dbt_common.events.base_types import EventLevel
+except ImportError:
+    from dbt.events.base_types import EventLevel  # type: ignore[no-redef]
 from prefect_dbt.core.settings import PrefectDbtSettings
 from pydantic.types import SecretStr
 
