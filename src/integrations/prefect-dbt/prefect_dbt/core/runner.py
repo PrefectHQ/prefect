@@ -10,19 +10,25 @@ from pathlib import Path
 from typing import Any, Callable, Optional, Union
 
 import click
-from dbt.artifacts.resources.types import NodeType
-from dbt.artifacts.schemas.results import (
-    FreshnessStatus,
-    NodeStatus,
-    RunStatus,
-    TestStatus,
-)
-from dbt.artifacts.schemas.run import RunExecutionResult
 from dbt.cli.main import cli, dbtRunner
 from dbt.compilation import Linker
 from dbt.config.runtime import RuntimeConfig
 from dbt.contracts.graph.manifest import Manifest
-from dbt.contracts.graph.nodes import ManifestNode, SourceDefinition, UnitTestDefinition
+from dbt.contracts.graph.nodes import ManifestNode, SourceDefinition
+from dbt.contracts.results import (
+    FreshnessStatus,
+    NodeStatus,
+    RunExecutionResult,
+    RunStatus,
+    TestStatus,
+)
+from dbt.node_types import NodeType
+
+try:
+    from dbt.contracts.graph.nodes import UnitTestDefinition
+except ImportError:
+    # dbt-core < 1.8 does not have UnitTestDefinition
+    UnitTestDefinition = None  # type: ignore[assignment,misc]
 from dbt.contracts.state import (
     load_result_state,  # type: ignore[reportUnknownMemberType]
 )
@@ -395,7 +401,8 @@ class PrefectDbtRunner(DbtHookMixin):
             self.manifest.nodes.get(node_id)
         )
         if manifest_node is None:
-            manifest_node = self.manifest.unit_tests.get(node_id)
+            unit_tests = getattr(self.manifest, "unit_tests", {})
+            manifest_node = unit_tests.get(node_id)
         if manifest_node:
             prefect_config = manifest_node.config.meta.get("prefect", {})
             return manifest_node, prefect_config

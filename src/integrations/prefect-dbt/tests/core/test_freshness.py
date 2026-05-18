@@ -12,7 +12,7 @@ from conftest import (
     write_manifest,
     write_sources_json,
 )
-from dbt.artifacts.resources.types import NodeType
+from dbt.node_types import NodeType
 from dbt_common.events.base_types import EventLevel
 from prefect_dbt.core._freshness import (
     SourceFreshnessResult,

@@ -9,11 +9,15 @@ from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
-from dbt.artifacts.resources.types import NodeType
-from dbt.artifacts.schemas.results import RunStatus
-from dbt.artifacts.schemas.run import RunExecutionResult
 from dbt.contracts.graph.manifest import Manifest
-from dbt.contracts.graph.nodes import ManifestNode, SourceDefinition, UnitTestDefinition
+from dbt.contracts.graph.nodes import ManifestNode, SourceDefinition
+from dbt.contracts.results import RunExecutionResult, RunStatus
+from dbt.node_types import NodeType
+
+try:
+    from dbt.contracts.graph.nodes import UnitTestDefinition
+except ImportError:
+    UnitTestDefinition = None  # type: ignore[assignment,misc]
 from dbt_common.events.base_types import EventLevel, EventMsg
 from prefect_dbt.core._tracker import NodeTaskTracker
 from prefect_dbt.core.runner import PrefectDbtRunner, execute_dbt_node

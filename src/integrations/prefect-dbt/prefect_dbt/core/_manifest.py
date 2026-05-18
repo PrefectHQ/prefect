@@ -15,8 +15,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from dbt.artifacts.resources.types import NodeType
 from dbt.cli.main import dbtRunner
+from dbt.node_types import NodeType
 from dbt_common.events.base_types import EventLevel, EventMsg
 
 logger = logging.getLogger(__name__)
