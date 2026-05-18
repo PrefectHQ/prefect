@@ -49,7 +49,7 @@ jobs:
   run-tests:
     timeout-minutes: 20
 
-    name: Run Tests for ${{ matrix.package }} on Python ${{ matrix.python-version }}
+    name: "Run Tests for ${{ matrix.package }} on Python ${{ matrix.python-version }}${{ matrix.dependency-override && format(' ({0})', matrix.dependency-override) || '' }}"
     needs: prepare-matrix
     runs-on: ubuntu-latest
     strategy:
@@ -84,13 +84,20 @@ jobs:
           --publish 6379:6379
           redis:latest
 
+      - name: Pin dependency override
+        if: matrix.dependency-override != ''
+        working-directory: src/integrations/${{ matrix.package }}
+        run: |
+          uv sync
+          uv pip install "${{ matrix.dependency-override }}"
+
       - name: Run tests
         if: matrix.package != 'prefect-ray'
         env:
           PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         working-directory: src/integrations/${{ matrix.package }}
         run: >
-          uv run pytest
+          uv run ${{ matrix.dependency-override && '--no-sync' || '' }} pytest
           -m "not integration"
           --numprocesses auto
           --maxprocesses 4
@@ -110,49 +117,6 @@ jobs:
           --only-rerun "ConnectionError"
           --only-rerun "ConnectionAbortedError"
           --only-rerun "RaySystemError"
-
-  run-prefect-dbt-compat-tests:
-    timeout-minutes: 20
-
-    name: "Run prefect-dbt tests (Python ${{ matrix.python-version }}, dbt-core ${{ matrix.dbt-core-version }})"
-    needs: prepare-matrix
-    if: contains(toJSON(needs.prepare-matrix.outputs.matrix), 'prefect-dbt')
-    runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        python-version: ["3.12"]
-        dbt-core-version: ["1.7.0", "1.8.0"]
-      fail-fast: false
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-
-      - name: Set up uv and Python ${{ matrix.python-version }}
-        uses: astral-sh/setup-uv@v7
-        with:
-          version: latest
-          enable-cache: true
-          python-version: ${{ matrix.python-version }}
-          cache-dependency-glob: "src/integrations/prefect-dbt/pyproject.toml"
-
-      - name: Install dependencies then pin dbt-core
-        working-directory: src/integrations/prefect-dbt
-        run: |
-          uv sync
-          uv pip install "dbt-core==${{ matrix.dbt-core-version }}"
-
-      - name: Run tests
-        env:
-          PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
-        working-directory: src/integrations/prefect-dbt
-        run: >
-          uv run --no-sync pytest
-          -m "not integration"
-          --numprocesses auto
-          --maxprocesses 4
-          --dist worksteal
 
   run-prefect-dbt-integration-tests:
     timeout-minutes: 20

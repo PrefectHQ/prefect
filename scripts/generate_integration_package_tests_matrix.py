@@ -13,6 +13,17 @@ SKIP_VERSIONS: dict[str, list[str]] = {
     "prefect-ray": ["3.13"],
 }
 
+# Additional dependency versions to test for specific packages.
+# Each entry maps a package name to a dict of {dependency: [versions]}.
+# This generates extra matrix entries (on a single Python version) that pin
+# the given dependency, catching compatibility regressions against older
+# supported versions.
+COMPAT_VERSIONS: dict[str, dict[str, list[str]]] = {
+    "prefect-dbt": {"dbt-core": ["1.7.0", "1.8.0"]},
+}
+
+COMPAT_PYTHON_VERSION = "3.12"
+
 
 def get_changed_packages(commit_range: str) -> list[str]:
     # Get the list of changed files in the specified commit range
@@ -44,7 +55,23 @@ def generate_matrix(
         for version in python_versions:
             if version in SKIP_VERSIONS.get(package, []):
                 continue
-            matrix["include"].append({"package": package, "python-version": version})
+            matrix["include"].append(
+                {
+                    "package": package,
+                    "python-version": version,
+                    "dependency-override": "",
+                }
+            )
+        # Add compat-version entries for this package
+        for dep, versions in COMPAT_VERSIONS.get(package, {}).items():
+            for dep_version in versions:
+                matrix["include"].append(
+                    {
+                        "package": package,
+                        "python-version": COMPAT_PYTHON_VERSION,
+                        "dependency-override": f"{dep}=={dep_version}",
+                    }
+                )
     return matrix
 
 
