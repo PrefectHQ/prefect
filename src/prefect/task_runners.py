@@ -24,6 +24,7 @@ from typing import (
 
 from typing_extensions import ParamSpec, Self, TypeVar
 
+from prefect._flow_run_suspension import raise_if_flow_run_suspension_requested
 from prefect._internal.uuid7 import uuid7
 from prefect.client.schemas.objects import RunInput
 from prefect.events.schemas.events import Event
@@ -193,6 +194,8 @@ class TaskRunner(abc.ABC, Generic[F]):
 
         futures: list[PrefectFuture[Any]] = []
         for i in range(map_length):
+            raise_if_flow_run_suspension_requested()
+
             call_parameters: dict[str, Any] = {
                 key: value[i] for key, value in iterable_parameters.items()
             }

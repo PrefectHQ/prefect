@@ -12,7 +12,7 @@ from conftest import (
     _make_node,
     write_manifest,
 )
-from dbt.artifacts.resources.types import NodeType
+from dbt.node_types import NodeType
 from prefect_dbt.core._artifacts import (
     ASSET_NODE_TYPES,
     create_asset_for_node,

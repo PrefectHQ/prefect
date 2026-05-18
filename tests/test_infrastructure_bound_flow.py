@@ -15,7 +15,7 @@ import cloudpickle
 import pytest
 from pydantic import Field
 
-from prefect._result_records import ResultRecord, ResultRecordMetadata
+from prefect._internal.result_records import ResultRecord, ResultRecordMetadata
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.objects import (

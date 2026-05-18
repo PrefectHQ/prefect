@@ -15,9 +15,9 @@ from typing import Any, Dict, List, Optional
 import yaml
 from ruamel.yaml import YAML
 
+from prefect._internal.git import get_git_branch, get_git_remote_origin_url
 from prefect.client.schemas.objects import ConcurrencyLimitStrategy
 from prefect.client.schemas.schedules import IntervalSchedule
-from prefect.utilities._git import get_git_branch, get_git_remote_origin_url
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.filesystem import create_default_ignore_file
 from prefect.utilities.templating import apply_values

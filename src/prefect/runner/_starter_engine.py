@@ -43,6 +43,7 @@ class EngineCommandStarter:
         command: str | None = None,
         cwd: Path | str | None = None,
         env: dict[str, str | None] | None = None,
+        deployment_name: str | None = None,
         stream_output: bool = True,
         heartbeat_seconds: int | None = None,
         control_channel: ControlChannel | None = None,
@@ -53,6 +54,7 @@ class EngineCommandStarter:
         self._command = command
         self._cwd = cwd
         self._env = env or {}
+        self._deployment_name = deployment_name
         self._stream_output = stream_output
         self._heartbeat_seconds = heartbeat_seconds
         self._control_channel = control_channel
@@ -94,6 +96,11 @@ class EngineCommandStarter:
                 pass
 
         # Build env following runner.py lines 907-929
+        deployment_name = (
+            self._deployment_name
+            if self._deployment_name is not None
+            else self._env.get("PREFECT__DEPLOYMENT_NAME")
+        )
         env: dict[str, str | None] = {}
         env.update(os.environ)
         env.update(self._env)
@@ -108,6 +115,7 @@ class EngineCommandStarter:
                 ),
                 "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
                 **control_env,
+                "PREFECT__DEPLOYMENT_NAME": deployment_name,
                 **(
                     {"PREFECT__FLOW_ENTRYPOINT": self._entrypoint}
                     if self._entrypoint

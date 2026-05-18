@@ -385,6 +385,10 @@ class EcsServiceStack(Stack):
             ],
             enable_execute_command=True,  # Enable ECS Exec for debugging
             min_healthy_percent=100,  # Prevent tasks from stopping during deployments
+            circuit_breaker=ecs.DeploymentCircuitBreaker(
+                enable=True,
+                rollback=True,
+            ),
         )
 
         CfnOutput(

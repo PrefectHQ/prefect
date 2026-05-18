@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import dbt.version
-from dbt.artifacts.resources.types import NodeType
+from dbt.node_types import NodeType
 
 from prefect.assets import Asset, AssetProperties
 from prefect.assets.core import MAX_ASSET_DESCRIPTION_LENGTH

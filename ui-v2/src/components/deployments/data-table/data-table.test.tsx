@@ -5,12 +5,12 @@ import {
 	createRouter,
 	RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
 import { HttpResponse, http } from "msw";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DeploymentWithFlow } from "@/api/deployments";
 import { Toaster } from "@/components/ui/sonner";
 import {
@@ -21,18 +21,6 @@ import { DeploymentsDataTable, type DeploymentsDataTableProps } from ".";
 
 describe("DeploymentsDataTable", () => {
 	beforeEach(() => {
-		// Mocks away getRouteApi dependency in `useDeleteDeploymentConfirmationDialog`
-		// @ts-expect-error Ignoring error until @tanstack/react-router has better testing documentation. Ref: https://vitest.dev/api/vi.html#vi-mock
-		vi.mock(import("@tanstack/react-router"), async (importOriginal) => {
-			const mod = await importOriginal();
-			return {
-				...mod,
-				getRouteApi: () => ({
-					useNavigate: vi.fn,
-				}),
-			};
-		});
-
 		server.use(
 			http.post(buildApiUrl("/flow_runs/filter"), async ({ request }) => {
 				const { limit } = (await request.json()) as { limit: number };
@@ -95,6 +83,34 @@ describe("DeploymentsDataTable", () => {
 			context: { queryClient: new QueryClient() },
 		});
 		return <RouterProvider router={router} />;
+	};
+
+	const renderDeploymentsDataTableRouter = (
+		props: DeploymentsDataTableProps,
+	) => {
+		const rootRoute = createRootRoute({
+			component: () => (
+				<>
+					<Toaster />
+					<DeploymentsDataTable {...props} />
+				</>
+			),
+		});
+
+		const router = createRouter({
+			routeTree: rootRoute,
+			history: createMemoryHistory({
+				initialEntries: ["/deployments"],
+			}),
+			context: { queryClient: new QueryClient() },
+		});
+
+		return [
+			render(<RouterProvider router={router} />, {
+				wrapper: createWrapper(),
+			}),
+			router,
+		] as const;
 	};
 
 	it("renders deployment name and flow name", async () => {
@@ -226,15 +242,15 @@ describe("DeploymentsDataTable", () => {
 	});
 
 	it("handles deletion", async () => {
-		await waitFor(() =>
-			render(<DeploymentsDataTableRouter {...defaultProps} />, {
-				wrapper: createWrapper(),
-			}),
-		);
+		const [, router] = renderDeploymentsDataTableRouter(defaultProps);
+
+		await screen.findByRole("button", { name: "Open menu" });
 
 		await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
 		const deleteButton = screen.getByRole("menuitem", { name: "Delete" });
 		await userEvent.click(deleteButton);
+
+		expect(router.state.location.pathname).toBe("/deployments");
 
 		const confirmDeleteButton = screen.getByRole("button", {
 			name: "Delete",
@@ -381,6 +397,95 @@ describe("DeploymentsDataTable", () => {
 		// First row is the header; data rows start at index 1
 		const dataRow = rows[1];
 		expect(dataRow).toHaveClass("cursor-pointer");
+	});
+
+	describe("column resizing", () => {
+		const STORAGE_KEY = "deployments-table-column-sizing";
+
+		const installLocalStorageBacking = () => {
+			const store = new Map<string, string>();
+			vi.spyOn(localStorage, "getItem").mockImplementation(
+				(key) => store.get(key) ?? null,
+			);
+			vi.spyOn(localStorage, "setItem").mockImplementation((key, value) => {
+				store.set(key, value);
+			});
+			vi.spyOn(localStorage, "removeItem").mockImplementation((key) => {
+				store.delete(key);
+			});
+			return store;
+		};
+
+		afterEach(() => {
+			vi.restoreAllMocks();
+		});
+
+		it("renders a draggable resize handle for the Deployment column", async () => {
+			installLocalStorageBacking();
+
+			await waitFor(() =>
+				render(<DeploymentsDataTableRouter {...defaultProps} />, {
+					wrapper: createWrapper(),
+				}),
+			);
+
+			expect(
+				screen.getByTestId("column-resize-handle-name"),
+			).toBeInTheDocument();
+		});
+
+		it("does not render a resize handle for the actions column", async () => {
+			installLocalStorageBacking();
+
+			await waitFor(() =>
+				render(<DeploymentsDataTableRouter {...defaultProps} />, {
+					wrapper: createWrapper(),
+				}),
+			);
+
+			expect(
+				screen.queryByTestId("column-resize-handle-actions"),
+			).not.toBeInTheDocument();
+		});
+
+		it("persists resized column widths to localStorage", async () => {
+			const store = installLocalStorageBacking();
+
+			await waitFor(() =>
+				render(<DeploymentsDataTableRouter {...defaultProps} />, {
+					wrapper: createWrapper(),
+				}),
+			);
+
+			const handle = screen.getByTestId("column-resize-handle-name");
+
+			fireEvent.mouseDown(handle, { clientX: 200 });
+			fireEvent.mouseMove(document, { clientX: 360 });
+			fireEvent.mouseUp(document, { clientX: 360 });
+
+			await waitFor(() => {
+				const stored = store.get(STORAGE_KEY);
+				expect(stored).toBeDefined();
+				const parsed = JSON.parse(stored ?? "{}") as Record<string, number>;
+				expect(parsed.name).toBe(360);
+			});
+		});
+
+		it("restores resized column widths from localStorage on mount", async () => {
+			const store = installLocalStorageBacking();
+			store.set(STORAGE_KEY, JSON.stringify({ name: 420 }));
+
+			await waitFor(() =>
+				render(<DeploymentsDataTableRouter {...defaultProps} />, {
+					wrapper: createWrapper(),
+				}),
+			);
+
+			const nameHeader = screen.getByRole("columnheader", {
+				name: "Deployment",
+			});
+			expect(nameHeader).toHaveStyle({ width: "420px" });
+		});
 	});
 
 	it("calls onColumnFiltersChange on tags search", async () => {

@@ -2,7 +2,7 @@ import logging
 
 import pytest
 
-from prefect.utilities._infrastructure_exit_codes import (
+from prefect._internal.infrastructure_exit_codes import (
     INFRASTRUCTURE_EXIT_HINTS,
     InfrastructureExitInfo,
     get_infrastructure_exit_info,

@@ -30,6 +30,7 @@ from typing_extensions import Self
 
 import prefect.settings
 import prefect.types._datetime
+from prefect._flow_run_suspension import FlowRunSuspensionRequest
 from prefect._internal.compatibility.migration import getattr_migration
 from prefect.assets import Asset
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
@@ -150,7 +151,7 @@ def hydrated_context(
     # We need to rebuild the models because we might be hydrating in a remote
     # environment where the models are not available.
     # TODO: Remove this once we have fixed our circular imports and we don't need to rebuild models any more.
-    from prefect._result_records import ResultRecordMetadata
+    from prefect._internal.result_records import ResultRecordMetadata
     from prefect.flows import Flow
     from prefect.tasks import Task
 
@@ -469,6 +470,13 @@ class EngineContext(RunContext):
 
     # Counter for flow pauses
     observed_flow_pauses: dict[str, int] = Field(default_factory=dict)
+
+    # In-process suspension request used to stop execution at orchestration
+    # boundaries with the server-accepted Suspended state.
+    flow_run_suspension_request: FlowRunSuspensionRequest = Field(
+        default_factory=FlowRunSuspensionRequest,
+        exclude=True,
+    )
 
     # Tracking for result from task runs and sub flows in this flow run for
     # dependency tracking. Keyed by `id(obj)` of the result object. The

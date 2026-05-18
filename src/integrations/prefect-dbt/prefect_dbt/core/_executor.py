@@ -15,7 +15,11 @@ from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from dbt.cli.main import dbtRunner
-from dbt_common.events.base_types import EventLevel, EventMsg
+
+try:
+    from dbt_common.events.base_types import EventLevel, EventMsg
+except ImportError:
+    from dbt.events.base_types import EventLevel, EventMsg  # type: ignore[no-redef]
 
 from prefect.logging import get_logger
 from prefect_dbt.core._manifest import DbtNode

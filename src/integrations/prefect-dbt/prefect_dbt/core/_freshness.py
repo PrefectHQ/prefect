@@ -16,9 +16,13 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from dbt.artifacts.resources.types import NodeType
 from dbt.cli.main import dbtRunner
-from dbt_common.events.base_types import EventLevel, EventMsg
+from dbt.node_types import NodeType
+
+try:
+    from dbt_common.events.base_types import EventLevel, EventMsg
+except ImportError:
+    from dbt.events.base_types import EventLevel, EventMsg  # type: ignore[no-redef]
 
 from prefect.logging import get_logger
 from prefect_dbt.core._manifest import DbtNode

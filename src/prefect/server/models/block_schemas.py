@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import schemas
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
+from prefect.server.models import storage_defaults
 from prefect.server.models.block_types import read_block_type_by_slug
 from prefect.server.schemas.actions import BlockSchemaCreate
 from prefect.server.schemas.core import BlockSchema, BlockSchemaReference
@@ -297,10 +298,23 @@ async def delete_block_schema(
         bool: whether or not the block schema was deleted
     """
 
+    default_references_block_schema = (
+        await storage_defaults.server_default_result_storage_references_block_schema(
+            session=session,
+            block_schema_id=block_schema_id,
+        )
+    )
+
     result = await session.execute(
         delete(db.BlockSchema).where(db.BlockSchema.id == block_schema_id)
     )
-    return result.rowcount > 0
+    if result.rowcount <= 0:
+        return False
+
+    if default_references_block_schema:
+        await storage_defaults.clear_server_default_result_storage(session=session)
+
+    return True
 
 
 @db_injector

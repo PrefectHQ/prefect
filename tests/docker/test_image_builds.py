@@ -319,7 +319,7 @@ class TestBuildxServiceTests:
 
     def test_buildx_builds_tiny_hello_image(self, contexts: Path):
         """Build a real image via the buildx backend and verify the ID is returned."""
-        from prefect.docker._buildx import buildx_build_image, python_on_whales
+        from prefect._internal.buildx import buildx_build_image, python_on_whales
 
         if python_on_whales is None:
             pytest.skip("python-on-whales is not installed")
@@ -330,7 +330,7 @@ class TestBuildxServiceTests:
 
     def test_buildx_build_with_tag(self, contexts: Path, docker: DockerClient):
         """Build with a tag via buildx and verify it's applied."""
-        from prefect.docker._buildx import buildx_build_image, python_on_whales
+        from prefect._internal.buildx import buildx_build_image, python_on_whales
 
         if python_on_whales is None:
             pytest.skip("python-on-whales is not installed")
@@ -344,7 +344,7 @@ class TestBuildxServiceTests:
 
     def test_buildx_build_streams_progress(self, contexts: Path):
         """Build via buildx with progress streaming to a stream."""
-        from prefect.docker._buildx import buildx_build_image, python_on_whales
+        from prefect._internal.buildx import buildx_build_image, python_on_whales
 
         if python_on_whales is None:
             pytest.skip("python-on-whales is not installed")

@@ -308,7 +308,7 @@
               "v3/advanced/customize-base-job-templates",
               "v3/advanced/custom-blocks",
               "v3/advanced/developing-a-custom-worker",
-              "v3/advanced/experimental-plugins"
+              "v3/advanced/plugins"
             ]
           }
         ],
@@ -354,6 +354,7 @@
                       "integrations/prefect-aws/api-ref/prefect_aws-client_parameters",
                       "integrations/prefect-aws/api-ref/prefect_aws-client_waiter",
                       "integrations/prefect-aws/api-ref/prefect_aws-credentials",
+                      "integrations/prefect-aws/api-ref/prefect_aws-decorators",
                       "integrations/prefect-aws/api-ref/prefect_aws-glue_job",
                       "integrations/prefect-aws/api-ref/prefect_aws-lambda_function",
                       "integrations/prefect-aws/api-ref/prefect_aws-plugins",
@@ -361,6 +362,14 @@
                       "integrations/prefect-aws/api-ref/prefect_aws-secrets_manager",
                       "integrations/prefect-aws/api-ref/prefect_aws-settings",
                       "integrations/prefect-aws/api-ref/prefect_aws-utilities",
+                      {
+                        "group": "prefect_aws.bundles",
+                        "pages": [
+                          "integrations/prefect-aws/api-ref/prefect_aws-bundles-__init__",
+                          "integrations/prefect-aws/api-ref/prefect_aws-bundles-execute",
+                          "integrations/prefect-aws/api-ref/prefect_aws-bundles-upload"
+                        ]
+                      },
                       {
                         "group": "prefect_aws.deployments",
                         "pages": [
@@ -420,8 +429,17 @@
                       "integrations/prefect-azure/api-ref/prefect_azure-container_instance",
                       "integrations/prefect-azure/api-ref/prefect_azure-cosmos_db",
                       "integrations/prefect-azure/api-ref/prefect_azure-credentials",
+                      "integrations/prefect-azure/api-ref/prefect_azure-decorators",
                       "integrations/prefect-azure/api-ref/prefect_azure-ml_datastore",
                       "integrations/prefect-azure/api-ref/prefect_azure-repository",
+                      {
+                        "group": "prefect_azure.bundles",
+                        "pages": [
+                          "integrations/prefect-azure/api-ref/prefect_azure-bundles-__init__",
+                          "integrations/prefect-azure/api-ref/prefect_azure-bundles-execute",
+                          "integrations/prefect-azure/api-ref/prefect_azure-bundles-upload"
+                        ]
+                      },
                       {
                         "group": "prefect_azure.deployments",
                         "pages": [
@@ -575,6 +593,7 @@
                     "pages": [
                       "integrations/prefect-docker/api-ref/prefect_docker-containers",
                       "integrations/prefect-docker/api-ref/prefect_docker-credentials",
+                      "integrations/prefect-docker/api-ref/prefect_docker-decorators",
                       "integrations/prefect-docker/api-ref/prefect_docker-host",
                       "integrations/prefect-docker/api-ref/prefect_docker-images",
                       "integrations/prefect-docker/api-ref/prefect_docker-types",
@@ -715,6 +734,7 @@
                     "pages": [
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-credentials",
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-custom_objects",
+                      "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-decorators",
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-deployments",
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-diagnostics",
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-exceptions",
@@ -1144,7 +1164,10 @@
                         "group": "Admin",
                         "pages": [
                           "v3/api-ref/rest-api/server/admin/read-settings",
-                          "v3/api-ref/rest-api/server/admin/read-version"
+                          "v3/api-ref/rest-api/server/admin/read-version",
+                          "v3/api-ref/rest-api/server/admin/read-server-default-result-storage",
+                          "v3/api-ref/rest-api/server/admin/update-server-default-result-storage",
+                          "v3/api-ref/rest-api/server/admin/clear-server-default-result-storage"
                         ]
                       }
                     ]
@@ -1246,6 +1269,13 @@
                     ]
                   },
                   {
+                    "group": "prefect.bundles",
+                    "pages": [
+                      "v3/api-ref/python/prefect-bundles-__init__",
+                      "v3/api-ref/python/prefect-bundles-execute"
+                    ]
+                  },
+                  {
                     "group": "prefect.cli",
                     "pages": [
                       "v3/api-ref/python/prefect-cli-__init__",
@@ -1274,7 +1304,9 @@
                       "v3/api-ref/python/prefect-cli-flow_run",
                       "v3/api-ref/python/prefect-cli-flow_runs_watching",
                       "v3/api-ref/python/prefect-cli-global_concurrency_limit",
+                      "v3/api-ref/python/prefect-cli-plugins",
                       "v3/api-ref/python/prefect-cli-profile",
+                      "v3/api-ref/python/prefect-cli-result_storage",
                       "v3/api-ref/python/prefect-cli-sdk",
                       "v3/api-ref/python/prefect-cli-server",
                       "v3/api-ref/python/prefect-cli-shell",
@@ -1315,7 +1347,8 @@
                           "v3/api-ref/python/prefect-client-schemas-objects",
                           "v3/api-ref/python/prefect-client-schemas-responses",
                           "v3/api-ref/python/prefect-client-schemas-schedules",
-                          "v3/api-ref/python/prefect-client-schemas-sorting"
+                          "v3/api-ref/python/prefect-client-schemas-sorting",
+                          "v3/api-ref/python/prefect-client-schemas-worker_channel"
                         ]
                       },
                       "v3/api-ref/python/prefect-client-subscriptions",
@@ -1617,6 +1650,7 @@
                           "v3/api-ref/python/prefect-server-models-flows",
                           "v3/api-ref/python/prefect-server-models-logs",
                           "v3/api-ref/python/prefect-server-models-saved_searches",
+                          "v3/api-ref/python/prefect-server-models-storage_defaults",
                           "v3/api-ref/python/prefect-server-models-task_run_states",
                           "v3/api-ref/python/prefect-server-models-task_runs",
                           "v3/api-ref/python/prefect-server-models-task_workers",
@@ -1727,6 +1761,7 @@
                           "v3/api-ref/python/prefect-settings-models-flows",
                           "v3/api-ref/python/prefect-settings-models-internal",
                           "v3/api-ref/python/prefect-settings-models-logging",
+                          "v3/api-ref/python/prefect-settings-models-plugins",
                           "v3/api-ref/python/prefect-settings-models-results",
                           "v3/api-ref/python/prefect-settings-models-root",
                           "v3/api-ref/python/prefect-settings-models-runner",
@@ -1865,6 +1900,7 @@
           {
             "group": "OSS",
             "pages": [
+              "v3/release-notes/oss/version-3-7",
               "v3/release-notes/oss/version-3-6",
               "v3/release-notes/oss/version-3-5",
               "v3/release-notes/oss/version-3-4",
@@ -1880,6 +1916,10 @@
     ]
   },
   "redirects": [
+    {
+      "destination": "/v3/advanced/plugins",
+      "source": "/v3/advanced/experimental-plugins"
+    },
     {
       "destination": "/v3/api-ref/index",
       "source": "/reference"

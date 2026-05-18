@@ -42,7 +42,7 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 - `_kill_process()` -- replaced by ProcessManager.kill()
 - `_run_on_crashed_hooks()` / `_run_on_cancellation_hooks()` -- replaced by HookRunner
 - `execute_flow_run()` -- deprecated (Mar 2026); use `FlowRunExecutorContext` + `WorkspaceResolvingEngineCommandStarter`
-- `execute_bundle()` -- deprecated (Mar 2026); use `execute_bundle()` from `prefect._experimental.bundles.execute`
+- `execute_bundle()` -- deprecated (Mar 2026); use `execute_bundle()` from `prefect.bundles.execute`
 - `reschedule_current_flow_runs()` -- deprecated (Mar 2026); SIGTERM rescheduling is now handled inline by the CLI execute path
 
 These will be removed once internal callers (notably ProcessWorker) are migrated. ProcessWorker currently suppresses the deprecation warnings via `warnings.catch_warnings()`.
@@ -79,7 +79,7 @@ This ordering is a hard constraint. Getting it wrong causes ClosedResourceError 
 
 **Failure modes:** If the child never connects or never acks within 1 s, `signal()` returns `False` and the runner falls through to the normal kill path — the engine treats the termination as a crash, same as today.
 
-**Extending intents:** The only intent today is `"cancel"`. The byte map (`_BYTE_FOR_INTENT` in `_control_channel.py` and `_INTENT_FOR_BYTE` in `_internal/control_listener.py`) must stay in sync — adding a new intent (`"suspend"`) is a matched one-line change on each side.
+**Extending intents:** The only intent today is `"cancel"`. The byte map (`_BYTE_FOR_INTENT` in `_control_channel.py` and `_INTENT_FOR_BYTE` in `_internal/control_listener.py`) must stay in sync when adding new intents.
 
 ## ProcessStarter Strategy Pattern
 
@@ -99,7 +99,7 @@ Each execution mode has a ProcessStarter implementation. To add a new execution 
 
 **Two callers set `propose_submitting=False`** via `FlowRunExecutorContext.create_executor(propose_submitting=False)` — both have already advanced the flow run past the Pending state, so proposing Submitting again would be wrong:
 - `prefect flow-run execute` CLI path (invoked by a worker)
-- `execute_bundle()` in `prefect._experimental.bundles.execute` (invoked by bundle dispatch)
+- `execute_bundle()` in `prefect.bundles.execute` (invoked by bundle dispatch)
 
 The cancelling precheck (step 1a) still runs unconditionally even when `propose_submitting=False`.
 

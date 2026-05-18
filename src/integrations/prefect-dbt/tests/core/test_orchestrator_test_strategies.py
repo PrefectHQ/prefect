@@ -9,7 +9,7 @@ from conftest import (
     _make_mock_settings,
     write_manifest,
 )
-from dbt.artifacts.resources.types import NodeType
+from dbt.node_types import NodeType
 from prefect_dbt.core._executor import DbtExecutor, ExecutionResult
 from prefect_dbt.core._manifest import ManifestParser
 from prefect_dbt.core._orchestrator import (
