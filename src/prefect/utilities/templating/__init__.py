@@ -531,11 +531,8 @@ def find_block_document_references(
 
     def extract_from_template(obj: Any) -> None:
         if isinstance(obj, dict):
-            if "$ref" in obj and isinstance(obj["$ref"], dict):
-                pass
-            else:
-                for value in obj.values():
-                    extract_from_template(value)
+            for value in obj.values():
+                extract_from_template(value)
         elif isinstance(obj, list):
             for item in obj:
                 extract_from_template(item)
