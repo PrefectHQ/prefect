@@ -1,7 +1,11 @@
 import time
 from uuid import uuid4
 
+import pytest
+
 from prefect.server import models, schemas
+
+pytestmark = pytest.mark.clear_db
 
 
 class TestCreatingConcurrencyLimits:

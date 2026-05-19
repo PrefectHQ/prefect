@@ -24,6 +24,8 @@ from prefect.server.events.storage.database import (
 )
 from prefect.types._datetime import DateTime, now
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def event() -> ReceivedEvent:

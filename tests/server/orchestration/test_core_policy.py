@@ -69,6 +69,8 @@ from prefect.settings import (
 )
 from prefect.types._datetime import DateTime, now, parse_datetime
 
+pytestmark = pytest.mark.clear_db
+
 # Convert constants from sets to lists for deterministic ordering of tests
 ALL_ORCHESTRATION_STATES = list(
     sorted(ALL_ORCHESTRATION_STATES, key=lambda item: str(item))

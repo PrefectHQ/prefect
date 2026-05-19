@@ -19,6 +19,8 @@ from prefect.server.schemas.core import WorkPoolStorageConfiguration
 from prefect.server.schemas.statuses import DeploymentStatus, WorkQueueStatus
 from prefect.utilities.pydantic import parse_obj_as
 
+pytestmark = pytest.mark.clear_db
+
 RESERVED_POOL_NAMES = [
     "Prefect",
     "Prefect Pool",

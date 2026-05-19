@@ -24,6 +24,8 @@ from prefect.server.schemas.filters import (
 from prefect.server.schemas.sorting import VariableSort
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def variable(

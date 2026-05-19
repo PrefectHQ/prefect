@@ -108,7 +108,7 @@ from prefect.workers.base import (
     BaseWorkerResult,
 )
 
-pytestmark = pytest.mark.usefixtures("asserting_events_worker")
+pytestmark = [pytest.mark.usefixtures("asserting_events_worker"), pytest.mark.clear_db]
 
 
 class WorkerTestImpl(BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]):

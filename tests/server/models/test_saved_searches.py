@@ -4,6 +4,8 @@ import pytest
 
 from prefect.server import models, schemas
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestCreateSavedSearch:
     async def test_create_saved_search_succeeds(self, session):

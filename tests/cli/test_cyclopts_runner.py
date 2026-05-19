@@ -9,6 +9,8 @@ import sys
 
 import pytest
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def runner():

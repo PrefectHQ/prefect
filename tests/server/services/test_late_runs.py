@@ -8,6 +8,8 @@ import pytest
 from prefect.server import models, schemas
 from prefect.server.services.late_runs import mark_flow_run_late
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def late_run(session, flow):

@@ -8,6 +8,8 @@ from prefect.runtime import task_run
 from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL
 from prefect.tasks import Task
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestAttributeAccessPatterns:
     async def test_access_unknown_attribute_fails(self):

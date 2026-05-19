@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prefect.server import models, schemas
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestCreateWorkPool:
     async def test_create_work_pool(self, session: AsyncSession):

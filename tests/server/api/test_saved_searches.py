@@ -7,6 +7,8 @@ from prefect.server import models, schemas
 from prefect.server.schemas.actions import SavedSearchCreate
 from prefect.types._datetime import now, parse_datetime
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestCreateSavedSearch:
     async def test_create_saved_search(

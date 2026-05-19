@@ -6,6 +6,8 @@ from fastapi.testclient import TestClient
 
 from prefect.server.api.dependencies import get_prefect_client_version
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.mark.parametrize(
     "header,expected",

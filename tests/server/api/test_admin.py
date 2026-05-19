@@ -1,6 +1,7 @@
 from uuid import uuid4
 
 import httpx
+import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
@@ -13,6 +14,8 @@ from prefect.server.models.block_registration import (
     register_block_schema,
     register_block_type,
 )
+
+pytestmark = pytest.mark.clear_db
 
 
 async def create_server_block_document(

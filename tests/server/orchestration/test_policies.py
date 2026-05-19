@@ -1,9 +1,13 @@
+import pytest
+
 from prefect.server.orchestration.policies import BaseOrchestrationPolicy
 from prefect.server.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
     BaseOrchestrationRule,
 )
 from prefect.server.schemas import states
+
+pytestmark = pytest.mark.clear_db
 
 
 class TestPoliciesRespectOrdering:

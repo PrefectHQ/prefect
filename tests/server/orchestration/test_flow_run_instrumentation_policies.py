@@ -45,6 +45,8 @@ from prefect.server.schemas.states import (
 from prefect.states import Cancelled, to_state_create
 from prefect.types._datetime import DateTime, now
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture(autouse=True)
 def cleared_resource_data_cache():

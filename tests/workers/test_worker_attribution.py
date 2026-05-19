@@ -8,7 +8,11 @@ import os
 from unittest import mock
 from uuid import uuid4
 
+import pytest
+
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
+
+pytestmark = pytest.mark.clear_db
 
 
 class TestBaseAttributionEnvironment:

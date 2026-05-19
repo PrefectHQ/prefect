@@ -5,6 +5,8 @@ import pytest
 from prefect.server import models, schemas
 from prefect.server.schemas import actions
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def artifact(session):

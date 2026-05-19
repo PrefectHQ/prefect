@@ -42,6 +42,8 @@ from prefect.settings import (
     temporary_settings,
 )
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def busted_cache_module():
