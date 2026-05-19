@@ -97,16 +97,40 @@ class ZipBuilder:
         self._temp_dir = tempfile.mkdtemp(prefix="prefect-zip-")
         zip_path = Path(self._temp_dir) / "files.zip"
 
-        # Build the zip with DEFLATED compression
+        # Build the zip and compute the content hash in a single pass so
+        # that every file is read exactly once, avoiding race conditions
+        # where a source file could change between the zip write and the
+        # hash computation.
+        hasher = hashlib.sha256()
+        hasher.update(b"prefect-bundle-files-v1\0")
+
         with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
             for file_path in sorted_files:
-                # Compute relative path with forward slashes
                 rel_path = file_path.relative_to(self.base_dir)
                 arcname = str(rel_path).replace("\\", "/")
-                zf.write(file_path, arcname)
 
-        # Compute content-addressed hash from logical bundle contents
-        sha256_hash = self._compute_content_hash(sorted_files)
+                file_stat = file_path.stat()
+
+                arcname_bytes = arcname.encode("utf-8")
+                hasher.update(struct.pack(">I", len(arcname_bytes)))
+                hasher.update(arcname_bytes)
+                hasher.update(struct.pack(">I", file_stat.st_mode & 0xFFFF))
+                hasher.update(struct.pack(">Q", file_stat.st_size))
+
+                zip_info = zipfile.ZipInfo.from_file(file_path, arcname)
+                zip_info.compress_type = zipfile.ZIP_DEFLATED
+                with (
+                    file_path.open("rb") as src,
+                    zf.open(zip_info, "w") as dest,
+                ):
+                    while True:
+                        chunk = src.read(HASH_CHUNK_SIZE)
+                        if not chunk:
+                            break
+                        dest.write(chunk)
+                        hasher.update(chunk)
+
+        sha256_hash = hasher.hexdigest()
 
         # Get file size
         size_bytes = zip_path.stat().st_size
@@ -124,44 +148,6 @@ class ZipBuilder:
             storage_key=storage_key,
             size_bytes=size_bytes,
         )
-
-    def _compute_content_hash(self, sorted_files: list[Path]) -> str:
-        """
-        Compute a deterministic SHA256 digest over the logical bundle contents.
-
-        The hash covers archive paths, file modes, and file bytes for each
-        entry in sorted order, making it insensitive to filesystem metadata
-        like mtimes.
-
-        Args:
-            sorted_files: Files already sorted by relative path.
-
-        Returns:
-            Lowercase hex digest of the SHA256 hash.
-        """
-        hasher = hashlib.sha256()
-        hasher.update(b"prefect-bundle-files-v1\0")
-
-        for file_path in sorted_files:
-            rel_path = file_path.relative_to(self.base_dir)
-            arcname = str(rel_path).replace("\\", "/")
-
-            arcname_bytes = arcname.encode("utf-8")
-            hasher.update(struct.pack(">I", len(arcname_bytes)))
-            hasher.update(arcname_bytes)
-
-            file_stat = file_path.stat()
-            hasher.update(struct.pack(">I", file_stat.st_mode & 0xFFFF))
-            hasher.update(struct.pack(">Q", file_stat.st_size))
-
-            with file_path.open("rb") as f:
-                while True:
-                    chunk = f.read(HASH_CHUNK_SIZE)
-                    if not chunk:
-                        break
-                    hasher.update(chunk)
-
-        return hasher.hexdigest()
 
     def _emit_size_warning(
         self, zip_path: Path, files: list[Path], size_bytes: int
