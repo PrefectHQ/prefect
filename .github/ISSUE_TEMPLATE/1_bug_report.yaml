@@ -5,10 +5,10 @@ body:
   - type: markdown
     attributes:
       value: >
-        If you are new to Prefect bug reports, please review our many examples of [well written bug reports](https://github.com/PrefectHQ/prefect/issues?q=is%3Aissue+label%3A%22great+writeup%22). 
+        If you are new to Prefect bug reports, please review our many examples of [well written bug reports](https://github.com/PrefectHQ/prefect/issues?q=is%3Aissue+label%3A%22great+writeup%22).
         Each of these reports include the following features:
 
-        1. A succinct description of the problem. 
+        1. A succinct description of the problem.
 
         2. A succinct code example which reproduces the problem, otherwise known as a [minimal reproducible example](https://stackoverflow.com/help/mcve).
 
@@ -16,13 +16,17 @@ body:
 
         4. Additional details that may help us reproduce your issue.
 
+        Please verify the behavior yourself before submitting.
+        If AI tools helped draft your report, make sure the final issue describes behavior you observed directly and does not include unverified AI-generated summaries.
+        Issues that appear low-effort, unverified, or likely AI-generated and lacking concrete detail may be closed until they are resubmitted with enough detail for maintainers to reproduce and evaluate.
+
 
         For usage questions, please open a [discussion](https://github.com/PrefectHQ/prefect/discussions).
 
   - type: textarea
     attributes:
       label: Bug summary
-      description: A clear and concise description of what the bug is, ideally including [a minimal reproducible example](https://stackoverflow.com/help/minimal-reproducible-example).
+      description: A clear and concise description of verified behavior, ideally including [a minimal reproducible example](https://stackoverflow.com/help/minimal-reproducible-example).
       placeholder: >
         An explanation of the behavior, along with code that will help others reproduce the issue:
 
@@ -35,6 +39,7 @@ body:
           ```
 
           Please include tracebacks, console output, etc. with code formatting.
+          Avoid long, unverified summaries; describe what you actually observed.
 
     validations:
       required: true
@@ -43,8 +48,8 @@ body:
     attributes:
       label: Version info
       description: |
-        Provide information about your Prefect version and environment. 
-        
+        Provide information about your Prefect version and environment.
+
         Please run `prefect version` and paste the output below.
       placeholder: |
         Provide the output of `prefect version` here.
