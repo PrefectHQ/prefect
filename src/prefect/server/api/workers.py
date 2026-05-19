@@ -236,33 +236,24 @@ async def _resolve_worker_channel_work_pool(
         await validate_job_variable_defaults_for_work_pool(
             session, work_pool_name, default_base_job_template
         )
-        work_pool = await models.workers.create_work_pool(
-            session=session,
-            work_pool=schemas.actions.WorkPoolCreate(
-                name=work_pool_name,
-                type=hello.payload.worker_type,
-                base_job_template=default_base_job_template,
-            ),
-        )
+        try:
+            async with session.begin_nested():
+                work_pool = await models.workers.create_work_pool(
+                    session=session,
+                    work_pool=schemas.actions.WorkPoolCreate(
+                        name=work_pool_name,
+                        type=hello.payload.worker_type,
+                        base_job_template=default_base_job_template,
+                    ),
+                )
+        except sa.exc.IntegrityError:
+            work_pool = await models.workers.read_work_pool_by_name(
+                session=session,
+                work_pool_name=work_pool_name,
+            )
+            if work_pool is None:
+                raise
         return work_pool
-
-    if not work_pool.base_job_template and default_base_job_template:
-        await validate_job_variable_defaults_for_work_pool(
-            session, work_pool_name, default_base_job_template
-        )
-        await models.workers.update_work_pool(
-            session=session,
-            work_pool_id=work_pool.id,
-            work_pool=schemas.actions.WorkPoolUpdate(
-                base_job_template=default_base_job_template
-            ),
-            emit_status_change=emit_work_pool_status_event,
-        )
-        refreshed = await models.workers.read_work_pool(
-            session=session, work_pool_id=work_pool.id
-        )
-        assert refreshed is not None
-        work_pool = refreshed
 
     return work_pool
 
@@ -339,6 +330,24 @@ async def _build_worker_ready_frame(
         work_pool_name=work_pool_name,
         work_queue_names=hello.payload.work_queue_names,
     )
+    default_base_job_template = hello.payload.default_base_job_template
+    if not work_pool.base_job_template and default_base_job_template:
+        await validate_job_variable_defaults_for_work_pool(
+            session, work_pool_name, default_base_job_template
+        )
+        await models.workers.update_work_pool(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_pool=schemas.actions.WorkPoolUpdate(
+                base_job_template=default_base_job_template
+            ),
+            emit_status_change=emit_work_pool_status_event,
+        )
+        refreshed = await models.workers.read_work_pool(
+            session=session, work_pool_id=work_pool.id
+        )
+        assert refreshed is not None
+        work_pool = refreshed
 
     try:
         worker = await models.workers.record_worker_heartbeat(

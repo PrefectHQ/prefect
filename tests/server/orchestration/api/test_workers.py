@@ -2273,6 +2273,111 @@ class TestWorkerChannelConnect:
         )
         assert event_count_after == event_count_before
 
+    async def test_connect_handles_concurrent_missing_work_pool_creation(
+        self,
+        test_client: TestClient,
+        session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        base_job_template = _valid_base_job_template()
+        await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(
+                name="raced-pool",
+                type="process",
+                base_job_template=base_job_template,
+            ),
+        )
+        await session.commit()
+
+        original_read_work_pool_by_name = models.workers.read_work_pool_by_name
+        stale_read_used = False
+
+        async def read_work_pool_by_name_with_stale_miss(
+            session: AsyncSession,
+            work_pool_name: str,
+        ) -> prefect.server.database.orm_models.WorkPool | None:
+            nonlocal stale_read_used
+            if work_pool_name == "raced-pool" and not stale_read_used:
+                stale_read_used = True
+                return None
+
+            return await original_read_work_pool_by_name(
+                session=session,
+                work_pool_name=work_pool_name,
+            )
+
+        monkeypatch.setattr(
+            models.workers,
+            "read_work_pool_by_name",
+            read_work_pool_by_name_with_stale_miss,
+        )
+
+        hello = _worker_hello_frame(
+            create_pool_if_not_found=True,
+            default_base_job_template=base_job_template,
+        )
+
+        with _connect_worker_channel(test_client, "raced-pool") as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(hello)
+            ready = WorkerReadyFrame.model_validate(websocket.receive_json())
+
+        assert stale_read_used
+        assert ready.payload.initial_snapshot.work_pool.name == "raced-pool"
+        assert (
+            ready.payload.initial_snapshot.work_pool.base_job_template
+            == base_job_template
+        )
+
+        created = await models.workers.read_work_pool_by_name(
+            session=session, work_pool_name="raced-pool"
+        )
+        assert created is not None
+        assert created.status == schemas.statuses.WorkPoolStatus.READY
+
+    async def test_connect_rolls_back_template_update_without_event_on_failure(
+        self, test_client: TestClient, session: AsyncSession
+    ):
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(
+                name="rolled-back-template-pool",
+                type="process",
+            ),
+        )
+        await session.commit()
+
+        event_count_before = sum(
+            len(getattr(client, "events", [])) for client in AssertingEventsClient.all
+        )
+        hello = _worker_hello_frame(
+            default_base_job_template=_valid_base_job_template(),
+            work_queue_names=["missing"],
+        )
+
+        with pytest.raises(WebSocketDisconnect) as exception:
+            with _connect_worker_channel(test_client, work_pool.name) as websocket:
+                _authenticate_worker_channel(websocket)
+                websocket.send_json(hello)
+                websocket.receive_json()
+
+        assert (
+            exception.value.reason
+            == WorkerChannelCloseReason.AUTHORIZATION_FAILED.value
+        )
+
+        session.expunge_all()
+        updated = await models.workers.read_work_pool(
+            session=session, work_pool_id=work_pool.id
+        )
+        assert updated is not None
+        assert not updated.base_job_template
+        event_count_after = sum(
+            len(getattr(client, "events", [])) for client in AssertingEventsClient.all
+        )
+        assert event_count_after == event_count_before
+
     def test_connect_rejects_unsupported_optional_cleanup_delivery(
         self, test_client: TestClient, work_pool
     ):
