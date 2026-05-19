@@ -37,6 +37,25 @@ def run_event_listener(
     except BaseException as exc:
         errors.append(exc)
         ready.set()
+def run_event_listener(events: List[Event], ready: ThreadingEvent):
+    """Run the async event listener in a thread"""
+    try:
+        asyncio.run(watch_worker_events(events, ready))
+    except Exception:
+        # Signal ready even on failure so the test doesn't block;
+        # it will fail at the event assertion instead.
+        ready.set()
+
+
+def _wait_for(predicate, *, timeout: float, message: str, interval: float = 0.5):
+    """Poll until predicate returns a truthy value or timeout is reached."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        result = predicate()
+        if result:
+            return result
+        time.sleep(interval)
+    raise AssertionError(message)
 
 
 def test_worker():
@@ -49,10 +68,18 @@ def test_worker():
         target=run_event_listener,
         args=(events, listener_ready, listener_errors),
         daemon=True,
+    listener_ready = ThreadingEvent()
+
+    listener_thread = Thread(
+        target=run_event_listener, args=(events, listener_ready), daemon=True
     )
     listener_thread.start()
     assert listener_ready.wait(timeout=10), "Worker event listener did not start"
     assert not listener_errors, f"Worker event listener failed: {listener_errors[0]!r}"
+
+    # Wait for the websocket subscription to be active before starting the
+    # worker, otherwise events emitted before the subscription connects are lost.
+    assert listener_ready.wait(timeout=30), "Event listener did not become ready"
 
     try:
         subprocess.check_output(
@@ -150,6 +177,8 @@ def test_worker():
             f"Worker event listener failed while waiting for events: {listener_errors[0]!r}"
         )
         worker_events = [
+    def _get_worker_events():
+        return [
             e
             for e in events
             if e.event.startswith("prefect.worker.") and e.resource.name == WORKER_NAME
@@ -160,6 +189,15 @@ def test_worker():
 
     assert len(worker_events) == 2, (
         f"Expected 2 worker events, got {len(worker_events)}"
+
+    # Poll for events — delivery via websocket may lag slightly behind the
+    # worker subprocess exiting.
+    worker_events = _wait_for(
+        lambda: (evts := _get_worker_events()) and len(evts) >= 2 and evts,
+        timeout=15,
+        message=(
+            f"Expected 2 worker events within timeout, got {len(_get_worker_events())}"
+        ),
     )
 
     start_events = [e for e in worker_events if e.event == "prefect.worker.started"]

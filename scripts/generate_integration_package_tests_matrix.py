@@ -1,6 +1,12 @@
 import json
 import subprocess
 import sys
+from pathlib import Path
+
+try:
+    import tomllib
+except ModuleNotFoundError:
+    import tomli as tomllib  # type: ignore[no-redef]
 
 PYTHON_VERSIONS = [
     "3.10",
@@ -12,6 +18,20 @@ PYTHON_VERSIONS = [
 SKIP_VERSIONS: dict[str, list[str]] = {
     "prefect-ray": ["3.13"],
 }
+
+COMPAT_PYTHON_VERSION = "3.12"
+
+INTEGRATIONS_DIR = Path(__file__).resolve().parent.parent / "src" / "integrations"
+
+
+def get_compat_versions(package: str) -> dict[str, list[str]]:
+    """Read [ci.compat-matrix] from the package's pyproject.toml."""
+    pyproject = INTEGRATIONS_DIR / package / "pyproject.toml"
+    if not pyproject.exists():
+        return {}
+    with open(pyproject, "rb") as f:
+        data = tomllib.load(f)
+    return data.get("ci", {}).get("compat-matrix", {})
 
 
 def get_changed_packages(commit_range: str) -> list[str]:
@@ -44,7 +64,23 @@ def generate_matrix(
         for version in python_versions:
             if version in SKIP_VERSIONS.get(package, []):
                 continue
-            matrix["include"].append({"package": package, "python-version": version})
+            matrix["include"].append(
+                {
+                    "package": package,
+                    "python-version": version,
+                    "dependency-override": "",
+                }
+            )
+        # Add compat-version entries from [ci.compat-matrix]
+        for dep, versions in get_compat_versions(package).items():
+            for dep_version in versions:
+                matrix["include"].append(
+                    {
+                        "package": package,
+                        "python-version": COMPAT_PYTHON_VERSION,
+                        "dependency-override": f"{dep}=={dep_version}",
+                    }
+                )
     return matrix
 
 
