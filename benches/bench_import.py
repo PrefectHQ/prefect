@@ -43,6 +43,7 @@ def reset_imports():
         REGISTRY.unregister(collector)
 
 
+@pytest.mark.timeout(180)
 @pytest.mark.benchmark(group="imports")
 @pytest.mark.parametrize("module_name", IMPORT_MODULES, ids=IMPORT_MODULES)
 def bench_import_module(benchmark: "BenchmarkFixture", module_name: str):
