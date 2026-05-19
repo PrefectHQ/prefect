@@ -1306,6 +1306,7 @@
                       "v3/api-ref/python/prefect-cli-global_concurrency_limit",
                       "v3/api-ref/python/prefect-cli-plugins",
                       "v3/api-ref/python/prefect-cli-profile",
+                      "v3/api-ref/python/prefect-cli-result_storage",
                       "v3/api-ref/python/prefect-cli-sdk",
                       "v3/api-ref/python/prefect-cli-server",
                       "v3/api-ref/python/prefect-cli-shell",
@@ -1346,7 +1347,8 @@
                           "v3/api-ref/python/prefect-client-schemas-objects",
                           "v3/api-ref/python/prefect-client-schemas-responses",
                           "v3/api-ref/python/prefect-client-schemas-schedules",
-                          "v3/api-ref/python/prefect-client-schemas-sorting"
+                          "v3/api-ref/python/prefect-client-schemas-sorting",
+                          "v3/api-ref/python/prefect-client-schemas-worker_channel"
                         ]
                       },
                       "v3/api-ref/python/prefect-client-subscriptions",

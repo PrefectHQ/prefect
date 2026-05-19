@@ -1,0 +1,1329 @@
+{
+ "Parameters": {
+  "WorkPoolName": {
+   "Type": "String",
+   "Default": "ecs-work-pool",
+   "Description": "Name of the Prefect work pool"
+  },
+  "PrefectApiUrl": {
+   "Type": "String",
+   "Default": "https://api.prefect.cloud/api",
+   "Description": "Prefect API URL"
+  },
+  "PrefectApiKeySecretArn": {
+   "Type": "String",
+   "Default": "",
+   "Description": "ARN of existing AWS Secrets Manager secret containing Prefect API key (leave empty to create new)"
+  },
+  "PrefectApiKey": {
+   "Type": "String",
+   "Default": "",
+   "Description": "Prefect API key (only used if PrefectApiKeySecretArn is empty)",
+   "NoEcho": true
+  },
+  "PrefectAuthStringSecretArn": {
+   "Type": "String",
+   "Default": "",
+   "Description": "ARN of existing AWS Secrets Manager secret containing Prefect auth string for self-hosted servers (leave empty to create new)"
+  },
+  "PrefectAuthString": {
+   "Type": "String",
+   "Default": "",
+   "Description": "Prefect auth string for self-hosted servers in format 'username:password' (only used if PrefectAuthStringSecretArn is empty)",
+   "NoEcho": true
+  },
+  "WorkQueues": {
+   "Type": "CommaDelimitedList",
+   "Default": "",
+   "Description": "Comma-separated list of work queues to pull from (leave empty to pull from all queues in the work pool)"
+  },
+  "DockerImage": {
+   "Type": "String",
+   "Default": "prefecthq/prefect-aws:latest",
+   "Description": "Docker image for the worker"
+  },
+  "LogRetentionDays": {
+   "Type": "Number",
+   "Default": 30,
+   "Description": "CloudWatch log retention in days"
+  },
+  "ExistingLogGroupName": {
+   "Type": "String",
+   "Default": "",
+   "Description": "Name of existing CloudWatch log group to use (leave empty to create new). Format: /ecs/your-work-pool-name"
+  },
+  "ExistingClusterIdentifier": {
+   "Type": "String",
+   "AllowedPattern": "^(arn:aws:ecs:[a-z0-9-]+:\\d{12}:cluster/.+|[a-zA-Z][a-zA-Z0-9_-]{0,254})$",
+   "ConstraintDescription": "Must be either a valid cluster name (1-255 characters) or a complete ECS cluster ARN",
+   "Description": "ECS cluster name or ARN. You can provide either the cluster name (e.g., 'my-cluster') or the full ARN (e.g., 'arn:aws:ecs:us-east-1:123456789012:cluster/my-cluster'). Find available clusters in the ECS console."
+  },
+  "ExistingVpcId": {
+   "Type": "String",
+   "AllowedPattern": "^vpc-[0-9a-f]{8,17}$",
+   "ConstraintDescription": "Must be a valid VPC ID in the format: vpc-xxxxxxxx",
+   "Description": "VPC ID where the existing cluster is located (e.g., vpc-12345678). Find this in the EC2 console or run 'aws ec2 describe-vpcs'."
+  },
+  "ExistingSubnetIds": {
+   "Type": "CommaDelimitedList",
+   "Description": "Comma-separated list of subnet IDs for the service (e.g., subnet-12345678,subnet-87654321). Use private subnets for better security. Find these in the VPC console or run 'aws ec2 describe-subnets --filters Name=vpc-id,Values=YOUR_VPC_ID'."
+  },
+  "DesiredCount": {
+   "Type": "Number",
+   "Default": 1,
+   "Description": "Desired number of worker tasks to run"
+  },
+  "MinCapacity": {
+   "Type": "Number",
+   "Default": 1,
+   "Description": "Minimum number of worker tasks for auto scaling"
+  },
+  "MaxCapacity": {
+   "Type": "Number",
+   "Default": 10,
+   "Description": "Maximum number of worker tasks for auto scaling"
+  },
+  "TaskCpu": {
+   "Type": "Number",
+   "Default": 1024,
+   "Description": "CPU units for the task (1024 = 1 vCPU)"
+  },
+  "TaskMemory": {
+   "Type": "Number",
+   "Default": 2048,
+   "Description": "Memory for the task in MB"
+  }
+ },
+ "Conditions": {
+  "UseApiKey": {
+   "Fn::Or": [
+    {
+     "Fn::Not": [
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "PrefectApiKeySecretArn"
+        },
+        ""
+       ]
+      }
+     ]
+    },
+    {
+     "Fn::Not": [
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "PrefectApiKey"
+        },
+        ""
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "UseAuthString": {
+   "Fn::Or": [
+    {
+     "Fn::Not": [
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "PrefectAuthStringSecretArn"
+        },
+        ""
+       ]
+      }
+     ]
+    },
+    {
+     "Fn::Not": [
+      {
+       "Fn::Equals": [
+        {
+         "Ref": "PrefectAuthString"
+        },
+        ""
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  "CreateNewApiKeySecret": {
+   "Fn::And": [
+    {
+     "Condition": "UseApiKey"
+    },
+    {
+     "Fn::Equals": [
+      {
+       "Ref": "PrefectApiKeySecretArn"
+      },
+      ""
+     ]
+    }
+   ]
+  },
+  "CreateNewAuthStringSecret": {
+   "Fn::And": [
+    {
+     "Condition": "UseAuthString"
+    },
+    {
+     "Fn::Equals": [
+      {
+       "Ref": "PrefectAuthStringSecretArn"
+      },
+      ""
+     ]
+    }
+   ]
+  },
+  "HasWorkQueues": {
+   "Fn::Not": [
+    {
+     "Fn::Equals": [
+      {
+       "Fn::Select": [
+        0,
+        {
+         "Ref": "WorkQueues"
+        }
+       ]
+      },
+      ""
+     ]
+    }
+   ]
+  },
+  "UseExistingLogGroup": {
+   "Fn::Not": [
+    {
+     "Fn::Equals": [
+      {
+       "Ref": "ExistingLogGroupName"
+      },
+      ""
+     ]
+    }
+   ]
+  },
+  "IsClusterArn": {
+   "Fn::Equals": [
+    {
+     "Fn::Select": [
+      0,
+      {
+       "Fn::Split": [
+        ":",
+        {
+         "Ref": "ExistingClusterIdentifier"
+        }
+       ]
+      }
+     ]
+    },
+    "arn"
+   ]
+  },
+  "CreateNewLogGroup": {
+   "Fn::Not": [
+    {
+     "Condition": "UseExistingLogGroup"
+    }
+   ]
+  }
+ },
+ "Resources": {
+  "PrefectApiKeySecretF70903D4": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "Description": "Prefect API key for ECS worker",
+    "Name": {
+     "Fn::Join": [
+      "",
+      [
+       {
+        "Ref": "WorkPoolName"
+       },
+       "-prefect-api-key"
+      ]
+     ]
+    },
+    "SecretString": {
+     "Ref": "PrefectApiKey"
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsServiceStack/PrefectApiKeySecret/Resource"
+   },
+   "Condition": "CreateNewApiKeySecret"
+  },
+  "PrefectAuthStringSecret99214447": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "Description": "Prefect auth string for ECS worker (self-hosted servers)",
+    "Name": {
+     "Fn::Join": [
+      "",
+      [
+       {
+        "Ref": "WorkPoolName"
+       },
+       "-prefect-auth-string"
+      ]
+     ]
+    },
+    "SecretString": {
+     "Ref": "PrefectAuthString"
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsServiceStack/PrefectAuthStringSecret/Resource"
+   },
+   "Condition": "CreateNewAuthStringSecret"
+  },
+  "EcsEventsDLQ29DDC233": {
+   "Type": "AWS::SQS::Queue",
+   "Properties": {
+    "MessageRetentionPeriod": 1209600,
+    "QueueName": {
+     "Fn::Join": [
+      "",
+      [
+       {
+        "Ref": "WorkPoolName"
+       },
+       "-ecs-events-dlq"
+      ]
+     ]
+    },
+    "VisibilityTimeout": 60
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsServiceStack/EcsEventsDLQ/Resource"
+   }
+  },
+  "EcsEventsQueueC6389C93": {
+   "Type": "AWS::SQS::Queue",
+   "Properties": {
+    "MessageRetentionPeriod": 604800,
+    "QueueName": {
+     "Fn::Join": [
+      "",
+      [
+       {
+        "Ref": "WorkPoolName"
+       },
+       "-ecs-events"
+      ]
+     ]
+    },
+    "RedrivePolicy": {
+     "deadLetterTargetArn": {
+      "Fn::GetAtt": [
+       "EcsEventsDLQ29DDC233",
+       "Arn"
+      ]
+     },
+     "maxReceiveCount": 3
+    },
+    "VisibilityTimeout": 300
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsServiceStack/EcsEventsQueue/Resource"
+   }
+  },
+  "EcsEventsQueuePolicy5B74B767": {
+   "Type": "AWS::SQS::QueuePolicy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "sqs:GetQueueAttributes",
+        "sqs:GetQueueUrl",
+        "sqs:SendMessage"
+       ],
+       "Condition": {
+        "ArnEquals": {
+         "aws:SourceArn": {
+          "Fn::GetAtt": [
+           "EcsTaskStateChangeRuleC4D798EC",
+           "Arn"
+          ]
+         }
+        }
+       },
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "events.amazonaws.com"
+       },
+       "Resource": {
+        "Fn::GetAtt": [
+         "EcsEventsQueueC6389C93",
+         "Arn"
+        ]
+       }
+      },
+      {
+       "Action": [
+        "sqs:GetQueueAttributes",
+        "sqs:GetQueueUrl",
+        "sqs:SendMessage"
+       ],
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "events.amazonaws.com"
+       },
+       "Resource": {
+        "Fn::GetAtt": [
+         "EcsEventsQueueC6389C93",
+         "Arn"
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Queues": [
+     {
+      "Ref": "EcsEventsQueueC6389C93"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsServiceStack/EcsEventsQueue/Policy/Resource"
+   }
+  },
+  "EcsTaskStateChangeRuleC4D798EC": {
+   "Type": "AWS::Events::Rule",
+   "Properties": {
+    "Description": "Capture ECS task state changes for Prefect workers",
+    "EventPattern": {
+     "detail": {
+      "clusterArn": [
+       {
+        "Fn::If": [
+         "IsClusterArn",
+         {
+          "Ref": "ExistingClusterIdentifier"
+         },
+         {
+          "Fn::Sub": [
+           "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}",
+           {
+            "ClusterName": {
+             "Ref": "ExistingClusterIdentifier"
+            }
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     },
+     "detail-type": [
+      "ECS Task State Change"
+     ],
+     "source": [
+      "aws.ecs"
+     ]
+    },
+    "Name": {
+     "Fn::Join": [
+      "",
+      [
+       {
+        "Ref": "WorkPoolName"
+       },
+       "-ecs-task-events"
+      ]
+     ]
+    },
+    "State": "ENABLED",
+    "Targets": [
+     {
+      "Arn": {
+       "Fn::GetAtt": [
+        "EcsEventsQueueC6389C93",
+        "Arn"
+       ]
+      },
+      "Id": "Target0"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsServiceStack/EcsTaskStateChangeRule/Resource"
+   }
+  },
+  "EcsTaskExecutionRoleC0B6A84D": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Sub": "arn:${AWS::Partition}:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+     }
+    ],
+    "RoleName": {
+     "Fn::Join": [
+      "",
+      [
+       {
+        "Ref": "WorkPoolName"
+       },
+       "-task-execution-role"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsServiceStack/EcsTaskExecutionRole/Resource"
+   }
+  },
+  "EcsTaskExecutionRoleDefaultPolicyDCEEFDC3": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "secretsmanager:GetSecretValue",
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::If": [
+         "UseApiKey",
+         {
+          "Fn::If": [
+           "CreateNewApiKeySecret",
+           {
+            "Ref": "PrefectApiKeySecretF70903D4"
+           },
+           {
+            "Ref": "PrefectApiKeySecretArn"
+           }
+          ]
+         },
+         {
+          "Fn::If": [
+           "CreateNewAuthStringSecret",
+           {
+            "Ref": "PrefectAuthStringSecret99214447"
+           },
+           {
+            "Ref": "PrefectAuthStringSecretArn"
+           }
+          ]
+         }
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "EcsTaskExecutionRoleDefaultPolicyDCEEFDC3",
+    "Roles": [
+     {
+      "Ref": "EcsTaskExecutionRoleC0B6A84D"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsServiceStack/EcsTaskExecutionRole/DefaultPolicy/Resource"
+   }
+  },
+  "EcsTaskRole8DFA0181": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "ecs-tasks.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "RoleName": {
+     "Fn::Join": [
+      "",
+      [
+       {
+        "Ref": "WorkPoolName"
+       },
+       "-task-role"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsServiceStack/EcsTaskRole/Resource"
+   }
+  },
+  "EcsTaskRoleDefaultPolicy50882C77": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "sqs:ChangeMessageVisibility",
+        "sqs:DeleteMessage",
+        "sqs:GetQueueAttributes",
+        "sqs:GetQueueUrl",
+        "sqs:ReceiveMessage"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "EcsEventsQueueC6389C93",
+         "Arn"
+        ]
+       }
+      },
+      {
+       "Action": [
+        "ec2:DescribeNetworkInterfaces",
+        "ec2:DescribeSecurityGroups",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeVpcs",
+        "ecs:DeregisterTaskDefinition",
+        "ecs:DescribeClusters",
+        "ecs:DescribeTaskDefinition",
+        "ecs:DescribeTasks",
+        "ecs:ListClusters",
+        "ecs:ListTaskDefinitions",
+        "ecs:ListTasks",
+        "ecs:RegisterTaskDefinition",
+        "ecs:RunTask",
+        "ecs:StopTask",
+        "ecs:TagResource",
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "logs:DescribeLogStreams",
+        "logs:GetLogEvents",
+        "logs:PutLogEvents",
+        "ssmmessages:CreateControlChannel",
+        "ssmmessages:CreateDataChannel",
+        "ssmmessages:OpenControlChannel",
+        "ssmmessages:OpenDataChannel"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      },
+      {
+       "Action": "iam:PassRole",
+       "Effect": "Allow",
+       "Resource": "arn:aws:iam::*:role/*"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "EcsTaskRoleDefaultPolicy50882C77",
+    "Roles": [
+     {
+      "Ref": "EcsTaskRole8DFA0181"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsServiceStack/EcsTaskRole/DefaultPolicy/Resource"
+   }
+  },
+  "WorkerLogGroup31FDBE4A": {
+   "Type": "AWS::Logs::LogGroup",
+   "Properties": {
+    "LogGroupName": {
+     "Fn::Join": [
+      "/",
+      [
+       "/ecs",
+       {
+        "Ref": "WorkPoolName"
+       },
+       {
+        "Fn::Select": [
+         0,
+         {
+          "Fn::Split": [
+           "-",
+           {
+            "Fn::Select": [
+             2,
+             {
+              "Fn::Split": [
+               "/",
+               {
+                "Ref": "AWS::StackId"
+               }
+              ]
+             }
+            ]
+           }
+          ]
+         }
+        ]
+       }
+      ]
+     ]
+    },
+    "RetentionInDays": {
+     "Ref": "LogRetentionDays"
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsServiceStack/WorkerLogGroup/Resource"
+   },
+   "Condition": "CreateNewLogGroup"
+  },
+  "WorkerTaskDefinition8AD2CCFF": {
+   "Type": "AWS::ECS::TaskDefinition",
+   "Properties": {
+    "ContainerDefinitions": [
+     {
+      "Command": [
+       "sh",
+       "-c",
+       {
+        "Fn::If": [
+         "HasWorkQueues",
+         {
+          "Fn::Sub": [
+           "prefect worker start --type ecs --pool ${WorkPoolName} --with-healthcheck --work-queue ${WorkQueueList}",
+           {
+            "WorkPoolName": {
+             "Ref": "WorkPoolName"
+            },
+            "WorkQueueList": {
+             "Fn::Join": [
+              " --work-queue ",
+              {
+               "Ref": "WorkQueues"
+              }
+             ]
+            }
+           }
+          ]
+         },
+         {
+          "Fn::Sub": [
+           "prefect worker start --type ecs --pool ${WorkPoolName} --with-healthcheck",
+           {
+            "WorkPoolName": {
+             "Ref": "WorkPoolName"
+            }
+           }
+          ]
+         }
+        ]
+       }
+      ],
+      "Environment": [
+       {
+        "Name": "PREFECT_API_URL",
+        "Value": {
+         "Ref": "PrefectApiUrl"
+        }
+       },
+       {
+        "Name": "PREFECT_INTEGRATIONS_AWS_ECS_OBSERVER_ENABLED",
+        "Value": "true"
+       },
+       {
+        "Name": "PREFECT_INTEGRATIONS_AWS_ECS_OBSERVER_SQS_QUEUE_NAME",
+        "Value": {
+         "Fn::GetAtt": [
+          "EcsEventsQueueC6389C93",
+          "QueueName"
+         ]
+        }
+       }
+      ],
+      "Essential": true,
+      "HealthCheck": {
+       "Command": [
+        "CMD-SHELL",
+        "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=5)\""
+       ],
+       "Interval": 30,
+       "Retries": 3,
+       "StartPeriod": 60,
+       "Timeout": 5
+      },
+      "Image": {
+       "Ref": "DockerImage"
+      },
+      "LogConfiguration": {
+       "LogDriver": "awslogs",
+       "Options": {
+        "awslogs-group": {
+         "Fn::If": [
+          "UseExistingLogGroup",
+          {
+           "Ref": "ExistingLogGroupName"
+          },
+          {
+           "Fn::Join": [
+            "/",
+            [
+             "/ecs",
+             {
+              "Ref": "WorkPoolName"
+             },
+             {
+              "Fn::Select": [
+               0,
+               {
+                "Fn::Split": [
+                 "-",
+                 {
+                  "Fn::Select": [
+                   2,
+                   {
+                    "Fn::Split": [
+                     "/",
+                     {
+                      "Ref": "AWS::StackId"
+                     }
+                    ]
+                   }
+                  ]
+                 }
+                ]
+               }
+              ]
+             }
+            ]
+           ]
+          }
+         ]
+        },
+        "awslogs-region": {
+         "Ref": "AWS::Region"
+        },
+        "awslogs-stream-prefix": "ecs"
+       }
+      },
+      "Name": "prefect-worker",
+      "PortMappings": [
+       {
+        "ContainerPort": 8080,
+        "Name": "health",
+        "Protocol": "tcp"
+       }
+      ],
+      "Secrets": {
+       "Fn::If": [
+        "UseApiKey",
+        [
+         {
+          "Name": "PREFECT_API_KEY",
+          "ValueFrom": {
+           "Fn::If": [
+            "CreateNewApiKeySecret",
+            {
+             "Ref": "PrefectApiKeySecretF70903D4"
+            },
+            {
+             "Ref": "PrefectApiKeySecretArn"
+            }
+           ]
+          }
+         }
+        ],
+        {
+         "Fn::If": [
+          "UseAuthString",
+          [
+           {
+            "Name": "PREFECT_AUTH_STRING",
+            "ValueFrom": {
+             "Fn::If": [
+              "CreateNewAuthStringSecret",
+              {
+               "Ref": "PrefectAuthStringSecret99214447"
+              },
+              {
+               "Ref": "PrefectAuthStringSecretArn"
+              }
+             ]
+            }
+           }
+          ],
+          {
+           "Ref": "AWS::NoValue"
+          }
+         ]
+        }
+       ]
+      }
+     }
+    ],
+    "Cpu": {
+     "Ref": "TaskCpu"
+    },
+    "ExecutionRoleArn": {
+     "Fn::GetAtt": [
+      "EcsTaskExecutionRoleC0B6A84D",
+      "Arn"
+     ]
+    },
+    "Family": {
+     "Fn::Join": [
+      "",
+      [
+       {
+        "Ref": "WorkPoolName"
+       },
+       "-worker"
+      ]
+     ]
+    },
+    "Memory": {
+     "Ref": "TaskMemory"
+    },
+    "NetworkMode": "awsvpc",
+    "RequiresCompatibilities": [
+     "FARGATE"
+    ],
+    "TaskRoleArn": {
+     "Fn::GetAtt": [
+      "EcsTaskRole8DFA0181",
+      "Arn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsServiceStack/WorkerTaskDefinition/Resource"
+   }
+  },
+  "WorkerSecurityGroup5529CF0B": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "Security group for Prefect ECS workers",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "Allow all outbound traffic by default",
+      "IpProtocol": "-1"
+     }
+    ],
+    "SecurityGroupIngress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "Health check endpoint",
+      "FromPort": 8080,
+      "IpProtocol": "tcp",
+      "ToPort": 8080
+     }
+    ],
+    "VpcId": {
+     "Ref": "ExistingVpcId"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsServiceStack/WorkerSecurityGroup/Resource"
+   }
+  },
+  "WorkerService99815FA9": {
+   "Type": "AWS::ECS::Service",
+   "Properties": {
+    "CapacityProviderStrategy": [
+     {
+      "CapacityProvider": "FARGATE",
+      "Weight": 1
+     }
+    ],
+    "Cluster": {
+     "Fn::If": [
+      "IsClusterArn",
+      {
+       "Fn::Select": [
+        1,
+        {
+         "Fn::Split": [
+          "/",
+          {
+           "Ref": "ExistingClusterIdentifier"
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "Ref": "ExistingClusterIdentifier"
+      }
+     ]
+    },
+    "DeploymentConfiguration": {
+     "DeploymentCircuitBreaker": {
+      "Enable": true,
+      "Rollback": true
+     },
+     "MaximumPercent": 200,
+     "MinimumHealthyPercent": 100
+    },
+    "DesiredCount": {
+     "Ref": "DesiredCount"
+    },
+    "EnableECSManagedTags": false,
+    "EnableExecuteCommand": true,
+    "NetworkConfiguration": {
+     "AwsvpcConfiguration": {
+      "AssignPublicIp": "DISABLED",
+      "SecurityGroups": [
+       {
+        "Fn::GetAtt": [
+         "WorkerSecurityGroup5529CF0B",
+         "GroupId"
+        ]
+       }
+      ],
+      "Subnets": {
+       "Ref": "ExistingSubnetIds"
+      }
+     }
+    },
+    "ServiceName": {
+     "Fn::Join": [
+      "",
+      [
+       {
+        "Ref": "WorkPoolName"
+       },
+       "-workers"
+      ]
+     ]
+    },
+    "TaskDefinition": {
+     "Ref": "WorkerTaskDefinition8AD2CCFF"
+    }
+   },
+   "DependsOn": [
+    "EcsTaskRoleDefaultPolicy50882C77",
+    "EcsTaskRole8DFA0181"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsServiceStack/WorkerService/Service"
+   }
+  },
+  "WorkerServiceTaskCountTarget94398C8F": {
+   "Type": "AWS::ApplicationAutoScaling::ScalableTarget",
+   "Properties": {
+    "MaxCapacity": {
+     "Ref": "MaxCapacity"
+    },
+    "MinCapacity": {
+     "Ref": "MinCapacity"
+    },
+    "ResourceId": {
+     "Fn::Join": [
+      "",
+      [
+       "service/",
+       {
+        "Fn::If": [
+         "IsClusterArn",
+         {
+          "Fn::Select": [
+           1,
+           {
+            "Fn::Split": [
+             "/",
+             {
+              "Ref": "ExistingClusterIdentifier"
+             }
+            ]
+           }
+          ]
+         },
+         {
+          "Ref": "ExistingClusterIdentifier"
+         }
+        ]
+       },
+       "/",
+       {
+        "Fn::GetAtt": [
+         "WorkerService99815FA9",
+         "Name"
+        ]
+       }
+      ]
+     ]
+    },
+    "RoleARN": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:",
+       {
+        "Ref": "AWS::Partition"
+       },
+       ":iam::",
+       {
+        "Ref": "AWS::AccountId"
+       },
+       ":role/aws-service-role/ecs.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_ECSService"
+      ]
+     ]
+    },
+    "ScalableDimension": "ecs:service:DesiredCount",
+    "ServiceNamespace": "ecs"
+   },
+   "DependsOn": [
+    "EcsTaskRoleDefaultPolicy50882C77",
+    "EcsTaskRole8DFA0181"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsServiceStack/WorkerService/TaskCount/Target/Resource"
+   }
+  },
+  "WorkerServiceTaskCountTargetCpuScaling8262B18B": {
+   "Type": "AWS::ApplicationAutoScaling::ScalingPolicy",
+   "Properties": {
+    "PolicyName": "PrefectEcsServiceStackWorkerServiceTaskCountTargetCpuScalingD698CEA2",
+    "PolicyType": "TargetTrackingScaling",
+    "ScalingTargetId": {
+     "Ref": "WorkerServiceTaskCountTarget94398C8F"
+    },
+    "TargetTrackingScalingPolicyConfiguration": {
+     "PredefinedMetricSpecification": {
+      "PredefinedMetricType": "ECSServiceAverageCPUUtilization"
+     },
+     "ScaleInCooldown": 300,
+     "ScaleOutCooldown": 120,
+     "TargetValue": 70
+    }
+   },
+   "DependsOn": [
+    "EcsTaskRoleDefaultPolicy50882C77",
+    "EcsTaskRole8DFA0181"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsServiceStack/WorkerService/TaskCount/Target/CpuScaling/Resource"
+   }
+  },
+  "WorkerServiceTaskCountTargetMemoryScaling253BAD62": {
+   "Type": "AWS::ApplicationAutoScaling::ScalingPolicy",
+   "Properties": {
+    "PolicyName": "PrefectEcsServiceStackWorkerServiceTaskCountTargetMemoryScaling89256D89",
+    "PolicyType": "TargetTrackingScaling",
+    "ScalingTargetId": {
+     "Ref": "WorkerServiceTaskCountTarget94398C8F"
+    },
+    "TargetTrackingScalingPolicyConfiguration": {
+     "PredefinedMetricSpecification": {
+      "PredefinedMetricType": "ECSServiceAverageMemoryUtilization"
+     },
+     "ScaleInCooldown": 300,
+     "ScaleOutCooldown": 120,
+     "TargetValue": 80
+    }
+   },
+   "DependsOn": [
+    "EcsTaskRoleDefaultPolicy50882C77",
+    "EcsTaskRole8DFA0181"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "PrefectEcsServiceStack/WorkerService/TaskCount/Target/MemoryScaling/Resource"
+   }
+  }
+ },
+ "Outputs": {
+  "EcsEventsQueueUrl": {
+   "Description": "URL of the SQS queue receiving ECS events",
+   "Value": {
+    "Ref": "EcsEventsQueueC6389C93"
+   }
+  },
+  "EcsEventsQueueArn": {
+   "Description": "ARN of the SQS queue receiving ECS events",
+   "Value": {
+    "Fn::GetAtt": [
+     "EcsEventsQueueC6389C93",
+     "Arn"
+    ]
+   }
+  },
+  "EventBridgeRuleArn": {
+   "Description": "ARN of the EventBridge rule for ECS events",
+   "Value": {
+    "Fn::GetAtt": [
+     "EcsTaskStateChangeRuleC4D798EC",
+     "Arn"
+    ]
+   }
+  },
+  "LogGroupName": {
+   "Description": "CloudWatch log group for worker tasks",
+   "Value": {
+    "Fn::If": [
+     "UseExistingLogGroup",
+     {
+      "Ref": "ExistingLogGroupName"
+     },
+     {
+      "Fn::Join": [
+       "/",
+       [
+        "/ecs",
+        {
+         "Ref": "WorkPoolName"
+        },
+        {
+         "Fn::Select": [
+          0,
+          {
+           "Fn::Split": [
+            "-",
+            {
+             "Fn::Select": [
+              2,
+              {
+               "Fn::Split": [
+                "/",
+                {
+                 "Ref": "AWS::StackId"
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      ]
+     }
+    ]
+   }
+  },
+  "PrefectApiKeySecretArnOutput": {
+   "Description": "ARN of the Prefect API key secret",
+   "Value": {
+    "Fn::If": [
+     "CreateNewApiKeySecret",
+     {
+      "Ref": "PrefectApiKeySecretF70903D4"
+     },
+     {
+      "Ref": "PrefectApiKeySecretArn"
+     }
+    ]
+   },
+   "Condition": "CreateNewApiKeySecret"
+  },
+  "PrefectAuthStringSecretArnOutput": {
+   "Description": "ARN of the Prefect auth string secret",
+   "Value": {
+    "Fn::If": [
+     "CreateNewAuthStringSecret",
+     {
+      "Ref": "PrefectAuthStringSecret99214447"
+     },
+     {
+      "Ref": "PrefectAuthStringSecretArn"
+     }
+    ]
+   },
+   "Condition": "CreateNewAuthStringSecret"
+  },
+  "TaskDefinitionArn": {
+   "Description": "ARN of the ECS task definition for the worker",
+   "Value": {
+    "Ref": "WorkerTaskDefinition8AD2CCFF"
+   }
+  },
+  "TaskExecutionRoleArn": {
+   "Description": "ARN of the ECS task execution role",
+   "Value": {
+    "Fn::GetAtt": [
+     "EcsTaskExecutionRoleC0B6A84D",
+     "Arn"
+    ]
+   }
+  },
+  "ClusterArn": {
+   "Description": "ARN of the ECS cluster",
+   "Value": {
+    "Fn::If": [
+     "IsClusterArn",
+     {
+      "Ref": "ExistingClusterIdentifier"
+     },
+     {
+      "Fn::Sub": [
+       "arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:cluster/${ClusterName}",
+       {
+        "ClusterName": {
+         "Ref": "ExistingClusterIdentifier"
+        }
+       }
+      ]
+     }
+    ]
+   }
+  },
+  "VpcId": {
+   "Description": "VPC ID where the worker is deployed",
+   "Value": {
+    "Ref": "ExistingVpcId"
+   }
+  },
+  "SubnetIds": {
+   "Description": "Comma-separated list of subnet IDs",
+   "Value": {
+    "Fn::Join": [
+     ",",
+     {
+      "Ref": "ExistingSubnetIds"
+     }
+    ]
+   }
+  },
+  "ServiceArn": {
+   "Description": "ARN of the ECS service",
+   "Value": {
+    "Ref": "WorkerService99815FA9"
+   }
+  },
+  "ServiceName": {
+   "Description": "Name of the ECS service",
+   "Value": {
+    "Fn::GetAtt": [
+     "WorkerService99815FA9",
+     "Name"
+    ]
+   }
+  }
+ }
+}

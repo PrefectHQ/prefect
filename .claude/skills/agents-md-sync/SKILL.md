@@ -115,6 +115,14 @@ For claims that are verifiable (specific behaviors, function signatures, which m
 
 AGENTS.md should capture what's *not* visible in the code: invariants, hidden contracts, non-obvious failure modes, things that look one way but behave another.
 
+A behavior discovered in one changed function is not AGENTS-worthy by default.
+Promote it only if it exposes a subsystem-level editing rule, a cross-file
+contract, or a recurring failure mode future agents need before choosing
+which implementation to read. Otherwise prefer a code comment, docstring,
+test name, or no documentation change.
+
+If the same guidance is already present in nearby code comments, docstrings, or tests, AGENTS.md should usually not repeat it.
+
 **Missing invariants** — implicit contracts the code relies on that aren't documented:
 - Parallel implementations that must stay in sync (e.g., sync and async versions of the same module)
 - Ordering requirements or sequencing constraints

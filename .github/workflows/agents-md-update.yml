@@ -70,11 +70,13 @@ jobs:
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
-          PROMPT='You are updating AGENTS.md files in the Prefect repository after a merge to main.
+          PROMPT=$(cat <<'PROMPT'
+          You are updating AGENTS.md files in the Prefect repository after a merge to main.
 
           Read the skill file at .claude/skills/agents-md-sync/SKILL.md and follow its workflow exactly.
 
           The diff from the latest push is saved at /tmp/diff.patch — read that file.
+          The changed file list is saved at /tmp/changed-files.txt — read that file too.
 
           Treat AGENTS.md files as rare, durable operating manuals for future agents, not changelogs for the triggering diff.
 
@@ -86,9 +88,23 @@ jobs:
              - cross-file contracts
              - recurring failure modes
              - commands or conventions future agents are likely to need
-          3. Skip edits that are merely reactive, obvious from code, too specific to the triggering diff, file lists, temporary bug context, or notes about every new module.
-          4. If confidence is low, or the useful update would be too large for a small AGENTS.md PR, write the recommendation to /tmp/agents-md-recommendations.md instead of editing.
-          5. New AGENTS.md files should be rare. Create one only for a real ownership boundary with hidden conventions or pitfalls that are not quick to learn from code. If you create a new AGENTS.md, write /tmp/new-agents-justification.txt with:
+          3. Reject instead of editing when the proposed guidance:
+             - documents one helper/function's current control flow
+             - restates a docstring, inline comment, test name, or obvious code structure
+             - only matters to the triggering PR
+             - is niche incident context without a broader editing rule
+             - uses broad absolutes like "always" without naming relevant exceptions
+          4. Skip edits that are merely reactive, obvious from code, too specific to the triggering diff, file lists, temporary bug context, or notes about every new module.
+          5. If confidence is low, or the useful update would be too large for a small AGENTS.md PR, write the recommendation to /tmp/agents-md-recommendations.md instead of editing.
+          6. If you change any AGENTS.md file, write /tmp/agents-md-justification.md before or alongside the edits. Include one entry per changed AGENTS.md file or per accepted update, using exactly this structure:
+             Path: <AGENTS.md path>
+             Proposed text: <brief description or exact text>
+             Non-obvious evidence: <why this is not obvious from code/comments/tests/docs>
+             Cross-cutting scope: <what subsystem/pattern this applies to beyond one helper>
+             Why not code comment/docstring: <why AGENTS.md is the right location>
+             Durability: <why this should remain useful after the triggering PR is old>
+             Counter-evidence checked: <nearby code/comments/docstrings/tests/AGENTS content checked>
+          7. New AGENTS.md files should be rare. Create one only for a real ownership boundary with hidden conventions or pitfalls that are not quick to learn from code. If you create a new AGENTS.md, write /tmp/new-agents-justification.txt with:
              Path: <path>
              Ownership boundary: <why this directory owns distinct guidance>
              Hidden conventions: <the non-obvious conventions, contracts, or pitfalls documented>
@@ -106,7 +122,9 @@ jobs:
           - Be at most 80 characters
           - Describe the substance of the update (e.g. what new module, command, or convention the AGENTS.md files now reflect), not just a file count
           - Use imperative mood (e.g. "docs: document new runner layer in server AGENTS.md")
-          If you did not make any changes, do not write the file.'
+          If you did not make any changes, do not write the file.
+          PROMPT
+          )
 
           npx -y @anthropic-ai/claude-code --print \
             --dangerously-skip-permissions \
@@ -128,6 +146,37 @@ jobs:
             git diff --cached --name-only
           fi
 
+      - name: Judge AGENTS.md update
+        if: steps.changes.outputs.skip != 'true' && steps.diff.outputs.has_changes == 'true'
+        timeout-minutes: 10
+        continue-on-error: true
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          PROMPT=$(cat <<'PROMPT'
+          You are the second-pass quality judge for an automated AGENTS.md update in the Prefect repository.
+
+          Default to FAIL. Pass only if every staged AGENTS.md addition is durable, non-obvious, cross-cutting, and not already discoverable from nearby code, comments, docstrings, tests, or existing AGENTS.md content.
+
+          Read all of:
+          - /tmp/diff.patch
+          - /tmp/changed-files.txt
+          - /tmp/agents-md-justification.md
+          - the staged AGENTS.md diff from `git diff --cached`
+          - any relevant changed code, docs, tests, comments, docstrings, or existing AGENTS.md content needed to verify duplication or obviousness
+
+          You must not edit repository files, stage files, commit, or push. Only write /tmp/agents-md-quality.txt.
+
+          Write /tmp/agents-md-quality.txt with first line exactly PASS or FAIL. Include concise reasons after the first line. Use FAIL if the justification is missing, if any addition documents one helper/function, restates existing comments/docstrings/tests/obvious code structure, only matters to the triggering PR, records niche incident context without a broader editing rule, or uses broad absolutes without relevant exceptions.
+          PROMPT
+          )
+
+          npx -y @anthropic-ai/claude-code --print \
+            --dangerously-skip-permissions \
+            --max-turns 20 \
+            --model sonnet \
+            "$PROMPT"
+
       - name: Review AGENTS.md changes
         if: steps.changes.outputs.skip != 'true' && steps.diff.outputs.has_changes == 'true'
         id: quality
@@ -142,6 +191,22 @@ jobs:
           NET_EXISTING_LINES=0
           NEW_AGENTS=()
           VIOLATIONS=()
+
+          if [ ! -s /tmp/agents-md-justification.md ]; then
+            VIOLATIONS+=("missing or empty /tmp/agents-md-justification.md")
+          fi
+
+          if [ ! -s /tmp/agents-md-quality.txt ]; then
+            VIOLATIONS+=("missing or empty /tmp/agents-md-quality.txt")
+          else
+            echo "AGENTS.md judge result:"
+            cat /tmp/agents-md-quality.txt
+            echo
+            JUDGE_RESULT=$(head -n 1 /tmp/agents-md-quality.txt | tr -d '\r')
+            if [ "$JUDGE_RESULT" != "PASS" ]; then
+              VIOLATIONS+=("Claude judge did not pass AGENTS.md update")
+            fi
+          fi
 
           while IFS=$'\t' read -r additions deletions path; do
             [ -n "$path" ] || continue
@@ -209,7 +274,6 @@ jobs:
         run: |
           SHORT_SHA=$(git rev-parse --short HEAD)
           BRANCH="claude/update-agents-md-${SHORT_SHA}"
-          CHANGED_FILES=$(cat /tmp/changed-files.txt)
 
           # Prefer the PR title Claude Code wrote based on the substance of its
           # changes. Fall back to a generic title only if Claude did not supply one.
@@ -227,21 +291,39 @@ jobs:
           git commit -m "$PR_TITLE"
           git push origin "$BRANCH"
 
-          PR_BODY="Automated AGENTS.md update triggered by commit ${GITHUB_SHA}.
+          python - <<'PY' > /tmp/pr-body.md
+          import html
+          import os
+          from pathlib import Path
+
+          changed_files = Path("/tmp/changed-files.txt").read_text()
+          justification = Path("/tmp/agents-md-justification.md").read_text()
+
+          print(f"""Automated AGENTS.md update triggered by commit {os.environ["GITHUB_SHA"]}.
 
           This PR was generated by Claude Code analyzing the diff from the latest push to main and updating any stale AGENTS.md files.
 
           <details>
+          <summary>Why this belongs in AGENTS.md</summary>
+
+          <pre>
+          {html.escape(justification)}
+          </pre>
+          </details>
+
+          <details>
           <summary>Changed files in triggering push</summary>
 
-          \`\`\`
-          ${CHANGED_FILES}
-          \`\`\`
-          </details>"
+          ```text
+          {changed_files}
+          ```
+          </details>""")
+          PY
 
           gh pr create \
             --title "$PR_TITLE" \
-            --body "$PR_BODY" \
+            --body-file /tmp/pr-body.md \
             --base main \
             --head "$BRANCH" \
-            --label "agents-md"
+            --label "agents-md" \
+            --draft

@@ -16,7 +16,7 @@ from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.objects import WorkerMetadata, WorkPool
-from prefect.exceptions import ObjectNotFound
+from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.workers._cleanup import WorkerCleanupExecutor
 from prefect.workers._worker_channel._protocol import WorkerChannelProtocolHandler
 from prefect.workers._worker_channel._state import (
@@ -113,6 +113,10 @@ class WorkPoolWorkerChannel:
         return self.state.rest_fallback_enabled
 
     @property
+    def snapshots_available(self) -> bool:
+        return self._protocol.work_pool_snapshots_available
+
+    @property
     def worker_id(self) -> UUID | None:
         return self._protocol.worker_id
 
@@ -128,7 +132,7 @@ class WorkPoolWorkerChannel:
             self._run_scope.cancel()
 
     async def sync(self, task_group: anyio.abc.TaskGroup | None) -> None:
-        if self.state.healthy:
+        if self.state.healthy and self.snapshots_available:
             return
 
         if task_group is not None:
@@ -138,7 +142,7 @@ class WorkPoolWorkerChannel:
             if self.url is None:
                 self.state.mark_terminal("endpoint_unavailable")
 
-        if channel_started:
+        if channel_started and self.snapshots_available:
             return
 
         await self._sync_rest_work_pool()
@@ -306,8 +310,21 @@ class WorkPoolWorkerChannel:
                 if self.base_job_template is not None:
                     wp.base_job_template = self.base_job_template
 
-                work_pool = await self._client.create_work_pool(work_pool=wp)
-                self._logger.info(f"Work pool {self.work_pool_name!r} created.")
+                try:
+                    work_pool = await self._client.create_work_pool(work_pool=wp)
+                    self._logger.info(f"Work pool {self.work_pool_name!r} created.")
+                except ObjectAlreadyExists:
+                    # Another worker created the pool between our read and
+                    # create. Re-read so we can continue with the existing
+                    # pool rather than failing setup.
+                    self._logger.debug(
+                        "Work pool %r was created concurrently by another "
+                        "worker; re-reading.",
+                        self.work_pool_name,
+                    )
+                    work_pool = await self._client.read_work_pool(
+                        work_pool_name=self.work_pool_name
+                    )
             else:
                 self._logger.warning(f"Work pool {self.work_pool_name!r} not found!")
                 if self.base_job_template is not None:
@@ -317,13 +334,27 @@ class WorkPoolWorkerChannel:
                     )
                 return
 
+        if self.state.healthy and self.snapshots_available:
+            self._logger.debug(
+                "Skipping REST work pool sync because the worker channel applied a "
+                "snapshot while REST sync was in flight."
+            )
+            return
+
         if not work_pool.base_job_template:
             await self._set_work_pool_template(
                 work_pool, self.default_base_job_template
             )
             work_pool.base_job_template = self.default_base_job_template
 
-        self._protocol.handle_work_pool_snapshot(work_pool)
+        if self.state.healthy and self.snapshots_available:
+            self._logger.debug(
+                "Skipping REST work pool snapshot because the worker channel applied "
+                "a snapshot while REST sync was in flight."
+            )
+            return
+
+        self._protocol.record_rest_work_pool_snapshot(work_pool)
 
     async def _set_work_pool_template(
         self, work_pool: WorkPool, job_template: dict[str, Any]

@@ -257,7 +257,13 @@ def _build_ui_path(base_url: str, relative_path: str) -> str:
         return normalized_relative_path
 
     if normalized_relative_path == "/":
-        return normalized_base_url
+        # Preserve the trailing slash so the redirect target falls inside
+        # the bundle's mount. Starlette's `Mount` only routes requests
+        # whose path starts with `{mount}/`; a bare `{mount}` falls through
+        # to whatever else matches, which in practice is the V1 SPA mount
+        # at "/" — that returns V1's index.html under the `/v2` URL and
+        # the V1 router can't resolve the route.
+        return f"{normalized_base_url}/"
 
     return f"{normalized_base_url}{normalized_relative_path}"
 

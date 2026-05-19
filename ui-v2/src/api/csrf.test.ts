@@ -7,7 +7,7 @@ import {
 	test,
 	vi,
 } from "vitest";
-import { csrfMiddleware, csrfTokenManager } from "./csrf";
+import { csrfMiddleware, csrfTokenManager, generateUUID } from "./csrf";
 import { uiSettings } from "./ui-settings";
 
 const MOCK_CSRF_TOKEN_RESPONSE = {
@@ -48,6 +48,41 @@ function mockFetchCsrfToken(fetchSpy: MockInstance) {
 		return Promise.resolve({ ok: false, status: 404 } as Response);
 	});
 }
+
+describe("generateUUID", () => {
+	test("returns a valid UUID v4 string", () => {
+		const uuid = generateUUID();
+		expect(uuid).toMatch(
+			/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+		);
+	});
+
+	test("returns unique values on successive calls", () => {
+		const a = generateUUID();
+		const b = generateUUID();
+		expect(a).not.toBe(b);
+	});
+
+	test("falls back when crypto.randomUUID is unavailable", () => {
+		const original = crypto.randomUUID.bind(crypto);
+		try {
+			// Simulate non-secure context where randomUUID is undefined
+			Object.defineProperty(crypto, "randomUUID", {
+				value: undefined,
+				configurable: true,
+			});
+			const uuid = generateUUID();
+			expect(uuid).toMatch(
+				/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+			);
+		} finally {
+			Object.defineProperty(crypto, "randomUUID", {
+				value: original,
+				configurable: true,
+			});
+		}
+	});
+});
 
 describe("CsrfTokenManager", () => {
 	let fetchSpy: MockInstance;

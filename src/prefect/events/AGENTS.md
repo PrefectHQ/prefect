@@ -7,6 +7,8 @@ Client-side event system for emitting, subscribing to, and defining automations 
 - **Both client and server define their own event schemas.** The client-side schemas live in `schemas/` here; the server has its own parallel definitions in `server/events/schemas/`. They are structurally similar but independently maintained — the server does not import schemas from this module.
 - Events follow the CloudEvents-inspired schema: `Event` with `Resource` and `RelatedResource`.
 - Automations combine triggers (event, metric, compound, sequence) with actions.
+- **Metric triggers are Cloud-only.** OSS's `ServerTriggerTypes` excludes `MetricTrigger`, so `POST /automations` returns 422. For "alert if a flow takes too long" on OSS, use a proactive `EventTrigger` (`after={prefect.flow-run.Running}`, terminal states in `expect`, SLO in `within`).
+- **Event name prefixes differ by backend.** OSS emits `prefect.*`; Cloud emits `prefect-cloud.*` for automation/action lifecycle events (e.g., `prefect-cloud.automation.triggered`). Cross-backend tooling that filters events must match both.
 - `DeploymentTriggerTypes` are the subset of triggers usable in `prefect.yaml` deployment definitions.
 
 ## clients.py — Checkpointing Invariant
