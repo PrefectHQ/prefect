@@ -46,6 +46,47 @@ if TYPE_CHECKING:
 
 _CLOUD_RUN_JOB_NAME_MAX_LENGTH: Final[int] = 63
 _CLOUD_RUN_JOB_NAME_UUID_LENGTH: Final[int] = 7
+_TRANSIENT_HTTP_STATUSES: Final[frozenset[int]] = frozenset({429, 500, 503})
+
+
+def _is_transient_http_error(exc: Exception) -> bool:
+    if isinstance(exc, HttpError):
+        return exc.status_code in _TRANSIENT_HTTP_STATUSES
+    return False
+
+
+def _build_transient_retrying(
+    *,
+    max_attempts: int,
+    initial_delay: float,
+    max_delay: float,
+    operation_label: Literal["creating job", "submitting job for execution"],
+    logger: PrefectLogAdapter,
+) -> Retrying:
+    """Build a Retrying that retries transient HTTP errors with exponential jitter."""
+
+    def _log_retry(retry_state) -> None:
+        exc = retry_state.outcome.exception()
+        if isinstance(exc, HttpError):
+            delay = retry_state.next_action.sleep
+            logger.warning(
+                "Transient error (HTTP %s) when %s. "
+                "Retrying in %.2fs... (Attempt %s/%s)",
+                exc.status_code,
+                operation_label,
+                delay,
+                retry_state.attempt_number,
+                max_attempts,
+            )
+
+    return Retrying(
+        reraise=True,
+        stop=stop_after_attempt(max_attempts),
+        wait=wait_exponential_jitter(initial=initial_delay, max=max_delay),
+        retry=retry_if_exception(_is_transient_http_error),
+        before_sleep=_log_retry,
+        sleep=time.sleep,
+    )
 
 
 def _get_default_job_body_template() -> Dict[str, Any]:
@@ -764,35 +805,12 @@ class CloudRunWorkerV2(
             logger: The logger to use.
         """
         settings = CloudRunV2WorkerSettings()
-        max_attempts = settings.create_job_max_attempts
-        retry_statuses = {500, 503, 429}
-
-        def _is_transient_error(exc: Exception) -> bool:
-            return isinstance(exc, HttpError) and exc.status_code in retry_statuses
-
-        def _log_retry(retry_state) -> None:
-            exc = retry_state.outcome.exception()
-            if isinstance(exc, HttpError):
-                delay = retry_state.next_action.sleep
-                logger.warning(
-                    "Transient error (HTTP %s) when creating Cloud Run job. "
-                    "Retrying in %.2fs... (Attempt %s/%s)",
-                    exc.status_code,
-                    delay,
-                    retry_state.attempt_number,
-                    max_attempts,
-                )
-
-        retrying = Retrying(
-            reraise=True,
-            stop=stop_after_attempt(max_attempts),
-            wait=wait_exponential_jitter(
-                initial=settings.create_job_initial_delay_seconds,
-                max=settings.create_job_max_delay_seconds,
-            ),
-            retry=retry_if_exception(_is_transient_error),
-            before_sleep=_log_retry,
-            sleep=time.sleep,
+        retrying = _build_transient_retrying(
+            max_attempts=settings.create_job_max_attempts,
+            initial_delay=settings.create_job_initial_delay_seconds,
+            max_delay=settings.create_job_max_delay_seconds,
+            operation_label="creating job",
+            logger=logger,
         )
 
         try:
@@ -1012,35 +1030,12 @@ class CloudRunWorkerV2(
             The Cloud Run job execution.
         """
         settings = CloudRunV2WorkerSettings()
-        max_attempts = settings.submit_job_max_attempts
-        retry_statuses = {500, 503, 429}
-
-        def _is_transient_error(exc: Exception) -> bool:
-            return isinstance(exc, HttpError) and exc.status_code in retry_statuses
-
-        def _log_retry(retry_state) -> None:
-            exc = retry_state.outcome.exception()
-            if isinstance(exc, HttpError):
-                delay = retry_state.next_action.sleep
-                logger.warning(
-                    "Transient error (HTTP %s) when submitting Cloud Run job for "
-                    "execution. Retrying in %.2fs... (Attempt %s/%s)",
-                    exc.status_code,
-                    delay,
-                    retry_state.attempt_number,
-                    max_attempts,
-                )
-
-        retrying = Retrying(
-            reraise=True,
-            stop=stop_after_attempt(max_attempts),
-            wait=wait_exponential_jitter(
-                initial=settings.submit_job_initial_delay_seconds,
-                max=settings.submit_job_max_delay_seconds,
-            ),
-            retry=retry_if_exception(_is_transient_error),
-            before_sleep=_log_retry,
-            sleep=time.sleep,
+        retrying = _build_transient_retrying(
+            max_attempts=settings.submit_job_max_attempts,
+            initial_delay=settings.submit_job_initial_delay_seconds,
+            max_delay=settings.submit_job_max_delay_seconds,
+            operation_label="submitting job for execution",
+            logger=logger,
         )
 
         try:
@@ -1049,8 +1044,7 @@ class CloudRunWorkerV2(
                 configuration=configuration,
                 logger=logger,
             )
-            submission = None
-            recovered_execution_name: Optional[str] = None
+            execution_name: Optional[str] = None
 
             for attempt in retrying:
                 with attempt:
@@ -1065,25 +1059,22 @@ class CloudRunWorkerV2(
                             job_name=configuration.job_name,
                         )
                     except HttpError as exc:
-                        if _is_transient_error(exc):
-                            recovered_execution_name = (
-                                self._recover_after_transient_error(
-                                    cr_client=cr_client,
-                                    configuration=configuration,
-                                    baseline_execution_name=baseline_execution_name,
-                                    exc=exc,
-                                    logger=logger,
-                                )
-                            )
-                            if recovered_execution_name is not None:
-                                break
-                        raise
+                        if not _is_transient_http_error(exc):
+                            raise
+                        recovered = self._recover_after_transient_error(
+                            cr_client=cr_client,
+                            configuration=configuration,
+                            baseline_execution_name=baseline_execution_name,
+                            exc=exc,
+                            logger=logger,
+                        )
+                        if recovered is None:
+                            raise
+                        execution_name = recovered
+                        break
+                    execution_name = submission["metadata"]["name"]
 
-            execution_name = (
-                recovered_execution_name
-                if recovered_execution_name is not None
-                else submission["metadata"]["name"]
-            )
+            assert execution_name is not None
             job_execution = ExecutionV2.get(
                 cr_client=cr_client,
                 execution_id=execution_name,
