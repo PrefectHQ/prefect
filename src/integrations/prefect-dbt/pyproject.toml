@@ -113,7 +113,7 @@ asyncio_mode = "auto"
 env = ["PREFECT_TEST_MODE=1"]
 markers = ["integration: integration tests requiring dbt-duckdb"]
 
-[tool.prefect.compat-versions]
+[ci.compat-matrix]
 dbt-core = ["1.7.0", "1.8.0"]
 
 [tool.uv.sources]

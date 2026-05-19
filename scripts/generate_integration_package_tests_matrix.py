@@ -25,13 +25,13 @@ INTEGRATIONS_DIR = Path(__file__).resolve().parent.parent / "src" / "integration
 
 
 def get_compat_versions(package: str) -> dict[str, list[str]]:
-    """Read [tool.prefect.compat-versions] from the package's pyproject.toml."""
+    """Read [ci.compat-matrix] from the package's pyproject.toml."""
     pyproject = INTEGRATIONS_DIR / package / "pyproject.toml"
     if not pyproject.exists():
         return {}
     with open(pyproject, "rb") as f:
         data = tomllib.load(f)
-    return data.get("tool", {}).get("prefect", {}).get("compat-versions", {})
+    return data.get("ci", {}).get("compat-matrix", {})
 
 
 def get_changed_packages(commit_range: str) -> list[str]:
@@ -71,7 +71,7 @@ def generate_matrix(
                     "dependency-override": "",
                 }
             )
-        # Add compat-version entries from [tool.prefect.compat-versions]
+        # Add compat-version entries from [ci.compat-matrix]
         for dep, versions in get_compat_versions(package).items():
             for dep_version in versions:
                 matrix["include"].append(
