@@ -111,7 +111,9 @@ class ZipBuilder:
                 # non-deterministic.
                 zip_info = zipfile.ZipInfo(arcname, ZIP_MEMBER_TIMESTAMP)
                 zip_info.compress_type = zipfile.ZIP_DEFLATED
-                zip_info.external_attr = (file_path.stat().st_mode & 0xFFFF) << 16
+                file_stat = file_path.stat()
+                zip_info.external_attr = (file_stat.st_mode & 0xFFFF) << 16
+                zip_info.file_size = file_stat.st_size
 
                 with file_path.open("rb") as src, zf.open(zip_info, "w") as dest:
                     while True:
