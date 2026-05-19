@@ -85,13 +85,48 @@ def file_covered_by(
     return True
 
 
+def validate_excluded_test_types(
+    test_types: list[dict[str, str]], excludes: list[dict[str, object]]
+) -> list[str]:
+    """Return errors for excludes whose test-type entry no longer matches."""
+    known_test_types = {
+        (entry.get("name"), entry.get("modules")) for entry in test_types
+    }
+
+    errors: list[str] = []
+    for index, exclude in enumerate(excludes, start=1):
+        test_type = exclude.get("test-type")
+        if not isinstance(test_type, dict):
+            continue
+
+        key = (test_type.get("name"), test_type.get("modules"))
+        if key not in known_test_types:
+            name = test_type.get("name", "<unnamed>")
+            errors.append(
+                f"matrix exclude #{index} references test-type {name!r}, "
+                "but its definition does not match any matrix test-type entry"
+            )
+
+    return errors
+
+
 def main() -> None:
     with open(WORKFLOW_PATH) as f:
         workflow = yaml.safe_load(f)
 
-    test_types: list[dict[str, str]] = workflow["jobs"]["run-tests"]["strategy"][
-        "matrix"
-    ]["test-type"]
+    matrix = workflow["jobs"]["run-tests"]["strategy"]["matrix"]
+    test_types: list[dict[str, str]] = matrix["test-type"]
+
+    exclude_errors = validate_excluded_test_types(test_types, matrix.get("exclude", []))
+    if exclude_errors:
+        print("ERROR: Some run-tests matrix excludes are stale:")
+        for error in exclude_errors:
+            print(f"  {error}")
+        print(
+            "\nPlease update the exclude entry in "
+            f"{WORKFLOW_PATH} to match the corresponding test-type matrix entry."
+        )
+        sys.exit(1)
 
     all_test_files = discover_test_files("tests")
 

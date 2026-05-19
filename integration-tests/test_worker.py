@@ -2,6 +2,8 @@ import asyncio
 import os
 import subprocess
 import sys
+import time
+from threading import Event as ThreadingEvent
 from threading import Thread
 from typing import List
 from uuid import uuid4
@@ -15,7 +17,7 @@ from prefect.settings import PREFECT_API_URL
 from prefect.types._datetime import now
 
 
-async def watch_worker_events(events: List[Event]):
+async def watch_worker_events(events: List[Event], ready: ThreadingEvent):
     """Watch for worker start/stop events and collect them"""
     async with get_events_subscriber(
         filter=EventFilter(
@@ -23,13 +25,30 @@ async def watch_worker_events(events: List[Event]):
             occurred=EventOccurredFilter(since=now()),
         )
     ) as events_subscriber:
+        ready.set()
         async for event in events_subscriber:
             events.append(event)
 
 
-def run_event_listener(events: List[Event]):
+def run_event_listener(events: List[Event], ready: ThreadingEvent):
     """Run the async event listener in a thread"""
-    asyncio.run(watch_worker_events(events))
+    try:
+        asyncio.run(watch_worker_events(events, ready))
+    except Exception:
+        # Signal ready even on failure so the test doesn't block;
+        # it will fail at the event assertion instead.
+        ready.set()
+
+
+def _wait_for(predicate, *, timeout: float, message: str, interval: float = 0.5):
+    """Poll until predicate returns a truthy value or timeout is reached."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        result = predicate()
+        if result:
+            return result
+        time.sleep(interval)
+    raise AssertionError(message)
 
 
 def test_worker():
@@ -38,9 +57,16 @@ def test_worker():
     api_url = PREFECT_API_URL.value()
     assert api_url, "PREFECT_API_URL must be configured for integration tests."
     cli_env = {**os.environ, "PREFECT_API_URL": api_url}
+    listener_ready = ThreadingEvent()
 
-    listener_thread = Thread(target=run_event_listener, args=(events,), daemon=True)
+    listener_thread = Thread(
+        target=run_event_listener, args=(events, listener_ready), daemon=True
+    )
     listener_thread.start()
+
+    # Wait for the websocket subscription to be active before starting the
+    # worker, otherwise events emitted before the subscription connects are lost.
+    assert listener_ready.wait(timeout=30), "Event listener did not become ready"
 
     try:
         subprocess.check_output(
@@ -136,13 +162,21 @@ def test_worker():
         env=cli_env,
     )
 
-    worker_events = [
-        e
-        for e in events
-        if e.event.startswith("prefect.worker.") and e.resource.name == WORKER_NAME
-    ]
-    assert len(worker_events) == 2, (
-        f"Expected 2 worker events, got {len(worker_events)}"
+    def _get_worker_events():
+        return [
+            e
+            for e in events
+            if e.event.startswith("prefect.worker.") and e.resource.name == WORKER_NAME
+        ]
+
+    # Poll for events — delivery via websocket may lag slightly behind the
+    # worker subprocess exiting.
+    worker_events = _wait_for(
+        lambda: (evts := _get_worker_events()) and len(evts) >= 2 and evts,
+        timeout=15,
+        message=(
+            f"Expected 2 worker events within timeout, got {len(_get_worker_events())}"
+        ),
     )
 
     start_events = [e for e in worker_events if e.event == "prefect.worker.started"]
