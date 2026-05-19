@@ -512,5 +512,3 @@ async def resolve_variables(template: T, client: Optional["PrefectClient"] = Non
         return [await resolve_variables(item, client=client) for item in template]
     else:
         return template
-
-

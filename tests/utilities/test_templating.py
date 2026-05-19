@@ -567,8 +567,6 @@ class TestResolveBlockDocumentReferences:
         assert "no longer exists" in error_msg
 
 
-
-
 class TestResolveVariables:
     @pytest.fixture
     async def variable_1(self, prefect_client: PrefectClient):

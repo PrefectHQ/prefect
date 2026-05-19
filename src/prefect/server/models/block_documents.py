@@ -735,5 +735,3 @@ async def delete_block_document_reference(
     )
     result = await session.execute(query)
     return result.rowcount > 0
-
-
