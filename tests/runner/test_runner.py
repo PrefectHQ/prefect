@@ -2305,6 +2305,85 @@ class TestRunner:
         assert flow_run.state
         assert flow_run.state.is_crashed()
 
+    @pytest.mark.parametrize(
+        "returncode, exitcode, should_add",
+        [
+            (None, None, True),  # still running
+            (0, None, False),  # exited with returncode=0
+            (1, None, False),  # exited with returncode=1
+            (None, 0, False),  # exited with exitcode=0
+            (None, 1, False),  # exited with exitcode=1
+        ],
+    )
+    async def test_execute_flow_run_does_not_add_exited_process_to_map(
+        self,
+        prefect_client: PrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+        returncode: int | None,
+        exitcode: int | None,
+        should_add: bool,
+    ):
+        """
+        Regression test for https://github.com/PrefectHQ/prefect/issues/22005
+
+        When a process has already exited (returncode or exitcode is set),
+        execute_flow_run must not add it to the process map. Previously, the
+        check used `or` to combine the two getattr calls before comparing
+        with `is None`, which was wrong because `0 or None` evaluates to
+        `None`, so processes that exited with code 0 were still added.
+        """
+        runner = Runner()
+        deployment_id = await (await dummy_flow_1.to_deployment(__file__)).apply()
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        process = MagicMock()
+        process.pid = 42
+
+        # Configure process attributes based on test params
+        if returncode is not None:
+            process.returncode = returncode
+        else:
+            del process.returncode
+        if exitcode is not None:
+            process.exitcode = exitcode
+        else:
+            del process.exitcode
+
+        added_to_map = False
+        original_add = runner._add_flow_run_process_map_entry
+
+        async def tracking_add(flow_run_id: Any, entry: Any) -> None:
+            nonlocal added_to_map
+            added_to_map = True
+            await original_add(flow_run_id, entry)
+
+        monkeypatch.setattr(runner, "_add_flow_run_process_map_entry", tracking_add)
+
+        # Patch _submit_run_and_capture_errors to return our mock process
+        # and immediately remove it from the map (simulating a fast exit)
+        original_remove = runner._remove_flow_run_process_map_entry
+
+        async def fake_submit(
+            flow_run: Any,
+            task_status: Any,
+            **kwargs: Any,
+        ) -> None:
+            task_status.started(process)
+            # Yield control so execute_flow_run can check the process and
+            # potentially add it to the map before we remove it.
+            await anyio.sleep(0)
+            await original_remove(flow_run.id)
+
+        monkeypatch.setattr(runner, "_submit_run_and_capture_errors", fake_submit)
+
+        async with runner:
+            await runner.execute_flow_run(flow_run.id)
+
+        assert added_to_map is should_add
+
     async def test_runner_handles_output_stream_errors(
         self, prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
     ):

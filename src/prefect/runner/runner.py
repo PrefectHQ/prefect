@@ -781,9 +781,9 @@ class Runner:
             # The process may be a multiprocessing.context.SpawnProcess, in which case it will have an `exitcode` attribute
             # but no `returncode` attribute
             if (
-                getattr(process, "returncode", None)
-                or getattr(process, "exitcode", None)
-            ) is None:
+                getattr(process, "returncode", None) is None
+                and getattr(process, "exitcode", None) is None
+            ):
                 await self._add_flow_run_process_map_entry(
                     flow_run.id, ProcessMapEntry(pid=process.pid, flow_run=flow_run)
                 )
