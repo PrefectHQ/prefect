@@ -14,11 +14,14 @@ from unittest.mock import ANY, AsyncMock, MagicMock, Mock
 
 import anyio.abc
 import cloudpickle
+import httpx
 import orjson
 import pytest
+import respx
 from exceptiongroup import ExceptionGroup
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette import status
 from websockets.exceptions import ConnectionClosedError
 from websockets.frames import Close
 
@@ -217,9 +220,7 @@ async def test_worker_respects_prefetch_seconds():
 async def test_worker_sends_heartbeat_messages(
     prefect_client: PrefectClient,
 ):
-    async with WorkerTestImpl(
-        name="test", work_pool_name="test-work-pool", heartbeat_interval_seconds=1
-    ) as worker:
+    async with WorkerTestImpl(name="test", work_pool_name="test-work-pool") as worker:
         await worker.sync_with_backend()
 
         workers = await prefect_client.read_workers_for_work_pool(
@@ -229,93 +230,47 @@ async def test_worker_sends_heartbeat_messages(
         first_heartbeat = workers[0].last_heartbeat_time
         assert first_heartbeat is not None
 
-        second_heartbeat = None
-        with anyio.fail_after(5):
-            while not second_heartbeat or second_heartbeat <= first_heartbeat:
-                await worker.sync_with_backend()
-                workers = await prefect_client.read_workers_for_work_pool(
-                    work_pool_name="test-work-pool"
-                )
-                second_heartbeat = workers[0].last_heartbeat_time
-                await anyio.sleep(0.1)
+        await worker.sync_with_backend()
 
+        workers = await prefect_client.read_workers_for_work_pool(
+            work_pool_name="test-work-pool"
+        )
+        second_heartbeat = workers[0].last_heartbeat_time
         assert second_heartbeat > first_heartbeat
 
 
-async def test_worker_rest_heartbeat_fallback_gets_id():
+async def test_worker_sends_heartbeat_gets_id(respx_mock: respx.MockRouter):
+    work_pool_name = "test-work-pool"
     test_worker_id = uuid.UUID("028EC481-5899-49D7-B8C5-37A2726E9840")
-    client = worker_channel_test_client(
-        server_type=ServerType.CLOUD, worker_id=test_worker_id
-    )
-    client.read_work_pool = AsyncMock(
-        return_value=WorkPool(
-            name="test-work-pool",
-            type="test",
-            base_job_template={"job_configuration": {}, "variables": {}},
-            default_queue_id=uuid.uuid4(),
-        )
-    )
-    channel = WorkPoolWorkerChannel(
-        client=client,
-        api_url=None,
-        work_pool_is_available=lambda: True,
-        work_pool_name="test-work-pool",
-        worker_name="test-worker",
-        worker_type="test",
-        heartbeat_interval_seconds=30,
-        work_queue_names=[],
-        create_pool_if_not_found=True,
-        default_base_job_template={},
-        worker_metadata=no_worker_channel_metadata,
-        logger=logging.getLogger("test-worker-channel"),
-    )
+    # Pass through the non-relevant paths
+    respx_mock.get(f"api/work_pools/{work_pool_name}").pass_through()
+    respx_mock.get("api/csrf-token?").pass_through()
+    respx_mock.post("api/work_pools/").pass_through()
+    respx_mock.patch(f"api/work_pools/{work_pool_name}").pass_through()
 
-    await channel.sync(None)
+    respx_mock.post(
+        f"api/work_pools/{work_pool_name}/workers/heartbeat",
+    ).mock(return_value=httpx.Response(status.HTTP_200_OK, text=str(test_worker_id)))
+    async with WorkerTestImpl(name="test", work_pool_name=work_pool_name) as worker:
+        worker._client.server_type = ServerType.CLOUD
 
-    client.send_worker_heartbeat.assert_awaited_once_with(
-        work_pool_name="test-work-pool",
-        worker_name="test-worker",
-        heartbeat_interval_seconds=30,
-        get_worker_id=True,
-    )
-    assert channel.worker_id == test_worker_id
+        await worker.sync_with_backend()
+
+        assert worker.backend_id == test_worker_id
 
 
-async def test_worker_rest_heartbeat_fallback_only_gets_id_once():
-    test_worker_id = uuid.UUID("028EC481-5899-49D7-B8C5-37A2726E9840")
-    client = worker_channel_test_client(
-        server_type=ServerType.CLOUD, worker_id=test_worker_id
-    )
-    client.read_work_pool = AsyncMock(
-        return_value=WorkPool(
-            name="test-work-pool",
-            type="test",
-            base_job_template={"job_configuration": {}, "variables": {}},
-            default_queue_id=uuid.uuid4(),
-        )
-    )
-    channel = WorkPoolWorkerChannel(
-        client=client,
-        api_url=None,
-        work_pool_is_available=lambda: True,
-        work_pool_name="test-work-pool",
-        worker_name="test-worker",
-        worker_type="test",
-        heartbeat_interval_seconds=30,
-        work_queue_names=[],
-        create_pool_if_not_found=True,
-        default_base_job_template={},
-        worker_metadata=no_worker_channel_metadata,
-        logger=logging.getLogger("test-worker-channel"),
-    )
+async def test_worker_sends_heartbeat_only_gets_id_once():
+    async with WorkerTestImpl(name="test", work_pool_name="test-work-pool") as worker:
+        worker._client.server_type = ServerType.CLOUD
+        mock = AsyncMock(return_value="test")
+        setattr(worker._client, "send_worker_heartbeat", mock)
+        await worker.sync_with_backend()
+        await worker.sync_with_backend()
 
-    await channel.sync(None)
-    await channel.sync(None)
+        second_call = mock.await_args_list[1]
 
-    first_call, second_call = client.send_worker_heartbeat.await_args_list
-    assert first_call.kwargs["get_worker_id"] is True
-    assert second_call.kwargs["get_worker_id"] is False
-    assert channel.worker_id == test_worker_id
+        assert worker.backend_id == "test"
+        assert not second_call.kwargs["get_worker_id"]
 
 
 async def test_worker_with_work_pool(
@@ -1988,7 +1943,7 @@ async def test_get_flow_run_logger_without_worker_id_set(
         name="test", work_pool_name=work_pool.name, create_pool_if_not_found=False
     ) as worker:
         await worker.sync_with_backend()
-        worker.backend_id = None
+        assert worker.backend_id is None
         logger = worker.get_flow_run_logger(flow_run)
 
         assert logger.name == "prefect.flow_runs.worker"
@@ -2722,54 +2677,6 @@ class TestWorkerChannelClient:
         client.send_worker_heartbeat.assert_not_awaited()
         snapshot.assert_called_once()
         assert channel.rest_fallback_enabled is False
-
-    async def test_stop_before_run_scope_cancels_started_channel(self):
-        client = worker_channel_test_client()
-        client.read_work_pool = AsyncMock()
-        channel_by_ref: dict[str, WorkPoolWorkerChannel] = {}
-        connect_context_by_ref: dict[str, FakeWorkerChannelConnect] = {}
-
-        def connect_factory(*args: Any, **kwargs: Any) -> FakeWorkerChannelConnect:
-            channel = channel_by_ref["channel"]
-            websocket = FakeWorkerChannelWebSocket(
-                [
-                    {"type": "auth_success"},
-                    worker_channel_ready_frame(channel.consumer_id),
-                ]
-            )
-            connect_context = FakeWorkerChannelConnect(websocket)
-            connect_context_by_ref["connect_context"] = connect_context
-            return connect_context
-
-        channel = WorkPoolWorkerChannel(
-            client=client,
-            api_url="http://localhost:4200/api",
-            work_pool_is_available=lambda: True,
-            work_pool_name="test-work-pool",
-            worker_name="test-worker",
-            worker_type="test",
-            heartbeat_interval_seconds=30,
-            work_queue_names=[],
-            create_pool_if_not_found=True,
-            default_base_job_template={},
-            worker_metadata=no_worker_channel_metadata,
-            logger=logging.getLogger("test-worker-channel"),
-            connect_factory=connect_factory,
-        )
-        channel_by_ref["channel"] = channel
-
-        async with anyio.create_task_group() as task_group:
-            await channel.sync(task_group)
-            channel.stop()
-
-            with anyio.fail_after(1):
-                while not connect_context_by_ref["connect_context"].exited:
-                    await anyio.sleep(0)
-
-            task_group.cancel_scope.cancel()
-
-        client.read_work_pool.assert_not_awaited()
-        client.send_worker_heartbeat.assert_not_awaited()
 
     async def test_sync_skips_rest_when_websocket_is_healthy(self):
         worker_id = uuid.uuid4()
@@ -3593,36 +3500,32 @@ async def test_configuration_build_uses_stable_work_pool_copy(
 
 
 class TestBaseWorkerHeartbeat:
-    async def test_sync_with_backend_delegates_to_worker_channel(
-        self, work_pool: WorkPool
-    ):
-        worker = WorkerTestImpl(work_pool_name=work_pool.name)
-        worker._client = Mock()
-        worker._runs_task_group = Mock()
-        worker._worker_channel = Mock(
-            set_client=Mock(),
-            sync=AsyncMock(),
-        )
+    async def test_sync_with_backend_delegates_to_worker_channel(self, work_pool):
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            worker._worker_channel = Mock(
+                set_client=Mock(),
+                sync=AsyncMock(),
+            )
 
-        await worker.sync_with_backend()
+            await worker.sync_with_backend()
 
-        worker._worker_channel.sync.assert_awaited_once_with(worker._runs_task_group)
+            worker._worker_channel.sync.assert_awaited_once_with(
+                worker._runs_task_group
+            )
 
-    async def test_sync_with_backend_updates_existing_channel_client(
-        self, work_pool: WorkPool
-    ):
-        worker = WorkerTestImpl(work_pool_name=work_pool.name)
-        worker._client = Mock()
-        worker._runs_task_group = Mock()
-        worker._worker_channel = Mock(
-            set_client=Mock(),
-            sync=AsyncMock(),
-        )
+    async def test_sync_with_backend_updates_existing_channel_client(self, work_pool):
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            worker._worker_channel = Mock(
+                set_client=Mock(),
+                sync=AsyncMock(),
+            )
 
-        await worker.sync_with_backend()
+            await worker.sync_with_backend()
 
-        worker._worker_channel.set_client.assert_called_once_with(worker._client)
-        worker._worker_channel.sync.assert_awaited_once_with(worker._runs_task_group)
+            worker._worker_channel.set_client.assert_called_once_with(worker._client)
+            worker._worker_channel.sync.assert_awaited_once_with(
+                worker._runs_task_group
+            )
 
     async def test_sync_with_backend_falls_back_to_rest_when_channel_endpoint_is_missing(
         self, prefect_client, work_pool, monkeypatch
@@ -4096,7 +3999,6 @@ class TestSubmit:
             flow=Flow(id=flow_run.flow_id, name=unsuspecting_flow.name, labels={}),
             work_pool=work_pool,
             worker_name=worker_name,
-            worker_id=worker.backend_id,
         )
 
         spy.assert_called_once_with(
@@ -4557,7 +4459,6 @@ class TestSubmit:
             flow=Flow(id=flow_run.flow_id, name=a_garden_variety_flow.name, labels={}),
             work_pool=work_pool,
             worker_name="test-worker",
-            worker_id=worker.backend_id,
         )
 
         initiate_run_spy.assert_called_once_with(

@@ -11,10 +11,6 @@ from prefect.server.utilities.database import greatest, least
 from prefect.settings import get_current_settings
 
 
-def _nonnegative_elapsed_seconds(db: PrefectDBInterface) -> ColumnElement[float]:
-    return greatest(0, sa.func.date_diff_seconds(db.ConcurrencyLimitV2.updated))
-
-
 def active_slots_after_decay(db: PrefectDBInterface) -> ColumnElement[float]:
     # Active slots will decay at a rate of `slot_decay_per_second` per second.
     return greatest(
@@ -22,7 +18,7 @@ def active_slots_after_decay(db: PrefectDBInterface) -> ColumnElement[float]:
         db.ConcurrencyLimitV2.active_slots
         - sa.func.floor(
             db.ConcurrencyLimitV2.slot_decay_per_second
-            * _nonnegative_elapsed_seconds(db)
+            * sa.func.date_diff_seconds(db.ConcurrencyLimitV2.updated)
         ),
     )
 
@@ -73,7 +69,10 @@ def denied_slots_after_decay(db: PrefectDBInterface) -> ColumnElement[float]:
     return greatest(
         0,
         db.ConcurrencyLimitV2.denied_slots
-        - sa.func.floor(decay_rate_per_second * _nonnegative_elapsed_seconds(db)),
+        - sa.func.floor(
+            decay_rate_per_second
+            * sa.func.date_diff_seconds(db.ConcurrencyLimitV2.updated)
+        ),
     )
 
 

@@ -12,7 +12,6 @@ from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface
 from prefect.server.models.concurrency_limits_v2 import (
     MINIMUM_OCCUPANCY_SECONDS_PER_SLOT,
-    active_slots_after_decay,
     bulk_decrement_active_slots,
     bulk_increment_active_slots,
     bulk_read_concurrency_limits,
@@ -97,34 +96,6 @@ async def test_create_concurrency_limit(session: AsyncSession):
     assert concurrency_limit.name == "test_limit"
     assert concurrency_limit.limit == 10
     assert concurrency_limit.slot_decay_per_second == 0.5
-
-
-async def test_slots_after_decay_do_not_increase_for_future_updated(
-    db: PrefectDBInterface,
-    session: AsyncSession,
-):
-    concurrency_limit = await create_concurrency_limit(
-        session=session,
-        concurrency_limit=ConcurrencyLimitV2(
-            name="test_future_updated",
-            limit=10,
-            active_slots=10,
-            denied_slots=10,
-            slot_decay_per_second=0.5,
-        ),
-    )
-    concurrency_limit.updated = datetime.now(timezone.utc) + timedelta(seconds=1)
-    await session.commit()
-
-    result = await session.execute(
-        sa.select(
-            active_slots_after_decay(db).label("active_slots"),
-            denied_slots_after_decay(db).label("denied_slots"),
-        ).where(db.ConcurrencyLimitV2.id == concurrency_limit.id)
-    )
-    row = result.one()
-    assert row.active_slots == 10
-    assert row.denied_slots == 10
 
 
 async def test_create_concurrency_limit_with_invalid_name_raises(session: AsyncSession):

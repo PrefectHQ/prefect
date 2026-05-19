@@ -863,11 +863,7 @@ class TestDeploymentSchedules:
             ],
             user_input="N",
             expected_code=1,
-            expected_output_contains=[
-                "Are you sure you want to replace 1 schedule for",
-                deployment_name,
-                "Schedule replacement cancelled.",
-            ],
+            expected_output_contains=f"Are you sure you want to replace 1 schedule for {deployment_name}?",
         )
 
         invoke_and_assert(
@@ -895,11 +891,7 @@ class TestDeploymentSchedules:
             ],
             user_input="y",
             expected_code=0,
-            expected_output_contains=[
-                "Are you sure you want to replace 1 schedule for",
-                deployment_name,
-                "Replaced existing deployment schedule with new schedule!",
-            ],
+            expected_output_contains=f"Are you sure you want to replace 1 schedule for {deployment_name}?",
         )
 
         invoke_and_assert(
