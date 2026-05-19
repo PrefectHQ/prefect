@@ -310,6 +310,7 @@ async def update_work_pool(
             Awaitable[None],
         ]
     ] = None,
+    emit_update_event: bool = True,
 ) -> bool:
     """
     Update a WorkPool by id.
@@ -320,6 +321,7 @@ async def update_work_pool(
         worker: the work queue data
         emit_status_change: function to call when work pool
             status is changed
+        emit_update_event: whether to emit an event for updated non-status fields
 
     Returns:
         bool: whether or not the worker was updated
@@ -401,7 +403,7 @@ async def update_work_pool(
                 }
 
         # Emit event for non-status field changes
-        if changed_fields:
+        if changed_fields and emit_update_event:
             await emit_work_pool_updated_event(
                 session=session,
                 work_pool=wp,

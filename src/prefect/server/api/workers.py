@@ -341,6 +341,7 @@ async def _build_worker_ready_frame(
             work_pool=schemas.actions.WorkPoolUpdate(
                 base_job_template=default_base_job_template
             ),
+            emit_update_event=False,
             emit_status_change=emit_work_pool_status_event,
         )
         refreshed = await models.workers.read_work_pool(
@@ -378,10 +379,11 @@ async def _build_worker_ready_frame(
 
     requested_capabilities = list(dict.fromkeys(hello.payload.requested_capabilities))
     accepted = _OSS_WORKER_CHANNEL_ACCEPTED_CAPABILITIES
+    accepted_set = set(accepted)
     rejected = [
         capability
         for capability in requested_capabilities
-        if capability not in set(accepted)
+        if capability not in accepted_set
     ]
 
     return WorkerReadyFrame(

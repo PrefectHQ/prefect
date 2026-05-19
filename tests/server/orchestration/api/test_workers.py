@@ -2378,6 +2378,60 @@ class TestWorkerChannelConnect:
         )
         assert event_count_after == event_count_before
 
+    async def test_connect_rolls_back_template_update_without_event_on_heartbeat_failure(
+        self,
+        test_client: TestClient,
+        session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        work_pool = await models.workers.create_work_pool(
+            session=session,
+            work_pool=schemas.actions.WorkPoolCreate(
+                name="template-heartbeat-failure-pool",
+                type="process",
+            ),
+        )
+        await session.commit()
+
+        async def fail_worker_heartbeat(*args: object, **kwargs: object) -> None:
+            raise RuntimeError("heartbeat failed")
+
+        monkeypatch.setattr(
+            models.workers,
+            "record_worker_heartbeat",
+            fail_worker_heartbeat,
+        )
+
+        event_count_before = sum(
+            len(getattr(client, "events", [])) for client in AssertingEventsClient.all
+        )
+        hello = _worker_hello_frame(
+            default_base_job_template=_valid_base_job_template(),
+        )
+
+        with pytest.raises(WebSocketDisconnect) as exception:
+            with _connect_worker_channel(test_client, work_pool.name) as websocket:
+                _authenticate_worker_channel(websocket)
+                websocket.send_json(hello)
+                websocket.receive_json()
+
+        assert exception.value.code == WS_1011_INTERNAL_ERROR
+        assert (
+            exception.value.reason
+            == WorkerChannelCloseReason.HEARTBEAT_PERSISTENCE_FAILED.value
+        )
+
+        session.expunge_all()
+        updated = await models.workers.read_work_pool(
+            session=session, work_pool_id=work_pool.id
+        )
+        assert updated is not None
+        assert not updated.base_job_template
+        event_count_after = sum(
+            len(getattr(client, "events", [])) for client in AssertingEventsClient.all
+        )
+        assert event_count_after == event_count_before
+
     def test_connect_rejects_unsupported_optional_cleanup_delivery(
         self, test_client: TestClient, work_pool
     ):
