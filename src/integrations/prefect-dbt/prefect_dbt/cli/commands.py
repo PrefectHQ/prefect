@@ -5,10 +5,20 @@ from pathlib import Path, PosixPath
 from typing import Any, Dict, List, Optional, Union
 
 import yaml
-from dbt.artifacts.schemas.freshness.v3.freshness import FreshnessResult
-from dbt.artifacts.schemas.run.v5.run import RunResult, RunResultOutput
 from dbt.cli.main import dbtRunner, dbtRunnerResult
-from dbt.contracts.results import ExecutionResult, NodeStatus
+from dbt.contracts.results import (
+    ExecutionResult,
+    FreshnessResult,
+    NodeStatus,
+    RunResult,
+)
+
+try:
+    from dbt.artifacts.schemas.run.v5.run import RunResultOutput
+except ImportError:
+    from dbt.contracts.results import (
+        RunResultOutput,  # type: ignore[attr-defined,no-redef]
+    )
 from prefect_shell.commands import ShellOperation
 from pydantic import Field
 

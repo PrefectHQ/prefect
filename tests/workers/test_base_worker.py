@@ -56,6 +56,7 @@ from prefect.client.schemas.worker_channel import (
 from prefect.context import FlowRunContext, TagsContext
 from prefect.exceptions import (
     CrashedRun,
+    ObjectAlreadyExists,
     ObjectNotFound,
 )
 from prefect.filesystems import WritableFileSystem
@@ -2801,6 +2802,53 @@ class TestWorkerChannelClient:
         client.send_worker_heartbeat.assert_awaited_once()
         snapshot.assert_called_once_with(work_pool)
         assert channel.worker_id == worker_id
+
+    async def test_sync_handles_concurrent_pool_creation_on_rest_fallback(self):
+        # When two workers start at the same time, both can see ObjectNotFound
+        # from read_work_pool before either has created the pool. One worker's
+        # create_work_pool call succeeds, and the other gets ObjectAlreadyExists.
+        # The losing worker should re-read the now-existing pool rather than
+        # bubble the exception up and fail setup.
+        work_pool = WorkPool(
+            name="test-work-pool",
+            type="test",
+            base_job_template={"job_configuration": {}, "variables": {}},
+            default_queue_id=uuid.uuid4(),
+        )
+        snapshot = Mock()
+        client = worker_channel_test_client()
+        # First read: pool doesn't exist yet.
+        # Second read (after the create race lost): pool now exists.
+        client.read_work_pool = AsyncMock(
+            side_effect=[ObjectNotFound("missing"), work_pool]
+        )
+        client.create_work_pool = AsyncMock(
+            side_effect=ObjectAlreadyExists(http_exc=Mock())
+        )
+        client.update_work_pool = AsyncMock()
+        channel = WorkPoolWorkerChannel(
+            client=client,
+            api_url=None,
+            work_pool_is_available=lambda: True,
+            work_pool_name="test-work-pool",
+            worker_name="test-worker",
+            worker_type="test",
+            heartbeat_interval_seconds=30,
+            work_queue_names=[],
+            create_pool_if_not_found=True,
+            default_base_job_template={"job_configuration": {}, "variables": {}},
+            worker_metadata=no_worker_channel_metadata,
+            logger=logging.getLogger("test-worker-channel"),
+            on_work_pool_snapshot=snapshot,
+        )
+
+        await channel.sync(None)
+
+        assert client.read_work_pool.await_count == 2
+        client.create_work_pool.assert_awaited_once()
+        client.update_work_pool.assert_not_awaited()
+        client.send_worker_heartbeat.assert_awaited_once()
+        snapshot.assert_called_once_with(work_pool)
 
     async def test_sync_repairs_missing_rest_work_pool_template(self):
         work_pool = WorkPool(

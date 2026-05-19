@@ -17,13 +17,16 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 STARTED_MARKER = "flow-started"
 COMPLETED_MARKER = "flow-completed"
 TASK_MARKER_PREFIX = "task-"
-TASK_COUNT = 30
+# 150 tasks × 0.2 s ≈ 30 s gives the FlowRunSuspendingObserver enough time
+# to receive the Suspended event via the events websocket under CI load.
+TASK_COUNT = 150
+TASK_SLEEP = 0.2
 
 
 @task
 def write_task_marker(marker_dir: str, index: int) -> None:
     Path(marker_dir, f"{TASK_MARKER_PREFIX}{index}").write_text("done")
-    time.sleep(0.2)
+    time.sleep(TASK_SLEEP)
 
 
 @flow(log_prints=True, persist_result=True)
