@@ -2,8 +2,9 @@
 Routes for interacting with work queue objects.
 """
 
+from dataclasses import dataclass
 from logging import Logger
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -178,6 +179,12 @@ class WorkerChannelSetupError(Exception):
         self.detail = detail
 
 
+@dataclass(frozen=True)
+class WorkerChannelWorkPoolUpdateEvent:
+    work_pool_id: UUID
+    changed_fields: dict[str, dict[str, Any]]
+
+
 async def _close_worker_channel(
     websocket: WebSocket, close_reason: WorkerChannelCloseReason
 ) -> None:
@@ -311,7 +318,7 @@ async def _build_worker_ready_frame(
     session: AsyncSession,
     work_pool_name: str,
     hello: WorkerHelloFrame,
-) -> WorkerReadyFrame:
+) -> tuple[WorkerReadyFrame, WorkerChannelWorkPoolUpdateEvent | None]:
     try:
         selected_channel_version = select_worker_channel_version(
             hello.payload.supported_channel_versions
@@ -331,11 +338,13 @@ async def _build_worker_ready_frame(
         work_queue_names=hello.payload.work_queue_names,
     )
     default_base_job_template = hello.payload.default_base_job_template
+    work_pool_update_event = None
     if not work_pool.base_job_template and default_base_job_template:
+        previous_base_job_template = work_pool.base_job_template
         await validate_job_variable_defaults_for_work_pool(
             session, work_pool_name, default_base_job_template
         )
-        await models.workers.update_work_pool(
+        updated = await models.workers.update_work_pool(
             session=session,
             work_pool_id=work_pool.id,
             work_pool=schemas.actions.WorkPoolUpdate(
@@ -344,6 +353,16 @@ async def _build_worker_ready_frame(
             emit_update_event=False,
             emit_status_change=emit_work_pool_status_event,
         )
+        if updated:
+            work_pool_update_event = WorkerChannelWorkPoolUpdateEvent(
+                work_pool_id=work_pool.id,
+                changed_fields={
+                    "base_job_template": {
+                        "from": previous_base_job_template,
+                        "to": default_base_job_template,
+                    }
+                },
+            )
         refreshed = await models.workers.read_work_pool(
             session=session, work_pool_id=work_pool.id
         )
@@ -357,12 +376,14 @@ async def _build_worker_ready_frame(
             worker_name=hello.payload.worker_name,
             heartbeat_interval_seconds=hello.payload.heartbeat_interval_seconds,
             emit_status_change=emit_work_pool_status_event,
+            return_worker=True,
         )
     except Exception as exc:
         raise WorkerChannelSetupError(
             WorkerChannelCloseReason.HEARTBEAT_PERSISTENCE_FAILED,
             "worker_channel_initial_heartbeat_failed",
         ) from exc
+    assert worker is not None
 
     refreshed_work_pool = await models.workers.read_work_pool(
         session=session, work_pool_id=work_pool.id
@@ -386,26 +407,29 @@ async def _build_worker_ready_frame(
         if capability not in accepted_set
     ]
 
-    return WorkerReadyFrame(
-        type="worker.ready.v1",
-        id=uuid7(),
-        sent_at=now("UTC"),
-        payload={
-            "consumer_id": hello.payload.consumer_id,
-            "worker_id": worker.id,
-            "selected_channel_version": selected_channel_version,
-            "effective_heartbeat_interval_seconds": (
-                hello.payload.heartbeat_interval_seconds
-            ),
-            "accepted_capabilities": accepted,
-            "rejected_capabilities": rejected,
-            "effective_max_cleanup_concurrency": 0,
-            "resolved_work_queues": [
-                {"id": work_queue.id, "name": work_queue.name}
-                for work_queue in work_queues
-            ],
-            "initial_snapshot": initial_snapshot,
-        },
+    return (
+        WorkerReadyFrame(
+            type="worker.ready.v1",
+            id=uuid7(),
+            sent_at=now("UTC"),
+            payload={
+                "consumer_id": hello.payload.consumer_id,
+                "worker_id": worker.id,
+                "selected_channel_version": selected_channel_version,
+                "effective_heartbeat_interval_seconds": (
+                    hello.payload.heartbeat_interval_seconds
+                ),
+                "accepted_capabilities": accepted,
+                "rejected_capabilities": rejected,
+                "effective_max_cleanup_concurrency": 0,
+                "resolved_work_queues": [
+                    {"id": work_queue.id, "name": work_queue.name}
+                    for work_queue in work_queues
+                ],
+                "initial_snapshot": initial_snapshot,
+            },
+        ),
+        work_pool_update_event,
     )
 
 
@@ -1058,11 +1082,24 @@ async def worker_channel_connect(
     try:
         hello = await _receive_worker_hello(websocket)
         async with db.session_context(begin_transaction=True) as session:
-            ready = await _build_worker_ready_frame(
+            ready, work_pool_update_event = await _build_worker_ready_frame(
                 session=session,
                 work_pool_name=work_pool_name,
                 hello=hello,
             )
+
+        if work_pool_update_event is not None:
+            async with db.session_context() as session:
+                work_pool = await models.workers.read_work_pool(
+                    session=session,
+                    work_pool_id=work_pool_update_event.work_pool_id,
+                )
+                assert work_pool is not None
+                await models.workers.emit_work_pool_updated_event(
+                    session=session,
+                    work_pool=work_pool,
+                    changed_fields=work_pool_update_event.changed_fields,
+                )
 
         await websocket.send_json(ready.model_dump(mode="json"))
 

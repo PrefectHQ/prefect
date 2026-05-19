@@ -2540,6 +2540,24 @@ class TestWorkerChannelConnect:
             session=session, work_pool_id=work_pool.id
         )
         assert updated.base_job_template == base_job_template
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-pool.updated",
+            resource={
+                "prefect.resource.id": f"prefect.work-pool.{work_pool.id}",
+                "prefect.resource.name": work_pool.name,
+                "prefect.work-pool.type": work_pool.type,
+                "prefect.resource.role": "work-pool",
+            },
+            payload={
+                "updated_fields": ["base_job_template"],
+                "updates": {
+                    "base_job_template": {
+                        "from": {},
+                        "to": base_job_template,
+                    }
+                },
+            },
+        )
 
     async def test_connect_does_not_overwrite_existing_base_job_template(
         self, test_client: TestClient, session: AsyncSession

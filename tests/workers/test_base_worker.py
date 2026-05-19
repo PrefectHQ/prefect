@@ -3209,12 +3209,21 @@ class TestWorkerChannelClient:
         assert protocol.worker_metadata_sent is True
         assert hello.payload.worker_metadata is None
 
-    async def test_channel_skips_rest_heartbeat_when_healthy(self):
+    async def test_healthy_channel_keeps_rest_work_pool_sync_after_initial_snapshot(
+        self,
+    ):
+        rest_work_pool = WorkPool(
+            name="test-work-pool",
+            type="test",
+            base_job_template={"job_configuration": {"env": {"REST": "true"}}},
+            default_queue_id=uuid.uuid4(),
+        )
+        snapshot = Mock()
         client = worker_channel_test_client()
-        client.read_work_pool = AsyncMock()
+        client.read_work_pool = AsyncMock(return_value=rest_work_pool)
         channel = WorkPoolWorkerChannel(
             client=client,
-            api_url=None,
+            api_url="http://localhost:4200/api",
             work_pool_is_available=lambda: True,
             work_pool_name="test-work-pool",
             worker_name="test-worker",
@@ -3225,14 +3234,17 @@ class TestWorkerChannelClient:
             default_base_job_template={},
             worker_metadata=no_worker_channel_metadata,
             logger=logging.getLogger("test-worker-channel"),
+            on_work_pool_snapshot=snapshot,
         )
         channel._protocol.handle_work_pool_snapshot(worker_channel_snapshot_payload(1))
+        snapshot.reset_mock()
         channel.state.mark_healthy()
 
         await channel.sync(None)
 
-        client.read_work_pool.assert_not_awaited()
+        client.read_work_pool.assert_awaited_once_with(work_pool_name="test-work-pool")
         client.send_worker_heartbeat.assert_not_awaited()
+        snapshot.assert_called_once_with(rest_work_pool)
 
     async def test_channel_skips_rest_heartbeat_without_work_pool(self):
         client = worker_channel_test_client()

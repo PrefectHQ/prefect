@@ -1012,7 +1012,8 @@ async def record_worker_heartbeat(
             Awaitable[None],
         ]
     ] = None,
-) -> orm_models.Worker:
+    return_worker: bool = False,
+) -> Optional[orm_models.Worker]:
     await worker_heartbeat(
         session=session,
         work_pool_id=work_pool.id,
@@ -1029,6 +1030,9 @@ async def record_worker_heartbeat(
             ),
             emit_status_change=emit_status_change,
         )
+
+    if not return_worker:
+        return None
 
     worker = await read_worker_by_name(
         session=session,
