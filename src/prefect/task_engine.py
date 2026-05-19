@@ -104,6 +104,7 @@ from prefect.transactions import (
     AsyncTransaction,
     IsolationLevel,
     Transaction,
+    TransactionState,
     atransaction,
     transaction,
 )
@@ -294,6 +295,19 @@ class BaseTaskRunEngine(Generic[P, R]):
         elif self.task.result_storage_key is not None:
             key = _format_user_supplied_storage_key(self.task.result_storage_key)
         return key
+
+    def should_refresh_cache(self) -> bool:
+        """Return True if cache refresh is enabled for this task run.
+
+        A task-level `refresh_cache` setting overrides the global
+        `PREFECT_TASKS_REFRESH_CACHE` setting. If the task does not specify a
+        value, the global setting is used.
+        """
+
+        if self.task.refresh_cache is not None:
+            return self.task.refresh_cache
+
+        return get_current_settings().tasks.refresh_cache
 
     def _resolve_parameters(self):
         if not self.parameters:
@@ -973,6 +987,8 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             write_on_commit=should_persist_result(),
             isolation_level=isolation_level,
         ) as txn:
+            if txn.is_committed() and self.should_refresh_cache():
+                txn.state = TransactionState.ACTIVE
             yield txn
 
     @contextmanager
@@ -1596,6 +1612,8 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
             write_on_commit=should_persist_result(),
             isolation_level=isolation_level,
         ) as txn:
+            if txn.is_committed() and self.should_refresh_cache():
+                txn.state = TransactionState.ACTIVE
             yield txn
 
     @asynccontextmanager
