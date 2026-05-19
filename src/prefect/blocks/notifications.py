@@ -57,7 +57,15 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
         body: str,
         subject: str | None = None,
     ) -> None:
-        with LogEavesdropper("apprise", level=logging.DEBUG) as eavesdropper:
+        apprise_logger = logging.getLogger("apprise")
+        root_logger = logging.getLogger()
+
+        if apprise_logger.level == logging.NOTSET:
+            log_level = root_logger.getEffectiveLevel()
+        else:
+            log_level = max(apprise_logger.level, root_logger.getEffectiveLevel())
+
+        with LogEavesdropper("apprise", level=log_level) as eavesdropper:
             result = await self._apprise_client.async_notify(  # pyright: ignore[reportUnknownMemberType] incomplete type hints in apprise
                 body=body,
                 title=subject or "",
@@ -72,7 +80,15 @@ class AbstractAppriseNotificationBlock(NotificationBlock, ABC):
         body: str,
         subject: str | None = None,
     ) -> None:
-        with LogEavesdropper("apprise", level=logging.DEBUG) as eavesdropper:
+        apprise_logger = logging.getLogger("apprise")
+        root_logger = logging.getLogger()
+
+        if apprise_logger.level == logging.NOTSET:
+            log_level = root_logger.getEffectiveLevel()
+        else:
+            log_level = max(apprise_logger.level, root_logger.getEffectiveLevel())
+
+        with LogEavesdropper("apprise", level=log_level) as eavesdropper:
             result = self._apprise_client.notify(  # pyright: ignore[reportUnknownMemberType] incomplete type hints in apprise
                 body=body,
                 title=subject or "",

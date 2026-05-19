@@ -1,5 +1,5 @@
 import json
-from datetime import timezone
+from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 import pytest
@@ -20,6 +20,48 @@ def test_client_events_generate_an_id_by_default():
 def test_client_events_generate_occurred_by_default(start_of_test: DateTime):
     event = Event(event="hello", resource={"prefect.resource.id": "hello"})
     assert start_of_test <= event.occurred <= now("UTC")
+
+
+def test_client_events_coerce_naive_occurred_to_utc():
+    """Regression for #21949: on Python >= 3.13, `Event.occurred` is aliased to a
+    bare `datetime.datetime` (no pendulum coercion), so a naive datetime would
+    pass validation and later be silently dropped by the server's SQL bind
+    layer (`Timestamps must have a timezone.`). The `DateTime` type alias must
+    coerce naive datetimes to UTC during Pydantic validation so the event
+    reaches the server."""
+    naive = datetime(2026, 5, 14, 12, 0, 0)
+    assert naive.tzinfo is None
+
+    event = Event(
+        event="hello", resource={"prefect.resource.id": "hello"}, occurred=naive
+    )
+
+    assert event.occurred.tzinfo is not None
+    assert event.occurred.utcoffset().total_seconds() == 0
+    # The wall-clock fields are preserved (assumed UTC, not converted from local).
+    assert (event.occurred.year, event.occurred.month, event.occurred.day) == (
+        2026,
+        5,
+        14,
+    )
+    assert (event.occurred.hour, event.occurred.minute, event.occurred.second) == (
+        12,
+        0,
+        0,
+    )
+
+
+def test_client_events_preserve_aware_occurred():
+    """A tz-aware `occurred` value must be preserved as-is (no UTC conversion)."""
+    eastern = timezone(timedelta(hours=-5))
+    aware = datetime(2026, 5, 14, 12, 0, 0, tzinfo=eastern)
+
+    event = Event(
+        event="hello", resource={"prefect.resource.id": "hello"}, occurred=aware
+    )
+
+    assert event.occurred.utcoffset() == aware.utcoffset()
+    assert event.occurred.hour == 12
 
 
 def test_client_events_may_have_empty_related_resources():

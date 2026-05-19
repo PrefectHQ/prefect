@@ -26,7 +26,7 @@ describe("StateMultiSelect", () => {
 		expect(screen.getByText("Any state")).toBeVisible();
 	});
 
-	it("displays all 18 state options in the dropdown", async () => {
+	it("displays all state options in the dropdown", async () => {
 		const user = userEvent.setup();
 
 		render(<StateMultiSelect selectedStates={[]} onStateChange={vi.fn()} />);
@@ -177,6 +177,8 @@ describe("StateMultiSelect", () => {
 		const stateNamesToTest = [
 			"Late",
 			"AwaitingRetry",
+			"Submitting",
+			"InfrastructurePending",
 			"Suspended",
 			"Retrying",
 			"Cached",

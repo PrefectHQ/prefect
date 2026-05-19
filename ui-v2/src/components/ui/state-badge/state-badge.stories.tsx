@@ -6,7 +6,7 @@ const badgesByState: Record<components["schemas"]["StateType"], string[]> = {
 	COMPLETED: ["Completed"],
 	FAILED: ["Failed"],
 	RUNNING: ["Running"],
-	PENDING: ["Pending"],
+	PENDING: ["Pending", "Submitting", "InfrastructurePending"],
 	PAUSED: ["Paused"],
 	CANCELLED: ["Cancelled"],
 	CANCELLING: ["Cancelling"],

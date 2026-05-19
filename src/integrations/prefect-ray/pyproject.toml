@@ -40,6 +40,7 @@ dev = [
   "pytest >= 8.3",
   "pytest-asyncio>=0.25.3",
   "pytest-env",
+  "pytest-rerunfailures>=14.0",
   "pytest-xdist",
 ]
 

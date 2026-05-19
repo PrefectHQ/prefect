@@ -13,6 +13,8 @@ from pydantic import AfterValidator
 from typing_extensions import TypeAlias
 
 if sys.version_info >= (3, 13):
+    from pydantic import GetCoreSchemaHandler
+    from pydantic_core import core_schema as _core_schema
     from whenever import DateTimeDelta
     from whenever import ZonedDateTime as _ZDTProbe
 
@@ -21,7 +23,34 @@ if sys.version_info >= (3, 13):
     _WHENEVER_NEW_API: bool = hasattr(_ZDTProbe, "to_stdlib")
     del _ZDTProbe
 
-    DateTime: TypeAlias = datetime.datetime
+    class _DateTime(datetime.datetime):
+        """`datetime.datetime` with a Pydantic schema that coerces naive to UTC.
+
+        On Python <= 3.12 the pendulum-backed `PydanticDateTime` enforces
+        tz-awareness during validation. This class is the 3.13+ equivalent so
+        any field typed as `DateTime` gets the same guarantee instead of
+        deferring to ad-hoc per-field validators (see #21949). Coercion reuses
+        the existing `create_datetime_instance` helper rather than open-coding
+        the naive→UTC check.
+
+        Runtime construction (`DateTime(2020, 1, 1)`) preserves the underlying
+        `datetime.datetime` semantics — naive in, naive out. The coercion
+        applies during Pydantic validation, which is where the silent
+        server-side drop originated.
+        """
+
+        @classmethod
+        def __get_pydantic_core_schema__(
+            cls,
+            source_type: Any,
+            handler: GetCoreSchemaHandler,
+        ) -> _core_schema.CoreSchema:
+            return _core_schema.no_info_after_validator_function(
+                create_datetime_instance,
+                handler(datetime.datetime),
+            )
+
+    DateTime: TypeAlias = _DateTime
     Date: TypeAlias = datetime.date
     Duration: TypeAlias = datetime.timedelta
     if _WHENEVER_NEW_API:
