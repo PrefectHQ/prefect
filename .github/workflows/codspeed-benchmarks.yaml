@@ -59,14 +59,33 @@ jobs:
         env:
           PREFECT_API_URL: "http://127.0.0.1:4200/api"
         with:
-          run: >
-            uv run pytest 
-            benches/bench_import.py 
-            benches/bench_tasks.py 
-            benches/bench_flows.py::bench_flow_decorator
-            benches/bench_flows.py::bench_flow_call
-            --codspeed
-            --numprocesses auto
-            --dist worksteal
-            -vv
+          # Import benchmarks run in separate pytest invocations so each one
+          # starts in a fresh Python interpreter.  In-process sys.modules
+          # resets cannot fully undo Prefect's import side-effects (background
+          # threads, Prometheus collectors, Pydantic registries, etc.) which
+          # caused non-deterministic instruction counts under CodSpeed.
+          #
+          # pytest-codspeed writes each invocation's results to a unique file
+          # (keyed by PID), so the CodSpeed action collects all of them.
+          run: |
+            for module in \
+              prefect \
+              prefect.client.schemas.objects \
+              prefect.flows \
+              prefect.deployments \
+              prefect.events \
+              prefect.server.api.server \
+              prefect.task_runners \
+            ; do
+              uv run pytest "benches/bench_import.py::bench_import_module[$module]" --codspeed -vv
+            done
+            uv run pytest benches/bench_import.py::bench_import_prefect_flow --codspeed -vv
+            uv run pytest \
+              benches/bench_tasks.py \
+              benches/bench_flows.py::bench_flow_decorator \
+              benches/bench_flows.py::bench_flow_call \
+              --codspeed \
+              --numprocesses auto \
+              --dist worksteal \
+              -vv
           token: ${{ secrets.CODSPEED_TOKEN }}
