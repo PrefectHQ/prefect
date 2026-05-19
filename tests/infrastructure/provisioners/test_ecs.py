@@ -197,6 +197,19 @@ def existing_execution_role():
 
     yield
 
+    attached_policies = iam_client.list_attached_role_policies(
+        RoleName="PrefectEcsTaskExecutionRole"
+    )["AttachedPolicies"]
+    for policy in attached_policies:
+        iam_client.detach_role_policy(
+            RoleName="PrefectEcsTaskExecutionRole",
+            PolicyArn=policy["PolicyArn"],
+        )
+    local_policies = iam_client.list_policies(Scope="Local")["Policies"]
+    for policy in local_policies:
+        if policy["PolicyName"] == "PrefectEcsTaskExecutionRole-cloudwatch-logs-policy":
+            iam_client.delete_policy(PolicyArn=policy["Arn"])
+
     iam_client.delete_role(RoleName="PrefectEcsTaskExecutionRole")
 
 
@@ -1230,6 +1243,7 @@ class TestExecutionRoleResource:
         self, execution_role_resource
     ):
         advance_mock = MagicMock()
+        iam_client = boto3.client("iam")
 
         arn = await execution_role_resource.provision(
             base_job_template={
@@ -1245,6 +1259,13 @@ class TestExecutionRoleResource:
 
         assert arn == "arn:aws:iam::123456789012:role/PrefectEcsTaskExecutionRole"
         advance_mock.assert_not_called()
+        attached_policies = iam_client.list_attached_role_policies(
+            RoleName="PrefectEcsTaskExecutionRole"
+        )["AttachedPolicies"]
+        attached_policy_names = {policy["PolicyName"] for policy in attached_policies}
+        assert attached_policy_names == {
+            "PrefectEcsTaskExecutionRole-cloudwatch-logs-policy",
+        }
 
 
 @pytest.fixture

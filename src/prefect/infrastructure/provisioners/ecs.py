@@ -993,6 +993,27 @@ class ExecutionRoleResource:
     def __init__(self, execution_role_name: str = "PrefectEcsTaskExecutionRole"):
         self._iam_client = boto3.client("iam")
         self._execution_role_name = execution_role_name
+        self._cloudwatch_logs_policy_name = (
+            f"{self._execution_role_name}-cloudwatch-logs-policy"
+        )
+        self._cloudwatch_logs_policy_document = json.dumps(
+            {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Action": [
+                            "logs:CreateLogGroup",
+                            "logs:CreateLogStream",
+                            "logs:PutLogEvents",
+                            "logs:GetLogEvents",
+                            "logs:DescribeLogStreams",
+                        ],
+                        "Resource": "*",
+                    }
+                ],
+            }
+        )
         self._trust_policy_document = json.dumps(
             {
                 "Version": "2012-10-17",
@@ -1035,6 +1056,47 @@ class ExecutionRoleResource:
                 self._requires_provisioning = True
 
         return self._requires_provisioning
+
+    async def _get_cloudwatch_logs_policy_arn(self) -> str:
+        try:
+            logs_policy = await anyio.to_thread.run_sync(
+                partial(
+                    self._iam_client.create_policy,
+                    PolicyName=self._cloudwatch_logs_policy_name,
+                    PolicyDocument=self._cloudwatch_logs_policy_document,
+                )
+            )
+            return logs_policy["Policy"]["Arn"]
+        except self._iam_client.exceptions.EntityAlreadyExistsException:
+            response = await anyio.to_thread.run_sync(
+                partial(self._iam_client.list_policies, Scope="Local")
+            )
+            for policy in response["Policies"]:
+                if policy["PolicyName"] == self._cloudwatch_logs_policy_name:
+                    return policy["Arn"]
+
+            raise
+
+    async def _ensure_cloudwatch_logs_policy_attached(self) -> None:
+        logs_policy_arn = await self._get_cloudwatch_logs_policy_arn()
+        response = await anyio.to_thread.run_sync(
+            partial(
+                self._iam_client.list_attached_role_policies,
+                RoleName=self._execution_role_name,
+            )
+        )
+        attached_policy_arns = {
+            policy["PolicyArn"] for policy in response["AttachedPolicies"]
+        }
+
+        if logs_policy_arn not in attached_policy_arns:
+            await anyio.to_thread.run_sync(
+                partial(
+                    self._iam_client.attach_role_policy,
+                    RoleName=self._execution_role_name,
+                    PolicyArn=logs_policy_arn,
+                )
+            )
 
     async def get_planned_actions(self) -> List[str]:
         """
@@ -1082,42 +1144,13 @@ class ExecutionRoleResource:
                     PolicyArn="arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
                 )
             )
-            logs_policy = await anyio.to_thread.run_sync(
-                partial(
-                    self._iam_client.create_policy,
-                    PolicyName=f"{self._execution_role_name}-cloudwatch-logs-policy",
-                    PolicyDocument=json.dumps(
-                        {
-                            "Version": "2012-10-17",
-                            "Statement": [
-                                {
-                                    "Effect": "Allow",
-                                    "Action": [
-                                        "logs:CreateLogGroup",
-                                        "logs:CreateLogStream",
-                                        "logs:PutLogEvents",
-                                        "logs:GetLogEvents",
-                                        "logs:DescribeLogStreams",
-                                    ],
-                                    "Resource": "*",
-                                }
-                            ],
-                        }
-                    ),
-                )
-            )
-            await anyio.to_thread.run_sync(
-                partial(
-                    self._iam_client.attach_role_policy,
-                    RoleName=self._execution_role_name,
-                    PolicyArn=logs_policy["Policy"]["Arn"],
-                )
-            )
             advance()
         else:
             response = await anyio.to_thread.run_sync(
                 partial(self._iam_client.get_role, RoleName=self._execution_role_name)
             )
+
+        await self._ensure_cloudwatch_logs_policy_attached()
 
         base_job_template["variables"]["properties"]["execution_role_arn"][
             "default"
