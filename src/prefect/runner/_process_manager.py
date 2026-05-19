@@ -215,9 +215,15 @@ class ProcessManager:
             return
 
         if sys.platform == "win32":
-            os.kill(pid, signal.CTRL_BREAK_EVENT)
+            try:
+                os.kill(pid, signal.CTRL_BREAK_EVENT)
+            except ProcessLookupError:
+                return
         else:
-            os.kill(pid, signal.SIGTERM)
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                return
 
             check_interval = max(grace_seconds / 10, 1)
             with anyio.move_on_after(grace_seconds):
