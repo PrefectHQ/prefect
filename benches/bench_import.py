@@ -9,21 +9,15 @@ if TYPE_CHECKING:
     from pytest_benchmark.fixture import BenchmarkFixture
 
 IMPORT_MODULES = [
+    # Each entry is the deepest leaf in its import chain so that a regression
+    # in any parent module (e.g. prefect.server.schemas) is still caught
+    # transitively.  The full 17-module list is exercised by the subprocess-
+    # based smoke tests in tests/test_import_smoke.py.
     "prefect",
-    "prefect.client.schemas",
     "prefect.client.schemas.objects",
     "prefect.flows",
     "prefect.deployments",
-    "prefect.events",
     "prefect.events.clients",
-    "prefect.server",
-    "prefect.server.schemas",
-    "prefect.server.schemas.core",
-    "prefect.server.schemas.actions",
-    "prefect.server.models",
-    "prefect.server.models.flow_runs",
-    "prefect.server.api",
-    "prefect.server.api.flow_runs",
     "prefect.server.api.server",
     "prefect.task_runners",
 ]
