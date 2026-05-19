@@ -87,6 +87,7 @@ from prefect.settings import (
     PREFECT_UNIT_TEST_LOOP_DEBUG,
 )
 from prefect.types._datetime import now
+from prefect.workers.base import BaseWorker
 from prefect.utilities.dispatch import get_registry_for_type
 
 # isort: split
@@ -605,6 +606,21 @@ def reset_registered_blocks():
     Ensures each test only has types that were registered at module initialization.
     """
     registry = get_registry_for_type(Block)
+    before = registry.copy()
+
+    yield
+
+    registry.clear()
+    registry.update(before)
+
+
+@pytest.fixture(autouse=True)
+def reset_registered_workers():
+    """
+    Ensures each test only has worker types that were registered at module
+    initialization.
+    """
+    registry = get_registry_for_type(BaseWorker)
     before = registry.copy()
 
     yield
