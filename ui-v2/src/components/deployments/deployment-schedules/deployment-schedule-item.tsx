@@ -24,6 +24,12 @@ export const DeploymentScheduleItem = ({
 	onEditSchedule,
 }: DeploymentScheduleItemProps) => {
 	const isActive = deploymentSchedule.active && !disabled;
+	const statusContainerClassName = isActive
+		? "bg-state-completed-100 text-state-completed-700"
+		: "bg-state-paused-100 text-state-paused-700";
+	const statusIconClassName = isActive
+		? "text-state-completed-600"
+		: "text-state-paused-600";
 
 	return (
 		<Card className="p-3">
@@ -32,20 +38,10 @@ export const DeploymentScheduleItem = ({
 					<TooltipProvider>
 						<Tooltip>
 							<TooltipTrigger asChild>
-								<div
-									className={`shrink-0 rounded-full p-1 ${
-										isActive
-											? "bg-green-100 dark:bg-green-900"
-											: "bg-yellow-100 dark:bg-yellow-900"
-									}`}
-								>
+								<div className={`shrink-0 rounded-full p-1 ${statusContainerClassName}`}>
 									<Icon
 										id={isActive ? "Check" : "Pause"}
-										className={`size-4 ${
-											isActive
-												? "text-green-600 dark:text-green-400"
-												: "text-yellow-600 dark:text-yellow-400"
-										}`}
+										className={`size-4 ${statusIconClassName}`}
 									/>
 								</div>
 							</TooltipTrigger>

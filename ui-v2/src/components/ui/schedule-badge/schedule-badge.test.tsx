@@ -22,6 +22,7 @@ describe("ScheduleBadge", () => {
 
 		render(<ScheduleBadge schedule={schedule} />);
 
+		expect(screen.getByText("Active")).toBeInTheDocument();
 		const badge = screen.getByText("At 12:00 AM");
 		expect(badge).toBeInTheDocument();
 		await user.hover(badge);
@@ -47,6 +48,7 @@ describe("ScheduleBadge", () => {
 		};
 		render(<ScheduleBadge schedule={schedule} />);
 
+		expect(screen.getByText("Paused")).toBeInTheDocument();
 		const badge = screen.getByText("At 12:00 AM");
 		expect(badge).toBeInTheDocument();
 		await user.hover(badge);
@@ -72,6 +74,7 @@ describe("ScheduleBadge", () => {
 		};
 		render(<ScheduleBadge schedule={schedule} />);
 
+		expect(screen.getByText("Active")).toBeInTheDocument();
 		const badge = screen.getByText("Every 1 hour, 1 minute, 1 second");
 		expect(badge).toBeInTheDocument();
 		await user.hover(badge);
@@ -99,6 +102,7 @@ describe("ScheduleBadge", () => {
 		};
 		render(<ScheduleBadge schedule={schedule} />);
 
+		expect(screen.getByText("Paused")).toBeInTheDocument();
 		const badge = screen.getByText("Every 1 hour, 1 minute, 1 second");
 		expect(badge).toBeInTheDocument();
 		await user.hover(badge);
@@ -123,6 +127,7 @@ describe("ScheduleBadge", () => {
 		};
 		render(<ScheduleBadge schedule={schedule} />);
 
+		expect(screen.getByText("Active")).toBeInTheDocument();
 		const badge = screen.getByText("Every weekday");
 		expect(badge).toBeInTheDocument();
 		await user.hover(badge);
@@ -147,6 +152,7 @@ describe("ScheduleBadge", () => {
 		};
 		render(<ScheduleBadge schedule={schedule} />);
 
+		expect(screen.getByText("Paused")).toBeInTheDocument();
 		const badge = screen.getByText("Every weekday");
 		expect(badge).toBeInTheDocument();
 		await user.hover(badge);
@@ -179,6 +185,8 @@ describe("ScheduleBadgeGroup", () => {
 
 		render(<ScheduleBadgeGroup schedules={schedules} />);
 
+		expect(screen.getByText("Active")).toBeInTheDocument();
+		expect(screen.getByText("Paused")).toBeInTheDocument();
 		const badges = screen.getAllByText("At 12:00 AM");
 		expect(badges).toHaveLength(2);
 	});
