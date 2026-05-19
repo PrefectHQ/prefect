@@ -126,6 +126,12 @@ class CancelFlowRun(Action):
     type: Literal["cancel-flow-run"] = "cancel-flow-run"
 
 
+class DeleteFlowRun(Action):
+    """Deletes a flow run associated with the trigger"""
+
+    type: Literal["delete-flow-run"] = "delete-flow-run"
+
+
 class ResumeFlowRun(Action):
     """Resumes a flow run associated with the trigger"""
 
@@ -294,6 +300,7 @@ ActionTypes: TypeAlias = Union[
     ResumeDeployment,
     ResumeFlowRun,
     CancelFlowRun,
+    DeleteFlowRun,
     ChangeFlowRunState,
     PauseWorkQueue,
     ResumeWorkQueue,
