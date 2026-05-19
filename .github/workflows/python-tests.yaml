@@ -123,6 +123,7 @@ jobs:
               tests/test_flows_compat.py
               tests/test_futures.py
               tests/test_highlighters.py
+              tests/test_import_smoke.py
               tests/test_infrastructure_bound_flow.py
               tests/test_locking.py
               tests/test_log_prints.py
@@ -188,6 +189,7 @@ jobs:
                 tests/test_flows_compat.py
                 tests/test_futures.py
                 tests/test_highlighters.py
+                tests/test_import_smoke.py
                 tests/test_infrastructure_bound_flow.py
                 tests/test_locking.py
                 tests/test_log_prints.py
