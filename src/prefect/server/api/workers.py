@@ -2,6 +2,7 @@
 Routes for interacting with work queue objects.
 """
 
+from logging import Logger
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID
 
@@ -59,7 +60,7 @@ router: PrefectRouter = PrefectRouter(
     prefix="/work_pools",
     tags=["Work Pools"],
 )
-logger = get_logger("prefect.server.api.workers")
+logger: Logger = get_logger("prefect.server.api.workers")
 
 _OSS_WORKER_CHANNEL_ACCEPTED_CAPABILITIES = [
     WORKER_HEARTBEAT_CAPABILITY,
