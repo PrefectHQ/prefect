@@ -49,6 +49,21 @@ _CLOUD_RUN_JOB_NAME_UUID_LENGTH: Final[int] = 7
 _TRANSIENT_HTTP_STATUSES: Final[frozenset[int]] = frozenset({429, 500, 503})
 
 
+class _RecoveryUnverifiable(Exception):
+    """
+    Signals that the duplicate-execution check after a transient submission
+    error could not be performed because the follow-up `JobV2.get` also
+    failed. Because this exception is not an `HttpError`, the transient
+    retry predicate (`_is_transient_http_error`) does not match it, so
+    tenacity stops retrying and the caller surfaces the carried original
+    transient error.
+    """
+
+    def __init__(self, original: HttpError) -> None:
+        self.original = original
+        super().__init__()
+
+
 def _is_transient_http_error(exc: Exception) -> bool:
     if isinstance(exc, HttpError):
         return exc.status_code in _TRANSIENT_HTTP_STATUSES
@@ -986,12 +1001,31 @@ class CloudRunWorkerV2(
             The name of the newly created execution if the server started one
             despite the error, so the caller can use it instead of retrying.
             None if no new execution appeared, meaning a normal retry is safe.
+
+        Raises:
+            _RecoveryUnverifiable: If the follow-up lookup also fails, so the
+                worker cannot tell whether a duplicate retry would leak a
+                second execution. The caller surfaces the original transient
+                error instead of retrying.
         """
-        current = self._snapshot_latest_execution_name(
-            cr_client=cr_client,
-            configuration=configuration,
-            logger=logger,
-        )
+        try:
+            job = JobV2.get(
+                cr_client=cr_client,
+                project=configuration.project,
+                location=configuration.region,
+                job_name=configuration.job_name,
+            )
+        except Exception as lookup_exc:
+            logger.warning(
+                "Cloud Run Job V2 %s: submission returned HTTP %s and the "
+                "recovery lookup also failed (%s); cannot verify whether an "
+                "execution was started. Failing fast to avoid a duplicate run.",
+                configuration.job_name,
+                exc.status_code,
+                lookup_exc,
+            )
+            raise _RecoveryUnverifiable(exc) from exc
+        current = (job.latestCreatedExecution or {}).get("name")
         if current is None or current == baseline_execution_name:
             return None
         logger.warning(
@@ -1093,6 +1127,13 @@ class CloudRunWorkerV2(
             )
 
             return job_execution
+        except _RecoveryUnverifiable as recovery_exc:
+            original = recovery_exc.original
+            self._job_run_submission_error(
+                exc=original,
+                configuration=configuration,
+            )
+            raise original from None
         except Exception as exc:
             self._job_run_submission_error(
                 exc=exc,
