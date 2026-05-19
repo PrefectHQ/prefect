@@ -30,7 +30,12 @@ async def watch_worker_events(events: List[Event], ready: ThreadingEvent):
 
 def run_event_listener(events: List[Event], ready: ThreadingEvent):
     """Run the async event listener in a thread"""
-    asyncio.run(watch_worker_events(events, ready))
+    try:
+        asyncio.run(watch_worker_events(events, ready))
+    except Exception:
+        # Signal readiness even on failure so the test doesn't block;
+        # it will fail at the event assertion instead.
+        ready.set()
 
 
 def _wait_for(predicate, *, timeout: float, message: str, interval: float = 0.5):
