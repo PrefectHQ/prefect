@@ -28,6 +28,8 @@ from prefect.runner.storage import (
 )
 from prefect.utilities.filesystem import tmpchdir
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture(autouse=True)
 def tmp_cwd(monkeypatch, tmp_path):

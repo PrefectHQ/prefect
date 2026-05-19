@@ -3,6 +3,8 @@ from pathlib import Path
 import pytest
 import toml
 
+pytestmark = pytest.mark.clear_db
+
 
 def get_dependencies_from_pyproject(pyproject_path: Path) -> dict[str, str]:
     pyproject_data = toml.load(pyproject_path)

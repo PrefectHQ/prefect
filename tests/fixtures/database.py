@@ -96,7 +96,7 @@ async def clear_db(db, request):
     connection errors.
     """
 
-    if "clear_db" in request.keywords:
+    if "clear_db" in request.keywords and not request.config.getoption("--no-clear-db"):
         max_retries = 3
         retry_delay = 1
 

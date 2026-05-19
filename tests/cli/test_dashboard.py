@@ -9,6 +9,8 @@ from prefect.settings import (
 )
 from prefect.testing.cli import invoke_and_assert
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def mock_webbrowser(monkeypatch: pytest.MonkeyPatch) -> MagicMock:

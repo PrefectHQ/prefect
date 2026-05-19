@@ -23,6 +23,8 @@ from prefect.infrastructure.provisioners.ecs import (
     VpcResource,
 )
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture(autouse=True)
 def start_mocking_aws(monkeypatch):

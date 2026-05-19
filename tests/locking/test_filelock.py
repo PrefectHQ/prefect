@@ -14,6 +14,8 @@ from prefect.locking._filelock import (
     _write_lock,
 )
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestIsPidAlive:
     def test_current_process_is_alive(self):

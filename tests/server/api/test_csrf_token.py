@@ -9,6 +9,8 @@ from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface
 from prefect.settings import PREFECT_SERVER_CSRF_PROTECTION_ENABLED, temporary_settings
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture(autouse=True)
 def enable_csrf_protection():

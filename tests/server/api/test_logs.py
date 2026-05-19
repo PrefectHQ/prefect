@@ -20,6 +20,8 @@ from prefect.server.schemas.core import Log
 from prefect.server.schemas.filters import LogFilter
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 NOW = now("UTC")
 CREATE_LOGS_URL = "/logs/"
 READ_LOGS_URL = "/logs/filter"

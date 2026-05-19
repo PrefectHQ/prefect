@@ -22,6 +22,8 @@ from prefect.server.orchestration.rules import TERMINAL_STATES
 from prefect.server.schemas import core, states
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 # Convert constants from sets to lists for deterministic ordering of tests
 TERMINAL_STATES = list(sorted(TERMINAL_STATES))
 

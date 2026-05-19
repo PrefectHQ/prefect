@@ -10,6 +10,8 @@ import pytest
 
 from prefect.runner._process_manager import ProcessHandle, ProcessManager, _pid_is_alive
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestProcessHandle:
     def test_pid_from_anyio_process(self):

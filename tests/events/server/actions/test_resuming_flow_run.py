@@ -20,6 +20,8 @@ from prefect.server.schemas.core import Deployment, Flow, FlowRun
 from prefect.server.schemas.states import Paused, Running, StateType
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def paused_flow_run(session: AsyncSession) -> FlowRun:
