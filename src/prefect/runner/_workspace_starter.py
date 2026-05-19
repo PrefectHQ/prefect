@@ -36,6 +36,8 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
+_UV_RUN_PREFLIGHT_TIMEOUT_SECONDS = 30.0
+
 
 def _decode_process_output(output: bytes | str | None) -> str:
     if output is None:
@@ -194,19 +196,27 @@ async def _uv_run_can_import_prefect(
     workspace: PreparedWorkspace, uv_run_base_command: list[str]
 ) -> bool:
     try:
-        process = await anyio.run_process(
-            [
-                *uv_run_base_command,
-                "python",
-                "-c",
-                "import prefect",
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            cwd=workspace.working_directory,
-            env=sanitize_subprocess_env(workspace_environment(workspace)),
-            check=False,
+        with anyio.fail_after(_UV_RUN_PREFLIGHT_TIMEOUT_SECONDS):
+            process = await anyio.run_process(
+                [
+                    *uv_run_base_command,
+                    "python",
+                    "-c",
+                    "import prefect",
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                cwd=workspace.working_directory,
+                env=sanitize_subprocess_env(workspace_environment(workspace)),
+                check=False,
+            )
+    except TimeoutError:
+        logger.warning(
+            "Falling back to the default flow-run command because `uv run` did not "
+            "complete the preflight import check within %.1f seconds.",
+            _UV_RUN_PREFLIGHT_TIMEOUT_SECONDS,
         )
+        return False
     except OSError as exc:
         logger.warning(
             "Falling back to the default flow-run command because `uv run` could "

@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
+import anyio
 import pytest
 
 from prefect.runner._workspace_resolver import (
@@ -212,6 +213,40 @@ async def test_workspace_command_falls_back_when_uv_preflight_cannot_start(
     )
 
     assert await _workspace_command(workspace, explicit_command=None) is None
+
+
+async def test_workspace_command_falls_back_when_uv_preflight_times_out(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    workspace = _prepared_workspace(tmp_path)
+    assert workspace.project_root is not None
+    (workspace.project_root / "pyproject.toml").write_text(
+        "[project]\n"
+        "name = 'test-project'\n"
+        "version = '0.1.0'\n"
+        "dependencies = ['prefect']\n"
+    )
+    preflight_started = anyio.Event()
+
+    async def fake_run_process(command: list[str], **kwargs: object):
+        preflight_started.set()
+        await anyio.sleep_forever()
+
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter._UV_RUN_PREFLIGHT_TIMEOUT_SECONDS",
+        0.01,
+    )
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.shutil.which",
+        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
+    )
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.anyio.run_process",
+        fake_run_process,
+    )
+
+    assert await _workspace_command(workspace, explicit_command=None) is None
+    assert preflight_started.is_set()
 
 
 async def test_workspace_command_preserves_explicit_command(
