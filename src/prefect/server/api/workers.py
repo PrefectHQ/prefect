@@ -244,12 +244,6 @@ async def _resolve_worker_channel_work_pool(
                 base_job_template=default_base_job_template,
             ),
         )
-        await emit_work_pool_status_event(
-            event_id=uuid7(),
-            occurred=now("UTC"),
-            pre_update_work_pool=None,
-            work_pool=work_pool,
-        )
         return work_pool
 
     if not work_pool.base_job_template and default_base_job_template:

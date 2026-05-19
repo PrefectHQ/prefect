@@ -23,7 +23,11 @@ async def accept_prefect_socket(
     require_prefect_subprotocol: bool = False,
     authentication_failed_reason: str | None = None,
 ) -> Optional[WebSocket]:
-    subprotocols = websocket.headers.get("Sec-WebSocket-Protocol", "").split(",")
+    subprotocols = [
+        subprotocol.strip()
+        for header in websocket.headers.getlist("Sec-WebSocket-Protocol")
+        for subprotocol in header.split(",")
+    ]
     has_prefect_subprotocol = "prefect" in subprotocols
 
     auth_setting = (

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from typing import List
 
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, Headers
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import (
     WS_1002_PROTOCOL_ERROR,
@@ -173,10 +173,17 @@ def _authenticate_worker_channel(websocket) -> None:
     assert websocket.receive_json() == {"type": "auth_success"}
 
 
-def _connect_worker_channel(test_client: TestClient, work_pool_name: str):
+def _connect_worker_channel(
+    test_client: TestClient,
+    work_pool_name: str,
+    *,
+    subprotocols: tuple[str, ...] | None = ("prefect",),
+    headers: Headers | None = None,
+):
     return test_client.websocket_connect(
         f"/api/work_pools/{work_pool_name}/workers/connect",
-        subprotocols=["prefect"],
+        subprotocols=subprotocols,
+        headers=headers if headers is not None else {},
     )
 
 
@@ -2090,6 +2097,44 @@ class TestWorkerChannelConnect:
 
         assert_status_events(work_pool.name, ["prefect.work-pool.ready"])
 
+    def test_connect_accepts_prefect_subprotocol_from_comma_separated_offers(
+        self, test_client: TestClient, work_pool
+    ):
+        with _connect_worker_channel(
+            test_client,
+            work_pool.name,
+            subprotocols=("json", "prefect"),
+        ) as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(_worker_hello_frame())
+
+            ready = WorkerReadyFrame.model_validate(websocket.receive_json())
+
+        assert ready.payload.initial_snapshot.work_pool.id == work_pool.id
+
+    def test_connect_accepts_prefect_subprotocol_from_repeated_headers(
+        self, test_client: TestClient, work_pool
+    ):
+        headers = Headers(
+            [
+                ("sec-websocket-protocol", "json"),
+                ("sec-websocket-protocol", "prefect"),
+            ]
+        )
+
+        with _connect_worker_channel(
+            test_client,
+            work_pool.name,
+            subprotocols=None,
+            headers=headers,
+        ) as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(_worker_hello_frame())
+
+            ready = WorkerReadyFrame.model_validate(websocket.receive_json())
+
+        assert ready.payload.initial_snapshot.work_pool.id == work_pool.id
+
     def test_connect_requires_prefect_subprotocol(
         self, test_client: TestClient, work_pool
     ):
@@ -2197,6 +2242,37 @@ class TestWorkerChannelConnect:
             == WorkerChannelCloseReason.AUTHORIZATION_FAILED.value
         )
 
+    async def test_connect_rolls_back_created_pool_without_status_event_on_failure(
+        self, test_client: TestClient, session: AsyncSession
+    ):
+        event_count_before = sum(
+            len(getattr(client, "events", [])) for client in AssertingEventsClient.all
+        )
+        hello = _worker_hello_frame(
+            create_pool_if_not_found=True,
+            default_base_job_template=_valid_base_job_template(),
+            work_queue_names=["missing"],
+        )
+
+        with pytest.raises(WebSocketDisconnect) as exception:
+            with _connect_worker_channel(test_client, "rolled-back-pool") as websocket:
+                _authenticate_worker_channel(websocket)
+                websocket.send_json(hello)
+                websocket.receive_json()
+
+        assert (
+            exception.value.reason
+            == WorkerChannelCloseReason.AUTHORIZATION_FAILED.value
+        )
+        created = await models.workers.read_work_pool_by_name(
+            session=session, work_pool_name="rolled-back-pool"
+        )
+        assert created is None
+        event_count_after = sum(
+            len(getattr(client, "events", [])) for client in AssertingEventsClient.all
+        )
+        assert event_count_after == event_count_before
+
     def test_connect_rejects_unsupported_optional_cleanup_delivery(
         self, test_client: TestClient, work_pool
     ):
@@ -2272,7 +2348,7 @@ class TestWorkerChannelConnect:
 
         assert_status_events(
             "created-pool",
-            ["prefect.work-pool.not-ready", "prefect.work-pool.ready"],
+            ["prefect.work-pool.ready"],
         )
 
     async def test_connect_initializes_empty_base_job_template(

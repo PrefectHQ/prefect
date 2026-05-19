@@ -2678,6 +2678,54 @@ class TestWorkerChannelClient:
         snapshot.assert_called_once()
         assert channel.rest_fallback_enabled is False
 
+    async def test_stop_before_run_scope_cancels_started_channel(self):
+        client = worker_channel_test_client()
+        client.read_work_pool = AsyncMock()
+        channel_by_ref: dict[str, WorkPoolWorkerChannel] = {}
+        connect_context_by_ref: dict[str, FakeWorkerChannelConnect] = {}
+
+        def connect_factory(*args: Any, **kwargs: Any) -> FakeWorkerChannelConnect:
+            channel = channel_by_ref["channel"]
+            websocket = FakeWorkerChannelWebSocket(
+                [
+                    {"type": "auth_success"},
+                    worker_channel_ready_frame(channel.consumer_id),
+                ]
+            )
+            connect_context = FakeWorkerChannelConnect(websocket)
+            connect_context_by_ref["connect_context"] = connect_context
+            return connect_context
+
+        channel = WorkPoolWorkerChannel(
+            client=client,
+            api_url="http://localhost:4200/api",
+            work_pool_is_available=lambda: True,
+            work_pool_name="test-work-pool",
+            worker_name="test-worker",
+            worker_type="test",
+            heartbeat_interval_seconds=30,
+            work_queue_names=[],
+            create_pool_if_not_found=True,
+            default_base_job_template={},
+            worker_metadata=no_worker_channel_metadata,
+            logger=logging.getLogger("test-worker-channel"),
+            connect_factory=connect_factory,
+        )
+        channel_by_ref["channel"] = channel
+
+        async with anyio.create_task_group() as task_group:
+            await channel.sync(task_group)
+            channel.stop()
+
+            with anyio.fail_after(1):
+                while not connect_context_by_ref["connect_context"].exited:
+                    await anyio.sleep(0)
+
+            task_group.cancel_scope.cancel()
+
+        client.read_work_pool.assert_not_awaited()
+        client.send_worker_heartbeat.assert_not_awaited()
+
     async def test_sync_skips_rest_when_websocket_is_healthy(self):
         worker_id = uuid.uuid4()
         snapshot = Mock()
