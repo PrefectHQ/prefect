@@ -318,6 +318,7 @@ filterwarnings = [
     "ignore:`PREFECT_API_URL` should have `/api` after the base URL.:UserWarning",
     "ignore:datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version.:DeprecationWarning",
     "ignore::DeprecationWarning:pendulum.*",                                                                             # TODO: remove when pendulum is removed
+    "ignore:SelectableGroups dict interface is deprecated:DeprecationWarning",                                              # opentelemetry on Python 3.10
     "ignore::DeprecationWarning:botocore.*",
     "ignore::DeprecationWarning:coolname.*",
     "ignore:Runner\\.execute_flow_run has been deprecated:prefect._internal.compatibility.deprecated.PrefectDeprecationWarning",
