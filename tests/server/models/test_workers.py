@@ -658,6 +658,26 @@ class TestWorkerHeartbeat:
         assert processes[1].name == "Y"
         assert processes[2].name == "X"
 
+    async def test_record_worker_heartbeat_returns_worker_and_marks_pool_ready(
+        self, session, work_pool
+    ):
+        worker = await models.workers.record_worker_heartbeat(
+            session=session,
+            work_pool=work_pool,
+            worker_name="process X",
+            heartbeat_interval_seconds=45,
+        )
+
+        assert worker.name == "process X"
+        assert worker.heartbeat_interval_seconds == 45
+
+        session.expunge_all()
+        updated_work_pool = await models.workers.read_work_pool(
+            session=session,
+            work_pool_id=work_pool.id,
+        )
+        assert updated_work_pool.status == schemas.statuses.WorkPoolStatus.READY
+
 
 class TestGetScheduledRuns:
     @pytest.fixture(autouse=True)

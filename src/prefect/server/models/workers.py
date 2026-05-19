@@ -931,6 +931,25 @@ async def read_workers(
 
 
 @db_injector
+async def read_worker_by_name(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    work_pool_id: UUID,
+    worker_name: str,
+) -> Optional[orm_models.Worker]:
+    query = (
+        sa.select(db.Worker)
+        .where(
+            db.Worker.work_pool_id == work_pool_id,
+            db.Worker.name == worker_name,
+        )
+        .limit(1)
+    )
+    result = await session.execute(query)
+    return result.scalar()
+
+
+@db_injector
 async def worker_heartbeat(
     db: PrefectDBInterface,
     session: AsyncSession,
@@ -978,6 +997,44 @@ async def worker_heartbeat(
 
     result = await session.execute(insert_stmt)
     return result.rowcount > 0
+
+
+async def record_worker_heartbeat(
+    session: AsyncSession,
+    work_pool: orm_models.WorkPool,
+    worker_name: str,
+    heartbeat_interval_seconds: Optional[int] = None,
+    emit_status_change: Optional[
+        Callable[
+            [UUID, DateTime, orm_models.WorkPool, orm_models.WorkPool],
+            Awaitable[None],
+        ]
+    ] = None,
+) -> orm_models.Worker:
+    await worker_heartbeat(
+        session=session,
+        work_pool_id=work_pool.id,
+        worker_name=worker_name,
+        heartbeat_interval_seconds=heartbeat_interval_seconds,
+    )
+
+    if work_pool.status == schemas.statuses.WorkPoolStatus.NOT_READY:
+        await update_work_pool(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_pool=schemas.internal.InternalWorkPoolUpdate(
+                status=schemas.statuses.WorkPoolStatus.READY
+            ),
+            emit_status_change=emit_status_change,
+        )
+
+    worker = await read_worker_by_name(
+        session=session,
+        work_pool_id=work_pool.id,
+        worker_name=worker_name,
+    )
+    assert worker is not None
+    return worker
 
 
 @db_injector
