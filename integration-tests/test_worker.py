@@ -1,6 +1,8 @@
 import asyncio
 import subprocess
 import sys
+import time
+from threading import Event as ThreadingEvent
 from threading import Thread
 from typing import List
 from uuid import uuid4
@@ -13,7 +15,7 @@ from prefect.events.filters import EventFilter, EventNameFilter, EventOccurredFi
 from prefect.types._datetime import now
 
 
-async def watch_worker_events(events: List[Event]):
+async def watch_worker_events(events: List[Event], ready: ThreadingEvent):
     """Watch for worker start/stop events and collect them"""
     async with get_events_subscriber(
         filter=EventFilter(
@@ -21,21 +23,26 @@ async def watch_worker_events(events: List[Event]):
             occurred=EventOccurredFilter(since=now()),
         )
     ) as events_subscriber:
+        ready.set()
         async for event in events_subscriber:
             events.append(event)
 
 
-def run_event_listener(events: List[Event]):
+def run_event_listener(events: List[Event], ready: ThreadingEvent):
     """Run the async event listener in a thread"""
-    asyncio.run(watch_worker_events(events))
+    asyncio.run(watch_worker_events(events, ready))
 
 
 def test_worker():
     WORKER_NAME = f"test-worker-{uuid4()}"  # noqa: F821
     events: List[Event] = []
+    listener_ready = ThreadingEvent()
 
-    listener_thread = Thread(target=run_event_listener, args=(events,), daemon=True)
+    listener_thread = Thread(
+        target=run_event_listener, args=(events, listener_ready), daemon=True
+    )
     listener_thread.start()
+    assert listener_ready.wait(timeout=10), "Worker event listener did not start"
 
     try:
         subprocess.check_output(
@@ -126,11 +133,19 @@ def test_worker():
         stderr=sys.stderr,
     )
 
-    worker_events = [
-        e
-        for e in events
-        if e.event.startswith("prefect.worker.") and e.resource.name == WORKER_NAME
-    ]
+    deadline = time.monotonic() + 10
+    worker_events = []
+    while time.monotonic() < deadline:
+        worker_events = [
+            e
+            for e in events
+            if e.event.startswith("prefect.worker.")
+            and e.resource.name == WORKER_NAME
+        ]
+        if len(worker_events) == 2:
+            break
+        time.sleep(0.1)
+
     assert len(worker_events) == 2, (
         f"Expected 2 worker events, got {len(worker_events)}"
     )
