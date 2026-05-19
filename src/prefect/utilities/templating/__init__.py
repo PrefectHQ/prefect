@@ -514,38 +514,3 @@ async def resolve_variables(template: T, client: Optional["PrefectClient"] = Non
         return template
 
 
-def find_block_document_references(
-    template: Any,
-) -> set[tuple[str, str]]:
-    """
-    Finds all block document references in a template, returning a set of
-    (block_type_slug, block_document_name) tuples.
-
-    Args:
-        template: The template to search for block references
-
-    Returns:
-        A set of (block_type_slug, block_document_name) tuples referencing blocks in the template
-    """
-    references: set[tuple[str, str]] = set()
-
-    def extract_from_template(obj: Any) -> None:
-        if isinstance(obj, dict):
-            for value in obj.values():
-                extract_from_template(value)
-        elif isinstance(obj, list):
-            for item in obj:
-                extract_from_template(item)
-        elif isinstance(obj, str):
-            placeholders = find_placeholders(obj)
-            for placeholder in placeholders:
-                if placeholder.type is PlaceholderType.BLOCK_DOCUMENT:
-                    parts = placeholder.name.replace(
-                        BLOCK_DOCUMENT_PLACEHOLDER_PREFIX, ""
-                    ).split(".", 2)
-                    if len(parts) >= 2:
-                        block_type_slug, block_document_name = parts[0], parts[1]
-                        references.add((block_type_slug, block_document_name))
-
-    extract_from_template(template)
-    return references

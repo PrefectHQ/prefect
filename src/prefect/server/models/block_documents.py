@@ -737,39 +737,3 @@ async def delete_block_document_reference(
     return result.rowcount > 0
 
 
-@db_injector
-async def find_work_pools_referencing_block(
-    db: PrefectDBInterface,
-    session: AsyncSession,
-    block_type_slug: str,
-    block_document_name: str,
-) -> List[Dict[str, str]]:
-    """
-    Finds all work pools that reference a specific block in their base_job_template.
-
-    Args:
-        db: The database interface
-        session: The database session
-        block_type_slug: The block type slug (e.g., "aws-credentials")
-        block_document_name: The block document name
-
-    Returns:
-        A list of dicts with 'name' and 'id' keys for work pools referencing the block
-    """
-    from prefect.utilities.templating import find_block_document_references
-
-    query = sa.select(db.WorkPool.id, db.WorkPool.name, db.WorkPool.base_job_template)
-    result = await session.execute(query)
-    work_pools = result.fetchall()
-
-    referencing_pools = []
-    for work_pool_id, work_pool_name, base_job_template in work_pools:
-        if base_job_template is None:
-            continue
-
-        references = find_block_document_references(base_job_template)
-
-        if (block_type_slug, block_document_name) in references:
-            referencing_pools.append({"id": str(work_pool_id), "name": work_pool_name})
-
-    return referencing_pools

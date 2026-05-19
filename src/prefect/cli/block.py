@@ -348,8 +348,6 @@ async def block_delete(
                     block_document_name, block_type_slug, include_secrets=False
                 )
 
-                # NOTE: warning about work-pool references removed from this PR.
-                # Deletion now proceeds via the API client only.
 
                 if _cli.is_interactive() and not confirm(
                     f"Are you sure you want to delete block with slug {slug!r}?",
