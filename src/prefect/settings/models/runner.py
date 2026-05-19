@@ -71,7 +71,7 @@ class RunnerSettings(PrefectBaseSettings):
         ),
     )
 
-    uv_auto_sync: bool = Field(
+    uv_run_enabled: bool = Field(
         default=True,
         description=(
             "Whether to automatically use `uv run --project` to execute flow runs "

@@ -167,7 +167,7 @@ def _pyproject_declares_prefect_dependency(pyproject: Path) -> bool:
 
 
 def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
-    if not get_current_settings().runner.uv_auto_sync:
+    if not get_current_settings().runner.uv_run_enabled:
         return None
 
     project_root = workspace.project_root
