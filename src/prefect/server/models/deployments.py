@@ -149,6 +149,25 @@ async def create_deployment(
                 f"but no deployment with that name exists for this flow. "
                 f"Creating new deployment."
             )
+        else:
+            # Check that the target name isn't already taken by a *different* deployment.
+            # If it is, renaming would violate the (flow_id, name) unique constraint.
+            conflict_result = await session.execute(
+                sa.select(db.Deployment.id).where(
+                    sa.and_(
+                        db.Deployment.flow_id == deployment.flow_id,
+                        db.Deployment.name == deployment.name,
+                        db.Deployment.id != replaces_deployment_id,
+                    )
+                )
+            )
+            if conflict_result.scalar_one_or_none() is not None:
+                raise ValueError(
+                    f"Cannot use 'replaces: {replaces}' for deployment"
+                    f" '{deployment.name}' because a deployment named"
+                    f" '{deployment.name}' already exists. Remove 'replaces' or"
+                    f" delete the existing '{deployment.name}' deployment first."
+                )
 
     # Snapshot existing deployment field values before upsert for change detection.
     # When using `replaces`, snapshot the deployment being renamed.

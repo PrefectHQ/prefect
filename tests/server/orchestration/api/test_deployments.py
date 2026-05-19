@@ -1291,6 +1291,34 @@ class TestCreateDeploymentReplaces:
         assert response.status_code == status.HTTP_201_CREATED
         assert response.json()["name"] == "brand-new"
 
+    async def test_replaces_errors_when_new_name_already_exists(
+        self,
+        hosted_api_client,
+        flow,
+    ):
+        """replaces should return 422 when the target name is already taken by
+        a different deployment, rather than crashing with a DB constraint error."""
+        for name in ("old-name", "new-name"):
+            r = await hosted_api_client.post(
+                "/deployments/",
+                json=DeploymentCreate(name=name, flow_id=flow.id).model_dump(
+                    mode="json"
+                ),
+            )
+            assert r.status_code in (status.HTTP_200_OK, status.HTTP_201_CREATED)
+
+        data = DeploymentCreate(
+            name="new-name",
+            flow_id=flow.id,
+            replaces="old-name",
+        ).model_dump(mode="json")
+        response = await hosted_api_client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        detail = response.json()["detail"]
+        assert "replaces: old-name" in detail
+        assert "new-name" in detail
+        assert "already exists" in detail
+
 
 class TestReadDeployment:
     async def test_read_deployment(

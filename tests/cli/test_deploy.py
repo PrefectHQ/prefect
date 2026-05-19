@@ -3420,6 +3420,121 @@ class TestSchedules:
         assert deployment.schedules[0].id == original_id  # Same schedule
 
 
+class TestDeployRenameDeployment:
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_with_replaces_renames_deployment(
+        self, work_pool: WorkPool, prefect_client: PrefectClient
+    ):
+        """Test that replaces field in YAML renames an existing deployment in place."""
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        # First deploy with original name
+        deploy_config["deployments"][0]["name"] = "old-name"
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n old-name --pool {work_pool.name}",
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/old-name"
+        )
+        original_id = deployment.id
+
+        # Second deploy with new name and replaces
+        deploy_config["deployments"][0]["name"] = "new-name"
+        deploy_config["deployments"][0]["replaces"] = "old-name"
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n new-name --pool {work_pool.name}",
+            expected_code=0,
+        )
+
+        # Same ID, new name
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/new-name"
+        )
+        assert deployment.id == original_id
+        assert deployment.name == "new-name"
+
+        # Old name gone
+        with pytest.raises(ObjectNotFound):
+            await prefect_client.read_deployment_by_name("An important name/old-name")
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_with_replaces_errors_when_new_name_exists(
+        self, work_pool: WorkPool, prefect_client: PrefectClient
+    ):
+        """Test that replaces raises an error when the new name already exists."""
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        # Create both deployments
+        for name in ("old-name", "new-name"):
+            deploy_config["deployments"][0]["name"] = name
+            deploy_config["deployments"][0].pop("replaces", None)
+            with prefect_file.open(mode="w") as f:
+                yaml.safe_dump(deploy_config, f)
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=f"deploy ./flows/hello.py:my_flow -n {name} --pool {work_pool.name}",
+                expected_code=0,
+            )
+
+        # Now try replaces with conflicting name
+        deploy_config["deployments"][0]["name"] = "new-name"
+        deploy_config["deployments"][0]["replaces"] = "old-name"
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n new-name --pool {work_pool.name}",
+            expected_code=1,
+            expected_output_contains=[
+                "Cannot use 'replaces: old-name'",
+                "already exists",
+            ],
+        )
+
+    @pytest.mark.usefixtures("project_dir")
+    async def test_deploy_with_replaces_nonexistent_creates_new(
+        self, work_pool: WorkPool, prefect_client: PrefectClient
+    ):
+        """Test that replaces pointing to a nonexistent name creates a new deployment."""
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            deploy_config = yaml.safe_load(f)
+
+        deploy_config["deployments"][0]["name"] = "brand-new"
+        deploy_config["deployments"][0]["replaces"] = "does-not-exist"
+
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(deploy_config, f)
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n brand-new --pool {work_pool.name}",
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/brand-new"
+        )
+        assert deployment.name == "brand-new"
+
+
 class TestMultiDeploy:
     @pytest.mark.usefixtures("project_dir")
     async def test_deploy_all(self, prefect_client: PrefectClient, work_pool: WorkPool):

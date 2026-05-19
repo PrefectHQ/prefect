@@ -199,9 +199,15 @@ async def create_deployment(
                 )
 
         right_now = now("UTC")
-        model = await models.deployments.create_deployment(
-            session=session, deployment=deployment, replaces=replaces
-        )
+        try:
+            model = await models.deployments.create_deployment(
+                session=session, deployment=deployment, replaces=replaces
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=str(exc),
+            ) from exc
 
         if model.created >= right_now:
             response.status_code = status.HTTP_201_CREATED
