@@ -63,6 +63,7 @@ def _isolate_imports():
 
 @pytest.mark.timeout(180)
 @pytest.mark.benchmark(group="imports")
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
 @pytest.mark.parametrize("module_name", IMPORT_MODULES, ids=IMPORT_MODULES)
 def bench_import_module(benchmark: "BenchmarkFixture", module_name: str):
     def do_import():
@@ -74,6 +75,7 @@ def bench_import_module(benchmark: "BenchmarkFixture", module_name: str):
 
 @pytest.mark.timeout(180)
 @pytest.mark.benchmark(group="imports")
+@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
 def bench_import_prefect_flow(benchmark: "BenchmarkFixture"):
     """Benchmark the public API form: from prefect import flow"""
 
