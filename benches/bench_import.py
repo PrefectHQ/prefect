@@ -9,9 +9,16 @@ side-effects of importing Prefect (background threads, Prometheus
 collectors, logging handlers, Pydantic registries, etc.) and produced
 non-deterministic instruction counts under CodSpeed.
 
+The CI invocations also pass `-o 'filterwarnings='` to override the
+warning filters in `pyproject.toml` that reference
+`prefect._internal.compatibility.deprecated.PrefectDeprecationWarning`.
+Without this, pytest resolves those filter classes at startup, which
+triggers a prefect import before the benchmark runs.
+
 For local one-off runs, invoke a single benchmark at a time::
 
-    uv run pytest "benches/bench_import.py::bench_import_module[prefect]" --codspeed -v
+    uv run pytest "benches/bench_import.py::bench_import_module[prefect]" \
+        --codspeed -v -o 'filterwarnings='
 """
 
 import importlib
@@ -40,10 +47,13 @@ IMPORT_MODULES = [
 @pytest.mark.benchmark(group="imports")
 @pytest.mark.parametrize("module_name", IMPORT_MODULES, ids=IMPORT_MODULES)
 def bench_import_module(benchmark: "BenchmarkFixture", module_name: str):
-    def do_import():
-        importlib.import_module(module_name)
-
-    benchmark(do_import)
+    benchmark.pedantic(
+        importlib.import_module,
+        args=(module_name,),
+        rounds=1,
+        warmup_rounds=0,
+        iterations=1,
+    )
 
 
 @pytest.mark.benchmark(group="imports")
@@ -53,4 +63,9 @@ def bench_import_prefect_flow(benchmark: "BenchmarkFixture"):
     def import_prefect_flow():
         from prefect import flow  # noqa: F401
 
-    benchmark(import_prefect_flow)
+    benchmark.pedantic(
+        import_prefect_flow,
+        rounds=1,
+        warmup_rounds=0,
+        iterations=1,
+    )

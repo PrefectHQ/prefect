@@ -65,6 +65,11 @@ jobs:
           # threads, Prometheus collectors, Pydantic registries, etc.) which
           # caused non-deterministic instruction counts under CodSpeed.
           #
+          # -o 'filterwarnings=' overrides pyproject.toml filters that
+          # reference prefect.* warning classes, which would otherwise
+          # trigger a prefect import during pytest startup — defeating
+          # cold-import measurement.
+          #
           # pytest-codspeed writes each invocation's results to a unique file
           # (keyed by PID), so the CodSpeed action collects all of them.
           run: |
@@ -77,9 +82,11 @@ jobs:
               prefect.server.api.server \
               prefect.task_runners \
             ; do
-              uv run pytest "benches/bench_import.py::bench_import_module[$module]" --codspeed -vv
+              uv run pytest "benches/bench_import.py::bench_import_module[$module]" \
+                --codspeed -vv -o 'filterwarnings='
             done
-            uv run pytest benches/bench_import.py::bench_import_prefect_flow --codspeed -vv
+            uv run pytest benches/bench_import.py::bench_import_prefect_flow \
+              --codspeed -vv -o 'filterwarnings='
             uv run pytest \
               benches/bench_tasks.py \
               benches/bench_flows.py::bench_flow_decorator \
