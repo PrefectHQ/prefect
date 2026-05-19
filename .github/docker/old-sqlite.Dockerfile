@@ -16,18 +16,7 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY ./ui/package*.json ./
-RUN npm config set fetch-retries 5 \
-    && npm config set fetch-retry-factor 2 \
-    && npm config set fetch-retry-mintimeout 20000 \
-    && npm config set fetch-retry-maxtimeout 120000 \
-    && npm config set audit false \
-    && npm config set fund false \
-    && for i in 1 2 3 4 5; do \
-        npm ci --legacy-peer-deps --no-audit --no-fund && break; \
-        echo "npm ci failed (attempt ${i}/5); retrying..."; \
-        if [ "${i}" -eq 5 ]; then exit 1; fi; \
-        sleep $((i * 5)); \
-    done
+RUN npm ci --legacy-peer-deps
 
 COPY ./ui .
 RUN npm run build
@@ -36,6 +25,7 @@ RUN npm run build
 FROM node:${NODE_V2_VERSION}-bullseye-slim AS ui-v2-builder
 
 ARG VITE_AMPLITUDE_API_KEY=""
+ENV VITE_AMPLITUDE_API_KEY=$VITE_AMPLITUDE_API_KEY
 
 WORKDIR /opt/ui-v2
 
@@ -47,21 +37,10 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY ./ui-v2/package*.json ./
-RUN npm config set fetch-retries 5 \
-    && npm config set fetch-retry-factor 2 \
-    && npm config set fetch-retry-mintimeout 20000 \
-    && npm config set fetch-retry-maxtimeout 120000 \
-    && npm config set audit false \
-    && npm config set fund false \
-    && for i in 1 2 3 4 5; do \
-        npm ci --legacy-peer-deps --no-audit --no-fund && break; \
-        echo "npm ci failed (attempt ${i}/5); retrying..."; \
-        if [ "${i}" -eq 5 ]; then exit 1; fi; \
-        sleep $((i * 5)); \
-    done
+RUN npm ci --legacy-peer-deps
 
 COPY ./ui-v2 .
-RUN VITE_AMPLITUDE_API_KEY="$VITE_AMPLITUDE_API_KEY" npm run build
+RUN npm run build
 
 # Build the Python distributable
 FROM python:3.10-slim AS python-builder

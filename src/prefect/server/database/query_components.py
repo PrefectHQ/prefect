@@ -640,14 +640,24 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
             .render_derived(name="argument")
         )
 
-        # Only use `expected_start_time` as a substitute for missing `start_time` when
-        # a run is terminal. For non-terminal runs, the expected start does not
-        # necessarily indicate the run has begun.
+        # Use `expected_start_time` as a substitute for missing `start_time` in
+        # terminal runs. Additionally, include `expected_start_time` for
+        # non-terminal runs that have neither `start_time` nor `end_time` but
+        # do have an `expected_start_time` (e.g. downstream PENDING/NotReady
+        # tasks that haven't been started yet but are scheduled).
         flow_run_start_time = sa.func.coalesce(
             FlowRun.start_time,
             sa.case(
                 (
                     FlowRun.state_type.in_(schemas.states.TERMINAL_STATES),
+                    FlowRun.expected_start_time,
+                ),
+                (
+                    sa.and_(
+                        FlowRun.start_time.is_(None),
+                        FlowRun.end_time.is_(None),
+                        FlowRun.expected_start_time.is_not(None),
+                    ),
                     FlowRun.expected_start_time,
                 ),
                 else_=sa.null(),
@@ -658,6 +668,14 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
             sa.case(
                 (
                     TaskRun.state_type.in_(schemas.states.TERMINAL_STATES),
+                    TaskRun.expected_start_time,
+                ),
+                (
+                    sa.and_(
+                        TaskRun.start_time.is_(None),
+                        TaskRun.end_time.is_(None),
+                        TaskRun.expected_start_time.is_not(None),
+                    ),
                     TaskRun.expected_start_time,
                 ),
                 else_=sa.null(),
@@ -791,6 +809,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                         graph.c.state_type.in_(schemas.states.TERMINAL_STATES),
                         graph.c.end_time >= param_since,
                     ),
+                    graph.c.end_time.is_(None),
                 )
             )
             .order_by(graph.c.start_time, graph.c.end_time)
@@ -984,14 +1003,24 @@ class AioSqliteQueryComponents(BaseQueryComponents):
             input.c.value, type_=postgresql.JSON()
         ).table_valued("key", sa.column("value", postgresql.JSON()), name="argument")
 
-        # Only use `expected_start_time` as a substitute for missing `start_time` when
-        # a run is terminal. For non-terminal runs, the expected start does not
-        # necessarily indicate the run has begun.
+        # Use `expected_start_time` as a substitute for missing `start_time` in
+        # terminal runs. Additionally, include `expected_start_time` for
+        # non-terminal runs that have neither `start_time` nor `end_time` but
+        # do have an `expected_start_time` (e.g. downstream PENDING/NotReady
+        # tasks that haven't been started yet but are scheduled).
         flow_run_start_time = sa.func.coalesce(
             FlowRun.start_time,
             sa.case(
                 (
                     FlowRun.state_type.in_(schemas.states.TERMINAL_STATES),
+                    FlowRun.expected_start_time,
+                ),
+                (
+                    sa.and_(
+                        FlowRun.start_time.is_(None),
+                        FlowRun.end_time.is_(None),
+                        FlowRun.expected_start_time.is_not(None),
+                    ),
                     FlowRun.expected_start_time,
                 ),
                 else_=sa.null(),
@@ -1002,6 +1031,14 @@ class AioSqliteQueryComponents(BaseQueryComponents):
             sa.case(
                 (
                     TaskRun.state_type.in_(schemas.states.TERMINAL_STATES),
+                    TaskRun.expected_start_time,
+                ),
+                (
+                    sa.and_(
+                        TaskRun.start_time.is_(None),
+                        TaskRun.end_time.is_(None),
+                        TaskRun.expected_start_time.is_not(None),
+                    ),
                     TaskRun.expected_start_time,
                 ),
                 else_=sa.null(),
@@ -1127,6 +1164,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                         graph.c.state_type.in_(schemas.states.TERMINAL_STATES),
                         graph.c.end_time >= param_since,
                     ),
+                    graph.c.end_time.is_(None),
                 )
             )
             .order_by(graph.c.start_time, graph.c.end_time)

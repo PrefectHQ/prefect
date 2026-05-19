@@ -2265,14 +2265,6 @@ class TestRunner:
             runner.execute_flow_run(flow_run_id=flow_run.id)
         )
 
-        # Wait for the flow run to start with a bounded timeout to avoid hangs
-        with anyio.fail_after(30):
-            while True:
-                await anyio.sleep(0.5)
-                flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-                assert flow_run.state
-                if flow_run.state.is_running():
-                    break
         # Wait for the process to be registered in the runner's process map
         # before forcing the Running state and rescheduling
         while flow_run.id not in runner._flow_run_process_map:

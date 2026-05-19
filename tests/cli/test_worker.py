@@ -705,9 +705,7 @@ class TestInstallPolicyOption:
         )
 
     @pytest.mark.usefixtures("interactive_console")
-    async def test_install_policy_prompt_decline(
-        self, kubernetes_work_pool, monkeypatch
-    ):
+    async def test_install_policy_prompt_decline(self, monkeypatch, prefect_client):
         import prefect.cli._worker_utils
 
         run_process_mock = AsyncMock()
@@ -717,6 +715,9 @@ class TestInstallPolicyOption:
             "prefect.utilities.processutils.run_process", run_process_mock
         )
         monkeypatch.setattr(prefect.cli._worker_utils, "lookup_type", lookup_type_mock)
+        kubernetes_work_pool = await prefect_client.create_work_pool(
+            work_pool=WorkPoolCreate(name="test-k8s-work-pool", type="kubernetes")
+        )
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=[
