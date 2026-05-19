@@ -56,6 +56,7 @@ from prefect.client.schemas.worker_channel import (
 from prefect.context import FlowRunContext, TagsContext
 from prefect.exceptions import (
     CrashedRun,
+    ObjectAlreadyExists,
     ObjectNotFound,
 )
 from prefect.filesystems import WritableFileSystem
@@ -2802,6 +2803,53 @@ class TestWorkerChannelClient:
         snapshot.assert_called_once_with(work_pool)
         assert channel.worker_id == worker_id
 
+    async def test_sync_handles_concurrent_pool_creation_on_rest_fallback(self):
+        # When two workers start at the same time, both can see ObjectNotFound
+        # from read_work_pool before either has created the pool. One worker's
+        # create_work_pool call succeeds, and the other gets ObjectAlreadyExists.
+        # The losing worker should re-read the now-existing pool rather than
+        # bubble the exception up and fail setup.
+        work_pool = WorkPool(
+            name="test-work-pool",
+            type="test",
+            base_job_template={"job_configuration": {}, "variables": {}},
+            default_queue_id=uuid.uuid4(),
+        )
+        snapshot = Mock()
+        client = worker_channel_test_client()
+        # First read: pool doesn't exist yet.
+        # Second read (after the create race lost): pool now exists.
+        client.read_work_pool = AsyncMock(
+            side_effect=[ObjectNotFound("missing"), work_pool]
+        )
+        client.create_work_pool = AsyncMock(
+            side_effect=ObjectAlreadyExists(http_exc=Mock())
+        )
+        client.update_work_pool = AsyncMock()
+        channel = WorkPoolWorkerChannel(
+            client=client,
+            api_url=None,
+            work_pool_is_available=lambda: True,
+            work_pool_name="test-work-pool",
+            worker_name="test-worker",
+            worker_type="test",
+            heartbeat_interval_seconds=30,
+            work_queue_names=[],
+            create_pool_if_not_found=True,
+            default_base_job_template={"job_configuration": {}, "variables": {}},
+            worker_metadata=no_worker_channel_metadata,
+            logger=logging.getLogger("test-worker-channel"),
+            on_work_pool_snapshot=snapshot,
+        )
+
+        await channel.sync(None)
+
+        assert client.read_work_pool.await_count == 2
+        client.create_work_pool.assert_awaited_once()
+        client.update_work_pool.assert_not_awaited()
+        client.send_worker_heartbeat.assert_awaited_once()
+        snapshot.assert_called_once_with(work_pool)
+
     async def test_sync_repairs_missing_rest_work_pool_template(self):
         work_pool = WorkPool(
             name="test-work-pool",
@@ -3245,8 +3293,13 @@ async def test_env_merge_logic_is_deep(
         work_pool_name=work_pool.name if work_pool_env else "test-work-pool",
     ) as worker:
         await worker.sync_with_backend()
-        config = await worker._get_configuration(
-            flow_run, schemas.responses.DeploymentResponse.model_validate(deployment)
+        config = await worker.job_configuration.resolve_for_flow_run(
+            flow_run,
+            client=worker.client,
+            work_pool=worker.work_pool,
+            worker_name=worker.name,
+            worker_id=worker.backend_id,
+            deployment=schemas.responses.DeploymentResponse.model_validate(deployment),
         )
 
     for key, value in expected_env.items():
@@ -3319,8 +3372,13 @@ async def test_work_pool_env_from_job_configuration_merges_with_variable_default
         work_pool_name=work_pool.name,
     ) as worker:
         await worker.sync_with_backend()
-        config = await worker._get_configuration(
-            flow_run, schemas.responses.DeploymentResponse.model_validate(deployment)
+        config = await worker.job_configuration.resolve_for_flow_run(
+            flow_run,
+            client=worker.client,
+            work_pool=worker.work_pool,
+            worker_name=worker.name,
+            worker_id=worker.backend_id,
+            deployment=schemas.responses.DeploymentResponse.model_validate(deployment),
         )
 
     # All env vars should be present: job_configuration + variable defaults + deployment
@@ -3329,10 +3387,14 @@ async def test_work_pool_env_from_job_configuration_merges_with_variable_default
     assert config.env["DEPLOYMENT_VAR"] == "from-deployment"
 
 
-async def test_get_configuration_uses_stable_work_pool_copy(
+async def test_configuration_build_uses_stable_work_pool_copy(
     prefect_client: PrefectClient,
     work_pool: WorkPool,
 ):
+    """A mid-build snapshot apply must not retemplate the configuration the
+    worker is currently assembling. Callers deepcopy `self.work_pool` before
+    handing it to `BaseJobConfiguration.resolve_for_flow_run`."""
+
     @flow
     def test_flow():
         pass
@@ -3419,7 +3481,15 @@ async def test_get_configuration_uses_stable_work_pool_copy(
             default_queue_id=work_pool.default_queue_id,
         )
 
-        config = await worker._get_configuration(flow_run)
+        # Mirror the worker's internal call pattern: deepcopy then resolve.
+        frozen_work_pool = copy.deepcopy(worker.work_pool)
+        config = await worker.job_configuration.resolve_for_flow_run(
+            flow_run,
+            client=worker.client,
+            work_pool=frozen_work_pool,
+            worker_name=worker.name,
+            worker_id=worker.backend_id,
+        )
 
         assert worker._work_pool.base_job_template == updated_template
 
@@ -4535,7 +4605,13 @@ class TestBackwardsCompatibility:
         # Should warn and not raise an error
         with pytest.warns(PrefectDeprecationWarning):
             async with OldStyleWorker(work_pool_name=work_pool.name) as worker:
-                await worker._get_configuration(flow_run=flow_run)
+                await worker.job_configuration.resolve_for_flow_run(
+                    flow_run,
+                    client=worker.client,
+                    work_pool=worker.work_pool,
+                    worker_name=worker.name,
+                    worker_id=worker.backend_id,
+                )
 
 
 class TestWorkerCancellationHandling:

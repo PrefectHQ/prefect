@@ -8,12 +8,30 @@ const AUTH_STORAGE_KEY = "prefect-password";
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 /**
+ * Generate a UUID v4 string, falling back to `crypto.getRandomValues()`
+ * when `crypto.randomUUID()` is unavailable (e.g. non-secure HTTP contexts).
+ */
+export function generateUUID(): string {
+	if (typeof crypto.randomUUID === "function") {
+		return crypto.randomUUID();
+	}
+	const bytes = new Uint8Array(16);
+	crypto.getRandomValues(bytes);
+	bytes[6] = (bytes[6] & 0x0f) | 0x40;
+	bytes[8] = (bytes[8] & 0x3f) | 0x80;
+	const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
+		"",
+	);
+	return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+/**
  * Manages CSRF token lifecycle: fetching, caching, and automatic refresh.
  * Mirrors the behavior of the Vue UI's CsrfTokenApi.
  */
 class CsrfTokenManager {
 	private token: CsrfTokenResponse | null = null;
-	private clientId: string = crypto.randomUUID();
+	private clientId: string = generateUUID();
 	private ongoingFetch: Promise<CsrfTokenResponse> | null = null;
 	private refreshTimer: ReturnType<typeof setTimeout> | null = null;
 	private initialized = false;
@@ -154,7 +172,7 @@ class CsrfTokenManager {
 			clearTimeout(this.refreshTimer);
 			this.refreshTimer = null;
 		}
-		this.clientId = crypto.randomUUID();
+		this.clientId = generateUUID();
 	}
 }
 

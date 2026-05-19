@@ -9,7 +9,7 @@ from conftest import (
     write_manifest,
     write_sql_files,
 )
-from dbt.artifacts.resources.types import NodeType
+from dbt.node_types import NodeType
 from prefect_dbt.core._manifest import DbtNode, ExecutionWave
 from prefect_dbt.core._orchestrator import (
     BuildPlan,
