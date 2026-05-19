@@ -28,21 +28,31 @@ async def watch_worker_events(events: List[Event], ready: ThreadingEvent):
             events.append(event)
 
 
-def run_event_listener(events: List[Event], ready: ThreadingEvent):
+def run_event_listener(
+    events: List[Event], ready: ThreadingEvent, errors: List[BaseException]
+):
     """Run the async event listener in a thread"""
-    asyncio.run(watch_worker_events(events, ready))
+    try:
+        asyncio.run(watch_worker_events(events, ready))
+    except BaseException as exc:
+        errors.append(exc)
+        ready.set()
 
 
 def test_worker():
     WORKER_NAME = f"test-worker-{uuid4()}"  # noqa: F821
     events: List[Event] = []
+    listener_errors: List[BaseException] = []
     listener_ready = ThreadingEvent()
 
     listener_thread = Thread(
-        target=run_event_listener, args=(events, listener_ready), daemon=True
+        target=run_event_listener,
+        args=(events, listener_ready, listener_errors),
+        daemon=True,
     )
     listener_thread.start()
     assert listener_ready.wait(timeout=10), "Worker event listener did not start"
+    assert not listener_errors, f"Worker event listener failed: {listener_errors[0]!r}"
 
     try:
         subprocess.check_output(
@@ -136,11 +146,13 @@ def test_worker():
     deadline = time.monotonic() + 10
     worker_events = []
     while time.monotonic() < deadline:
+        assert not listener_errors, (
+            f"Worker event listener failed while waiting for events: {listener_errors[0]!r}"
+        )
         worker_events = [
             e
             for e in events
-            if e.event.startswith("prefect.worker.")
-            and e.resource.name == WORKER_NAME
+            if e.event.startswith("prefect.worker.") and e.resource.name == WORKER_NAME
         ]
         if len(worker_events) == 2:
             break
