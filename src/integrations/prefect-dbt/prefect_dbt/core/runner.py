@@ -29,9 +29,20 @@ try:
 except ImportError:
     # dbt-core < 1.8 does not have UnitTestDefinition
     UnitTestDefinition = None  # type: ignore[assignment,misc]
-from dbt.contracts.state import (
-    load_result_state,  # type: ignore[reportUnknownMemberType]
-)
+try:
+    from dbt.contracts.state import (
+        load_result_state,  # type: ignore[reportUnknownMemberType]
+    )
+except ImportError:
+    # dbt-core < 1.8 does not expose load_result_state
+    from dbt.contracts.results import RunResultsArtifact as _RunResultsArtifact
+
+    def load_result_state(results_path):  # type: ignore[misc]
+        if results_path.exists() and results_path.is_file():
+            return _RunResultsArtifact.read_and_check_versions(str(results_path))
+        return None
+
+
 from dbt.graph.graph import Graph, UniqueId
 
 try:
