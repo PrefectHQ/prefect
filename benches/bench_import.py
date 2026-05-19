@@ -43,6 +43,30 @@ def reset_imports():
         REGISTRY.unregister(collector)
 
 
+@pytest.fixture(autouse=True)
+def _isolate_imports():
+    """Snapshot and restore prefect modules in sys.modules so import benchmarks
+    don't corrupt worker state for other benchmark files (e.g. bench_flows,
+    bench_tasks) when running under pytest-xdist."""
+    saved_prefect = {k: v for k, v in sys.modules.items() if k.startswith("prefect")}
+    saved_collectors = set(REGISTRY._collector_to_names)
+    yield
+    # Remove prefect modules left behind by the benchmark
+    for k in [k for k in sys.modules if k.startswith("prefect")]:
+        del sys.modules[k]
+    # Restore the original prefect module objects
+    sys.modules.update(saved_prefect)
+    importlib.invalidate_caches()
+    # Remove any prometheus collectors added during the benchmark
+    for collector in list(REGISTRY._collector_to_names):
+        if collector not in saved_collectors:
+            REGISTRY.unregister(collector)
+    # Re-register any collectors that were removed by reset_imports()
+    for collector in saved_collectors:
+        if collector not in REGISTRY._collector_to_names:
+            REGISTRY.register(collector)
+
+
 @pytest.mark.timeout(180)
 @pytest.mark.benchmark(group="imports")
 @pytest.mark.parametrize("module_name", IMPORT_MODULES, ids=IMPORT_MODULES)
