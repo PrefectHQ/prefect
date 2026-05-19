@@ -671,6 +671,7 @@ class TestReadFlowRuns:
                 state=schemas.states.State(
                     type="PENDING",
                     name="My Pending State 4",
+                    timestamp=now_dt,
                 ),
             ),
         )
