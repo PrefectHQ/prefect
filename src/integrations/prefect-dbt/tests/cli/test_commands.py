@@ -5,7 +5,11 @@ from unittest.mock import MagicMock
 
 import pytest
 import yaml
-from dbt.artifacts.resources.v1.components import FreshnessThreshold, Time
+
+try:
+    from dbt.artifacts.resources.v1.components import FreshnessThreshold, Time
+except ModuleNotFoundError:
+    from dbt.contracts.graph.unparsed import FreshnessThreshold, Time
 from dbt.cli.main import DbtUsageException, dbtRunnerResult
 from dbt.contracts.files import FileHash
 from dbt.contracts.graph.nodes import ModelNode, SourceDefinition
