@@ -4,11 +4,18 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { PaginationState } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
+import { toast } from "sonner";
 import { z } from "zod";
+import {
+	buildGetDefaultResultStorageQuery,
+	useClearDefaultResultStorage,
+	useUpdateDefaultResultStorage,
+} from "@/api/admin";
 import {
 	type BlockDocumentsFilter,
 	buildCountAllBlockDocumentsQuery,
 	buildCountFilterBlockDocumentsQuery,
+	buildGetBlockDocumentQuery,
 	buildListFilterBlockDocumentsQuery,
 } from "@/api/block-documents";
 import { buildListFilterBlockTypesQuery } from "@/api/block-types";
@@ -25,6 +32,21 @@ const searchParams = z.object({
 	limit: z.number().int().positive().optional().default(10).catch(10),
 });
 
+const storageBlockDocumentsFilter = {
+	sort: "BLOCK_TYPE_AND_NAME_ASC",
+	include_secrets: false,
+	offset: 0,
+	limit: 200,
+	block_documents: {
+		operator: "and_",
+		is_anonymous: { eq_: false },
+	},
+	block_schemas: {
+		operator: "and_",
+		block_capabilities: { all_: ["write-path"] },
+	},
+} satisfies BlockDocumentsFilter;
+
 export const Route = createFileRoute("/blocks/")({
 	validateSearch: zodValidator(searchParams),
 	component: function RouteComponent() {
@@ -37,6 +59,11 @@ export const Route = createFileRoute("/blocks/")({
 		const { data: allBlockDocumentsCount } = useSuspenseQuery(
 			buildCountAllBlockDocumentsQuery(),
 		);
+		const { data: defaultResultStorage } = useSuspenseQuery(
+			buildGetDefaultResultStorageQuery(),
+		);
+		const defaultResultStorageBlockId =
+			defaultResultStorage.default_result_storage_block_id ?? undefined;
 
 		const blockDocumentsFilter = useMemo(
 			() => ({
@@ -56,7 +83,6 @@ export const Route = createFileRoute("/blocks/")({
 			}),
 			[search, blockTypeSlugs],
 		);
-
 		const { data: blockDocuments } = useQuery(
 			buildListFilterBlockDocumentsQuery({
 				...blockDocumentsFilter,
@@ -68,6 +94,37 @@ export const Route = createFileRoute("/blocks/")({
 		const { data: filteredBlockDocumentsCount } = useQuery(
 			buildCountFilterBlockDocumentsQuery(blockDocumentsFilter),
 		);
+		const {
+			data: storageBlockDocuments,
+			isLoading: isLoadingStorageBlockDocuments,
+		} = useQuery(
+			buildListFilterBlockDocumentsQuery(storageBlockDocumentsFilter),
+		);
+		const {
+			data: defaultResultStorageBlock,
+			isLoading: isLoadingDefaultResultStorageBlockDetail,
+		} = useQuery({
+			...buildGetBlockDocumentQuery(defaultResultStorageBlockId ?? ""),
+			enabled: Boolean(defaultResultStorageBlockId),
+		});
+		const resolvedDefaultResultStorageBlock =
+			defaultResultStorageBlock ??
+			storageBlockDocuments?.find(
+				(blockDocument) => blockDocument.id === defaultResultStorageBlockId,
+			);
+		const isLoadingDefaultResultStorageBlock =
+			Boolean(defaultResultStorageBlockId) &&
+			!resolvedDefaultResultStorageBlock &&
+			(isLoadingDefaultResultStorageBlockDetail ||
+				isLoadingStorageBlockDocuments);
+		const {
+			updateDefaultResultStorage,
+			isPending: isUpdatingDefaultResultStorage,
+		} = useUpdateDefaultResultStorage();
+		const {
+			clearDefaultResultStorage,
+			isPending: isClearingDefaultResultStorage,
+		} = useClearDefaultResultStorage();
 
 		const handleRemoveBlockType = (id: string) => {
 			const newValue = blockTypeSlugs.filter((blockId) => blockId !== id);
@@ -95,6 +152,27 @@ export const Route = createFileRoute("/blocks/")({
 				replace: true,
 			});
 		}, [navigate]);
+		const handleUpdateDefaultResultStorage = useCallback(
+			(blockDocumentId: string) => {
+				if (blockDocumentId === defaultResultStorageBlockId) {
+					return;
+				}
+				updateDefaultResultStorage(
+					{ default_result_storage_block_id: blockDocumentId },
+					{
+						onSuccess: () => toast.success("Default result storage updated"),
+						onError: (error) => toast.error(error.message),
+					},
+				);
+			},
+			[defaultResultStorageBlockId, updateDefaultResultStorage],
+		);
+		const handleClearDefaultResultStorage = useCallback(() => {
+			clearDefaultResultStorage(undefined, {
+				onSuccess: () => toast.success("Default result storage cleared"),
+				onError: (error) => toast.error(error.message),
+			});
+		}, [clearDefaultResultStorage]);
 
 		return (
 			<BlocksPage
@@ -109,6 +187,14 @@ export const Route = createFileRoute("/blocks/")({
 				pagination={pagination}
 				onPaginationChange={onPaginationChange}
 				onClearFilters={onClearFilters}
+				defaultResultStorageBlockId={defaultResultStorageBlockId}
+				defaultResultStorageBlock={resolvedDefaultResultStorageBlock}
+				storageBlockDocuments={storageBlockDocuments}
+				onUpdateDefaultResultStorage={handleUpdateDefaultResultStorage}
+				onClearDefaultResultStorage={handleClearDefaultResultStorage}
+				isUpdatingDefaultResultStorage={isUpdatingDefaultResultStorage}
+				isClearingDefaultResultStorage={isClearingDefaultResultStorage}
+				isLoadingDefaultResultStorageBlock={isLoadingDefaultResultStorageBlock}
 			/>
 		);
 	},
@@ -138,6 +224,10 @@ export const Route = createFileRoute("/blocks/")({
 		// Prefetch all queries without awaiting to avoid blocking render
 		void queryClient.prefetchQuery(buildListFilterBlockTypesQuery());
 		void queryClient.prefetchQuery(buildCountAllBlockDocumentsQuery());
+		void queryClient.prefetchQuery(buildGetDefaultResultStorageQuery());
+		void queryClient.prefetchQuery(
+			buildListFilterBlockDocumentsQuery(storageBlockDocumentsFilter),
+		);
 		void queryClient.prefetchQuery(
 			buildListFilterBlockDocumentsQuery(paginatedFilter),
 		);
