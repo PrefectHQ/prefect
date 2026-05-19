@@ -7,7 +7,6 @@ content-addressed storage key derivation using SHA256 hashes.
 
 from __future__ import annotations
 
-import hashlib
 import os
 import zipfile
 from pathlib import Path
@@ -204,8 +203,8 @@ class TestZipBuilderBuild:
         key1 = result1.storage_key
         builder1.cleanup()
 
-        # Change only the file mtime
-        os.utime(test_file, (1_000_000, 1_000_000))
+        # Change only the file mtime (use a post-1980 timestamp for ZIP compat)
+        os.utime(test_file, (400_000_000, 400_000_000))
 
         # Second build
         builder2 = ZipBuilder(tmp_path)
@@ -216,6 +215,46 @@ class TestZipBuilderBuild:
 
         assert hash1 == hash2
         assert key1 == key2
+
+    def test_build_hash_changes_with_file_content(self, tmp_path: Path) -> None:
+        """Changing file bytes produces a different hash."""
+        from prefect.bundles._zip_builder import ZipBuilder
+
+        test_file = tmp_path / "data.txt"
+
+        test_file.write_text("version 1")
+        builder1 = ZipBuilder(tmp_path)
+        result1 = builder1.build([test_file])
+        hash1 = result1.sha256_hash
+        builder1.cleanup()
+
+        test_file.write_text("version 2")
+        builder2 = ZipBuilder(tmp_path)
+        result2 = builder2.build([test_file])
+        hash2 = result2.sha256_hash
+        builder2.cleanup()
+
+        assert hash1 != hash2
+
+    def test_build_hash_changes_with_archive_path(self, tmp_path: Path) -> None:
+        """Changing the archive path produces a different hash."""
+        from prefect.bundles._zip_builder import ZipBuilder
+
+        content = "same content"
+
+        (tmp_path / "file_a.txt").write_text(content)
+        builder1 = ZipBuilder(tmp_path)
+        result1 = builder1.build([tmp_path / "file_a.txt"])
+        hash1 = result1.sha256_hash
+        builder1.cleanup()
+
+        (tmp_path / "file_b.txt").write_text(content)
+        builder2 = ZipBuilder(tmp_path)
+        result2 = builder2.build([tmp_path / "file_b.txt"])
+        hash2 = result2.sha256_hash
+        builder2.cleanup()
+
+        assert hash1 != hash2
 
     def test_build_sorts_files_for_determinism(self, tmp_path: Path) -> None:
         """Files are sorted by relative path for deterministic hash."""
@@ -354,6 +393,7 @@ class TestZipBuilderSizeWarning:
         # Mock stat to return size >= threshold
         with patch.object(Path, "stat") as mock_stat:
             mock_stat.return_value.st_size = ZIP_SIZE_WARNING_THRESHOLD
+            mock_stat.return_value.st_mode = 0o100644
             with caplog.at_level("WARNING"):
                 builder.build([tmp_path / "test.txt"])
 
@@ -504,46 +544,45 @@ class TestZipBuilderCleanup:
 
 
 class TestZipBuilderHashComputation:
-    """Tests for SHA256 hash computation."""
+    """Tests for content-addressed SHA256 hash computation."""
 
-    def test_hash_is_sha256(self, tmp_path: Path) -> None:
-        """Hash is computed using SHA256."""
+    def test_hash_is_stable_for_identical_contents(self, tmp_path: Path) -> None:
+        """Hash is stable across builds with identical file contents."""
         from prefect.bundles._zip_builder import ZipBuilder
 
         (tmp_path / "test.txt").write_text("test content")
 
-        builder = ZipBuilder(tmp_path)
-        result = builder.build([tmp_path / "test.txt"])
+        builder1 = ZipBuilder(tmp_path)
+        result1 = builder1.build([tmp_path / "test.txt"])
+        hash1 = result1.sha256_hash
+        builder1.cleanup()
 
-        # Verify by computing hash ourselves
-        with open(result.zip_path, "rb") as f:
-            expected_hash = hashlib.sha256(f.read()).hexdigest()
+        builder2 = ZipBuilder(tmp_path)
+        result2 = builder2.build([tmp_path / "test.txt"])
+        hash2 = result2.sha256_hash
+        builder2.cleanup()
 
-        assert result.sha256_hash == expected_hash
+        assert hash1 == hash2
 
-        builder.cleanup()
+    def test_hash_changes_when_content_changes(self, tmp_path: Path) -> None:
+        """Hash changes when file content changes."""
+        from prefect.bundles._zip_builder import ZipBuilder
 
-    def test_hash_uses_chunked_reading(self, tmp_path: Path) -> None:
-        """Hash computation uses chunked reading (64KB chunks)."""
-        from prefect.bundles._zip_builder import (
-            HASH_CHUNK_SIZE,
-            ZipBuilder,
-        )
+        test_file = tmp_path / "test.txt"
 
-        # Create a file larger than one chunk
-        large_content = "x" * (HASH_CHUNK_SIZE * 2 + 100)
-        (tmp_path / "large.txt").write_text(large_content)
+        test_file.write_text("content v1")
+        builder1 = ZipBuilder(tmp_path)
+        result1 = builder1.build([test_file])
+        hash1 = result1.sha256_hash
+        builder1.cleanup()
 
-        builder = ZipBuilder(tmp_path)
-        result = builder.build([tmp_path / "large.txt"])
+        test_file.write_text("content v2")
+        builder2 = ZipBuilder(tmp_path)
+        result2 = builder2.build([test_file])
+        hash2 = result2.sha256_hash
+        builder2.cleanup()
 
-        # Verify hash is still correct for large file
-        with open(result.zip_path, "rb") as f:
-            expected_hash = hashlib.sha256(f.read()).hexdigest()
-
-        assert result.sha256_hash == expected_hash
-
-        builder.cleanup()
+        assert hash1 != hash2
 
     def test_hash_is_lowercase_hex(self, tmp_path: Path) -> None:
         """Hash is returned as lowercase hexadecimal."""

@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import shutil
+import struct
 import tempfile
 import zipfile
 from dataclasses import dataclass
@@ -20,10 +21,6 @@ logger = logging.getLogger(__name__)
 
 # Size of chunks for reading files when computing hash (64KB)
 HASH_CHUNK_SIZE = 65536
-
-# Fixed timestamp for ZIP entries to ensure deterministic archives.
-# (1980, 1, 1, 0, 0, 0) is the earliest portable ZIP timestamp.
-ZIP_MEMBER_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 
 # Warning threshold for zip file size (50MB)
 ZIP_SIZE_WARNING_THRESHOLD = 50 * 1024 * 1024
@@ -36,7 +33,8 @@ class ZipResult:
 
     Attributes:
         zip_path: Path to the temporary zip file.
-        sha256_hash: Lowercase hex digest of the zip content.
+        sha256_hash: SHA256 hex digest of the canonical bundled file contents
+            (paths, modes, and bytes), not the raw zip archive bytes.
         storage_key: Content-addressed storage key in format "files/{hash}.zip".
         size_bytes: Size of the zip file in bytes.
     """
@@ -105,25 +103,10 @@ class ZipBuilder:
                 # Compute relative path with forward slashes
                 rel_path = file_path.relative_to(self.base_dir)
                 arcname = str(rel_path).replace("\\", "/")
+                zf.write(file_path, arcname)
 
-                # Use ZipInfo with a fixed timestamp to avoid embedding
-                # filesystem mtime, which would make the archive
-                # non-deterministic.
-                zip_info = zipfile.ZipInfo(arcname, ZIP_MEMBER_TIMESTAMP)
-                zip_info.compress_type = zipfile.ZIP_DEFLATED
-                file_stat = file_path.stat()
-                zip_info.external_attr = (file_stat.st_mode & 0xFFFF) << 16
-                zip_info.file_size = file_stat.st_size
-
-                with file_path.open("rb") as src, zf.open(zip_info, "w") as dest:
-                    while True:
-                        chunk = src.read(HASH_CHUNK_SIZE)
-                        if not chunk:
-                            break
-                        dest.write(chunk)
-
-        # Compute SHA256 hash using chunked reading
-        sha256_hash = self._compute_hash(zip_path)
+        # Compute content-addressed hash from logical bundle contents
+        sha256_hash = self._compute_content_hash(sorted_files)
 
         # Get file size
         size_bytes = zip_path.stat().st_size
@@ -142,23 +125,42 @@ class ZipBuilder:
             size_bytes=size_bytes,
         )
 
-    def _compute_hash(self, zip_path: Path) -> str:
+    def _compute_content_hash(self, sorted_files: list[Path]) -> str:
         """
-        Compute SHA256 hash of a file using chunked reading.
+        Compute a deterministic SHA256 digest over the logical bundle contents.
+
+        The hash covers archive paths, file modes, and file bytes for each
+        entry in sorted order, making it insensitive to filesystem metadata
+        like mtimes.
 
         Args:
-            zip_path: Path to the file to hash.
+            sorted_files: Files already sorted by relative path.
 
         Returns:
             Lowercase hex digest of the SHA256 hash.
         """
         hasher = hashlib.sha256()
-        with open(zip_path, "rb") as f:
-            while True:
-                chunk = f.read(HASH_CHUNK_SIZE)
-                if not chunk:
-                    break
-                hasher.update(chunk)
+        hasher.update(b"prefect-bundle-files-v1\0")
+
+        for file_path in sorted_files:
+            rel_path = file_path.relative_to(self.base_dir)
+            arcname = str(rel_path).replace("\\", "/")
+
+            arcname_bytes = arcname.encode("utf-8")
+            hasher.update(struct.pack(">I", len(arcname_bytes)))
+            hasher.update(arcname_bytes)
+
+            file_stat = file_path.stat()
+            hasher.update(struct.pack(">I", file_stat.st_mode & 0xFFFF))
+            hasher.update(struct.pack(">Q", file_stat.st_size))
+
+            with file_path.open("rb") as f:
+                while True:
+                    chunk = f.read(HASH_CHUNK_SIZE)
+                    if not chunk:
+                        break
+                    hasher.update(chunk)
+
         return hasher.hexdigest()
 
     def _emit_size_warning(
