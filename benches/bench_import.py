@@ -17,7 +17,7 @@ IMPORT_MODULES = [
     "prefect.client.schemas.objects",
     "prefect.flows",
     "prefect.deployments",
-    "prefect.events.clients",
+    "prefect.events",
     "prefect.server.api.server",
     "prefect.task_runners",
 ]
