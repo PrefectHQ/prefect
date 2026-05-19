@@ -87,8 +87,8 @@ from prefect.settings import (
     PREFECT_UNIT_TEST_LOOP_DEBUG,
 )
 from prefect.types._datetime import now
-from prefect.workers.base import BaseWorker
 from prefect.utilities.dispatch import get_registry_for_type
+from prefect.workers.base import BaseWorker
 
 # isort: split
 # Import fixtures
