@@ -60,15 +60,15 @@ jobs:
           PREFECT_API_URL: "http://127.0.0.1:4200/api"
         with:
           # Import benchmarks run in separate pytest invocations so each one
-          # starts in a fresh Python interpreter.  In-process sys.modules
-          # resets cannot fully undo Prefect's import side-effects (background
-          # threads, Prometheus collectors, Pydantic registries, etc.) which
-          # caused non-deterministic instruction counts under CodSpeed.
+          # starts in a fresh Python interpreter.  Each benchmark uses
+          # benchmark.pedantic(setup=_reset_to_cold_state) so that the
+          # setup function (which clears sys.modules and Prometheus
+          # collectors) runs *outside* CodSpeed's callgrind markers —
+          # only the import itself is measured.
           #
           # -o 'filterwarnings=' overrides pyproject.toml filters that
           # reference prefect.* warning classes, which would otherwise
-          # trigger a prefect import during pytest startup — defeating
-          # cold-import measurement.
+          # trigger a prefect import during pytest startup.
           #
           # pytest-codspeed writes each invocation's results to a unique file
           # (keyed by PID), so the CodSpeed action collects all of them.
