@@ -1041,17 +1041,17 @@ Whether to crash flow runs and shut down the runner when cancellation observing 
 **Supported environment variables**:
 `PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE`
 
-### `uv_auto_sync`
+### `uv_run_enabled`
 Whether to automatically use `uv run --project` to execute flow runs when a `pyproject.toml` declaring prefect as a dependency is found in the workspace. Disable this to use the Python executable from the current environment instead.
 
 **Type**: `boolean`
 
 **Default**: `True`
 
-**TOML dotted key path**: `runner.uv_auto_sync`
+**TOML dotted key path**: `runner.uv_run_enabled`
 
 **Supported environment variables**:
-`PREFECT_RUNNER_UV_AUTO_SYNC`
+`PREFECT_RUNNER_UV_RUN_ENABLED`
 
 ### `server`
 
