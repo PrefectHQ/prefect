@@ -71,6 +71,16 @@ class RunnerSettings(PrefectBaseSettings):
         ),
     )
 
+    uv_auto_sync: bool = Field(
+        default=True,
+        description=(
+            "Whether to automatically use `uv run --project` to execute flow runs "
+            "when a `pyproject.toml` declaring prefect as a dependency is found in "
+            "the workspace. Disable this to use the Python executable from the "
+            "current environment instead."
+        ),
+    )
+
     server: RunnerServerSettings = Field(
         default_factory=RunnerServerSettings,
         description="Settings for controlling runner server behavior",
