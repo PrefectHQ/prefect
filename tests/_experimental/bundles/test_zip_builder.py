@@ -8,6 +8,7 @@ content-addressed storage key derivation using SHA256 hashes.
 from __future__ import annotations
 
 import hashlib
+import os
 import zipfile
 from pathlib import Path
 from unittest.mock import patch
@@ -188,6 +189,33 @@ class TestZipBuilderBuild:
 
         # Hashes should match
         assert hash1 == hash2
+
+    def test_build_deterministic_hash_ignores_mtime(self, tmp_path: Path) -> None:
+        """Identical file contents with different mtimes produce identical hash and storage key."""
+        from prefect.bundles._zip_builder import ZipBuilder
+
+        test_file = tmp_path / "data.txt"
+        test_file.write_text("hello world")
+
+        # First build
+        builder1 = ZipBuilder(tmp_path)
+        result1 = builder1.build([test_file])
+        hash1 = result1.sha256_hash
+        key1 = result1.storage_key
+        builder1.cleanup()
+
+        # Change only the file mtime
+        os.utime(test_file, (1_000_000, 1_000_000))
+
+        # Second build
+        builder2 = ZipBuilder(tmp_path)
+        result2 = builder2.build([test_file])
+        hash2 = result2.sha256_hash
+        key2 = result2.storage_key
+        builder2.cleanup()
+
+        assert hash1 == hash2
+        assert key1 == key2
 
     def test_build_sorts_files_for_determinism(self, tmp_path: Path) -> None:
         """Files are sorted by relative path for deterministic hash."""

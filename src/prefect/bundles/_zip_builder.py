@@ -21,6 +21,10 @@ logger = logging.getLogger(__name__)
 # Size of chunks for reading files when computing hash (64KB)
 HASH_CHUNK_SIZE = 65536
 
+# Fixed timestamp for ZIP entries to ensure deterministic archives.
+# (1980, 1, 1, 0, 0, 0) is the earliest portable ZIP timestamp.
+ZIP_MEMBER_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
+
 # Warning threshold for zip file size (50MB)
 ZIP_SIZE_WARNING_THRESHOLD = 50 * 1024 * 1024
 
@@ -101,7 +105,20 @@ class ZipBuilder:
                 # Compute relative path with forward slashes
                 rel_path = file_path.relative_to(self.base_dir)
                 arcname = str(rel_path).replace("\\", "/")
-                zf.write(file_path, arcname)
+
+                # Use ZipInfo with a fixed timestamp to avoid embedding
+                # filesystem mtime, which would make the archive
+                # non-deterministic.
+                zip_info = zipfile.ZipInfo(arcname, ZIP_MEMBER_TIMESTAMP)
+                zip_info.compress_type = zipfile.ZIP_DEFLATED
+                zip_info.external_attr = (file_path.stat().st_mode & 0xFFFF) << 16
+
+                with file_path.open("rb") as src, zf.open(zip_info, "w") as dest:
+                    while True:
+                        chunk = src.read(HASH_CHUNK_SIZE)
+                        if not chunk:
+                            break
+                        dest.write(chunk)
 
         # Compute SHA256 hash using chunked reading
         sha256_hash = self._compute_hash(zip_path)
