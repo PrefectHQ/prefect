@@ -37,14 +37,6 @@ def run_event_listener(
     except BaseException as exc:
         errors.append(exc)
         ready.set()
-def run_event_listener(events: List[Event], ready: ThreadingEvent):
-    """Run the async event listener in a thread"""
-    try:
-        asyncio.run(watch_worker_events(events, ready))
-    except Exception:
-        # Signal ready even on failure so the test doesn't block;
-        # it will fail at the event assertion instead.
-        ready.set()
 
 
 def _wait_for(predicate, *, timeout: float, message: str, interval: float = 0.5):
@@ -68,10 +60,6 @@ def test_worker():
         target=run_event_listener,
         args=(events, listener_ready, listener_errors),
         daemon=True,
-    listener_ready = ThreadingEvent()
-
-    listener_thread = Thread(
-        target=run_event_listener, args=(events, listener_ready), daemon=True
     )
     listener_thread.start()
     assert listener_ready.wait(timeout=10), "Worker event listener did not start"
@@ -170,25 +158,27 @@ def test_worker():
         stderr=sys.stderr,
     )
 
-    deadline = time.monotonic() + 10
-    worker_events = []
-    while time.monotonic() < deadline:
-        assert not listener_errors, (
-            f"Worker event listener failed while waiting for events: {listener_errors[0]!r}"
-        )
-        worker_events = [
     def _get_worker_events():
         return [
             e
             for e in events
             if e.event.startswith("prefect.worker.") and e.resource.name == WORKER_NAME
         ]
+
+    deadline = time.monotonic() + 10
+    worker_events = []
+    while time.monotonic() < deadline:
+        assert not listener_errors, (
+            f"Worker event listener failed while waiting for events: {listener_errors[0]!r}"
+        )
+        worker_events = _get_worker_events()
         if len(worker_events) == 2:
             break
         time.sleep(0.1)
 
     assert len(worker_events) == 2, (
         f"Expected 2 worker events, got {len(worker_events)}"
+    )
 
     # Poll for events — delivery via websocket may lag slightly behind the
     # worker subprocess exiting.
