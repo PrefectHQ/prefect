@@ -2334,6 +2334,22 @@ class TestManuallyRetryingFlowRuns:
         assert restarted_run.run_count == 1, "manual retries preserve the run count"
         assert restarted_run.state.type == StateType.SCHEDULED
 
+    async def test_manual_flow_run_retries_persist_reschedule_retries_on_empirical_policy(
+        self, failed_flow_run_with_deployment, client
+    ):
+        flow_run_id = failed_flow_run_with_deployment.id
+
+        set_resp = await client.post(
+            f"/flow_runs/{flow_run_id}/set_state",
+            json=dict(state=dict(type=StateType.SCHEDULED, name="AwaitingRetry")),
+        )
+        assert set_resp.status_code in (200, 201), set_resp.text
+
+        read_resp = await client.get(f"/flow_runs/{flow_run_id}")
+        assert read_resp.status_code == 200, read_resp.text
+        flow_run = read_resp.json()
+        assert flow_run["empirical_policy"]["reschedule_retries"] == 1
+
     async def test_manual_flow_run_retries_succeed_even_if_exceeding_retries_setting(
         self, failed_flow_run_with_deployment_with_no_more_retries, client, session
     ):
