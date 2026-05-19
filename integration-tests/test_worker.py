@@ -1,4 +1,5 @@
 import asyncio
+import os
 import subprocess
 import sys
 from threading import Thread
@@ -10,6 +11,7 @@ import uv
 from prefect.events import Event
 from prefect.events.clients import get_events_subscriber
 from prefect.events.filters import EventFilter, EventNameFilter, EventOccurredFilter
+from prefect.settings import PREFECT_API_URL
 from prefect.types._datetime import now
 
 
@@ -33,6 +35,9 @@ def run_event_listener(events: List[Event]):
 def test_worker():
     WORKER_NAME = f"test-worker-{uuid4()}"  # noqa: F821
     events: List[Event] = []
+    api_url = PREFECT_API_URL.value()
+    assert api_url, "PREFECT_API_URL must be configured for integration tests."
+    cli_env = {**os.environ, "PREFECT_API_URL": api_url}
 
     listener_thread = Thread(target=run_event_listener, args=(events,), daemon=True)
     listener_thread.start()
@@ -48,6 +53,7 @@ def test_worker():
                 "delete",
                 "test-worker-pool",
             ],
+            env=cli_env,
         )
     except subprocess.CalledProcessError:
         pass
@@ -67,6 +73,7 @@ def test_worker():
                 "-t",
                 "nonsense",
             ],
+            env=cli_env,
         )
     except subprocess.CalledProcessError as e:
         # Check that the error message contains kubernetes worker type
@@ -89,6 +96,7 @@ def test_worker():
         ],
         stdout=sys.stdout,
         stderr=sys.stderr,
+        env=cli_env,
     )
     subprocess.check_call(
         [
@@ -110,6 +118,7 @@ def test_worker():
         ],
         stdout=sys.stdout,
         stderr=sys.stderr,
+        env=cli_env,
     )
     subprocess.check_call(
         [
@@ -124,6 +133,7 @@ def test_worker():
         ],
         stdout=sys.stdout,
         stderr=sys.stderr,
+        env=cli_env,
     )
 
     worker_events = [

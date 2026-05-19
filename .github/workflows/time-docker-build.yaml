@@ -62,7 +62,8 @@ jobs:
         if: github.base_ref
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.head_ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
           clean: true
           fetch-depth: 0
           filter: blob:none
