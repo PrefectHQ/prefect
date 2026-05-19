@@ -739,7 +739,7 @@ class TestProfilesPopulateDefaults:
         save_profiles(existing_profiles)
 
         invoke_and_assert(
-            ["profile", "populate-defaults"],
+            ["--prompt", "profile", "populate-defaults"],
             user_input="y\ny",  # Confirm backup and update
             expected_output_contains=[
                 "Proposed Changes:",
