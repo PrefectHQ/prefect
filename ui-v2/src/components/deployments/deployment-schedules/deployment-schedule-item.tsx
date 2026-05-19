@@ -38,7 +38,9 @@ export const DeploymentScheduleItem = ({
 					<TooltipProvider>
 						<Tooltip>
 							<TooltipTrigger asChild>
-								<div className={`shrink-0 rounded-full p-1 ${statusContainerClassName}`}>
+								<div
+									className={`shrink-0 rounded-full p-1 ${statusContainerClassName}`}
+								>
 									<Icon
 										id={isActive ? "Check" : "Pause"}
 										className={`size-4 ${statusIconClassName}`}

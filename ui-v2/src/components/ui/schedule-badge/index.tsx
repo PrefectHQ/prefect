@@ -5,12 +5,12 @@ import { useRef } from "react";
 import { rrulestr } from "rrule";
 import type { components } from "@/api/prefect";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
-import { Icon } from "@/components/ui/icons";
 import {
 	HoverCard,
 	HoverCardContent,
 	HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import { Icon } from "@/components/ui/icons";
 import {
 	Tooltip,
 	TooltipContent,
@@ -41,7 +41,11 @@ const ScheduleStatusPill = ({ active }: { active: boolean }) => (
 				: "bg-state-paused-100 text-state-paused-700",
 		)}
 	>
-		<Icon id={active ? "Check" : "Pause"} className="size-3" aria-hidden="true" />
+		<Icon
+			id={active ? "Check" : "Pause"}
+			className="size-3"
+			aria-hidden="true"
+		/>
 		<span>{getScheduleStatusLabel(active)}</span>
 	</span>
 );
