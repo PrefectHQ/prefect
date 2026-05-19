@@ -103,6 +103,7 @@ class WorkPoolWorkerChannel:
         )
         self._websocket_started = False
         self._run_scope: anyio.CancelScope | None = None
+        self._stopped = False
 
     @property
     def url(self) -> str | None:
@@ -128,6 +129,7 @@ class WorkPoolWorkerChannel:
         self._client = client
 
     def stop(self) -> None:
+        self._stopped = True
         if self._run_scope is not None:
             self._run_scope.cancel()
 
@@ -239,6 +241,8 @@ class WorkPoolWorkerChannel:
     async def _run(self, initial_session: WorkerChannelSession | None = None) -> None:
         with anyio.CancelScope() as scope:
             self._run_scope = scope
+            if self._stopped:
+                scope.cancel()
             try:
                 async with AsyncExitStack() as stack:
                     if self._cleanup_executor is not None:
