@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import List
+from unittest.mock import AsyncMock
 
 import pytest
 from httpx import AsyncClient, Headers
@@ -27,11 +28,14 @@ from prefect.client.schemas.worker_channel import (
     WORKER_HEARTBEAT_CAPABILITY,
     WorkerChannelCloseReason,
     WorkerReadyFrame,
+    WorkPoolSnapshot,
+    WorkPoolSnapshotFrame,
 )
 from prefect.server import models, schemas
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.core import WorkPoolStorageConfiguration
 from prefect.server.schemas.statuses import DeploymentStatus, WorkQueueStatus
+from prefect.server.utilities import worker_channel as worker_channel_utils
 from prefect.settings import PREFECT_SERVER_API_AUTH_STRING, temporary_settings
 from prefect.utilities.pydantic import parse_obj_as
 
@@ -568,6 +572,32 @@ class TestUpdateWorkPool:
         event_types = {event.event for event in found_events}
         assert "prefect.work-pool.paused" in event_types
         assert "prefect.work-pool.updated" in event_types
+
+    async def test_update_work_pool_propagates_snapshot_publish_failure(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        client_without_exceptions: AsyncClient,
+        work_pool,
+    ) -> None:
+        async def fail_publish(
+            invalidation: worker_channel_utils.WorkerChannelSnapshotInvalidation,
+        ) -> None:
+            raise RuntimeError("broker unavailable")
+
+        monkeypatch.setattr(
+            worker_channel_utils,
+            "publish_snapshot_invalidation",
+            fail_publish,
+        )
+
+        response = await client_without_exceptions.patch(
+            f"/work_pools/{work_pool.name}",
+            json=schemas.actions.WorkPoolUpdate(
+                base_job_template=_valid_base_job_template(["echo", "updated"])
+            ).model_dump(mode="json", exclude_unset=True),
+        )
+
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
 
     async def test_update_work_pool_storage_configuration(self, client, work_pool):
         bundle_upload_step = {
@@ -1874,6 +1904,79 @@ class TestUpdateWorkQueue:
         )
 
 
+class TestWorkQueueSnapshotInvalidations:
+    async def test_work_pool_queue_changes_do_not_publish_snapshot_invalidation(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        client: AsyncClient,
+        work_pool,
+    ) -> None:
+        publish = AsyncMock()
+        monkeypatch.setattr(
+            worker_channel_utils,
+            "publish_snapshot_invalidation",
+            publish,
+        )
+
+        create_response = await client.post(
+            f"/work_pools/{work_pool.name}/queues",
+            json={"name": "selected"},
+        )
+        assert create_response.status_code == status.HTTP_201_CREATED, (
+            create_response.text
+        )
+
+        update_response = await client.patch(
+            f"/work_pools/{work_pool.name}/queues/selected",
+            json={"is_paused": True},
+        )
+        assert update_response.status_code == status.HTTP_204_NO_CONTENT, (
+            update_response.text
+        )
+
+        delete_response = await client.delete(
+            f"/work_pools/{work_pool.name}/queues/selected"
+        )
+        assert delete_response.status_code == status.HTTP_204_NO_CONTENT, (
+            delete_response.text
+        )
+        publish.assert_not_awaited()
+
+    async def test_work_queue_id_routes_do_not_publish_snapshot_invalidation(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        client: AsyncClient,
+        session: AsyncSession,
+        work_pool,
+    ) -> None:
+        queue = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="selected"),
+        )
+        await session.commit()
+        publish = AsyncMock()
+        monkeypatch.setattr(
+            worker_channel_utils,
+            "publish_snapshot_invalidation",
+            publish,
+        )
+
+        update_response = await client.patch(
+            f"/work_queues/{queue.id}",
+            json={"is_paused": True},
+        )
+        assert update_response.status_code == status.HTTP_204_NO_CONTENT, (
+            update_response.text
+        )
+
+        delete_response = await client.delete(f"/work_queues/{queue.id}")
+        assert delete_response.status_code == status.HTTP_204_NO_CONTENT, (
+            delete_response.text
+        )
+        publish.assert_not_awaited()
+
+
 class TestUpdateWorkPoolEvents:
     async def test_update_work_pool_emits_updated_event_for_description(
         self, client, work_pool
@@ -2640,6 +2743,155 @@ class TestWorkerChannelConnect:
         assert updated.status == schemas.statuses.WorkPoolStatus.READY
         assert_status_events(work_pool.name, ["prefect.work-pool.ready"])
 
+    async def test_work_pool_update_sends_snapshot(
+        self, test_client: TestClient, client: AsyncClient, work_pool
+    ) -> None:
+        updated_base_job_template = _valid_base_job_template(["echo", "updated"])
+
+        with _connect_worker_channel(test_client, work_pool.name) as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(_worker_hello_frame())
+            WorkerReadyFrame.model_validate(websocket.receive_json())
+
+            response = await client.patch(
+                f"/work_pools/{work_pool.name}",
+                json=schemas.actions.WorkPoolUpdate(
+                    base_job_template=updated_base_job_template
+                ).model_dump(mode="json", exclude_unset=True),
+            )
+            assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
+
+            snapshot = WorkPoolSnapshotFrame.model_validate(websocket.receive_json())
+
+        assert snapshot.payload.snapshot_sequence == 2
+        assert snapshot.payload.reason == "work_pool_updated"
+        assert snapshot.payload.work_pool.id == work_pool.id
+        assert snapshot.payload.work_pool.base_job_template == updated_base_job_template
+
+    async def test_setup_queues_snapshot_invalidations_published_during_ready_build(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        test_client: TestClient,
+        session: AsyncSession,
+        work_pool,
+    ) -> None:
+        initial_base_job_template = _valid_base_job_template(["echo", "initial"])
+        latest_base_job_template = _valid_base_job_template(["echo", "latest"])
+        await models.workers.update_work_pool(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_pool=schemas.actions.WorkPoolUpdate(
+                base_job_template=initial_base_job_template
+            ),
+        )
+        await session.commit()
+
+        original_build_snapshot = (
+            worker_channel_utils.build_worker_channel_work_pool_snapshot
+        )
+        published_invalidation = False
+
+        async def build_snapshot_and_update_work_pool(
+            session: AsyncSession,
+            work_pool: prefect.server.database.orm_models.WorkPool,
+        ) -> WorkPoolSnapshot:
+            nonlocal published_invalidation
+            snapshot = await original_build_snapshot(
+                session=session,
+                work_pool=work_pool,
+            )
+
+            if not published_invalidation:
+                published_invalidation = True
+                work_pool.base_job_template = latest_base_job_template
+                await session.flush()
+                await worker_channel_utils.publish_snapshot_invalidation(
+                    worker_channel_utils.WorkerChannelSnapshotInvalidation(
+                        work_pool_id=work_pool.id,
+                        reason="work_pool_updated",
+                    )
+                )
+
+            return snapshot
+
+        monkeypatch.setattr(
+            worker_channel_utils,
+            "build_worker_channel_work_pool_snapshot",
+            build_snapshot_and_update_work_pool,
+        )
+
+        with _connect_worker_channel(test_client, work_pool.name) as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(_worker_hello_frame())
+            ready = WorkerReadyFrame.model_validate(websocket.receive_json())
+            snapshot = WorkPoolSnapshotFrame.model_validate(websocket.receive_json())
+
+        assert (
+            ready.payload.initial_snapshot.work_pool.base_job_template
+            == initial_base_job_template
+        )
+        assert snapshot.payload.snapshot_sequence == 2
+        assert snapshot.payload.reason == "work_pool_updated"
+        assert snapshot.payload.work_pool.base_job_template == latest_base_job_template
+
+    async def test_rapid_work_pool_updates_coalesce_to_latest_snapshot(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        test_client: TestClient,
+        client: AsyncClient,
+        work_pool,
+    ) -> None:
+        monkeypatch.setattr(
+            "prefect.server.utilities.worker_channel._WORKER_CHANNEL_SNAPSHOT_COALESCE_SECONDS",
+            0.2,
+        )
+        stale_base_job_template = _valid_base_job_template(["echo", "stale"])
+        latest_base_job_template = _valid_base_job_template(["echo", "latest"])
+
+        with _connect_worker_channel(test_client, work_pool.name) as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(_worker_hello_frame())
+            WorkerReadyFrame.model_validate(websocket.receive_json())
+
+            first_response = await client.patch(
+                f"/work_pools/{work_pool.name}",
+                json=schemas.actions.WorkPoolUpdate(
+                    base_job_template=stale_base_job_template
+                ).model_dump(mode="json", exclude_unset=True),
+            )
+            assert first_response.status_code == status.HTTP_204_NO_CONTENT
+            second_response = await client.patch(
+                f"/work_pools/{work_pool.name}",
+                json=schemas.actions.WorkPoolUpdate(
+                    base_job_template=latest_base_job_template
+                ).model_dump(mode="json", exclude_unset=True),
+            )
+            assert second_response.status_code == status.HTTP_204_NO_CONTENT
+
+            snapshot = WorkPoolSnapshotFrame.model_validate(websocket.receive_json())
+
+        assert snapshot.payload.snapshot_sequence == 2
+        assert snapshot.payload.work_pool.base_job_template == latest_base_job_template
+
+    async def test_work_pool_delete_closes_connection_without_snapshot(
+        self, test_client: TestClient, client: AsyncClient, work_pool
+    ) -> None:
+        with pytest.raises(WebSocketDisconnect) as exception:
+            with _connect_worker_channel(test_client, work_pool.name) as websocket:
+                _authenticate_worker_channel(websocket)
+                websocket.send_json(_worker_hello_frame())
+                WorkerReadyFrame.model_validate(websocket.receive_json())
+
+                response = await client.delete(f"/work_pools/{work_pool.name}")
+                assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
+                websocket.receive_json()
+
+        assert exception.value.code == WS_1008_POLICY_VIOLATION
+        assert (
+            exception.value.reason
+            == WorkerChannelCloseReason.AUTHORIZATION_FAILED.value
+        )
+
     def test_channel_closes_when_heartbeat_persistence_fails(
         self, monkeypatch: pytest.MonkeyPatch, test_client: TestClient, work_pool
     ):
@@ -2733,6 +2985,27 @@ class TestWorkerProcess:
         )
 
         assert_status_events(work_pool.name, ["prefect.work-pool.ready"])
+
+    async def test_worker_heartbeat_does_not_publish_snapshot_invalidation(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        client: AsyncClient,
+        work_pool,
+    ) -> None:
+        publish = AsyncMock()
+        monkeypatch.setattr(
+            worker_channel_utils,
+            "publish_snapshot_invalidation",
+            publish,
+        )
+
+        response = await client.post(
+            f"/work_pools/{work_pool.name}/workers/heartbeat",
+            json={"name": "test-worker"},
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
+        publish.assert_not_awaited()
 
     async def test_worker_heartbeat_does_not_updates_work_pool_status_if_paused(
         self, client, work_pool
