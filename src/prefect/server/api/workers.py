@@ -1058,7 +1058,6 @@ async def worker_channel_connect(
 
     try:
         hello = await _receive_worker_hello(websocket)
-        subscription_started_at = now("UTC")
         async with worker_channel_utils.messaging.ephemeral_subscription(
             worker_channel_utils.WORKER_CHANNEL_SNAPSHOT_TOPIC,
         ) as consumer_kwargs:
@@ -1095,7 +1094,6 @@ async def worker_channel_connect(
                 work_pool_id=ready.payload.initial_snapshot.work_pool.id,
                 consumer_id=hello.payload.consumer_id,
                 worker_name=hello.payload.worker_name,
-                subscription_started_at=subscription_started_at,
             )
             await connection.run(ready, consumer_kwargs)
 

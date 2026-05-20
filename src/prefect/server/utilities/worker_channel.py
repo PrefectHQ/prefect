@@ -28,7 +28,6 @@ from prefect.logging import get_logger
 from prefect.server.database import PrefectDBInterface
 from prefect.server.models.workers import emit_work_pool_status_event
 from prefect.server.utilities import messaging, subscriptions
-from prefect.types import DateTime
 from prefect.types._datetime import now
 
 if TYPE_CHECKING:
@@ -54,18 +53,8 @@ class WorkerChannelSnapshotInvalidation(PrefectBaseModel):
     work_pool_id: UUID
     reason: str
     work_pool_deleted: bool = False
-    published_at: DateTime | None = None
 
-    def targets(
-        self,
-        *,
-        work_pool_id: UUID,
-        subscribed_after: DateTime | None = None,
-    ) -> bool:
-        if subscribed_after is not None:
-            if self.published_at is None or self.published_at < subscribed_after:
-                return False
-
+    def targets(self, *, work_pool_id: UUID) -> bool:
         return self.work_pool_id == work_pool_id
 
 
@@ -83,7 +72,6 @@ class WorkerChannelConnection:
         work_pool_id: UUID,
         consumer_id: UUID,
         worker_name: str,
-        subscription_started_at: DateTime,
     ) -> None:
         self.websocket = websocket
         self.db = db
@@ -91,7 +79,6 @@ class WorkerChannelConnection:
         self.work_pool_id = work_pool_id
         self.consumer_id = consumer_id
         self.worker_name = worker_name
-        self.subscription_started_at = subscription_started_at
         self._next_snapshot_sequence = 2
         self._snapshot_queue: asyncio.Queue[WorkerChannelSnapshotInvalidation] = (
             asyncio.Queue(maxsize=_WORKER_CHANNEL_SNAPSHOT_BUFFER_SIZE)
@@ -153,7 +140,6 @@ class WorkerChannelConnection:
     ) -> None:
         if self._closed.is_set() or not invalidation.targets(
             work_pool_id=self.work_pool_id,
-            subscribed_after=self.subscription_started_at,
         ):
             return
 
@@ -331,24 +317,15 @@ async def _persist_worker_channel_heartbeat(
 async def publish_snapshot_invalidation(
     invalidation: WorkerChannelSnapshotInvalidation,
 ) -> None:
-    try:
-        if invalidation.published_at is None:
-            invalidation = invalidation.model_copy(update={"published_at": now("UTC")})
-
-        async with messaging.create_publisher(
-            topic=WORKER_CHANNEL_SNAPSHOT_TOPIC
-        ) as publisher:
-            await publisher.publish_data(
-                invalidation.model_dump_json().encode(),
-                attributes={
-                    "work_pool_id": str(invalidation.work_pool_id),
-                    "reason": invalidation.reason,
-                },
-            )
-    except Exception:
-        logger.warning(
-            "Failed to publish worker channel snapshot invalidation",
-            exc_info=True,
+    async with messaging.create_publisher(
+        topic=WORKER_CHANNEL_SNAPSHOT_TOPIC
+    ) as publisher:
+        await publisher.publish_data(
+            invalidation.model_dump_json().encode(),
+            attributes={
+                "work_pool_id": str(invalidation.work_pool_id),
+                "reason": invalidation.reason,
+            },
         )
 
 

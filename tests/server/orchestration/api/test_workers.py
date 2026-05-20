@@ -573,6 +573,32 @@ class TestUpdateWorkPool:
         assert "prefect.work-pool.paused" in event_types
         assert "prefect.work-pool.updated" in event_types
 
+    async def test_update_work_pool_propagates_snapshot_publish_failure(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        client_without_exceptions: AsyncClient,
+        work_pool,
+    ) -> None:
+        async def fail_publish(
+            invalidation: worker_channel_utils.WorkerChannelSnapshotInvalidation,
+        ) -> None:
+            raise RuntimeError("broker unavailable")
+
+        monkeypatch.setattr(
+            worker_channel_utils,
+            "publish_snapshot_invalidation",
+            fail_publish,
+        )
+
+        response = await client_without_exceptions.patch(
+            f"/work_pools/{work_pool.name}",
+            json=schemas.actions.WorkPoolUpdate(
+                base_job_template=_valid_base_job_template(["echo", "updated"])
+            ).model_dump(mode="json", exclude_unset=True),
+        )
+
+        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+
     async def test_update_work_pool_storage_configuration(self, client, work_pool):
         bundle_upload_step = {
             "prefect_aws.experimental.bundles.upload": {
@@ -2885,42 +2911,46 @@ class TestWorkerChannelConnect:
         assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
         publish.assert_not_awaited()
 
-    def test_snapshot_invalidation_targets_work_pool_and_subscription_time(
+    async def test_publish_snapshot_invalidation_propagates_broker_failure(
         self,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
+        class FailingPublisher:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *exc_info):
+                return False
+
+            async def publish_data(self, data, attributes):
+                raise RuntimeError("broker unavailable")
+
+        def create_publisher(topic: str) -> FailingPublisher:
+            return FailingPublisher()
+
+        monkeypatch.setattr(
+            worker_channel_utils.messaging,
+            "create_publisher",
+            create_publisher,
+        )
+
+        with pytest.raises(RuntimeError, match="broker unavailable"):
+            await worker_channel_utils.publish_snapshot_invalidation(
+                worker_channel_utils.WorkerChannelSnapshotInvalidation(
+                    work_pool_id=uuid.uuid4(),
+                    reason="work_pool_updated",
+                )
+            )
+
+    def test_snapshot_invalidation_targets_work_pool(self) -> None:
         work_pool_id = uuid.uuid4()
-        subscription_started_at = datetime.now(timezone.utc)
         invalidation = worker_channel_utils.WorkerChannelSnapshotInvalidation(
             work_pool_id=work_pool_id,
             reason="work_pool_updated",
-            published_at=subscription_started_at,
         )
 
-        assert invalidation.targets(
-            work_pool_id=work_pool_id,
-            subscribed_after=subscription_started_at,
-        )
-        assert not invalidation.targets(
-            work_pool_id=uuid.uuid4(),
-            subscribed_after=subscription_started_at,
-        )
-        stale_invalidation = worker_channel_utils.WorkerChannelSnapshotInvalidation(
-            work_pool_id=work_pool_id,
-            reason="work_pool_updated",
-            published_at=subscription_started_at - timedelta(seconds=1),
-        )
-        assert not stale_invalidation.targets(
-            work_pool_id=work_pool_id,
-            subscribed_after=subscription_started_at,
-        )
-        unstamped_invalidation = worker_channel_utils.WorkerChannelSnapshotInvalidation(
-            work_pool_id=work_pool_id,
-            reason="work_pool_updated",
-        )
-        assert not unstamped_invalidation.targets(
-            work_pool_id=work_pool_id,
-            subscribed_after=subscription_started_at,
-        )
+        assert invalidation.targets(work_pool_id=work_pool_id)
+        assert not invalidation.targets(work_pool_id=uuid.uuid4())
 
     def test_channel_closes_when_heartbeat_persistence_fails(
         self, monkeypatch: pytest.MonkeyPatch, test_client: TestClient, work_pool
