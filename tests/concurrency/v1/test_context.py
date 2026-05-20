@@ -12,6 +12,8 @@ from prefect.server.schemas.core import ConcurrencyLimit
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.timeout import timeout, timeout_async
 
+pytestmark = pytest.mark.clear_db
+
 
 async def test_concurrency_context_releases_slots_async(
     v1_concurrency_limit: ConcurrencyLimit, prefect_client: PrefectClient

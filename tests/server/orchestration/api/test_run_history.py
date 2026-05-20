@@ -12,6 +12,8 @@ from prefect.server import models
 from prefect.server.schemas import actions, core, responses, states
 from prefect.server.schemas.states import StateType
 
+pytestmark = pytest.mark.clear_db
+
 
 def datetime_range(
     start: datetime, end: datetime, interval: timedelta

@@ -12,6 +12,8 @@ from prefect.client.schemas.responses import DeploymentResponse
 from prefect.events.clients import AssertingEventsClient, NullEventsClient
 from prefect.runner._event_emitter import EventEmitter
 
+pytestmark = pytest.mark.clear_db
+
 
 def _make_flow_run(
     deployment_id=None,

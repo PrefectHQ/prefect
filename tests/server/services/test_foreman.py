@@ -18,6 +18,8 @@ from prefect.settings import (
 )
 from prefect.settings.context import get_current_settings
 
+pytestmark = pytest.mark.clear_db
+
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import (
         ORMDeployment,

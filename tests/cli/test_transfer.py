@@ -17,6 +17,8 @@ from prefect.settings import Profile, ProfilesCollection
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
+pytestmark = pytest.mark.clear_db
+
 _PATCH_LOAD_PROFILES = "prefect.settings.load_profiles"
 _PATCH_USE_PROFILE = "prefect.context.use_profile"
 _PATCH_GET_CLIENT = "prefect.client.orchestration.get_client"

@@ -7,6 +7,8 @@ from prefect.server.api.ui.flows import SimpleNextFlowRun
 from prefect.server.database import orm_models
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def flow_1(session):

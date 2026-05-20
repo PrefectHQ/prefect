@@ -14,6 +14,8 @@ from prefect.server.events.schemas.events import Event, ReceivedEvent, RelatedRe
 from prefect.server.utilities.messaging import CapturingPublisher
 from prefect.types import DateTime
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def example_event(start_of_test: DateTime) -> Event:

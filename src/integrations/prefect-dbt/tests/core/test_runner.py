@@ -3,17 +3,25 @@ Tests for the PrefectDbtRunner class and related functionality.
 """
 
 import json
+import time
 from pathlib import Path
 from typing import Any
 from unittest.mock import Mock, patch
 
 import pytest
-from dbt.artifacts.resources.types import NodeType
-from dbt.artifacts.schemas.results import RunStatus
-from dbt.artifacts.schemas.run import RunExecutionResult
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import ManifestNode, SourceDefinition
-from dbt_common.events.base_types import EventLevel, EventMsg
+from dbt.contracts.results import RunExecutionResult, RunStatus
+from dbt.node_types import NodeType
+
+try:
+    from dbt.contracts.graph.nodes import UnitTestDefinition
+except ImportError:
+    UnitTestDefinition = None  # type: ignore[assignment,misc]
+try:
+    from dbt_common.events.base_types import EventLevel, EventMsg
+except ImportError:
+    from dbt.events.base_types import EventLevel, EventMsg  # type: ignore[no-redef]
 from prefect_dbt.core._tracker import NodeTaskTracker
 from prefect_dbt.core.runner import PrefectDbtRunner, execute_dbt_node
 from prefect_dbt.core.settings import PrefectDbtSettings
@@ -1745,11 +1753,142 @@ class TestPrefectDbtRunnerManifestNodeLookup:
         node_id = "model.test_project.missing_model"
 
         mock_manifest.nodes = {}
+        mock_manifest.unit_tests = {}
 
         result_node, result_config = runner._get_manifest_node_and_config(node_id)
 
         assert result_node is None
         assert result_config == {}
+
+    @pytest.mark.skipif(
+        UnitTestDefinition is None, reason="UnitTestDefinition requires dbt-core 1.8+"
+    )
+    def test_get_manifest_node_and_config_returns_unit_test_node(self, mock_manifest):
+        """Test that unit test nodes are found in manifest.unit_tests."""
+        runner = PrefectDbtRunner(manifest=mock_manifest)
+        node_id = "unit_test.test_project.test_my_model"
+
+        unit_test_node = Mock(spec=UnitTestDefinition)
+        unit_test_node.unique_id = node_id
+        unit_test_node.name = "test_my_model"
+        unit_test_node.resource_type = NodeType.Unit
+        unit_test_node.config = Mock()
+        unit_test_node.config.meta = {"prefect": {"enable_assets": False}}
+
+        mock_manifest.nodes = {}
+        mock_manifest.unit_tests = {node_id: unit_test_node}
+
+        result_node, result_config = runner._get_manifest_node_and_config(node_id)
+
+        assert result_node == unit_test_node
+        assert result_config == {"enable_assets": False}
+
+    @pytest.mark.skipif(
+        UnitTestDefinition is None, reason="UnitTestDefinition requires dbt-core 1.8+"
+    )
+    def test_get_manifest_node_and_config_prefers_nodes_over_unit_tests(
+        self, mock_manifest, mock_manifest_node
+    ):
+        """Test that manifest.nodes is checked before manifest.unit_tests."""
+        runner = PrefectDbtRunner(manifest=mock_manifest)
+        node_id = "model.test_project.test_model"
+
+        unit_test_node = Mock(spec=UnitTestDefinition)
+        unit_test_node.config = Mock()
+        unit_test_node.config.meta = {}
+
+        mock_manifest.nodes = {node_id: mock_manifest_node}
+        mock_manifest.unit_tests = {node_id: unit_test_node}
+
+        result_node, _ = runner._get_manifest_node_and_config(node_id)
+
+        assert result_node == mock_manifest_node
+
+
+@pytest.mark.skipif(
+    UnitTestDefinition is None, reason="UnitTestDefinition requires dbt-core 1.8+"
+)
+class TestPrefectDbtRunnerUnitTestSupport:
+    """Test unit test (dbt-core 1.8+) support in PrefectDbtRunner."""
+
+    @pytest.fixture
+    def mock_unit_test_node(self):
+        """Create a mock dbt unit test definition."""
+        node = Mock(spec=UnitTestDefinition)
+        node.unique_id = "unit_test.test_project.test_my_model"
+        node.name = "test_my_model"
+        node.resource_type = NodeType.Unit
+        node.original_file_path = "models/test_my_model.yml"
+        node.config = Mock()
+        node.config.meta = {}
+        node.depends_on_nodes = []
+        node.description = "Unit test for my_model"
+        # UnitTestDefinition does not have relation_name or config.materialized
+        del node.config.materialized
+        del node.relation_name
+        return node
+
+    def test_create_task_options_for_unit_test(self, mock_unit_test_node):
+        """Test that TaskOptions are created correctly for unit test nodes."""
+        runner = PrefectDbtRunner()
+
+        result = runner._create_task_options(mock_unit_test_node)
+
+        assert result["task_run_name"] == "unit_test test_my_model"
+
+    def test_call_task_creates_regular_task_for_unit_test(
+        self, mock_task_state, mock_unit_test_node, mock_manifest
+    ):
+        """Test that unit test nodes create regular Tasks (not MaterializingTasks)."""
+        runner = PrefectDbtRunner(manifest=mock_manifest)
+        mock_manifest.unit_tests = {mock_unit_test_node.unique_id: mock_unit_test_node}
+        context = {"test": "context"}
+
+        with patch("prefect_dbt.core.runner.Task") as mock_task_class:
+            mock_task = Mock(spec=Task)
+            mock_task_class.return_value = mock_task
+
+            runner._call_task(
+                mock_task_state, mock_unit_test_node, context, enable_assets=True
+            )
+
+            mock_task_class.assert_called_once()
+
+    def test_unified_callback_does_not_skip_unit_test_as_ephemeral(
+        self, mock_manifest, mock_unit_test_node, mock_task_state
+    ):
+        """Test that unit tests are not incorrectly skipped as ephemeral nodes.
+
+        UnitTestDefinition does not have config.materialized. The ephemeral
+        check must be guarded with isinstance(manifest_node, ManifestNode).
+        """
+        runner = PrefectDbtRunner(manifest=mock_manifest)
+        mock_manifest.nodes = {}
+        mock_manifest.unit_tests = {mock_unit_test_node.unique_id: mock_unit_test_node}
+
+        context = {"flow_run_context": {"flow_run": Mock(), "flow": Mock()}}
+        callback = runner._create_unified_callback(
+            task_state=mock_task_state,
+            log_level=EventLevel.INFO,
+            context=context,
+            create_tasks_for_nodes=True,
+        )
+
+        event = Mock(spec=EventMsg)
+        event.info = Mock()
+        event.info.name = "NodeStart"
+        event.data = Mock()
+        event.data.node_info = Mock()
+        event.data.node_info.unique_id = mock_unit_test_node.unique_id
+
+        callback(event)
+
+        # Wait for the background processor to handle the event
+        time.sleep(0.5)
+
+        runner._stop_callback_processor()
+
+        assert mock_unit_test_node.unique_id not in runner._skipped_nodes
 
 
 class TestPrefectDbtRunnerCallbackProcessorReset:

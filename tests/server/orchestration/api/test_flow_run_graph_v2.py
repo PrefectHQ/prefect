@@ -25,6 +25,8 @@ from prefect.settings import (
 )
 from prefect.types._datetime import DateTime, earliest_possible_datetime, now
 
+pytestmark = pytest.mark.clear_db
+
 
 async def test_reading_graph_for_nonexistant_flow_run(
     session: AsyncSession,

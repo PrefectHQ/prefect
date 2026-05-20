@@ -10,6 +10,8 @@ from prefect.server import models
 from prefect.server.database import orm_models
 from prefect.server.schemas import core
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def csrf_token(session: AsyncSession) -> core.CsrfToken:

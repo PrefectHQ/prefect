@@ -25,6 +25,8 @@ from prefect.server.utilities.messaging.memory import MemoryMessage
 from prefect.types import DateTime
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 async def test_acting_publishes_an_action_message_from_a_reactive_event(
     frozen_time: DateTime,

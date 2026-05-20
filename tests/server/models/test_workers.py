@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prefect.server import models, schemas
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestCreateWorkPool:
     async def test_create_work_pool(self, session: AsyncSession):
@@ -657,6 +659,45 @@ class TestWorkerHeartbeat:
         assert processes[0].name == "Z"
         assert processes[1].name == "Y"
         assert processes[2].name == "X"
+
+    async def test_record_worker_heartbeat_returns_worker_and_marks_pool_ready(
+        self, session, work_pool
+    ):
+        worker = await models.workers.record_worker_heartbeat(
+            session=session,
+            work_pool=work_pool,
+            worker_name="process X",
+            heartbeat_interval_seconds=45,
+            return_worker=True,
+        )
+
+        assert worker is not None
+        assert worker.name == "process X"
+        assert worker.heartbeat_interval_seconds == 45
+
+        session.expunge_all()
+        updated_work_pool = await models.workers.read_work_pool(
+            session=session,
+            work_pool_id=work_pool.id,
+        )
+        assert updated_work_pool.status == schemas.statuses.WorkPoolStatus.READY
+
+    async def test_record_worker_heartbeat_can_skip_returning_worker(
+        self, session, work_pool
+    ):
+        worker = await models.workers.record_worker_heartbeat(
+            session=session,
+            work_pool=work_pool,
+            worker_name="process X",
+        )
+
+        assert worker is None
+        persisted = await models.workers.read_worker_by_name(
+            session=session,
+            work_pool_id=work_pool.id,
+            worker_name="process X",
+        )
+        assert persisted is not None
 
 
 class TestGetScheduledRuns:

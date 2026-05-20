@@ -77,6 +77,8 @@ from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.processutils import command_to_string
 from prefect.utilities.slugify import slugify
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture(autouse=True)
 def suppress_deprecation_warnings() -> Generator[None, None, None]:
