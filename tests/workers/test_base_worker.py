@@ -29,6 +29,7 @@ import prefect
 import prefect.client.schemas as schemas
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.result_records import ResultRecord, ResultRecordMetadata
+from prefect._internal.testing import retry_asserts
 from prefect._internal.uuid7 import uuid7
 from prefect.blocks.core import Block
 from prefect.client.base import ServerType
@@ -2353,6 +2354,47 @@ def worker_channel_test_client(
 
 
 class TestWorkerChannelClient:
+    async def test_worker_uses_real_server_channel_for_setup_and_heartbeat(
+        self,
+        hosted_api_server: str,
+        prefect_client: PrefectClient,
+    ):
+        assert PREFECT_API_URL.value() == hosted_api_server
+
+        work_pool_name = f"worker-channel-e2e-{uuid.uuid4().hex}"
+        worker_name = f"worker-channel-e2e-{uuid.uuid4().hex}"
+        work_pool = await prefect_client.create_work_pool(
+            WorkPoolCreate(
+                name=work_pool_name,
+                type=WorkerTestImpl.type,
+                base_job_template=WorkerTestImpl.get_default_base_job_template(),
+            )
+        )
+
+        async with WorkerTestImpl(
+            name=worker_name,
+            work_pool_name=work_pool_name,
+            create_pool_if_not_found=False,
+            heartbeat_interval_seconds=1,
+        ) as worker:
+            assert worker.backend_id is not None
+            assert worker.work_pool.id == work_pool.id
+
+            workers = await prefect_client.read_workers_for_work_pool(work_pool_name)
+            assert len(workers) == 1
+            assert workers[0].name == worker_name
+            assert workers[0].heartbeat_interval_seconds == 1
+            initial_heartbeat_time = workers[0].last_heartbeat_time
+            assert initial_heartbeat_time is not None
+
+            async for attempt in retry_asserts(max_attempts=20, delay=0.25):
+                with attempt:
+                    [server_worker] = await prefect_client.read_workers_for_work_pool(
+                        work_pool_name
+                    )
+                    assert server_worker.last_heartbeat_time is not None
+                    assert server_worker.last_heartbeat_time > initial_heartbeat_time
+
     def test_builds_websocket_url_from_prefect_api_url(self):
         assert (
             build_worker_channel_url("http://localhost:4200/api", "default pool")
