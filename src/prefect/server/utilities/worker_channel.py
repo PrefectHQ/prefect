@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import Mapping
 from typing import Any
 from uuid import UUID
@@ -8,7 +9,7 @@ from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.logging import get_logger
 from prefect.server.utilities import messaging
 
-logger = get_logger("prefect.server.utilities.worker_channel")
+logger: logging.Logger = get_logger("prefect.server.utilities.worker_channel")
 
 WORKER_CHANNEL_SNAPSHOT_TOPIC = "work-pool-worker-channel-snapshots"
 

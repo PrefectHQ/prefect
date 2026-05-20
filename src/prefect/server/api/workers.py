@@ -398,9 +398,7 @@ class WorkerChannelConnection:
                     )
             except Exception:
                 logger.exception("Worker channel heartbeat persistence failed")
-                await self.close(
-                    WorkerChannelCloseReason.HEARTBEAT_PERSISTENCE_FAILED
-                )
+                await self.close(WorkerChannelCloseReason.HEARTBEAT_PERSISTENCE_FAILED)
                 return
 
 
