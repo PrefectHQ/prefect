@@ -23,7 +23,7 @@ export const DeploymentScheduleItem = ({
 	disabled,
 	onEditSchedule,
 }: DeploymentScheduleItemProps) => {
-	const isActive = deploymentSchedule.active && !disabled;
+	const isActive = deploymentSchedule.active;
 	const statusContainerClassName = isActive
 		? "bg-state-completed-100 text-state-completed-700"
 		: "bg-state-paused-100 text-state-paused-700";
