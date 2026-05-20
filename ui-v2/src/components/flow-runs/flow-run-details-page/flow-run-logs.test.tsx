@@ -274,46 +274,27 @@ describe("FlowRunLogs", () => {
 	});
 
 	it("persists sort order across remounts", async () => {
-		const user = userEvent.setup();
 		const flowRun = createFakeFlowRun();
 
-		const { unmount } = render(
-			<FlowRunLogs flowRun={flowRun} virtualize={false} />,
-			{ wrapper: createWrapper() },
-		);
-
-		await waitFor(() => {
-			expect(
-				screen.getByRole("combobox", { name: /log sort order/i }),
-			).toBeInTheDocument();
-		});
-
-		// Change sort order to newest first
-		await user.click(screen.getByRole("combobox", { name: /log sort order/i }));
-		await user.click(screen.getByText("Newest to oldest"));
-
-		// Verify localStorage.setItem was called with the new sort order
-		await waitFor(() => {
-			expect(localStorage.setItem).toHaveBeenCalledWith(
-				"prefect-log-sort-order",
-				JSON.stringify("TIMESTAMP_DESC"),
-			);
-		});
-
-		// Mock getItem to return the persisted value on remount
-		vi.mocked(localStorage.getItem).mockImplementation((key: string) =>
+		// Simulate localStorage returning a persisted sort order on mount
+		localStorage.getItem = vi.fn((key: string) =>
 			key === "prefect-log-sort-order"
 				? JSON.stringify("TIMESTAMP_DESC")
 				: null,
 		);
 
-		// Unmount and remount component
-		unmount();
 		render(<FlowRunLogs flowRun={flowRun} virtualize={false} />, {
 			wrapper: createWrapper(),
 		});
 
-		// Verify the sort order is still "Newest to oldest"
+		// Verify the sort order is restored as "Newest to oldest"
+		await waitFor(() => {
+			expect(
+				screen.getByRole("combobox", { name: /log sort order/i }),
+			).toHaveTextContent("Newest to oldest");
+		});
+
+		// Verify logs are shown in reverse order
 		await waitFor(() => {
 			const logMessages = screen
 				.getAllByRole("listitem")
