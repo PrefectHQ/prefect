@@ -32,7 +32,6 @@ from prefect.client.schemas.worker_channel import (
     WorkPoolSnapshotFrame,
 )
 from prefect.server import models, schemas
-from prefect.server.api import workers as workers_api
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.core import WorkPoolStorageConfiguration
 from prefect.server.schemas.statuses import DeploymentStatus, WorkQueueStatus
@@ -2688,7 +2687,9 @@ class TestWorkerChannelConnect:
         )
         await session.commit()
 
-        original_build_snapshot = workers_api._build_worker_channel_work_pool_snapshot
+        original_build_snapshot = (
+            worker_channel_utils.build_worker_channel_work_pool_snapshot
+        )
         published_invalidation = False
 
         async def build_snapshot_and_update_work_pool(
@@ -2715,8 +2716,8 @@ class TestWorkerChannelConnect:
             return snapshot
 
         monkeypatch.setattr(
-            workers_api,
-            "_build_worker_channel_work_pool_snapshot",
+            worker_channel_utils,
+            "build_worker_channel_work_pool_snapshot",
             build_snapshot_and_update_work_pool,
         )
 
@@ -2742,7 +2743,7 @@ class TestWorkerChannelConnect:
         work_pool,
     ) -> None:
         monkeypatch.setattr(
-            "prefect.server.api.workers._WORKER_CHANNEL_SNAPSHOT_COALESCE_SECONDS",
+            "prefect.server.utilities.worker_channel._WORKER_CHANNEL_SNAPSHOT_COALESCE_SECONDS",
             0.2,
         )
         stale_base_job_template = _valid_base_job_template(["echo", "stale"])

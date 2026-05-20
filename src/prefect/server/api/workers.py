@@ -2,8 +2,6 @@
 Routes for interacting with work queue objects.
 """
 
-import asyncio
-from collections.abc import Mapping
 from dataclasses import dataclass
 from logging import Logger
 from typing import TYPE_CHECKING, Any, List, Optional
@@ -28,15 +26,11 @@ import prefect.server.schemas as schemas
 from prefect._internal.uuid7 import uuid7
 from prefect.client.schemas.worker_channel import (
     WORK_POOL_SNAPSHOT_CAPABILITY,
-    WORKER_CHANNEL_CLOSE_POLICIES,
     WORKER_HEARTBEAT_CAPABILITY,
     WorkerChannelCloseReason,
     WorkerChannelProtocolError,
-    WorkerHeartbeatFrame,
     WorkerHelloFrame,
     WorkerReadyFrame,
-    WorkPoolSnapshot,
-    WorkPoolSnapshotFrame,
     WorkPoolSnapshotPayload,
     select_worker_channel_version,
     validate_worker_channel_frame,
@@ -71,8 +65,6 @@ _OSS_WORKER_CHANNEL_ACCEPTED_CAPABILITIES = [
     WORKER_HEARTBEAT_CAPABILITY,
     WORK_POOL_SNAPSHOT_CAPABILITY,
 ]
-_WORKER_CHANNEL_SNAPSHOT_BUFFER_SIZE = 1
-_WORKER_CHANNEL_SNAPSHOT_COALESCE_SECONDS = 0.05
 
 
 # -----------------------------------------------------
@@ -191,223 +183,6 @@ class WorkerChannelWorkPoolUpdateEvent:
     changed_fields: dict[str, dict[str, Any]]
 
 
-class WorkerChannelConnection:
-    def __init__(
-        self,
-        *,
-        websocket: WebSocket,
-        db: PrefectDBInterface,
-        work_pool_name: str,
-        work_pool_id: UUID,
-        consumer_id: UUID,
-        worker_name: str,
-        subscription_started_at: DateTime,
-    ) -> None:
-        self.websocket = websocket
-        self.db = db
-        self.work_pool_name = work_pool_name
-        self.work_pool_id = work_pool_id
-        self.consumer_id = consumer_id
-        self.worker_name = worker_name
-        self.subscription_started_at = subscription_started_at
-        self._next_snapshot_sequence = 2
-        self._snapshot_queue: asyncio.Queue[
-            worker_channel_utils.WorkerChannelSnapshotInvalidation
-        ] = asyncio.Queue(maxsize=_WORKER_CHANNEL_SNAPSHOT_BUFFER_SIZE)
-        self._send_lock = asyncio.Lock()
-        self._closed = asyncio.Event()
-
-    async def run(
-        self, ready: WorkerReadyFrame, consumer_kwargs: Mapping[str, Any]
-    ) -> None:
-        send_task = asyncio.create_task(self._send_loop(ready))
-        receive_task = asyncio.create_task(self._receive_loop())
-        fanout_task = asyncio.create_task(self._fanout_loop(consumer_kwargs))
-        tasks = {send_task, receive_task, fanout_task}
-
-        try:
-            done, pending = await asyncio.wait(
-                tasks, return_when=asyncio.FIRST_COMPLETED
-            )
-        except asyncio.CancelledError:
-            self._closed.set()
-            for task in tasks:
-                task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
-            return
-        except BaseException:
-            self._closed.set()
-            for task in tasks:
-                task.cancel()
-            await asyncio.gather(*tasks, return_exceptions=True)
-            raise
-
-        self._closed.set()
-        for task in pending:
-            task.cancel()
-        try:
-            await asyncio.gather(*pending, return_exceptions=True)
-        except asyncio.CancelledError:
-            return
-
-        for task in done:
-            if task.cancelled():
-                continue
-            exception = task.exception()
-            if exception is not None:
-                raise exception
-
-    async def close(self, close_reason: WorkerChannelCloseReason) -> None:
-        if self._closed.is_set():
-            return
-
-        self._closed.set()
-        async with self._send_lock:
-            await _close_worker_channel(self.websocket, close_reason)
-
-    def queue_snapshot(
-        self,
-        invalidation: worker_channel_utils.WorkerChannelSnapshotInvalidation,
-    ) -> None:
-        if self._closed.is_set() or not invalidation.targets(
-            work_pool_id=self.work_pool_id,
-            subscribed_after=self.subscription_started_at,
-        ):
-            return
-
-        while True:
-            try:
-                self._snapshot_queue.put_nowait(invalidation)
-                return
-            except asyncio.QueueFull:
-                try:
-                    self._snapshot_queue.get_nowait()
-                except asyncio.QueueEmpty:
-                    continue
-
-    async def _fanout_loop(self, consumer_kwargs: Mapping[str, Any]) -> None:
-        if "subscription" in consumer_kwargs:
-            consumer_kwargs = {**consumer_kwargs, "concurrency": 1}
-        consumer = worker_channel_utils.messaging.create_consumer(**consumer_kwargs)
-
-        async def handle_message(worker_channel_message) -> None:
-            invalidation = worker_channel_utils.parse_snapshot_invalidation(
-                worker_channel_message
-            )
-            self.queue_snapshot(invalidation)
-
-        await consumer.run(handle_message)
-
-    async def _send_loop(self, ready: WorkerReadyFrame) -> None:
-        await self._send_frame(ready)
-
-        while not self._closed.is_set():
-            invalidation = await self._snapshot_queue.get()
-            invalidation = await self._coalesce_snapshot_invalidations(invalidation)
-
-            if invalidation.work_pool_deleted:
-                await self.close(WorkerChannelCloseReason.AUTHORIZATION_FAILED)
-                return
-
-            frame = await self._build_snapshot_frame(invalidation)
-            if frame is None:
-                await self.close(WorkerChannelCloseReason.AUTHORIZATION_FAILED)
-                return
-
-            await self._send_frame(frame)
-
-    async def _send_frame(
-        self, frame: WorkerReadyFrame | WorkPoolSnapshotFrame
-    ) -> None:
-        async with self._send_lock:
-            await self.websocket.send_json(frame.model_dump(mode="json"))
-
-    async def _coalesce_snapshot_invalidations(
-        self,
-        invalidation: worker_channel_utils.WorkerChannelSnapshotInvalidation,
-    ) -> worker_channel_utils.WorkerChannelSnapshotInvalidation:
-        await asyncio.sleep(_WORKER_CHANNEL_SNAPSHOT_COALESCE_SECONDS)
-
-        while True:
-            try:
-                invalidation = self._snapshot_queue.get_nowait()
-            except asyncio.QueueEmpty:
-                return invalidation
-
-    async def _build_snapshot_frame(
-        self,
-        invalidation: worker_channel_utils.WorkerChannelSnapshotInvalidation,
-    ) -> WorkPoolSnapshotFrame | None:
-        async with self.db.session_context() as session:
-            work_pool = await models.workers.read_work_pool(
-                session=session,
-                work_pool_id=invalidation.work_pool_id,
-            )
-            if work_pool is None:
-                return None
-
-            payload = WorkPoolSnapshotPayload(
-                snapshot_sequence=self._next_snapshot_sequence,
-                reason=invalidation.reason,
-                work_pool=await _build_worker_channel_work_pool_snapshot(
-                    session=session,
-                    work_pool=work_pool,
-                ),
-            )
-
-        self._next_snapshot_sequence += 1
-        return WorkPoolSnapshotFrame(
-            type="work_pool.snapshot.v1",
-            id=uuid7(),
-            sent_at=now("UTC"),
-            payload=payload,
-        )
-
-    async def _receive_loop(self) -> None:
-        while not self._closed.is_set():
-            try:
-                message = await self.websocket.receive_json()
-                frame = validate_worker_channel_frame(message)
-            except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
-                return
-            except ValidationError:
-                await self.close(WorkerChannelCloseReason.PROTOCOL_ERROR)
-                return
-            except ValueError:
-                await self.close(WorkerChannelCloseReason.PROTOCOL_ERROR)
-                return
-
-            if not isinstance(frame, WorkerHeartbeatFrame):
-                await self.close(WorkerChannelCloseReason.PROTOCOL_ERROR)
-                return
-
-            if (
-                frame.payload.consumer_id != self.consumer_id
-                or frame.payload.worker_name != self.worker_name
-            ):
-                await self.close(WorkerChannelCloseReason.PROTOCOL_ERROR)
-                return
-
-            try:
-                async with self.db.session_context(begin_transaction=True) as session:
-                    await _persist_worker_channel_heartbeat(
-                        session=session,
-                        work_pool_name=self.work_pool_name,
-                        frame=frame,
-                    )
-            except Exception:
-                logger.exception("Worker channel heartbeat persistence failed")
-                await self.close(WorkerChannelCloseReason.HEARTBEAT_PERSISTENCE_FAILED)
-                return
-
-
-async def _close_worker_channel(
-    websocket: WebSocket, close_reason: WorkerChannelCloseReason
-) -> None:
-    policy = WORKER_CHANNEL_CLOSE_POLICIES[close_reason]
-    await websocket.close(code=policy.websocket_code, reason=close_reason.value)
-
-
 async def _receive_worker_hello(websocket: WebSocket) -> WorkerHelloFrame:
     try:
         message = await websocket.receive_json()
@@ -511,25 +286,6 @@ async def _resolve_worker_channel_work_queues(
     return work_queues
 
 
-async def _build_worker_channel_work_pool_snapshot(
-    session: AsyncSession,
-    work_pool: "ORMWorkPool",
-) -> WorkPoolSnapshot:
-    work_pool_response = schemas.responses.WorkPoolResponse.model_validate(
-        work_pool, from_attributes=True
-    )
-
-    if work_pool_response.concurrency_limit is not None:
-        work_pool_response.active_slots = (
-            await models.workers.count_work_pool_active_slots(
-                session=session,
-                work_pool_id=work_pool.id,
-            )
-        )
-
-    return WorkPoolSnapshot.model_validate(work_pool_response.model_dump(mode="json"))
-
-
 async def _build_worker_ready_frame(
     session: AsyncSession,
     work_pool_name: str,
@@ -608,7 +364,7 @@ async def _build_worker_ready_frame(
     initial_snapshot = WorkPoolSnapshotPayload(
         snapshot_sequence=1,
         reason="initial",
-        work_pool=await _build_worker_channel_work_pool_snapshot(
+        work_pool=await worker_channel_utils.build_worker_channel_work_pool_snapshot(
             session=session,
             work_pool=refreshed_work_pool,
         ),
@@ -646,27 +402,6 @@ async def _build_worker_ready_frame(
             },
         ),
         work_pool_update_event,
-    )
-
-
-async def _persist_worker_channel_heartbeat(
-    session: AsyncSession,
-    work_pool_name: str,
-    frame: WorkerHeartbeatFrame,
-) -> None:
-    work_pool = await models.workers.read_work_pool_by_name(
-        session=session,
-        work_pool_name=work_pool_name,
-    )
-    if work_pool is None:
-        raise RuntimeError("Worker channel work pool no longer exists")
-
-    await models.workers.record_worker_heartbeat(
-        session=session,
-        work_pool=work_pool,
-        worker_name=frame.payload.worker_name,
-        heartbeat_interval_seconds=frame.payload.heartbeat_interval_seconds,
-        emit_status_change=emit_work_pool_status_event,
     )
 
 
@@ -1353,7 +1088,7 @@ async def worker_channel_connect(
                     )
                 )
 
-            connection = WorkerChannelConnection(
+            connection = worker_channel_utils.WorkerChannelConnection(
                 websocket=websocket,
                 db=db,
                 work_pool_name=work_pool_name,
@@ -1366,15 +1101,17 @@ async def worker_channel_connect(
 
     except WorkerChannelSetupError as exc:
         logger.info("Worker channel setup failed: %s", exc.detail)
-        await _close_worker_channel(websocket, exc.close_reason)
+        await worker_channel_utils.close_worker_channel(websocket, exc.close_reason)
     except HTTPException as exc:
         logger.info("Worker channel setup failed HTTP validation: %s", exc.detail)
-        await _close_worker_channel(websocket, WorkerChannelCloseReason.PROTOCOL_ERROR)
+        await worker_channel_utils.close_worker_channel(
+            websocket, WorkerChannelCloseReason.PROTOCOL_ERROR
+        )
     except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
         return
     except Exception:
         logger.exception("Worker channel setup failed due to a transient server error")
-        await _close_worker_channel(
+        await worker_channel_utils.close_worker_channel(
             websocket, WorkerChannelCloseReason.TRANSIENT_SERVER_ERROR
         )
 
