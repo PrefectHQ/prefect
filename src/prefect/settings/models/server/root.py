@@ -22,6 +22,7 @@ from .logs import ServerLogsSettings
 from .services import ServerServicesSettings
 from .tasks import ServerTasksSettings
 from .ui import ServerUISettings
+from .worker_communication import ServerWorkerCommunicationSettings
 
 
 class ServerSettings(PrefectBaseSettings):
@@ -156,4 +157,8 @@ class ServerSettings(PrefectBaseSettings):
     ui: ServerUISettings = Field(
         default_factory=ServerUISettings,
         description="Settings for controlling server UI behavior",
+    )
+    worker_communication: ServerWorkerCommunicationSettings = Field(
+        default_factory=ServerWorkerCommunicationSettings,
+        description="Settings for controlling server worker communication behavior",
     )
