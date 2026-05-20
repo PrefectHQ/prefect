@@ -8,6 +8,8 @@ from fastapi.testclient import TestClient
 
 from prefect.server.utilities.server import PrefectRouter
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestParsing:
     @pytest.fixture

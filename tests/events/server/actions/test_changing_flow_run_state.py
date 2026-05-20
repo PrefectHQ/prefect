@@ -20,6 +20,8 @@ from prefect.server.schemas.core import Deployment, Flow, FlowRun
 from prefect.server.schemas.states import Failed, Running, StateType
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def take_a_picture(

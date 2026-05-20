@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import shutil
+import struct
 import tempfile
 import zipfile
 from dataclasses import dataclass
@@ -32,7 +33,8 @@ class ZipResult:
 
     Attributes:
         zip_path: Path to the temporary zip file.
-        sha256_hash: Lowercase hex digest of the zip content.
+        sha256_hash: SHA256 hex digest of the canonical bundled file contents
+            (paths, modes, and bytes), not the raw zip archive bytes.
         storage_key: Content-addressed storage key in format "files/{hash}.zip".
         size_bytes: Size of the zip file in bytes.
     """
@@ -95,16 +97,40 @@ class ZipBuilder:
         self._temp_dir = tempfile.mkdtemp(prefix="prefect-zip-")
         zip_path = Path(self._temp_dir) / "files.zip"
 
-        # Build the zip with DEFLATED compression
+        # Build the zip and compute the content hash in a single pass so
+        # that every file is read exactly once, avoiding race conditions
+        # where a source file could change between the zip write and the
+        # hash computation.
+        hasher = hashlib.sha256()
+        hasher.update(b"prefect-bundle-files-v1\0")
+
         with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
             for file_path in sorted_files:
-                # Compute relative path with forward slashes
                 rel_path = file_path.relative_to(self.base_dir)
                 arcname = str(rel_path).replace("\\", "/")
-                zf.write(file_path, arcname)
 
-        # Compute SHA256 hash using chunked reading
-        sha256_hash = self._compute_hash(zip_path)
+                file_stat = file_path.stat()
+
+                arcname_bytes = arcname.encode("utf-8")
+                hasher.update(struct.pack(">I", len(arcname_bytes)))
+                hasher.update(arcname_bytes)
+                hasher.update(struct.pack(">I", file_stat.st_mode & 0xFFFF))
+                hasher.update(struct.pack(">Q", file_stat.st_size))
+
+                zip_info = zipfile.ZipInfo.from_file(file_path, arcname)
+                zip_info.compress_type = zipfile.ZIP_DEFLATED
+                with (
+                    file_path.open("rb") as src,
+                    zf.open(zip_info, "w") as dest,
+                ):
+                    while True:
+                        chunk = src.read(HASH_CHUNK_SIZE)
+                        if not chunk:
+                            break
+                        dest.write(chunk)
+                        hasher.update(chunk)
+
+        sha256_hash = hasher.hexdigest()
 
         # Get file size
         size_bytes = zip_path.stat().st_size
@@ -122,25 +148,6 @@ class ZipBuilder:
             storage_key=storage_key,
             size_bytes=size_bytes,
         )
-
-    def _compute_hash(self, zip_path: Path) -> str:
-        """
-        Compute SHA256 hash of a file using chunked reading.
-
-        Args:
-            zip_path: Path to the file to hash.
-
-        Returns:
-            Lowercase hex digest of the SHA256 hash.
-        """
-        hasher = hashlib.sha256()
-        with open(zip_path, "rb") as f:
-            while True:
-                chunk = f.read(HASH_CHUNK_SIZE)
-                if not chunk:
-                    break
-                hasher.update(chunk)
-        return hasher.hexdigest()
 
     def _emit_size_warning(
         self, zip_path: Path, files: list[Path], size_bytes: int

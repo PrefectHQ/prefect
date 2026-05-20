@@ -27,6 +27,8 @@ from prefect.types import DateTime
 from prefect.types._datetime import now
 from prefect.utilities.pydantic import parse_obj_as
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def enable_automations():

@@ -15,6 +15,8 @@ from prefect.settings import (
     temporary_settings,
 )
 
+pytestmark = pytest.mark.clear_db
+
 
 def test_app_generates_correct_api_openapi_schema():
     """

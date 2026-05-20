@@ -12,6 +12,8 @@ from prefect.server.database import PrefectDBInterface
 from prefect.types._datetime import now
 from tests.server import AsyncSessionGetter
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def schedules_url():

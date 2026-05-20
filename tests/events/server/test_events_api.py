@@ -26,6 +26,8 @@ from prefect.server.events.storage import INTERACTIVE_PAGE_SIZE, InvalidTokenErr
 from prefect.types import DateTime
 from prefect.utilities.pydantic import parse_obj_as
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def filter(frozen_time: DateTime) -> EventFilter:

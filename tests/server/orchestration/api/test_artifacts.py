@@ -11,6 +11,8 @@ from prefect.server.schemas import actions
 from prefect.types._datetime import now
 from prefect.utilities.pydantic import parse_obj_as
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def artifact(flow_run, task_run, client):

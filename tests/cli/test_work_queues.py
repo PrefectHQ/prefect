@@ -8,6 +8,8 @@ from prefect import flow
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
+pytestmark = pytest.mark.clear_db
+
 
 async def read_queue(prefect_client, name, pool=None):
     return await prefect_client.read_work_queue_by_name(name=name, work_pool_name=pool)

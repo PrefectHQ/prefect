@@ -11,6 +11,8 @@ from prefect.server.database.alembic_commands import (
 )
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
+pytestmark = pytest.mark.clear_db
+
 # These tests do not test the actual migration functionality, only that the commands are wrapped and called
 
 

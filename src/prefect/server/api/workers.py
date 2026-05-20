@@ -2,7 +2,9 @@
 Routes for interacting with work queue objects.
 """
 
-from typing import TYPE_CHECKING, List, Optional
+from dataclasses import dataclass
+from logging import Logger
+from typing import TYPE_CHECKING, Any, List, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -11,15 +13,32 @@ from fastapi import (
     Depends,
     HTTPException,
     Path,
+    WebSocket,
     status,
 )
 from packaging.version import Version
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.api.dependencies as dependencies
 import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect._internal.uuid7 import uuid7
+from prefect.client.schemas.worker_channel import (
+    WORK_POOL_SNAPSHOT_CAPABILITY,
+    WORKER_CHANNEL_CLOSE_POLICIES,
+    WORKER_HEARTBEAT_CAPABILITY,
+    WorkerChannelCloseReason,
+    WorkerChannelProtocolError,
+    WorkerHeartbeatFrame,
+    WorkerHelloFrame,
+    WorkerReadyFrame,
+    WorkPoolSnapshot,
+    WorkPoolSnapshotPayload,
+    select_worker_channel_version,
+    validate_worker_channel_frame,
+)
+from prefect.logging import get_logger
 from prefect.server.api.validation import validate_job_variable_defaults_for_work_pool
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.models.deployments import mark_deployments_ready
@@ -29,17 +48,25 @@ from prefect.server.models.work_queues import (
 )
 from prefect.server.models.workers import emit_work_pool_status_event
 from prefect.server.schemas.statuses import WorkQueueStatus
+from prefect.server.utilities import subscriptions
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
 from prefect.types._datetime import now
 
 if TYPE_CHECKING:
-    from prefect.server.database.orm_models import ORMWorkQueue
+    from prefect.server.database.orm_models import WorkPool as ORMWorkPool
+    from prefect.server.database.orm_models import WorkQueue as ORMWorkQueue
 
 router: PrefectRouter = PrefectRouter(
     prefix="/work_pools",
     tags=["Work Pools"],
 )
+logger: Logger = get_logger("prefect.server.api.workers")
+
+_OSS_WORKER_CHANNEL_ACCEPTED_CAPABILITIES = [
+    WORKER_HEARTBEAT_CAPABILITY,
+    WORK_POOL_SNAPSHOT_CAPABILITY,
+]
 
 
 # -----------------------------------------------------
@@ -143,6 +170,288 @@ class WorkerLookups:
             create_queue_if_not_found=create_queue_if_not_found,
         )
         return queue.id
+
+
+class WorkerChannelSetupError(Exception):
+    def __init__(self, close_reason: WorkerChannelCloseReason, detail: str):
+        super().__init__(detail)
+        self.close_reason = close_reason
+        self.detail = detail
+
+
+@dataclass(frozen=True)
+class WorkerChannelWorkPoolUpdateEvent:
+    work_pool_id: UUID
+    changed_fields: dict[str, dict[str, Any]]
+
+
+async def _close_worker_channel(
+    websocket: WebSocket, close_reason: WorkerChannelCloseReason
+) -> None:
+    policy = WORKER_CHANNEL_CLOSE_POLICIES[close_reason]
+    await websocket.close(code=policy.websocket_code, reason=close_reason.value)
+
+
+async def _receive_worker_hello(websocket: WebSocket) -> WorkerHelloFrame:
+    try:
+        message = await websocket.receive_json()
+        frame = validate_worker_channel_frame(message)
+    except ValidationError as exc:
+        raise WorkerChannelSetupError(
+            WorkerChannelCloseReason.PROTOCOL_ERROR,
+            "Worker channel received a malformed hello frame",
+        ) from exc
+    except ValueError as exc:
+        raise WorkerChannelSetupError(
+            WorkerChannelCloseReason.PROTOCOL_ERROR,
+            "Worker channel received invalid JSON during setup",
+        ) from exc
+
+    if not isinstance(frame, WorkerHelloFrame):
+        raise WorkerChannelSetupError(
+            WorkerChannelCloseReason.PROTOCOL_ERROR,
+            "Expected worker.hello.v1 during worker channel setup",
+        )
+
+    return frame
+
+
+async def _resolve_worker_channel_work_pool(
+    session: AsyncSession,
+    work_pool_name: str,
+    hello: WorkerHelloFrame,
+) -> "ORMWorkPool":
+    work_pool = await models.workers.read_work_pool_by_name(
+        session=session,
+        work_pool_name=work_pool_name,
+    )
+
+    default_base_job_template = hello.payload.default_base_job_template
+    if work_pool is None:
+        if not hello.payload.create_pool_if_not_found:
+            raise WorkerChannelSetupError(
+                WorkerChannelCloseReason.AUTHORIZATION_FAILED,
+                "work_pool_not_found",
+            )
+
+        if work_pool_name.lower().startswith("prefect"):
+            raise WorkerChannelSetupError(
+                WorkerChannelCloseReason.AUTHORIZATION_FAILED,
+                "work_pool_creation_unauthorized",
+            )
+
+        await validate_job_variable_defaults_for_work_pool(
+            session, work_pool_name, default_base_job_template
+        )
+        try:
+            async with session.begin_nested():
+                work_pool = await models.workers.create_work_pool(
+                    session=session,
+                    work_pool=schemas.actions.WorkPoolCreate(
+                        name=work_pool_name,
+                        type=hello.payload.worker_type,
+                        base_job_template=default_base_job_template,
+                    ),
+                )
+        except sa.exc.IntegrityError:
+            work_pool = await models.workers.read_work_pool_by_name(
+                session=session,
+                work_pool_name=work_pool_name,
+            )
+            if work_pool is None:
+                raise
+        return work_pool
+
+    return work_pool
+
+
+async def _resolve_worker_channel_work_queues(
+    session: AsyncSession,
+    work_pool_id: UUID,
+    work_pool_name: str,
+    work_queue_names: list[str],
+) -> list["ORMWorkQueue"]:
+    if not work_queue_names:
+        return list(
+            await models.workers.read_work_queues(
+                session=session, work_pool_id=work_pool_id
+            )
+        )
+
+    work_queues = []
+    for work_queue_name in dict.fromkeys(work_queue_names):
+        work_queue = await models.workers.read_work_queue_by_name(
+            session=session,
+            work_pool_name=work_pool_name,
+            work_queue_name=work_queue_name,
+        )
+        if work_queue is None:
+            raise WorkerChannelSetupError(
+                WorkerChannelCloseReason.AUTHORIZATION_FAILED,
+                "work_queue_not_found",
+            )
+        work_queues.append(work_queue)
+
+    return work_queues
+
+
+async def _build_worker_channel_work_pool_snapshot(
+    session: AsyncSession,
+    work_pool: "ORMWorkPool",
+) -> WorkPoolSnapshot:
+    work_pool_response = schemas.responses.WorkPoolResponse.model_validate(
+        work_pool, from_attributes=True
+    )
+
+    if work_pool_response.concurrency_limit is not None:
+        work_pool_response.active_slots = (
+            await models.workers.count_work_pool_active_slots(
+                session=session,
+                work_pool_id=work_pool.id,
+            )
+        )
+
+    return WorkPoolSnapshot.model_validate(work_pool_response.model_dump(mode="json"))
+
+
+async def _build_worker_ready_frame(
+    session: AsyncSession,
+    work_pool_name: str,
+    hello: WorkerHelloFrame,
+) -> tuple[WorkerReadyFrame, WorkerChannelWorkPoolUpdateEvent | None]:
+    try:
+        selected_channel_version = select_worker_channel_version(
+            hello.payload.supported_channel_versions
+        )
+    except WorkerChannelProtocolError as exc:
+        raise WorkerChannelSetupError(exc.close_reason, str(exc)) from exc
+
+    work_pool = await _resolve_worker_channel_work_pool(
+        session=session,
+        work_pool_name=work_pool_name,
+        hello=hello,
+    )
+    work_queues = await _resolve_worker_channel_work_queues(
+        session=session,
+        work_pool_id=work_pool.id,
+        work_pool_name=work_pool_name,
+        work_queue_names=hello.payload.work_queue_names,
+    )
+    default_base_job_template = hello.payload.default_base_job_template
+    work_pool_update_event = None
+    if not work_pool.base_job_template and default_base_job_template:
+        previous_base_job_template = work_pool.base_job_template
+        await validate_job_variable_defaults_for_work_pool(
+            session, work_pool_name, default_base_job_template
+        )
+        updated = await models.workers.update_work_pool(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_pool=schemas.actions.WorkPoolUpdate(
+                base_job_template=default_base_job_template
+            ),
+            emit_update_event=False,
+            emit_status_change=emit_work_pool_status_event,
+        )
+        if updated:
+            work_pool_update_event = WorkerChannelWorkPoolUpdateEvent(
+                work_pool_id=work_pool.id,
+                changed_fields={
+                    "base_job_template": {
+                        "from": previous_base_job_template,
+                        "to": default_base_job_template,
+                    }
+                },
+            )
+        refreshed = await models.workers.read_work_pool(
+            session=session, work_pool_id=work_pool.id
+        )
+        assert refreshed is not None
+        work_pool = refreshed
+
+    try:
+        worker = await models.workers.record_worker_heartbeat(
+            session=session,
+            work_pool=work_pool,
+            worker_name=hello.payload.worker_name,
+            heartbeat_interval_seconds=hello.payload.heartbeat_interval_seconds,
+            emit_status_change=emit_work_pool_status_event,
+            return_worker=True,
+        )
+    except Exception as exc:
+        raise WorkerChannelSetupError(
+            WorkerChannelCloseReason.HEARTBEAT_PERSISTENCE_FAILED,
+            "worker_channel_initial_heartbeat_failed",
+        ) from exc
+    assert worker is not None
+
+    refreshed_work_pool = await models.workers.read_work_pool(
+        session=session, work_pool_id=work_pool.id
+    )
+    assert refreshed_work_pool is not None
+    initial_snapshot = WorkPoolSnapshotPayload(
+        snapshot_sequence=1,
+        reason="initial",
+        work_pool=await _build_worker_channel_work_pool_snapshot(
+            session=session,
+            work_pool=refreshed_work_pool,
+        ),
+    )
+
+    requested_capabilities = list(dict.fromkeys(hello.payload.requested_capabilities))
+    accepted = _OSS_WORKER_CHANNEL_ACCEPTED_CAPABILITIES
+    accepted_set = set(accepted)
+    rejected = [
+        capability
+        for capability in requested_capabilities
+        if capability not in accepted_set
+    ]
+
+    return (
+        WorkerReadyFrame(
+            type="worker.ready.v1",
+            id=uuid7(),
+            sent_at=now("UTC"),
+            payload={
+                "consumer_id": hello.payload.consumer_id,
+                "worker_id": worker.id,
+                "selected_channel_version": selected_channel_version,
+                "effective_heartbeat_interval_seconds": (
+                    hello.payload.heartbeat_interval_seconds
+                ),
+                "accepted_capabilities": accepted,
+                "rejected_capabilities": rejected,
+                "effective_max_cleanup_concurrency": 0,
+                "resolved_work_queues": [
+                    {"id": work_queue.id, "name": work_queue.name}
+                    for work_queue in work_queues
+                ],
+                "initial_snapshot": initial_snapshot,
+            },
+        ),
+        work_pool_update_event,
+    )
+
+
+async def _persist_worker_channel_heartbeat(
+    session: AsyncSession,
+    work_pool_name: str,
+    frame: WorkerHeartbeatFrame,
+) -> None:
+    work_pool = await models.workers.read_work_pool_by_name(
+        session=session,
+        work_pool_name=work_pool_name,
+    )
+    if work_pool is None:
+        raise RuntimeError("Worker channel work pool no longer exists")
+
+    await models.workers.record_worker_heartbeat(
+        session=session,
+        work_pool=work_pool,
+        worker_name=frame.payload.worker_name,
+        heartbeat_interval_seconds=frame.payload.heartbeat_interval_seconds,
+        emit_status_change=emit_work_pool_status_event,
+    )
 
 
 # -----------------------------------------------------
@@ -756,6 +1065,104 @@ async def delete_work_queue(
 # -----------------------------------------------------
 
 
+@router.websocket("/{work_pool_name}/workers/connect")
+async def worker_channel_connect(
+    websocket: WebSocket,
+    work_pool_name: str = Path(..., description="The work pool name"),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> None:
+    websocket = await subscriptions.accept_prefect_socket(
+        websocket,
+        require_prefect_subprotocol=True,
+        authentication_failed_reason=WorkerChannelCloseReason.AUTHENTICATION_FAILED.value,
+    )
+    if not websocket:
+        return
+
+    try:
+        hello = await _receive_worker_hello(websocket)
+        async with db.session_context(begin_transaction=True) as session:
+            ready, work_pool_update_event = await _build_worker_ready_frame(
+                session=session,
+                work_pool_name=work_pool_name,
+                hello=hello,
+            )
+
+        if work_pool_update_event is not None:
+            async with db.session_context() as session:
+                work_pool = await models.workers.read_work_pool(
+                    session=session,
+                    work_pool_id=work_pool_update_event.work_pool_id,
+                )
+                assert work_pool is not None
+                await models.workers.emit_work_pool_updated_event(
+                    session=session,
+                    work_pool=work_pool,
+                    changed_fields=work_pool_update_event.changed_fields,
+                )
+
+        await websocket.send_json(ready.model_dump(mode="json"))
+
+        while True:
+            try:
+                message = await websocket.receive_json()
+                frame = validate_worker_channel_frame(message)
+            except ValidationError:
+                await _close_worker_channel(
+                    websocket, WorkerChannelCloseReason.PROTOCOL_ERROR
+                )
+                return
+            except ValueError:
+                await _close_worker_channel(
+                    websocket, WorkerChannelCloseReason.PROTOCOL_ERROR
+                )
+                return
+
+            if not isinstance(frame, WorkerHeartbeatFrame):
+                await _close_worker_channel(
+                    websocket, WorkerChannelCloseReason.PROTOCOL_ERROR
+                )
+                return
+
+            if (
+                frame.payload.consumer_id != hello.payload.consumer_id
+                or frame.payload.worker_name != hello.payload.worker_name
+            ):
+                await _close_worker_channel(
+                    websocket, WorkerChannelCloseReason.PROTOCOL_ERROR
+                )
+                return
+
+            try:
+                async with db.session_context(begin_transaction=True) as session:
+                    await _persist_worker_channel_heartbeat(
+                        session=session,
+                        work_pool_name=work_pool_name,
+                        frame=frame,
+                    )
+            except Exception:
+                logger.exception("Worker channel heartbeat persistence failed")
+                await _close_worker_channel(
+                    websocket,
+                    WorkerChannelCloseReason.HEARTBEAT_PERSISTENCE_FAILED,
+                )
+                return
+
+    except WorkerChannelSetupError as exc:
+        logger.info("Worker channel setup failed: %s", exc.detail)
+        await _close_worker_channel(websocket, exc.close_reason)
+    except HTTPException as exc:
+        logger.info("Worker channel setup failed HTTP validation: %s", exc.detail)
+        await _close_worker_channel(websocket, WorkerChannelCloseReason.PROTOCOL_ERROR)
+    except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
+        return
+    except Exception:
+        logger.exception("Worker channel setup failed due to a transient server error")
+        await _close_worker_channel(
+            websocket, WorkerChannelCloseReason.TRANSIENT_SERVER_ERROR
+        )
+
+
 @router.post(
     "/{work_pool_name}/workers/heartbeat",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -780,22 +1187,13 @@ async def worker_heartbeat(
                 detail=f'Work pool "{work_pool_name}" not found.',
             )
 
-        await models.workers.worker_heartbeat(
+        await models.workers.record_worker_heartbeat(
             session=session,
-            work_pool_id=work_pool.id,
+            work_pool=work_pool,
             worker_name=name,
             heartbeat_interval_seconds=heartbeat_interval_seconds,
+            emit_status_change=emit_work_pool_status_event,
         )
-
-        if work_pool.status == schemas.statuses.WorkPoolStatus.NOT_READY:
-            await models.workers.update_work_pool(
-                session=session,
-                work_pool_id=work_pool.id,
-                work_pool=schemas.internal.InternalWorkPoolUpdate(
-                    status=schemas.statuses.WorkPoolStatus.READY
-                ),
-                emit_status_change=emit_work_pool_status_event,
-            )
 
 
 @router.post("/{work_pool_name}/workers/filter")

@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import prefect.server.schemas as schemas
 from prefect.server import models
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestCreateFlowRunInput:
     async def test_creates_flow_run_input(self, session: AsyncSession, flow_run):
