@@ -2034,6 +2034,44 @@ class TestKubernetesWorker:
                     ),
                 )
 
+    async def test_upsert_secret_recovers_from_concurrent_create(
+        self,
+        mock_core_client,
+    ):
+        # Regression test for #16447: concurrent job submissions race on
+        # creating the API key secret. The losing call sees a 404 on read,
+        # attempts to create, and gets a 409 from the winner's create. It must
+        # recover by re-reading and replacing instead of crashing the flow run.
+        name, namespace = "prefect-test-api-key", "default"
+        core_client = mock_core_client.return_value
+        existing_secret = V1Secret(
+            api_version="v1",
+            kind="Secret",
+            metadata=V1ObjectMeta(name=name, namespace=namespace),
+            data={"value": base64.b64encode(b"stale").decode("utf-8")},
+        )
+        core_client.read_namespaced_secret.side_effect = [
+            ApiException(status=404),  # initial read: secret absent
+            existing_secret,  # re-read after losing the create race
+        ]
+        core_client.create_namespaced_secret.side_effect = ApiException(status=409)
+
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            await k8s_worker._upsert_secret(
+                name=name,
+                value="winning-value",
+                namespace=namespace,
+                client=MagicMock(spec=ApiClient),
+            )
+
+        # Our value wins via replace using the re-read resourceVersion.
+        core_client.replace_namespaced_secret.assert_awaited_once()
+        replaced = core_client.replace_namespaced_secret.await_args.kwargs["body"]
+        assert replaced.data == {
+            "value": base64.b64encode(b"winning-value").decode("utf-8")
+        }
+        assert core_client.read_namespaced_secret.await_count == 2
+
     async def test_use_existing_secret_name(
         self,
         flow_run,
