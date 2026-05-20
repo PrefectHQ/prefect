@@ -4,6 +4,8 @@ import pytest
 
 from prefect.server import models, schemas
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestCreateFlow:
     async def test_create_flow_succeeds(self, session):

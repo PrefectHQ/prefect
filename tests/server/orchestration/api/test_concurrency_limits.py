@@ -10,6 +10,8 @@ from prefect.server.api.concurrency_limits_v2 import MinimalConcurrencyLimitResp
 from prefect.server.schemas.actions import ConcurrencyLimitCreate
 from prefect.settings import PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestConcurrencyLimits:
     async def test_creating_concurrency_limits(self, session, client):

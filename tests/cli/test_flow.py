@@ -11,6 +11,8 @@ from prefect.runner import Runner
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
+pytestmark = pytest.mark.clear_db
+
 
 @flow(retries=2)
 def hello():

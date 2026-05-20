@@ -31,6 +31,8 @@ from prefect.settings import (
     temporary_settings,
 )
 
+pytestmark = pytest.mark.clear_db
+
 now = datetime.now(timezone.utc)
 
 RESPONSE_429_RETRY_AFTER_0 = Response(

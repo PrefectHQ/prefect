@@ -24,6 +24,8 @@ from prefect.server.utilities.database import (
     bindparams_from_clause,
 )
 
+pytestmark = pytest.mark.clear_db
+
 DBBase = declarative_base(type_annotation_map={datetime.datetime: Timestamp})
 
 

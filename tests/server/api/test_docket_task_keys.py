@@ -25,6 +25,8 @@ from prefect.server import models, schemas
 from prefect.server.schemas.statuses import DeploymentStatus
 from prefect.settings import get_current_settings
 
+pytestmark = pytest.mark.clear_db
+
 
 @asynccontextmanager
 async def docket_without_worker_lifespan(

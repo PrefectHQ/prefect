@@ -7,6 +7,8 @@ from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestGetRunsInQueueQuery:
     @pytest.fixture

@@ -22,6 +22,8 @@ from prefect.server.orchestration.rules import (
 from prefect.server.schemas.states import Failed, Pending, Running, Scheduled, StateType
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestSetFlowRunState:
     async def test_throws_object_not_found_error_if_bad_id(self, session):

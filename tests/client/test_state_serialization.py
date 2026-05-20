@@ -20,6 +20,8 @@ from pydantic._internal._mock_val_ser import MockValSer
 from prefect.client.schemas.objects import FlowRun, StateDetails, StateType
 from prefect.states import to_state_create
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestStateSerializationWithDeferBuild:
     """

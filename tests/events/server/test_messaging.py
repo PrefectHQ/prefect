@@ -13,6 +13,8 @@ from prefect.types._datetime import now
 
 from .conftest import assert_message_represents_event
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def event1() -> ReceivedEvent:

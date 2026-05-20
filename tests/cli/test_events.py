@@ -12,6 +12,8 @@ from prefect.testing.cli import invoke_and_assert
 from prefect.testing.fixtures import Puppeteer
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def example_event_1() -> Event:

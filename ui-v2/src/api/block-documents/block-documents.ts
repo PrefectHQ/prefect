@@ -8,6 +8,7 @@ import {
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
 import useDebounce from "@/hooks/use-debounce";
+import { queryKeyFactory as adminQueryKeyFactory } from "../admin";
 
 export type BlockDocument = components["schemas"]["BlockDocument"];
 export type BlockDocumentsFilter =
@@ -215,6 +216,9 @@ export const useDeleteBlockDocument = () => {
 				}),
 				queryClient.invalidateQueries({
 					queryKey: queryKeyFactory.counts(),
+				}),
+				queryClient.invalidateQueries({
+					queryKey: adminQueryKeyFactory.defaultResultStorage(),
 				}),
 			]);
 		},

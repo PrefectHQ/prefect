@@ -24,6 +24,8 @@ from prefect.server.database.query_components import (
 from prefect.server.schemas.graph import Graph
 from prefect.types._datetime import DateTime
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.mark.parametrize(
     "ConnectionConfig",

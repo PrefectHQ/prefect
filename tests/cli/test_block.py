@@ -18,6 +18,8 @@ from prefect.settings import (
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
+pytestmark = pytest.mark.clear_db
+
 TEST_BLOCK_CODE = """\
 from prefect.blocks.core import Block
 
