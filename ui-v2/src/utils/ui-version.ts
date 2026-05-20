@@ -58,10 +58,6 @@ export const UI_SWITCH_REASON_OPTIONS: ReadonlyArray<{
 
 const ONE_YEAR_IN_SECONDS = 60 * 60 * 24 * 365;
 
-function writeCookie(cookie: string): void {
-	Reflect.set(document, "cookie", cookie);
-}
-
 export function normalizeBasePath(basePath?: string | null): string {
 	if (!basePath || basePath === "/") {
 		return "/";
@@ -221,9 +217,7 @@ export function setPreferredUiVersion(args: {
 		location,
 		currentBasePath: args.currentBasePath,
 	});
-	writeCookie(
-		`${UI_VERSION_COOKIE_NAME}=${args.version}; Path=${cookiePath}; Max-Age=${ONE_YEAR_IN_SECONDS}; SameSite=Lax`,
-	);
+	document.cookie = `${UI_VERSION_COOKIE_NAME}=${args.version}; Path=${cookiePath}; Max-Age=${ONE_YEAR_IN_SECONDS}; SameSite=Lax`;
 }
 
 export function getUiSwitchReasonLabel(reason: UiSwitchReason): string {
