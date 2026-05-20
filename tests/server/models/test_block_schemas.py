@@ -22,6 +22,8 @@ from prefect.server.schemas.core import BlockSchema
 from prefect.server.schemas.filters import BlockSchemaFilter
 from prefect.utilities.collections import AutoEnum
 
+pytestmark = pytest.mark.clear_db
+
 EMPTY_OBJECT_CHECKSUM = Block._calculate_schema_checksum({})
 
 

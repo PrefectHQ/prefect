@@ -9,6 +9,8 @@ from prefect.workers.utilities import (
     get_default_base_job_template_for_infrastructure_type,
 )
 
+pytestmark = pytest.mark.clear_db
+
 FAKE_DEFAULT_BASE_JOB_TEMPLATE = {
     "job_configuration": {
         "fake": "{{ fake_var }}",

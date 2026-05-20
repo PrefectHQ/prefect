@@ -11,6 +11,8 @@ from prefect.server.schemas.core import TaskRunResult
 from prefect.server.schemas.states import Failed, Pending, Running, Scheduled
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestCreateTaskRun:
     async def test_create_task_run_succeeds(self, flow_run, session):

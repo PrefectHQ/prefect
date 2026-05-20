@@ -79,3 +79,4 @@ finally:
 - `PREFECT_API_URL` not set produces cryptic errors, not a helpful configuration message. Check it first.
 - These tests are slow (seconds to minutes per test) and intentionally excluded from the default `testpaths` in `pyproject.toml`.
 - Process `terminate()` sends SIGTERM but the subprocess may not exit immediately — always `wait(timeout=...)` and fall back to `kill()`.
+- WebSocket event subscriptions are not active until the `async with get_events_subscriber(...)` context establishes the server connection — events emitted before that happens are silently lost. Signal readiness from *inside* the subscription context using a `threading.Event`, and `assert ready.wait(timeout=30)` before triggering any events in the test.

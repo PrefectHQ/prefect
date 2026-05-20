@@ -89,6 +89,7 @@ export function useRunsFilters(): RunsFilters {
 					...prev,
 					state: statesArray.length > 0 ? statesArray.join(",") : "",
 					page: 1,
+					"task-runs-page": 1,
 				}),
 				replace: true,
 			});
@@ -105,6 +106,7 @@ export function useRunsFilters(): RunsFilters {
 					...prev,
 					flows: flowsArray.length > 0 ? flowsArray.join(",") : "",
 					page: 1,
+					"task-runs-page": 1,
 				}),
 				replace: true,
 			});
@@ -122,6 +124,7 @@ export function useRunsFilters(): RunsFilters {
 					deployments:
 						deploymentsArray.length > 0 ? deploymentsArray.join(",") : "",
 					page: 1,
+					"task-runs-page": 1,
 				}),
 				replace: true,
 			});
@@ -139,6 +142,7 @@ export function useRunsFilters(): RunsFilters {
 					"work-pools":
 						workPoolsArray.length > 0 ? workPoolsArray.join(",") : "",
 					page: 1,
+					"task-runs-page": 1,
 				}),
 				replace: true,
 			});
@@ -155,6 +159,7 @@ export function useRunsFilters(): RunsFilters {
 					...prev,
 					tags: tagsArray.length > 0 ? tagsArray.join(",") : "",
 					page: 1,
+					"task-runs-page": 1,
 				}),
 				replace: true,
 			});
@@ -172,6 +177,7 @@ export function useRunsFilters(): RunsFilters {
 					start: newDateRange.start,
 					end: newDateRange.end,
 					page: 1,
+					"task-runs-page": 1,
 				}),
 				replace: true,
 			});
@@ -206,6 +212,7 @@ export function useRunsFilters(): RunsFilters {
 				start: undefined,
 				end: undefined,
 				page: 1,
+				"task-runs-page": 1,
 			}),
 			replace: true,
 		});

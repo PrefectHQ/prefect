@@ -10,6 +10,8 @@ from prefect.server.schemas.actions import BlockSchemaCreate
 from prefect.server.schemas.core import DEFAULT_BLOCK_SCHEMA_VERSION
 from prefect.utilities.pydantic import parse_obj_as
 
+pytestmark = pytest.mark.clear_db
+
 EMPTY_OBJECT_CHECKSUM = Block._calculate_schema_checksum({})
 
 

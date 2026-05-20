@@ -6,7 +6,11 @@ describe("switchToV1Ui", () => {
 	beforeEach(() => {
 		vi.stubEnv("VITE_AMPLITUDE_API_KEY", "test-key");
 		vi.mocked(amplitude.track).mockClear();
-		document.cookie = "prefect_ui_version=; Max-Age=0; Path=/; SameSite=Lax";
+		Reflect.set(
+			document,
+			"cookie",
+			"prefect_ui_version=; Max-Age=0; Path=/; SameSite=Lax",
+		);
 	});
 
 	afterEach(() => {

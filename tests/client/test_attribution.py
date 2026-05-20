@@ -7,11 +7,14 @@ from unittest import mock
 from uuid import uuid4
 
 import httpx
+import pytest
 from httpx import Request, Response
 
 from prefect._internal.compatibility.starlette import status
 from prefect.client.attribution import get_attribution_headers
 from prefect.client.base import PrefectHttpxAsyncClient, PrefectHttpxSyncClient
+
+pytestmark = pytest.mark.clear_db
 
 RESPONSE_200 = Response(
     status.HTTP_200_OK,

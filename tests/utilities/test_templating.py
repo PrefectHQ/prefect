@@ -3,6 +3,7 @@ from typing import Any, Dict
 
 import pytest
 
+import prefect.exceptions
 from prefect.blocks.core import Block
 from prefect.blocks.system import Secret
 from prefect.blocks.webhook import Webhook
@@ -531,6 +532,39 @@ class TestResolveBlockDocumentReferences:
         assert result == {
             "block_attribute": "https://example.com",
         }
+
+    async def test_resolve_block_document_references_raises_helpful_error_for_missing_block_by_name(
+        self, prefect_client
+    ):
+        """Test that missing blocks raise helpful error messages."""
+        template = {
+            "block_ref": "{{ prefect.blocks.aws-credentials.nonexistent-block }}"
+        }
+
+        with pytest.raises(prefect.exceptions.ObjectNotFound) as exc_info:
+            await resolve_block_document_references(template, client=prefect_client)
+
+        error_msg = str(exc_info.value)
+        assert "Block not found: 'nonexistent-block'" in error_msg
+        assert "aws-credentials" in error_msg
+        assert "no longer exists" in error_msg
+
+    async def test_resolve_block_document_references_raises_helpful_error_for_missing_block_by_id(
+        self, prefect_client
+    ):
+        """Test that missing blocks by ID raise helpful error messages."""
+        import uuid
+
+        fake_id = uuid.uuid4()
+        template = {"block_ref": {"$ref": {"block_document_id": fake_id}}}
+
+        with pytest.raises(prefect.exceptions.ObjectNotFound) as exc_info:
+            await resolve_block_document_references(template, client=prefect_client)
+
+        error_msg = str(exc_info.value)
+        assert "Block not found" in error_msg
+        assert str(fake_id) in error_msg
+        assert "no longer exists" in error_msg
 
 
 class TestResolveVariables:

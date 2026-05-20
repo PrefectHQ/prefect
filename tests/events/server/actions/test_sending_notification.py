@@ -25,6 +25,8 @@ from prefect.server.events.schemas.events import (
 )
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def TestNotificationBlock(

@@ -2,8 +2,12 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from prefect.runner._process_manager import ProcessHandle
 from prefect.runner._starter_direct import DirectSubprocessStarter
+
+pytestmark = pytest.mark.clear_db
 
 
 class TestDirectSubprocessStarter:

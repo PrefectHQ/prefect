@@ -14,6 +14,7 @@ from typing import (
     overload,
 )
 
+import prefect.exceptions
 from prefect.client.utilities import inject_client
 from prefect.logging.loggers import get_logger
 from prefect.utilities.annotations import NotSet
@@ -348,9 +349,19 @@ async def resolve_block_document_references(
             )
         block_type_slug, block_document_name, *value_keypath = parts
 
-        block_document = await client.read_block_document_by_name(
-            name=block_document_name, block_type_slug=block_type_slug
-        )
+        try:
+            block_document = await client.read_block_document_by_name(
+                name=block_document_name, block_type_slug=block_type_slug
+            )
+        except prefect.exceptions.ObjectNotFound as exc:
+            raise prefect.exceptions.ObjectNotFound(
+                http_exc=exc.http_exc,
+                help_message=(
+                    f"Block not found: '{block_document_name}' of type '{block_type_slug}'. "
+                    f"This block was referenced in your deployment or work pool configuration but no longer exists. "
+                    f"It may have been deleted. Please check your configuration or create a new block."
+                ),
+            ) from exc
 
         data = block_document.data
         value: Any = data
@@ -377,7 +388,17 @@ async def resolve_block_document_references(
     if isinstance(template, dict):
         block_document_id = template.get("$ref", {}).get("block_document_id")
         if block_document_id:
-            block_document = await client.read_block_document(block_document_id)
+            try:
+                block_document = await client.read_block_document(block_document_id)
+            except prefect.exceptions.ObjectNotFound as exc:
+                raise prefect.exceptions.ObjectNotFound(
+                    http_exc=exc.http_exc,
+                    help_message=(
+                        f"Block not found: ID '{block_document_id}'. "
+                        f"This block was referenced in your deployment or work pool configuration but no longer exists. "
+                        f"It may have been deleted. Please check your configuration or create a new block."
+                    ),
+                ) from exc
             return block_document.data
         updated_template: dict[str, Any] = {}
         for key, value in template.items():

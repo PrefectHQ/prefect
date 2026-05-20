@@ -25,6 +25,8 @@ from prefect.server.utilities.messaging import MessageHandler, create_publisher
 from prefect.server.utilities.messaging.memory import MemoryMessage
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 async def test_start_and_stop_service():
     service = task_run_recorder.TaskRunRecorder()

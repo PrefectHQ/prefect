@@ -25,6 +25,8 @@ from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.triggers import load_automation
 from prefect.types import DateTime
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def raise_the_alarm(automations_session: AsyncSession) -> Automation:

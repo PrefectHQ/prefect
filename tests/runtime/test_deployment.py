@@ -4,6 +4,8 @@ from prefect import flow
 from prefect.flow_engine import run_flow_async
 from prefect.runtime import deployment
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def deployment_id(flow, prefect_client):

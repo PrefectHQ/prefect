@@ -8,6 +8,8 @@ from prefect.server import models, schemas
 from prefect.types._datetime import now, parse_datetime
 from prefect.utilities.pydantic import parse_obj_as
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestCreateFlow:
     async def test_create_flow(self, session, client):

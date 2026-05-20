@@ -37,6 +37,8 @@ from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.workers.base import BaseWorker
 from prefect.workers.process import ProcessWorker
 
+pytestmark = pytest.mark.clear_db
+
 MOCK_PREFECT_UI_URL = "https://api.prefect.io"
 
 FAKE_DEFAULT_BASE_JOB_TEMPLATE = {

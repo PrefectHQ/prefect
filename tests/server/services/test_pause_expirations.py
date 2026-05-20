@@ -7,6 +7,8 @@ import pytest
 from prefect.server import models, schemas
 from prefect.server.services.pause_expirations import fail_expired_pause
 
+pytestmark = pytest.mark.clear_db
+
 THE_PAST = datetime.now(timezone.utc) - timedelta(hours=5)
 THE_FUTURE = datetime.now(timezone.utc) + timedelta(days=5)
 

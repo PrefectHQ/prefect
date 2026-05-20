@@ -13,6 +13,8 @@ from prefect.server.models.block_types import read_block_type_by_slug, read_bloc
 from prefect.settings import PREFECT_API_BLOCKS_REGISTER_ON_START, temporary_settings
 from prefect.utilities.dispatch import get_registry_for_type
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture(scope="module")
 async def expected_number_of_registered_block_types():

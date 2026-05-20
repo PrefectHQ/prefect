@@ -1,6 +1,9 @@
 from unittest.mock import AsyncMock
 
+import pytest
 from starlette import status
+
+pytestmark = pytest.mark.clear_db
 
 
 async def test_hello_world(client):

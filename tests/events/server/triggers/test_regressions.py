@@ -23,6 +23,8 @@ from prefect.server.schemas.actions import WorkQueueCreate
 from prefect.server.schemas.core import WorkQueue
 from prefect.types._datetime import DateTime
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def act(monkeypatch: pytest.MonkeyPatch) -> mock.AsyncMock:

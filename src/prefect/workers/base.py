@@ -11,6 +11,7 @@ import uuid
 import warnings
 from contextlib import AsyncExitStack
 from functools import partial
+from importlib.metadata import distributions
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -26,9 +27,6 @@ from zoneinfo import ZoneInfo
 import anyio
 import anyio.abc
 from exceptiongroup import BaseExceptionGroup, ExceptionGroup
-from importlib_metadata import (
-    distributions,  # type: ignore[reportUnknownVariableType] incomplete typing
-)
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
 from pydantic.json_schema import GenerateJsonSchema
 from typing_extensions import Literal, Self, TypeVar

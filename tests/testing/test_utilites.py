@@ -16,6 +16,8 @@ from prefect.settings import (
 )
 from prefect.testing.utilities import assert_does_not_warn, prefect_test_harness
 
+pytestmark = pytest.mark.clear_db
+
 
 def _multiprocessing_worker():
     """
