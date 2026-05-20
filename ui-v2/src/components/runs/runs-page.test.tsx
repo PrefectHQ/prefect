@@ -260,6 +260,41 @@ describe("Runs page", () => {
 		});
 	});
 
+		describe("Pagination reset", () => {
+			it("should reset both flow and task run pagination when shared filters change", async () => {
+				const user = userEvent.setup();
+				setupFlowRunsHandlers();
+				await renderRunsPage();
+
+				await router.navigate({
+					to: "/runs",
+					search: { tab: "flow-runs", page: 2, "task-runs-page": 3 },
+				});
+
+				await waitFor(() => {
+					const currentSearch = router.state.location.search as Record<
+						string,
+						unknown
+					>;
+					expect(currentSearch.page).toBe(2);
+					expect(currentSearch["task-runs-page"]).toBe(3);
+				});
+
+				const tagsInput = screen.getByPlaceholderText("All tags");
+				await user.type(tagsInput, "tag-1{enter}");
+
+				await waitFor(() => {
+					const currentSearch = router.state.location.search as Record<
+						string,
+						unknown
+					>;
+					expect(currentSearch.tags).toBe("tag-1");
+					expect(currentSearch.page).toBe(1);
+					expect(currentSearch["task-runs-page"]).toBe(1);
+				});
+			});
+		});
+
 	describe("Clear filters", () => {
 		it("should show clear filters button on task-runs empty state and reset all filters when clicked", async () => {
 			const user = userEvent.setup();
