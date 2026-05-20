@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import List
+from unittest.mock import AsyncMock
 
 import pytest
 from httpx import AsyncClient, Headers
@@ -27,11 +28,13 @@ from prefect.client.schemas.worker_channel import (
     WORKER_HEARTBEAT_CAPABILITY,
     WorkerChannelCloseReason,
     WorkerReadyFrame,
+    WorkPoolSnapshotFrame,
 )
 from prefect.server import models, schemas
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.core import WorkPoolStorageConfiguration
 from prefect.server.schemas.statuses import DeploymentStatus, WorkQueueStatus
+from prefect.server.utilities import worker_channel as worker_channel_utils
 from prefect.settings import PREFECT_SERVER_API_AUTH_STRING, temporary_settings
 from prefect.utilities.pydantic import parse_obj_as
 
@@ -2639,6 +2642,188 @@ class TestWorkerChannelConnect:
         )
         assert updated.status == schemas.statuses.WorkPoolStatus.READY
         assert_status_events(work_pool.name, ["prefect.work-pool.ready"])
+
+    async def test_work_pool_update_sends_snapshot(
+        self, test_client: TestClient, client: AsyncClient, work_pool
+    ) -> None:
+        updated_base_job_template = _valid_base_job_template(["echo", "updated"])
+
+        with _connect_worker_channel(test_client, work_pool.name) as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(_worker_hello_frame())
+            WorkerReadyFrame.model_validate(websocket.receive_json())
+
+            response = await client.patch(
+                f"/work_pools/{work_pool.name}",
+                json=schemas.actions.WorkPoolUpdate(
+                    base_job_template=updated_base_job_template
+                ).model_dump(mode="json", exclude_unset=True),
+            )
+            assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
+
+            snapshot = WorkPoolSnapshotFrame.model_validate(websocket.receive_json())
+
+        assert snapshot.payload.snapshot_sequence == 2
+        assert snapshot.payload.reason == "work_pool_updated"
+        assert snapshot.payload.work_pool.id == work_pool.id
+        assert snapshot.payload.work_pool.base_job_template == updated_base_job_template
+
+    async def test_rapid_work_pool_updates_coalesce_to_latest_snapshot(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        test_client: TestClient,
+        client: AsyncClient,
+        work_pool,
+    ) -> None:
+        monkeypatch.setattr(
+            "prefect.server.api.workers._WORKER_CHANNEL_SNAPSHOT_COALESCE_SECONDS",
+            0.2,
+        )
+        stale_base_job_template = _valid_base_job_template(["echo", "stale"])
+        latest_base_job_template = _valid_base_job_template(["echo", "latest"])
+
+        with _connect_worker_channel(test_client, work_pool.name) as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(_worker_hello_frame())
+            WorkerReadyFrame.model_validate(websocket.receive_json())
+
+            first_response = await client.patch(
+                f"/work_pools/{work_pool.name}",
+                json=schemas.actions.WorkPoolUpdate(
+                    base_job_template=stale_base_job_template
+                ).model_dump(mode="json", exclude_unset=True),
+            )
+            assert first_response.status_code == status.HTTP_204_NO_CONTENT
+            second_response = await client.patch(
+                f"/work_pools/{work_pool.name}",
+                json=schemas.actions.WorkPoolUpdate(
+                    base_job_template=latest_base_job_template
+                ).model_dump(mode="json", exclude_unset=True),
+            )
+            assert second_response.status_code == status.HTTP_204_NO_CONTENT
+
+            snapshot = WorkPoolSnapshotFrame.model_validate(websocket.receive_json())
+
+        assert snapshot.payload.snapshot_sequence == 2
+        assert snapshot.payload.work_pool.base_job_template == latest_base_job_template
+
+    async def test_work_queue_create_sends_snapshot_to_all_queue_connection(
+        self, test_client: TestClient, client: AsyncClient, work_pool
+    ) -> None:
+        with _connect_worker_channel(test_client, work_pool.name) as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(_worker_hello_frame(work_queue_names=[]))
+            WorkerReadyFrame.model_validate(websocket.receive_json())
+
+            response = await client.post(
+                f"/work_pools/{work_pool.name}/queues",
+                json={"name": "new-queue"},
+            )
+            assert response.status_code == status.HTTP_201_CREATED, response.text
+
+            snapshot = WorkPoolSnapshotFrame.model_validate(websocket.receive_json())
+
+        assert snapshot.payload.snapshot_sequence == 2
+        assert snapshot.payload.reason == "work_queue_created"
+        assert snapshot.payload.work_pool.id == work_pool.id
+
+    async def test_work_queue_update_sends_snapshot_to_matching_queue_connection(
+        self,
+        test_client: TestClient,
+        client: AsyncClient,
+        session: AsyncSession,
+        work_pool,
+    ) -> None:
+        queue = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="selected"),
+        )
+        await session.commit()
+
+        with _connect_worker_channel(test_client, work_pool.name) as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(_worker_hello_frame(work_queue_names=[queue.name]))
+            WorkerReadyFrame.model_validate(websocket.receive_json())
+
+            response = await client.patch(
+                f"/work_pools/{work_pool.name}/queues/{queue.name}",
+                json={"is_paused": True},
+            )
+            assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
+
+            snapshot = WorkPoolSnapshotFrame.model_validate(websocket.receive_json())
+
+        assert snapshot.payload.snapshot_sequence == 2
+        assert snapshot.payload.reason == "work_queue_updated"
+        assert snapshot.payload.work_pool.id == work_pool.id
+
+    async def test_work_pool_delete_closes_connection_without_snapshot(
+        self, test_client: TestClient, client: AsyncClient, work_pool
+    ) -> None:
+        with pytest.raises(WebSocketDisconnect) as exception:
+            with _connect_worker_channel(test_client, work_pool.name) as websocket:
+                _authenticate_worker_channel(websocket)
+                websocket.send_json(_worker_hello_frame())
+                WorkerReadyFrame.model_validate(websocket.receive_json())
+
+                response = await client.delete(f"/work_pools/{work_pool.name}")
+                assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
+                websocket.receive_json()
+
+        assert exception.value.code == WS_1008_POLICY_VIOLATION
+        assert (
+            exception.value.reason
+            == WorkerChannelCloseReason.AUTHORIZATION_FAILED.value
+        )
+
+    async def test_worker_heartbeat_does_not_publish_snapshot_invalidation(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        client: AsyncClient,
+        work_pool,
+    ) -> None:
+        publish = AsyncMock()
+        monkeypatch.setattr(
+            worker_channel_utils,
+            "publish_snapshot_invalidation",
+            publish,
+        )
+
+        response = await client.post(
+            f"/work_pools/{work_pool.name}/workers/heartbeat",
+            json={"name": "test-worker"},
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
+        publish.assert_not_awaited()
+
+    def test_snapshot_invalidation_respects_queue_selection(self) -> None:
+        work_pool_id = uuid.uuid4()
+        queue_a_id = uuid.uuid4()
+        queue_b_id = uuid.uuid4()
+        invalidation = worker_channel_utils.WorkerChannelSnapshotInvalidation(
+            work_pool_id=work_pool_id,
+            work_queue_id=queue_a_id,
+            reason="work_queue_updated",
+        )
+
+        assert invalidation.targets(
+            work_pool_id=work_pool_id,
+            selected_work_queue_ids=None,
+        )
+        assert invalidation.targets(
+            work_pool_id=work_pool_id,
+            selected_work_queue_ids=frozenset({queue_a_id}),
+        )
+        assert not invalidation.targets(
+            work_pool_id=work_pool_id,
+            selected_work_queue_ids=frozenset({queue_b_id}),
+        )
+        assert not invalidation.targets(
+            work_pool_id=uuid.uuid4(),
+            selected_work_queue_ids=None,
+        )
 
     def test_channel_closes_when_heartbeat_persistence_fails(
         self, monkeypatch: pytest.MonkeyPatch, test_client: TestClient, work_pool
