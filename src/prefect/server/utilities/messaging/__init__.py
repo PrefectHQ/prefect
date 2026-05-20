@@ -183,10 +183,9 @@ def create_cache() -> Cache:
 class BrokerModule(Protocol):
     Publisher: type[Publisher]
     Consumer: type[Consumer]
-
-    def ephemeral_subscription(
-        self, topic: str, *, replay_past_messages: bool = True
-    ) -> AbstractAsyncContextManager[Mapping[str, Any]]: ...
+    ephemeral_subscription: Callable[
+        [str], AbstractAsyncContextManager[Mapping[str, Any]]
+    ]
 
     # Used for testing: a context manager that breaks the topic in a way that raises
     # a ValueError("oops") when attempting to publish a message.
@@ -211,18 +210,14 @@ def create_publisher(
 
 
 @asynccontextmanager
-async def ephemeral_subscription(
-    topic: str, *, replay_past_messages: bool = True
-) -> AsyncGenerator[Mapping[str, Any], Any]:
+async def ephemeral_subscription(topic: str) -> AsyncGenerator[Mapping[str, Any], Any]:
     """
     Creates an ephemeral subscription to the given source, removing it when the context
     exits.
     """
     module = importlib.import_module(PREFECT_MESSAGING_BROKER.value())
     assert isinstance(module, BrokerModule)
-    async with module.ephemeral_subscription(
-        topic, replay_past_messages=replay_past_messages
-    ) as consumer_create_kwargs:
+    async with module.ephemeral_subscription(topic) as consumer_create_kwargs:
         yield consumer_create_kwargs
 
 

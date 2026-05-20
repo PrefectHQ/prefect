@@ -28,9 +28,11 @@ from prefect.client.schemas.worker_channel import (
     WORKER_HEARTBEAT_CAPABILITY,
     WorkerChannelCloseReason,
     WorkerReadyFrame,
+    WorkPoolSnapshot,
     WorkPoolSnapshotFrame,
 )
 from prefect.server import models, schemas
+from prefect.server.api import workers as workers_api
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.schemas.core import WorkPoolStorageConfiguration
 from prefect.server.schemas.statuses import DeploymentStatus, WorkQueueStatus
@@ -2668,6 +2670,70 @@ class TestWorkerChannelConnect:
         assert snapshot.payload.work_pool.id == work_pool.id
         assert snapshot.payload.work_pool.base_job_template == updated_base_job_template
 
+    async def test_setup_queues_snapshot_invalidations_published_during_ready_build(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        test_client: TestClient,
+        session: AsyncSession,
+        work_pool,
+    ) -> None:
+        initial_base_job_template = _valid_base_job_template(["echo", "initial"])
+        latest_base_job_template = _valid_base_job_template(["echo", "latest"])
+        await models.workers.update_work_pool(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_pool=schemas.actions.WorkPoolUpdate(
+                base_job_template=initial_base_job_template
+            ),
+        )
+        await session.commit()
+
+        original_build_snapshot = workers_api._build_worker_channel_work_pool_snapshot
+        published_invalidation = False
+
+        async def build_snapshot_and_update_work_pool(
+            session: AsyncSession,
+            work_pool: prefect.server.database.orm_models.WorkPool,
+        ) -> WorkPoolSnapshot:
+            nonlocal published_invalidation
+            snapshot = await original_build_snapshot(
+                session=session,
+                work_pool=work_pool,
+            )
+
+            if not published_invalidation:
+                published_invalidation = True
+                work_pool.base_job_template = latest_base_job_template
+                await session.flush()
+                await worker_channel_utils.publish_snapshot_invalidation(
+                    worker_channel_utils.WorkerChannelSnapshotInvalidation(
+                        work_pool_id=work_pool.id,
+                        reason="work_pool_updated",
+                    )
+                )
+
+            return snapshot
+
+        monkeypatch.setattr(
+            workers_api,
+            "_build_worker_channel_work_pool_snapshot",
+            build_snapshot_and_update_work_pool,
+        )
+
+        with _connect_worker_channel(test_client, work_pool.name) as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(_worker_hello_frame())
+            ready = WorkerReadyFrame.model_validate(websocket.receive_json())
+            snapshot = WorkPoolSnapshotFrame.model_validate(websocket.receive_json())
+
+        assert (
+            ready.payload.initial_snapshot.work_pool.base_job_template
+            == initial_base_job_template
+        )
+        assert snapshot.payload.snapshot_sequence == 2
+        assert snapshot.payload.reason == "work_pool_updated"
+        assert snapshot.payload.work_pool.base_job_template == latest_base_job_template
+
     async def test_rapid_work_pool_updates_coalesce_to_latest_snapshot(
         self,
         monkeypatch: pytest.MonkeyPatch,
@@ -2802,27 +2868,54 @@ class TestWorkerChannelConnect:
         work_pool_id = uuid.uuid4()
         queue_a_id = uuid.uuid4()
         queue_b_id = uuid.uuid4()
+        subscription_started_at = datetime.now(timezone.utc)
         invalidation = worker_channel_utils.WorkerChannelSnapshotInvalidation(
             work_pool_id=work_pool_id,
             work_queue_id=queue_a_id,
             reason="work_queue_updated",
+            published_at=subscription_started_at,
         )
 
         assert invalidation.targets(
             work_pool_id=work_pool_id,
             selected_work_queue_ids=None,
+            subscribed_after=subscription_started_at,
         )
         assert invalidation.targets(
             work_pool_id=work_pool_id,
             selected_work_queue_ids=frozenset({queue_a_id}),
+            subscribed_after=subscription_started_at,
         )
         assert not invalidation.targets(
             work_pool_id=work_pool_id,
             selected_work_queue_ids=frozenset({queue_b_id}),
+            subscribed_after=subscription_started_at,
         )
         assert not invalidation.targets(
             work_pool_id=uuid.uuid4(),
             selected_work_queue_ids=None,
+            subscribed_after=subscription_started_at,
+        )
+        stale_invalidation = worker_channel_utils.WorkerChannelSnapshotInvalidation(
+            work_pool_id=work_pool_id,
+            work_queue_id=queue_a_id,
+            reason="work_queue_updated",
+            published_at=subscription_started_at - timedelta(seconds=1),
+        )
+        assert not stale_invalidation.targets(
+            work_pool_id=work_pool_id,
+            selected_work_queue_ids=frozenset({queue_a_id}),
+            subscribed_after=subscription_started_at,
+        )
+        unstamped_invalidation = worker_channel_utils.WorkerChannelSnapshotInvalidation(
+            work_pool_id=work_pool_id,
+            work_queue_id=queue_a_id,
+            reason="work_queue_updated",
+        )
+        assert not unstamped_invalidation.targets(
+            work_pool_id=work_pool_id,
+            selected_work_queue_ids=frozenset({queue_a_id}),
+            subscribed_after=subscription_started_at,
         )
 
     def test_channel_closes_when_heartbeat_persistence_fails(

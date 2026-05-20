@@ -8,6 +8,8 @@ from uuid import UUID
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.logging import get_logger
 from prefect.server.utilities import messaging
+from prefect.types import DateTime
+from prefect.types._datetime import now
 
 logger: logging.Logger = get_logger("prefect.server.utilities.worker_channel")
 
@@ -36,13 +38,19 @@ class WorkerChannelSnapshotInvalidation(PrefectBaseModel):
     reason: str
     work_queue_id: UUID | None = None
     work_pool_deleted: bool = False
+    published_at: DateTime | None = None
 
     def targets(
         self,
         *,
         work_pool_id: UUID,
         selected_work_queue_ids: frozenset[UUID] | None,
+        subscribed_after: DateTime | None = None,
     ) -> bool:
+        if subscribed_after is not None:
+            if self.published_at is None or self.published_at < subscribed_after:
+                return False
+
         if self.work_pool_id != work_pool_id:
             return False
 
@@ -64,6 +72,9 @@ async def publish_snapshot_invalidation(
     invalidation: WorkerChannelSnapshotInvalidation,
 ) -> None:
     try:
+        if invalidation.published_at is None:
+            invalidation = invalidation.model_copy(update={"published_at": now("UTC")})
+
         async with messaging.create_publisher(
             topic=WORKER_CHANNEL_SNAPSHOT_TOPIC
         ) as publisher:

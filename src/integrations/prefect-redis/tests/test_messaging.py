@@ -330,37 +330,6 @@ async def test_ephemeral_subscription(broker: str, publisher: Publisher):
         assert not remaining_message
 
 
-async def test_ephemeral_subscription_can_skip_replayed_messages(
-    broker: str, cache: Cache
-):
-    """Test latest-only ephemeral subscription delivery."""
-    topic = "message-tests"
-    captured_messages: list[Message] = []
-
-    async with create_publisher(topic, cache=cache) as publisher:
-        await publisher.publish_data(b"stale", {"message": "stale"})
-
-    async def handler(message: Message):
-        captured_messages.append(message)
-        raise StopConsumer(ack=True)
-
-    async with ephemeral_subscription(
-        topic, replay_past_messages=False
-    ) as consumer_kwargs:
-        consumer = create_consumer(**consumer_kwargs)
-        consumer_task = asyncio.create_task(consumer.run(handler))
-
-        try:
-            async with create_publisher(topic, cache=cache) as publisher:
-                await publisher.publish_data(b"latest", {"message": "latest"})
-        finally:
-            await consumer_task
-
-    assert [message.attributes["message"] for message in captured_messages] == [
-        "latest"
-    ]
-
-
 async def test_verify_ephemeral_cleanup(redis: Redis, broker: str):
     """Verify that ephemeral subscriptions clean up after themselves."""
     async with ephemeral_subscription("message-tests") as consumer_kwargs:

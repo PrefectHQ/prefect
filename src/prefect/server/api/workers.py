@@ -202,6 +202,7 @@ class WorkerChannelConnection:
         consumer_id: UUID,
         worker_name: str,
         selected_work_queue_ids: frozenset[UUID] | None,
+        subscription_started_at: DateTime,
     ) -> None:
         self.websocket = websocket
         self.db = db
@@ -210,6 +211,7 @@ class WorkerChannelConnection:
         self.consumer_id = consumer_id
         self.worker_name = worker_name
         self.selected_work_queue_ids = selected_work_queue_ids
+        self.subscription_started_at = subscription_started_at
         self._next_snapshot_sequence = 2
         self._snapshot_queue: asyncio.Queue[
             worker_channel_utils.WorkerChannelSnapshotInvalidation
@@ -217,47 +219,45 @@ class WorkerChannelConnection:
         self._send_lock = asyncio.Lock()
         self._closed = asyncio.Event()
 
-    async def run(self, ready: WorkerReadyFrame) -> None:
-        async with worker_channel_utils.messaging.ephemeral_subscription(
-            worker_channel_utils.WORKER_CHANNEL_SNAPSHOT_TOPIC,
-            replay_past_messages=False,
-        ) as consumer_kwargs:
-            send_task = asyncio.create_task(self._send_loop(ready))
-            receive_task = asyncio.create_task(self._receive_loop())
-            fanout_task = asyncio.create_task(self._fanout_loop(consumer_kwargs))
-            tasks = {send_task, receive_task, fanout_task}
+    async def run(
+        self, ready: WorkerReadyFrame, consumer_kwargs: Mapping[str, Any]
+    ) -> None:
+        send_task = asyncio.create_task(self._send_loop(ready))
+        receive_task = asyncio.create_task(self._receive_loop())
+        fanout_task = asyncio.create_task(self._fanout_loop(consumer_kwargs))
+        tasks = {send_task, receive_task, fanout_task}
 
-            try:
-                done, pending = await asyncio.wait(
-                    tasks, return_when=asyncio.FIRST_COMPLETED
-                )
-            except asyncio.CancelledError:
-                self._closed.set()
-                for task in tasks:
-                    task.cancel()
-                await asyncio.gather(*tasks, return_exceptions=True)
-                return
-            except BaseException:
-                self._closed.set()
-                for task in tasks:
-                    task.cancel()
-                await asyncio.gather(*tasks, return_exceptions=True)
-                raise
-
+        try:
+            done, pending = await asyncio.wait(
+                tasks, return_when=asyncio.FIRST_COMPLETED
+            )
+        except asyncio.CancelledError:
             self._closed.set()
-            for task in pending:
+            for task in tasks:
                 task.cancel()
-            try:
-                await asyncio.gather(*pending, return_exceptions=True)
-            except asyncio.CancelledError:
-                return
+            await asyncio.gather(*tasks, return_exceptions=True)
+            return
+        except BaseException:
+            self._closed.set()
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            raise
 
-            for task in done:
-                if task.cancelled():
-                    continue
-                exception = task.exception()
-                if exception is not None:
-                    raise exception
+        self._closed.set()
+        for task in pending:
+            task.cancel()
+        try:
+            await asyncio.gather(*pending, return_exceptions=True)
+        except asyncio.CancelledError:
+            return
+
+        for task in done:
+            if task.cancelled():
+                continue
+            exception = task.exception()
+            if exception is not None:
+                raise exception
 
     async def close(self, close_reason: WorkerChannelCloseReason) -> None:
         if self._closed.is_set():
@@ -274,6 +274,7 @@ class WorkerChannelConnection:
         if self._closed.is_set() or not invalidation.targets(
             work_pool_id=self.work_pool_id,
             selected_work_queue_ids=self.selected_work_queue_ids,
+            subscribed_after=self.subscription_started_at,
         ):
             return
 
@@ -1356,47 +1357,52 @@ async def worker_channel_connect(
 
     try:
         hello = await _receive_worker_hello(websocket)
-        async with db.session_context(begin_transaction=True) as session:
-            ready, work_pool_update_event = await _build_worker_ready_frame(
-                session=session,
+        subscription_started_at = now("UTC")
+        async with worker_channel_utils.messaging.ephemeral_subscription(
+            worker_channel_utils.WORKER_CHANNEL_SNAPSHOT_TOPIC,
+        ) as consumer_kwargs:
+            async with db.session_context(begin_transaction=True) as session:
+                ready, work_pool_update_event = await _build_worker_ready_frame(
+                    session=session,
+                    work_pool_name=work_pool_name,
+                    hello=hello,
+                )
+
+            if work_pool_update_event is not None:
+                async with db.session_context() as session:
+                    work_pool = await models.workers.read_work_pool(
+                        session=session,
+                        work_pool_id=work_pool_update_event.work_pool_id,
+                    )
+                    assert work_pool is not None
+                    await models.workers.emit_work_pool_updated_event(
+                        session=session,
+                        work_pool=work_pool,
+                        changed_fields=work_pool_update_event.changed_fields,
+                    )
+                await worker_channel_utils.publish_snapshot_invalidation(
+                    worker_channel_utils.WorkerChannelSnapshotInvalidation(
+                        work_pool_id=work_pool_update_event.work_pool_id,
+                        reason="work_pool_updated",
+                    )
+                )
+
+            selected_work_queue_ids = (
+                None
+                if not hello.payload.work_queue_names
+                else frozenset(queue.id for queue in ready.payload.resolved_work_queues)
+            )
+            connection = WorkerChannelConnection(
+                websocket=websocket,
+                db=db,
                 work_pool_name=work_pool_name,
-                hello=hello,
+                work_pool_id=ready.payload.initial_snapshot.work_pool.id,
+                consumer_id=hello.payload.consumer_id,
+                worker_name=hello.payload.worker_name,
+                selected_work_queue_ids=selected_work_queue_ids,
+                subscription_started_at=subscription_started_at,
             )
-
-        if work_pool_update_event is not None:
-            async with db.session_context() as session:
-                work_pool = await models.workers.read_work_pool(
-                    session=session,
-                    work_pool_id=work_pool_update_event.work_pool_id,
-                )
-                assert work_pool is not None
-                await models.workers.emit_work_pool_updated_event(
-                    session=session,
-                    work_pool=work_pool,
-                    changed_fields=work_pool_update_event.changed_fields,
-                )
-            await worker_channel_utils.publish_snapshot_invalidation(
-                worker_channel_utils.WorkerChannelSnapshotInvalidation(
-                    work_pool_id=work_pool_update_event.work_pool_id,
-                    reason="work_pool_updated",
-                )
-            )
-
-        selected_work_queue_ids = (
-            None
-            if not hello.payload.work_queue_names
-            else frozenset(queue.id for queue in ready.payload.resolved_work_queues)
-        )
-        connection = WorkerChannelConnection(
-            websocket=websocket,
-            db=db,
-            work_pool_name=work_pool_name,
-            work_pool_id=ready.payload.initial_snapshot.work_pool.id,
-            consumer_id=hello.payload.consumer_id,
-            worker_name=hello.payload.worker_name,
-            selected_work_queue_ids=selected_work_queue_ids,
-        )
-        await connection.run(ready)
+            await connection.run(ready, consumer_kwargs)
 
     except WorkerChannelSetupError as exc:
         logger.info("Worker channel setup failed: %s", exc.detail)
