@@ -222,4 +222,47 @@ describe("ScheduleBadgeGroup", () => {
 		expect(badges).toHaveLength(10);
 		spy.mockRestore();
 	});
+
+	it("shows Active and Paused labels in collapsed hover card for mixed schedules", async () => {
+		const spy = vi
+			.spyOn(useIsOverflowingModule, "useIsOverflowing")
+			.mockReturnValue(true);
+		const user = userEvent.setup();
+		const schedules = [
+			{
+				id: randUuid(),
+				created: new Date().toISOString(),
+				updated: new Date().toISOString(),
+				active: true,
+				schedule: {
+					cron: "0 0 * * *",
+					timezone: "UTC",
+					day_or: false,
+				},
+			},
+			{
+				id: randUuid(),
+				created: new Date().toISOString(),
+				updated: new Date().toISOString(),
+				active: false,
+				schedule: {
+					cron: "0 12 * * *",
+					timezone: "UTC",
+					day_or: false,
+				},
+			},
+		];
+
+		render(<ScheduleBadgeGroup schedules={schedules} />);
+
+		const collapsedBadge = screen.getByText("2 schedules");
+		expect(collapsedBadge).toBeInTheDocument();
+		await user.hover(collapsedBadge);
+
+		await waitFor(() => {
+			expect(screen.getByText("Active")).toBeVisible();
+			expect(screen.getByText("Paused")).toBeVisible();
+		});
+		spy.mockRestore();
+	});
 });
