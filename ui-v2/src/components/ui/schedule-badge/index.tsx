@@ -10,6 +10,7 @@ import {
 	HoverCardContent,
 	HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import { Icon } from "@/components/ui/icons";
 import {
 	Tooltip,
 	TooltipContent,
@@ -27,6 +28,30 @@ type RRuleSchedule = components["schemas"]["RRuleSchedule"];
 type ScheduleBadgeProps = BadgeProps & {
 	schedule: DeploymentSchedule;
 };
+
+const getScheduleStatusLabel = (active: boolean) =>
+	active ? "Active" : "Paused";
+
+const ScheduleStatusPill = ({ active }: { active: boolean }) => (
+	<span
+		className={cn(
+			"inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium leading-none",
+			active
+				? "bg-state-completed-100 text-state-completed-700"
+				: "bg-state-paused-100 text-state-paused-700",
+		)}
+	>
+		<Icon
+			id={active ? "Check" : "Pause"}
+			className="size-3"
+			aria-hidden="true"
+		/>
+		<span>{getScheduleStatusLabel(active)}</span>
+	</span>
+);
+
+const getScheduleBadgeClassName = (className?: string) =>
+	cn("gap-2 justify-start", className);
 
 export const ScheduleBadge = ({ schedule, ...props }: ScheduleBadgeProps) => {
 	const { schedule: innerSchedule } = schedule;
@@ -71,16 +96,19 @@ const CronScheduleBadge = ({
 }) => {
 	const scheduleText = cronstrue.toString(schedule.cron);
 	const detailedScheduleText = `${active ? "" : "(Paused)"} ${scheduleText} (${schedule.timezone})`;
+	const badgeVariant = active ? "success" : "warning";
+
 	return (
 		<TooltipProvider>
 			<Tooltip>
 				<TooltipTrigger>
 					<Badge
-						variant="secondary"
-						className={`${!active ? "opacity-50" : ""}`}
+						variant={badgeVariant}
 						{...props}
+						className={getScheduleBadgeClassName(props.className)}
 					>
-						<span className="truncate">{scheduleText}</span>
+						<ScheduleStatusPill active={active} />
+						<span className="min-w-0 truncate">{scheduleText}</span>
 					</Badge>
 				</TooltipTrigger>
 				<TooltipContent>{detailedScheduleText}</TooltipContent>
@@ -105,16 +133,19 @@ const IntervalScheduleBadge = ({
 			"MMM do, yyyy 'at' hh:mm:ss aa",
 		)} (${schedule.timezone}) as the anchor date`;
 	}
+	const badgeVariant = active ? "success" : "warning";
+
 	return (
 		<TooltipProvider>
 			<Tooltip>
 				<TooltipTrigger>
 					<Badge
-						variant="secondary"
-						className={`${!active ? "opacity-50" : ""}`}
+						variant={badgeVariant}
 						{...props}
+						className={getScheduleBadgeClassName(props.className)}
 					>
-						<span className="truncate">{scheduleText}</span>
+						<ScheduleStatusPill active={active} />
+						<span className="min-w-0 truncate">{scheduleText}</span>
 					</Badge>
 				</TooltipTrigger>
 				<TooltipContent>{detailedScheduleText}</TooltipContent>
@@ -134,16 +165,19 @@ const RRuleScheduleBadge = ({
 	const scheduleText = rrulestr(schedule.rrule).toText();
 	const capitalizedScheduleText = capitalize(scheduleText);
 	const detailedScheduleText = `${active ? "" : "(Paused)"} ${capitalizedScheduleText} (${schedule.timezone})`;
+	const badgeVariant = active ? "success" : "warning";
+
 	return (
 		<TooltipProvider>
 			<Tooltip>
 				<TooltipTrigger>
 					<Badge
-						variant="secondary"
-						className={`${!active ? "opacity-50" : ""}`}
+						variant={badgeVariant}
 						{...props}
+						className={getScheduleBadgeClassName(props.className)}
 					>
-						<span className="truncate">{capitalizedScheduleText}</span>
+						<ScheduleStatusPill active={active} />
+						<span className="min-w-0 truncate">{capitalizedScheduleText}</span>
 					</Badge>
 				</TooltipTrigger>
 				<TooltipContent>{detailedScheduleText}</TooltipContent>
