@@ -21,6 +21,8 @@ from prefect.server.events.storage.database import (
 )
 from prefect.types._datetime import Date, DateTime, Duration, end_of_period, now
 
+pytestmark = pytest.mark.clear_db
+
 # Note: the counts in this module are sensitive to the number and shape of events
 # we produce in conftest.py and may need to be adjusted if we make changes.
 

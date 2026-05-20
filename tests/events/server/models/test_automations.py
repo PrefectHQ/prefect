@@ -22,6 +22,8 @@ from prefect.server.events.schemas.automations import (
 from prefect.server.events.schemas.events import ResourceSpecification
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 async def test_reading_automations_by_workspace_empty(
     automations_session: AsyncSession,

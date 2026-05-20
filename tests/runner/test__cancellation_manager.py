@@ -8,6 +8,8 @@ import pytest
 from prefect.client.schemas.objects import StateType
 from prefect.runner._cancellation_manager import CancellationManager
 
+pytestmark = pytest.mark.clear_db
+
 
 def _make_flow_run(*, has_state: bool = True) -> MagicMock:
     flow_run = MagicMock()

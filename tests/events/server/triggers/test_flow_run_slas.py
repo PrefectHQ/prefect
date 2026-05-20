@@ -19,6 +19,8 @@ from prefect.server.events.schemas.automations import (
 from prefect.server.events.schemas.events import Event, ReceivedEvent
 from prefect.types import DateTime
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def stuck_flow_runs_sla(

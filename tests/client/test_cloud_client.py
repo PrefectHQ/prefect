@@ -12,6 +12,8 @@ from prefect.settings import (
     temporary_settings,
 )
 
+pytestmark = pytest.mark.clear_db
+
 mock_work_pool_types_response = {
     "prefect": {
         "prefect-agent": {

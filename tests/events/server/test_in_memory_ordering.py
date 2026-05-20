@@ -17,6 +17,8 @@ from prefect.server.events.ordering.memory import CausalOrdering, EventBeingProc
 from prefect.server.events.schemas.events import ReceivedEvent, Resource
 from prefect.types._datetime import DateTime
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def resource() -> Resource:

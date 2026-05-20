@@ -13,6 +13,8 @@ from prefect.infrastructure.provisioners.container_instance import (
 )
 from prefect.types import SecretDict
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def existing_credentials_block(prefect_client: PrefectClient):

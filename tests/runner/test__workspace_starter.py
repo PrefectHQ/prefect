@@ -24,6 +24,8 @@ from prefect.runner._workspace_starter import (
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.processutils import command_from_string
 
+pytestmark = pytest.mark.clear_db
+
 
 def _prepared_workspace(tmp_path: Path) -> PreparedWorkspace:
     workspace_root = tmp_path / "workspace"

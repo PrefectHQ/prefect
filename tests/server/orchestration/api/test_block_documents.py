@@ -14,6 +14,8 @@ from prefect.types import SecretDict
 from prefect.utilities.names import obfuscate_string
 from prefect.utilities.pydantic import parse_obj_as
 
+pytestmark = pytest.mark.clear_db
+
 
 def long_string(s: str):
     return string.ascii_letters + s

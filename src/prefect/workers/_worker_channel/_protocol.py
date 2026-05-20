@@ -93,6 +93,10 @@ class WorkerChannelProtocolHandler:
     def work_pool_snapshots_available(self) -> bool:
         return self._work_pool_snapshots.snapshots_available
 
+    @property
+    def work_pool_snapshot_sequence(self) -> int | None:
+        return self._work_pool_snapshots.last_applied_sequence
+
     async def handshake(
         self, websocket: websockets.asyncio.client.ClientConnection
     ) -> WorkerReadyFrame:

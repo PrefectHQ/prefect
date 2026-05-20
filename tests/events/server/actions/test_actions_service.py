@@ -18,6 +18,8 @@ from prefect.server.utilities.messaging.memory import MemoryMessage
 from prefect.types import DateTime
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def message_handler(act: mock.AsyncMock) -> AsyncGenerator[MessageHandler, None]:

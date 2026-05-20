@@ -102,6 +102,8 @@ from prefect.testing.utilities import exceptions_equal
 from prefect.types._datetime import DateTime, now
 from prefect.utilities.pydantic import parse_obj_as
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture(autouse=True)
 def clear_api_version_check_cache():

@@ -1,5 +1,6 @@
 from uuid import uuid4
 
+import pytest
 import sqlalchemy as sa
 
 from prefect.server.schemas.filters import (
@@ -9,6 +10,8 @@ from prefect.server.schemas.filters import (
     TaskRunFilter,
 )
 from prefect.types._datetime import now
+
+pytestmark = pytest.mark.clear_db
 
 NOW = now("UTC")
 

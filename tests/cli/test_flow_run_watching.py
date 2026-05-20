@@ -14,7 +14,7 @@ from prefect.exceptions import FlowRunWaitTimeout
 from prefect.flow_engine import run_flow_async
 from prefect.states import Completed
 
-pytestmark = pytest.mark.usefixtures("hosted_api_server")
+pytestmark = [pytest.mark.usefixtures("hosted_api_server"), pytest.mark.clear_db]
 
 
 @flow

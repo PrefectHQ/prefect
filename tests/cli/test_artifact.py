@@ -7,6 +7,8 @@ import pytest
 from prefect.server import models, schemas
 from prefect.testing.cli import invoke_and_assert
 
+pytestmark = pytest.mark.clear_db
+
 if TYPE_CHECKING:
     from sqlalchemy.ext.asyncio import AsyncSession
 

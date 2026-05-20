@@ -18,6 +18,8 @@ from prefect.server.schemas.actions import (
     DeploymentUpdate,
 )
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def deployment_with_work_queue(
