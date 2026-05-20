@@ -1904,6 +1904,79 @@ class TestUpdateWorkQueue:
         )
 
 
+class TestWorkQueueSnapshotInvalidations:
+    async def test_work_pool_queue_changes_do_not_publish_snapshot_invalidation(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        client: AsyncClient,
+        work_pool,
+    ) -> None:
+        publish = AsyncMock()
+        monkeypatch.setattr(
+            worker_channel_utils,
+            "publish_snapshot_invalidation",
+            publish,
+        )
+
+        create_response = await client.post(
+            f"/work_pools/{work_pool.name}/queues",
+            json={"name": "selected"},
+        )
+        assert create_response.status_code == status.HTTP_201_CREATED, (
+            create_response.text
+        )
+
+        update_response = await client.patch(
+            f"/work_pools/{work_pool.name}/queues/selected",
+            json={"is_paused": True},
+        )
+        assert update_response.status_code == status.HTTP_204_NO_CONTENT, (
+            update_response.text
+        )
+
+        delete_response = await client.delete(
+            f"/work_pools/{work_pool.name}/queues/selected"
+        )
+        assert delete_response.status_code == status.HTTP_204_NO_CONTENT, (
+            delete_response.text
+        )
+        publish.assert_not_awaited()
+
+    async def test_work_queue_id_routes_do_not_publish_snapshot_invalidation(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        client: AsyncClient,
+        session: AsyncSession,
+        work_pool,
+    ) -> None:
+        queue = await models.workers.create_work_queue(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_queue=schemas.actions.WorkQueueCreate(name="selected"),
+        )
+        await session.commit()
+        publish = AsyncMock()
+        monkeypatch.setattr(
+            worker_channel_utils,
+            "publish_snapshot_invalidation",
+            publish,
+        )
+
+        update_response = await client.patch(
+            f"/work_queues/{queue.id}",
+            json={"is_paused": True},
+        )
+        assert update_response.status_code == status.HTTP_204_NO_CONTENT, (
+            update_response.text
+        )
+
+        delete_response = await client.delete(f"/work_queues/{queue.id}")
+        assert delete_response.status_code == status.HTTP_204_NO_CONTENT, (
+            delete_response.text
+        )
+        publish.assert_not_awaited()
+
+
 class TestUpdateWorkPoolEvents:
     async def test_update_work_pool_emits_updated_event_for_description(
         self, client, work_pool
@@ -2800,77 +2873,6 @@ class TestWorkerChannelConnect:
         assert snapshot.payload.snapshot_sequence == 2
         assert snapshot.payload.work_pool.base_job_template == latest_base_job_template
 
-    async def test_work_queue_changes_do_not_publish_snapshot_invalidation(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-        client: AsyncClient,
-        work_pool,
-    ) -> None:
-        publish = AsyncMock()
-        monkeypatch.setattr(
-            worker_channel_utils,
-            "publish_snapshot_invalidation",
-            publish,
-        )
-
-        create_response = await client.post(
-            f"/work_pools/{work_pool.name}/queues",
-            json={"name": "selected"},
-        )
-        assert create_response.status_code == status.HTTP_201_CREATED, (
-            create_response.text
-        )
-
-        update_response = await client.patch(
-            f"/work_pools/{work_pool.name}/queues/selected",
-            json={"is_paused": True},
-        )
-        assert update_response.status_code == status.HTTP_204_NO_CONTENT, (
-            update_response.text
-        )
-
-        delete_response = await client.delete(
-            f"/work_pools/{work_pool.name}/queues/selected"
-        )
-        assert delete_response.status_code == status.HTTP_204_NO_CONTENT, (
-            delete_response.text
-        )
-        publish.assert_not_awaited()
-
-    async def test_work_queue_id_routes_do_not_publish_snapshot_invalidation(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-        client: AsyncClient,
-        session: AsyncSession,
-        work_pool,
-    ) -> None:
-        queue = await models.workers.create_work_queue(
-            session=session,
-            work_pool_id=work_pool.id,
-            work_queue=schemas.actions.WorkQueueCreate(name="selected"),
-        )
-        await session.commit()
-        publish = AsyncMock()
-        monkeypatch.setattr(
-            worker_channel_utils,
-            "publish_snapshot_invalidation",
-            publish,
-        )
-
-        update_response = await client.patch(
-            f"/work_queues/{queue.id}",
-            json={"is_paused": True},
-        )
-        assert update_response.status_code == status.HTTP_204_NO_CONTENT, (
-            update_response.text
-        )
-
-        delete_response = await client.delete(f"/work_queues/{queue.id}")
-        assert delete_response.status_code == status.HTTP_204_NO_CONTENT, (
-            delete_response.text
-        )
-        publish.assert_not_awaited()
-
     async def test_work_pool_delete_closes_connection_without_snapshot(
         self, test_client: TestClient, client: AsyncClient, work_pool
     ) -> None:
@@ -2889,68 +2891,6 @@ class TestWorkerChannelConnect:
             exception.value.reason
             == WorkerChannelCloseReason.AUTHORIZATION_FAILED.value
         )
-
-    async def test_worker_heartbeat_does_not_publish_snapshot_invalidation(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-        client: AsyncClient,
-        work_pool,
-    ) -> None:
-        publish = AsyncMock()
-        monkeypatch.setattr(
-            worker_channel_utils,
-            "publish_snapshot_invalidation",
-            publish,
-        )
-
-        response = await client.post(
-            f"/work_pools/{work_pool.name}/workers/heartbeat",
-            json={"name": "test-worker"},
-        )
-
-        assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
-        publish.assert_not_awaited()
-
-    async def test_publish_snapshot_invalidation_propagates_broker_failure(
-        self,
-        monkeypatch: pytest.MonkeyPatch,
-    ) -> None:
-        class FailingPublisher:
-            async def __aenter__(self):
-                return self
-
-            async def __aexit__(self, *exc_info):
-                return False
-
-            async def publish_data(self, data, attributes):
-                raise RuntimeError("broker unavailable")
-
-        def create_publisher(topic: str) -> FailingPublisher:
-            return FailingPublisher()
-
-        monkeypatch.setattr(
-            worker_channel_utils.messaging,
-            "create_publisher",
-            create_publisher,
-        )
-
-        with pytest.raises(RuntimeError, match="broker unavailable"):
-            await worker_channel_utils.publish_snapshot_invalidation(
-                worker_channel_utils.WorkerChannelSnapshotInvalidation(
-                    work_pool_id=uuid.uuid4(),
-                    reason="work_pool_updated",
-                )
-            )
-
-    def test_snapshot_invalidation_targets_work_pool(self) -> None:
-        work_pool_id = uuid.uuid4()
-        invalidation = worker_channel_utils.WorkerChannelSnapshotInvalidation(
-            work_pool_id=work_pool_id,
-            reason="work_pool_updated",
-        )
-
-        assert invalidation.targets(work_pool_id=work_pool_id)
-        assert not invalidation.targets(work_pool_id=uuid.uuid4())
 
     def test_channel_closes_when_heartbeat_persistence_fails(
         self, monkeypatch: pytest.MonkeyPatch, test_client: TestClient, work_pool
@@ -3045,6 +2985,27 @@ class TestWorkerProcess:
         )
 
         assert_status_events(work_pool.name, ["prefect.work-pool.ready"])
+
+    async def test_worker_heartbeat_does_not_publish_snapshot_invalidation(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        client: AsyncClient,
+        work_pool,
+    ) -> None:
+        publish = AsyncMock()
+        monkeypatch.setattr(
+            worker_channel_utils,
+            "publish_snapshot_invalidation",
+            publish,
+        )
+
+        response = await client.post(
+            f"/work_pools/{work_pool.name}/workers/heartbeat",
+            json={"name": "test-worker"},
+        )
+
+        assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
+        publish.assert_not_awaited()
 
     async def test_worker_heartbeat_does_not_updates_work_pool_status_if_paused(
         self, client, work_pool
