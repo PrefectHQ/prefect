@@ -1,3 +1,33 @@
+"""Cold-import benchmarks for Prefect modules.
+
+Each benchmark measures the cost of a cold import starting from an empty
+`sys.modules` with no `prefect*` entries.
+
+**Why `benchmark.pedantic(setup=...)`?**
+
+CodSpeed's simulation mode always executes at least one **warmup** round
+(to prime the perf-trampoline cache on Python 3.12+) before the measured
+round.  Critically, `setup` runs *outside* the callgrind instrumentation
+markers, so each call — warmup and measured — starts with a clean
+`sys.modules` while CodSpeed only counts instructions from
+`importlib.import_module`.  Using `@pytest.mark.codspeed_benchmark`
+without a `setup` would include the cleanup in the measurement or, worse,
+measure a cached `sys.modules` hit after the warmup already performed the
+cold import.
+
+The CI workflow invokes each parametrized test in its own `pytest` process
+and passes `-o 'filterwarnings='` to override the warning filters in
+`pyproject.toml` that reference
+`prefect._internal.compatibility.deprecated.PrefectDeprecationWarning`.
+Without this, pytest resolves those filter classes at startup, which
+triggers a prefect import before the benchmark runs.
+
+For local one-off runs, invoke a single benchmark at a time::
+
+    uv run pytest "benches/bench_import.py::bench_import_module[prefect]" \\
+        --codspeed -v -o 'filterwarnings='
+"""
+
 import importlib
 import sys
 from typing import TYPE_CHECKING
@@ -23,65 +53,55 @@ IMPORT_MODULES = [
 ]
 
 
-def reset_imports():
-    # Remove the module from sys.modules if it's there
-    prefect_modules = [key for key in sys.modules if key.startswith("prefect")]
-    for module in prefect_modules:
-        del sys.modules[module]
+def _reset_to_cold_state():
+    """Restore the interpreter to a pre-import state for Prefect.
 
-    # Clear importlib cache
-    importlib.invalidate_caches()
-
-    # reset the prometheus registry to clear any previously measured metrics
-    for collector in list(REGISTRY._collector_to_names):
-        REGISTRY.unregister(collector)
-
-
-@pytest.fixture(autouse=True)
-def _isolate_imports():
-    """Snapshot and restore prefect modules in sys.modules so import benchmarks
-    don't corrupt worker state for other benchmark files (e.g. bench_flows,
-    bench_tasks) when running under pytest-xdist."""
-    saved_prefect = {k: v for k, v in sys.modules.items() if k.startswith("prefect")}
-    saved_collectors = set(REGISTRY._collector_to_names)
-    yield
-    # Remove prefect modules left behind by the benchmark
-    for k in [k for k in sys.modules if k.startswith("prefect")]:
-        del sys.modules[k]
-    # Restore the original prefect module objects
-    sys.modules.update(saved_prefect)
-    importlib.invalidate_caches()
-    # Remove any prometheus collectors added during the benchmark
-    for collector in list(REGISTRY._collector_to_names):
-        if collector not in saved_collectors:
+    Removes `prefect*` modules from `sys.modules`, unregisters any
+    Prometheus collectors they created, and invalidates import caches.
+    This runs inside `benchmark.pedantic(setup=...)` so it executes
+    *outside* CodSpeed's callgrind markers — the benchmark only counts
+    the instructions of the subsequent `importlib.import_module` call.
+    """
+    # Unregister prefect prometheus collectors so re-import can re-create them
+    for collector, names in list(REGISTRY._collector_to_names.items()):
+        if any(n.startswith("prefect") for n in names):
             REGISTRY.unregister(collector)
-    # Re-register any collectors that were removed by reset_imports()
-    for collector in saved_collectors:
-        if collector not in REGISTRY._collector_to_names:
-            REGISTRY.register(collector)
+
+    for key in [k for k in sys.modules if k.startswith("prefect")]:
+        del sys.modules[key]
+    importlib.invalidate_caches()
+
+    # Fail loudly if cleanup was incomplete
+    leaked = [k for k in sys.modules if k.startswith("prefect")]
+    assert not leaked, f"prefect modules still in sys.modules after reset: {leaked}"
 
 
-@pytest.mark.timeout(180)
 @pytest.mark.benchmark(group="imports")
-@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
 @pytest.mark.parametrize("module_name", IMPORT_MODULES, ids=IMPORT_MODULES)
 def bench_import_module(benchmark: "BenchmarkFixture", module_name: str):
     def do_import():
-        reset_imports()
         importlib.import_module(module_name)
 
-    benchmark(do_import)
+    benchmark.pedantic(
+        do_import,
+        setup=_reset_to_cold_state,
+        rounds=1,
+        warmup_rounds=0,
+        iterations=1,
+    )
 
 
-@pytest.mark.timeout(180)
 @pytest.mark.benchmark(group="imports")
-@pytest.mark.filterwarnings("ignore::pytest.PytestUnhandledThreadExceptionWarning")
 def bench_import_prefect_flow(benchmark: "BenchmarkFixture"):
-    """Benchmark the public API form: from prefect import flow"""
+    """Benchmark the public API form: `from prefect import flow`."""
 
     def import_prefect_flow():
-        reset_imports()
-
         from prefect import flow  # noqa: F401
 
-    benchmark(import_prefect_flow)
+    benchmark.pedantic(
+        import_prefect_flow,
+        setup=_reset_to_cold_state,
+        rounds=1,
+        warmup_rounds=0,
+        iterations=1,
+    )
