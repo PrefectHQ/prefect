@@ -83,6 +83,7 @@ To persist widths across sessions: `useLocalStorage<ColumnSizingState>(KEY, {})`
   ```
   Always call `vi.restoreAllMocks()` in `afterEach` to clean up.
 - **`matchMedia` mocking**: JSDOM does not implement `window.matchMedia`. Stub it via `Object.defineProperty(window, "matchMedia", ...)` and restore the original in `afterEach`.
+- **`document.cookie` in tests**: JSDOM processes `document.cookie` assignments through the browser's cookie-parsing machinery, so direct assignment cannot reset cookies to a raw string. Use `Reflect.set(document, "cookie", rawValue)` to bypass the setter when you need to set or clear a raw cookie string in test setup.
 
 ## Storybook Best Practices
 
