@@ -384,7 +384,9 @@ class Consumer(_Consumer):
 
 
 @asynccontextmanager
-async def ephemeral_subscription(topic: str) -> AsyncGenerator[Mapping[str, Any], None]:
+async def ephemeral_subscription(
+    topic: str, *, replay_past_messages: bool = True
+) -> AsyncGenerator[Mapping[str, Any], None]:
     subscription = Topic.by_name(topic).subscribe()
     try:
         yield {"topic": topic, "subscription": subscription}

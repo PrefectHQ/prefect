@@ -457,6 +457,36 @@ async def test_ephemeral_subscription(broker: str, publisher: Publisher):
     # each broker implementation, so it's hard to write a generic test.
 
 
+async def test_ephemeral_subscription_can_skip_replayed_messages(
+    broker: str, cache: Cache
+):
+    topic = "my-topic"
+    captured_messages: list[Message] = []
+
+    async with create_publisher(topic, cache=cache) as publisher:
+        await publisher.publish_data(b"stale", {"message": "stale"})
+
+    async def handler(message: Message):
+        captured_messages.append(message)
+        raise StopConsumer(ack=True)
+
+    async with ephemeral_subscription(
+        topic, replay_past_messages=False
+    ) as consumer_kwargs:
+        consumer = create_consumer(**consumer_kwargs)
+        consumer_task = asyncio.create_task(consumer.run(handler))
+
+        try:
+            async with create_publisher(topic, cache=cache) as publisher:
+                await publisher.publish_data(b"latest", {"message": "latest"})
+        finally:
+            await consumer_task
+
+    assert [message.attributes["message"] for message in captured_messages] == [
+        "latest"
+    ]
+
+
 async def test_repeatedly_failed_message_is_moved_to_dead_letter_queue(
     deduplicating_publisher: Publisher,
     consumer: MemoryConsumer,

@@ -598,13 +598,19 @@ class Consumer(_Consumer):
 
 @asynccontextmanager
 async def ephemeral_subscription(
-    topic: str, source: Optional[str] = None, group: Optional[str] = None
+    topic: str,
+    source: Optional[str] = None,
+    group: Optional[str] = None,
+    replay_past_messages: bool = True,
 ) -> AsyncGenerator[dict[str, Any], None]:
     source = source or topic
     group_name = group or f"ephemeral-{socket.gethostname()}-{uuid.uuid4().hex}"
+    starting_message_id = "0" if replay_past_messages else "$"
     redis_client: Redis = get_async_redis_client()
 
-    await redis_client.xgroup_create(source, group_name, id="0", mkstream=True)
+    await redis_client.xgroup_create(
+        source, group_name, id=starting_message_id, mkstream=True
+    )
 
     try:
         # Return only the arguments that the Consumer expects.

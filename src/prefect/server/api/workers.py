@@ -219,7 +219,8 @@ class WorkerChannelConnection:
 
     async def run(self, ready: WorkerReadyFrame) -> None:
         async with worker_channel_utils.messaging.ephemeral_subscription(
-            worker_channel_utils.WORKER_CHANNEL_SNAPSHOT_TOPIC
+            worker_channel_utils.WORKER_CHANNEL_SNAPSHOT_TOPIC,
+            replay_past_messages=False,
         ) as consumer_kwargs:
             send_task = asyncio.create_task(self._send_loop(ready))
             receive_task = asyncio.create_task(self._receive_loop())
