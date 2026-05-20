@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
 import { HttpResponse, http } from "msw";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { components } from "@/api/prefect";
 import { createFakeFlowRun, createFakeLog } from "@/mocks";
 import { FlowRunLogs } from "./flow-run-logs";
@@ -261,6 +261,59 @@ describe("FlowRunLogs", () => {
 		});
 
 		// Verify logs are shown in reverse order
+		await waitFor(() => {
+			const logMessages = screen
+				.getAllByRole("listitem")
+				.map((item) => item.textContent);
+			for (let i = 0; i < logMessages.length; i++) {
+				expect(logMessages[i]).toContain(
+					MOCK_LOGS.map((log) => log.message).reverse()[i],
+				);
+			}
+		});
+	});
+
+	it("persists sort order across remounts", async () => {
+		const user = userEvent.setup();
+		const flowRun = createFakeFlowRun();
+
+		const { unmount } = render(
+			<FlowRunLogs flowRun={flowRun} virtualize={false} />,
+			{ wrapper: createWrapper() },
+		);
+
+		await waitFor(() => {
+			expect(
+				screen.getByRole("combobox", { name: /log sort order/i }),
+			).toBeInTheDocument();
+		});
+
+		// Change sort order to newest first
+		await user.click(screen.getByRole("combobox", { name: /log sort order/i }));
+		await user.click(screen.getByText("Newest to oldest"));
+
+		// Verify localStorage.setItem was called with the new sort order
+		await waitFor(() => {
+			expect(localStorage.setItem).toHaveBeenCalledWith(
+				"prefect-log-sort-order",
+				JSON.stringify("TIMESTAMP_DESC"),
+			);
+		});
+
+		// Mock getItem to return the persisted value on remount
+		vi.mocked(localStorage.getItem).mockImplementation((key: string) =>
+			key === "prefect-log-sort-order"
+				? JSON.stringify("TIMESTAMP_DESC")
+				: null,
+		);
+
+		// Unmount and remount component
+		unmount();
+		render(<FlowRunLogs flowRun={flowRun} virtualize={false} />, {
+			wrapper: createWrapper(),
+		});
+
+		// Verify the sort order is still "Newest to oldest"
 		await waitFor(() => {
 			const logMessages = screen
 				.getAllByRole("listitem")

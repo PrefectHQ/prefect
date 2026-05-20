@@ -10,6 +10,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { useLocalStorage } from "@/hooks/use-local-storage";
 
 type TaskRunLogsProps = {
 	taskRun: components["schemas"]["TaskRun"];
@@ -21,9 +22,9 @@ export const TaskRunLogs = ({
 	virtualize = true,
 }: TaskRunLogsProps) => {
 	const [levelFilter, setLevelFilter] = useState<number>(0);
-	const [sortOrder, setSortOrder] = useState<
+	const [sortOrder, setSortOrder] = useLocalStorage<
 		"TIMESTAMP_ASC" | "TIMESTAMP_DESC"
-	>("TIMESTAMP_ASC");
+	>("prefect-log-sort-order", "TIMESTAMP_ASC");
 
 	const queryOptions = useMemo(
 		() => ({
