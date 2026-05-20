@@ -3,9 +3,11 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
-
+import {
+	queryKeyFactory as adminQueryKeyFactory,
+	buildGetDefaultResultStorageQuery,
+} from "@/api/admin";
 import { createFakeBlockDocument } from "@/mocks";
-
 import {
 	type BlockDocument,
 	buildCheckBlockDocumentNameQuery,
@@ -193,6 +195,13 @@ describe("block documents queries", () => {
 		it("invalidates cache and fetches updated value", async () => {
 			const mockBlockDocument = createFakeBlockDocument();
 			mockFilterListBlocksAPI([]);
+			server.use(
+				http.get(buildApiUrl("/admin/storage"), () => {
+					return HttpResponse.json({
+						default_result_storage_block_id: null,
+					});
+				}),
+			);
 			const queryClient = new QueryClient();
 			const FILTER = {
 				offset: 0,
@@ -202,9 +211,16 @@ describe("block documents queries", () => {
 			queryClient.setQueryData(queryKeyFactory.listFilter(FILTER), [
 				mockBlockDocument,
 			]);
+			queryClient.setQueryData(adminQueryKeyFactory.defaultResultStorage(), {
+				default_result_storage_block_id: mockBlockDocument.id,
+			});
 
 			const { result: useListBlockDocumentsResult } = renderHook(
 				() => useSuspenseQuery(buildListFilterBlockDocumentsQuery(FILTER)),
+				{ wrapper: createWrapper({ queryClient }) },
+			);
+			const { result: useDefaultResultStorageResult } = renderHook(
+				() => useSuspenseQuery(buildGetDefaultResultStorageQuery()),
 				{ wrapper: createWrapper({ queryClient }) },
 			);
 
@@ -223,6 +239,9 @@ describe("block documents queries", () => {
 				expect(useDeleteBlockDocumentResult.current.isSuccess).toBe(true),
 			);
 			expect(useListBlockDocumentsResult.current.data).toHaveLength(0);
+			expect(useDefaultResultStorageResult.current.data).toEqual({
+				default_result_storage_block_id: null,
+			});
 		});
 	});
 

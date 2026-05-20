@@ -17,6 +17,8 @@ from prefect.server.schemas.filters import (
 from prefect.types import MAX_VARIABLE_NAME_LENGTH, MAX_VARIABLE_VALUE_LENGTH
 from prefect.utilities.pydantic import parse_obj_as
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def variable(

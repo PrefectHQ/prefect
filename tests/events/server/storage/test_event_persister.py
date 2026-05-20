@@ -23,6 +23,8 @@ from prefect.server.utilities.messaging import CapturedMessage, Message, Message
 from prefect.types import DateTime
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 @db_injector
 async def get_event(db: PrefectDBInterface, id: UUID) -> Optional[ReceivedEvent]:

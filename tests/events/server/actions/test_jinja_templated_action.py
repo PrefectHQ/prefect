@@ -49,6 +49,8 @@ from prefect.settings import PREFECT_UI_URL, temporary_settings
 from prefect.types import DateTime
 from prefect.types._datetime import now as now_fn
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture(autouse=True)
 def ui_url() -> Generator[str, None, None]:

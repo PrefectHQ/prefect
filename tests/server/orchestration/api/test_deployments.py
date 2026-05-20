@@ -23,6 +23,8 @@ from prefect.types._datetime import now as now_fn
 from prefect.types._datetime import parse_datetime
 from prefect.utilities.callables import parameter_schema
 
+pytestmark = pytest.mark.clear_db
+
 
 def assert_status_events(deployment_name: str, events: List[str]):
     deployment_specific_events = [

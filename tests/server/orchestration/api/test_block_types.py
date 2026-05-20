@@ -14,6 +14,8 @@ from prefect.server.schemas.core import BlockDocument, BlockType
 from prefect.utilities.pydantic import parse_obj_as
 from prefect.utilities.slugify import slugify
 
+pytestmark = pytest.mark.clear_db
+
 CODE_EXAMPLE = dedent(
     """\
         ```python

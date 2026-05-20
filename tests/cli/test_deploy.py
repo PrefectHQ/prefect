@@ -63,6 +63,8 @@ from prefect.types._datetime import parse_datetime
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import tmpchdir
 
+pytestmark = pytest.mark.clear_db
+
 if TYPE_CHECKING:
     from prefect.server.schemas.core import BlockDocument
 

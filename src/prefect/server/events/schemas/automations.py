@@ -378,10 +378,10 @@ class EventTrigger(ResourceTrigger):
         return data
 
     def covers(self, event: ReceivedEvent) -> bool:
-        if not self.covers_resources(event.resource, event.related):
+        if not self.event_pattern.match(event.event):
             return False
 
-        if not self.event_pattern.match(event.event):
+        if not self.covers_resources(event.resource, event.related):
             return False
 
         return True

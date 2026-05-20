@@ -13,6 +13,8 @@ from prefect.server.schemas.actions import BlockDocumentCreate
 from prefect.types import SecretDict
 from prefect.utilities.names import obfuscate, obfuscate_string
 
+pytestmark = pytest.mark.clear_db
+
 
 def long_string(s: str):
     return string.ascii_letters + s

@@ -27,6 +27,8 @@ from prefect.types._datetime import (
 from prefect.types._datetime import now as now_fn
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def deployment_name(

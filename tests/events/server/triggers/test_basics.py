@@ -23,6 +23,8 @@ from prefect.server.events.schemas.events import (
 from prefect.settings import PREFECT_EVENTS_EXPIRED_BUCKET_BUFFER
 from prefect.types import DateTime
 
+pytestmark = pytest.mark.clear_db
+
 
 def test_triggers_have_identifiers(arachnophobia: Automation):
     assert arachnophobia.id

@@ -16,6 +16,8 @@ from prefect.server.utilities.schemas import (
 )
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 @contextmanager
 def reload_prefect_base_model(

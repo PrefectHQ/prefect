@@ -18,6 +18,8 @@ from prefect.server.schemas.responses import OrchestrationResult
 from prefect.states import Pending
 from prefect.types._datetime import now as now_fn
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestCreateTaskRun:
     async def test_create_task_run(self, flow_run, client, session):

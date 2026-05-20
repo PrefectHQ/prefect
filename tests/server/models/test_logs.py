@@ -16,6 +16,8 @@ from prefect.server.schemas.filters import (
 from prefect.server.schemas.sorting import LogSort
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 NOW = now("UTC")
 
 

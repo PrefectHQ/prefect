@@ -18,6 +18,8 @@ from prefect.server.api import task_runs
 from prefect.server.schemas import states as server_states
 from prefect.server.schemas.core import TaskRun as ServerTaskRun
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def reset_task_queues() -> Generator[None, None, None]:
