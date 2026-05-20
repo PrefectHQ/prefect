@@ -1,3 +1,5 @@
+import pytest
+
 from prefect.server.events.services.actions import Actions
 from prefect.server.events.services.event_logger import EventLogger
 from prefect.server.events.services.event_persister import EventPersister
@@ -6,6 +8,8 @@ from prefect.server.events.stream import Distributor
 from prefect.server.logs.stream import LogDistributor
 from prefect.server.services.base import RunInEphemeralServers, RunInWebservers, Service
 from prefect.server.services.task_run_recorder import TaskRunRecorder
+
+pytestmark = pytest.mark.clear_db
 
 
 def test_the_all_service_subset():

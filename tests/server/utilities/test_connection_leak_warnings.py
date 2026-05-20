@@ -13,10 +13,13 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-pytestmark = pytest.mark.skipif(
-    not os.environ.get("TEST_CONNECTION_LEAK"),
-    reason="Skipping connection leak tests",
-)
+pytestmark = [
+    pytest.mark.skipif(
+        not os.environ.get("TEST_CONNECTION_LEAK"),
+        reason="Skipping connection leak tests",
+    ),
+    pytest.mark.clear_db,
+]
 
 
 async def test_direct_connection_leak(database_engine: AsyncEngine):

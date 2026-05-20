@@ -7,6 +7,8 @@ from prefect.server.models.variables import create_variable
 from prefect.server.schemas.actions import VariableCreate
 from prefect.testing.cli import invoke_and_assert
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture(autouse=True)
 def interactive_console(monkeypatch):

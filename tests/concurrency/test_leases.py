@@ -13,6 +13,8 @@ from prefect.concurrency._leases import (
     maintain_concurrency_lease,
 )
 
+pytestmark = pytest.mark.clear_db
+
 
 @contextmanager
 def _mock_client_context(mock_client: mock.MagicMock):

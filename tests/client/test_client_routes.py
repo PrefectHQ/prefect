@@ -1,7 +1,11 @@
 from typing import get_args
 
+import pytest
+
 from prefect.client.orchestration.routes import ServerRoutes
 from prefect.server.api.server import create_api_app
+
+pytestmark = pytest.mark.clear_db
 
 
 def test_server_routes_match_openapi_schema():

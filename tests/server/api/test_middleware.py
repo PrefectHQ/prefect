@@ -15,6 +15,8 @@ from prefect.settings import (
     temporary_settings,
 )
 
+pytestmark = pytest.mark.clear_db
+
 app = FastAPI()
 app.add_middleware(CsrfMiddleware)
 

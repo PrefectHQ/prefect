@@ -19,6 +19,8 @@ from prefect.settings import (
 )
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 def test_resource_openapi_schema() -> None:
     assert Resource.model_json_schema() == {

@@ -7,6 +7,8 @@ from prefect.settings import PREFECT_API_URL
 from prefect.settings.context import temporary_settings
 from prefect.testing.cli import invoke_and_assert
 
+pytestmark = pytest.mark.clear_db
+
 _SERVER_MOD = "prefect.cli.server"
 
 

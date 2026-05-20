@@ -7,6 +7,8 @@ from prefect.blocks.core import Block
 from prefect.server import models, schemas
 from prefect.server.models import deployments
 
+pytestmark = pytest.mark.clear_db
+
 
 class MockKubernetesClusterConfig(Block):
     context_name: str

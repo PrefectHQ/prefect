@@ -5,8 +5,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
 import anyio
+import pytest
 
 from prefect.runner._scheduled_run_poller import ScheduledRunPoller, StarterResolver
+
+pytestmark = pytest.mark.clear_db
 
 # ---------------------------------------------------------------------------
 # Helpers

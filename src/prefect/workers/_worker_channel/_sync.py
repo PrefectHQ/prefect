@@ -16,7 +16,7 @@ from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import WorkPoolCreate, WorkPoolUpdate
 from prefect.client.schemas.objects import WorkerMetadata, WorkPool
-from prefect.exceptions import ObjectNotFound
+from prefect.exceptions import ObjectAlreadyExists, ObjectNotFound
 from prefect.workers._cleanup import WorkerCleanupExecutor
 from prefect.workers._worker_channel._protocol import WorkerChannelProtocolHandler
 from prefect.workers._worker_channel._state import (
@@ -103,6 +103,7 @@ class WorkPoolWorkerChannel:
         )
         self._websocket_started = False
         self._run_scope: anyio.CancelScope | None = None
+        self._stopped = False
 
     @property
     def url(self) -> str | None:
@@ -128,13 +129,11 @@ class WorkPoolWorkerChannel:
         self._client = client
 
     def stop(self) -> None:
+        self._stopped = True
         if self._run_scope is not None:
             self._run_scope.cancel()
 
     async def sync(self, task_group: anyio.abc.TaskGroup | None) -> None:
-        if self.state.healthy and self.snapshots_available:
-            return
-
         if task_group is not None:
             channel_started = await self._start_websocket(task_group)
         else:
@@ -142,10 +141,9 @@ class WorkPoolWorkerChannel:
             if self.url is None:
                 self.state.mark_terminal("endpoint_unavailable")
 
-        if channel_started and self.snapshots_available:
-            return
+        if not (channel_started and self.snapshots_available):
+            await self._sync_rest_work_pool()
 
-        await self._sync_rest_work_pool()
         await self._send_rest_worker_heartbeat()
 
     async def _start_websocket(self, task_group: anyio.abc.TaskGroup) -> bool:
@@ -239,6 +237,8 @@ class WorkPoolWorkerChannel:
     async def _run(self, initial_session: WorkerChannelSession | None = None) -> None:
         with anyio.CancelScope() as scope:
             self._run_scope = scope
+            if self._stopped:
+                scope.cancel()
             try:
                 async with AsyncExitStack() as stack:
                     if self._cleanup_executor is not None:
@@ -296,6 +296,7 @@ class WorkPoolWorkerChannel:
                     self._run_scope = None
 
     async def _sync_rest_work_pool(self) -> None:
+        initial_snapshot_sequence = self._protocol.work_pool_snapshot_sequence
         try:
             work_pool = await self._client.read_work_pool(
                 work_pool_name=self.work_pool_name
@@ -310,8 +311,21 @@ class WorkPoolWorkerChannel:
                 if self.base_job_template is not None:
                     wp.base_job_template = self.base_job_template
 
-                work_pool = await self._client.create_work_pool(work_pool=wp)
-                self._logger.info(f"Work pool {self.work_pool_name!r} created.")
+                try:
+                    work_pool = await self._client.create_work_pool(work_pool=wp)
+                    self._logger.info(f"Work pool {self.work_pool_name!r} created.")
+                except ObjectAlreadyExists:
+                    # Another worker created the pool between our read and
+                    # create. Re-read so we can continue with the existing
+                    # pool rather than failing setup.
+                    self._logger.debug(
+                        "Work pool %r was created concurrently by another "
+                        "worker; re-reading.",
+                        self.work_pool_name,
+                    )
+                    work_pool = await self._client.read_work_pool(
+                        work_pool_name=self.work_pool_name
+                    )
             else:
                 self._logger.warning(f"Work pool {self.work_pool_name!r} not found!")
                 if self.base_job_template is not None:
@@ -321,7 +335,10 @@ class WorkPoolWorkerChannel:
                     )
                 return
 
-        if self.state.healthy and self.snapshots_available:
+        if (
+            self.state.healthy
+            and self._protocol.work_pool_snapshot_sequence != initial_snapshot_sequence
+        ):
             self._logger.debug(
                 "Skipping REST work pool sync because the worker channel applied a "
                 "snapshot while REST sync was in flight."
@@ -334,7 +351,10 @@ class WorkPoolWorkerChannel:
             )
             work_pool.base_job_template = self.default_base_job_template
 
-        if self.state.healthy and self.snapshots_available:
+        if (
+            self.state.healthy
+            and self._protocol.work_pool_snapshot_sequence != initial_snapshot_sequence
+        ):
             self._logger.debug(
                 "Skipping REST work pool snapshot because the worker channel applied "
                 "a snapshot while REST sync was in flight."

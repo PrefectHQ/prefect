@@ -9,6 +9,8 @@ from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models.workers import DEFAULT_AGENT_WORK_POOL_NAME
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def work_queue(session):

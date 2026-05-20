@@ -17,6 +17,8 @@ from prefect.server.events.schemas.automations import (
 )
 from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED, temporary_settings
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture(autouse=True)
 def enable_triggers():

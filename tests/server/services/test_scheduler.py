@@ -24,6 +24,8 @@ from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 from prefect.utilities.callables import parameter_schema
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def deployment_without_schedules(flow: schemas.core.Flow, session: AsyncSession):
