@@ -227,7 +227,7 @@ export const ScheduleBadgeGroup = ({
 				<ScheduleBadge
 					key={schedule.id}
 					schedule={schedule}
-					className="max-w-28"
+					className="max-w-48"
 				/>
 			))}
 		</div>
