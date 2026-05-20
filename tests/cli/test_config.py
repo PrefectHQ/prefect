@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 import sys
 
 import pytest
@@ -755,3 +756,49 @@ def test_view_with_pyproject_toml_file_and_profile(tmp_path):
 
         assert "PREFECT_CLIENT_RETRY_EXTRA_CODES='300'" in res.stdout
         assert FROM_PYPROJECT_TOML in res.stdout
+
+
+def test_invalid_prefect_toml(tmp_path):
+    """Malformed prefect.toml produces a clean settings error, not a traceback."""
+    (tmp_path / "prefect.toml").write_text("[client\n")
+    result = subprocess.run(
+        [sys.executable, "-m", "prefect", "config", "view"],
+        cwd=str(tmp_path),
+        capture_output=True,
+        text=True,
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode == 1
+    assert "Failed to load Prefect settings from prefect.toml: invalid TOML" in output
+    assert "Failed to initialize plugins" not in output
+    assert "Traceback" not in output
+
+
+def test_invalid_pyproject_toml(tmp_path):
+    """Malformed pyproject.toml produces a clean settings error, not a traceback."""
+    (tmp_path / "pyproject.toml").write_text("[tool.prefect\n")
+    result = subprocess.run(
+        [sys.executable, "-m", "prefect", "config", "view"],
+        cwd=str(tmp_path),
+        capture_output=True,
+        text=True,
+    )
+    output = result.stdout + result.stderr
+    assert result.returncode == 1
+    assert "Failed to load Prefect settings from pyproject.toml: invalid TOML" in output
+    assert "Failed to initialize plugins" not in output
+    assert "Traceback" not in output
+
+
+def test_version_with_invalid_toml(tmp_path):
+    """prefect --version still works even with malformed TOML in the CWD."""
+    (tmp_path / "prefect.toml").write_text("[client\n")
+    result = subprocess.run(
+        [sys.executable, "-m", "prefect", "--version"],
+        cwd=str(tmp_path),
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert result.stdout.strip()
+    assert "Traceback" not in (result.stdout + result.stderr)
