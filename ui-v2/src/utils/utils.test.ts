@@ -15,8 +15,10 @@ test("capitalize -- returns empty string for empty input", () => {
 });
 
 test("capitalize -- returns empty string for null-like input", () => {
-	expect(capitalize(null as unknown as string)).toEqual("");
-	expect(capitalize(undefined as unknown as string)).toEqual("");
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any -- testing runtime null safety
+	expect(capitalize(null as any)).toEqual("");
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-explicit-any -- testing runtime null safety
+	expect(capitalize(undefined as any)).toEqual("");
 });
 
 test("pluralize -- single", () => {
