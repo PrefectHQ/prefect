@@ -7,7 +7,6 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
-import anyio
 import pytest
 
 from prefect.runner._workspace_resolver import (
@@ -73,44 +72,23 @@ async def test_workspace_command_uses_uv_for_pyproject_workspace(
         captured_paths.append(path)
         return "/opt/bin/uv" if executable == "uv" else None
 
-    preflight_commands: list[list[str]] = []
-
-    async def fake_run_process(command: list[str], **kwargs: object):
-        preflight_commands.append(command)
-        return subprocess.CompletedProcess(command, 0)
-
     monkeypatch.setattr(
         "prefect.runner._workspace_starter.shutil.which",
         fake_which,
     )
-    monkeypatch.setattr(
-        "prefect.runner._workspace_starter.anyio.run_process",
-        fake_run_process,
-    )
 
-    command = await _workspace_command(workspace, explicit_command=None)
+    command = _workspace_command(workspace, explicit_command=None)
 
     assert captured_paths == [workspace.environment["PATH"]]
-    assert preflight_commands == [
-        [
-            "/opt/bin/uv",
-            "run",
-            "--project",
-            str(workspace.project_root),
-            "python",
-            "-c",
-            "import prefect",
-        ]
-    ]
     assert command is not None
     assert command_from_string(command) == [
+        sys.executable,
+        "-m",
+        "prefect.runner._workspace_uv_fallback",
         "/opt/bin/uv",
         "run",
         "--project",
         str(workspace.project_root),
-        "-m",
-        "prefect.flow_engine",
-        workspace.runtime_entrypoint,
     ]
 
 
@@ -123,7 +101,7 @@ async def test_workspace_command_falls_back_without_pyproject(
         lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
     )
 
-    assert await _workspace_command(workspace, explicit_command=None) is None
+    assert _workspace_command(workspace, explicit_command=None) is None
 
 
 async def test_workspace_command_falls_back_without_prefect_dependency(
@@ -139,7 +117,7 @@ async def test_workspace_command_falls_back_without_prefect_dependency(
         lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
     )
 
-    assert await _workspace_command(workspace, explicit_command=None) is None
+    assert _workspace_command(workspace, explicit_command=None) is None
 
 
 async def test_workspace_command_falls_back_without_uv(
@@ -158,117 +136,18 @@ async def test_workspace_command_falls_back_without_uv(
         lambda executable, path=None: None,
     )
 
-    assert await _workspace_command(workspace, explicit_command=None) is None
+    assert _workspace_command(workspace, explicit_command=None) is None
 
 
-async def test_workspace_command_falls_back_when_uv_preflight_fails(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
-    workspace = _prepared_workspace(tmp_path)
-    assert workspace.project_root is not None
-    (workspace.project_root / "pyproject.toml").write_text(
-        "[project]\n"
-        "name = 'test-project'\n"
-        "version = '0.1.0'\n"
-        "dependencies = ['prefect']\n"
-    )
-
-    async def fake_run_process(command: list[str], **kwargs: object):
-        return subprocess.CompletedProcess(command, 1)
-
-    monkeypatch.setattr(
-        "prefect.runner._workspace_starter.shutil.which",
-        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
-    )
-    monkeypatch.setattr(
-        "prefect.runner._workspace_starter.anyio.run_process",
-        fake_run_process,
-    )
-
-    assert await _workspace_command(workspace, explicit_command=None) is None
-
-
-async def test_workspace_command_falls_back_when_uv_preflight_cannot_start(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
-    workspace = _prepared_workspace(tmp_path)
-    assert workspace.project_root is not None
-    (workspace.project_root / "pyproject.toml").write_text(
-        "[project]\n"
-        "name = 'test-project'\n"
-        "version = '0.1.0'\n"
-        "dependencies = ['prefect']\n"
-    )
-
-    async def fake_run_process(command: list[str], **kwargs: object):
-        raise OSError("uv unavailable")
-
-    monkeypatch.setattr(
-        "prefect.runner._workspace_starter.shutil.which",
-        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
-    )
-    monkeypatch.setattr(
-        "prefect.runner._workspace_starter.anyio.run_process",
-        fake_run_process,
-    )
-
-    assert await _workspace_command(workspace, explicit_command=None) is None
-
-
-async def test_workspace_command_falls_back_when_uv_preflight_times_out(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
-    workspace = _prepared_workspace(tmp_path)
-    assert workspace.project_root is not None
-    (workspace.project_root / "pyproject.toml").write_text(
-        "[project]\n"
-        "name = 'test-project'\n"
-        "version = '0.1.0'\n"
-        "dependencies = ['prefect']\n"
-    )
-    preflight_started = anyio.Event()
-
-    async def fake_run_process(command: list[str], **kwargs: object):
-        preflight_started.set()
-        await anyio.sleep_forever()
-
-    monkeypatch.setattr(
-        "prefect.runner._workspace_starter._UV_RUN_PREFLIGHT_TIMEOUT_SECONDS",
-        0.01,
-    )
-    monkeypatch.setattr(
-        "prefect.runner._workspace_starter.shutil.which",
-        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
-    )
-    monkeypatch.setattr(
-        "prefect.runner._workspace_starter.anyio.run_process",
-        fake_run_process,
-    )
-
-    assert await _workspace_command(workspace, explicit_command=None) is None
-    assert preflight_started.is_set()
-
-
-async def test_workspace_command_preserves_explicit_command(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
+async def test_workspace_command_preserves_explicit_command(tmp_path: Path):
     workspace = _prepared_workspace(tmp_path)
     assert workspace.project_root is not None
     (workspace.project_root / "pyproject.toml").write_text(
         "[project]\nname = 'test-project'\nversion = '0.1.0'\ndependencies = []\n"
     )
 
-    async def fake_run_process(*args: object, **kwargs: object):
-        raise AssertionError("explicit commands should not run uv preflight")
-
-    monkeypatch.setattr(
-        "prefect.runner._workspace_starter.anyio.run_process",
-        fake_run_process,
-    )
-
-    assert (
-        await _workspace_command(workspace, explicit_command="python custom.py")
-        == "python custom.py"
+    assert _workspace_command(workspace, explicit_command="python custom.py") == (
+        "python custom.py"
     )
 
 
@@ -413,11 +292,6 @@ async def test_workspace_resolving_starter_uses_uv_for_pyproject_workspace(
         "prefect.runner._workspace_starter.shutil.which",
         lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
     )
-    monkeypatch.setattr(
-        "prefect.runner._workspace_starter.anyio.run_process",
-        AsyncMock(return_value=subprocess.CompletedProcess(["uv"], 0)),
-    )
-
     starter = WorkspaceResolvingEngineCommandStarter(
         workspace_root=tmp_path / "workspace-root",
         deployment_name="workspace-deployment",
@@ -428,68 +302,16 @@ async def test_workspace_resolving_starter_uses_uv_for_pyproject_workspace(
     command = instances[0].kwargs["command"]
     assert command is not None
     assert command_from_string(command) == [
+        sys.executable,
+        "-m",
+        "prefect.runner._workspace_uv_fallback",
         "/opt/bin/uv",
         "run",
         "--project",
         str(workspace.project_root),
-        "-m",
-        "prefect.flow_engine",
-        workspace.runtime_entrypoint,
     ]
     assert instances[0].kwargs["cwd"] == workspace.working_directory
     assert instances[0].kwargs["deployment_name"] == "workspace-deployment"
-
-
-async def test_workspace_resolving_starter_falls_back_when_uv_preflight_fails(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
-    workspace = _prepared_workspace(tmp_path)
-    assert workspace.project_root is not None
-    (workspace.project_root / "pyproject.toml").write_text(
-        "[project]\n"
-        "name = 'test-project'\n"
-        "version = '0.1.0'\n"
-        "dependencies = ['prefect']\n"
-    )
-    flow_run = MagicMock()
-    flow_run.id = uuid4()
-    instances: list[object] = []
-
-    class FakeEngineCommandStarter:
-        def __init__(self, **kwargs: object) -> None:
-            self.kwargs = kwargs
-            instances.append(self)
-
-        async def start(self, flow_run_arg: object, task_status: object) -> None:
-            self.flow_run = flow_run_arg
-            self.task_status = task_status
-
-    monkeypatch.setattr(
-        "prefect.runner._workspace_starter.resolve_workspace_in_subprocess",
-        AsyncMock(return_value=workspace),
-    )
-    monkeypatch.setattr(
-        "prefect.runner._workspace_starter.EngineCommandStarter",
-        FakeEngineCommandStarter,
-    )
-    monkeypatch.setattr(
-        "prefect.runner._workspace_starter.shutil.which",
-        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
-    )
-    monkeypatch.setattr(
-        "prefect.runner._workspace_starter.anyio.run_process",
-        AsyncMock(return_value=subprocess.CompletedProcess(["uv"], 1)),
-    )
-
-    starter = WorkspaceResolvingEngineCommandStarter(
-        workspace_root=tmp_path / "workspace-root",
-        deployment_name="workspace-deployment",
-    )
-    await starter.start(flow_run)
-
-    assert len(instances) == 1
-    assert instances[0].kwargs["command"] is None
-    assert instances[0].kwargs["entrypoint"] == workspace.runtime_entrypoint
 
 
 async def test_load_flow_from_prepared_workspace_does_not_change_parent_cwd(

@@ -17,7 +17,6 @@ from packaging.utils import canonicalize_name
 from prefect._internal.compatibility.backports import tomllib
 from prefect.exceptions import MissingFlowError
 from prefect.flows import load_flow_from_entrypoint, load_function_and_convert_to_flow
-from prefect.logging import get_logger
 from prefect.runner._process_manager import ProcessHandle
 from prefect.runner._starter_engine import EngineCommandStarter
 from prefect.runner._workspace_resolver import (
@@ -27,16 +26,16 @@ from prefect.runner._workspace_resolver import (
 )
 from prefect.settings import get_current_settings
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.processutils import command_to_string, sanitize_subprocess_env
+from prefect.utilities.processutils import (
+    command_to_string,
+    get_sys_executable,
+    sanitize_subprocess_env,
+)
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
     from prefect.flows import Flow
     from prefect.runner._control_channel import ControlChannel
-
-logger = get_logger(__name__)
-
-_UV_RUN_PREFLIGHT_TIMEOUT_SECONDS = 30.0
 
 
 def _decode_process_output(output: bytes | str | None) -> str:
@@ -192,50 +191,7 @@ def _uv_run_base_command(workspace: PreparedWorkspace) -> list[str] | None:
     return [uv_executable, "run", "--project", str(project_root)]
 
 
-async def _uv_run_can_import_prefect(
-    workspace: PreparedWorkspace, uv_run_base_command: list[str]
-) -> bool:
-    try:
-        with anyio.fail_after(_UV_RUN_PREFLIGHT_TIMEOUT_SECONDS):
-            process = await anyio.run_process(
-                [
-                    *uv_run_base_command,
-                    "python",
-                    "-c",
-                    "import prefect",
-                ],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                cwd=workspace.working_directory,
-                env=sanitize_subprocess_env(workspace_environment(workspace)),
-                check=False,
-            )
-    except TimeoutError:
-        logger.warning(
-            "Falling back to the default flow-run command because `uv run` did not "
-            "complete the preflight import check within %.1f seconds.",
-            _UV_RUN_PREFLIGHT_TIMEOUT_SECONDS,
-        )
-        return False
-    except OSError as exc:
-        logger.warning(
-            "Falling back to the default flow-run command because `uv run` could "
-            "not start in the prepared workspace: %s",
-            exc,
-        )
-        return False
-
-    if process.returncode == 0:
-        return True
-
-    logger.warning(
-        "Falling back to the default flow-run command because `uv run` could not "
-        "import Prefect in the prepared workspace."
-    )
-    return False
-
-
-async def _workspace_command(
+def _workspace_command(
     workspace: PreparedWorkspace, explicit_command: str | None
 ) -> str | None:
     if explicit_command is not None:
@@ -245,15 +201,12 @@ async def _workspace_command(
     if uv_run_base_command is None:
         return None
 
-    if not await _uv_run_can_import_prefect(workspace, uv_run_base_command):
-        return None
-
     return command_to_string(
         [
-            *uv_run_base_command,
+            get_sys_executable(),
             "-m",
-            "prefect.flow_engine",
-            workspace.runtime_entrypoint,
+            "prefect.runner._workspace_uv_fallback",
+            *uv_run_base_command,
         ]
     )
 
@@ -329,7 +282,7 @@ class WorkspaceResolvingEngineCommandStarter:
     ) -> None:
         workspace = await self._resolve_workspace(flow_run.id)
         starter = EngineCommandStarter(
-            command=await _workspace_command(workspace, self._command),
+            command=_workspace_command(workspace, self._command),
             cwd=workspace.working_directory,
             env=workspace_environment(workspace),
             entrypoint=workspace.runtime_entrypoint,
