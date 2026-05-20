@@ -34,10 +34,6 @@ const darkModeStateTypeShades: Record<StateType, number> = {
 	PAUSED: 300,
 };
 
-/** @deprecated Use {@link getStateTypeShade} for theme-aware shade selection. */
-export const stateTypeShades: Record<StateType, number> =
-	lightModeStateTypeShades;
-
 export function getStateTypeShade(
 	stateType: StateType,
 	theme: RunGraphTheme,

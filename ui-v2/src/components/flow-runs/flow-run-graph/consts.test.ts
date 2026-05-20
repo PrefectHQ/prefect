@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { StateType } from "@/graphs";
-import { getStateTypeShade, stateTypeShades } from "./consts";
+import { getStateTypeShade } from "./consts";
 
 const ALL_STATE_TYPES: StateType[] = [
 	"COMPLETED",
@@ -34,12 +34,6 @@ describe("getStateTypeShade", () => {
 	it("returns shade 300 for all state types in dark mode", () => {
 		for (const state of ALL_STATE_TYPES) {
 			expect(getStateTypeShade(state, "dark")).toBe(300);
-		}
-	});
-
-	it("matches the deprecated stateTypeShades map for light mode", () => {
-		for (const state of ALL_STATE_TYPES) {
-			expect(getStateTypeShade(state, "light")).toBe(stateTypeShades[state]);
 		}
 	});
 
