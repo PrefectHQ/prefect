@@ -18,6 +18,8 @@ from prefect.server.schemas.filters import (
 )
 from prefect.server.schemas.sorting import LogSort
 
+pytestmark = pytest.mark.clear_db
+
 # Define function types for our test variations
 QueryLogsFn = Callable[..., Awaitable[list[Log]]]
 

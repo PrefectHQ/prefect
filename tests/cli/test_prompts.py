@@ -13,6 +13,8 @@ from prefect.settings import PREFECT_DEBUG_MODE, temporary_settings
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import tmpchdir
 
+pytestmark = pytest.mark.clear_db
+
 TEST_PROJECTS_DIR = prefect.__development_base_path__ / "tests" / "test-projects"
 
 

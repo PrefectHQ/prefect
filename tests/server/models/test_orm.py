@@ -8,6 +8,8 @@ import sqlalchemy as sa
 from prefect.server import models, schemas
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def many_flow_run_states(flow, session, db):

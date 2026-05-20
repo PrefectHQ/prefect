@@ -16,6 +16,8 @@ from prefect.server.schemas.filters import LogFilter, LogFilterLevel
 from prefect.settings import PREFECT_SERVER_API_AUTH_STRING, temporary_settings
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def stream_mock(

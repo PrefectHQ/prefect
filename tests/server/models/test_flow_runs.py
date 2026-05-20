@@ -12,6 +12,8 @@ from prefect.server.schemas.core import TaskRunResult
 from prefect.types import KeyValueLabels
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestCreateFlowRun:
     async def test_create_flow_run(self, flow, session):

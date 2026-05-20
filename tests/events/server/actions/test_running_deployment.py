@@ -22,6 +22,8 @@ from prefect.server.schemas.actions import VariableCreate, WorkPoolCreate
 from prefect.server.schemas.core import CreatedBy, Deployment, Flow
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 async def test_action_can_omit_parameters():
     """Regression test for https://github.com/PrefectHQ/nebula/issues/2857, where

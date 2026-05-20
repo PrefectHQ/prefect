@@ -9,6 +9,8 @@ from httpx import HTTPStatusError, Request, Response
 
 from prefect.runner._flow_resolver import FlowResolver
 
+pytestmark = pytest.mark.clear_db
+
 
 def _make_flow_run(deployment_id=None):
     flow_run = MagicMock()

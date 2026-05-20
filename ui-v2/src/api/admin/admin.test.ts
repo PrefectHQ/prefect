@@ -1,11 +1,18 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { renderHook, waitFor } from "@testing-library/react";
+import { QueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
 import { expect, test } from "vitest";
 import { createFakeServerSettings, createFakeVersion } from "@/mocks";
 
-import { buildGetSettingsQuery, buildGetVersionQuery } from "./admin";
+import {
+	buildGetDefaultResultStorageQuery,
+	buildGetSettingsQuery,
+	buildGetVersionQuery,
+	queryKeyFactory,
+	useClearDefaultResultStorage,
+	useUpdateDefaultResultStorage,
+} from "./admin";
 
 test("buildGetVersionQuery -- fetches version query from API", async () => {
 	const MOCK_VERSION = createFakeVersion();
@@ -45,4 +52,83 @@ test("buildSettingsQuery -- fetches version query from API", async () => {
 
 	await waitFor(() => expect(result.current.isSuccess).toBe(true));
 	expect(result.current.data).toEqual(MOCK_SETTINGS_RESPONSE);
+});
+
+test("buildGetDefaultResultStorageQuery -- fetches default result storage from API", async () => {
+	const MOCK_STORAGE_RESPONSE = {
+		default_result_storage_block_id: "e8607583-f98e-48c5-bb49-6f031d7bff12",
+	};
+
+	server.use(
+		http.get(buildApiUrl("/admin/storage"), () => {
+			return HttpResponse.json(MOCK_STORAGE_RESPONSE);
+		}),
+	);
+
+	const { result } = renderHook(
+		() => useSuspenseQuery(buildGetDefaultResultStorageQuery()),
+		{ wrapper: createWrapper() },
+	);
+
+	await waitFor(() => expect(result.current.isSuccess).toBe(true));
+	expect(result.current.data).toEqual(MOCK_STORAGE_RESPONSE);
+});
+
+test("useUpdateDefaultResultStorage -- updates default result storage through API", async () => {
+	const MOCK_STORAGE_RESPONSE = {
+		default_result_storage_block_id: "e8607583-f98e-48c5-bb49-6f031d7bff12",
+	};
+
+	server.use(
+		http.put(buildApiUrl("/admin/storage"), async ({ request }) => {
+			expect(await request.json()).toEqual(MOCK_STORAGE_RESPONSE);
+			return HttpResponse.json(MOCK_STORAGE_RESPONSE);
+		}),
+	);
+	const queryClient = new QueryClient({
+		defaultOptions: {
+			queries: { retry: false },
+			mutations: { retry: false },
+		},
+	});
+
+	const { result } = renderHook(useUpdateDefaultResultStorage, {
+		wrapper: createWrapper({ queryClient }),
+	});
+
+	act(() => {
+		result.current.updateDefaultResultStorage(MOCK_STORAGE_RESPONSE);
+	});
+
+	await waitFor(() => expect(result.current.isSuccess).toBe(true));
+	expect(
+		queryClient.getQueryData(queryKeyFactory.defaultResultStorage()),
+	).toEqual(MOCK_STORAGE_RESPONSE);
+});
+
+test("useClearDefaultResultStorage -- clears default result storage through API", async () => {
+	server.use(
+		http.delete(buildApiUrl("/admin/storage"), () => {
+			return new HttpResponse(null, { status: 204 });
+		}),
+	);
+	const queryClient = new QueryClient({
+		defaultOptions: {
+			queries: { retry: false },
+			mutations: { retry: false },
+		},
+	});
+
+	const { result } = renderHook(useClearDefaultResultStorage, {
+		wrapper: createWrapper({ queryClient }),
+	});
+
+	act(() => {
+		result.current.clearDefaultResultStorage();
+	});
+
+	await waitFor(() => expect(result.current.isSuccess).toBe(true));
+	expect(
+		queryClient.getQueryData(queryKeyFactory.defaultResultStorage()),
+	).toEqual({ default_result_storage_block_id: null });
 });

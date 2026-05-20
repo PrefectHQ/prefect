@@ -2,6 +2,8 @@ import pytest
 
 from prefect.server.models.task_workers import observe_worker
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.mark.parametrize(
     "initial_workers,certain_tasks,expected_count",

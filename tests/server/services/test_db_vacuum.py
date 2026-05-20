@@ -25,6 +25,8 @@ from prefect.server.services.db_vacuum import (
 from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture(autouse=True)
 def enable_db_vacuum(monkeypatch: pytest.MonkeyPatch) -> None:

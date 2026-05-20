@@ -17,6 +17,8 @@ from prefect.settings import (
 )
 from prefect.types import SecretDict
 
+pytestmark = pytest.mark.clear_db
+
 default_cloud_run_push_base_job_template = {
     "job_configuration": {
         "command": "{{ command }}",

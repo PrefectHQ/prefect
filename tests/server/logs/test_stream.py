@@ -27,6 +27,8 @@ from prefect.server.schemas.filters import (
 from prefect.settings import PREFECT_SERVER_LOGS_STREAM_OUT_ENABLED, temporary_settings
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def sample_log1():

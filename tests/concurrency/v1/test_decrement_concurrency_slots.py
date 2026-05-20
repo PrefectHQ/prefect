@@ -1,10 +1,13 @@
 import uuid
 from unittest import mock
 
+import pytest
 from httpx import Response
 
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
 from prefect.concurrency.v1._asyncio import release_concurrency_slots
+
+pytestmark = pytest.mark.clear_db
 
 
 async def test_calls_release_client_method():

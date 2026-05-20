@@ -10,6 +10,8 @@ from prefect.context import with_context
 from prefect.exceptions import MissingContextError
 from prefect.logging import get_run_logger
 
+pytestmark = pytest.mark.clear_db
+
 # ---------------------------------------------------------------------------
 # Helper functions executed in child processes
 # ---------------------------------------------------------------------------

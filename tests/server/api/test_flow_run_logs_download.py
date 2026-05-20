@@ -5,6 +5,8 @@ import pytest
 from prefect._internal.compatibility.starlette import status
 from prefect.server import models, schemas
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.mark.parametrize("flow_run_name", ["🚀-production-logs", "simple-logs"])
 async def test_download_flow_run_logs_encoding_and_bom(

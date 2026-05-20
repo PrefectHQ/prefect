@@ -17,6 +17,8 @@ from prefect.server.schemas.statuses import DeploymentStatus
 from prefect.settings import PREFECT_API_SERVICES_SCHEDULER_MIN_RUNS
 from prefect.types._datetime import now, start_of_day
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestCreateDeployment:
     async def test_create_deployment_succeeds(self, session, flow):

@@ -8,6 +8,8 @@ from prefect.blocks.core import Block
 from prefect.server import models, schemas
 from prefect.server.schemas.filters import BlockSchemaFilter, BlockTypeFilter
 
+pytestmark = pytest.mark.clear_db
+
 CODE_EXAMPLE = dedent(
     """\
         ```python
