@@ -1227,7 +1227,8 @@ class TestCreateDeploymentReplaces:
         flow,
     ):
         """replaces renames the existing deployment in place: same ID, run history
-        intact, new fields applied, old name gone."""
+        intact, new fields applied, old name gone. Applying the same payload a
+        second time (idempotency) must also succeed."""
         # Create original deployment
         original = DeploymentCreate(
             name="old-name",
@@ -1255,10 +1256,7 @@ class TestCreateDeploymentReplaces:
             description="updated",
         ).model_dump(mode="json")
         response = await hosted_api_client.post("/deployments/", json=replacement)
-        assert response.status_code in (
-            status.HTTP_200_OK,
-            status.HTTP_201_CREATED,
-        )
+        assert response.status_code in (status.HTTP_200_OK, status.HTTP_201_CREATED)
         data = response.json()
 
         # Same ID — renamed in place
@@ -1277,6 +1275,13 @@ class TestCreateDeploymentReplaces:
         run_detail = await hosted_api_client.get(f"/flow_runs/{run_id}")
         assert run_detail.status_code == status.HTTP_200_OK
         assert run_detail.json()["deployment_id"] == original_id
+
+        # Apply the exact same payload again — old-name is already gone (idempotency)
+        response = await hosted_api_client.post("/deployments/", json=replacement)
+        assert response.status_code in (status.HTTP_200_OK, status.HTTP_201_CREATED)
+        data = response.json()
+        assert data["id"] == original_id
+        assert data["name"] == "new-name"
 
     async def test_replaces_nonexistent_falls_back_to_create(
         self,

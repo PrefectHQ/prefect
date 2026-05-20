@@ -3427,7 +3427,8 @@ class TestDeployRenameDeployment:
     async def test_deploy_with_replaces_renames_deployment(
         self, work_pool: WorkPool, prefect_client: PrefectClient
     ):
-        """Test that replaces field in YAML renames an existing deployment in place."""
+        """Test that replaces field in YAML renames an existing deployment in place.
+        Deploying a second time with the same config (idempotency) must also succeed."""
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
             deploy_config = yaml.safe_load(f)
@@ -3472,6 +3473,19 @@ class TestDeployRenameDeployment:
         # Old name gone
         with pytest.raises(ObjectNotFound):
             await prefect_client.read_deployment_by_name("An important name/old-name")
+
+        # Deploy again with the same config — old-name is already gone (idempotency)
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=f"deploy ./flows/hello.py:my_flow -n new-name --pool {work_pool.name}",
+            expected_code=0,
+        )
+
+        deployment = await prefect_client.read_deployment_by_name(
+            "An important name/new-name"
+        )
+        assert deployment.id == original_id
+        assert deployment.name == "new-name"
 
     @pytest.mark.usefixtures("project_dir")
     async def test_deploy_with_replaces_errors_when_new_name_exists(

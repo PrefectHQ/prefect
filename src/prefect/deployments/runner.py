@@ -745,12 +745,22 @@ class RunnerDeployment(BaseModel):
                 return await self._create(work_pool_name, image, version_info)
             else:
                 if self.replaces:
-                    raise ValueError(
-                        f"Cannot use 'replaces: {self.replaces}' for deployment"
-                        f" {self.name!r} because a deployment named {self.name!r}"
-                        f" already exists. Remove 'replaces' or delete the existing"
-                        f" {self.name!r} deployment first."
-                    )
+                    # Only error when the old deployment still exists. If it's
+                    # already gone the rename already happened and re-applying
+                    # is idempotent — just fall through to a normal update.
+                    try:
+                        await client.read_deployment_by_name(
+                            f"{self.flow_name}/{self.replaces}"
+                        )
+                    except ObjectNotFound:
+                        pass
+                    else:
+                        raise ValueError(
+                            f"Cannot use 'replaces: {self.replaces}' for deployment"
+                            f" {self.name!r} because a deployment named {self.name!r}"
+                            f" already exists. Remove 'replaces' or delete the existing"
+                            f" {self.name!r} deployment first."
+                        )
                 if image:
                     self.job_variables["image"] = image
                 if work_pool_name:
@@ -797,12 +807,19 @@ class RunnerDeployment(BaseModel):
                 return self._create_sync(work_pool_name, image, version_info)
             else:
                 if self.replaces:
-                    raise ValueError(
-                        f"Cannot use 'replaces: {self.replaces}' for deployment"
-                        f" {self.name!r} because a deployment named {self.name!r}"
-                        f" already exists. Remove 'replaces' or delete the existing"
-                        f" {self.name!r} deployment first."
-                    )
+                    try:
+                        client.read_deployment_by_name(
+                            f"{self.flow_name}/{self.replaces}"
+                        )
+                    except ObjectNotFound:
+                        pass
+                    else:
+                        raise ValueError(
+                            f"Cannot use 'replaces: {self.replaces}' for deployment"
+                            f" {self.name!r} because a deployment named {self.name!r}"
+                            f" already exists. Remove 'replaces' or delete the existing"
+                            f" {self.name!r} deployment first."
+                        )
                 if image:
                     self.job_variables["image"] = image
                 if work_pool_name:
