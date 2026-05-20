@@ -225,9 +225,23 @@ class TestAssetDelete:
 
         monkeypatch.setattr(_cli, "is_interactive", lambda: True)
 
-        respx_mock.delete(f"{workspace.api_url()}/assets/key").mock(
-            return_value=httpx.Response(status.HTTP_204_NO_CONTENT)
+        artifacts = [
+            {
+                "id": str(uuid.uuid4()),
+                "key": "s3://my-bucket/data.csv",
+            },
+            {
+                "id": str(uuid.uuid4()),
+                "key": "s3://my-bucket/data.csv",
+            },
+        ]
+        respx_mock.post(f"{workspace.api_url()}/artifacts/filter").mock(
+            return_value=httpx.Response(status.HTTP_200_OK, json=artifacts)
         )
+        for artifact in artifacts:
+            respx_mock.delete(f"{workspace.api_url()}/artifacts/{artifact['id']}").mock(
+                return_value=httpx.Response(status.HTTP_204_NO_CONTENT)
+            )
 
         with use_profile(profile_name):
             invoke_and_assert(
@@ -241,7 +255,14 @@ class TestAssetDelete:
         self, respx_mock: respx.MockRouter, cloud_workspace: tuple[Workspace, str]
     ) -> None:
         workspace, profile_name = cloud_workspace
-        respx_mock.delete(f"{workspace.api_url()}/assets/key").mock(
+        artifact = {
+            "id": str(uuid.uuid4()),
+            "key": "s3://my-bucket/data.csv",
+        }
+        respx_mock.post(f"{workspace.api_url()}/artifacts/filter").mock(
+            return_value=httpx.Response(status.HTTP_200_OK, json=[artifact])
+        )
+        respx_mock.delete(f"{workspace.api_url()}/artifacts/{artifact['id']}").mock(
             return_value=httpx.Response(status.HTTP_204_NO_CONTENT)
         )
 
@@ -256,10 +277,8 @@ class TestAssetDelete:
         self, respx_mock: respx.MockRouter, cloud_workspace: tuple[Workspace, str]
     ) -> None:
         workspace, profile_name = cloud_workspace
-        respx_mock.delete(f"{workspace.api_url()}/assets/key").mock(
-            return_value=httpx.Response(
-                status.HTTP_404_NOT_FOUND, json={"detail": "Asset not found"}
-            )
+        respx_mock.post(f"{workspace.api_url()}/artifacts/filter").mock(
+            return_value=httpx.Response(status.HTTP_200_OK, json=[])
         )
 
         with use_profile(profile_name):

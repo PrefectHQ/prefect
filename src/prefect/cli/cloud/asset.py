@@ -121,29 +121,41 @@ async def asset_delete(
         ),
     ] = False,
 ):
-    """Delete an asset by its key.
+    """Permanently delete an asset by its key.
 
-    The key should be the full asset URI (e.g., 's3://bucket/data.csv').
+    The key should be the full asset URI (e.g., 's3://bucket/data.csv'). This
+    deletes every stored version for the key so deleted assets do not reappear.
     """
     from prefect.cli._prompts import confirm
-    from prefect.client.cloud import get_cloud_client
+    from prefect.client.orchestration import get_client
+    from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey
     from prefect.exceptions import ObjectNotFound
-    from prefect.settings import get_current_settings
 
     confirm_logged_in(console=_cli.console)
 
-    if _cli.is_interactive() and not force:
-        if not confirm(
-            f"Are you sure you want to delete asset {key!r}?",
-            default=False,
-            console=_cli.console,
-        ):
-            exit_with_error("Deletion aborted.")
+    async with get_client() as client:
+        artifacts = await client.read_artifacts(
+            artifact_filter=ArtifactFilter(key=ArtifactFilterKey(any_=[key]))
+        )
 
-    async with get_cloud_client(host=get_current_settings().api.url) as client:
-        try:
-            await client.request("DELETE", "/assets/key", params={"key": key})
-        except ObjectNotFound:
+        if not artifacts:
             exit_with_error(f"Asset {key!r} not found.")
+
+        if _cli.is_interactive() and not force:
+            if not confirm(
+                (
+                    f"Are you sure you want to permanently delete asset {key!r} and"
+                    f" all {len(artifacts)} version(s)?"
+                ),
+                default=False,
+                console=_cli.console,
+            ):
+                exit_with_error("Deletion aborted.")
+
+        for artifact in artifacts:
+            try:
+                await client.delete_artifact(artifact.id)
+            except ObjectNotFound:
+                exit_with_error(f"Asset {key!r} not found.")
 
     exit_with_success(f"Deleted asset {key!r}.")
