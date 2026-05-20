@@ -28,7 +28,6 @@ from prefect.server.models.work_queues import (
     mark_work_queues_ready,
 )
 from prefect.server.schemas.statuses import WorkQueueStatus
-from prefect.server.utilities import worker_channel as worker_channel_utils
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
 
@@ -60,21 +59,10 @@ async def create_work_queue(
             )
             if response.concurrency_limit is not None:
                 response.active_slots = 0
-            work_pool_id = model.work_pool_id
-            work_queue_id = model.id
     except IntegrityError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="A work queue with this name already exists.",
-        )
-
-    if work_pool_id is not None:
-        await worker_channel_utils.publish_snapshot_invalidation(
-            worker_channel_utils.WorkerChannelSnapshotInvalidation(
-                work_pool_id=work_pool_id,
-                work_queue_id=work_queue_id,
-                reason="work_queue_created",
-            )
         )
 
     return response
@@ -89,7 +77,6 @@ async def update_work_queue(
     """
     Updates an existing work queue.
     """
-    update_values = work_queue.model_dump_for_orm(exclude_unset=True)
     async with db.session_context(begin_transaction=True) as session:
         existing_work_queue = await models.work_queues.read_work_queue(
             session=session, work_queue_id=work_queue_id
@@ -99,7 +86,6 @@ async def update_work_queue(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Work Queue {work_queue_id} not found",
             )
-        work_pool_id = existing_work_queue.work_pool_id
 
         result = await models.work_queues.update_work_queue(
             session=session,
@@ -111,18 +97,6 @@ async def update_work_queue(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Work Queue {work_queue_id} not found",
-        )
-
-    if (
-        work_pool_id is not None
-        and worker_channel_utils.work_queue_update_triggers_snapshot(update_values)
-    ):
-        await worker_channel_utils.publish_snapshot_invalidation(
-            worker_channel_utils.WorkerChannelSnapshotInvalidation(
-                work_pool_id=work_pool_id,
-                work_queue_id=work_queue_id,
-                reason="work_queue_updated",
-            )
         )
 
 
@@ -282,23 +256,12 @@ async def delete_work_queue(
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="work queue not found"
             )
-        work_pool_id = existing_work_queue.work_pool_id
-
         result = await models.work_queues.delete_work_queue(
             session=session, work_queue_id=work_queue_id
         )
     if not result:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="work queue not found"
-        )
-
-    if work_pool_id is not None:
-        await worker_channel_utils.publish_snapshot_invalidation(
-            worker_channel_utils.WorkerChannelSnapshotInvalidation(
-                work_pool_id=work_pool_id,
-                work_queue_id=work_queue_id,
-                reason="work_queue_deleted",
-            )
         )
 
 

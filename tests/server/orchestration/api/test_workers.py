@@ -2773,29 +2773,46 @@ class TestWorkerChannelConnect:
         assert snapshot.payload.snapshot_sequence == 2
         assert snapshot.payload.work_pool.base_job_template == latest_base_job_template
 
-    async def test_work_queue_create_sends_snapshot_to_all_queue_connection(
-        self, test_client: TestClient, client: AsyncClient, work_pool
-    ) -> None:
-        with _connect_worker_channel(test_client, work_pool.name) as websocket:
-            _authenticate_worker_channel(websocket)
-            websocket.send_json(_worker_hello_frame(work_queue_names=[]))
-            WorkerReadyFrame.model_validate(websocket.receive_json())
-
-            response = await client.post(
-                f"/work_pools/{work_pool.name}/queues",
-                json={"name": "new-queue"},
-            )
-            assert response.status_code == status.HTTP_201_CREATED, response.text
-
-            snapshot = WorkPoolSnapshotFrame.model_validate(websocket.receive_json())
-
-        assert snapshot.payload.snapshot_sequence == 2
-        assert snapshot.payload.reason == "work_queue_created"
-        assert snapshot.payload.work_pool.id == work_pool.id
-
-    async def test_work_queue_update_sends_snapshot_to_matching_queue_connection(
+    async def test_work_queue_changes_do_not_publish_snapshot_invalidation(
         self,
-        test_client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+        client: AsyncClient,
+        work_pool,
+    ) -> None:
+        publish = AsyncMock()
+        monkeypatch.setattr(
+            worker_channel_utils,
+            "publish_snapshot_invalidation",
+            publish,
+        )
+
+        create_response = await client.post(
+            f"/work_pools/{work_pool.name}/queues",
+            json={"name": "selected"},
+        )
+        assert create_response.status_code == status.HTTP_201_CREATED, (
+            create_response.text
+        )
+
+        update_response = await client.patch(
+            f"/work_pools/{work_pool.name}/queues/selected",
+            json={"is_paused": True},
+        )
+        assert update_response.status_code == status.HTTP_204_NO_CONTENT, (
+            update_response.text
+        )
+
+        delete_response = await client.delete(
+            f"/work_pools/{work_pool.name}/queues/selected"
+        )
+        assert delete_response.status_code == status.HTTP_204_NO_CONTENT, (
+            delete_response.text
+        )
+        publish.assert_not_awaited()
+
+    async def test_work_queue_id_routes_do_not_publish_snapshot_invalidation(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
         client: AsyncClient,
         session: AsyncSession,
         work_pool,
@@ -2806,23 +2823,26 @@ class TestWorkerChannelConnect:
             work_queue=schemas.actions.WorkQueueCreate(name="selected"),
         )
         await session.commit()
+        publish = AsyncMock()
+        monkeypatch.setattr(
+            worker_channel_utils,
+            "publish_snapshot_invalidation",
+            publish,
+        )
 
-        with _connect_worker_channel(test_client, work_pool.name) as websocket:
-            _authenticate_worker_channel(websocket)
-            websocket.send_json(_worker_hello_frame(work_queue_names=[queue.name]))
-            WorkerReadyFrame.model_validate(websocket.receive_json())
+        update_response = await client.patch(
+            f"/work_queues/{queue.id}",
+            json={"is_paused": True},
+        )
+        assert update_response.status_code == status.HTTP_204_NO_CONTENT, (
+            update_response.text
+        )
 
-            response = await client.patch(
-                f"/work_pools/{work_pool.name}/queues/{queue.name}",
-                json={"is_paused": True},
-            )
-            assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
-
-            snapshot = WorkPoolSnapshotFrame.model_validate(websocket.receive_json())
-
-        assert snapshot.payload.snapshot_sequence == 2
-        assert snapshot.payload.reason == "work_queue_updated"
-        assert snapshot.payload.work_pool.id == work_pool.id
+        delete_response = await client.delete(f"/work_queues/{queue.id}")
+        assert delete_response.status_code == status.HTTP_204_NO_CONTENT, (
+            delete_response.text
+        )
+        publish.assert_not_awaited()
 
     async def test_work_pool_delete_closes_connection_without_snapshot(
         self, test_client: TestClient, client: AsyncClient, work_pool
@@ -2864,57 +2884,40 @@ class TestWorkerChannelConnect:
         assert response.status_code == status.HTTP_204_NO_CONTENT, response.text
         publish.assert_not_awaited()
 
-    def test_snapshot_invalidation_respects_queue_selection(self) -> None:
+    def test_snapshot_invalidation_targets_work_pool_and_subscription_time(
+        self,
+    ) -> None:
         work_pool_id = uuid.uuid4()
-        queue_a_id = uuid.uuid4()
-        queue_b_id = uuid.uuid4()
         subscription_started_at = datetime.now(timezone.utc)
         invalidation = worker_channel_utils.WorkerChannelSnapshotInvalidation(
             work_pool_id=work_pool_id,
-            work_queue_id=queue_a_id,
-            reason="work_queue_updated",
+            reason="work_pool_updated",
             published_at=subscription_started_at,
         )
 
         assert invalidation.targets(
             work_pool_id=work_pool_id,
-            selected_work_queue_ids=None,
-            subscribed_after=subscription_started_at,
-        )
-        assert invalidation.targets(
-            work_pool_id=work_pool_id,
-            selected_work_queue_ids=frozenset({queue_a_id}),
-            subscribed_after=subscription_started_at,
-        )
-        assert not invalidation.targets(
-            work_pool_id=work_pool_id,
-            selected_work_queue_ids=frozenset({queue_b_id}),
             subscribed_after=subscription_started_at,
         )
         assert not invalidation.targets(
             work_pool_id=uuid.uuid4(),
-            selected_work_queue_ids=None,
             subscribed_after=subscription_started_at,
         )
         stale_invalidation = worker_channel_utils.WorkerChannelSnapshotInvalidation(
             work_pool_id=work_pool_id,
-            work_queue_id=queue_a_id,
-            reason="work_queue_updated",
+            reason="work_pool_updated",
             published_at=subscription_started_at - timedelta(seconds=1),
         )
         assert not stale_invalidation.targets(
             work_pool_id=work_pool_id,
-            selected_work_queue_ids=frozenset({queue_a_id}),
             subscribed_after=subscription_started_at,
         )
         unstamped_invalidation = worker_channel_utils.WorkerChannelSnapshotInvalidation(
             work_pool_id=work_pool_id,
-            work_queue_id=queue_a_id,
-            reason="work_queue_updated",
+            reason="work_pool_updated",
         )
         assert not unstamped_invalidation.targets(
             work_pool_id=work_pool_id,
-            selected_work_queue_ids=frozenset({queue_a_id}),
             subscribed_after=subscription_started_at,
         )
 

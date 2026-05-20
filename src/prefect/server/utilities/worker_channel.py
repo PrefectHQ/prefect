@@ -23,20 +23,11 @@ WORK_POOL_FIELDS_THAT_TRIGGER_SNAPSHOTS = frozenset(
         "storage_configuration",
     }
 )
-WORK_QUEUE_FIELDS_THAT_TRIGGER_SNAPSHOTS = frozenset(
-    {
-        "concurrency_limit",
-        "is_paused",
-        "name",
-        "priority",
-    }
-)
 
 
 class WorkerChannelSnapshotInvalidation(PrefectBaseModel):
     work_pool_id: UUID
     reason: str
-    work_queue_id: UUID | None = None
     work_pool_deleted: bool = False
     published_at: DateTime | None = None
 
@@ -44,28 +35,17 @@ class WorkerChannelSnapshotInvalidation(PrefectBaseModel):
         self,
         *,
         work_pool_id: UUID,
-        selected_work_queue_ids: frozenset[UUID] | None,
         subscribed_after: DateTime | None = None,
     ) -> bool:
         if subscribed_after is not None:
             if self.published_at is None or self.published_at < subscribed_after:
                 return False
 
-        if self.work_pool_id != work_pool_id:
-            return False
-
-        if self.work_queue_id is None or selected_work_queue_ids is None:
-            return True
-
-        return self.work_queue_id in selected_work_queue_ids
+        return self.work_pool_id == work_pool_id
 
 
 def work_pool_update_triggers_snapshot(update_values: Mapping[str, Any]) -> bool:
     return bool(WORK_POOL_FIELDS_THAT_TRIGGER_SNAPSHOTS.intersection(update_values))
-
-
-def work_queue_update_triggers_snapshot(update_values: Mapping[str, Any]) -> bool:
-    return bool(WORK_QUEUE_FIELDS_THAT_TRIGGER_SNAPSHOTS.intersection(update_values))
 
 
 async def publish_snapshot_invalidation(

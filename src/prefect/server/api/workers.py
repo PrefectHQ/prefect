@@ -201,7 +201,6 @@ class WorkerChannelConnection:
         work_pool_id: UUID,
         consumer_id: UUID,
         worker_name: str,
-        selected_work_queue_ids: frozenset[UUID] | None,
         subscription_started_at: DateTime,
     ) -> None:
         self.websocket = websocket
@@ -210,7 +209,6 @@ class WorkerChannelConnection:
         self.work_pool_id = work_pool_id
         self.consumer_id = consumer_id
         self.worker_name = worker_name
-        self.selected_work_queue_ids = selected_work_queue_ids
         self.subscription_started_at = subscription_started_at
         self._next_snapshot_sequence = 2
         self._snapshot_queue: asyncio.Queue[
@@ -273,7 +271,6 @@ class WorkerChannelConnection:
     ) -> None:
         if self._closed.is_set() or not invalidation.targets(
             work_pool_id=self.work_pool_id,
-            selected_work_queue_ids=self.selected_work_queue_ids,
             subscribed_after=self.subscription_started_at,
         ):
             return
@@ -1149,7 +1146,6 @@ async def create_work_queue(
             )
             if response.concurrency_limit is not None:
                 response.active_slots = 0
-            work_queue_id = model.id
     except sa.exc.IntegrityError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -1158,14 +1154,6 @@ async def create_work_queue(
                 " {work_pool_name!r}."
             ),
         )
-
-    await worker_channel_utils.publish_snapshot_invalidation(
-        worker_channel_utils.WorkerChannelSnapshotInvalidation(
-            work_pool_id=work_pool_id,
-            work_queue_id=work_queue_id,
-            reason="work_queue_created",
-        )
-    )
 
     return response
 
@@ -1260,10 +1248,8 @@ async def update_work_queue(
     """
     Update a work pool queue
     """
-    update_values = work_queue.model_dump_for_orm(exclude_unset=True)
-
     async with db.session_context(begin_transaction=True) as session:
-        work_pool_id = await worker_lookups._get_work_pool_id_from_name(
+        await worker_lookups._get_work_pool_id_from_name(
             session=session,
             work_pool_name=work_pool_name,
         )
@@ -1273,22 +1259,11 @@ async def update_work_queue(
             session=session,
         )
 
-        updated = await models.workers.update_work_queue(
+        await models.workers.update_work_queue(
             session=session,
             work_queue_id=work_queue_id,
             work_queue=work_queue,
             emit_status_change=emit_work_queue_status_event,
-        )
-
-    if updated and worker_channel_utils.work_queue_update_triggers_snapshot(
-        update_values
-    ):
-        await worker_channel_utils.publish_snapshot_invalidation(
-            worker_channel_utils.WorkerChannelSnapshotInvalidation(
-                work_pool_id=work_pool_id,
-                work_queue_id=work_queue_id,
-                reason="work_queue_updated",
-            )
         )
 
 
@@ -1308,7 +1283,7 @@ async def delete_work_queue(
     """
 
     async with db.session_context(begin_transaction=True) as session:
-        work_pool_id = await worker_lookups._get_work_pool_id_from_name(
+        await worker_lookups._get_work_pool_id_from_name(
             session=session,
             work_pool_name=work_pool_name,
         )
@@ -1318,17 +1293,8 @@ async def delete_work_queue(
             work_queue_name=work_queue_name,
         )
 
-        deleted = await models.workers.delete_work_queue(
+        await models.workers.delete_work_queue(
             session=session, work_queue_id=work_queue_id
-        )
-
-    if deleted:
-        await worker_channel_utils.publish_snapshot_invalidation(
-            worker_channel_utils.WorkerChannelSnapshotInvalidation(
-                work_pool_id=work_pool_id,
-                work_queue_id=work_queue_id,
-                reason="work_queue_deleted",
-            )
         )
 
 
@@ -1387,11 +1353,6 @@ async def worker_channel_connect(
                     )
                 )
 
-            selected_work_queue_ids = (
-                None
-                if not hello.payload.work_queue_names
-                else frozenset(queue.id for queue in ready.payload.resolved_work_queues)
-            )
             connection = WorkerChannelConnection(
                 websocket=websocket,
                 db=db,
@@ -1399,7 +1360,6 @@ async def worker_channel_connect(
                 work_pool_id=ready.payload.initial_snapshot.work_pool.id,
                 consumer_id=hello.payload.consumer_id,
                 worker_name=hello.payload.worker_name,
-                selected_work_queue_ids=selected_work_queue_ids,
                 subscription_started_at=subscription_started_at,
             )
             await connection.run(ready, consumer_kwargs)
