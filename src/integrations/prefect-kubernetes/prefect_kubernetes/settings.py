@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import partial
+from pathlib import Path
 from typing import Annotated, Optional, Union
 
 from pydantic import AliasChoices, AliasPath, BeforeValidator, Field
@@ -75,6 +76,22 @@ class KubernetesObserverSettings(PrefectBaseSettings):
         ge=1,
         description="Number of tail lines to fetch from crashed pod containers "
         "when forwarding logs.",
+    )
+
+    ca_cert_path: Optional[Path] = Field(
+        default=None,
+        description="Path to a CA certificate bundle used by the observer when "
+        "connecting to the Kubernetes API. Override only when the cluster CA "
+        "shipped via the service-account token volume is not accepted by "
+        "OpenSSL (e.g. missing `CA:TRUE` basic-constraint). When set, takes "
+        "precedence over the in-cluster CA.",
+    )
+
+    insecure_skip_tls_verify: bool = Field(
+        default=False,
+        description="If `True`, the observer skips TLS verification when "
+        "connecting to the Kubernetes API. Use only as a last resort when the "
+        "cluster CA bundle cannot be made valid; prefer `ca_cert_path`.",
     )
 
 

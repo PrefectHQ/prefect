@@ -2162,3 +2162,93 @@ class TestLoggingConfiguration:
         finally:
             stop_observer()
             monkeypatch.delenv("PREFECT_LOGGING_HANDLERS_CONSOLE_FORMATTER")
+
+
+class TestObserverTlsOverrides:
+    """Regression coverage for PrefectHQ/prefect#22048.
+
+    Some K8s distributions ship cluster CA bundles that fail OpenSSL's
+    strict CA validation (X509_V_ERR_INVALID_CA). The observer must
+    expose a way to swap the CA bundle or skip verification entirely;
+    otherwise the kopf-based observer cannot start on those clusters.
+    """
+
+    def _sample_info(self):
+        from kopf import ConnectionInfo
+
+        return ConnectionInfo(
+            server="https://10.96.0.1:443",
+            ca_path="/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
+            token="sa-token",
+            priority=15,
+        )
+
+    def test_no_overrides_returns_info_unchanged(self):
+        from prefect_kubernetes.observer import _apply_tls_overrides
+
+        info = self._sample_info()
+        result = _apply_tls_overrides(
+            info, ca_cert_path=None, insecure_skip_tls_verify=False
+        )
+        assert result is info
+
+    def test_insecure_skip_tls_verify_sets_insecure_and_bumps_priority(self):
+        from prefect_kubernetes.observer import _apply_tls_overrides
+
+        info = self._sample_info()
+        result = _apply_tls_overrides(
+            info, ca_cert_path=None, insecure_skip_tls_verify=True
+        )
+        assert result.insecure is True
+        # Priority must exceed the default piggybacking priority (15) so the
+        # override beats kopf's auto-registered login handler in the vault.
+        assert result.priority > info.priority
+        assert result.server == info.server
+        assert result.token == info.token
+
+    def test_ca_cert_path_overrides_ca_path_and_clears_ca_data(self):
+        from prefect_kubernetes.observer import _apply_tls_overrides
+
+        info = self._sample_info()
+        result = _apply_tls_overrides(
+            info,
+            ca_cert_path="/etc/ssl/my-corrected-ca.pem",
+            insecure_skip_tls_verify=False,
+        )
+        assert result.ca_path == "/etc/ssl/my-corrected-ca.pem"
+        assert result.ca_data is None
+        assert result.priority > info.priority
+
+    def test_both_overrides_combine(self):
+        from prefect_kubernetes.observer import _apply_tls_overrides
+
+        info = self._sample_info()
+        result = _apply_tls_overrides(
+            info,
+            ca_cert_path="/etc/ssl/my-ca.pem",
+            insecure_skip_tls_verify=True,
+        )
+        assert result.insecure is True
+        assert result.ca_path == "/etc/ssl/my-ca.pem"
+
+    def test_settings_expose_tls_overrides(self):
+        from prefect_kubernetes.settings import KubernetesObserverSettings
+
+        fields = KubernetesObserverSettings.model_fields
+        assert "ca_cert_path" in fields
+        assert "insecure_skip_tls_verify" in fields
+
+    def test_settings_read_from_env(self, monkeypatch: pytest.MonkeyPatch):
+        from prefect_kubernetes.settings import KubernetesObserverSettings
+
+        monkeypatch.setenv(
+            "PREFECT_INTEGRATIONS_KUBERNETES_OBSERVER_INSECURE_SKIP_TLS_VERIFY",
+            "true",
+        )
+        monkeypatch.setenv(
+            "PREFECT_INTEGRATIONS_KUBERNETES_OBSERVER_CA_CERT_PATH",
+            "/etc/ssl/my-ca.pem",
+        )
+        s = KubernetesObserverSettings()
+        assert s.insecure_skip_tls_verify is True
+        assert str(s.ca_cert_path) == "/etc/ssl/my-ca.pem"

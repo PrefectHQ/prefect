@@ -13,6 +13,7 @@ from typing import Any
 import anyio
 import kopf
 from cachetools import TTLCache
+from kopf import ConnectionInfo, login_via_async_client
 from kubernetes_asyncio import config
 from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api, V1Job
 
@@ -56,6 +57,49 @@ settings = KubernetesSettings()
 events_client: EventsClient | None = None
 orchestration_client: PrefectClient | None = None
 _startup_event_semaphore: asyncio.Semaphore | None = None
+
+
+def _apply_tls_overrides(
+    info: ConnectionInfo,
+    *,
+    ca_cert_path: str | None,
+    insecure_skip_tls_verify: bool,
+) -> ConnectionInfo:
+    """Return a ConnectionInfo with user-configured TLS overrides applied.
+
+    Bumps the priority so the override beats kopf's auto-registered
+    `login_via_async_client` (priority 15) in the credential vault. See #22048.
+    """
+    overrides: dict[str, Any] = {}
+    if ca_cert_path is not None:
+        overrides["ca_path"] = ca_cert_path
+        overrides["ca_data"] = None
+    if insecure_skip_tls_verify:
+        overrides["insecure"] = True
+    if not overrides:
+        return info
+    return dataclasses.replace(info, **overrides, priority=info.priority + 100)
+
+
+if (
+    settings.observer.ca_cert_path is not None
+    or settings.observer.insecure_skip_tls_verify
+):
+
+    @kopf.on.login()
+    async def _observer_login(**kwargs: Any) -> ConnectionInfo | None:  # pyright: ignore[reportUnusedFunction]
+        info = await login_via_async_client(**kwargs)
+        if info is None:
+            return None
+        return _apply_tls_overrides(
+            info,
+            ca_cert_path=(
+                str(settings.observer.ca_cert_path)
+                if settings.observer.ca_cert_path
+                else None
+            ),
+            insecure_skip_tls_verify=settings.observer.insecure_skip_tls_verify,
+        )
 
 
 @kopf.on.startup()
