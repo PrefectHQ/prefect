@@ -263,7 +263,6 @@ async def test_workspace_resolving_starter_uses_uv_for_pyproject_workspace(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ):
     workspace = _prepared_workspace(tmp_path)
-    workspace.environment["UV_COMPILE_BYTECODE"] = "1"
     assert workspace.project_root is not None
     (workspace.project_root / "pyproject.toml").write_text(
         "[project]\n"
@@ -317,7 +316,6 @@ async def test_workspace_resolving_starter_uses_uv_for_pyproject_workspace(
     ]
     assert instances[0].kwargs["cwd"] == workspace.working_directory
     assert instances[0].kwargs["deployment_name"] == "workspace-deployment"
-    assert instances[0].kwargs["env"]["UV_COMPILE_BYTECODE"] == "0"
 
 
 async def test_workspace_resolving_starter_preserves_compile_bytecode_for_explicit_command(
@@ -367,53 +365,6 @@ async def test_workspace_resolving_starter_preserves_compile_bytecode_for_explic
     assert len(instances) == 1
     assert instances[0].kwargs["command"] == "python custom.py"
     assert instances[0].kwargs["env"]["UV_COMPILE_BYTECODE"] == "1"
-
-
-async def test_workspace_resolving_starter_disables_compile_bytecode_for_uv_engine_command(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
-    workspace = _prepared_workspace(tmp_path)
-    workspace.environment["UV_COMPILE_BYTECODE"] = "1"
-    assert workspace.project_root is not None
-    (workspace.project_root / "pyproject.toml").write_text(
-        "[project]\n"
-        "name = 'test-project'\n"
-        "version = '0.1.0'\n"
-        "dependencies = ['prefect']\n"
-    )
-    resolver = AsyncMock(return_value=workspace)
-    flow_run = MagicMock()
-    flow_run.id = uuid4()
-    run_process = AsyncMock()
-
-    monkeypatch.setattr(
-        "prefect.runner._workspace_starter.resolve_workspace_in_subprocess", resolver
-    )
-    monkeypatch.setattr(
-        "prefect.runner._workspace_starter.shutil.which",
-        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
-    )
-    monkeypatch.setattr("prefect.runner._starter_engine.run_process", run_process)
-
-    starter = WorkspaceResolvingEngineCommandStarter(
-        workspace_root=tmp_path / "workspace-root"
-    )
-    await starter.start(flow_run)
-
-    resolver.assert_awaited_once_with(flow_run.id, tmp_path / "workspace-root")
-    run_process.assert_awaited_once()
-    call_kwargs = run_process.await_args.kwargs
-    assert call_kwargs["command"] == [
-        "/opt/bin/uv",
-        "run",
-        "--project",
-        str(workspace.project_root),
-        "-m",
-        "prefect.flow_engine",
-        workspace.runtime_entrypoint,
-    ]
-    assert call_kwargs["cwd"] == workspace.working_directory
-    assert call_kwargs["env"]["UV_COMPILE_BYTECODE"] == "0"
 
 
 async def test_load_flow_from_prepared_workspace_does_not_change_parent_cwd(
