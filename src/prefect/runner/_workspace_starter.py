@@ -275,10 +275,17 @@ class WorkspaceResolvingEngineCommandStarter:
         task_status: anyio.abc.TaskStatus[ProcessHandle] = anyio.TASK_STATUS_IGNORED,
     ) -> None:
         workspace = await self._resolve_workspace(flow_run.id)
+        command = _workspace_command(workspace, self._command)
+        environment = workspace_environment(workspace)
+        if self._command is None and command is not None:
+            # The official image enables bytecode compilation while building packages,
+            # but runtime project syncs should prioritize starting the flow engine.
+            environment["UV_COMPILE_BYTECODE"] = "0"
+
         starter = EngineCommandStarter(
-            command=_workspace_command(workspace, self._command),
+            command=command,
             cwd=workspace.working_directory,
-            env=workspace_environment(workspace),
+            env=environment,
             entrypoint=workspace.runtime_entrypoint,
             stream_output=self._stream_output,
             heartbeat_seconds=self._heartbeat_seconds,
