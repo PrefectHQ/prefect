@@ -28,7 +28,7 @@ export const DeploymentDescription = ({
 	}
 
 	return (
-		<div className="prose max-w-none">
+		<div className="prose dark:prose-invert max-w-none">
 			<LazyMarkdown>{deployment.description}</LazyMarkdown>
 		</div>
 	);

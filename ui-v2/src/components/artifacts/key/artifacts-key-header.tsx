@@ -51,7 +51,7 @@ export const ArtifactsKeyHeader = ({
 			</div>
 			{pageHeader && (
 				<div className="">
-					<h2 className="text-3xl font-semibold tracking-tight my-4 font-bold prose lg:prose-xl">
+					<h2 className="text-3xl font-semibold tracking-tight my-4 font-bold prose dark:prose-invert lg:prose-xl">
 						<LazyMarkdown>{pageHeader}</LazyMarkdown>
 					</h2>
 					<hr />
