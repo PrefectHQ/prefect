@@ -151,6 +151,14 @@ Use opacity modifiers with semantic colors for subtle visual elements like divid
 - `bg-muted-foreground/30` for subtle divider lines
 - `border-border` for standard borders
 
+### Prose Content in Dark Mode
+
+Tailwind's `prose` class (`@tailwindcss/typography`) does **not** automatically invert in dark mode. Any element using `prose` must also include `dark:prose-invert`:
+
+```tsx
+<div className="prose dark:prose-invert">...</div>
+```
+
 ### Avoid Hardcoded Colors
 
 Never use hardcoded gray scale colors (e.g., `bg-gray-100`, `text-gray-500`) as these will not adapt to dark mode and can make text unreadable or create jarring visual contrast.
