@@ -40,9 +40,9 @@ Reasons to create a work-pool based deployment include:
 
 Work pools are popular with data platform teams because they allow you to manage infrastructure configuration across an organization. 
 
-Prefect offers two options for creating deployments with [dynamic infrastructure](/v3/deploy/infrastructure-concepts/work-pools):
-- [Deployments created with the Python SDK](/v3/deploy/infrastructure-concepts/deploy-via-python)
-- [Deployments created with a YAML file](/v3/deploy/infrastructure-concepts/prefect-yaml)
+Prefect offers two options for creating deployments with [dynamic infrastructure](/v3/concepts/work-pools):
+- [Deployments created with the Python SDK](/v3/how-to-guides/deployments/deploy-via-python)
+- [Deployments created with a YAML file](/v3/how-to-guides/deployments/prefect-yaml)
 
 ### Create a deployment with `deploy`
 
@@ -68,11 +68,11 @@ if __name__ == "__main__":
     )
 ```
 
-To learn more about the `deploy` method, see [Deploy flows with Python](/v3/deploy/infrastructure-concepts/deploy-via-python).
+To learn more about the `deploy` method, see [Deploy flows with Python](/v3/how-to-guides/deployments/deploy-via-python).
 
 ### Create a deployment with a YAML file
 
-If you'd rather take a declarative approach to defining a deployment through a YAML file, use a [`prefect.yaml` file](/v3/deploy/infrastructure-concepts/prefect-yaml).
+If you'd rather take a declarative approach to defining a deployment through a YAML file, use a [`prefect.yaml` file](/v3/how-to-guides/deployments/prefect-yaml).
 
 Prefect provides an interactive CLI that walks you through creating a `prefect.yaml` file:
 
@@ -82,9 +82,9 @@ prefect deploy
 
 The result is a `prefect.yaml` file for deployment creation. 
 The file contains `build`, `push`, and `pull` steps for building a Docker image, pushing code to a Docker registry, and pulling code at runtime.
-Learn more about creating deployments with a YAML file in [Define deployments with YAML](/v3/deploy/infrastructure-concepts/prefect-yaml).
+Learn more about creating deployments with a YAML file in [Define deployments with YAML](/v3/how-to-guides/deployments/prefect-yaml).
 
-Prefect also provides [CI/CD options](/v3/deploy/infrastructure-concepts/deploy-ci-cd) for automatically creating YAML-based deployments. 
+Prefect also provides [CI/CD options](/v3/advanced/deploy-ci-cd) for automatically creating YAML-based deployments. 
 
 ### Create a deployment with Terraform
 
