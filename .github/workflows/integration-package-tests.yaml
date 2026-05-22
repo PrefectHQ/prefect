@@ -43,12 +43,8 @@ jobs:
             COMMIT_RANGE="${{ github.event.before }}..${{ github.event.after }}"
           fi
           python scripts/generate_integration_package_tests_matrix.py "$COMMIT_RANGE" > matrix.json
-          MATRIX="$(cat matrix.json)"
-          if [[ "$MATRIX" == '{"include":[]}' || "$MATRIX" == '{"include": []}' ]]; then
-            MATRIX='{"include":[{"package":"__none__","python-version":"3.11","dependency-override":""}]}'
-          fi
-          echo "$MATRIX"
-          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+          cat matrix.json
+          echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
 
   run-tests:
     timeout-minutes: 20
@@ -60,21 +56,14 @@ jobs:
       matrix: ${{fromJson(needs.prepare-matrix.outputs.matrix)}}
       fail-fast: false
     steps:
-      - name: No integration package tests selected
-        if: matrix.package == '__none__'
-        run: echo "No integration package tests selected."
-
       - name: Display current test matrix
-        if: matrix.package != '__none__'
         run: echo '${{ toJSON(matrix) }}'
 
       - uses: actions/checkout@v6
-        if: matrix.package != '__none__'
         with:
           persist-credentials: false
 
       - name: Set up uv and Python ${{ matrix.python-version }}
-        if: matrix.package != '__none__'
         uses: astral-sh/setup-uv@v7
         with:
           version: latest
@@ -103,7 +92,7 @@ jobs:
           uv pip install "${{ matrix.dependency-override }}"
 
       - name: Run tests
-        if: matrix.package != 'prefect-ray' && matrix.package != '__none__'
+        if: matrix.package != 'prefect-ray'
         env:
           PREFECT_API_DATABASE_CONNECTION_URL: "sqlite+aiosqlite:///./orion-tests.db"
         working-directory: src/integrations/${{ matrix.package }}
