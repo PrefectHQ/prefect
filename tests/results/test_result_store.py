@@ -867,6 +867,17 @@ async def test_result_store_exists_with_metadata_storage(tmp_path):
     assert not result_store.exists(key=key)
 
 
+async def test_default_result_store_exists_resolves_default_storage(tmp_path: Path):
+    with temporary_settings({PREFECT_LOCAL_STORAGE_PATH: tmp_path}):
+        writer = ResultStore()
+        writer.write(obj="test", key="test")
+
+        reader = ResultStore()
+
+        assert reader.exists(key="test")
+        assert await reader.aexists(key="test")
+
+
 async def test_result_store_exists_with_no_metadata_storage(tmp_path):
     result_storage = LocalFileSystem(basepath=tmp_path / "results")
     result_store = ResultStore(result_storage=result_storage)
