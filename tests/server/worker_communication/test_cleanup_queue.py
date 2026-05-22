@@ -140,6 +140,42 @@ async def test_reservation_operations_require_current_token(
     assert await queue.read_message(message_id) is None
 
 
+async def test_enqueue_after_ack_keeps_idempotency_key_completed(
+    queue: WorkerCleanupQueue,
+) -> None:
+    work_pool_id = uuid4()
+    message_id = uuid4()
+    idempotency_key = "flow-run-cleanup"
+    first = await queue.enqueue(
+        message_id=message_id,
+        idempotency_key=idempotency_key,
+        work_pool_id=work_pool_id,
+        kind=CANCELLING_TIMEOUT_TEARDOWN,
+        target=_target(),
+    )
+    reservation = await queue.reserve(work_pool_id=work_pool_id)
+    assert reservation is not None
+    accepted = await queue.ack(
+        message_id=message_id,
+        reservation_token=reservation.reservation_token,
+    )
+    wakeup_sequence = await queue.read_wakeup_sequence(work_pool_id)
+
+    duplicate = await queue.enqueue(
+        message_id=uuid4(),
+        idempotency_key=idempotency_key,
+        work_pool_id=work_pool_id,
+        kind=CANCELLING_TIMEOUT_TEARDOWN,
+        target=_target(),
+    )
+
+    assert accepted.status == "accepted"
+    assert duplicate.message_id == first.message_id
+    assert await queue.read_message(message_id) is None
+    assert await queue.reserve(work_pool_id=work_pool_id) is None
+    assert await queue.read_wakeup_sequence(work_pool_id) == wakeup_sequence
+
+
 async def test_release_makes_message_eligible_for_redelivery(
     queue: WorkerCleanupQueue,
 ) -> None:

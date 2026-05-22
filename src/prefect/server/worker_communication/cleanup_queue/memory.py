@@ -59,6 +59,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         self._messages: dict[UUID, CleanupQueueMessage] = {}
         self._reservations: dict[UUID, _Reservation] = {}
         self._dead_letters: dict[UUID, CleanupQueueDeadLetter] = {}
+        self._acked_messages: dict[UUID, CleanupQueueMessage] = {}
         self._idempotency_keys: dict[tuple[UUID, str], UUID] = {}
         self._wakeup_sequences: dict[UUID, int] = {}
         self._lock = asyncio.Lock()
@@ -69,6 +70,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         self._messages.clear()
         self._reservations.clear()
         self._dead_letters.clear()
+        self._acked_messages.clear()
         self._idempotency_keys.clear()
         self._wakeup_sequences.clear()
         self._lock = asyncio.Lock()
@@ -200,11 +202,12 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         result: CleanupQueueOperationResult
         wake_work_pool_id: UUID | None = None
         async with self._lock:
+            current_time = now("UTC")
             operation_result = self._validate_current_reservation_locked(
                 operation="ack",
                 message_id=message_id,
                 reservation_token=reservation_token,
-                current_time=now("UTC"),
+                current_time=current_time,
                 max_delivery_attempts=max_delivery_attempts,
             )
             if operation_result is not None:
@@ -216,8 +219,8 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
             else:
                 message = self._messages.pop(message_id)
                 self._reservations.pop(message_id, None)
-                self._idempotency_keys.pop(
-                    (message.work_pool_id, message.idempotency_key), None
+                self._acked_messages[message_id] = message.model_copy(
+                    update={"updated_at": current_time}
                 )
                 result = CleanupQueueOperationResult(
                     message_id=message_id,
@@ -419,6 +422,8 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         existing = self._messages.get(message_id)
         if existing is None and (dead_letter := self._dead_letters.get(message_id)):
             existing = dead_letter.message
+        if existing is None:
+            existing = self._acked_messages.get(message_id)
 
         if existing is not None:
             if (
@@ -440,6 +445,8 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
             return existing
         if dead_letter := self._dead_letters.get(existing_message_id):
             return dead_letter.message
+        if existing := self._acked_messages.get(existing_message_id):
+            return existing
 
         self._idempotency_keys.pop((work_pool_id, idempotency_key), None)
         return None
