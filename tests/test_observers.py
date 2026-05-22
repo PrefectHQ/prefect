@@ -773,6 +773,46 @@ class TestFlowRunSuspendingObserver:
             with suppress(asyncio.CancelledError):
                 await backstop
 
+    async def test_start_polling_task_restarts_after_dead_backstop(self):
+        """When the backstop polling task has exited (e.g. after repeated API
+        failures), the websocket-failure callback should restart it."""
+        callback = MagicMock()
+        observer = FlowRunSuspendingObserver(on_suspended=callback)
+
+        async def never_finish(*args: object, **kwargs: object) -> None:
+            await asyncio.Event().wait()
+
+        consumer_task = asyncio.create_task(asyncio.sleep(0))
+        await consumer_task
+
+        with patch(
+            "prefect._internal.observers.critical_service_loop",
+            AsyncMock(side_effect=never_finish),
+        ) as critical_service_loop:
+            # Start initial backstop polling task
+            observer._start_polling_task(consumer_task)
+            await asyncio.sleep(0)
+            first_task = observer._polling_task
+            assert first_task is not None
+            assert critical_service_loop.call_count == 1
+
+            # Simulate the backstop task exiting
+            first_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await first_task
+            assert first_task.done()
+
+            # Websocket consumer completes — should restart polling since the
+            # backstop task is dead.
+            observer._start_polling_task(consumer_task)
+            await asyncio.sleep(0)
+            assert observer._polling_task is not first_task
+            assert critical_service_loop.call_count == 2
+
+            observer._polling_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await observer._polling_task
+
     def test_observe_flow_run_suspension_waits_for_initial_check(self, monkeypatch):
         flow_run_id = uuid.uuid4()
         suspension_request = FlowRunSuspensionRequest()

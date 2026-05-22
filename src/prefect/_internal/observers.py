@@ -385,8 +385,9 @@ class FlowRunSuspendingObserver:
             )
 
         # Polling is always started in `__aenter__` as a backstop, so the
-        # websocket consumer completing does not require us to start it again.
-        if self._polling_task is not None:
+        # websocket consumer completing does not require us to start it again
+        # — unless the backstop task itself has already exited.
+        if self._polling_task is not None and not self._polling_task.done():
             return
 
         self._polling_task = asyncio.create_task(
