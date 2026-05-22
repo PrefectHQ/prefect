@@ -16,6 +16,9 @@ class TestCloudRunV2WorkerSettings:
         assert settings.create_job_max_attempts == 3
         assert settings.create_job_initial_delay_seconds == 1.0
         assert settings.create_job_max_delay_seconds == 10.0
+        assert settings.submit_job_max_attempts == 3
+        assert settings.submit_job_initial_delay_seconds == 1.0
+        assert settings.submit_job_max_delay_seconds == 10.0
 
     def test_load_from_env(self):
         with mock.patch.dict(
@@ -24,6 +27,9 @@ class TestCloudRunV2WorkerSettings:
                 "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_CREATE_JOB_MAX_ATTEMPTS": "7",
                 "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_CREATE_JOB_INITIAL_DELAY_SECONDS": "2.5",
                 "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_CREATE_JOB_MAX_DELAY_SECONDS": "20.0",
+                "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_SUBMIT_JOB_MAX_ATTEMPTS": "6",
+                "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_SUBMIT_JOB_INITIAL_DELAY_SECONDS": "1.5",
+                "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_SUBMIT_JOB_MAX_DELAY_SECONDS": "30.0",
             },
         ):
             settings = CloudRunV2WorkerSettings()
@@ -31,6 +37,9 @@ class TestCloudRunV2WorkerSettings:
         assert settings.create_job_max_attempts == 7
         assert settings.create_job_initial_delay_seconds == 2.5
         assert settings.create_job_max_delay_seconds == 20.0
+        assert settings.submit_job_max_attempts == 6
+        assert settings.submit_job_initial_delay_seconds == 1.5
+        assert settings.submit_job_max_delay_seconds == 30.0
 
     @pytest.mark.parametrize("invalid_value", [0, -1])
     def test_invalid_max_attempts_raises(self, invalid_value):
@@ -46,6 +55,21 @@ class TestCloudRunV2WorkerSettings:
     def test_invalid_max_delay_raises(self, invalid_value):
         with pytest.raises(ValidationError):
             CloudRunV2WorkerSettings(create_job_max_delay_seconds=invalid_value)
+
+    @pytest.mark.parametrize("invalid_value", [0, -1])
+    def test_invalid_submit_job_max_attempts_raises(self, invalid_value):
+        with pytest.raises(ValidationError):
+            CloudRunV2WorkerSettings(submit_job_max_attempts=invalid_value)
+
+    @pytest.mark.parametrize("invalid_value", [0, -1.0])
+    def test_invalid_submit_job_initial_delay_raises(self, invalid_value):
+        with pytest.raises(ValidationError):
+            CloudRunV2WorkerSettings(submit_job_initial_delay_seconds=invalid_value)
+
+    @pytest.mark.parametrize("invalid_value", [0, -1.0])
+    def test_invalid_submit_job_max_delay_raises(self, invalid_value):
+        with pytest.raises(ValidationError):
+            CloudRunV2WorkerSettings(submit_job_max_delay_seconds=invalid_value)
 
 
 class TestSettingsHierarchy:
