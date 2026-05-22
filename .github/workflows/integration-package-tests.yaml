@@ -44,7 +44,7 @@ jobs:
           fi
           python scripts/generate_integration_package_tests_matrix.py "$COMMIT_RANGE" > matrix.json
           MATRIX="$(cat matrix.json)"
-          if [[ "$MATRIX" == '{"include":[]}' ]]; then
+          if [[ "$MATRIX" == '{"include":[]}' || "$MATRIX" == '{"include": []}' ]]; then
             MATRIX='{"include":[{"package":"__none__","python-version":"3.11","dependency-override":""}]}'
           fi
           echo "$MATRIX"
