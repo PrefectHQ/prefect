@@ -1,7 +1,29 @@
 name: Windows Tests
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      repro_worker_only:
+        description: "Run only the long-running Windows worker repro"
+        required: true
+        type: boolean
+        default: true
+      repro_python_version:
+        description: "Python version for the worker repro"
+        required: true
+        default: "3.12.5"
+      repro_prefect_version:
+        description: "Prefect version for the worker repro, or 'local' for this checkout"
+        required: true
+        default: "3.7.1"
+      repro_duration_minutes:
+        description: "Worker repro duration; GitHub-hosted runners max at 360 minutes"
+        required: true
+        default: "350"
+      repro_monitor_interval_seconds:
+        description: "Seconds between worker health/API observations"
+        required: true
+        default: "60"
   pull_request:
     paths:
       - "pyproject.toml"
@@ -15,6 +37,7 @@ on:
       - "src/prefect/cli/server.py"
       - "src/prefect/workers/base.py"
       - "src/prefect/workers/process.py"
+      - "scripts/repro_windows_worker.py"
       - "scripts/test_unc_paths.py"
       - "tests/cli/test_work_pool.py"
       - "tests/runner/test__starter_engine.py"
@@ -29,6 +52,7 @@ permissions: {}
 jobs:
   run-tests-sqlite:
     name: Test with SQLite
+    if: github.event_name != 'workflow_dispatch' || inputs.repro_worker_only != true
 
     strategy:
       matrix:
@@ -72,7 +96,7 @@ jobs:
   test-unc-paths:
     name: Test Windows UNC Paths
     # Only run this job when triggered manually
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && inputs.repro_worker_only != true
 
     runs-on: windows-latest
     timeout-minutes: 5
@@ -110,3 +134,105 @@ jobs:
         shell: pwsh
         run: |
           Remove-SmbShare -Name "PrefectTest" -Force
+
+  repro-worker:
+    name: Repro worker liveness
+    if: github.event_name == 'workflow_dispatch' && inputs.repro_worker_only == true
+
+    runs-on: windows-latest
+    timeout-minutes: 360
+
+    env:
+      PREFECT_API_URL: http://127.0.0.1:4200/api
+      PY_COLORS: 1
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+          filter: blob:none
+
+      - name: Set up uv and Python ${{ inputs.repro_python_version }}
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          python-version: ${{ inputs.repro_python_version }}
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Run released Prefect repro
+        if: ${{ inputs.repro_prefect_version != 'local' }}
+        shell: pwsh
+        run: |
+          $requirements = @(
+            "--no-project",
+            "--python", "${{ inputs.repro_python_version }}",
+            "--with", "prefect==${{ inputs.repro_prefect_version }}",
+            "--with", "httpx"
+          )
+          $scriptArgs = @(
+            "scripts/repro_windows_worker.py",
+            "--duration-minutes", "${{ inputs.repro_duration_minutes }}",
+            "--monitor-interval-seconds", "${{ inputs.repro_monitor_interval_seconds }}",
+            "--worker-log-path", "worker.log"
+          )
+
+          $server = Start-Process `
+            -FilePath "uv" `
+            -ArgumentList (@("run") + $requirements + @("prefect", "server", "start", "--analytics-off", "--host", "127.0.0.1")) `
+            -RedirectStandardOutput "server.log" `
+            -RedirectStandardError "server-error.log" `
+            -PassThru `
+            -NoNewWindow
+
+          try {
+            uv run @requirements scripts/wait-for-server.py 180
+            uv run @requirements @scriptArgs
+          } finally {
+            if (-not $server.HasExited) {
+              Stop-Process -Id $server.Id -Force
+            }
+          }
+
+      - name: Install local checkout
+        if: ${{ inputs.repro_prefect_version == 'local' }}
+        run: uv sync --locked
+
+      - name: Run local checkout repro
+        if: ${{ inputs.repro_prefect_version == 'local' }}
+        shell: pwsh
+        run: |
+          $scriptArgs = @(
+            "scripts/repro_windows_worker.py",
+            "--duration-minutes", "${{ inputs.repro_duration_minutes }}",
+            "--monitor-interval-seconds", "${{ inputs.repro_monitor_interval_seconds }}",
+            "--worker-log-path", "worker.log"
+          )
+
+          $server = Start-Process `
+            -FilePath "uv" `
+            -ArgumentList @("run", "prefect", "server", "start", "--analytics-off", "--host", "127.0.0.1") `
+            -RedirectStandardOutput "server.log" `
+            -RedirectStandardError "server-error.log" `
+            -PassThru `
+            -NoNewWindow
+
+          try {
+            uv run scripts/wait-for-server.py 180
+            uv run @scriptArgs
+          } finally {
+            if (-not $server.HasExited) {
+              Stop-Process -Id $server.Id -Force
+            }
+          }
+
+      - name: Upload repro logs
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: windows-worker-repro-logs
+          path: |
+            worker.log
+            server.log
+            server-error.log
+          if-no-files-found: ignore
