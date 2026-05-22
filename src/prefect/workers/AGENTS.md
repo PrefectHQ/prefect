@@ -26,7 +26,7 @@ This module does NOT manage the Runner execution model (no work pool) — see `r
 Workers stamp two env vars into `os.environ` for their own process, so all API requests include attribution headers:
 
 - `PREFECT__WORKER_NAME` — set in `setup()` immediately
-- `PREFECT__WORKER_ID` — set in `sync_with_backend()` after the first successful heartbeat returns a backend ID
+- `PREFECT__WORKER_ID` — set only when the server returns a non-None `worker_id` in the ready frame. The OSS server always returns `worker_id=None` (the worker is recorded in the DB with a real ID, but that ID is not sent back), so this var is never set on OSS — only Prefect Cloud returns a non-None `worker_id`.
 
 **Teardown guard**: `teardown()` only removes these vars if they still match the current worker instance (`os.environ.get("PREFECT__WORKER_NAME") == self.name`). This prevents a second worker sharing the same process from having its vars cleared.
 
@@ -47,7 +47,7 @@ Work-pool-level launchers are configured via `prefect work-pool storage configur
 
 ## Pitfalls
 
-- `backend_id` is `None` until the first heartbeat succeeds; `PREFECT__WORKER_ID` is not set until then. Code that reads `self.backend_id` early in the lifecycle may get `None`.
+- `backend_id` is always `None` on the OSS server throughout the entire worker lifecycle — the ready frame deliberately returns `worker_id=None` even though the worker is recorded in the DB with a real ID. Do not use `backend_id is not None` as a proxy for channel health. `PREFECT__WORKER_ID` is never set on OSS; only Prefect Cloud returns a non-None `worker_id` in the ready frame.
 - `ProcessWorker` calls the deprecated `Runner.execute_flow_run()` / `Runner.execute_bundle()` paths (suppressing `PrefectDeprecationWarning` with `warnings.catch_warnings()`). It bypasses `FlowRunExecutor` and `ProcessStarter` — this is a known migration gap (see `runner/AGENTS.md`).
 
 ## Related
