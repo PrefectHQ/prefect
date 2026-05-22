@@ -51,6 +51,7 @@ jobs:
 
     name: "Run Tests for ${{ matrix.package }} on Python ${{ matrix.python-version }}${{ matrix.dependency-override && format(' ({0})', matrix.dependency-override) || '' }}"
     needs: prepare-matrix
+    if: ${{ needs.prepare-matrix.outputs.matrix != '{"include":[]}' }}
     runs-on: ubuntu-latest
     strategy:
       matrix: ${{fromJson(needs.prepare-matrix.outputs.matrix)}}
