@@ -20,6 +20,7 @@ from prefect_kubernetes.observer import (
 
 from prefect.client.schemas.objects import FlowRun, State
 from prefect.events.schemas.events import RelatedResource, Resource
+from prefect.types import DateTime
 
 
 @pytest.fixture
@@ -105,6 +106,114 @@ class TestReplicatePodEvent:
                 }
             )
         ]
+
+    @pytest.mark.parametrize(
+        "event,status,expected_event,expected_occurred",
+        [
+            (
+                {
+                    "type": "ADDED",
+                    "object": {
+                        "metadata": {"creationTimestamp": "2026-05-11T09:30:00Z"}
+                    },
+                },
+                {"phase": "Pending"},
+                "prefect.kubernetes.pod.pending",
+                "2026-05-11T09:30:00+00:00",
+            ),
+            (
+                {
+                    "type": "MODIFIED",
+                    "object": {
+                        "metadata": {"creationTimestamp": "2026-05-11T09:29:55Z"}
+                    },
+                },
+                {
+                    "phase": "Running",
+                    "startTime": "2026-05-11T09:30:01Z",
+                    "containerStatuses": [
+                        {
+                            "name": "main",
+                            "state": {"running": {"startedAt": "2026-05-11T09:30:07Z"}},
+                        }
+                    ],
+                },
+                "prefect.kubernetes.pod.running",
+                "2026-05-11T09:30:07+00:00",
+            ),
+            (
+                {"type": "MODIFIED"},
+                {"phase": "Running", "startTime": "2026-05-11T09:30:01Z"},
+                "prefect.kubernetes.pod.running",
+                "2026-05-11T09:30:01+00:00",
+            ),
+            (
+                {"type": "MODIFIED"},
+                {
+                    "phase": "Succeeded",
+                    "containerStatuses": [
+                        {
+                            "name": "main",
+                            "state": {
+                                "terminated": {"finishedAt": "2026-05-11T10:00:00Z"}
+                            },
+                        },
+                        {
+                            "name": "sidecar",
+                            "state": {
+                                "terminated": {"finishedAt": "2026-05-11T10:00:05Z"}
+                            },
+                        },
+                    ],
+                },
+                "prefect.kubernetes.pod.succeeded",
+                "2026-05-11T10:00:05+00:00",
+            ),
+            (
+                {"type": "MODIFIED"},
+                {
+                    "phase": "Failed",
+                    "containerStatuses": [
+                        {
+                            "name": "main",
+                            "state": {
+                                "terminated": {
+                                    "reason": "Evicted",
+                                    "finishedAt": "2026-05-11T11:05:49Z",
+                                }
+                            },
+                        }
+                    ],
+                },
+                "prefect.kubernetes.pod.evicted",
+                "2026-05-11T11:05:49+00:00",
+            ),
+        ],
+    )
+    async def test_uses_kubernetes_timestamp_for_occurred(
+        self,
+        mock_events_client: AsyncMock,
+        event: dict[str, object],
+        status: dict[str, object],
+        expected_event: str,
+        expected_occurred: str,
+    ):
+        await _replicate_pod_event(
+            event=event,
+            uid=str(uuid.uuid4()),
+            name="test",
+            namespace="test",
+            labels={
+                "prefect.io/flow-run-id": str(uuid.uuid4()),
+                "prefect.io/flow-run-name": "test-run",
+            },
+            status=status,
+            logger=MagicMock(),
+        )
+
+        emitted_event = mock_events_client.emit.call_args[1]["event"]
+        assert emitted_event.event == expected_event
+        assert emitted_event.occurred == DateTime.fromisoformat(expected_occurred)
 
     async def test_deterministic_event_id(self, mock_events_client: AsyncMock):
         """Test that the event ID is deterministic"""
