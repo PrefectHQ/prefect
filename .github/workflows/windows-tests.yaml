@@ -168,7 +168,8 @@ jobs:
             "--no-project",
             "--python", "${{ inputs.repro_python_version }}",
             "--with", "prefect==${{ inputs.repro_prefect_version }}",
-            "--with", "httpx"
+            "--with", "httpx",
+            "--with", "importlib-metadata"
           )
           $scriptArgs = @(
             "scripts/repro_windows_worker.py",
@@ -186,8 +187,10 @@ jobs:
             -NoNewWindow
 
           try {
-            uv run @requirements scripts/wait-for-server.py 180
+            uv run @requirements scripts/wait-for-server.py
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             uv run @requirements @scriptArgs
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           } finally {
             if (-not $server.HasExited) {
               Stop-Process -Id $server.Id -Force
@@ -218,8 +221,10 @@ jobs:
             -NoNewWindow
 
           try {
-            uv run scripts/wait-for-server.py 180
+            uv run scripts/wait-for-server.py
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
             uv run @scriptArgs
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           } finally {
             if (-not $server.HasExited) {
               Stop-Process -Id $server.Id -Force
