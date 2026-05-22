@@ -588,14 +588,18 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                 raise ValueError("lease_duration must be positive")
             return lease_duration
 
-        worker_communication = get_current_settings().server.worker_communication
-        return timedelta(seconds=worker_communication.cleanup_lease_seconds)
+        server_settings = get_current_settings().server
+        return timedelta(
+            seconds=server_settings.worker_communication_cleanup_lease_seconds
+        )
 
     @staticmethod
     def _max_delivery_attempts(max_delivery_attempts: int | None) -> int:
         if max_delivery_attempts is None:
-            worker_communication = get_current_settings().server.worker_communication
-            max_delivery_attempts = worker_communication.cleanup_max_delivery_attempts
+            server_settings = get_current_settings().server
+            max_delivery_attempts = (
+                server_settings.worker_communication_cleanup_max_delivery_attempts
+            )
         if max_delivery_attempts < 1:
             raise ValueError("max_delivery_attempts must be at least 1")
         return max_delivery_attempts

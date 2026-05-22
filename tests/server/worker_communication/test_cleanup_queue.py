@@ -62,7 +62,7 @@ async def test_get_worker_cleanup_queue_uses_default_in_memory_backend() -> None
     settings = get_current_settings()
 
     assert (
-        settings.server.worker_communication.cleanup_queue_storage
+        settings.server.worker_communication_cleanup_queue_storage
         == "prefect.server.worker_communication.cleanup_queue.memory"
     )
     assert isinstance(get_worker_cleanup_queue(), WorkerCleanupQueue)

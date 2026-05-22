@@ -166,15 +166,12 @@ def get_worker_cleanup_queue() -> WorkerCleanupQueue:
     """
     Return a cleanup queue instance from the configured storage module.
     """
-    worker_communication = get_current_settings().server.worker_communication
-    cleanup_queue_module = importlib.import_module(
-        worker_communication.cleanup_queue_storage
-    )
+    server_settings = get_current_settings().server
+    storage_module = server_settings.worker_communication_cleanup_queue_storage
+    cleanup_queue_module = importlib.import_module(storage_module)
     if not isinstance(cleanup_queue_module, WorkerCleanupQueueModule):
         raise ValueError(
-            "The module "
-            f"{worker_communication.cleanup_queue_storage} does not contain a "
-            "WorkerCleanupQueue class"
+            f"The module {storage_module} does not contain a WorkerCleanupQueue class"
         )
     return cleanup_queue_module.WorkerCleanupQueue()
 

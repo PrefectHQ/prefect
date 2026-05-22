@@ -22,7 +22,6 @@ from .logs import ServerLogsSettings
 from .services import ServerServicesSettings
 from .tasks import ServerTasksSettings
 from .ui import ServerUISettings
-from .worker_communication import ServerWorkerCommunicationSettings
 
 
 class ServerSettings(PrefectBaseSettings):
@@ -110,6 +109,32 @@ class ServerSettings(PrefectBaseSettings):
         ),
     )
 
+    worker_communication_cleanup_queue_storage: str = Field(
+        default="prefect.server.worker_communication.cleanup_queue.memory",
+        description=(
+            "The module to use for storing worker cleanup delivery messages. "
+            "The default in-memory backend stores messages, leases, wakeups, "
+            "and dead-letter entries only in the current server process; use a "
+            "Redis-backed storage module for high availability or restart-safe "
+            "cleanup delivery."
+        ),
+    )
+
+    worker_communication_cleanup_lease_seconds: float = Field(
+        default=30.0,
+        gt=0.0,
+        description="The default cleanup message reservation lease duration in seconds.",
+    )
+
+    worker_communication_cleanup_max_delivery_attempts: int = Field(
+        default=3,
+        ge=1,
+        description=(
+            "The maximum number of committed cleanup reservations before a "
+            "message is moved to the dead-letter queue."
+        ),
+    )
+
     api: ServerAPISettings = Field(
         default_factory=ServerAPISettings,
         description="Settings for controlling API server behavior",
@@ -157,8 +182,4 @@ class ServerSettings(PrefectBaseSettings):
     ui: ServerUISettings = Field(
         default_factory=ServerUISettings,
         description="Settings for controlling server UI behavior",
-    )
-    worker_communication: ServerWorkerCommunicationSettings = Field(
-        default_factory=ServerWorkerCommunicationSettings,
-        description="Settings for controlling server worker communication behavior",
     )
