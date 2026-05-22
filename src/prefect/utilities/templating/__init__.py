@@ -473,6 +473,7 @@ async def resolve_variables(template: T, client: Optional["PrefectClient"] = Non
         assert client is not None
 
     _SENTINEL = object()
+    _MISSING = object()
     cache: dict[str, Any] = {}
 
     async def _read_variable(name: str) -> Any:
@@ -481,9 +482,11 @@ async def resolve_variables(template: T, client: Optional["PrefectClient"] = Non
         if cached is not _SENTINEL:
             return cached
         variable = await client.read_variable_by_name(name=variable_name)
-        value = variable.value if variable is not None else None
-        cache[variable_name] = value
-        return value
+        if variable is None:
+            cache[variable_name] = _MISSING
+            return _MISSING
+        cache[variable_name] = variable.value
+        return variable.value
 
     async def _resolve(tmpl: T) -> T:
         if isinstance(tmpl, str):
@@ -500,7 +503,7 @@ async def resolve_variables(template: T, client: Optional["PrefectClient"] = Non
                 and list(placeholders)[0].type is PlaceholderType.VARIABLE
             ):
                 value = await _read_variable(list(placeholders)[0].name)
-                if value is None:
+                if value is _MISSING:
                     return ""
                 else:
                     return cast(T, value)
@@ -508,7 +511,7 @@ async def resolve_variables(template: T, client: Optional["PrefectClient"] = Non
                 for full_match, name, placeholder_type in placeholders:
                     if placeholder_type is PlaceholderType.VARIABLE:
                         value = await _read_variable(name)
-                        if value is None:
+                        if value is _MISSING:
                             tmpl = tmpl.replace(full_match, "")
                         else:
                             tmpl = tmpl.replace(full_match, str(value))
