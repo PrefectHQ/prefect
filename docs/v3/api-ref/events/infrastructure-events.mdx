@@ -194,7 +194,11 @@ labeled with `prefect.io/flow-run-id`.
 
 Emitted when a Kubernetes pod transitions to a new phase. Events use deterministic
 IDs based on the pod UID, phase, and restart count for deduplication. Events
-within 5 minutes of each other are chained using the `follows` field.
+within 5 minutes of each other are chained using the `follows` field. The
+`occurred` timestamp reflects the actual Kubernetes lifecycle time for the phase
+transition (for example, container start time for `running`, container termination
+time for `succeeded` or `failed`, pod creation time for `pending`) rather than
+when the observer detected the change.
 
 ##### Phase variants
 
