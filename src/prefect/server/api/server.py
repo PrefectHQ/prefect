@@ -21,11 +21,10 @@ import subprocess
 import sys
 import time
 from contextlib import AsyncExitStack, asynccontextmanager
-from dataclasses import dataclass
 from datetime import timedelta
 from functools import wraps
 from hashlib import sha256
-from typing import Any, AsyncGenerator, Awaitable, Callable, Literal, Optional
+from typing import Any, AsyncGenerator, Awaitable, Callable, Optional
 
 import anyio
 import asyncpg
@@ -52,6 +51,7 @@ from prefect._internal.compatibility.starlette import status
 from prefect._internal.observability import configure_logfire
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.logging import get_logger
+from prefect.server.api._ui_static import UIBundle, UIVersion, log_ui_static_copy_error
 from prefect.server.api.background_workers import background_worker
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
 from prefect.server.exceptions import ObjectNotFoundError
@@ -128,7 +128,6 @@ SQLITE_LOCKED_MSG = "database is locked"
 UI_VERSION_COOKIE_NAME = "prefect_ui_version"
 UI_VERSION_PATH_SEGMENT = "v2"
 UI_STATIC_REFERENCE_FILE_NAME = "UI_SERVE_BASE"
-UIVersion = Literal["v1", "v2"]
 
 
 class _SQLiteLockedOperationalErrorFilter(logging.Filter):
@@ -181,16 +180,6 @@ class SPAStaticFiles(StaticFiles):
             return await super().get_response(path, scope)
         except HTTPException:
             return await super().get_response("./index.html", scope)
-
-
-@dataclass(frozen=True)
-class UIBundle:
-    version: UIVersion
-    source_static_path: str
-    static_dir: str
-    base_url: str
-    cache_key: str
-    mount_name: str
 
 
 def _normalize_ui_base_url(base_url: str) -> str:
@@ -749,15 +738,8 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
             if not reference_file_matches_cache_key(bundle):
                 try:
                     create_ui_static_subpath(bundle)
-                except PermissionError as exc:
-                    logger.error(
-                        "Failed to create %s UI static directory at %s: %s. "
-                        "That UI will not be available. "
-                        "To resolve this, set PREFECT_UI_STATIC_DIRECTORY to a writable directory.",
-                        bundle.version.upper(),
-                        bundle.static_dir,
-                        exc,
-                    )
+                except OSError as exc:
+                    log_ui_static_copy_error(bundle, exc, logger)
                     continue
 
             mounted_bundles[bundle.version] = bundle
