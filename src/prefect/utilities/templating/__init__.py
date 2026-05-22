@@ -25,6 +25,7 @@ if TYPE_CHECKING:
     import logging
 
     from prefect.client.orchestration import PrefectClient
+    from prefect.client.schemas.objects import BlockDocument
 
 
 T = TypeVar("T", str, int, float, bool, dict[Any, Any], list[Any], None)
@@ -339,14 +340,14 @@ async def resolve_block_document_references(
         # the function signature must mark it as optional to callers.
         assert client is not None
 
-    block_document_by_id_cache: dict[Any, Any] = {}
-    block_document_by_name_cache: dict[tuple[str, str], Any] = {}
+    block_documents_by_id: dict[Any, "BlockDocument"] = {}
+    block_documents_by_name: dict[tuple[str, str], "BlockDocument"] = {}
 
     async def _read_block_document_by_name(
         block_type_slug: str, block_document_name: str
-    ) -> Any:
+    ) -> "BlockDocument":
         cache_key = (block_type_slug, block_document_name)
-        if cache_key not in block_document_by_name_cache:
+        if cache_key not in block_documents_by_name:
             try:
                 block_document = await client.read_block_document_by_name(
                     name=block_document_name, block_type_slug=block_type_slug
@@ -360,12 +361,12 @@ async def resolve_block_document_references(
                         f"It may have been deleted. Please check your configuration or create a new block."
                     ),
                 ) from exc
-            block_document_by_name_cache[cache_key] = block_document
+            block_documents_by_name[cache_key] = block_document
 
-        return block_document_by_name_cache[cache_key]
+        return block_documents_by_name[cache_key]
 
-    async def _read_block_document_by_id(block_document_id: Any) -> Any:
-        if block_document_id not in block_document_by_id_cache:
+    async def _read_block_document_by_id(block_document_id: Any) -> "BlockDocument":
+        if block_document_id not in block_documents_by_id:
             try:
                 block_document = await client.read_block_document(block_document_id)
             except prefect.exceptions.ObjectNotFound as exc:
@@ -377,13 +378,11 @@ async def resolve_block_document_references(
                         f"It may have been deleted. Please check your configuration or create a new block."
                     ),
                 ) from exc
-            block_document_by_id_cache[block_document_id] = block_document
+            block_documents_by_id[block_document_id] = block_document
 
-        return block_document_by_id_cache[block_document_id]
+        return block_documents_by_id[block_document_id]
 
-    async def _resolve_single_placeholder(
-        placeholder: Placeholder, tmpl: T
-    ) -> Any:
+    async def _resolve_single_placeholder(placeholder: Placeholder, tmpl: T) -> Any:
         parts = placeholder.name.replace(BLOCK_DOCUMENT_PLACEHOLDER_PREFIX, "").split(
             ".", 2
         )
