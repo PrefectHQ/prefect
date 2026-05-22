@@ -63,10 +63,13 @@ def _parse_k8s_datetime(value: Any) -> DateTime | None:
 
 
 def _container_state_times(
-    status: kopf.Status, state: str, timestamp_key: str
+    status: kopf.Status,
+    state: str,
+    timestamp_key: str,
+    status_keys: tuple[str, ...] = ("containerStatuses",),
 ) -> list[DateTime]:
     timestamps: list[DateTime] = []
-    for status_key in ("initContainerStatuses", "containerStatuses"):
+    for status_key in status_keys:
         for container_status in status.get(status_key, []) or []:
             container_state = container_status.get("state") or {}
             state_details = container_state.get(state) or {}
@@ -85,11 +88,16 @@ def _pod_phase_occurred(
     if phase == "Running":
         running_times = _container_state_times(status, "running", "startedAt")
         if running_times:
-            return min(running_times)
+            return max(running_times)
         return _parse_k8s_datetime(status.get("startTime"))
 
     if phase in {"Succeeded", "Failed", "evicted"}:
-        terminated_times = _container_state_times(status, "terminated", "finishedAt")
+        terminated_times = _container_state_times(
+            status,
+            "terminated",
+            "finishedAt",
+            status_keys=("initContainerStatuses", "containerStatuses"),
+        )
         if terminated_times:
             return max(terminated_times)
 

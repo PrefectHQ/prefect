@@ -143,6 +143,31 @@ class TestReplicatePodEvent:
             ),
             (
                 {"type": "MODIFIED"},
+                {
+                    "phase": "Running",
+                    "startTime": "2026-05-11T09:30:01Z",
+                    "initContainerStatuses": [
+                        {
+                            "name": "native-sidecar",
+                            "state": {"running": {"startedAt": "2026-05-11T09:29:59Z"}},
+                        }
+                    ],
+                    "containerStatuses": [
+                        {
+                            "name": "main",
+                            "state": {"running": {"startedAt": "2026-05-11T09:30:07Z"}},
+                        },
+                        {
+                            "name": "worker",
+                            "state": {"running": {"startedAt": "2026-05-11T10:00:00Z"}},
+                        },
+                    ],
+                },
+                "prefect.kubernetes.pod.running",
+                "2026-05-11T10:00:00+00:00",
+            ),
+            (
+                {"type": "MODIFIED"},
                 {"phase": "Running", "startTime": "2026-05-11T09:30:01Z"},
                 "prefect.kubernetes.pod.running",
                 "2026-05-11T09:30:01+00:00",
