@@ -675,6 +675,56 @@ class TestResolveVariables:
         result = await resolve_variables(template, client=prefect_client)
         assert result == " - "
 
+    async def test_resolve_caches_variable_reads_within_single_call(self):
+        """Repeated variable placeholders only trigger one API read per name."""
+        from unittest.mock import AsyncMock
+
+        from prefect.client.schemas.objects import Variable
+
+        calls: list[str] = []
+        existing_var = Variable(
+            name="my_var",
+            value={"key": "val"},
+            tags=[],
+        )
+
+        async def fake_read_variable_by_name(name: str) -> Variable | None:
+            calls.append(name)
+            if name == "my_var":
+                return existing_var
+            return None
+
+        fake_client = AsyncMock()
+        fake_client.read_variable_by_name = fake_read_variable_by_name
+
+        template: Dict[str, Any] = {
+            "full": "{{ prefect.variables.my_var }}",
+            "inline": "prefix-{{ prefect.variables.my_var }}-suffix",
+            "missing_full": "{{ prefect.variables.gone }}",
+            "missing_inline": "x{{ prefect.variables.gone }}y",
+            "nested": {
+                "repeat": "{{ prefect.variables.my_var }}",
+                "other": "{{ prefect.variables.gone }}",
+            },
+        }
+
+        result = await resolve_variables(template, client=fake_client)
+
+        assert result == {
+            "full": {"key": "val"},
+            "inline": "prefix-{'key': 'val'}-suffix",
+            "missing_full": "",
+            "missing_inline": "xy",
+            "nested": {
+                "repeat": {"key": "val"},
+                "other": "",
+            },
+        }
+
+        assert calls.count("my_var") == 1
+        assert calls.count("gone") == 1
+        assert len(calls) == 2
+
 
 class TestInvalidBlockPlaceholderValidation:
     """Tests for clear error messages on malformed block placeholder format."""

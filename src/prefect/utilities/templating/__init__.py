@@ -472,43 +472,52 @@ async def resolve_variables(template: T, client: Optional["PrefectClient"] = Non
         # the function signature must mark it as optional to callers.
         assert client is not None
 
-    if isinstance(template, str):
-        placeholders = find_placeholders(template)
-        has_variable_placeholder = any(
-            placeholder.type is PlaceholderType.VARIABLE for placeholder in placeholders
-        )
-        if not placeholders or not has_variable_placeholder:
-            # If there are no values, we can just use the template
-            return template
-        elif (
-            len(placeholders) == 1
-            and list(placeholders)[0].full_match == template
-            and list(placeholders)[0].type is PlaceholderType.VARIABLE
-        ):
-            variable_name = list(placeholders)[0].name.replace(
-                VARIABLE_PLACEHOLDER_PREFIX, ""
+    _SENTINEL = object()
+    cache: dict[str, Any] = {}
+
+    async def _read_variable(name: str) -> Any:
+        variable_name = name.replace(VARIABLE_PLACEHOLDER_PREFIX, "")
+        cached = cache.get(variable_name, _SENTINEL)
+        if cached is not _SENTINEL:
+            return cached
+        variable = await client.read_variable_by_name(name=variable_name)
+        value = variable.value if variable is not None else None
+        cache[variable_name] = value
+        return value
+
+    async def _resolve(tmpl: T) -> T:
+        if isinstance(tmpl, str):
+            placeholders = find_placeholders(tmpl)
+            has_variable_placeholder = any(
+                placeholder.type is PlaceholderType.VARIABLE
+                for placeholder in placeholders
             )
-            variable = await client.read_variable_by_name(name=variable_name)
-            if variable is None:
-                return ""
+            if not placeholders or not has_variable_placeholder:
+                return tmpl
+            elif (
+                len(placeholders) == 1
+                and list(placeholders)[0].full_match == tmpl
+                and list(placeholders)[0].type is PlaceholderType.VARIABLE
+            ):
+                value = await _read_variable(list(placeholders)[0].name)
+                if value is None:
+                    return ""
+                else:
+                    return cast(T, value)
             else:
-                return cast(T, variable.value)
+                for full_match, name, placeholder_type in placeholders:
+                    if placeholder_type is PlaceholderType.VARIABLE:
+                        value = await _read_variable(name)
+                        if value is None:
+                            tmpl = tmpl.replace(full_match, "")
+                        else:
+                            tmpl = tmpl.replace(full_match, str(value))
+                return tmpl
+        elif isinstance(tmpl, dict):
+            return {key: await _resolve(value) for key, value in tmpl.items()}
+        elif isinstance(tmpl, list):
+            return [await _resolve(item) for item in tmpl]
         else:
-            for full_match, name, placeholder_type in placeholders:
-                if placeholder_type is PlaceholderType.VARIABLE:
-                    variable_name = name.replace(VARIABLE_PLACEHOLDER_PREFIX, "")
-                    variable = await client.read_variable_by_name(name=variable_name)
-                    if variable is None:
-                        template = template.replace(full_match, "")
-                    else:
-                        template = template.replace(full_match, str(variable.value))
-            return template
-    elif isinstance(template, dict):
-        return {
-            key: await resolve_variables(value, client=client)
-            for key, value in template.items()
-        }
-    elif isinstance(template, list):
-        return [await resolve_variables(item, client=client) for item in template]
-    else:
-        return template
+            return tmpl
+
+    return await _resolve(template)
