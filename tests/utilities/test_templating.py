@@ -1,4 +1,5 @@
 import uuid
+from types import SimpleNamespace
 from typing import Any, Dict
 
 import pytest
@@ -433,6 +434,34 @@ class TestResolveBlockDocumentReferences:
 
         assert result == [block_document.data]
 
+    async def test_resolve_block_document_references_caches_block_document_refs_by_id(
+        self,
+    ):
+        """Repeated block document ID references only trigger one API read."""
+        block_document_id = uuid.uuid4()
+        calls: list[uuid.UUID] = []
+
+        class FakeClient:
+            async def read_block_document(
+                self, block_document_id: uuid.UUID
+            ) -> SimpleNamespace:
+                calls.append(block_document_id)
+                return SimpleNamespace(data={"nested": {"value": "hello"}})
+
+        template = {
+            "first": {"$ref": {"block_document_id": block_document_id}},
+            "second": {"$ref": {"block_document_id": block_document_id}},
+        }
+
+        result = await resolve_block_document_references(template, client=FakeClient())
+
+        assert result == {
+            "first": {"nested": {"value": "hello"}},
+            "second": {"nested": {"value": "hello"}},
+        }
+        assert calls == [block_document_id]
+        assert result["first"] is not result["second"]
+
     async def test_resolve_block_document_references_with_dot_delimited_syntax(
         self, prefect_client, block_document_id
     ):
@@ -449,6 +478,39 @@ class TestResolveBlockDocumentReferences:
         )
 
         assert result == {"key": block_document.data}
+
+    async def test_resolve_block_document_references_caches_block_document_refs_by_name(
+        self,
+    ):
+        """Repeated named block placeholders only trigger one API read."""
+        calls: list[tuple[str, str]] = []
+
+        class FakeClient:
+            async def read_block_document_by_name(
+                self, name: str, block_type_slug: str
+            ) -> SimpleNamespace:
+                calls.append((block_type_slug, name))
+                return SimpleNamespace(data={"a": 1, "b": "hello"})
+
+        template = {
+            "full": "{{ prefect.blocks.arbitraryblock.my-block }}",
+            "inline": "prefix-{{ prefect.blocks.arbitraryblock.my-block.b }}-suffix",
+            "nested": {
+                "repeat": "{{ prefect.blocks.arbitraryblock.my-block }}",
+            },
+        }
+
+        result = await resolve_block_document_references(template, client=FakeClient())
+
+        assert result == {
+            "full": {"a": 1, "b": "hello"},
+            "inline": "prefix-hello-suffix",
+            "nested": {
+                "repeat": {"a": 1, "b": "hello"},
+            },
+        }
+        assert calls == [("arbitraryblock", "my-block")]
+        assert result["full"] is not result["nested"]["repeat"]
 
     async def test_resolve_block_document_references_allows_inline_substitution(
         self, prefect_client, block_document_id
