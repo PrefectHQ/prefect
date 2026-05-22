@@ -386,7 +386,7 @@ async def _build_worker_ready_frame(
             sent_at=now("UTC"),
             payload={
                 "consumer_id": hello.payload.consumer_id,
-                "worker_id": worker.id,
+                "worker_id": None,
                 "selected_channel_version": selected_channel_version,
                 "effective_heartbeat_interval_seconds": (
                     hello.payload.heartbeat_interval_seconds
