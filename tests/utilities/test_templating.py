@@ -1,5 +1,4 @@
 import uuid
-from types import SimpleNamespace
 from typing import Any, Dict
 
 import pytest
@@ -438,13 +437,13 @@ class TestResolveBlockDocumentReferences:
         self,
     ):
         """Repeated block document ID references only trigger one API read."""
+        from types import SimpleNamespace
+
         block_document_id = uuid.uuid4()
         calls: list[uuid.UUID] = []
 
         class FakeClient:
-            async def read_block_document(
-                self, block_document_id: uuid.UUID
-            ) -> SimpleNamespace:
+            async def read_block_document(self, block_document_id):
                 calls.append(block_document_id)
                 return SimpleNamespace(data={"nested": {"value": "hello"}})
 
@@ -483,12 +482,12 @@ class TestResolveBlockDocumentReferences:
         self,
     ):
         """Repeated named block placeholders only trigger one API read."""
+        from types import SimpleNamespace
+
         calls: list[tuple[str, str]] = []
 
         class FakeClient:
-            async def read_block_document_by_name(
-                self, name: str, block_type_slug: str
-            ) -> SimpleNamespace:
+            async def read_block_document_by_name(self, name, block_type_slug):
                 calls.append((block_type_slug, name))
                 return SimpleNamespace(data={"a": 1, "b": "hello"})
 
