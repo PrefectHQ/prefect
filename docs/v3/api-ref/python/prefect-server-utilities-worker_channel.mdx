@@ -1,0 +1,90 @@
+---
+title: worker_channel
+sidebarTitle: worker_channel
+---
+
+# `prefect.server.utilities.worker_channel`
+
+## Functions
+
+### `work_pool_update_triggers_snapshot` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L61" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+work_pool_update_triggers_snapshot(update_values: Mapping[str, Any]) -> bool
+```
+
+### `close_worker_channel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L270" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+close_worker_channel(websocket: WebSocket, close_reason: WorkerChannelCloseReason) -> None
+```
+
+### `build_worker_channel_work_pool_snapshot` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L277" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+build_worker_channel_work_pool_snapshot(session: AsyncSession, work_pool: ORMWorkPool) -> WorkPoolSnapshot
+```
+
+### `publish_snapshot_invalidation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L317" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+publish_snapshot_invalidation(invalidation: WorkerChannelSnapshotInvalidation) -> None
+```
+
+### `parse_snapshot_invalidation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L332" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+parse_snapshot_invalidation(message: messaging.Message) -> WorkerChannelSnapshotInvalidation
+```
+
+## Classes
+
+### `WorkerChannelSnapshotInvalidation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L52" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate_list(cls, obj: Any) -> list[Self]
+```
+
+#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_fields(self: Self) -> Self
+```
+
+Reset the fields of the model that are in the `_reset_fields` set.
+
+**Returns:**
+- A new instance of the model with the reset fields.
+
+
+#### `targets` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L57" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+targets(self) -> bool
+```
+
+### `WorkerChannelConnection` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L65" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `close` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L129" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+close(self, close_reason: WorkerChannelCloseReason) -> None
+```
+
+#### `queue_snapshot` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L137" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+queue_snapshot(self, invalidation: WorkerChannelSnapshotInvalidation) -> None
+```
+
+#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L89" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run(self, ready: WorkerReadyFrame, consumer_kwargs: Mapping[str, Any]) -> None
+```

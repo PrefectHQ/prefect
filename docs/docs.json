@@ -1734,7 +1734,8 @@
                           "v3/api-ref/python/prefect-server-utilities-server",
                           "v3/api-ref/python/prefect-server-utilities-subscriptions",
                           "v3/api-ref/python/prefect-server-utilities-text_search_parser",
-                          "v3/api-ref/python/prefect-server-utilities-user_templates"
+                          "v3/api-ref/python/prefect-server-utilities-user_templates",
+                          "v3/api-ref/python/prefect-server-utilities-worker_channel"
                         ]
                       }
                     ]
