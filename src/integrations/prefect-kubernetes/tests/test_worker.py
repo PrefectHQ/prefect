@@ -2041,14 +2041,17 @@ class TestKubernetesWorker:
         # Regression test for #16447: concurrent job submissions race on
         # creating the API key secret. The losing call sees a 404 on read,
         # attempts to create, and gets a 409 from the winner's create. It must
-        # recover by re-reading and replacing instead of crashing the flow run.
+        # recover by re-reading the winner's secret instead of crashing the
+        # flow run. Since both workers derive the same value, we leave the
+        # winner's secret in place rather than replacing it.
         name, namespace = "prefect-test-api-key", "default"
+        encoded = base64.b64encode(b"shared-value").decode("utf-8")
         core_client = mock_core_client.return_value
         existing_secret = V1Secret(
             api_version="v1",
             kind="Secret",
             metadata=V1ObjectMeta(name=name, namespace=namespace),
-            data={"value": base64.b64encode(b"stale").decode("utf-8")},
+            data={"value": encoded},
         )
         core_client.read_namespaced_secret.side_effect = [
             ApiException(status=404),  # initial read: secret absent
@@ -2057,20 +2060,48 @@ class TestKubernetesWorker:
         core_client.create_namespaced_secret.side_effect = ApiException(status=409)
 
         async with KubernetesWorker(work_pool_name="test") as k8s_worker:
-            await k8s_worker._upsert_secret(
+            secret = await k8s_worker._upsert_secret(
                 name=name,
-                value="winning-value",
+                value="shared-value",
                 namespace=namespace,
                 client=MagicMock(spec=ApiClient),
             )
 
-        # Our value wins via replace using the re-read resourceVersion.
-        core_client.replace_namespaced_secret.assert_awaited_once()
-        replaced = core_client.replace_namespaced_secret.await_args.kwargs["body"]
-        assert replaced.data == {
-            "value": base64.b64encode(b"winning-value").decode("utf-8")
-        }
+        # We keep the winner's secret without replacing it.
+        assert secret is existing_secret
+        core_client.replace_namespaced_secret.assert_not_called()
         assert core_client.read_namespaced_secret.await_count == 2
+
+    async def test_upsert_secret_raises_on_concurrent_create_value_mismatch(
+        self,
+        mock_core_client,
+    ):
+        # If a concurrent create wins with a *different* value, surface the
+        # conflict rather than silently using a value we did not intend.
+        name, namespace = "prefect-test-api-key", "default"
+        core_client = mock_core_client.return_value
+        existing_secret = V1Secret(
+            api_version="v1",
+            kind="Secret",
+            metadata=V1ObjectMeta(name=name, namespace=namespace),
+            data={"value": base64.b64encode(b"other-value").decode("utf-8")},
+        )
+        core_client.read_namespaced_secret.side_effect = [
+            ApiException(status=404),
+            existing_secret,
+        ]
+        core_client.create_namespaced_secret.side_effect = ApiException(status=409)
+
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            with pytest.raises(RuntimeError, match="created concurrently"):
+                await k8s_worker._upsert_secret(
+                    name=name,
+                    value="winning-value",
+                    namespace=namespace,
+                    client=MagicMock(spec=ApiClient),
+                )
+
+        core_client.replace_namespaced_secret.assert_not_called()
 
     async def test_use_existing_secret_name(
         self,

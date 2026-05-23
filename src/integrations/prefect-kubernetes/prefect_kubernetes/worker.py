@@ -1187,15 +1187,18 @@ class KubernetesWorker(
                 if create_exc.status != 409:
                     raise
                 # A concurrent job submission created the secret between our
-                # read and create. Re-read to obtain the current
-                # resourceVersion and replace it with our value.
-                current_secret = await core_client.read_namespaced_secret(
+                # read and create. Re-read the secret created by the other
+                # worker rather than replacing it. The values should match
+                # since both workers derived the secret from the same source,
+                # so we raise only if they unexpectedly differ.
+                secret = await core_client.read_namespaced_secret(
                     name=name, namespace=namespace
                 )
-                current_secret.data = {"value": encoded_value}
-                secret = await core_client.replace_namespaced_secret(
-                    name=name, namespace=namespace, body=current_secret
-                )
+                if (secret.data or {}).get("value") != encoded_value:
+                    raise RuntimeError(
+                        f"Secret {name!r} in namespace {namespace!r} was "
+                        "created concurrently with a different value."
+                    ) from create_exc
         return secret
 
     @asynccontextmanager
