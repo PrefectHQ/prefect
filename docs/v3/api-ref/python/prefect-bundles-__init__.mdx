@@ -54,7 +54,7 @@ Executes a bundle in a subprocess.
 - A multiprocessing.context.SpawnProcess.
 
 
-### `convert_step_to_command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/bundles/__init__.py#L667" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `convert_step_to_command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/bundles/__init__.py#L682" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 convert_step_to_command(step: dict[str, Any], key: str, quiet: bool = False) -> list[str]
@@ -72,7 +72,7 @@ Converts a bundle upload or execution step to a command.
 - A list of strings representing the command to run the step.
 
 
-### `upload_bundle_to_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/bundles/__init__.py#L737" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `upload_bundle_to_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/bundles/__init__.py#L752" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 upload_bundle_to_storage(bundle: SerializedBundle, key: str, upload_command: list[str], zip_path: Path | None = None, upload_step: dict[str, Any] | None = None) -> None
@@ -92,7 +92,7 @@ when uploading a sidecar zip so a separate command with the correct key
 can be constructed.
 
 
-### `aupload_bundle_to_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/bundles/__init__.py#L801" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `aupload_bundle_to_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/bundles/__init__.py#L816" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aupload_bundle_to_storage(bundle: SerializedBundle, key: str, upload_command: list[str], zip_path: Path | None = None, upload_step: dict[str, Any] | None = None) -> None

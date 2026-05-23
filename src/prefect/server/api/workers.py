@@ -26,14 +26,11 @@ import prefect.server.schemas as schemas
 from prefect._internal.uuid7 import uuid7
 from prefect.client.schemas.worker_channel import (
     WORK_POOL_SNAPSHOT_CAPABILITY,
-    WORKER_CHANNEL_CLOSE_POLICIES,
     WORKER_HEARTBEAT_CAPABILITY,
     WorkerChannelCloseReason,
     WorkerChannelProtocolError,
-    WorkerHeartbeatFrame,
     WorkerHelloFrame,
     WorkerReadyFrame,
-    WorkPoolSnapshot,
     WorkPoolSnapshotPayload,
     select_worker_channel_version,
     validate_worker_channel_frame,
@@ -49,6 +46,7 @@ from prefect.server.models.work_queues import (
 from prefect.server.models.workers import emit_work_pool_status_event
 from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities import subscriptions
+from prefect.server.utilities import worker_channel as worker_channel_utils
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
 from prefect.types._datetime import now
@@ -185,13 +183,6 @@ class WorkerChannelWorkPoolUpdateEvent:
     changed_fields: dict[str, dict[str, Any]]
 
 
-async def _close_worker_channel(
-    websocket: WebSocket, close_reason: WorkerChannelCloseReason
-) -> None:
-    policy = WORKER_CHANNEL_CLOSE_POLICIES[close_reason]
-    await websocket.close(code=policy.websocket_code, reason=close_reason.value)
-
-
 async def _receive_worker_hello(websocket: WebSocket) -> WorkerHelloFrame:
     try:
         message = await websocket.receive_json()
@@ -295,25 +286,6 @@ async def _resolve_worker_channel_work_queues(
     return work_queues
 
 
-async def _build_worker_channel_work_pool_snapshot(
-    session: AsyncSession,
-    work_pool: "ORMWorkPool",
-) -> WorkPoolSnapshot:
-    work_pool_response = schemas.responses.WorkPoolResponse.model_validate(
-        work_pool, from_attributes=True
-    )
-
-    if work_pool_response.concurrency_limit is not None:
-        work_pool_response.active_slots = (
-            await models.workers.count_work_pool_active_slots(
-                session=session,
-                work_pool_id=work_pool.id,
-            )
-        )
-
-    return WorkPoolSnapshot.model_validate(work_pool_response.model_dump(mode="json"))
-
-
 async def _build_worker_ready_frame(
     session: AsyncSession,
     work_pool_name: str,
@@ -392,7 +364,7 @@ async def _build_worker_ready_frame(
     initial_snapshot = WorkPoolSnapshotPayload(
         snapshot_sequence=1,
         reason="initial",
-        work_pool=await _build_worker_channel_work_pool_snapshot(
+        work_pool=await worker_channel_utils.build_worker_channel_work_pool_snapshot(
             session=session,
             work_pool=refreshed_work_pool,
         ),
@@ -414,7 +386,7 @@ async def _build_worker_ready_frame(
             sent_at=now("UTC"),
             payload={
                 "consumer_id": hello.payload.consumer_id,
-                "worker_id": worker.id,
+                "worker_id": None,
                 "selected_channel_version": selected_channel_version,
                 "effective_heartbeat_interval_seconds": (
                     hello.payload.heartbeat_interval_seconds
@@ -430,27 +402,6 @@ async def _build_worker_ready_frame(
             },
         ),
         work_pool_update_event,
-    )
-
-
-async def _persist_worker_channel_heartbeat(
-    session: AsyncSession,
-    work_pool_name: str,
-    frame: WorkerHeartbeatFrame,
-) -> None:
-    work_pool = await models.workers.read_work_pool_by_name(
-        session=session,
-        work_pool_name=work_pool_name,
-    )
-    if work_pool is None:
-        raise RuntimeError("Worker channel work pool no longer exists")
-
-    await models.workers.record_worker_heartbeat(
-        session=session,
-        work_pool=work_pool,
-        worker_name=frame.payload.worker_name,
-        heartbeat_interval_seconds=frame.payload.heartbeat_interval_seconds,
-        emit_status_change=emit_work_pool_status_event,
     )
 
 
@@ -642,11 +593,21 @@ async def update_work_pool(
         work_pool_id = await worker_lookups._get_work_pool_id_from_name(
             session=session, work_pool_name=work_pool_name
         )
-        await models.workers.update_work_pool(
+        updated = await models.workers.update_work_pool(
             session=session,
             work_pool_id=work_pool_id,
             work_pool=work_pool,
             emit_status_change=emit_work_pool_status_event,
+        )
+
+    if updated and worker_channel_utils.work_pool_update_triggers_snapshot(
+        update_values
+    ):
+        await worker_channel_utils.publish_snapshot_invalidation(
+            worker_channel_utils.WorkerChannelSnapshotInvalidation(
+                work_pool_id=work_pool_id,
+                reason="work_pool_updated",
+            )
         )
 
 
@@ -674,8 +635,17 @@ async def delete_work_pool(
             session=session, work_pool_name=work_pool_name
         )
 
-        await models.workers.delete_work_pool(
+        deleted = await models.workers.delete_work_pool(
             session=session, work_pool_id=work_pool_id
+        )
+
+    if deleted:
+        await worker_channel_utils.publish_snapshot_invalidation(
+            worker_channel_utils.WorkerChannelSnapshotInvalidation(
+                work_pool_id=work_pool_id,
+                reason="work_pool_deleted",
+                work_pool_deleted=True,
+            )
         )
 
 
@@ -1013,8 +983,11 @@ async def update_work_queue(
     """
     Update a work pool queue
     """
-
     async with db.session_context(begin_transaction=True) as session:
+        await worker_lookups._get_work_pool_id_from_name(
+            session=session,
+            work_pool_name=work_pool_name,
+        )
         work_queue_id = await worker_lookups._get_work_queue_id_from_name(
             work_pool_name=work_pool_name,
             work_queue_name=work_queue_name,
@@ -1045,6 +1018,10 @@ async def delete_work_queue(
     """
 
     async with db.session_context(begin_transaction=True) as session:
+        await worker_lookups._get_work_pool_id_from_name(
+            session=session,
+            work_pool_name=work_pool_name,
+        )
         work_queue_id = await worker_lookups._get_work_queue_id_from_name(
             session=session,
             work_pool_name=work_pool_name,
@@ -1081,84 +1058,58 @@ async def worker_channel_connect(
 
     try:
         hello = await _receive_worker_hello(websocket)
-        async with db.session_context(begin_transaction=True) as session:
-            ready, work_pool_update_event = await _build_worker_ready_frame(
-                session=session,
-                work_pool_name=work_pool_name,
-                hello=hello,
-            )
-
-        if work_pool_update_event is not None:
-            async with db.session_context() as session:
-                work_pool = await models.workers.read_work_pool(
+        async with worker_channel_utils.messaging.ephemeral_subscription(
+            worker_channel_utils.WORKER_CHANNEL_SNAPSHOT_TOPIC,
+        ) as consumer_kwargs:
+            async with db.session_context(begin_transaction=True) as session:
+                ready, work_pool_update_event = await _build_worker_ready_frame(
                     session=session,
-                    work_pool_id=work_pool_update_event.work_pool_id,
-                )
-                assert work_pool is not None
-                await models.workers.emit_work_pool_updated_event(
-                    session=session,
-                    work_pool=work_pool,
-                    changed_fields=work_pool_update_event.changed_fields,
+                    work_pool_name=work_pool_name,
+                    hello=hello,
                 )
 
-        await websocket.send_json(ready.model_dump(mode="json"))
-
-        while True:
-            try:
-                message = await websocket.receive_json()
-                frame = validate_worker_channel_frame(message)
-            except ValidationError:
-                await _close_worker_channel(
-                    websocket, WorkerChannelCloseReason.PROTOCOL_ERROR
-                )
-                return
-            except ValueError:
-                await _close_worker_channel(
-                    websocket, WorkerChannelCloseReason.PROTOCOL_ERROR
-                )
-                return
-
-            if not isinstance(frame, WorkerHeartbeatFrame):
-                await _close_worker_channel(
-                    websocket, WorkerChannelCloseReason.PROTOCOL_ERROR
-                )
-                return
-
-            if (
-                frame.payload.consumer_id != hello.payload.consumer_id
-                or frame.payload.worker_name != hello.payload.worker_name
-            ):
-                await _close_worker_channel(
-                    websocket, WorkerChannelCloseReason.PROTOCOL_ERROR
-                )
-                return
-
-            try:
-                async with db.session_context(begin_transaction=True) as session:
-                    await _persist_worker_channel_heartbeat(
+            if work_pool_update_event is not None:
+                async with db.session_context() as session:
+                    work_pool = await models.workers.read_work_pool(
                         session=session,
-                        work_pool_name=work_pool_name,
-                        frame=frame,
+                        work_pool_id=work_pool_update_event.work_pool_id,
                     )
-            except Exception:
-                logger.exception("Worker channel heartbeat persistence failed")
-                await _close_worker_channel(
-                    websocket,
-                    WorkerChannelCloseReason.HEARTBEAT_PERSISTENCE_FAILED,
+                    assert work_pool is not None
+                    await models.workers.emit_work_pool_updated_event(
+                        session=session,
+                        work_pool=work_pool,
+                        changed_fields=work_pool_update_event.changed_fields,
+                    )
+                await worker_channel_utils.publish_snapshot_invalidation(
+                    worker_channel_utils.WorkerChannelSnapshotInvalidation(
+                        work_pool_id=work_pool_update_event.work_pool_id,
+                        reason="work_pool_updated",
+                    )
                 )
-                return
+
+            connection = worker_channel_utils.WorkerChannelConnection(
+                websocket=websocket,
+                db=db,
+                work_pool_name=work_pool_name,
+                work_pool_id=ready.payload.initial_snapshot.work_pool.id,
+                consumer_id=hello.payload.consumer_id,
+                worker_name=hello.payload.worker_name,
+            )
+            await connection.run(ready, consumer_kwargs)
 
     except WorkerChannelSetupError as exc:
         logger.info("Worker channel setup failed: %s", exc.detail)
-        await _close_worker_channel(websocket, exc.close_reason)
+        await worker_channel_utils.close_worker_channel(websocket, exc.close_reason)
     except HTTPException as exc:
         logger.info("Worker channel setup failed HTTP validation: %s", exc.detail)
-        await _close_worker_channel(websocket, WorkerChannelCloseReason.PROTOCOL_ERROR)
+        await worker_channel_utils.close_worker_channel(
+            websocket, WorkerChannelCloseReason.PROTOCOL_ERROR
+        )
     except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
         return
     except Exception:
         logger.exception("Worker channel setup failed due to a transient server error")
-        await _close_worker_channel(
+        await worker_channel_utils.close_worker_channel(
             websocket, WorkerChannelCloseReason.TRANSIENT_SERVER_ERROR
         )
 

@@ -143,9 +143,14 @@ def _start_lease_renewal_thread(
     stop_event = threading.Event()
     renewal_ctx = contextvars.copy_context()
 
-    def renewal_loop() -> None:
+    def _run_with_failure_handler() -> None:
+        # Runs inside renewal_ctx so the failure handler also sees the
+        # copied flow/task run contextvars; otherwise get_run_logger() in
+        # _handle_lease_renewal_failure can't find the run context and the
+        # message falls back to the plain "prefect.concurrency" logger,
+        # never reaching the run logs API.
         try:
-            renewal_ctx.run(_lease_renewal_loop, lease_id, lease_duration, stop_event)
+            _lease_renewal_loop(lease_id, lease_duration, stop_event)
         except Exception as exc:
             if not stop_event.is_set():
                 _handle_lease_renewal_failure(
@@ -155,6 +160,9 @@ def _start_lease_renewal_thread(
                     suppress_warnings,
                     cancel_scope,
                 )
+
+    def renewal_loop() -> None:
+        renewal_ctx.run(_run_with_failure_handler)
 
     thread = threading.Thread(
         target=renewal_loop,
