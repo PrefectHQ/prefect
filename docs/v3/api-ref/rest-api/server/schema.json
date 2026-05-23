@@ -10830,6 +10830,9 @@
                                     "$ref": "#/components/schemas/CancelFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
@@ -10887,6 +10890,9 @@
                                     "$ref": "#/components/schemas/CancelFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
@@ -10942,6 +10948,9 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/CancelFlowRun"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
                                 },
                                 {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
@@ -11084,6 +11093,9 @@
                                     "$ref": "#/components/schemas/CancelFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
@@ -11141,6 +11153,9 @@
                                     "$ref": "#/components/schemas/CancelFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
@@ -11196,6 +11211,9 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/CancelFlowRun"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
                                 },
                                 {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
@@ -11499,6 +11517,9 @@
                                     "$ref": "#/components/schemas/CancelFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
@@ -11556,6 +11577,9 @@
                                     "$ref": "#/components/schemas/CancelFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
@@ -11611,6 +11635,9 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/CancelFlowRun"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
                                 },
                                 {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
@@ -16090,6 +16117,19 @@
                     "updated"
                 ],
                 "title": "CsrfToken"
+            },
+            "DeleteFlowRun": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "const": "delete-flow-run",
+                        "title": "Type",
+                        "default": "delete-flow-run"
+                    }
+                },
+                "type": "object",
+                "title": "DeleteFlowRun",
+                "description": "Deletes a flow run associated with the trigger"
             },
             "DependencyResult": {
                 "properties": {
