@@ -27,7 +27,6 @@ export const TagBadge = ({
 			)}
 			title={tag}
 			onClick={onClick}
-			role={onClick ? "link" : undefined}
 		>
 			<span className="truncate">{tag}</span>
 			{onRemove && (
