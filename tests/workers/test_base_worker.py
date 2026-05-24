@@ -4884,30 +4884,37 @@ class TestWorkerCancellationHandling:
                 # Should have set up cancellation observer
                 assert worker._cancelling_observer is not None
 
-    async def test_cancel_run_skips_non_pending_flow_runs(
+    async def test_cancel_run_kills_infrastructure_for_running_flow_runs(
         self,
         prefect_client: PrefectClient,
         work_pool: WorkPool,
+        deployment: DeploymentResponse,
     ):
-        """Test that _cancel_run skips flow runs that were not pending."""
+        """Test that _cancel_run kills infrastructure for already-running flow runs.
 
-        @flow
-        def test_flow():
-            pass
-
-        flow_run = await prefect_client.create_flow_run(
-            test_flow, work_pool_name=work_pool.name
+        Previously _cancel_run bailed out early when start_time was set, leaving
+        zombie pods/containers alive indefinitely when the flow was hung and could
+        not self-terminate on receiving Cancelling state.
+        """
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment.id,
+        )
+        await prefect_client.update_flow_run(
+            flow_run.id, infrastructure_pid="test-pod-id"
         )
 
         async with WorkerTestImpl(
             work_pool_name=work_pool.name,
             name="test-worker",
         ) as worker:
-            # Create a flow run with start_time set (already started)
-            flow_run_with_start_time = FlowRun(
+            # Simulate a flow run that has already started (start_time is set)
+            flow_run_running = FlowRun(
                 id=flow_run.id,
                 flow_id=flow_run.flow_id,
                 name=flow_run.name,
+                deployment_id=flow_run.deployment_id,
+                infrastructure_pid="test-pod-id",
+                work_pool_name=work_pool.name,
                 state=Running(),
                 start_time=now_fn("UTC"),
             )
@@ -4915,14 +4922,26 @@ class TestWorkerCancellationHandling:
             with mock.patch.object(
                 worker.client, "read_flow_run", new_callable=AsyncMock
             ) as mock_read:
-                mock_read.return_value = flow_run_with_start_time
-                with mock.patch.object(worker, "kill_infrastructure") as mock_kill:
+                mock_read.return_value = flow_run_running
+                with mock.patch(
+                    "prefect.workers.base.BaseJobConfiguration.resolve_for_flow_run",
+                    new_callable=AsyncMock,
+                ) as mock_resolve:
+                    mock_resolve.return_value = BaseJobConfiguration()
                     with mock.patch.object(
-                        worker, "_mark_flow_run_as_cancelled"
-                    ) as mock_mark:
-                        await worker._cancel_run(flow_run.id)
-                        mock_kill.assert_not_called()
-                        mock_mark.assert_not_called()
+                        worker, "kill_infrastructure", new_callable=AsyncMock
+                    ) as mock_kill:
+                        with mock.patch.object(
+                            worker, "_mark_flow_run_as_cancelled", new_callable=AsyncMock
+                        ) as mock_mark:
+                            await worker._cancel_run(flow_run.id)
+                            # kill_infrastructure must be attempted even for started runs
+                            mock_kill.assert_called_once()
+                            assert (
+                                mock_kill.call_args[1]["infrastructure_pid"]
+                                == "test-pod-id"
+                            )
+                            mock_mark.assert_called_once()
 
     async def test_cancellation_observer_filters_by_work_pool(
         self,

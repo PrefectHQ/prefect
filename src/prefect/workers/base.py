@@ -1779,7 +1779,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         """
         Cancel a flow run by killing its infrastructure and marking it cancelled.
 
-        Only cancels flow runs that were pending (not yet started).
+        Attempts to kill infrastructure for both pending (never started) and running
+        flow runs. Running flow runs whose infrastructure has already exited are
+        handled gracefully via InfrastructureNotFound.
         """
         try:
             flow_run = await self.client.read_flow_run(flow_run_id)
@@ -1790,10 +1792,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             return
 
         run_logger = self.get_flow_run_logger(flow_run)
-
-        # Only cancel if the flow run was pending (never started)
-        if flow_run.start_time is not None:
-            return
 
         # No infrastructure to kill if no pid
         if not flow_run.infrastructure_pid:
@@ -1853,9 +1851,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         await self._mark_flow_run_as_cancelled(
             flow_run,
-            state_updates={"message": "Flow run cancelled by worker while pending."},
+            state_updates={"message": "Flow run cancelled by worker."},
         )
-        run_logger.info(f"Cancelled pending flow run '{flow_run.id}'")
+        run_logger.info(f"Cancelled flow run '{flow_run.id}'")
 
     async def kill_infrastructure(
         self,
