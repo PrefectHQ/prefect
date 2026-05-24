@@ -1,4 +1,5 @@
 import contextlib
+import errno
 import logging
 import pathlib
 import socket
@@ -48,6 +49,8 @@ from prefect.settings import (
     PREFECT_UI_STATIC_DIRECTORY,
     temporary_settings,
 )
+
+pytestmark = pytest.mark.clear_db
 
 
 async def test_validation_error_handler_422(client):
@@ -346,10 +349,13 @@ def test_create_ui_app_preserves_existing_v2_serve_base(
 @pytest.mark.parametrize(
     ("serve_base", "request_path", "cookie_value", "expected_location"),
     [
-        ("/", "/", "v2", "/v2"),
-        ("/prefect", "/prefect", "v2", "/prefect/v2"),
-        ("/v2", "/", "v2", "/v2"),
-        ("/prefect/v2", "/prefect", "v2", "/prefect/v2"),
+        # Trailing slash matters: Starlette's `Mount` only routes paths
+        # that start with `{mount}/`. A bare `/v2` falls through to the V1
+        # SPA mount at "/" and serves V1's index.html under the wrong URL.
+        ("/", "/", "v2", "/v2/"),
+        ("/prefect", "/prefect", "v2", "/prefect/v2/"),
+        ("/v2", "/", "v2", "/v2/"),
+        ("/prefect/v2", "/prefect", "v2", "/prefect/v2/"),
     ],
 )
 def test_create_ui_app_redirects_neutral_entrypoints_to_preferred_ui(
@@ -413,7 +419,68 @@ def test_create_ui_app_preserves_root_path_in_redirects(
     )
 
     assert response.status_code == status.HTTP_307_TEMPORARY_REDIRECT
-    assert response.headers["location"].endswith("/proxy/prefect/v2")
+    assert response.headers["location"].endswith("/proxy/prefect/v2/")
+
+
+@pytest.mark.parametrize(
+    ("serve_base", "request_path", "expected_location"),
+    [
+        ("/", "/", "/v2/"),
+        ("/prefect", "/prefect", "/prefect/v2/"),
+        ("/v2", "/", "/v2/"),
+        ("/prefect/v2", "/prefect", "/prefect/v2/"),
+    ],
+)
+def test_create_ui_app_redirect_to_v2_lands_on_v2_bundle(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    serve_base: str,
+    request_path: str,
+    expected_location: str,
+):
+    """Regression test for the V2 redirect dropping its trailing slash.
+
+    Prior to the fix, navigating to a "neutral" entry point (e.g. `/`)
+    with V2 as the preferred UI 307'd the browser to `/v2` (no slash).
+    Starlette's `Mount` only routes requests whose path starts with
+    `{mount}/`, so a bare `/v2` fell through to the V1 SPA mount at "/"
+    and the V1 bundle was served at the `/v2` URL — leaving the browser
+    running V1's SPA with no matching route. This test follows the
+    redirect end-to-end and asserts the V2 bundle is actually returned.
+    """
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI")
+    v2_source = _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI")
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", v2_source)
+
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_UI_SERVE_BASE: serve_base,
+            PREFECT_UI_STATIC_DIRECTORY: str(tmp_path / "ui-static"),
+        }
+    ):
+        ui_app = create_ui_app(ephemeral=False)
+
+    client = TestClient(ui_app)
+    client.cookies.set("prefect_ui_version", "v2")
+
+    redirect_response = client.get(
+        request_path,
+        headers={"accept": "text/html"},
+        follow_redirects=False,
+    )
+    assert redirect_response.status_code == status.HTTP_307_TEMPORARY_REDIRECT
+    assert redirect_response.headers["location"].endswith(expected_location)
+
+    followed_response = client.get(
+        request_path,
+        headers={"accept": "text/html"},
+        follow_redirects=True,
+    )
+    assert followed_response.status_code == 200
+    assert "V2 UI" in followed_response.text
+    assert "V1 UI" not in followed_response.text
 
 
 @pytest.mark.parametrize(
@@ -460,10 +527,10 @@ def test_create_ui_app_allows_explicit_v2_requests_without_saved_preference(
 @pytest.mark.parametrize(
     ("serve_base", "request_path", "expected_location"),
     [
-        ("/", "/", "/v2"),
-        ("/prefect", "/prefect", "/prefect/v2"),
-        ("/v2", "/", "/v2"),
-        ("/prefect/v2", "/prefect", "/prefect/v2"),
+        ("/", "/", "/v2/"),
+        ("/prefect", "/prefect", "/prefect/v2/"),
+        ("/v2", "/", "/v2/"),
+        ("/prefect/v2", "/prefect", "/prefect/v2/"),
     ],
 )
 def test_create_ui_app_uses_default_ui_for_neutral_entrypoints_without_saved_preference(
@@ -1118,6 +1185,91 @@ def test_create_ui_app_handles_permission_error_on_static_files(
         "Failed to create" in call.args[0] for call in mock_logger.error.call_args_list
     )
     # The app should not have the static file mounts
+    route_names = [r.name for r in ui_app.routes if hasattr(r, "name")]
+    assert "ui_v1" not in route_names
+    assert "ui_v2" not in route_names
+
+
+def test_create_ui_app_handles_disk_space_error_on_static_files(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """
+    When the writable volume is too small for the UI bundle, the ENOSPC
+    OSError should be caught and surfaced as a clear disk-space error
+    instead of crashing the server.
+    """
+
+    static_dir = str(tmp_path / "ui-static")
+
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI")
+    v2_source = _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI")
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", v2_source)
+
+    enospc = OSError(errno.ENOSPC, "No space left on device", static_dir)
+    enospc.errno = errno.ENOSPC
+
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_UI_STATIC_DIRECTORY: static_dir,
+        }
+    ):
+        with (
+            patch(
+                "prefect.server.api.server.copy_directory",
+                side_effect=enospc,
+            ),
+            patch("prefect.server.api.server.logger") as mock_logger,
+        ):
+            ui_app = create_ui_app(ephemeral=False)
+
+    assert mock_logger.error.call_count >= 1
+    assert all(
+        "Not enough disk space" in call.args[0]
+        for call in mock_logger.error.call_args_list
+    )
+    route_names = [r.name for r in ui_app.routes if hasattr(r, "name")]
+    assert "ui_v1" not in route_names
+    assert "ui_v2" not in route_names
+
+
+def test_create_ui_app_handles_generic_os_error_on_static_files(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """
+    Generic OSError (not ENOSPC, not PermissionError) should still be
+    caught and logged instead of crashing the server.
+    """
+
+    static_dir = str(tmp_path / "ui-static")
+
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI")
+    v2_source = _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI")
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", v2_source)
+
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_UI_STATIC_DIRECTORY: static_dir,
+        }
+    ):
+        with (
+            patch(
+                "prefect.server.api.server.copy_directory",
+                side_effect=OSError(errno.EIO, "Input/output error"),
+            ),
+            patch("prefect.server.api.server.logger") as mock_logger,
+        ):
+            ui_app = create_ui_app(ephemeral=False)
+
+    assert mock_logger.error.call_count >= 1
+    assert all(
+        "Failed to create" in call.args[0] for call in mock_logger.error.call_args_list
+    )
     route_names = [r.name for r in ui_app.routes if hasattr(r, "name")]
     assert "ui_v1" not in route_names
     assert "ui_v2" not in route_names

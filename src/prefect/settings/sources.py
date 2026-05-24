@@ -14,6 +14,7 @@ from pydantic_settings import (
     EnvSettingsSource,
     PydanticBaseSettingsSource,
 )
+from pydantic_settings.exceptions import SettingsError
 from pydantic_settings.sources import (
     ENV_FILE_SENTINEL,
     ConfigFileSourceMixin,
@@ -230,7 +231,12 @@ class TomlConfigSettingsSourceBase(PydanticBaseSettingsSource, ConfigFileSourceM
         self.toml_data: dict[str, Any] = {}
 
     def _read_file(self, path: Path) -> dict[str, Any]:
-        return _read_toml_file(path)
+        try:
+            return _read_toml_file(path)
+        except tomllib.TOMLDecodeError as e:
+            raise SettingsError(
+                f"Failed to load Prefect settings from {path}: invalid TOML ({e})"
+            ) from e
 
     @staticmethod
     def _field_is_dict_type(field: FieldInfo) -> bool:

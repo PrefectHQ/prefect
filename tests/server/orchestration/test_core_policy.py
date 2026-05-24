@@ -38,6 +38,7 @@ from prefect.server.orchestration.core_policy import (
     PreserveDeploymentConcurrencyLeaseId,
     PreventDuplicateTransitions,
     PreventPendingTransitions,
+    PreventResultDataLoss,
     PreventRunningTasksFromStoppedFlows,
     ReleaseFlowConcurrencySlots,
     ReleaseTaskConcurrencySlots,
@@ -67,6 +68,8 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.types._datetime import DateTime, now, parse_datetime
+
+pytestmark = pytest.mark.clear_db
 
 # Convert constants from sets to lists for deterministic ordering of tests
 ALL_ORCHESTRATION_STATES = list(
@@ -1513,6 +1516,169 @@ class TestTransitionsFromTerminalStatesRule:
         state_protection = protection_rule(ctx, *intended_transition)
 
         async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+
+@pytest.mark.parametrize("run_type", ["flow"])
+class TestPreventResultDataLoss:
+    """Prevent COMPLETED → COMPLETED transitions that would discard result data.
+
+    See https://github.com/PrefectHQ/prefect/issues/21955
+    """
+
+    async def test_rejects_completed_to_completed_when_result_data_is_lost(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        intended_transition = (StateType.COMPLETED, StateType.COMPLETED)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data=ResultRecordMetadata.model_construct().model_dump(),
+        )
+
+        rule = PreventResultDataLoss(ctx, *intended_transition)
+        async with rule as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+
+    async def test_allows_completed_to_completed_without_result_data(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        intended_transition = (StateType.COMPLETED, StateType.COMPLETED)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data=None,
+        )
+
+        rule = PreventResultDataLoss(ctx, *intended_transition)
+        async with rule as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_allows_completed_to_completed_with_unpersisted_initial(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        intended_transition = (StateType.COMPLETED, StateType.COMPLETED)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data={"type": "unpersisted"},
+        )
+
+        rule = PreventResultDataLoss(ctx, *intended_transition)
+        async with rule as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_handle_flow_terminal_also_rejects_data_loss(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        """HandleFlowTerminalStateTransitions also guards against data loss."""
+        intended_transition = (StateType.COMPLETED, StateType.COMPLETED)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data=ResultRecordMetadata.model_construct().model_dump(),
+        )
+
+        rule = HandleFlowTerminalStateTransitions(ctx, *intended_transition)
+        async with rule as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+
+    @pytest.mark.parametrize("scalar_data", [1, "hello", True, [1, 2, 3]])
+    async def test_accepts_scalar_initial_data(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        scalar_data: object,
+    ):
+        """Scalar/list initial data must not trigger AttributeError."""
+        intended_transition = (StateType.COMPLETED, StateType.COMPLETED)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data=scalar_data,
+        )
+
+        rule = PreventResultDataLoss(ctx, *intended_transition)
+        async with rule as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    @pytest.mark.parametrize("scalar_data", [1, "hello", True, [1, 2, 3]])
+    async def test_accepts_scalar_proposed_data_with_persisted_initial(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        scalar_data: object,
+    ):
+        """Persisted initial + scalar proposed must not trigger AttributeError."""
+        intended_transition = (StateType.COMPLETED, StateType.COMPLETED)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data=ResultRecordMetadata.model_construct().model_dump(),
+        )
+        # Manually set scalar data on the proposed state
+        assert ctx.proposed_state is not None
+        ctx.proposed_state.data = scalar_data
+
+        rule = PreventResultDataLoss(ctx, *intended_transition)
+        async with rule as ctx:
+            await ctx.validate_proposed_state()
+
+        # Scalar proposed data is not persisted result metadata, so the
+        # transition should be rejected to prevent data loss.
+        assert ctx.response_status == SetStateStatus.REJECT
+
+    @pytest.mark.parametrize("scalar_data", [1, "hello", True, [1, 2, 3]])
+    async def test_handle_flow_terminal_accepts_scalar_initial_data(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        scalar_data: object,
+    ):
+        """HandleFlowTerminalStateTransitions must not AttributeError on scalar data."""
+        intended_transition = (StateType.COMPLETED, StateType.COMPLETED)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data=scalar_data,
+        )
+
+        rule = HandleFlowTerminalStateTransitions(ctx, *intended_transition)
+        async with rule as ctx:
             await ctx.validate_proposed_state()
 
         assert ctx.response_status == SetStateStatus.ACCEPT

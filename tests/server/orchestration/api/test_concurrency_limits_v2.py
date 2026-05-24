@@ -31,6 +31,8 @@ from prefect.settings import (
 )
 from prefect.settings.context import temporary_settings
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def use_filesystem_lease_storage():
@@ -1228,19 +1230,22 @@ async def test_renew_concurrency_lease(
 ):
     lease_storage = get_concurrency_lease_storage()
     expired_lease_ids = await lease_storage.read_expired_lease_ids()
-    now = datetime.now(timezone.utc)
     assert not expired_lease_ids
 
+    before = datetime.now(timezone.utc)
     response = await client.post(
         f"/v2/concurrency_limits/leases/{expiring_concurrency_lease.id}/renew",
         json={"lease_duration": 600},
     )
     assert response.status_code == 204, response.text
+    after = datetime.now(timezone.utc)
 
     lease = await lease_storage.read_lease(expiring_concurrency_lease.id)
     assert lease
     assert (
-        now + timedelta(seconds=600) <= lease.expiration <= now + timedelta(seconds=602)
+        before + timedelta(seconds=600)
+        <= lease.expiration
+        <= after + timedelta(seconds=600)
     )
 
 

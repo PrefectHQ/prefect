@@ -67,19 +67,19 @@ Count block documents that match the filters.
 delete_block_document(db: PrefectDBInterface, session: AsyncSession, block_document_id: UUID) -> bool
 ```
 
-### `update_block_document` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/block_documents.py#L489" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `update_block_document` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/block_documents.py#L496" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_block_document(db: PrefectDBInterface, session: AsyncSession, block_document_id: UUID, block_document: schemas.actions.BlockDocumentUpdate) -> bool
 ```
 
-### `create_block_document_reference` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/block_documents.py#L687" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_block_document_reference` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/block_documents.py#L694" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_block_document_reference(db: PrefectDBInterface, session: AsyncSession, block_document_reference: schemas.actions.BlockDocumentReferenceCreate) -> Union[orm_models.BlockDocumentReference, None]
 ```
 
-### `delete_block_document_reference` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/block_documents.py#L721" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_block_document_reference` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/block_documents.py#L728" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_block_document_reference(db: PrefectDBInterface, session: AsyncSession, block_document_reference_id: UUID) -> bool

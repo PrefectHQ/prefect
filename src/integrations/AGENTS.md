@@ -53,7 +53,7 @@ just prepare-integration-release <pkg>        # Generate release notes for an in
 For integrations that support running flows directly on infrastructure (no deployment required):
 - Infrastructure decorators live in `decorators.py` at the package root (e.g., `from prefect_aws.decorators import ecs`)
 - Bundle upload/execute CLI steps live in `bundles/` (e.g., `prefect_aws.bundles.execute`)
-- The `experimental/` subpackage in these integrations is a **deprecated backward-compatibility shim** — do not add new code there; it only re-exports from the GA paths with a `DeprecationWarning`
+- The `experimental/` subpackage in integrations that have a GA path (decorators.py/bundles/) is a **deprecated backward-compatibility shim** — do not add new code there; it re-exports from the GA paths with a `DeprecationWarning`. Exception: `prefect-snowflake`'s `experimental/workers/spcs.py` is the active SPCS worker implementation.
 
 ## Integration Settings
 

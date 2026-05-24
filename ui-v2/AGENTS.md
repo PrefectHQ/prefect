@@ -113,6 +113,7 @@ Before committing any changes, always run:
 - **zod** for validation
 - **Form** and **FormField** components from shadcn/ui
 - **Stepper** component for wizard flows
+- **Forms bound to refetched queries**: Entity queries (deployments, etc.) refetch on a 30-second interval and on window focus, returning new object references each time. Use `useState` lazy initializers to capture default values once — do not sync form state via `useEffect`, which overwrites in-flight user edits on every refetch. Add `key={entity.id}` on the form component so it fully resets when the entity changes.
 
 ## Testing
 
@@ -149,6 +150,14 @@ Always use Tailwind's semantic color classes that automatically adapt to the cur
 Use opacity modifiers with semantic colors for subtle visual elements like dividers:
 - `bg-muted-foreground/30` for subtle divider lines
 - `border-border` for standard borders
+
+### Prose Content in Dark Mode
+
+Tailwind's `prose` class (`@tailwindcss/typography`) does **not** automatically invert in dark mode. Any element using `prose` must also include `dark:prose-invert`:
+
+```tsx
+<div className="prose dark:prose-invert">...</div>
+```
 
 ### Avoid Hardcoded Colors
 

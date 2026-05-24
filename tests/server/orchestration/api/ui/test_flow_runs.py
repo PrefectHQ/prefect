@@ -9,6 +9,8 @@ from prefect.server.database import orm_models
 from prefect.server.schemas import actions, states
 from prefect.utilities.pydantic import parse_obj_as
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def flow_runs(flow, session):

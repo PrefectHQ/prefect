@@ -19,6 +19,8 @@ from prefect.server.events.schemas.automations import (
 from prefect.server.events.schemas.events import Event, ReceivedEvent
 from prefect.types import DateTime
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def stuck_flow_runs_sla(
@@ -535,7 +537,7 @@ async def sequence_of_events_3521(
         baseline
         + datetime.timedelta(minutes=124),  # just at the 2 hour mark since Completed
         baseline
-        + datetime.timedelta(minutes=125),  # just past the the 2 hour mark for anything
+        + datetime.timedelta(minutes=125),  # just past the 2 hour mark for anything
         baseline + datetime.timedelta(minutes=250),  # an additional full cycle later
     ]
 
@@ -751,7 +753,7 @@ async def sequence_of_events_3244(
         baseline
         + datetime.timedelta(minutes=124),  # just at the 2 hour mark since Completed
         baseline
-        + datetime.timedelta(minutes=125),  # just past the the 2 hour mark for anything
+        + datetime.timedelta(minutes=125),  # just past the 2 hour mark for anything
         baseline + datetime.timedelta(minutes=250),  # an additional full cycle later
     ]
 

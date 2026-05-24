@@ -22,6 +22,8 @@ from prefect.server.schemas.core import BlockSchema
 from prefect.server.schemas.filters import BlockSchemaFilter
 from prefect.utilities.collections import AutoEnum
 
+pytestmark = pytest.mark.clear_db
+
 EMPTY_OBJECT_CHECKSUM = Block._calculate_schema_checksum({})
 
 
@@ -976,6 +978,36 @@ class TestDeleteBlockSchema:
         assert not await models.block_schemas.read_block_schema(
             session=session, block_schema_id=block_schema_id
         )
+
+    async def test_delete_block_schema_clears_server_default_result_storage(
+        self, session, block_schema
+    ):
+        block = await models.block_documents.create_block_document(
+            session=session,
+            block_document=schemas.actions.BlockDocumentCreate(
+                name="server-default-result-storage",
+                data=dict(),
+                block_schema_id=block_schema.id,
+                block_type_id=block_schema.block_type_id,
+            ),
+        )
+        await models.storage_defaults.write_server_default_result_storage(
+            session=session,
+            storage_default=schemas.core.ServerDefaultResultStorage(
+                default_result_storage_block_id=block.id
+            ),
+        )
+
+        await models.block_schemas.delete_block_schema(
+            session=session, block_schema_id=block_schema.id
+        )
+
+        storage_default = (
+            await models.storage_defaults.read_server_default_result_storage(
+                session=session
+            )
+        )
+        assert storage_default.default_result_storage_block_id is None
 
     async def test_delete_block_schema_fails_gracefully(self, session, block_schema):
         block_schema_id = block_schema.id

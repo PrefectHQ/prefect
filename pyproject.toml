@@ -117,7 +117,7 @@ dask = ["prefect-dask>=0.3.0"]
 ray = ["prefect-ray>=0.4.0"]
 # Version control extras
 bitbucket = ["prefect-bitbucket>=0.3.0"]
-github = ["prefect-github>=0.3.0"]
+github = ["prefect-github>=0.4.2"]
 gitlab = ["prefect-gitlab>=0.3.0"]
 # Database extras
 databricks = ["prefect-databricks>=0.3.0"]
@@ -174,7 +174,7 @@ dev = [
     "yamllint>=1.35.1",
     "respx>=0.22.0",
     "codespell==2.4.2",
-    "ruff==0.15.12",
+    "ruff==0.15.14",
     "mypy==1.19.1",
     "types-cachetools>=5.3.1",
     "types-PyYAML>=6.0.12",
@@ -285,7 +285,7 @@ python_functions = ["test_*", "bench_*"]
 markers = [
     "service(arg): a service integration test. For example 'docker'",
     "enable_api_log_handler: by default, sending logs to the API is disabled. Tests marked with this use the handler.",
-    "clear_db: marker to clear the database after test completion",
+    "clear_db: opt-in marker; clears all tables before the test runs. Apply when a test depends on a clean database (counts rows, lists 'all X', or asserts on absence). Run with --no-clear-db to audit whether a marked test still needs it.",
     "windows: tests that specifically test Windows-only behavior",
     "unix: tests that specifically test Unix-only behavior",
 ]
@@ -318,6 +318,7 @@ filterwarnings = [
     "ignore:`PREFECT_API_URL` should have `/api` after the base URL.:UserWarning",
     "ignore:datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version.:DeprecationWarning",
     "ignore::DeprecationWarning:pendulum.*",                                                                             # TODO: remove when pendulum is removed
+    "ignore:SelectableGroups dict interface is deprecated:DeprecationWarning",                                              # opentelemetry on Python 3.10
     "ignore::DeprecationWarning:botocore.*",
     "ignore::DeprecationWarning:coolname.*",
     "ignore:Runner\\.execute_flow_run has been deprecated:prefect._internal.compatibility.deprecated.PrefectDeprecationWarning",

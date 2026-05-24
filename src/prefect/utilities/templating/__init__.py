@@ -1,6 +1,7 @@
 import enum
 import os
 import re
+from copy import deepcopy
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -14,6 +15,7 @@ from typing import (
     overload,
 )
 
+import prefect.exceptions
 from prefect.client.utilities import inject_client
 from prefect.logging.loggers import get_logger
 from prefect.utilities.annotations import NotSet
@@ -23,6 +25,7 @@ if TYPE_CHECKING:
     import logging
 
     from prefect.client.orchestration import PrefectClient
+    from prefect.client.schemas.objects import BlockDocument
 
 
 T = TypeVar("T", str, int, float, bool, dict[Any, Any], list[Any], None)
@@ -337,7 +340,49 @@ async def resolve_block_document_references(
         # the function signature must mark it as optional to callers.
         assert client is not None
 
-    async def _resolve_single_placeholder(placeholder: Placeholder) -> Any:
+    block_documents_by_id: dict[Any, "BlockDocument"] = {}
+    block_documents_by_name: dict[tuple[str, str], "BlockDocument"] = {}
+
+    async def _read_block_document_by_name(
+        block_type_slug: str, block_document_name: str
+    ) -> "BlockDocument":
+        cache_key = (block_type_slug, block_document_name)
+        if cache_key not in block_documents_by_name:
+            try:
+                block_document = await client.read_block_document_by_name(
+                    name=block_document_name, block_type_slug=block_type_slug
+                )
+            except prefect.exceptions.ObjectNotFound as exc:
+                raise prefect.exceptions.ObjectNotFound(
+                    http_exc=exc.http_exc,
+                    help_message=(
+                        f"Block not found: '{block_document_name}' of type '{block_type_slug}'. "
+                        f"This block was referenced in your deployment or work pool configuration but no longer exists. "
+                        f"It may have been deleted. Please check your configuration or create a new block."
+                    ),
+                ) from exc
+            block_documents_by_name[cache_key] = block_document
+
+        return block_documents_by_name[cache_key]
+
+    async def _read_block_document_by_id(block_document_id: Any) -> "BlockDocument":
+        if block_document_id not in block_documents_by_id:
+            try:
+                block_document = await client.read_block_document(block_document_id)
+            except prefect.exceptions.ObjectNotFound as exc:
+                raise prefect.exceptions.ObjectNotFound(
+                    http_exc=exc.http_exc,
+                    help_message=(
+                        f"Block not found: ID '{block_document_id}'. "
+                        f"This block was referenced in your deployment or work pool configuration but no longer exists. "
+                        f"It may have been deleted. Please check your configuration or create a new block."
+                    ),
+                ) from exc
+            block_documents_by_id[block_document_id] = block_document
+
+        return block_documents_by_id[block_document_id]
+
+    async def _resolve_single_placeholder(placeholder: Placeholder, tmpl: T) -> Any:
         parts = placeholder.name.replace(BLOCK_DOCUMENT_PLACEHOLDER_PREFIX, "").split(
             ".", 2
         )
@@ -348,8 +393,8 @@ async def resolve_block_document_references(
             )
         block_type_slug, block_document_name, *value_keypath = parts
 
-        block_document = await client.read_block_document_by_name(
-            name=block_document_name, block_type_slug=block_type_slug
+        block_document = await _read_block_document_by_name(
+            block_type_slug, block_document_name
         )
 
         data = block_document.data
@@ -364,70 +409,67 @@ async def resolve_block_document_references(
             from_dict: Any = get_from_dict(data, value_keypath[0], default=NotSet)
             if from_dict is NotSet:
                 raise ValueError(
-                    f"Invalid template: {template!r}. Could not resolve the"
+                    f"Invalid template: {tmpl!r}. Could not resolve the"
                     " keypath in the block document data."
                 )
             value = from_dict
+
+        value = deepcopy(value)
 
         if value_transformer:
             value = value_transformer(placeholder.full_match, value)
 
         return value
 
-    if isinstance(template, dict):
-        block_document_id = template.get("$ref", {}).get("block_document_id")
-        if block_document_id:
-            block_document = await client.read_block_document(block_document_id)
-            return block_document.data
-        updated_template: dict[str, Any] = {}
-        for key, value in template.items():
-            updated_value = await resolve_block_document_references(
-                value, value_transformer=value_transformer, client=client
+    async def _resolve(tmpl: T) -> Union[T, dict[str, Any]]:
+        if isinstance(tmpl, dict):
+            block_document_id = tmpl.get("$ref", {}).get("block_document_id")
+            if block_document_id:
+                block_document = await _read_block_document_by_id(block_document_id)
+                return deepcopy(block_document.data)
+            updated_template: dict[str, Any] = {}
+            for key, value in tmpl.items():
+                updated_template[key] = await _resolve(value)
+            return updated_template
+        elif isinstance(tmpl, list):
+            return [await _resolve(item) for item in tmpl]
+        elif isinstance(tmpl, str):
+            placeholders = find_placeholders(tmpl)
+            has_block_document_placeholder = any(
+                placeholder.type is PlaceholderType.BLOCK_DOCUMENT
+                for placeholder in placeholders
             )
-            updated_template[key] = updated_value
-        return updated_template
-    elif isinstance(template, list):
-        return [
-            await resolve_block_document_references(
-                item, value_transformer=value_transformer, client=client
-            )
-            for item in template
-        ]
-    elif isinstance(template, str):
-        placeholders = find_placeholders(template)
-        has_block_document_placeholder = any(
-            placeholder.type is PlaceholderType.BLOCK_DOCUMENT
-            for placeholder in placeholders
-        )
-        if not (placeholders and has_block_document_placeholder):
-            return template
-        elif (
-            len(placeholders) == 1
-            and list(placeholders)[0].full_match == template
-            and list(placeholders)[0].type is PlaceholderType.BLOCK_DOCUMENT
-        ):
-            [placeholder] = placeholders
-            return await _resolve_single_placeholder(placeholder)
-        else:
-            # Inline substitution: replace each block placeholder with its resolved value.
-            # Any non-block placeholders are left intact for later resolution.
-            result = template
-            for placeholder in placeholders:
-                if placeholder.type is not PlaceholderType.BLOCK_DOCUMENT:
-                    continue
-                value = await _resolve_single_placeholder(placeholder)
-                if isinstance(value, (dict, list)):
-                    raise ValueError(
-                        f"Invalid template: {template!r}. Block placeholder"
-                        f" {placeholder.full_match!r} resolved to a {type(value).__name__},"
-                        " which cannot be used for inline string substitution."
-                        " Resolve a scalar attribute instead (e.g., '.value' or '.url')."
-                    )
-                result = result.replace(placeholder.full_match, str(value))
+            if not (placeholders and has_block_document_placeholder):
+                return tmpl
+            elif (
+                len(placeholders) == 1
+                and list(placeholders)[0].full_match == tmpl
+                and list(placeholders)[0].type is PlaceholderType.BLOCK_DOCUMENT
+            ):
+                [placeholder] = placeholders
+                return await _resolve_single_placeholder(placeholder, tmpl)
+            else:
+                # Inline substitution: replace each block placeholder with its resolved value.
+                # Any non-block placeholders are left intact for later resolution.
+                result = tmpl
+                for placeholder in placeholders:
+                    if placeholder.type is not PlaceholderType.BLOCK_DOCUMENT:
+                        continue
+                    value = await _resolve_single_placeholder(placeholder, tmpl)
+                    if isinstance(value, (dict, list)):
+                        raise ValueError(
+                            f"Invalid template: {tmpl!r}. Block placeholder"
+                            f" {placeholder.full_match!r} resolved to a {type(value).__name__},"
+                            " which cannot be used for inline string substitution."
+                            " Resolve a scalar attribute instead (e.g., '.value' or '.url')."
+                        )
+                    result = result.replace(placeholder.full_match, str(value))
 
-            return cast(T, result)
+                return cast(T, result)
 
-    return template
+        return tmpl
+
+    return await _resolve(template)
 
 
 @inject_client
@@ -451,43 +493,55 @@ async def resolve_variables(template: T, client: Optional["PrefectClient"] = Non
         # the function signature must mark it as optional to callers.
         assert client is not None
 
-    if isinstance(template, str):
-        placeholders = find_placeholders(template)
-        has_variable_placeholder = any(
-            placeholder.type is PlaceholderType.VARIABLE for placeholder in placeholders
-        )
-        if not placeholders or not has_variable_placeholder:
-            # If there are no values, we can just use the template
-            return template
-        elif (
-            len(placeholders) == 1
-            and list(placeholders)[0].full_match == template
-            and list(placeholders)[0].type is PlaceholderType.VARIABLE
-        ):
-            variable_name = list(placeholders)[0].name.replace(
-                VARIABLE_PLACEHOLDER_PREFIX, ""
+    _SENTINEL = object()
+    _MISSING = object()
+    cache: dict[str, Any] = {}
+
+    async def _read_variable(name: str) -> Any:
+        variable_name = name.replace(VARIABLE_PLACEHOLDER_PREFIX, "")
+        cached = cache.get(variable_name, _SENTINEL)
+        if cached is not _SENTINEL:
+            return cached
+        variable = await client.read_variable_by_name(name=variable_name)
+        if variable is None:
+            cache[variable_name] = _MISSING
+            return _MISSING
+        cache[variable_name] = variable.value
+        return variable.value
+
+    async def _resolve(tmpl: T) -> T:
+        if isinstance(tmpl, str):
+            placeholders = find_placeholders(tmpl)
+            has_variable_placeholder = any(
+                placeholder.type is PlaceholderType.VARIABLE
+                for placeholder in placeholders
             )
-            variable = await client.read_variable_by_name(name=variable_name)
-            if variable is None:
-                return ""
+            if not placeholders or not has_variable_placeholder:
+                return tmpl
+            elif (
+                len(placeholders) == 1
+                and list(placeholders)[0].full_match == tmpl
+                and list(placeholders)[0].type is PlaceholderType.VARIABLE
+            ):
+                value = await _read_variable(list(placeholders)[0].name)
+                if value is _MISSING:
+                    return ""
+                else:
+                    return cast(T, value)
             else:
-                return cast(T, variable.value)
+                for full_match, name, placeholder_type in placeholders:
+                    if placeholder_type is PlaceholderType.VARIABLE:
+                        value = await _read_variable(name)
+                        if value is _MISSING:
+                            tmpl = tmpl.replace(full_match, "")
+                        else:
+                            tmpl = tmpl.replace(full_match, str(value))
+                return tmpl
+        elif isinstance(tmpl, dict):
+            return {key: await _resolve(value) for key, value in tmpl.items()}
+        elif isinstance(tmpl, list):
+            return [await _resolve(item) for item in tmpl]
         else:
-            for full_match, name, placeholder_type in placeholders:
-                if placeholder_type is PlaceholderType.VARIABLE:
-                    variable_name = name.replace(VARIABLE_PLACEHOLDER_PREFIX, "")
-                    variable = await client.read_variable_by_name(name=variable_name)
-                    if variable is None:
-                        template = template.replace(full_match, "")
-                    else:
-                        template = template.replace(full_match, str(variable.value))
-            return template
-    elif isinstance(template, dict):
-        return {
-            key: await resolve_variables(value, client=client)
-            for key, value in template.items()
-        }
-    elif isinstance(template, list):
-        return [await resolve_variables(item, client=client) for item in template]
-    else:
-        return template
+            return tmpl
+
+    return await _resolve(template)

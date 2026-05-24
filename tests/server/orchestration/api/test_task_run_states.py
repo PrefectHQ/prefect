@@ -1,8 +1,11 @@
 from uuid import uuid4
 
+import pytest
 from starlette import status
 
 from prefect.server import models, schemas
+
+pytestmark = pytest.mark.clear_db
 
 
 class TestReadTaskRunStateById:

@@ -25,6 +25,8 @@ from prefect.types import DateTime
 from prefect.types._datetime import now
 from prefect.utilities.pydantic import parse_obj_as
 
+pytestmark = pytest.mark.clear_db
+
 
 def test_source_determines_if_deployment_id_is_required_or_allowed():
     with pytest.raises(ValidationError):

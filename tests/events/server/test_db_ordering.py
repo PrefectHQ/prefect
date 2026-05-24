@@ -13,7 +13,7 @@ from prefect.server.events.ordering.db import CausalOrdering
 from prefect.server.events.schemas.events import ReceivedEvent, Resource
 from prefect.types._datetime import DateTime
 
-pytestmark = pytest.mark.usefixtures("cleared_automations")
+pytestmark = [pytest.mark.usefixtures("cleared_automations"), pytest.mark.clear_db]
 
 
 @pytest.fixture

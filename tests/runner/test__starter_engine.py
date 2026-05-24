@@ -10,6 +10,8 @@ from prefect.runner._process_manager import ProcessHandle
 from prefect.runner._starter_engine import EngineCommandStarter
 from prefect.utilities.processutils import command_to_string
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestEngineCommandStarter:
     async def test_start_calls_run_process_with_default_command(self):

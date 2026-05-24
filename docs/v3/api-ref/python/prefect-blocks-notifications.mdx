@@ -42,7 +42,7 @@ Else, it returns a default logger labeled with the class's name.
 - The run logger or a default logger with the class's name.
 
 
-#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 notify(self, body: str, subject: str | None = None) -> None
@@ -71,7 +71,7 @@ Context manager that, while active, causes the block to raise errors if it
 encounters a failure sending notifications.
 
 
-### `AppriseNotificationBlock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AppriseNotificationBlock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L101" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A base class for sending notifications using Apprise, through webhook URLs.
@@ -79,7 +79,7 @@ A base class for sending notifications using Apprise, through webhook URLs.
 
 **Methods:**
 
-#### `anotify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L104" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `anotify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L120" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 anotify(self, body: str, subject: str | None = None) -> None
@@ -97,19 +97,19 @@ anotify(self, body: str, subject: str | None = None) -> None
 block_initialization(self) -> None
 ```
 
-#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L120" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L136" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 notify(self, body: str, subject: str | None = None) -> None
 ```
 
-#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 notify(self, body: str, subject: str | None = None) -> None
 ```
 
-### `SlackWebhook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L138" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SlackWebhook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Enables sending notifications via a provided Slack webhook.
@@ -130,13 +130,13 @@ slack_webhook_block.notify("Hello from Prefect!")
 
 **Methods:**
 
-#### `anotify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L104" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `anotify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L120" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 anotify(self, body: str, subject: str | None = None) -> None
 ```
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L178" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L194" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
@@ -152,13 +152,13 @@ notifications are sent to the correct host.
 See: https://github.com/caronc/apprise/issues/XXXX (upstream issue)
 
 
-#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L120" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L136" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 notify(self, body: str, subject: str | None = None) -> None
 ```
 
-### `MicrosoftTeamsWebhook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L238" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `MicrosoftTeamsWebhook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L254" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Enables sending notifications via a provided Microsoft Teams webhook.
@@ -175,13 +175,13 @@ teams_webhook_block.notify("Hello from Prefect!")
 
 **Methods:**
 
-#### `anotify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L104" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `anotify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L120" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 anotify(self, body: str, subject: str | None = None) -> None
 ```
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L279" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L295" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
@@ -190,13 +190,13 @@ block_initialization(self) -> None
 see https://github.com/caronc/apprise/pull/1172
 
 
-#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L120" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L136" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 notify(self, body: str, subject: str | None = None) -> None
 ```
 
-### `PagerDutyWebHook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L296" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PagerDutyWebHook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L312" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Enables sending notifications via a provided PagerDuty webhook.
@@ -215,7 +215,7 @@ pagerduty_webhook_block.notify("Hello from Prefect!")
 
 **Methods:**
 
-#### `anotify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L413" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `anotify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L429" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 anotify(self, body: str, subject: str | None = None) -> None
@@ -232,7 +232,7 @@ webhook url, so we need to update the url and restart the client.
 anotify(self, body: str, subject: str | None = None) -> None
 ```
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L387" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L403" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
@@ -244,7 +244,7 @@ block_initialization(self) -> None
 block_initialization(self) -> None
 ```
 
-#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L434" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L450" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 notify(self, body: str, subject: str | None = None) -> None
@@ -255,13 +255,13 @@ the body into the custom_details field. custom_details is part of the
 webhook url, so we need to update the url and restart the client.
 
 
-#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 notify(self, body: str, subject: str | None = None) -> None
 ```
 
-### `TwilioSMS` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L455" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `TwilioSMS` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L471" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Enables sending notifications via Twilio SMS.
@@ -285,7 +285,7 @@ twilio_webhook_block.notify("Hello from Prefect!")
 anotify(self, body: str, subject: str | None = None) -> None
 ```
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L506" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L522" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
@@ -297,13 +297,13 @@ block_initialization(self) -> None
 block_initialization(self) -> None
 ```
 
-#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 notify(self, body: str, subject: str | None = None) -> None
 ```
 
-### `OpsgenieWebhook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L527" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `OpsgenieWebhook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L543" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Enables sending notifications via a provided Opsgenie webhook.
@@ -328,7 +328,7 @@ opsgenie_webhook_block.notify("Hello from Prefect!")
 anotify(self, body: str, subject: str | None = None) -> None
 ```
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L615" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L631" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
@@ -340,13 +340,13 @@ block_initialization(self) -> None
 block_initialization(self) -> None
 ```
 
-#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 notify(self, body: str, subject: str | None = None) -> None
 ```
 
-### `MattermostWebhook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L651" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `MattermostWebhook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L667" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Enables sending notifications via a provided Mattermost webhook.
@@ -372,7 +372,7 @@ mattermost_webhook_block.notify("Hello from Prefect!")
 anotify(self, body: str, subject: str | None = None) -> None
 ```
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L719" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L735" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
@@ -384,13 +384,13 @@ block_initialization(self) -> None
 block_initialization(self) -> None
 ```
 
-#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 notify(self, body: str, subject: str | None = None) -> None
 ```
 
-### `DiscordWebhook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L753" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DiscordWebhook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L769" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Enables sending notifications via a provided Discord webhook.
@@ -416,7 +416,7 @@ discord_webhook_block.notify("Hello from Prefect!")
 anotify(self, body: str, subject: str | None = None) -> None
 ```
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L833" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L849" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
@@ -428,13 +428,13 @@ block_initialization(self) -> None
 block_initialization(self) -> None
 ```
 
-#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 notify(self, body: str, subject: str | None = None) -> None
 ```
 
-### `CustomWebhookNotificationBlock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L857" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CustomWebhookNotificationBlock` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L873" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Enables sending notifications via any custom webhook.
@@ -457,13 +457,13 @@ custom_webhook_block.notify("Hello from Prefect!")
 
 **Methods:**
 
-#### `anotify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L990" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `anotify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L1006" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 anotify(self, body: str, subject: str | None = None) -> None
 ```
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L972" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L988" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
@@ -484,7 +484,7 @@ Else, it returns a default logger labeled with the class's name.
 - The run logger or a default logger with the class's name.
 
 
-#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L1010" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L1026" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 notify(self, body: str, subject: str | None = None) -> None
@@ -513,7 +513,7 @@ Context manager that, while active, causes the block to raise errors if it
 encounters a failure sending notifications.
 
 
-### `SendgridEmail` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L1028" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SendgridEmail` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L1044" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Enables sending notifications via any sendgrid account.
@@ -533,7 +533,7 @@ sendgrid_block.notify("Hello from Prefect!")
 
 **Methods:**
 
-#### `anotify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L1105" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `anotify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L1121" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 anotify(self, body: str, subject: str | None = None) -> None
@@ -545,7 +545,7 @@ anotify(self, body: str, subject: str | None = None) -> None
 anotify(self, body: str, subject: str | None = None) -> None
 ```
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L1073" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L1089" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
@@ -557,13 +557,13 @@ block_initialization(self) -> None
 block_initialization(self) -> None
 ```
 
-#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L1114" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L1130" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 notify(self, body: str, subject: str | None = None) -> None
 ```
 
-#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L70" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `notify` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/notifications.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 notify(self, body: str, subject: str | None = None) -> None

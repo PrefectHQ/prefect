@@ -129,6 +129,7 @@ from prefect.settings import (
 from prefect.states import (
     AwaitingRetry,
 )
+from prefect.types._datetime import now
 from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import (
@@ -214,7 +215,7 @@ class Runner:
                 def goodbye_flow(name):
                     print(f"goodbye {name}")
 
-                if __name__ == "__main__"
+                if __name__ == "__main__":
                     runner = Runner(name="my-runner")
 
                     # Will be runnable via the API
@@ -613,17 +614,17 @@ class Runner:
             def goodbye_flow(name):
                 print(f"goodbye {name}")
 
-            if __name__ == "__main__"
-                runner = Runner(name="my-runner")
+                if __name__ == "__main__":
+                    runner = Runner(name="my-runner")
 
-                # Will be runnable via the API
-                runner.add_flow(hello_flow)
+                    # Will be runnable via the API
+                    runner.add_flow(hello_flow)
 
-                # Run on a cron schedule
-                runner.add_flow(goodbye_flow, schedule={"cron": "0 * * * *"})
+                    # Run on a cron schedule
+                    runner.add_flow(goodbye_flow, schedule={"cron": "0 * * * *"})
 
-                asyncio.run(runner.start())
-            ```
+                    asyncio.run(runner.start())
+                ```
         """
         from prefect.runner.server import start_webserver
 
@@ -780,9 +781,9 @@ class Runner:
             # The process may be a multiprocessing.context.SpawnProcess, in which case it will have an `exitcode` attribute
             # but no `returncode` attribute
             if (
-                getattr(process, "returncode", None)
-                or getattr(process, "exitcode", None)
-            ) is None:
+                getattr(process, "returncode", None) is None
+                and getattr(process, "exitcode", None) is None
+            ):
                 await self._add_flow_run_process_map_entry(
                     flow_run.id, ProcessMapEntry(pid=process.pid, flow_run=flow_run)
                 )
@@ -1051,19 +1052,16 @@ class Runner:
             # adhoc pull hasn't been performed in the last pull_interval
             # TODO: Explore integrating this behavior with global concurrency.
             last_adhoc_pull = getattr(storage, "last_adhoc_pull", None)
-            if (
-                last_adhoc_pull is None
-                or last_adhoc_pull
-                < datetime.datetime.now()
-                - datetime.timedelta(seconds=storage.pull_interval)
-            ):
+            if last_adhoc_pull is None or last_adhoc_pull < now(
+                "UTC"
+            ) - datetime.timedelta(seconds=storage.pull_interval):
                 self._logger.debug(
                     "Performing adhoc pull of code for flow run %s with storage %r",
                     flow_run.id,
                     storage,
                 )
                 await storage.pull_code()
-                setattr(storage, "last_adhoc_pull", datetime.datetime.now())
+                setattr(storage, "last_adhoc_pull", now("UTC"))
 
         handed_off = False
 

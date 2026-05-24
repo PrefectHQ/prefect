@@ -1,4 +1,8 @@
+import pytest
+
 from prefect.server.events.jinja_filters import flow_run_id
+
+pytestmark = pytest.mark.clear_db
 
 
 def test_flow_run_id_extraction():

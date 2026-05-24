@@ -10,6 +10,8 @@ import pytest
 
 from prefect.runner._control_channel import ControlChannel
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def channel():

@@ -4,6 +4,7 @@ to act on them based on the automations that users have set up.
 """
 
 import asyncio
+import fnmatch
 from contextlib import AsyncExitStack, asynccontextmanager
 from datetime import timedelta
 from typing import (
@@ -13,6 +14,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Set,
     Tuple,
 )
 from uuid import UUID
@@ -717,6 +719,9 @@ async def evaluate_periodically(periodic_granularity: timedelta) -> None:
 # account and workspace
 automations_by_id: Dict[UUID, Automation] = {}
 triggers: Dict[TriggerID, EventTrigger] = {}
+# Index from expect/after pattern → trigger IDs, so find_interested_triggers
+# checks a handful of patterns instead of scanning all triggers.
+_triggers_by_expect: Dict[str, Set[TriggerID]] = {}
 next_proactive_runs: Dict[TriggerID, prefect.types._datetime.DateTime] = {}
 automation_state_snapshot: Optional[AutomationStateSnapshot] = None
 
@@ -734,14 +739,40 @@ def _automations_lock() -> asyncio.Lock:
 
 
 def find_interested_triggers(event: ReceivedEvent) -> Collection[EventTrigger]:
-    candidates = triggers.values()
+    candidate_ids: set[TriggerID] = set()
+    for expect_pattern, trigger_ids in _triggers_by_expect.items():
+        if fnmatch.fnmatchcase(event.event, expect_pattern):
+            candidate_ids.update(trigger_ids)
+    candidates = [triggers[tid] for tid in candidate_ids if tid in triggers]
     return [trigger for trigger in candidates if trigger.covers(event)]
 
 
 def clear_loaded_automations() -> None:
     automations_by_id.clear()
     triggers.clear()
+    _triggers_by_expect.clear()
     next_proactive_runs.clear()
+
+
+def _index_keys_for(trigger: EventTrigger) -> set[str]:
+    # An empty `expect` means "match any event" (event_pattern is `.+`), so the
+    # trigger must be reachable for every event regardless of its `after` set.
+    if not trigger.expect:
+        return {"*"}
+    return trigger.expect | trigger.after
+
+
+def _index_trigger(trigger: EventTrigger) -> None:
+    for key in _index_keys_for(trigger):
+        _triggers_by_expect.setdefault(key, set()).add(trigger.id)
+
+
+def _unindex_trigger(trigger: EventTrigger) -> None:
+    for key in _index_keys_for(trigger):
+        if key in _triggers_by_expect:
+            _triggers_by_expect[key].discard(trigger.id)
+            if not _triggers_by_expect[key]:
+                del _triggers_by_expect[key]
 
 
 def load_automation(automation: Optional[Automation]) -> None:
@@ -760,6 +791,7 @@ def load_automation(automation: Optional[Automation]) -> None:
     for trigger in event_triggers:
         triggers[trigger.id] = trigger
         next_proactive_runs.pop(trigger.id, None)
+        _index_trigger(trigger)
 
 
 def forget_automation(automation_id: UUID) -> None:
@@ -768,6 +800,8 @@ def forget_automation(automation_id: UUID) -> None:
         for trigger in automation.triggers():
             triggers.pop(trigger.id, None)
             next_proactive_runs.pop(trigger.id, None)
+        for trigger in automation.triggers_of_type(EventTrigger):
+            _unindex_trigger(trigger)
 
 
 async def automation_changed(
@@ -833,6 +867,9 @@ async def reconcile_automations(force: bool = False) -> bool:
 
             previous_automations = automations_by_id.copy()
             previous_triggers = triggers.copy()
+            previous_triggers_by_expect = {
+                k: v.copy() for k, v in _triggers_by_expect.items()
+            }
             previous_next_proactive_runs = next_proactive_runs.copy()
 
             clear_loaded_automations()
@@ -843,6 +880,7 @@ async def reconcile_automations(force: bool = False) -> bool:
                 clear_loaded_automations()
                 automations_by_id.update(previous_automations)
                 triggers.update(previous_triggers)
+                _triggers_by_expect.update(previous_triggers_by_expect)
                 next_proactive_runs.update(previous_next_proactive_runs)
                 raise
 

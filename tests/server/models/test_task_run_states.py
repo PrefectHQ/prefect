@@ -20,6 +20,8 @@ from prefect.server.orchestration.rules import (
 from prefect.server.schemas.states import Failed, Running, Scheduled, StateType
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestCreateTaskRunState:
     async def test_create_task_run_state_succeeds(self, task_run, session):

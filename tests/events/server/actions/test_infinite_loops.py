@@ -14,6 +14,8 @@ from prefect.server.events.schemas.automations import (
     Posture,
 )
 
+pytestmark = pytest.mark.clear_db
+
 
 def test_running_inferred_deployment_on_all_flow_run_state_changes():
     """It's never okay to run an inferred deployment from all flow run state changes."""
