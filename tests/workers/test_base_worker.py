@@ -4932,7 +4932,9 @@ class TestWorkerCancellationHandling:
                         worker, "kill_infrastructure", new_callable=AsyncMock
                     ) as mock_kill:
                         with mock.patch.object(
-                            worker, "_mark_flow_run_as_cancelled", new_callable=AsyncMock
+                            worker,
+                            "_mark_flow_run_as_cancelled",
+                            new_callable=AsyncMock,
                         ) as mock_mark:
                             await worker._cancel_run(flow_run.id)
                             # kill_infrastructure must be attempted even for started runs
