@@ -7,6 +7,7 @@ type TagBadgeGroupProps = {
 	variant?: BadgeProps["variant"];
 	maxTagsDisplayed?: number;
 	onTagsChange?: (tags: string[]) => void;
+	onTagClick?: (tag: string) => void;
 	/**
 	 * Applied to each inline `TagBadge`. Use to opt into a width cap in
 	 * tight layouts (e.g. `className="max-w-32"` inside a narrow table
@@ -20,6 +21,7 @@ export const TagBadgeGroup = ({
 	variant,
 	maxTagsDisplayed = 2,
 	onTagsChange,
+	onTagClick,
 	tagClassName,
 }: TagBadgeGroupProps) => {
 	const removeTag = (tag: string) => {
@@ -42,6 +44,7 @@ export const TagBadgeGroup = ({
 							key={tag}
 							tag={tag}
 							onRemove={onTagsChange ? () => removeTag(tag) : undefined}
+							onClick={onTagClick ? () => onTagClick(tag) : undefined}
 							className={tagClassName}
 						/>
 					))}
@@ -57,6 +60,7 @@ export const TagBadgeGroup = ({
 					key={tag}
 					tag={tag}
 					onRemove={onTagsChange ? () => removeTag(tag) : undefined}
+					onClick={onTagClick ? () => onTagClick(tag) : undefined}
 					variant={variant}
 					className={tagClassName}
 				/>
