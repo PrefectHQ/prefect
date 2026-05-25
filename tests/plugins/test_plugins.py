@@ -39,6 +39,8 @@ from prefect.settings import (
 )
 from prefect.settings.legacy import Settings, _get_settings_fields
 
+pytestmark = pytest.mark.clear_db
+
 
 def mock_entry_points(entry_points_list):
     """

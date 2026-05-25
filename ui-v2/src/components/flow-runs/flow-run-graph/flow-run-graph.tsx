@@ -30,7 +30,7 @@ import {
 } from "@/graphs";
 import { getStateColor } from "@/utils/state-colors";
 import { fetchFlowRunEvents, fetchFlowRunGraph } from "./api";
-import { stateTypeShades } from "./consts";
+import { getStateTypeShade } from "./consts";
 import { FlowRunGraphActions } from "./flow-run-graph-actions";
 import { FlowRunGraphArtifactDrawer } from "./flow-run-graph-artifact-drawer";
 import { FlowRunGraphArtifactsPopover } from "./flow-run-graph-artifacts-popover";
@@ -120,15 +120,18 @@ export function FlowRunGraph({
 			runId: flowRunId,
 			fetch: fetchFlowRunGraph,
 			fetchEvents: fetchFlowRunEvents,
-			styles: () => ({
+			styles: (theme) => ({
 				node: (node: RunGraphNode) => ({
 					background: getStateColor(
 						node.state_type,
-						stateTypeShades[node.state_type],
+						getStateTypeShade(node.state_type, theme),
 					),
 				}),
 				state: (event: RunGraphStateEvent) => ({
-					background: getStateColor(event.type, stateTypeShades[event.type]),
+					background: getStateColor(
+						event.type,
+						getStateTypeShade(event.type, theme),
+					),
 				}),
 			}),
 			theme: resolvedTheme === "dark" ? "dark" : "light",

@@ -29,6 +29,7 @@ import prefect
 import prefect.client.schemas as schemas
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.result_records import ResultRecord, ResultRecordMetadata
+from prefect._internal.testing import retry_asserts
 from prefect._internal.uuid7 import uuid7
 from prefect.blocks.core import Block
 from prefect.client.base import ServerType
@@ -108,7 +109,7 @@ from prefect.workers.base import (
     BaseWorkerResult,
 )
 
-pytestmark = pytest.mark.usefixtures("asserting_events_worker")
+pytestmark = [pytest.mark.usefixtures("asserting_events_worker"), pytest.mark.clear_db]
 
 
 class WorkerTestImpl(BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]):
@@ -161,6 +162,23 @@ async def variables(prefect_client: PrefectClient):
 def no_api_url():
     with temporary_settings(updates={PREFECT_TEST_MODE: False, PREFECT_API_URL: None}):
         yield
+
+
+@pytest.fixture
+def worker_channel_endpoint_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def endpoint_unavailable(
+        self: WorkerChannelTransport, handshake: Any
+    ) -> WorkerChannelSession:
+        raise WorkerChannelTerminalError(
+            "endpoint_unavailable",
+            "Worker channel endpoint is unavailable",
+        )
+
+    monkeypatch.setattr(
+        WorkerChannelTransport,
+        "connect_once",
+        endpoint_unavailable,
+    )
 
 
 @pytest.mark.usefixtures("no_api_url")
@@ -219,6 +237,7 @@ async def test_worker_respects_prefetch_seconds():
 
 async def test_worker_sends_heartbeat_messages(
     prefect_client: PrefectClient,
+    worker_channel_endpoint_unavailable: None,
 ):
     async with WorkerTestImpl(name="test", work_pool_name="test-work-pool") as worker:
         await worker.sync_with_backend()
@@ -239,7 +258,10 @@ async def test_worker_sends_heartbeat_messages(
         assert second_heartbeat > first_heartbeat
 
 
-async def test_worker_sends_heartbeat_gets_id(respx_mock: respx.MockRouter):
+async def test_worker_sends_heartbeat_gets_id(
+    respx_mock: respx.MockRouter,
+    worker_channel_endpoint_unavailable: None,
+):
     work_pool_name = "test-work-pool"
     test_worker_id = uuid.UUID("028EC481-5899-49D7-B8C5-37A2726E9840")
     # Pass through the non-relevant paths
@@ -259,7 +281,9 @@ async def test_worker_sends_heartbeat_gets_id(respx_mock: respx.MockRouter):
         assert worker.backend_id == test_worker_id
 
 
-async def test_worker_sends_heartbeat_only_gets_id_once():
+async def test_worker_sends_heartbeat_only_gets_id_once(
+    worker_channel_endpoint_unavailable: None,
+):
     async with WorkerTestImpl(name="test", work_pool_name="test-work-pool") as worker:
         worker._client.server_type = ServerType.CLOUD
         mock = AsyncMock(return_value="test")
@@ -1933,7 +1957,10 @@ class TestPrepareForFlowRun:
 
 
 async def test_get_flow_run_logger_without_worker_id_set(
-    prefect_client: PrefectClient, worker_deployment_wq1, work_pool
+    prefect_client: PrefectClient,
+    worker_deployment_wq1,
+    work_pool,
+    worker_channel_endpoint_unavailable: None,
 ):
     flow_run = await prefect_client.create_flow_run_from_deployment(
         worker_deployment_wq1.id
@@ -2327,6 +2354,108 @@ def worker_channel_test_client(
 
 
 class TestWorkerChannelClient:
+    async def test_worker_uses_real_server_channel_for_setup_and_heartbeat(
+        self,
+        hosted_api_server: str,
+        prefect_client: PrefectClient,
+    ):
+        assert PREFECT_API_URL.value() == hosted_api_server
+
+        work_pool_name = f"worker-channel-e2e-{uuid.uuid4().hex}"
+        worker_name = f"worker-channel-e2e-{uuid.uuid4().hex}"
+        work_pool = await prefect_client.create_work_pool(
+            WorkPoolCreate(
+                name=work_pool_name,
+                type=WorkerTestImpl.type,
+                base_job_template=WorkerTestImpl.get_default_base_job_template(),
+            )
+        )
+
+        async with WorkerTestImpl(
+            name=worker_name,
+            work_pool_name=work_pool_name,
+            create_pool_if_not_found=False,
+            heartbeat_interval_seconds=1,
+        ) as worker:
+            assert worker.backend_id is None
+            assert worker.work_pool.id == work_pool.id
+
+            workers = await prefect_client.read_workers_for_work_pool(work_pool_name)
+            assert len(workers) == 1
+            assert workers[0].name == worker_name
+            assert workers[0].heartbeat_interval_seconds == 1
+            initial_heartbeat_time = workers[0].last_heartbeat_time
+            assert initial_heartbeat_time is not None
+
+            async for attempt in retry_asserts(max_attempts=20, delay=0.25):
+                with attempt:
+                    [server_worker] = await prefect_client.read_workers_for_work_pool(
+                        work_pool_name
+                    )
+                    assert server_worker.last_heartbeat_time is not None
+                    assert server_worker.last_heartbeat_time > initial_heartbeat_time
+
+    async def test_oss_worker_channel_does_not_set_worker_id_env_var(
+        self,
+        hosted_api_server: str,
+        prefect_client: PrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """OSS server returns worker_id=None in the ready frame, so
+        PREFECT__WORKER_ID should never be set from the channel path."""
+        monkeypatch.delenv("PREFECT__WORKER_ID", raising=False)
+        assert PREFECT_API_URL.value() == hosted_api_server
+
+        work_pool_name = f"worker-channel-e2e-{uuid.uuid4().hex}"
+        await prefect_client.create_work_pool(
+            WorkPoolCreate(
+                name=work_pool_name,
+                type=WorkerTestImpl.type,
+                base_job_template=WorkerTestImpl.get_default_base_job_template(),
+            )
+        )
+
+        async with WorkerTestImpl(
+            name=f"worker-{uuid.uuid4().hex}",
+            work_pool_name=work_pool_name,
+            create_pool_if_not_found=False,
+            heartbeat_interval_seconds=1,
+        ) as worker:
+            assert worker.backend_id is None
+            assert worker.work_pool is not None
+            assert worker.work_pool.name == work_pool_name
+            import os
+
+            assert os.environ.get("PREFECT__WORKER_ID") is None
+
+    async def test_oss_worker_channel_still_healthy_without_worker_id(
+        self,
+        hosted_api_server: str,
+        prefect_client: PrefectClient,
+    ):
+        """OSS channel setup becomes healthy and applies initial snapshot
+        even though worker_id is None in the ready frame."""
+        assert PREFECT_API_URL.value() == hosted_api_server
+
+        work_pool_name = f"worker-channel-e2e-{uuid.uuid4().hex}"
+        work_pool = await prefect_client.create_work_pool(
+            WorkPoolCreate(
+                name=work_pool_name,
+                type=WorkerTestImpl.type,
+                base_job_template=WorkerTestImpl.get_default_base_job_template(),
+            )
+        )
+
+        async with WorkerTestImpl(
+            name=f"worker-{uuid.uuid4().hex}",
+            work_pool_name=work_pool_name,
+            create_pool_if_not_found=False,
+            heartbeat_interval_seconds=1,
+        ) as worker:
+            assert worker.backend_id is None
+            assert worker.work_pool.id == work_pool.id
+            assert worker.work_pool.is_paused is False
+
     def test_builds_websocket_url_from_prefect_api_url(self):
         assert (
             build_worker_channel_url("http://localhost:4200/api", "default pool")
@@ -2588,6 +2717,50 @@ class TestWorkerChannelClient:
         await transport.close_session(session)
         assert connect_context.exited
 
+    async def test_protocol_does_not_record_worker_id_when_none(self):
+        """When the server returns worker_id=None (OSS behavior), the protocol
+        handler should not invoke the on_worker_id callback."""
+        consumer_id = uuid7()
+        on_worker_id = Mock()
+        snapshot = Mock()
+
+        protocol = WorkerChannelProtocolHandler(
+            consumer_id=consumer_id,
+            worker_name="test-worker",
+            worker_type="test",
+            heartbeat_interval_seconds=30,
+            work_queue_names=[],
+            create_pool_if_not_found=True,
+            default_base_job_template={},
+            worker_metadata=no_worker_channel_metadata,
+            classify_closed_connection=lambda exc: WorkerChannelTerminalError(
+                "connection_lost", str(exc)
+            ),
+            logger=logging.getLogger("test-worker-channel"),
+            on_worker_id=on_worker_id,
+            on_work_pool_snapshot=snapshot,
+        )
+        websocket = FakeWorkerChannelWebSocket(
+            [
+                {"type": "auth_success"},
+                worker_channel_ready_frame(consumer_id, worker_id=None),
+            ]
+        )
+        connect_context = FakeWorkerChannelConnect(websocket)
+
+        transport = WorkerChannelTransport(
+            api_url="http://localhost:4200/api",
+            work_pool_name="test-work-pool",
+            logger=logging.getLogger("test-worker-channel"),
+            connect_factory=lambda *args, **kwargs: connect_context,
+        )
+
+        await transport.connect_once(protocol.handshake)
+
+        assert protocol.worker_id is None
+        on_worker_id.assert_not_called()
+        snapshot.assert_called_once()
+
     async def test_run_session_classifies_heartbeat_connection_close(self, monkeypatch):
         consumer_id = uuid7()
         websocket = FakeWorkerChannelWebSocket([])
@@ -2677,6 +2850,54 @@ class TestWorkerChannelClient:
         client.send_worker_heartbeat.assert_not_awaited()
         snapshot.assert_called_once()
         assert channel.rest_fallback_enabled is False
+
+    async def test_stop_before_run_scope_cancels_started_channel(self):
+        client = worker_channel_test_client()
+        client.read_work_pool = AsyncMock()
+        channel_by_ref: dict[str, WorkPoolWorkerChannel] = {}
+        connect_context_by_ref: dict[str, FakeWorkerChannelConnect] = {}
+
+        def connect_factory(*args: Any, **kwargs: Any) -> FakeWorkerChannelConnect:
+            channel = channel_by_ref["channel"]
+            websocket = FakeWorkerChannelWebSocket(
+                [
+                    {"type": "auth_success"},
+                    worker_channel_ready_frame(channel.consumer_id),
+                ]
+            )
+            connect_context = FakeWorkerChannelConnect(websocket)
+            connect_context_by_ref["connect_context"] = connect_context
+            return connect_context
+
+        channel = WorkPoolWorkerChannel(
+            client=client,
+            api_url="http://localhost:4200/api",
+            work_pool_is_available=lambda: True,
+            work_pool_name="test-work-pool",
+            worker_name="test-worker",
+            worker_type="test",
+            heartbeat_interval_seconds=30,
+            work_queue_names=[],
+            create_pool_if_not_found=True,
+            default_base_job_template={},
+            worker_metadata=no_worker_channel_metadata,
+            logger=logging.getLogger("test-worker-channel"),
+            connect_factory=connect_factory,
+        )
+        channel_by_ref["channel"] = channel
+
+        async with anyio.create_task_group() as task_group:
+            await channel.sync(task_group)
+            channel.stop()
+
+            with anyio.fail_after(1):
+                while not connect_context_by_ref["connect_context"].exited:
+                    await anyio.sleep(0)
+
+            task_group.cancel_scope.cancel()
+
+        client.read_work_pool.assert_not_awaited()
+        client.send_worker_heartbeat.assert_not_awaited()
 
     async def test_sync_skips_rest_when_websocket_is_healthy(self):
         worker_id = uuid.uuid4()
@@ -3135,12 +3356,21 @@ class TestWorkerChannelClient:
         assert protocol.worker_metadata_sent is True
         assert hello.payload.worker_metadata is None
 
-    async def test_channel_skips_rest_heartbeat_when_healthy(self):
+    async def test_healthy_channel_keeps_rest_work_pool_sync_after_initial_snapshot(
+        self,
+    ):
+        rest_work_pool = WorkPool(
+            name="test-work-pool",
+            type="test",
+            base_job_template={"job_configuration": {"env": {"REST": "true"}}},
+            default_queue_id=uuid.uuid4(),
+        )
+        snapshot = Mock()
         client = worker_channel_test_client()
-        client.read_work_pool = AsyncMock()
+        client.read_work_pool = AsyncMock(return_value=rest_work_pool)
         channel = WorkPoolWorkerChannel(
             client=client,
-            api_url=None,
+            api_url="http://localhost:4200/api",
             work_pool_is_available=lambda: True,
             work_pool_name="test-work-pool",
             worker_name="test-worker",
@@ -3151,14 +3381,17 @@ class TestWorkerChannelClient:
             default_base_job_template={},
             worker_metadata=no_worker_channel_metadata,
             logger=logging.getLogger("test-worker-channel"),
+            on_work_pool_snapshot=snapshot,
         )
         channel._protocol.handle_work_pool_snapshot(worker_channel_snapshot_payload(1))
+        snapshot.reset_mock()
         channel.state.mark_healthy()
 
         await channel.sync(None)
 
-        client.read_work_pool.assert_not_awaited()
+        client.read_work_pool.assert_awaited_once_with(work_pool_name="test-work-pool")
         client.send_worker_heartbeat.assert_not_awaited()
+        snapshot.assert_called_once_with(rest_work_pool)
 
     async def test_channel_skips_rest_heartbeat_without_work_pool(self):
         client = worker_channel_test_client()
@@ -3501,31 +3734,38 @@ async def test_configuration_build_uses_stable_work_pool_copy(
 
 class TestBaseWorkerHeartbeat:
     async def test_sync_with_backend_delegates_to_worker_channel(self, work_pool):
-        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-            worker._worker_channel = Mock(
+        with mock.patch("prefect.workers.base.WorkPoolWorkerChannel") as channel_cls:
+            channel = Mock(
                 set_client=Mock(),
                 sync=AsyncMock(),
+                stop=Mock(),
             )
+            channel_cls.return_value = channel
 
-            await worker.sync_with_backend()
+            async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+                channel.sync.reset_mock()
 
-            worker._worker_channel.sync.assert_awaited_once_with(
-                worker._runs_task_group
-            )
+                await worker.sync_with_backend()
+
+                channel.sync.assert_awaited_once_with(worker._runs_task_group)
 
     async def test_sync_with_backend_updates_existing_channel_client(self, work_pool):
-        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-            worker._worker_channel = Mock(
+        with mock.patch("prefect.workers.base.WorkPoolWorkerChannel") as channel_cls:
+            channel = Mock(
                 set_client=Mock(),
                 sync=AsyncMock(),
+                stop=Mock(),
             )
+            channel_cls.return_value = channel
 
-            await worker.sync_with_backend()
+            async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+                channel.set_client.reset_mock()
+                channel.sync.reset_mock()
 
-            worker._worker_channel.set_client.assert_called_once_with(worker._client)
-            worker._worker_channel.sync.assert_awaited_once_with(
-                worker._runs_task_group
-            )
+                await worker.sync_with_backend()
+
+                channel.set_client.assert_called_once_with(worker._client)
+                channel.sync.assert_awaited_once_with(worker._runs_task_group)
 
     async def test_sync_with_backend_falls_back_to_rest_when_channel_endpoint_is_missing(
         self, prefect_client, work_pool, monkeypatch
@@ -3999,6 +4239,7 @@ class TestSubmit:
             flow=Flow(id=flow_run.flow_id, name=unsuspecting_flow.name, labels={}),
             work_pool=work_pool,
             worker_name=worker_name,
+            worker_id=worker.backend_id,
         )
 
         spy.assert_called_once_with(
@@ -4459,6 +4700,7 @@ class TestSubmit:
             flow=Flow(id=flow_run.flow_id, name=a_garden_variety_flow.name, labels={}),
             work_pool=work_pool,
             worker_name="test-worker",
+            worker_id=worker.backend_id,
         )
 
         initiate_run_spy.assert_called_once_with(

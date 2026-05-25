@@ -9,6 +9,8 @@ from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.settings import PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH, temporary_settings
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.mark.parametrize(
     "name",

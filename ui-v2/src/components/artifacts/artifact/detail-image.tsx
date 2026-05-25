@@ -4,7 +4,7 @@ export type DetailImageProps = {
 
 export const DetailImage = ({ url }: DetailImageProps) => {
 	return (
-		<div data-testid={url} className="prose mt-2">
+		<div data-testid={url} className="prose dark:prose-invert mt-2">
 			<img
 				data-testid={`image-${url}`}
 				src={url}

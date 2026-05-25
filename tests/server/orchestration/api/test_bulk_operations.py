@@ -14,10 +14,13 @@ These tests cover:
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
+import pytest
 from starlette import status
 
 from prefect._internal.testing import retry_asserts
 from prefect.server import models, schemas
+
+pytestmark = pytest.mark.clear_db
 
 
 class TestFlowRunBulkDelete:

@@ -9,6 +9,8 @@ from prefect.exceptions import Abort, ObjectNotFound
 from prefect.runner._state_proposer import StateProposer
 from prefect.states import AwaitingRetry, Crashed, Pending, Running, Submitting
 
+pytestmark = pytest.mark.clear_db
+
 
 def _make_flow_run() -> MagicMock:
     flow_run = MagicMock()

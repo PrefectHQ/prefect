@@ -10,6 +10,8 @@ from prefect.server.events.schemas.automations import (
     Posture,
 )
 
+pytestmark = pytest.mark.clear_db
+
 
 async def test_compound_trigger_requires_too_small():
     with pytest.raises(ValueError, match="require must be at least 1"):

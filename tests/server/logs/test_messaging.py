@@ -14,6 +14,8 @@ from prefect.settings import (
 )
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def sample_log():

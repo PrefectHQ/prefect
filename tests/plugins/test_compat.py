@@ -16,6 +16,8 @@ import pytest
 
 import prefect.plugins as new_module
 
+pytestmark = pytest.mark.clear_db
+
 PUBLIC_NAMES = (
     "run_startup_hooks",
     "HookContext",

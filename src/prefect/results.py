@@ -699,6 +699,8 @@ class ResultStore(BaseModel):
             except Exception:
                 return False
         else:
+            if self.result_storage is None:
+                self.result_storage = await aget_default_result_storage()
             try:
                 content = await call_explicitly_async_block_method(
                     self.result_storage, "read_path", (key,), {}
@@ -742,6 +744,8 @@ class ResultStore(BaseModel):
             except Exception:
                 return False
         else:
+            if self.result_storage is None:
+                self.result_storage = get_default_result_storage(_sync=True)
             try:
                 content = call_explicitly_sync_block_method(
                     self.result_storage, "read_path", (key,), {}

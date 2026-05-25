@@ -21,6 +21,8 @@ from prefect.server.events.storage import database
 from prefect.settings import PREFECT_SERVER_API_AUTH_STRING, temporary_settings
 from prefect.types._datetime import DateTime, now
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def stream_mock(

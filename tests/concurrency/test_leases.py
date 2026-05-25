@@ -7,11 +7,14 @@ from uuid import uuid4
 
 import pytest
 
+from prefect import flow
 from prefect._internal.concurrency.cancellation import CancelledError
 from prefect.concurrency._leases import (
     amaintain_concurrency_lease,
     maintain_concurrency_lease,
 )
+
+pytestmark = pytest.mark.clear_db
 
 
 @contextmanager
@@ -152,3 +155,46 @@ async def test_lease_renewal_fires_when_event_loop_blocked():
                 pass
 
     assert mock_client.renew_concurrency_lease.call_count >= 2
+
+
+@mock.patch(
+    "prefect.concurrency._leases.exponential_backoff_with_jitter", _zero_backoff
+)
+def test_lease_renewal_failure_logs_via_run_logger_in_flow_context(
+    caplog: pytest.LogCaptureFixture,
+):
+    """The failure message should reach the run logger (and thus the run logs API)
+    when the lease is maintained from within a flow context, not fall back to the
+    plain "prefect.concurrency" logger.
+
+    Regression test for the contextvar copy in _start_lease_renewal_thread: the
+    failure handler must run inside renewal_ctx so get_run_logger() resolves to
+    the parent flow's FlowRunContext.
+    """
+    mock_client = mock.MagicMock()
+    mock_client.renew_concurrency_lease.side_effect = RuntimeError("server down")
+    failure_message = "Concurrency lease renewal failed - slots are no longer reserved."
+
+    @flow
+    def host_flow() -> None:
+        with _patch_renewal_client(mock_client):
+            with maintain_concurrency_lease(
+                lease_id=uuid4(),
+                lease_duration=60,
+                raise_on_lease_renewal_failure=False,
+            ):
+                assert _wait_for(lambda: caplog.text.count(failure_message) == 1)
+
+    with caplog.at_level(logging.WARNING):
+        host_flow()
+
+    failure_records = [
+        record for record in caplog.records if failure_message in record.getMessage()
+    ]
+    assert failure_records, "expected a lease renewal failure log record"
+    # If the handler runs outside the copied context, get_run_logger() raises
+    # MissingContextError and the fallback emits via "prefect.concurrency".
+    assert any(record.name == "prefect.flow_runs" for record in failure_records), (
+        f"failure log did not reach the run logger; got loggers="
+        f"{[r.name for r in failure_records]}"
+    )

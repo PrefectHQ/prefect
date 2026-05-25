@@ -17,8 +17,8 @@ import { ActionDetails } from "./action-details";
 const ACTIONS: Array<Automation["actions"][number]> = [
 	{ type: "do-nothing" },
 	{ type: "cancel-flow-run" },
+	{ type: "delete-flow-run" },
 	{ type: "suspend-flow-run" },
-	{ type: "cancel-flow-run" },
 	{ type: "resume-flow-run" },
 	{ type: "run-deployment", deployment_id: null, source: "inferred" },
 	{

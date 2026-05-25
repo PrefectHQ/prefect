@@ -24,6 +24,8 @@ from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.types import DateTime
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def flow_run_events(

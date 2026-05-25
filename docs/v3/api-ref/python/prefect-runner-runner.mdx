@@ -278,17 +278,17 @@ def hello_flow(name):
 def goodbye_flow(name):
     print(f"goodbye {name}")
 
-if __name__ == "__main__"
-    runner = Runner(name="my-runner")
+    if __name__ == "__main__":
+        runner = Runner(name="my-runner")
 
-    # Will be runnable via the API
-    runner.add_flow(hello_flow)
+        # Will be runnable via the API
+        runner.add_flow(hello_flow)
 
-    # Run on a cron schedule
-    runner.add_flow(goodbye_flow, schedule={"cron": "0 * * * *"})
+        # Run on a cron schedule
+        runner.add_flow(goodbye_flow, schedule={"cron": "0 * * * *"})
 
-    asyncio.run(runner.start())
-```
+        asyncio.run(runner.start())
+    ```
 
 
 #### `stop` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/runner/runner.py#L698" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>

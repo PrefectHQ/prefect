@@ -39,6 +39,8 @@ from prefect.server.schemas.core import Deployment, Flow, FlowRun, WorkQueue
 from prefect.types import DateTime
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def snap_a_pic(

@@ -21,6 +21,8 @@ from prefect.server.services.repossessor import (
     revoke_expired_lease,
 )
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestRevokeExpiredLease:
     @pytest.fixture

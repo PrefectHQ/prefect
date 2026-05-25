@@ -13,6 +13,8 @@ from prefect.server.utilities.postgres_listener import (
 )
 from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL, temporary_settings
 
+pytestmark = pytest.mark.clear_db
+
 
 def _parse_asyncpg_dsn(dsn: str) -> tuple[list[Any], Any]:
     addrs, params, _config = connect_utils._parse_connect_arguments(

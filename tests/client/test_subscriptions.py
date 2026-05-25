@@ -10,6 +10,8 @@ from prefect.settings import (
     temporary_settings,
 )
 
+pytestmark = pytest.mark.clear_db
+
 
 def test_subscription_uses_websocket_connect_with_ssl_for_wss():
     """Test that Subscription creates a connector with SSL context for wss:// URLs"""

@@ -18,6 +18,8 @@ from prefect.concurrency.services import (
     _should_use_cache,
 )
 
+pytestmark = pytest.mark.clear_db
+
 
 class ClientWrapper:
     """Wrapper to make mocked client work with async context manager."""
