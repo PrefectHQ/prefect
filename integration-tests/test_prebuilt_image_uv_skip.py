@@ -49,14 +49,15 @@ def _docker_available() -> bool:
 def build_prebuilt_image(build_dir: Path) -> str:
     """Assemble the build context and build a pre-built-image Docker image.
 
-    Copies the static fixture files and the workspace starter under test
-    into *build_dir*, then runs `docker build`.  Returns the image tag.
+    Copies the static fixture files and the local prefect source into
+    *build_dir*, then runs `docker build`.  Returns the image tag.
     """
     tag = f"prefect-prebuilt-test-{uuid4().hex[:8]}"
 
     for name in ("Dockerfile", "pyproject.toml", "flows.py", "check_uv_skip.py"):
         shutil.copy(FIXTURES_DIR / name, build_dir / name)
 
+    # Copy the workspace starter under test so the Dockerfile can overlay it.
     shutil.copy(
         REPO_ROOT / "src" / "prefect" / "runner" / "_workspace_starter.py",
         build_dir / "_workspace_starter.py",
