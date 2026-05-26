@@ -184,6 +184,13 @@ def _should_materialize_deployment_storage(deployment: "DeploymentResponse") -> 
     )
 
 
+def _resolve_local_runtime_directory(
+    path: str | None, source_cwd: Path, storage_base_path: Path | None
+) -> Path:
+    resolved_path = _resolve_local_deployment_path(path, source_cwd, storage_base_path)
+    return Path(resolved_path).resolve() if resolved_path is not None else source_cwd
+
+
 @contextlib.contextmanager
 def _redirect_stdout_to_stderr() -> Any:
     stdout = sys.stdout
@@ -266,19 +273,16 @@ async def prepare_workspace(
         os.chdir(working_directory)
         working_directory = Path.cwd().resolve()
     elif not deployment.pull_steps:
-        resolved_local_path = _resolve_local_deployment_path(
+        working_directory = _resolve_local_runtime_directory(
             deployment.path, source_cwd, storage_base_path
-        )
-        working_directory = (
-            Path(resolved_local_path).resolve()
-            if resolved_local_path is not None
-            else source_cwd
         )
         os.chdir(working_directory)
         working_directory = Path.cwd().resolve()
     else:
+        working_directory = _resolve_local_runtime_directory(
+            deployment.path, source_cwd, storage_base_path
+        )
         os.chdir(resolved_workspace_root)
-        working_directory = Path.cwd().resolve()
         LOGGER.info("Running %s deployment pull step(s)", len(deployment.pull_steps))
 
         def _track_step_workspace(
