@@ -94,7 +94,16 @@ class WorkerCleanupQueue:
         target: Mapping[str, Any],
         data: Mapping[str, Any] | None = None,
         work_queue_id: UUID | None = None,
-    ) -> CleanupQueueMessage: ...
+    ) -> CleanupQueueMessage:
+        """
+        Store a cleanup message if it has not already been produced.
+
+        Implementations should treat `message_id` and `idempotency_key` as stable
+        producer identifiers within a work pool, returning the existing message
+        for repeated enqueue attempts instead of creating duplicates. The
+        optional `work_queue_id` is advisory targeting metadata.
+        """
+        ...
 
     async def reserve(
         self,
@@ -103,7 +112,17 @@ class WorkerCleanupQueue:
         cleanup_kinds: Iterable[CleanupKind] | None = None,
         preferred_work_queue_ids: Iterable[UUID] | None = None,
         allow_fallback_to_any_queue: bool = True,
-    ) -> CleanupQueueReservation | None: ...
+    ) -> CleanupQueueReservation | None:
+        """
+        Atomically reserve one eligible cleanup message for delivery.
+
+        A successful reservation must increment the committed delivery count,
+        create exactly one active reservation, and return an unguessable token
+        required for follow-up operations. `preferred_work_queue_ids` should be
+        treated as an advisory preference, with pool-wide fallback controlled by
+        `allow_fallback_to_any_queue`.
+        """
+        ...
 
     async def ack(
         self,
@@ -111,7 +130,16 @@ class WorkerCleanupQueue:
         work_pool_id: UUID,
         message_id: UUID,
         reservation_token: str,
-    ) -> CleanupQueueOperationResult: ...
+    ) -> CleanupQueueOperationResult:
+        """
+        Complete a reserved cleanup message.
+
+        The operation must validate the work-pool scope and current reservation
+        token atomically before removing the message from active delivery.
+        Implementations should retain completed idempotency state according to
+        their configured retention policy.
+        """
+        ...
 
     async def release(
         self,
@@ -120,7 +148,15 @@ class WorkerCleanupQueue:
         message_id: UUID,
         reservation_token: str,
         reason: str,
-    ) -> CleanupQueueOperationResult: ...
+    ) -> CleanupQueueOperationResult:
+        """
+        Give up the current reservation without completing the cleanup message.
+
+        The operation must validate the work-pool scope and current reservation
+        token atomically, then either make the message eligible for redelivery or
+        move it to the dead-letter queue when retry policy is exhausted.
+        """
+        ...
 
     async def renew(
         self,
@@ -128,32 +164,76 @@ class WorkerCleanupQueue:
         work_pool_id: UUID,
         message_id: UUID,
         reservation_token: str,
-    ) -> CleanupQueueOperationResult: ...
+    ) -> CleanupQueueOperationResult:
+        """
+        Extend the lease for the current reservation.
+
+        The operation must validate the work-pool scope and current reservation
+        token atomically. Renewing a reservation should not increment delivery
+        count because no new delivery has been committed.
+        """
+        ...
 
     async def expire_leases(
         self,
         *,
         limit: int = 100,
         work_pool_id: UUID | None = None,
-    ) -> CleanupQueueLeaseExpiryResult: ...
+    ) -> CleanupQueueLeaseExpiryResult:
+        """
+        Expire overdue reservations in bounded batches.
+
+        Expired messages should become eligible for redelivery or move to the
+        dead-letter queue according to retry policy. Implementations may scope
+        the sweep to a work pool when `work_pool_id` is provided.
+        """
+        ...
 
     async def read_message(
         self,
         *,
         work_pool_id: UUID,
         message_id: UUID,
-    ) -> CleanupQueueMessage | None: ...
+    ) -> CleanupQueueMessage | None:
+        """
+        Read an active cleanup message by work-pool scope and message ID.
+
+        This is an inspection helper for messages that have not been acked or
+        dead-lettered. It must not return a message from a different work pool.
+        """
+        ...
 
     async def read_dead_letter(
         self,
         *,
         work_pool_id: UUID,
         message_id: UUID,
-    ) -> CleanupQueueDeadLetter | None: ...
+    ) -> CleanupQueueDeadLetter | None:
+        """
+        Read a dead-letter entry by work-pool scope and message ID.
 
-    async def wake_dispatchers(self, work_pool_id: UUID) -> CleanupQueueWakeup: ...
+        This is an inspection helper for terminal cleanup failures. It must not
+        return a dead-letter entry from a different work pool.
+        """
+        ...
 
-    async def read_wakeup_sequence(self, work_pool_id: UUID) -> int: ...
+    async def wake_dispatchers(self, work_pool_id: UUID) -> CleanupQueueWakeup:
+        """
+        Notify dispatchers that cleanup work may be available for a work pool.
+
+        Implementations should advance and return a monotonic wakeup sequence so
+        local dispatchers can avoid missing notifications.
+        """
+        ...
+
+    async def read_wakeup_sequence(self, work_pool_id: UUID) -> int:
+        """
+        Return the latest wakeup sequence observed for a work pool.
+
+        Callers use this value as the `after` cursor when waiting for future
+        wakeups.
+        """
+        ...
 
     async def wait_for_wakeup(
         self,
@@ -161,7 +241,14 @@ class WorkerCleanupQueue:
         *,
         after: int = 0,
         timeout: float | None = None,
-    ) -> CleanupQueueWakeup | None: ...
+    ) -> CleanupQueueWakeup | None:
+        """
+        Wait for a work-pool wakeup sequence newer than `after`.
+
+        Returns the next wakeup when one is observed, or `None` when `timeout`
+        elapses before a newer wakeup is available.
+        """
+        ...
 
 
 def get_worker_cleanup_queue() -> WorkerCleanupQueue:
