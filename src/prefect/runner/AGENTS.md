@@ -138,7 +138,7 @@ These validations exist to prevent git argument injection. Do not bypass them wh
 
 **Env/sys.path isolation:** `_prepared_workspace_context` mutates `os.environ` and `sys.path` in the caller process but does NOT change `os.getcwd()`. The parent working directory is preserved.
 
-**Automatic `uv` command selection:** When no explicit command is passed, `WorkspaceResolvingEngineCommandStarter` auto-selects `uv run --project <project_root> -m prefect.flow_engine` — but only when all three conditions hold: `pyproject.toml` exists at `project_root`, the `project.dependencies` list includes `prefect`, and `uv` is found via the workspace's `PATH` env var (not the system PATH). If any condition fails, the command falls back to `None`. Explicit commands always take precedence.
+**Automatic `uv` command selection:** When no explicit command is passed, `WorkspaceResolvingEngineCommandStarter` first checks for a pre-materialized Python environment via `_find_prematerialized_python()`, which looks for (in priority order): an existing `.venv` at the project root, a `UV_PROJECT_ENVIRONMENT` env var, an active `VIRTUAL_ENV`, or an editable install whose `direct_url.json` (PEP 610) points at the exact `project_root`. If a pre-materialized environment is found, the command is `<python> -m prefect.flow_engine <entrypoint>` — skipping `uv run` entirely. Otherwise, it falls back to `uv run --project <project_root> -m prefect.flow_engine` when all three conditions hold: `pyproject.toml` exists at `project_root`, the `project.dependencies` list includes `prefect`, and `uv` is found via the workspace's `PATH` env var (not the system PATH). If none of these conditions are met, the command falls back to `None`. Explicit commands always take precedence.
 
 ## Reference
 
