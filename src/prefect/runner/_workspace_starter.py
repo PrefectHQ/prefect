@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.metadata
+import json
 import os
 import shutil
 import subprocess
@@ -167,26 +168,113 @@ def _pyproject_declares_prefect_dependency(pyproject: Path) -> bool:
     return _dependencies_include_prefect(project.get("dependencies"))
 
 
-def _project_is_installed(pyproject: Path) -> bool:
-    """Return True if the project declared in pyproject.toml is already installed."""
+def _has_editable_install_at(project_root: Path, project_name: str) -> bool:
+    """Return True if *project_name* has an editable install rooted at *project_root*.
+
+    Checks `direct_url.json` (PEP 610) across all matching distributions to
+    see if one has `dir_info.editable == true` and its `url` resolves to
+    *project_root*.
+    """
+    resolved_root = project_root.resolve()
+    for dist in importlib.metadata.distributions():
+        if canonicalize_name(dist.metadata["Name"]) != canonicalize_name(project_name):
+            continue
+        raw = dist.read_text("direct_url.json")
+        if raw is None:
+            continue
+        try:
+            direct_url = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        dir_info = direct_url.get("dir_info")
+        if not isinstance(dir_info, dict) or not dir_info.get("editable"):
+            continue
+        url = direct_url.get("url", "")
+        if not url.startswith("file://"):
+            continue
+        install_path = Path(url.removeprefix("file://")).resolve()
+        if install_path == resolved_root:
+            return True
+    return False
+
+
+def _find_prematerialized_python(
+    workspace: PreparedWorkspace,
+) -> str | None:
+    """Return a Python executable if the workspace already has deps available.
+
+    Checks for credible signals that the environment is pre-materialized and
+    `uv run` can be skipped:
+
+    1. A `.venv` directory at the project root with a Python interpreter.
+    2. `UV_PROJECT_ENVIRONMENT` pointing to a valid environment.
+    3. An active `VIRTUAL_ENV` in the workspace environment.
+    4. An editable install whose `direct_url.json` points at this exact
+       project root (the `uv pip install --system -e .` pattern).
+
+    Returns the path to the Python interpreter if found, or None.
+    """
+    project_root = workspace.project_root
+    if project_root is None:
+        return None
+
+    env = workspace.environment
+
+    # 1. Existing .venv at project root
+    dot_venv = project_root / ".venv"
+    python = _find_python_in_venv(dot_venv)
+    if python is not None:
+        return python
+
+    # 2. UV_PROJECT_ENVIRONMENT
+    uv_project_env = env.get("UV_PROJECT_ENVIRONMENT")
+    if uv_project_env:
+        python = _find_python_in_venv(Path(uv_project_env))
+        if python is not None:
+            return python
+
+    # 3. Active VIRTUAL_ENV
+    virtual_env = env.get("VIRTUAL_ENV")
+    if virtual_env:
+        python = _find_python_in_venv(Path(virtual_env))
+        if python is not None:
+            return python
+
+    # 4. Editable install pointing at this project root (system python)
+    pyproject = project_root / "pyproject.toml"
+    project_name = _read_project_name(pyproject)
+    if project_name and _has_editable_install_at(project_root, project_name):
+        return sys.executable
+
+    return None
+
+
+def _find_python_in_venv(venv_path: Path) -> str | None:
+    """Return the Python interpreter inside a venv directory, or None."""
+    if not venv_path.is_dir():
+        return None
+    for candidate in (
+        venv_path / "bin" / "python",
+        venv_path / "Scripts" / "python.exe",
+    ):
+        if candidate.is_file():
+            return str(candidate)
+    return None
+
+
+def _read_project_name(pyproject: Path) -> str | None:
+    """Read the project name from pyproject.toml, or return None."""
     try:
         data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):
-        return False
-
+        return None
     project = data.get("project")
     if not isinstance(project, dict):
-        return False
-
+        return None
     name = project.get("name")
     if not isinstance(name, str) or not name.strip():
-        return False
-
-    try:
-        importlib.metadata.distribution(name)
-        return True
-    except importlib.metadata.PackageNotFoundError:
-        return False
+        return None
+    return name
 
 
 def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
@@ -198,8 +286,17 @@ def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
     if not pyproject.is_file() or not _pyproject_declares_prefect_dependency(pyproject):
         return None
 
-    if _project_is_installed(pyproject):
-        return None
+    # Prefer a pre-materialized environment over uv run.
+    python = _find_prematerialized_python(workspace)
+    if python is not None:
+        return command_to_string(
+            [
+                python,
+                "-m",
+                "prefect.flow_engine",
+                workspace.runtime_entrypoint,
+            ]
+        )
 
     workspace_path = workspace.environment.get("PATH")
     uv_executable = (

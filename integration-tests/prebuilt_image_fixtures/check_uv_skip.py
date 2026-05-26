@@ -1,42 +1,45 @@
-"""Runs inside the pre-built container to verify detection logic.
+"""Runs inside the pre-built container to verify the production code path.
 
-Checks three things:
-1. The project is discoverable via importlib.metadata (our detection signal).
-2. Prefect is already importable at the expected version without uv run.
-3. Running uv run would create a redundant .venv (proving skipping matters).
+Exercises the actual _uv_run_command() and _find_prematerialized_python()
+from the installed prefect to prove that pre-built image deployments skip
+uv run and use an explicit python command instead.
+
+Also demonstrates that uv run would create a redundant .venv (proving the
+skip is justified).
 """
 
-import importlib.metadata
 import json
 import subprocess
 import sys
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    try:
-        import tomllib
-    except ModuleNotFoundError:
-        import tomli as tomllib
-
 from pathlib import Path
 
+from prefect.runner._workspace_resolver import PreparedWorkspace
+from prefect.runner._workspace_starter import (
+    _find_prematerialized_python,
+    _uv_run_command,
+)
+from prefect.utilities.processutils import command_from_string
+
 workdir = Path("/opt/prefect/flow")
-pyproject = workdir / "pyproject.toml"
-data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-project_name = data["project"]["name"]
 
-# 1. Check if the project is detectable via importlib.metadata
-try:
-    importlib.metadata.distribution(project_name)
-    project_installed = True
-except importlib.metadata.PackageNotFoundError:
-    project_installed = False
+workspace = PreparedWorkspace(
+    workspace_root=workdir,
+    working_directory=workdir,
+    project_root=workdir,
+    runtime_entrypoint="flows.py:hello",
+    environment=dict(__import__("os").environ),
+    sys_path=[],
+)
 
-# 2. Record the pre-installed prefect version (available without uv run)
-prefect_version = importlib.metadata.distribution("prefect").version
+# 1. Check if _find_prematerialized_python detects the environment
+python_found = _find_prematerialized_python(workspace)
 
-# 3. Check whether uv run would create a .venv (proving it reinstalls)
+# 2. Check what _uv_run_command returns (should be explicit python, not uv run)
+command = _uv_run_command(workspace)
+command_parts = command_from_string(command) if command else None
+uses_uv_run = command_parts is not None and command_parts[0] != "uv"
+
+# 3. Verify uv run would create a redundant .venv
 venv_before = (workdir / ".venv").exists()
 subprocess.run(
     ["uv", "run", "--project", str(workdir), "python", "-c", "pass"],
@@ -47,11 +50,13 @@ venv_after = (workdir / ".venv").exists()
 print(
     json.dumps(
         {
-            "project_name": project_name,
-            "project_installed": project_installed,
-            "prefect_version": prefect_version,
+            "python_found": python_found,
+            "command": command,
+            "command_parts": command_parts,
+            "skips_uv_run": command_parts is not None and command_parts[0] != "uv",
             "venv_existed_before": venv_before,
             "venv_created_by_uv_run": not venv_before and venv_after,
+            "sys_executable": sys.executable,
         }
     )
 )

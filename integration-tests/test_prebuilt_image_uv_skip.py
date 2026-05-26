@@ -1,15 +1,16 @@
 """
-Verify that the `_project_is_installed` detection mechanism works correctly
-in a pre-built Docker image where dependencies were installed at build time.
+Verify that `_uv_run_command()` correctly skips `uv run` in a pre-built
+Docker image where dependencies were installed at build time.
 
 Simulates the pre-built image pattern from OSS-7980:
   1. pyproject.toml declaring prefect as a dependency present in WORKDIR
   2. Dependencies pre-installed via `uv pip install --system -e .`
   3. uv available on PATH
 
-The test proves three things:
-  - The project is discoverable via `importlib.metadata` (our detection signal)
-  - Prefect is already importable at the expected version without `uv run`
+The test exercises the actual production code path:
+  - `_find_prematerialized_python()` detects the editable install
+  - `_uv_run_command()` returns an explicit `python -m prefect.flow_engine`
+    command instead of `uv run`
   - `uv run` would create a redundant `.venv` (proving skipping it matters)
 
 Requires: Docker daemon available.
@@ -28,6 +29,7 @@ from uuid import uuid4
 import pytest
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "prebuilt_image_fixtures"
+PREFECT_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _docker_available() -> bool:
@@ -50,13 +52,22 @@ def _docker_available() -> bool:
 def build_prebuilt_image(build_dir: Path) -> str:
     """Assemble the build context and build a pre-built-image Docker image.
 
-    Copies the static fixture files into *build_dir*, then runs
-    `docker build`.  Returns the image tag.
+    Builds a wheel from the current branch, copies it and the fixture files
+    into *build_dir*, then runs `docker build`.  Returns the image tag.
     """
     tag = f"prefect-prebuilt-test-{uuid4().hex[:8]}"
 
     for name in ("Dockerfile", "pyproject.toml", "flows.py", "check_uv_skip.py"):
         shutil.copy(FIXTURES_DIR / name, build_dir / name)
+
+    # Build a wheel from the current branch so the image has our code.
+    wheel_dir = build_dir / "prefect_wheel"
+    wheel_dir.mkdir()
+    subprocess.check_call(
+        ["uv", "build", "--wheel", "--out-dir", str(wheel_dir), str(PREFECT_ROOT)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+    )
 
     subprocess.check_call(
         ["docker", "build", "-t", tag, "."],
@@ -70,7 +81,7 @@ def build_prebuilt_image(build_dir: Path) -> str:
 
 @pytest.mark.skipif(not _docker_available(), reason="Docker daemon not available")
 def test_prebuilt_image_skips_uv_run(tmp_path: Path):
-    """Pre-built image: project is detectable, prefect is present, uv run is redundant."""
+    """Pre-built image: _uv_run_command returns explicit python, not uv run."""
     tag = build_prebuilt_image(tmp_path)
 
     try:
@@ -86,17 +97,22 @@ def test_prebuilt_image_skips_uv_run(tmp_path: Path):
 
         output = json.loads(result.stdout.strip().split("\n")[-1])
 
-        # The project declared in pyproject.toml is discoverable — this is
-        # the signal _project_is_installed uses to skip uv run.
-        assert output["project_name"] == "my-prebuilt-flow"
-        assert output["project_installed"] is True, (
-            "Project should be detected as installed in pre-built image"
+        # _find_prematerialized_python detected the editable install
+        assert output["python_found"] is not None, (
+            "Should detect pre-materialized python via editable install"
         )
 
-        # Prefect is already available at a known version without uv run.
-        assert output["prefect_version"], "Prefect should be importable"
+        # _uv_run_command returns an explicit python command, not uv run
+        assert output["skips_uv_run"] is True, (
+            "_uv_run_command should return python -m prefect.flow_engine, not uv run"
+        )
+        assert output["command_parts"][1:] == [
+            "-m",
+            "prefect.flow_engine",
+            "flows.py:hello",
+        ]
 
-        # uv run would create a redundant .venv — this is the waste we avoid.
+        # uv run would create a redundant .venv — this is the waste we avoid
         assert output["venv_created_by_uv_run"] is True, (
             "uv run should have created a .venv, proving it would reinstall deps"
         )
