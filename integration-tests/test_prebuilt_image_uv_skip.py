@@ -1,29 +1,29 @@
 """
-Verify that `_uv_run_command()` correctly skips `uv run` in a pre-built
-Docker image where dependencies were installed at build time.
+End-to-end test: pre-built Docker image deployments skip `uv run`.
 
-Simulates the pre-built image pattern from OSS-7980:
-  1. pyproject.toml declaring prefect as a dependency present in WORKDIR
-  2. Dependencies pre-installed via `uv pip install --system -e .`
-  3. uv available on PATH
+Exercises the full deployment execution path reported in OSS-7980:
 
-The test exercises the actual production code path:
-  - `_find_prematerialized_python()` detects the editable install
-  - `_uv_run_command()` returns an explicit `python -m prefect.flow_engine`
-    command instead of `uv run`
-  - `uv run` would create a redundant `.venv` (proving skipping it matters)
+    prefect flow-run execute <id>
+      -> WorkspaceResolvingEngineCommandStarter
+        -> workspace resolver (pull step: set_working_directory)
+        -> command selection (_find_prematerialized_python)
+        -> child `python -m prefect.flow_engine` process
+        -> actual flow execution
 
 The Docker image is built by CI (see `.github/workflows/integration-tests.yaml`)
 and passed via the `PREBUILT_IMAGE_TAG` env var.  When running locally without
 that var, the fixture builds the image on the fly.
 
-Requires: Docker daemon available.
-Does NOT require a running Prefect server.
+The flow itself asserts observable behaviour:
+  - cwd == /opt/prefect/flow
+  - no .venv was created (proving `uv run` was skipped)
+  - sys.executable is not inside a .venv
+
+Requires: Docker daemon available, Prefect server at PREFECT_API_URL.
 """
 
 from __future__ import annotations
 
-import json
 import os
 import shutil
 import subprocess
@@ -31,7 +31,10 @@ import sys
 from pathlib import Path
 from uuid import uuid4
 
+import anyio
 import pytest
+
+import prefect
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "prebuilt_image_fixtures"
 PREFECT_ROOT = Path(__file__).resolve().parent.parent
@@ -58,7 +61,7 @@ def _build_image_locally(build_dir: Path) -> str:
     """Build the prebuilt-image fixture from scratch (local dev fallback)."""
     tag = f"prefect-prebuilt-test-{uuid4().hex[:8]}"
 
-    for name in ("Dockerfile", "pyproject.toml", "flows.py", "check_uv_skip.py"):
+    for name in ("Dockerfile", "pyproject.toml", "flows.py"):
         shutil.copy(FIXTURES_DIR / name, build_dir / name)
 
     wheel_dir = build_dir / "prefect_wheel"
@@ -102,36 +105,70 @@ def prebuilt_image(tmp_path_factory: pytest.TempPathFactory) -> str:
     subprocess.run(["docker", "rmi", tag], capture_output=True)
 
 
-def test_prebuilt_image_skips_uv_run(prebuilt_image: str):
-    """Pre-built image: _uv_run_command returns explicit python, not uv run."""
+async def _create_deployment_and_flow_run() -> tuple[str, str]:
+    """Create a deployment with set_working_directory pull step and a flow run."""
+    async with prefect.get_client() as client:
+        flow_id = await client.create_flow_from_name(
+            f"prebuilt-image-test-{uuid4().hex[:8]}"
+        )
+        deployment_id = await client.create_deployment(
+            flow_id=flow_id,
+            name=f"prebuilt-deploy-{uuid4().hex[:8]}",
+            entrypoint="flows.py:hello",
+            pull_steps=[
+                {
+                    "prefect.deployments.steps.set_working_directory": {
+                        "directory": "/opt/prefect/flow",
+                    }
+                }
+            ],
+        )
+        flow_run = await client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        return str(deployment_id), str(flow_run.id)
+
+
+async def _read_flow_run(flow_run_id: str) -> prefect.client.schemas.objects.FlowRun:
+    async with prefect.get_client() as client:
+        return await client.read_flow_run(flow_run_id)
+
+
+def test_prebuilt_image_flow_run_completes(prebuilt_image: str):
+    """Flow run executes to completion inside the prebuilt image without uv run."""
+    api_url = os.environ.get("PREFECT_API_URL")
+    if not api_url:
+        pytest.skip("PREFECT_API_URL not set")
+
+    deployment_id, flow_run_id = anyio.run(_create_deployment_and_flow_run)
+
+    # Normalize localhost for Docker on Linux (CI uses --network host)
+    container_api_url = api_url
+
     result = subprocess.run(
-        ["docker", "run", "--rm", prebuilt_image, "python", "/tmp/check_uv_skip.py"],
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--network",
+            "host",
+            "-e",
+            f"PREFECT_API_URL={container_api_url}",
+            prebuilt_image,
+            "prefect",
+            "flow-run",
+            "execute",
+            flow_run_id,
+        ],
         capture_output=True,
         text=True,
     )
 
-    assert result.returncode == 0, (
-        f"Container script failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
-    )
+    flow_run = anyio.run(_read_flow_run, flow_run_id)
 
-    output = json.loads(result.stdout.strip().split("\n")[-1])
-
-    # _find_prematerialized_python detected the editable install
-    assert output["python_found"] is not None, (
-        "Should detect pre-materialized python via editable install"
-    )
-
-    # _uv_run_command returns an explicit python command, not uv run
-    assert output["skips_uv_run"] is True, (
-        "_uv_run_command should return python -m prefect.flow_engine, not uv run"
-    )
-    assert output["command_parts"][1:] == [
-        "-m",
-        "prefect.flow_engine",
-        "flows.py:hello",
-    ]
-
-    # uv run would create a redundant .venv — this is the waste we avoid
-    assert output["venv_created_by_uv_run"] is True, (
-        "uv run should have created a .venv, proving it would reinstall deps"
+    assert flow_run.state is not None and flow_run.state.is_completed(), (
+        f"Flow run did not complete.\n"
+        f"State: {flow_run.state}\n"
+        f"Container stdout:\n{result.stdout}\n"
+        f"Container stderr:\n{result.stderr}"
     )

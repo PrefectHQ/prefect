@@ -9,5 +9,3 @@ RUN uv pip install --system /tmp/prefect_wheel/*.whl && rm -rf /tmp/prefect_whee
 WORKDIR /opt/prefect/flow
 COPY pyproject.toml flows.py ./
 RUN uv pip install --system -e .
-
-COPY check_uv_skip.py /tmp/check_uv_skip.py
