@@ -61,7 +61,7 @@ Set `PREFECT_CLOUD_API_URL` and `PREFECT_CLOUD_UI_URL` to the private endpoints:
 ```bash
 prefect config set PREFECT_CLOUD_API_URL="https://api.private.prefect.cloud/api"
 prefect config set PREFECT_CLOUD_UI_URL="https://app.private.prefect.cloud"
-prefect cloud login -k <your-api-key>
+prefect cloud login --key <your-api-key> --workspace <account-handle>/<workspace-handle>
 prefect cloud workspace ls
 ```
 
