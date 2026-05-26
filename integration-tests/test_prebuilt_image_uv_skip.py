@@ -13,6 +13,10 @@ The test exercises the actual production code path:
     command instead of `uv run`
   - `uv run` would create a redundant `.venv` (proving skipping it matters)
 
+The Docker image is built by CI (see `.github/workflows/integration-tests.yaml`)
+and passed via the `PREBUILT_IMAGE_TAG` env var.  When running locally without
+that var, the fixture builds the image on the fly.
+
 Requires: Docker daemon available.
 Does NOT require a running Prefect server.
 """
@@ -20,6 +24,7 @@ Does NOT require a running Prefect server.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -49,22 +54,13 @@ def _docker_available() -> bool:
         return False
 
 
-@pytest.fixture(scope="module")
-def prebuilt_image(tmp_path_factory: pytest.TempPathFactory) -> str:
-    """Build a pre-built Docker image with the current branch's prefect.
-
-    Yields the image tag.  Cleans up the image after the test module.
-    """
-    if not _docker_available():
-        pytest.skip("Docker daemon not available")
-
-    build_dir = tmp_path_factory.mktemp("prebuilt_image")
+def _build_image_locally(build_dir: Path) -> str:
+    """Build the prebuilt-image fixture from scratch (local dev fallback)."""
     tag = f"prefect-prebuilt-test-{uuid4().hex[:8]}"
 
     for name in ("Dockerfile", "pyproject.toml", "flows.py", "check_uv_skip.py"):
         shutil.copy(FIXTURES_DIR / name, build_dir / name)
 
-    # Build a wheel from the current branch so the image has our code.
     wheel_dir = build_dir / "prefect_wheel"
     wheel_dir.mkdir()
     subprocess.check_call(
@@ -79,6 +75,27 @@ def prebuilt_image(tmp_path_factory: pytest.TempPathFactory) -> str:
         stdout=sys.stdout,
         stderr=sys.stderr,
     )
+
+    return tag
+
+
+@pytest.fixture(scope="module")
+def prebuilt_image(tmp_path_factory: pytest.TempPathFactory) -> str:
+    """Return the prebuilt Docker image tag.
+
+    Uses `PREBUILT_IMAGE_TAG` from CI when available; otherwise builds
+    the image locally.  Cleans up locally-built images after the module.
+    """
+    if not _docker_available():
+        pytest.skip("Docker daemon not available")
+
+    ci_tag = os.environ.get("PREBUILT_IMAGE_TAG")
+    if ci_tag:
+        yield ci_tag
+        return
+
+    build_dir = tmp_path_factory.mktemp("prebuilt_image")
+    tag = _build_image_locally(build_dir)
 
     yield tag
 

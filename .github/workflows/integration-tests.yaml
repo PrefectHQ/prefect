@@ -98,11 +98,21 @@ jobs:
           uv run prefect server start --analytics-off --host 0.0.0.0 2>&1 > server.log &
           uv run ./scripts/wait-for-server.py
 
+      - name: Build prebuilt-image fixture
+        run: |
+          TAG="prefect-prebuilt-test-$(date +%s)"
+          mkdir -p /tmp/prebuilt_build
+          uv build --wheel --out-dir /tmp/prebuilt_build/prefect_wheel
+          cp integration-tests/prebuilt_image_fixtures/* /tmp/prebuilt_build/
+          docker build -t "$TAG" /tmp/prebuilt_build
+          echo "PREBUILT_IMAGE_TAG=$TAG" >> $GITHUB_ENV
+
       - name: Run integration flows
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
           PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: "prefect.server.concurrency.lease_storage.filesystem"
           SERVER_VERSION: ${{ matrix.server-version.version }}
+          PREBUILT_IMAGE_TAG: ${{ env.PREBUILT_IMAGE_TAG }}
         run: >
           uv run pytest integration-tests/ -n auto -vv
 
@@ -195,7 +205,7 @@ jobs:
             pytest-xdist \
             pytest-timeout \
             pytest-env
-          pytest --ignore=integration-tests/test_task_worker.py --ignore=integration-tests/test_concurrency_leases.py --ignore=integration-tests/test_deploy.py integration-tests/ -n auto -vv
+          pytest --ignore=integration-tests/test_task_worker.py --ignore=integration-tests/test_concurrency_leases.py --ignore=integration-tests/test_deploy.py --ignore=integration-tests/test_prebuilt_image_uv_skip.py integration-tests/ -n auto -vv
 
   sqlite-3-24-0:
     name: Test SQLite 3.24.0 Compatibility
