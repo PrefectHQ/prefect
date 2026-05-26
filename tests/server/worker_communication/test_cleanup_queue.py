@@ -167,7 +167,10 @@ async def test_reservation_operations_require_current_token(
     )
 
     assert rejected.status == "invalid_token"
-    assert await queue.read_message(message_id) is not None
+    assert (
+        await queue.read_message(work_pool_id=work_pool_id, message_id=message_id)
+        is not None
+    )
 
     accepted = await queue.ack(
         work_pool_id=work_pool_id,
@@ -176,7 +179,10 @@ async def test_reservation_operations_require_current_token(
     )
 
     assert accepted.status == "accepted"
-    assert await queue.read_message(message_id) is None
+    assert (
+        await queue.read_message(work_pool_id=work_pool_id, message_id=message_id)
+        is None
+    )
 
 
 @pytest.mark.parametrize("operation", ["ack", "release", "renew"])
@@ -212,7 +218,10 @@ async def test_reservation_operations_require_matching_work_pool_scope(
 
     assert rejected.status == "unauthorized"
     assert rejected.reason == "work_pool_mismatch"
-    assert await queue.read_message(message_id) is not None
+    assert (
+        await queue.read_message(work_pool_id=work_pool_id, message_id=message_id)
+        is not None
+    )
 
     accepted = await queue.ack(
         work_pool_id=work_pool_id,
@@ -220,6 +229,44 @@ async def test_reservation_operations_require_matching_work_pool_scope(
         reservation_token=reservation.reservation_token,
     )
     assert accepted.status == "accepted"
+
+
+async def test_read_helpers_require_matching_work_pool_scope(
+    queue: WorkerCleanupQueue,
+    cleanup_policy_settings: CleanupPolicySettings,
+) -> None:
+    work_pool_id = uuid4()
+    other_work_pool_id = uuid4()
+    message_id = await _enqueue_message(queue, work_pool_id=work_pool_id)
+
+    message = await queue.read_message(work_pool_id=work_pool_id, message_id=message_id)
+    wrong_pool_message = await queue.read_message(
+        work_pool_id=other_work_pool_id, message_id=message_id
+    )
+
+    assert message is not None
+    assert wrong_pool_message is None
+
+    with cleanup_policy_settings(max_delivery_attempts=1):
+        reservation = await queue.reserve(work_pool_id=work_pool_id)
+        assert reservation is not None
+        result = await queue.release(
+            work_pool_id=work_pool_id,
+            message_id=message_id,
+            reservation_token=reservation.reservation_token,
+            reason="unsupported_cleanup_kind",
+        )
+
+    dead_letter = await queue.read_dead_letter(
+        work_pool_id=work_pool_id, message_id=message_id
+    )
+    wrong_pool_dead_letter = await queue.read_dead_letter(
+        work_pool_id=other_work_pool_id, message_id=message_id
+    )
+
+    assert result.status == "dead_lettered"
+    assert dead_letter is not None
+    assert wrong_pool_dead_letter is None
 
 
 async def test_reserve_prefers_matching_work_queue_but_falls_back_to_pool(
@@ -296,7 +343,10 @@ async def test_enqueue_after_ack_keeps_idempotency_key_completed(
 
     assert accepted.status == "accepted"
     assert duplicate.message_id == first.message_id
-    assert await queue.read_message(message_id) is None
+    assert (
+        await queue.read_message(work_pool_id=work_pool_id, message_id=message_id)
+        is None
+    )
     assert await queue.reserve(work_pool_id=work_pool_id) is None
     assert await queue.read_wakeup_sequence(work_pool_id) == wakeup_sequence
 
@@ -381,14 +431,19 @@ async def test_release_moves_message_to_dlq_after_retry_limit(
             reservation_token=reservation.reservation_token,
             reason="unsupported_cleanup_kind",
         )
-    dead_letter = await queue.read_dead_letter(message_id)
+    dead_letter = await queue.read_dead_letter(
+        work_pool_id=work_pool_id, message_id=message_id
+    )
 
     assert result.status == "dead_lettered"
     assert result.reason == "max_delivery_attempts_reached"
     assert dead_letter is not None
     assert dead_letter.final_delivery_count == 1
     assert dead_letter.release_reason == "unsupported_cleanup_kind"
-    assert await queue.read_message(message_id) is None
+    assert (
+        await queue.read_message(work_pool_id=work_pool_id, message_id=message_id)
+        is None
+    )
 
 
 async def test_expired_leases_redeliver_then_dlq_at_retry_limit(
@@ -409,7 +464,9 @@ async def test_expired_leases_redeliver_then_dlq_at_retry_limit(
 
         clock.advance(timedelta(seconds=11))
         second_expiry = await queue.expire_leases()
-    dead_letter = await queue.read_dead_letter(message_id)
+    dead_letter = await queue.read_dead_letter(
+        work_pool_id=work_pool_id, message_id=message_id
+    )
 
     assert [message.message_id for message in first_expiry.redelivered] == [message_id]
     assert first_expiry.dead_lettered == []

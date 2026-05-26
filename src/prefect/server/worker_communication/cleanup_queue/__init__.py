@@ -142,10 +142,18 @@ class WorkerCleanupQueue:
         work_pool_id: UUID | None = None,
     ) -> CleanupQueueLeaseExpiryResult: ...
 
-    async def read_message(self, message_id: UUID) -> CleanupQueueMessage | None: ...
+    async def read_message(
+        self,
+        *,
+        work_pool_id: UUID,
+        message_id: UUID,
+    ) -> CleanupQueueMessage | None: ...
 
     async def read_dead_letter(
-        self, message_id: UUID
+        self,
+        *,
+        work_pool_id: UUID,
+        message_id: UUID,
     ) -> CleanupQueueDeadLetter | None: ...
 
     async def wake_dispatchers(self, work_pool_id: UUID) -> CleanupQueueWakeup: ...

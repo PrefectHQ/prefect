@@ -388,14 +388,25 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
 
         return result
 
-    async def read_message(self, message_id: UUID) -> CleanupQueueMessage | None:
+    async def read_message(
+        self, *, work_pool_id: UUID, message_id: UUID
+    ) -> CleanupQueueMessage | None:
         async with self._lock:
             message = self._messages.get(message_id)
+            if message is not None and message.work_pool_id != work_pool_id:
+                return None
             return _copy_model(message) if message is not None else None
 
-    async def read_dead_letter(self, message_id: UUID) -> CleanupQueueDeadLetter | None:
+    async def read_dead_letter(
+        self, *, work_pool_id: UUID, message_id: UUID
+    ) -> CleanupQueueDeadLetter | None:
         async with self._lock:
             dead_letter = self._dead_letters.get(message_id)
+            if (
+                dead_letter is not None
+                and dead_letter.message.work_pool_id != work_pool_id
+            ):
+                return None
             return _copy_model(dead_letter) if dead_letter is not None else None
 
     async def wake_dispatchers(self, work_pool_id: UUID) -> CleanupQueueWakeup:
