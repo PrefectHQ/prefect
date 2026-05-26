@@ -188,14 +188,16 @@ def test_workspace_command_preserves_explicit_command(tmp_path: Path):
     )
 
 
-def test_workspace_command_uses_dot_venv_python(
+def test_workspace_command_ignores_dot_venv_without_explicit_signal(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ):
-    """When .venv exists at project root, use its python instead of uv run."""
+    """An implicit .venv at project root should not bypass uv run."""
     workspace = _prepared_workspace(tmp_path)
     assert workspace.project_root is not None
+    workspace.environment["PATH"] = "/workspace/bin"
+    _strip_venv_signals(workspace)
     _write_pyproject(workspace.project_root)
-    expected_python = _create_fake_venv(workspace.project_root / ".venv")
+    _create_fake_venv(workspace.project_root / ".venv")
 
     monkeypatch.setattr(
         "prefect.runner._workspace_starter.shutil.which",
@@ -205,7 +207,10 @@ def test_workspace_command_uses_dot_venv_python(
     command = _workspace_command(workspace, explicit_command=None)
     assert command is not None
     assert command_from_string(command) == [
-        expected_python,
+        "/opt/bin/uv",
+        "run",
+        "--project",
+        str(workspace.project_root),
         "-m",
         "prefect.flow_engine",
         workspace.runtime_entrypoint,
@@ -377,7 +382,7 @@ def test_has_editable_install_at_skips_distributions_without_name(
 def test_find_prematerialized_python_prefers_uv_project_environment(
     tmp_path: Path,
 ):
-    """UV_PROJECT_ENVIRONMENT is preferred over .venv."""
+    """UV_PROJECT_ENVIRONMENT is an explicit pre-materialized env signal."""
     workspace = _prepared_workspace(tmp_path)
     assert workspace.project_root is not None
     _create_fake_venv(workspace.project_root / ".venv")
@@ -395,6 +400,7 @@ def test_find_prematerialized_python_returns_none_without_signals(tmp_path: Path
     assert workspace.project_root is not None
     _strip_venv_signals(workspace)
     _write_pyproject(workspace.project_root)
+    _create_fake_venv(workspace.project_root / ".venv")
 
     result = _find_prematerialized_python(workspace)
     assert result is None

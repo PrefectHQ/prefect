@@ -214,10 +214,9 @@ def _find_prematerialized_python(
     1. `UV_PROJECT_ENVIRONMENT` pointing to a valid environment (explicit
        override, checked first).  Relative paths are resolved against
        *project_root*, matching uv's own behaviour.
-    2. A `.venv` directory at the project root with a Python interpreter.
-    3. An active `VIRTUAL_ENV` that is credibly tied to this workspace
+    2. An active `VIRTUAL_ENV` that is credibly tied to this workspace
        (located under *project_root*).
-    4. An editable install whose `direct_url.json` points at this exact
+    3. An editable install whose `direct_url.json` points at this exact
        project root (the `uv pip install --system -e .` pattern).
 
     Returns the path to the Python interpreter if found, or None.
@@ -239,13 +238,7 @@ def _find_prematerialized_python(
         if python is not None:
             return python
 
-    # 2. Existing .venv at project root
-    dot_venv = project_root / ".venv"
-    python = _find_python_in_venv(dot_venv)
-    if python is not None:
-        return python
-
-    # 3. Active VIRTUAL_ENV — only when it lives under project_root
+    # 2. Active VIRTUAL_ENV — only when it lives under project_root
     virtual_env = env.get("VIRTUAL_ENV")
     if virtual_env:
         venv_path = Path(virtual_env).resolve()
@@ -258,7 +251,7 @@ def _find_prematerialized_python(
             if python is not None:
                 return python
 
-    # 4. Editable install pointing at this project root (system python)
+    # 3. Editable install pointing at this project root (system python)
     pyproject = project_root / "pyproject.toml"
     project_name = _read_project_name(pyproject)
     if project_name and _has_editable_install_at(project_root, project_name):
