@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable, Iterator
+from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
@@ -18,6 +21,8 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.settings.context import get_current_settings
+
+CleanupPolicySettings = Callable[..., AbstractContextManager[None]]
 
 
 @dataclass
@@ -40,6 +45,33 @@ def clock(monkeypatch: pytest.MonkeyPatch) -> Clock:
     clock = Clock(datetime(2026, 5, 20, 12, 0, tzinfo=timezone.utc))
     monkeypatch.setattr(memory_module, "now", lambda timezone: clock.current)
     return clock
+
+
+@pytest.fixture
+def cleanup_policy_settings() -> CleanupPolicySettings:
+    @contextmanager
+    def settings(
+        *,
+        lease_seconds: float | None = None,
+        max_delivery_attempts: int | None = None,
+        completed_idempotency_retention_seconds: float | None = None,
+    ) -> Iterator[None]:
+        values: dict[Any, Any] = {}
+        if lease_seconds is not None:
+            values[PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_LEASE_SECONDS] = lease_seconds
+        if max_delivery_attempts is not None:
+            values[PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_MAX_DELIVERY_ATTEMPTS] = (
+                max_delivery_attempts
+            )
+        if completed_idempotency_retention_seconds is not None:
+            values[
+                PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_COMPLETED_IDEMPOTENCY_RETENTION_SECONDS
+            ] = completed_idempotency_retention_seconds
+
+        with temporary_settings(values):
+            yield
+
+    return settings
 
 
 def _target() -> dict[str, str]:
@@ -272,15 +304,12 @@ async def test_enqueue_after_ack_keeps_idempotency_key_completed(
 async def test_completed_idempotency_retention_can_expire_tombstones(
     queue: WorkerCleanupQueue,
     clock: Clock,
+    cleanup_policy_settings: CleanupPolicySettings,
 ) -> None:
     work_pool_id = uuid4()
     message_id = uuid4()
     idempotency_key = "flow-run-cleanup"
-    with temporary_settings(
-        {
-            PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_COMPLETED_IDEMPOTENCY_RETENTION_SECONDS: 10.0
-        }
-    ):
+    with cleanup_policy_settings(completed_idempotency_retention_seconds=10.0):
         await queue.enqueue(
             message_id=message_id,
             idempotency_key=idempotency_key,
@@ -338,12 +367,11 @@ async def test_release_makes_message_eligible_for_redelivery(
 
 async def test_release_moves_message_to_dlq_after_retry_limit(
     queue: WorkerCleanupQueue,
+    cleanup_policy_settings: CleanupPolicySettings,
 ) -> None:
     work_pool_id = uuid4()
     message_id = await _enqueue_message(queue, work_pool_id=work_pool_id)
-    with temporary_settings(
-        {PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_MAX_DELIVERY_ATTEMPTS: 1}
-    ):
+    with cleanup_policy_settings(max_delivery_attempts=1):
         reservation = await queue.reserve(work_pool_id=work_pool_id)
         assert reservation is not None
 
@@ -366,15 +394,11 @@ async def test_release_moves_message_to_dlq_after_retry_limit(
 async def test_expired_leases_redeliver_then_dlq_at_retry_limit(
     queue: WorkerCleanupQueue,
     clock: Clock,
+    cleanup_policy_settings: CleanupPolicySettings,
 ) -> None:
     work_pool_id = uuid4()
     message_id = await _enqueue_message(queue, work_pool_id=work_pool_id)
-    with temporary_settings(
-        {
-            PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_LEASE_SECONDS: 10.0,
-            PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_MAX_DELIVERY_ATTEMPTS: 2,
-        }
-    ):
+    with cleanup_policy_settings(lease_seconds=10.0, max_delivery_attempts=2):
         first = await queue.reserve(work_pool_id=work_pool_id)
         assert first is not None
 
@@ -400,6 +424,7 @@ async def test_expired_leases_redeliver_then_dlq_at_retry_limit(
 async def test_expire_leases_respects_limit_and_work_pool_scope(
     queue: WorkerCleanupQueue,
     clock: Clock,
+    cleanup_policy_settings: CleanupPolicySettings,
 ) -> None:
     work_pool_id = uuid4()
     other_work_pool_id = uuid4()
@@ -413,9 +438,7 @@ async def test_expire_leases_respects_limit_and_work_pool_scope(
         queue, work_pool_id=other_work_pool_id, idempotency_key="other-cleanup"
     )
 
-    with temporary_settings(
-        {PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_LEASE_SECONDS: 10.0}
-    ):
+    with cleanup_policy_settings(lease_seconds=10.0):
         assert await queue.reserve(work_pool_id=work_pool_id) is not None
         assert await queue.reserve(work_pool_id=work_pool_id) is not None
         assert await queue.reserve(work_pool_id=other_work_pool_id) is not None
@@ -461,12 +484,11 @@ async def test_renew_extends_current_reservation(
 async def test_operation_on_expired_lease_wakes_dispatchers(
     queue: WorkerCleanupQueue,
     clock: Clock,
+    cleanup_policy_settings: CleanupPolicySettings,
 ) -> None:
     work_pool_id = uuid4()
     message_id = await _enqueue_message(queue, work_pool_id=work_pool_id)
-    with temporary_settings(
-        {PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_LEASE_SECONDS: 10.0}
-    ):
+    with cleanup_policy_settings(lease_seconds=10.0):
         reservation = await queue.reserve(work_pool_id=work_pool_id)
         assert reservation is not None
         sequence = await queue.read_wakeup_sequence(work_pool_id)
