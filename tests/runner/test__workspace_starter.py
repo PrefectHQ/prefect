@@ -21,6 +21,10 @@ from prefect.runner._workspace_starter import (
     resolve_workspace_in_subprocess,
     workspace_environment,
 )
+from prefect.settings import (
+    PREFECT_RUNNER_AUTO_PROVISION_UV,
+    temporary_settings,
+)
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.processutils import command_from_string
 
@@ -152,6 +156,27 @@ def test_workspace_command_preserves_explicit_command(tmp_path: Path):
         _workspace_command(workspace, explicit_command="python custom.py")
         == "python custom.py"
     )
+
+
+def test_workspace_command_falls_back_when_auto_provision_uv_disabled(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    workspace = _prepared_workspace(tmp_path)
+    assert workspace.project_root is not None
+    workspace.environment["PATH"] = "/workspace/bin"
+    (workspace.project_root / "pyproject.toml").write_text(
+        "[project]\n"
+        "name = 'test-project'\n"
+        "version = '0.1.0'\n"
+        "dependencies = ['prefect']\n"
+    )
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.shutil.which",
+        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
+    )
+
+    with temporary_settings({PREFECT_RUNNER_AUTO_PROVISION_UV: False}):
+        assert _workspace_command(workspace, explicit_command=None) is None
 
 
 async def test_resolve_workspace_in_subprocess_returns_success_payload(
