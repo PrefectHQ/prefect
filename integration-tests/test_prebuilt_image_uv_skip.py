@@ -1,12 +1,16 @@
 """
-Verify that `importlib.metadata.distribution()` finds the project package
-inside a pre-built Docker image where dependencies were installed at build
-time — the same mechanism `_project_is_installed` uses to skip `uv run`.
+Verify that the `_project_is_installed` detection mechanism works correctly
+in a pre-built Docker image where dependencies were installed at build time.
 
 Simulates the pre-built image pattern from OSS-7980:
   1. pyproject.toml declaring prefect as a dependency present in WORKDIR
   2. Dependencies pre-installed via `uv pip install --system -e .`
   3. uv available on PATH
+
+The test proves three things:
+  - The project is discoverable via `importlib.metadata` (our detection signal)
+  - Prefect is already importable at the expected version without `uv run`
+  - `uv run` would create a redundant `.venv` (proving skipping it matters)
 
 Requires: Docker daemon available.
 Does NOT require a running Prefect server.
@@ -66,7 +70,7 @@ def build_prebuilt_image(build_dir: Path) -> str:
 
 @pytest.mark.skipif(not _docker_available(), reason="Docker daemon not available")
 def test_prebuilt_image_skips_uv_run(tmp_path: Path):
-    """When deps are pre-installed in a Docker image, the project is detectable."""
+    """Pre-built image: project is detectable, prefect is present, uv run is redundant."""
     tag = build_prebuilt_image(tmp_path)
 
     try:
@@ -82,9 +86,19 @@ def test_prebuilt_image_skips_uv_run(tmp_path: Path):
 
         output = json.loads(result.stdout.strip().split("\n")[-1])
 
+        # The project declared in pyproject.toml is discoverable — this is
+        # the signal _project_is_installed uses to skip uv run.
         assert output["project_name"] == "my-prebuilt-flow"
-        assert output["installed"] is True, (
+        assert output["project_installed"] is True, (
             "Project should be detected as installed in pre-built image"
+        )
+
+        # Prefect is already available at a known version without uv run.
+        assert output["prefect_version"], "Prefect should be importable"
+
+        # uv run would create a redundant .venv — this is the waste we avoid.
+        assert output["venv_created_by_uv_run"] is True, (
+            "uv run should have created a .venv, proving it would reinstall deps"
         )
     finally:
         subprocess.run(["docker", "rmi", tag], capture_output=True)
