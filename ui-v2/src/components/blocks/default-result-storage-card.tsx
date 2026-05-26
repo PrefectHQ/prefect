@@ -19,6 +19,7 @@ import {
 	ComboboxContent,
 	ComboboxTrigger,
 } from "@/components/ui/combobox";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { Icon } from "@/components/ui/icons";
 
 type DefaultResultStorageCardProps = {
@@ -81,6 +82,7 @@ export const DefaultResultStorageCard = ({
 							selectedBlockDocumentId={defaultResultStorageBlockId}
 							selectedBlockDocumentName={defaultResultStorageBlock?.name}
 							onSelect={onUpdateDefaultResultStorage}
+							isMutating={isMutating}
 						/>
 					</div>
 					<div className="flex flex-wrap gap-2">
@@ -112,17 +114,37 @@ type StorageBlockComboboxProps = {
 	selectedBlockDocumentId: string | undefined;
 	selectedBlockDocumentName: string | null | undefined;
 	onSelect: (blockDocumentId: string) => void;
+	isMutating?: boolean;
 };
+
+const StorageBlockComboboxFallback = ({
+	selectedBlockDocumentName,
+}: {
+	selectedBlockDocumentName: string | null | undefined;
+}) => (
+	<div className="flex h-9 w-full items-center justify-between rounded-md border bg-card px-4 py-2 text-sm text-muted-foreground opacity-50 dark:bg-background">
+		{selectedBlockDocumentName ?? "Select storage block..."}
+		<Icon id="ChevronsUpDown" className="size-4 opacity-50" />
+	</div>
+);
 
 const StorageBlockCombobox = (props: StorageBlockComboboxProps) => {
 	return (
-		<Suspense
+		<ErrorBoundary
 			fallback={
-				<div className="h-9 w-full animate-pulse rounded-md border bg-muted/30" />
+				<StorageBlockComboboxFallback
+					selectedBlockDocumentName={props.selectedBlockDocumentName}
+				/>
 			}
 		>
-			<StorageBlockComboboxImpl {...props} />
-		</Suspense>
+			<Suspense
+				fallback={
+					<div className="h-9 w-full animate-pulse rounded-md border bg-muted/30" />
+				}
+			>
+				<StorageBlockComboboxImpl {...props} />
+			</Suspense>
+		</ErrorBoundary>
 	);
 };
 
@@ -130,6 +152,7 @@ const StorageBlockComboboxImpl = ({
 	selectedBlockDocumentId,
 	selectedBlockDocumentName,
 	onSelect,
+	isMutating = false,
 }: StorageBlockComboboxProps) => {
 	const [search, setSearch] = useState("");
 	const deferredSearch = useDeferredValue(search);
@@ -153,8 +176,13 @@ const StorageBlockComboboxImpl = ({
 	);
 
 	const filteredData = useMemo(() => {
+		if (!deferredSearch) {
+			return data;
+		}
 		return data.filter((blockDocument) =>
-			blockDocument.name?.toLowerCase().includes(deferredSearch.toLowerCase()),
+			(blockDocument.name ?? "")
+				.toLowerCase()
+				.includes(deferredSearch.toLowerCase()),
 		);
 	}, [data, deferredSearch]);
 
@@ -182,9 +210,12 @@ const StorageBlockComboboxImpl = ({
 						{filteredData.map((blockDocument) => (
 							<ComboboxCommandItem
 								key={blockDocument.id}
+								disabled={isMutating}
 								selected={selectedBlockDocumentId === blockDocument.id}
 								onSelect={(value) => {
-									onSelect(value);
+									if (!isMutating) {
+										onSelect(value);
+									}
 									setSearch("");
 								}}
 								value={blockDocument.id}
