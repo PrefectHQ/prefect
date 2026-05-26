@@ -80,6 +80,63 @@ class EnvFilterSettingsSource(EnvSettingsSource):
                     if key.lower() not in env_filter
                 }
 
+        # Support __FILE suffix for loading secrets from files
+        # Mirrors the convention popularized by Grafana, Postgres, etc.
+        self._resolve_file_vars()
+
+    def _resolve_file_vars(self) -> None:
+        """Resolve __FILE environment variable suffixes.
+
+        For any environment variable named PREFIX_NAME__FILE, read the contents
+        of the file at that path and use it as the value of PREFIX_NAME.
+        Errors if both PREFIX_NAME and PREFIX_NAME__FILE are set, or if the
+        file does not exist or is not readable.
+        """
+        if not isinstance(self.env_vars, dict):
+            return
+
+        suffix = "__FILE"
+        # Collect keys that have the __FILE suffix (case-insensitive match)
+        file_keys: list[tuple[str, str]] = []
+        for key in list(self.env_vars.keys()):
+            if key.upper().endswith(suffix) and len(key) > len(suffix):
+                base_key = key[: -len(suffix)]
+                file_keys.append((key, base_key))
+
+        for file_key, base_key in file_keys:
+            file_path = self.env_vars.get(file_key)
+            if not file_path:
+                continue
+
+            # Check for mutual exclusivity: both PREFIX_NAME and PREFIX_NAME__FILE
+            if base_key in self.env_vars and self.env_vars[base_key] is not None:
+                raise ValueError(
+                    f"Both {base_key} and {file_key} are set but are mutually exclusive"
+                )
+
+            # Read the file, stripping a single trailing newline (matching bash behavior)
+            try:
+                with open(file_path, "r") as f:
+                    value = f.read()
+            except FileNotFoundError:
+                raise FileNotFoundError(
+                    f"File not found for {file_key}: {file_path}"
+                )
+            except PermissionError:
+                raise PermissionError(
+                    f"File not readable for {file_key}: {file_path}"
+                )
+
+            # Strip exactly one trailing newline if present
+            if value.endswith("\n"):
+                value = value[:-1]
+
+            # Store the value under the base key
+            self.env_vars[base_key] = value
+            # Remove the __FILE key so it is not processed as a setting
+            del self.env_vars[file_key]
+
+    
 
 class FilteredDotEnvSettingsSource(DotEnvSettingsSource):
     def __init__(
