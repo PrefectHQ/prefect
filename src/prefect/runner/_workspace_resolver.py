@@ -191,6 +191,36 @@ def _resolve_local_runtime_directory(
     return Path(resolved_path).resolve() if resolved_path is not None else source_cwd
 
 
+def _entrypoint_file_path(entrypoint: str, working_directory: Path) -> Path | None:
+    entrypoint = _resolve_runtime_entrypoint(entrypoint)
+    if ":" not in entrypoint:
+        return None
+
+    path, _object_name = entrypoint.rsplit(":", 1)
+    if not path.endswith(".py"):
+        return None
+
+    entrypoint_path = Path(path).expanduser()
+    if not entrypoint_path.is_absolute():
+        entrypoint_path = working_directory / entrypoint_path
+    return entrypoint_path.resolve()
+
+
+def _has_entrypoint_file(entrypoint: str, working_directory: Path) -> bool:
+    entrypoint_path = _entrypoint_file_path(entrypoint, working_directory)
+    return entrypoint_path is not None and entrypoint_path.is_file()
+
+
+def _default_pull_step_working_directory(
+    entrypoint: str, workspace_root: Path, local_runtime_directory: Path
+) -> Path:
+    if _has_entrypoint_file(entrypoint, workspace_root):
+        return workspace_root
+    if _has_entrypoint_file(entrypoint, local_runtime_directory):
+        return local_runtime_directory
+    return workspace_root
+
+
 @contextlib.contextmanager
 def _redirect_stdout_to_stderr() -> Any:
     stdout = sys.stdout
@@ -279,9 +309,11 @@ async def prepare_workspace(
         os.chdir(working_directory)
         working_directory = Path.cwd().resolve()
     else:
-        working_directory = _resolve_local_runtime_directory(
+        local_runtime_directory = _resolve_local_runtime_directory(
             deployment.path, source_cwd, storage_base_path
         )
+        working_directory = resolved_workspace_root
+        step_selected_working_directory = False
         os.chdir(resolved_workspace_root)
         LOGGER.info("Running %s deployment pull step(s)", len(deployment.pull_steps))
 
@@ -291,17 +323,19 @@ async def prepare_workspace(
             step_start_cwd: Path | None,
             step_end_cwd: Path | None,
         ) -> None:
-            nonlocal working_directory
+            nonlocal step_selected_working_directory, working_directory
 
             if isinstance(step_output, dict) and step_output.get("directory"):
                 resolved_directory = _resolve_directory_output(
                     step_output, step_end_cwd
                 )
                 if resolved_directory is not None:
+                    step_selected_working_directory = True
                     working_directory = resolved_directory
                 return
 
             if step_end_cwd is not None and step_end_cwd != step_start_cwd:
+                step_selected_working_directory = True
                 working_directory = step_end_cwd
 
         with _observe_step_completion(_track_step_workspace):
@@ -311,6 +345,13 @@ async def prepare_workspace(
                 deployment=deployment,
                 flow_run=flow_run,
                 logger=LOGGER,
+            )
+
+        if not step_selected_working_directory:
+            working_directory = _default_pull_step_working_directory(
+                deployment.entrypoint,
+                resolved_workspace_root,
+                local_runtime_directory,
             )
 
     project_root = _find_project_root(working_directory, resolved_workspace_root)
