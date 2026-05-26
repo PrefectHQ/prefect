@@ -1584,6 +1584,89 @@ class TestSettingsSources:
 
         assert Settings().api.url == "http://from-dotenv:4200/api"
 
+    def test_file_env_var_loaded_from_file(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        """A PREFECT_*__FILE env var loads PREFECT_* from the file contents."""
+        secret_path = tmp_path / "api_key"
+        secret_path.write_text("loaded_from_file\n")
+
+        monkeypatch.delenv("PREFECT_API_KEY", raising=False)
+        monkeypatch.setenv("PREFECT_API_KEY__FILE", str(secret_path))
+
+        settings = Settings()
+        assert settings.api.key is not None
+        assert settings.api.key.get_secret_value() == "loaded_from_file"
+
+    def test_file_env_var_strips_trailing_newline(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        """A single trailing newline is stripped (matching `$(< file)`)."""
+        secret_path = tmp_path / "api_key"
+        # Write with a trailing newline; expect it stripped
+        secret_path.write_text("abc\n")
+
+        monkeypatch.delenv("PREFECT_API_KEY", raising=False)
+        monkeypatch.setenv("PREFECT_API_KEY__FILE", str(secret_path))
+
+        settings = Settings()
+        assert settings.api.key.get_secret_value() == "abc"
+
+    def test_file_env_var_no_trailing_newline(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        """File contents without a trailing newline are used as-is."""
+        secret_path = tmp_path / "api_key"
+        secret_path.write_text("no_newline")
+
+        monkeypatch.delenv("PREFECT_API_KEY", raising=False)
+        monkeypatch.setenv("PREFECT_API_KEY__FILE", str(secret_path))
+
+        settings = Settings()
+        assert settings.api.key.get_secret_value() == "no_newline"
+
+    def test_file_env_var_mutually_exclusive(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        """Setting both PREFECT_X and PREFECT_X__FILE raises a ValueError."""
+        secret_path = tmp_path / "api_key"
+        secret_path.write_text("from_file")
+
+        monkeypatch.setenv("PREFECT_API_KEY", "from_env")
+        monkeypatch.setenv("PREFECT_API_KEY__FILE", str(secret_path))
+
+        with pytest.raises(
+            ValueError,
+            match="Both PREFECT_API_KEY and PREFECT_API_KEY__FILE are set",
+        ):
+            Settings()
+
+    def test_file_env_var_missing_file(self, monkeypatch: pytest.MonkeyPatch):
+        """A missing file referenced by PREFECT_*__FILE raises a ValueError."""
+        monkeypatch.delenv("PREFECT_API_KEY", raising=False)
+        monkeypatch.setenv(
+            "PREFECT_API_KEY__FILE", "/this/path/should/not/exist/secret"
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="Could not load PREFECT_API_KEY from PREFECT_API_KEY__FILE",
+        ):
+            Settings()
+
+    def test_file_env_var_nested_setting(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        """The __FILE convention works for nested settings as well."""
+        secret_path = tmp_path / "port"
+        secret_path.write_text("9999\n")
+
+        monkeypatch.delenv("PREFECT_SERVER_API_PORT", raising=False)
+        monkeypatch.setenv("PREFECT_SERVER_API_PORT__FILE", str(secret_path))
+
+        settings = Settings()
+        assert settings.server.api.port == 9999
+
     def test_env_fifo_does_not_hang(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ):

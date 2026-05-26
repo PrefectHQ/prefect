@@ -38,6 +38,79 @@ def _read_toml_file(path: Path) -> dict[str, Any]:
     return data
 
 
+
+
+def _load_file_env_vars(
+    environ: Optional[Dict[str, str]] = None,
+) -> None:
+    """
+    Process any ``PREFECT_*__FILE`` environment variables by reading the value
+    from the referenced file and setting the corresponding ``PREFECT_*``
+    environment variable.
+
+    This mirrors the ``*_FILE`` convention popularized by Docker official images
+    (Postgres, MySQL), Grafana, Vault, etc. for loading secrets from files
+    mounted into containers.
+
+    Behavior:
+    - For each ``PREFECT_<NAME>__FILE`` variable, read the file at the given
+      path and use its contents as ``PREFECT_<NAME>``.
+    - A single trailing newline is stripped from the file contents (matching
+      ``$(< file)`` behavior in bash and the convention used by most tools).
+    - If both ``PREFECT_<NAME>`` and ``PREFECT_<NAME>__FILE`` are set, a
+      ``ValueError`` is raised because they are mutually exclusive.
+    - If the referenced file does not exist or cannot be read, a
+      ``ValueError`` is raised.
+    - The ``PREFECT_<NAME>__FILE`` entry is removed after processing so that
+      this function is idempotent.
+    """
+    if environ is None:
+        environ = os.environ  # type: ignore[assignment]
+
+    suffix = "__FILE"
+    # Collect names first to avoid mutating during iteration
+    file_var_names = [
+        key
+        for key in list(environ.keys())
+        if key.startswith("PREFECT_") and key.endswith(suffix) and key != suffix
+    ]
+    for file_var_name in file_var_names:
+        target_var_name = file_var_name[: -len(suffix)]
+        if not target_var_name or target_var_name == "PREFECT_":
+            continue
+        file_path = environ.get(file_var_name)
+        if file_path is None or file_path == "":
+            # Nothing to load; just drop the marker var
+            environ.pop(file_var_name, None)
+            continue
+        if target_var_name in environ and environ[target_var_name] != "":
+            raise ValueError(
+                f"Both {target_var_name} and {file_var_name} are set "
+                f"(but are mutually exclusive)."
+            )
+        path = Path(file_path)
+        try:
+            file_contents = path.read_text(encoding="utf-8")
+        except FileNotFoundError as exc:
+            raise ValueError(
+                f"Could not load {target_var_name} from {file_var_name}: "
+                f"file not found at {file_path!r}."
+            ) from exc
+        except OSError as exc:
+            raise ValueError(
+                f"Could not load {target_var_name} from {file_var_name}: "
+                f"unable to read file at {file_path!r}: {exc}."
+            ) from exc
+        # Strip a single trailing newline (matching $(< file) behavior)
+        if file_contents.endswith("\r\n"):
+            file_contents = file_contents[:-2]
+        elif file_contents.endswith("\n"):
+            file_contents = file_contents[:-1]
+        environ[target_var_name] = file_contents
+        # Remove the marker so subsequent calls are no-ops
+        environ.pop(file_var_name, None)
+
+
 class EnvFilterSettingsSource(EnvSettingsSource):
     """
     Custom pydantic settings source to filter out specific environment variables.
@@ -59,6 +132,9 @@ class EnvFilterSettingsSource(EnvSettingsSource):
         env_parse_enums: Optional[bool] = None,
         env_filter: Optional[List[str]] = None,
     ) -> None:
+        # Resolve any PREFECT_*__FILE environment variables so that pydantic
+        # picks up their resolved values from os.environ during initialization.
+        _load_file_env_vars()
         super().__init__(
             settings_cls=settings_cls,
             case_sensitive=case_sensitive,
