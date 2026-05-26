@@ -150,6 +150,35 @@ async def test_enqueue_is_idempotent_for_stable_cleanup_keys(
     assert second.message_id != second_message_id
 
 
+async def test_enqueue_deep_copies_payload_state(
+    queue: WorkerCleanupQueue,
+) -> None:
+    work_pool_id = uuid4()
+    message_id = uuid4()
+    target = {"flow_run": {"id": str(uuid4())}}
+    data = {"resources": [{"id": str(uuid4())}]}
+    original_target = {"flow_run": dict(target["flow_run"])}
+    original_data = {"resources": [dict(data["resources"][0])]}
+
+    await queue.enqueue(
+        message_id=message_id,
+        idempotency_key="flow-run-cleanup",
+        work_pool_id=work_pool_id,
+        kind=CANCELLING_TIMEOUT_TEARDOWN,
+        target=target,
+        data=data,
+    )
+
+    target["flow_run"]["id"] = str(uuid4())
+    data["resources"][0]["id"] = str(uuid4())
+
+    message = await queue.read_message(work_pool_id=work_pool_id, message_id=message_id)
+
+    assert message is not None
+    assert message.target == original_target
+    assert message.data == original_data
+
+
 async def test_reserve_commits_delivery_count_and_single_active_reservation(
     queue: WorkerCleanupQueue,
     clock: Clock,

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Iterable, Mapping
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import timedelta
 from secrets import token_urlsafe
@@ -129,8 +130,8 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                     work_pool_id=work_pool_id,
                     work_queue_id=work_queue_id,
                     kind=kind,
-                    target=dict(target),
-                    data=dict(data or {}),
+                    target=deepcopy(dict(target)),
+                    data=deepcopy(dict(data or {})),
                     created_at=current_time,
                     updated_at=current_time,
                 )
