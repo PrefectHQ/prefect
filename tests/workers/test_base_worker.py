@@ -2353,6 +2353,45 @@ def worker_channel_test_client(
     return client
 
 
+class TestReconnectDelay:
+    def test_exponential_backoff(self):
+        transport = WorkerChannelTransport(
+            api_url="http://localhost:4200/api",
+            work_pool_name="test",
+            logger=logging.getLogger("test"),
+            reconnect_base_seconds=1.0,
+            reconnect_max_seconds=30.0,
+        )
+        assert transport.reconnect_delay(1) == 1.0
+        assert transport.reconnect_delay(2) == 2.0
+        assert transport.reconnect_delay(3) == 4.0
+        assert transport.reconnect_delay(6) == 30.0  # clamped to max
+
+    def test_zero_base_returns_zero(self):
+        transport = WorkerChannelTransport(
+            api_url="http://localhost:4200/api",
+            work_pool_name="test",
+            logger=logging.getLogger("test"),
+            reconnect_base_seconds=0,
+            reconnect_max_seconds=30.0,
+        )
+        assert transport.reconnect_delay(1) == 0
+        assert transport.reconnect_delay(9999) == 0
+
+    def test_large_attempt_does_not_overflow(self):
+        transport = WorkerChannelTransport(
+            api_url="http://localhost:4200/api",
+            work_pool_name="test",
+            logger=logging.getLogger("test"),
+            reconnect_base_seconds=1.0,
+            reconnect_max_seconds=30.0,
+        )
+        # These previously raised OverflowError
+        assert transport.reconnect_delay(1024) == 30.0
+        assert transport.reconnect_delay(2000) == 30.0
+        assert transport.reconnect_delay(100_000) == 30.0
+
+
 class TestWorkerChannelClient:
     async def test_worker_uses_real_server_channel_for_setup_and_heartbeat(
         self,
