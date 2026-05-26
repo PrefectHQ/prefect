@@ -11,7 +11,7 @@ on:
       - ui/**
       - .nvmrc
       - Dockerfile
-      - integration-tests/*
+      - integration-tests/**
   push:
     branches:
       - main

@@ -166,6 +166,11 @@ def test_prebuilt_image_flow_run_completes(prebuilt_image: str):
 
     flow_run = anyio.run(_read_flow_run, flow_run_id)
 
+    assert result.returncode == 0, (
+        f"Flow run execute command failed with exit code {result.returncode}.\n"
+        f"Container stdout:\n{result.stdout}\n"
+        f"Container stderr:\n{result.stderr}"
+    )
     assert flow_run.state is not None and flow_run.state.is_completed(), (
         f"Flow run did not complete.\n"
         f"State: {flow_run.state}\n"
