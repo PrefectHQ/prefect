@@ -49,12 +49,16 @@ def _docker_available() -> bool:
         return False
 
 
-def build_prebuilt_image(build_dir: Path) -> str:
-    """Assemble the build context and build a pre-built-image Docker image.
+@pytest.fixture(scope="module")
+def prebuilt_image(tmp_path_factory: pytest.TempPathFactory) -> str:
+    """Build a pre-built Docker image with the current branch's prefect.
 
-    Builds a wheel from the current branch, copies it and the fixture files
-    into *build_dir*, then runs `docker build`.  Returns the image tag.
+    Yields the image tag.  Cleans up the image after the test module.
     """
+    if not _docker_available():
+        pytest.skip("Docker daemon not available")
+
+    build_dir = tmp_path_factory.mktemp("prebuilt_image")
     tag = f"prefect-prebuilt-test-{uuid4().hex[:8]}"
 
     for name in ("Dockerfile", "pyproject.toml", "flows.py", "check_uv_skip.py"):
@@ -76,45 +80,41 @@ def build_prebuilt_image(build_dir: Path) -> str:
         stderr=sys.stderr,
     )
 
-    return tag
+    yield tag
+
+    subprocess.run(["docker", "rmi", tag], capture_output=True)
 
 
-@pytest.mark.skipif(not _docker_available(), reason="Docker daemon not available")
-def test_prebuilt_image_skips_uv_run(tmp_path: Path):
+def test_prebuilt_image_skips_uv_run(prebuilt_image: str):
     """Pre-built image: _uv_run_command returns explicit python, not uv run."""
-    tag = build_prebuilt_image(tmp_path)
+    result = subprocess.run(
+        ["docker", "run", "--rm", prebuilt_image, "python", "/tmp/check_uv_skip.py"],
+        capture_output=True,
+        text=True,
+    )
 
-    try:
-        result = subprocess.run(
-            ["docker", "run", "--rm", tag, "python", "/tmp/check_uv_skip.py"],
-            capture_output=True,
-            text=True,
-        )
+    assert result.returncode == 0, (
+        f"Container script failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+    )
 
-        assert result.returncode == 0, (
-            f"Container script failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
-        )
+    output = json.loads(result.stdout.strip().split("\n")[-1])
 
-        output = json.loads(result.stdout.strip().split("\n")[-1])
+    # _find_prematerialized_python detected the editable install
+    assert output["python_found"] is not None, (
+        "Should detect pre-materialized python via editable install"
+    )
 
-        # _find_prematerialized_python detected the editable install
-        assert output["python_found"] is not None, (
-            "Should detect pre-materialized python via editable install"
-        )
+    # _uv_run_command returns an explicit python command, not uv run
+    assert output["skips_uv_run"] is True, (
+        "_uv_run_command should return python -m prefect.flow_engine, not uv run"
+    )
+    assert output["command_parts"][1:] == [
+        "-m",
+        "prefect.flow_engine",
+        "flows.py:hello",
+    ]
 
-        # _uv_run_command returns an explicit python command, not uv run
-        assert output["skips_uv_run"] is True, (
-            "_uv_run_command should return python -m prefect.flow_engine, not uv run"
-        )
-        assert output["command_parts"][1:] == [
-            "-m",
-            "prefect.flow_engine",
-            "flows.py:hello",
-        ]
-
-        # uv run would create a redundant .venv — this is the waste we avoid
-        assert output["venv_created_by_uv_run"] is True, (
-            "uv run should have created a .venv, proving it would reinstall deps"
-        )
-    finally:
-        subprocess.run(["docker", "rmi", tag], capture_output=True)
+    # uv run would create a redundant .venv — this is the waste we avoid
+    assert output["venv_created_by_uv_run"] is True, (
+        "uv run should have created a .venv, proving it would reinstall deps"
+    )
