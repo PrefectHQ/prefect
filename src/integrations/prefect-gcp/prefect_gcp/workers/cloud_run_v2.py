@@ -75,7 +75,9 @@ def _build_transient_retrying(
     max_attempts: int,
     initial_delay: float,
     max_delay: float,
-    operation_label: Literal["creating job", "submitting job for execution"],
+    operation_label: Literal[
+        "creating job", "submitting job for execution", "polling job readiness"
+    ],
     logger: PrefectLogAdapter,
 ) -> Retrying:
     """Build a Retrying that retries transient HTTP errors with exponential jitter."""
@@ -891,12 +893,27 @@ class CloudRunWorkerV2(
             poll_interval: The interval to poll the Cloud Run job, defaults to 5
                 seconds.
         """
-        job = JobV2.get(
-            cr_client=cr_client,
-            project=configuration.project,
-            location=configuration.region,
-            job_name=configuration.job_name,
+        settings = CloudRunV2WorkerSettings()
+        retrying = _build_transient_retrying(
+            max_attempts=settings.create_job_max_attempts,
+            initial_delay=settings.create_job_initial_delay_seconds,
+            max_delay=settings.create_job_max_delay_seconds,
+            operation_label="polling job readiness",
+            logger=logger,
         )
+
+        def _get_job() -> JobV2:
+            for attempt in retrying:
+                with attempt:
+                    return JobV2.get(
+                        cr_client=cr_client,
+                        project=configuration.project,
+                        location=configuration.region,
+                        job_name=configuration.job_name,
+                    )
+            assert False, "unreachable"  # tenacity always raises or returns
+
+        job = _get_job()
 
         while not job.is_ready():
             if not (ready_condition := job.get_ready_condition()):
@@ -904,12 +921,7 @@ class CloudRunWorkerV2(
 
             logger.info(f"Current Job Condition: {ready_condition}")
 
-            job = JobV2.get(
-                cr_client=cr_client,
-                project=configuration.project,
-                location=configuration.region,
-                job_name=configuration.job_name,
-            )
+            job = _get_job()
 
             time.sleep(poll_interval)
 

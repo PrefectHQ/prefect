@@ -935,6 +935,158 @@ class TestCloudRunWorkerV2CreateJobRetriesFromEnv:
         assert 5.0 <= sleeps[1] <= 6.0
 
 
+class TestCloudRunWorkerV2ReadinessPollRetries:
+    """Transient HTTP errors during the _wait_for_job_creation readiness poll
+    should be retried rather than crashing the flow run."""
+
+    def _make_ready_job(self):
+        job = MagicMock()
+        job.is_ready.return_value = True
+        return job
+
+    def _make_not_ready_job(self):
+        job = MagicMock()
+        job.is_ready.return_value = False
+        job.get_ready_condition.return_value = "waiting"
+        return job
+
+    def test_readiness_poll_retries_transient_error_then_succeeds(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        mock_client = MagicMock()
+        mock_logger = MagicMock(spec=PrefectLogAdapter)
+
+        mock_resp = MagicMock()
+        mock_resp.status = 503
+        transient_error = HttpError(resp=mock_resp, content=b"Service unavailable")
+
+        ready_job = self._make_ready_job()
+
+        with mock.patch(
+            "prefect_gcp.workers.cloud_run_v2.JobV2.get",
+            side_effect=[transient_error, ready_job],
+        ) as mock_get:
+            with mock.patch(
+                "prefect_gcp.workers.cloud_run_v2.time.sleep"
+            ) as mock_sleep:
+                CloudRunWorkerV2._wait_for_job_creation(
+                    cr_client=mock_client,
+                    configuration=cloud_run_worker_v2_job_config,
+                    logger=mock_logger,
+                )
+
+        assert mock_get.call_count == 2
+        mock_sleep.assert_called_once()
+        mock_logger.warning.assert_called_once()
+
+    def test_readiness_poll_does_not_retry_non_transient_error(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        mock_client = MagicMock()
+        mock_logger = MagicMock(spec=PrefectLogAdapter)
+
+        mock_resp = MagicMock()
+        mock_resp.status = 400
+        non_transient_error = HttpError(resp=mock_resp, content=b"Bad request")
+
+        with mock.patch(
+            "prefect_gcp.workers.cloud_run_v2.JobV2.get",
+            side_effect=non_transient_error,
+        ) as mock_get:
+            with mock.patch("prefect_gcp.workers.cloud_run_v2.time.sleep"):
+                with pytest.raises(HttpError):
+                    CloudRunWorkerV2._wait_for_job_creation(
+                        cr_client=mock_client,
+                        configuration=cloud_run_worker_v2_job_config,
+                        logger=mock_logger,
+                    )
+
+        assert mock_get.call_count == 1
+
+    def test_readiness_poll_retries_until_max_attempts_then_raises(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        mock_client = MagicMock()
+        mock_logger = MagicMock(spec=PrefectLogAdapter)
+
+        mock_resp = MagicMock()
+        mock_resp.status = 503
+        transient_error = HttpError(resp=mock_resp, content=b"Service unavailable")
+
+        with mock.patch(
+            "prefect_gcp.workers.cloud_run_v2.JobV2.get",
+            side_effect=[transient_error, transient_error, transient_error],
+        ) as mock_get:
+            with mock.patch(
+                "prefect_gcp.workers.cloud_run_v2.time.sleep"
+            ) as mock_sleep:
+                with pytest.raises(HttpError):
+                    CloudRunWorkerV2._wait_for_job_creation(
+                        cr_client=mock_client,
+                        configuration=cloud_run_worker_v2_job_config,
+                        logger=mock_logger,
+                    )
+
+        assert mock_get.call_count == 3
+        assert mock_sleep.call_count == 2
+
+    def test_readiness_poll_retries_transient_error_during_polling_loop(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        """A transient error in a later poll iteration is also retried."""
+        mock_client = MagicMock()
+        mock_logger = MagicMock(spec=PrefectLogAdapter)
+
+        mock_resp = MagicMock()
+        mock_resp.status = 503
+        transient_error = HttpError(resp=mock_resp, content=b"Service unavailable")
+
+        not_ready_job = self._make_not_ready_job()
+        ready_job = self._make_ready_job()
+
+        with mock.patch(
+            "prefect_gcp.workers.cloud_run_v2.JobV2.get",
+            side_effect=[not_ready_job, transient_error, ready_job],
+        ) as mock_get:
+            with mock.patch("prefect_gcp.workers.cloud_run_v2.time.sleep"):
+                CloudRunWorkerV2._wait_for_job_creation(
+                    cr_client=mock_client,
+                    configuration=cloud_run_worker_v2_job_config,
+                    logger=mock_logger,
+                )
+
+        assert mock_get.call_count == 3
+
+    def test_readiness_poll_retries_429_and_500(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        mock_client = MagicMock()
+        mock_logger = MagicMock(spec=PrefectLogAdapter)
+
+        mock_resp_429 = MagicMock()
+        mock_resp_429.status = 429
+        error_429 = HttpError(resp=mock_resp_429, content=b"Too many requests")
+
+        mock_resp_500 = MagicMock()
+        mock_resp_500.status = 500
+        error_500 = HttpError(resp=mock_resp_500, content=b"Internal server error")
+
+        ready_job = self._make_ready_job()
+
+        with mock.patch(
+            "prefect_gcp.workers.cloud_run_v2.JobV2.get",
+            side_effect=[error_429, error_500, ready_job],
+        ) as mock_get:
+            with mock.patch("prefect_gcp.workers.cloud_run_v2.time.sleep"):
+                CloudRunWorkerV2._wait_for_job_creation(
+                    cr_client=mock_client,
+                    configuration=cloud_run_worker_v2_job_config,
+                    logger=mock_logger,
+                )
+
+        assert mock_get.call_count == 3
+
+
 class TestCloudRunWorkerV2SubmitJobRetries:
     def test_submit_job_retries_on_transient_error_then_succeeds(
         self, cloud_run_worker_v2_job_config, mock_credentials
