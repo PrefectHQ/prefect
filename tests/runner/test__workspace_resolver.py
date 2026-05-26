@@ -106,7 +106,7 @@ class TestWorkspaceResolverProcess:
         assert result.workspace.working_directory == local_project.resolve()
         assert result.workspace.project_root == local_project.resolve()
 
-    async def test_resolves_relative_local_deployment_path_in_place(
+    async def test_materializes_relative_local_deployment_path_into_workspace(
         self,
         prefect_client,
         tmp_path: Path,
@@ -142,14 +142,13 @@ class TestWorkspaceResolverProcess:
         assert process.returncode == 0, process.stderr
         assert result.status == "success"
         assert result.workspace is not None
-        assert result.workspace.working_directory == local_project.resolve()
-        assert result.workspace.project_root == local_project.resolve()
-        assert (local_project / "flows" / "hello.py").read_text() == (
+        assert result.workspace.working_directory == workspace_root.resolve()
+        assert result.workspace.project_root == workspace_root.resolve()
+        assert (workspace_root / "flows" / "hello.py").read_text() == (
             "from prefect import flow\n\n@flow\ndef hello():\n    return 'relative'\n"
         )
-        assert not (workspace_root / "flows" / "hello.py").exists()
 
-    async def test_pull_steps_without_directory_output_fall_back_to_local_runtime_directory(
+    async def test_pull_steps_without_directory_output_materialize_source_into_workspace(
         self,
         prefect_client,
         tmp_path: Path,
@@ -192,9 +191,11 @@ class TestWorkspaceResolverProcess:
         assert process.returncode == 0, process.stderr
         assert result.status == "success"
         assert result.workspace is not None
-        assert result.workspace.working_directory == local_project.resolve()
-        assert result.workspace.project_root == local_project.resolve()
-        assert not (workspace_root / "flows" / "hello.py").exists()
+        assert result.workspace.working_directory == workspace_root.resolve()
+        assert result.workspace.project_root == workspace_root.resolve()
+        assert (workspace_root / "flows" / "hello.py").read_text() == (
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'setup'\n"
+        )
 
     async def test_pull_steps_without_directory_output_keep_workspace_when_entrypoint_created_there(
         self,
@@ -232,12 +233,17 @@ class TestWorkspaceResolverProcess:
             deployment_id=deployment_id
         )
 
+        caller_project = tmp_path / "caller-project"
+        caller_flow = caller_project / "flows" / "hello.py"
+        caller_flow.parent.mkdir(parents=True)
+        caller_flow.write_text(
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'caller'\n"
+        )
+
         workspace_root = tmp_path / "workspace-step-workspace"
-        unrelated_cwd = tmp_path / "unrelated-cwd"
-        unrelated_cwd.mkdir()
-        with tmpchdir(unrelated_cwd):
+        with tmpchdir(caller_project):
             process = _run_workspace_resolver(flow_run.id, workspace_root)
-            assert Path.cwd() == unrelated_cwd.resolve()
+            assert Path.cwd() == caller_project.resolve()
 
         result = _parse_result(process)
 
@@ -246,7 +252,9 @@ class TestWorkspaceResolverProcess:
         assert result.workspace is not None
         assert result.workspace.working_directory == workspace_root.resolve()
         assert result.workspace.project_root == workspace_root.resolve()
-        assert (workspace_root / "flows" / "hello.py").is_file()
+        assert (workspace_root / "flows" / "hello.py").read_text() == (
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'workspace'\n"
+        )
 
     async def test_resolves_local_deployment_path_in_place_without_storage(
         self,

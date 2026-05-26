@@ -174,16 +174,6 @@ def _workspace_destination_for_deployment_path(
     return (workspace_root / relative_destination).resolve()
 
 
-def _should_materialize_deployment_storage(deployment: "DeploymentResponse") -> bool:
-    return bool(
-        deployment.storage_document_id
-        or (
-            deployment.path is not None
-            and STORAGE_BASE_PATH_PLACEHOLDER in deployment.path
-        )
-    )
-
-
 def _resolve_local_runtime_directory(
     path: str | None, source_cwd: Path, storage_base_path: Path | None
 ) -> Path:
@@ -211,13 +201,31 @@ def _has_entrypoint_file(entrypoint: str, working_directory: Path) -> bool:
     return entrypoint_path is not None and entrypoint_path.is_file()
 
 
-def _default_pull_step_working_directory(
-    entrypoint: str, workspace_root: Path, local_runtime_directory: Path
+async def _ensure_entrypoint_in_workspace(
+    client: "PrefectClient",
+    deployment: "DeploymentResponse",
+    workspace_root: Path,
+    source_cwd: Path,
+    storage_base_path: Path | None,
 ) -> Path:
-    if _has_entrypoint_file(entrypoint, workspace_root):
+    if _has_entrypoint_file(deployment.entrypoint, workspace_root):
         return workspace_root
-    if _has_entrypoint_file(entrypoint, local_runtime_directory):
-        return local_runtime_directory
+
+    local_runtime_directory = _resolve_local_runtime_directory(
+        deployment.path, source_cwd, storage_base_path
+    )
+    if not deployment.storage_document_id and not _has_entrypoint_file(
+        deployment.entrypoint, local_runtime_directory
+    ):
+        return workspace_root
+
+    await _pull_storage_into_workspace(
+        client,
+        deployment,
+        workspace_root,
+        source_cwd,
+        storage_base_path,
+    )
     return workspace_root
 
 
@@ -265,8 +273,11 @@ async def _pull_storage_into_workspace(
             else None
         )
     else:
-        from_path = _resolve_local_deployment_path(
+        resolved_local_path = _resolve_local_deployment_path(
             deployment.path, source_cwd, storage_base_path
+        )
+        from_path = (
+            resolved_local_path if resolved_local_path is not None else str(source_cwd)
         )
         storage_block = LocalFileSystem(basepath=from_path)
 
@@ -292,7 +303,7 @@ async def prepare_workspace(
     resolved_workspace_root.mkdir(parents=True, exist_ok=True)
     working_directory = resolved_workspace_root
 
-    if not deployment.pull_steps and _should_materialize_deployment_storage(deployment):
+    if not deployment.pull_steps:
         working_directory = await _pull_storage_into_workspace(
             client,
             deployment,
@@ -300,18 +311,14 @@ async def prepare_workspace(
             source_cwd,
             storage_base_path,
         )
-        os.chdir(working_directory)
-        working_directory = Path.cwd().resolve()
-    elif not deployment.pull_steps:
-        working_directory = _resolve_local_runtime_directory(
-            deployment.path, source_cwd, storage_base_path
-        )
-        os.chdir(working_directory)
-        working_directory = Path.cwd().resolve()
-    else:
         local_runtime_directory = _resolve_local_runtime_directory(
             deployment.path, source_cwd, storage_base_path
         )
+        if not _has_entrypoint_file(
+            deployment.entrypoint, working_directory
+        ) and _has_entrypoint_file(deployment.entrypoint, local_runtime_directory):
+            working_directory = local_runtime_directory
+    else:
         working_directory = resolved_workspace_root
         step_selected_working_directory = False
         os.chdir(resolved_workspace_root)
@@ -348,11 +355,16 @@ async def prepare_workspace(
             )
 
         if not step_selected_working_directory:
-            working_directory = _default_pull_step_working_directory(
-                deployment.entrypoint,
+            working_directory = await _ensure_entrypoint_in_workspace(
+                client,
+                deployment,
                 resolved_workspace_root,
-                local_runtime_directory,
+                source_cwd,
+                storage_base_path,
             )
+
+    os.chdir(working_directory)
+    working_directory = Path.cwd().resolve()
 
     project_root = _find_project_root(working_directory, resolved_workspace_root)
     return PreparedWorkspace(

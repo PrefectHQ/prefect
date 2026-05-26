@@ -1770,7 +1770,7 @@ class TestFlowRunExecute:
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_completed()
 
-    async def test_execute_flow_run_uses_source_cwd_when_pull_steps_do_not_select_workspace(
+    async def test_execute_flow_run_materializes_source_when_pull_steps_do_not_select_workspace(
         self, prefect_client: PrefectClient, tmp_path: Path
     ) -> None:
         local_project = tmp_path / "setup-step-app"
