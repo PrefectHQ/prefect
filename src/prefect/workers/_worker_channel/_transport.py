@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import math
 from collections.abc import Awaitable, Callable
 from logging import Logger
 from urllib.parse import quote
@@ -238,8 +239,15 @@ class WorkerChannelTransport:
     def reconnect_delay(self, attempt: int) -> float:
         if self._reconnect_base_seconds <= 0:
             return 0
+        try:
+            delay = math.ldexp(
+                self._reconnect_base_seconds,
+                max(attempt - 1, 0),
+            )
+        except OverflowError:
+            return self._reconnect_max_seconds
         return min(
-            self._reconnect_base_seconds * 2 ** max(attempt - 1, 0),
+            delay,
             self._reconnect_max_seconds,
         )
 
