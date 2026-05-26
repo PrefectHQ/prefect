@@ -206,9 +206,12 @@ def _find_prematerialized_python(
     Checks for credible signals that the environment is pre-materialized and
     `uv run` can be skipped:
 
-    1. A `.venv` directory at the project root with a Python interpreter.
-    2. `UV_PROJECT_ENVIRONMENT` pointing to a valid environment.
-    3. An active `VIRTUAL_ENV` in the workspace environment.
+    1. `UV_PROJECT_ENVIRONMENT` pointing to a valid environment (explicit
+       override, checked first).  Relative paths are resolved against
+       *project_root*, matching uv's own behaviour.
+    2. A `.venv` directory at the project root with a Python interpreter.
+    3. An active `VIRTUAL_ENV` that is credibly tied to this workspace
+       (located under *project_root*).
     4. An editable install whose `direct_url.json` points at this exact
        project root (the `uv pip install --system -e .` pattern).
 
@@ -218,27 +221,37 @@ def _find_prematerialized_python(
     if project_root is None:
         return None
 
+    resolved_root = project_root.resolve()
     env = workspace.environment
 
-    # 1. Existing .venv at project root
+    # 1. UV_PROJECT_ENVIRONMENT (explicit override — checked first)
+    uv_project_env = env.get("UV_PROJECT_ENVIRONMENT")
+    if uv_project_env:
+        env_path = Path(uv_project_env)
+        if not env_path.is_absolute():
+            env_path = project_root / env_path
+        python = _find_python_in_venv(env_path)
+        if python is not None:
+            return python
+
+    # 2. Existing .venv at project root
     dot_venv = project_root / ".venv"
     python = _find_python_in_venv(dot_venv)
     if python is not None:
         return python
 
-    # 2. UV_PROJECT_ENVIRONMENT
-    uv_project_env = env.get("UV_PROJECT_ENVIRONMENT")
-    if uv_project_env:
-        python = _find_python_in_venv(Path(uv_project_env))
-        if python is not None:
-            return python
-
-    # 3. Active VIRTUAL_ENV
+    # 3. Active VIRTUAL_ENV — only when it lives under project_root
     virtual_env = env.get("VIRTUAL_ENV")
     if virtual_env:
-        python = _find_python_in_venv(Path(virtual_env))
-        if python is not None:
-            return python
+        venv_path = Path(virtual_env).resolve()
+        try:
+            venv_path.relative_to(resolved_root)
+        except ValueError:
+            pass  # unrelated venv — ignore
+        else:
+            python = _find_python_in_venv(Path(virtual_env))
+            if python is not None:
+                return python
 
     # 4. Editable install pointing at this project root (system python)
     pyproject = project_root / "pyproject.toml"

@@ -233,11 +233,12 @@ def test_workspace_command_uses_uv_project_environment(
 def test_workspace_command_uses_active_virtual_env(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ):
-    """When VIRTUAL_ENV is set and valid, use its python."""
+    """When VIRTUAL_ENV is under project_root, use its python."""
     workspace = _prepared_workspace(tmp_path)
     assert workspace.project_root is not None
     _write_pyproject(workspace.project_root)
-    active_venv = tmp_path / "active-venv"
+    # Place the venv under project_root so it's credibly tied to the workspace
+    active_venv = workspace.project_root / "my-venv"
     expected_python = _create_fake_venv(active_venv)
     workspace.environment["VIRTUAL_ENV"] = str(active_venv)
 
@@ -361,11 +362,16 @@ def test_has_editable_install_at_returns_true_for_matching_path(
     assert _has_editable_install_at(project_root, "my-project") is True
 
 
-def test_find_prematerialized_python_prefers_dot_venv(tmp_path: Path):
-    """`.venv` at project_root is preferred over other signals."""
+def test_find_prematerialized_python_prefers_uv_project_environment(
+    tmp_path: Path,
+):
+    """UV_PROJECT_ENVIRONMENT is preferred over .venv."""
     workspace = _prepared_workspace(tmp_path)
     assert workspace.project_root is not None
-    expected_python = _create_fake_venv(workspace.project_root / ".venv")
+    _create_fake_venv(workspace.project_root / ".venv")
+    custom_env = tmp_path / "custom-env"
+    expected_python = _create_fake_venv(custom_env)
+    workspace.environment["UV_PROJECT_ENVIRONMENT"] = str(custom_env)
 
     result = _find_prematerialized_python(workspace)
     assert result == expected_python
@@ -380,6 +386,56 @@ def test_find_prematerialized_python_returns_none_without_signals(tmp_path: Path
 
     result = _find_prematerialized_python(workspace)
     assert result is None
+
+
+def test_unrelated_virtual_env_falls_back_to_uv_run(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    """VIRTUAL_ENV pointing at a valid but unrelated venv should NOT skip uv run."""
+    workspace = _prepared_workspace(tmp_path)
+    assert workspace.project_root is not None
+    _write_pyproject(workspace.project_root)
+    workspace.environment.pop("UV_PROJECT_ENVIRONMENT", None)
+
+    # Create a valid venv outside of project_root
+    unrelated_venv = tmp_path / "worker-venv"
+    _create_fake_venv(unrelated_venv)
+    workspace.environment["VIRTUAL_ENV"] = str(unrelated_venv)
+    workspace.environment["PATH"] = "/workspace/bin"
+
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.shutil.which",
+        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
+    )
+
+    command = _workspace_command(workspace, explicit_command=None)
+    assert command is not None
+    # Should fall back to uv run, NOT use the unrelated venv's python
+    assert command_from_string(command) == [
+        "/opt/bin/uv",
+        "run",
+        "--project",
+        str(workspace.project_root),
+        "-m",
+        "prefect.flow_engine",
+        workspace.runtime_entrypoint,
+    ]
+
+
+def test_relative_uv_project_environment_resolved_against_project_root(
+    tmp_path: Path,
+):
+    """Relative UV_PROJECT_ENVIRONMENT is resolved against project_root."""
+    workspace = _prepared_workspace(tmp_path)
+    assert workspace.project_root is not None
+    _write_pyproject(workspace.project_root)
+
+    # Create venv at project_root/my-env (using relative path "my-env")
+    expected_python = _create_fake_venv(workspace.project_root / "my-env")
+    workspace.environment["UV_PROJECT_ENVIRONMENT"] = "my-env"
+
+    result = _find_prematerialized_python(workspace)
+    assert result == expected_python
 
 
 async def test_resolve_workspace_in_subprocess_returns_success_payload(
