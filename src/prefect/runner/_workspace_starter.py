@@ -176,8 +176,13 @@ def _has_editable_install_at(project_root: Path, project_name: str) -> bool:
     *project_root*.
     """
     resolved_root = project_root.resolve()
+    canonical_project_name = canonicalize_name(project_name)
     for dist in importlib.metadata.distributions():
-        if canonicalize_name(dist.metadata["Name"]) != canonicalize_name(project_name):
+        distribution_name = dist.metadata.get("Name")
+        if (
+            not distribution_name
+            or canonicalize_name(distribution_name) != canonical_project_name
+        ):
             continue
         raw = dist.read_text("direct_url.json")
         if raw is None:

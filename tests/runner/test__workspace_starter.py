@@ -4,6 +4,8 @@ import json
 import os
 import subprocess
 import sys
+from collections.abc import Iterator
+from importlib.metadata import PathDistribution
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
@@ -71,6 +73,12 @@ def _create_dist_info(site_packages: Path, name: str, project_root: Path) -> Non
         )
     )
     (dist_info / "RECORD").write_text("")
+
+
+def _fake_distributions(site_packages: Path) -> Iterator[PathDistribution]:
+    for path in site_packages.iterdir():
+        if path.name.endswith(".dist-info"):
+            yield PathDistribution(path)
 
 
 def test_workspace_environment_prepends_workspace_paths(tmp_path: Path):
@@ -322,16 +330,9 @@ def test_has_editable_install_at_returns_false_for_wrong_path(
     site_packages = tmp_path / "site-packages"
     _create_dist_info(site_packages, "my-project", other_root)
 
-    def fake_distributions():
-        from importlib.metadata import PathDistribution
-
-        for path in site_packages.iterdir():
-            if path.name.endswith(".dist-info"):
-                yield PathDistribution(path)
-
     monkeypatch.setattr(
         "prefect.runner._workspace_starter.importlib.metadata.distributions",
-        fake_distributions,
+        lambda: _fake_distributions(site_packages),
     )
 
     assert _has_editable_install_at(project_root, "my-project") is False
@@ -347,16 +348,27 @@ def test_has_editable_install_at_returns_true_for_matching_path(
     site_packages = tmp_path / "site-packages"
     _create_dist_info(site_packages, "my-project", project_root)
 
-    def fake_distributions():
-        from importlib.metadata import PathDistribution
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.importlib.metadata.distributions",
+        lambda: _fake_distributions(site_packages),
+    )
 
-        for path in site_packages.iterdir():
-            if path.name.endswith(".dist-info"):
-                yield PathDistribution(path)
+    assert _has_editable_install_at(project_root, "my-project") is True
+
+
+def test_has_editable_install_at_skips_distributions_without_name(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Malformed dist-info metadata should not prevent later matches."""
+    project_root = tmp_path / "my-project"
+    project_root.mkdir()
+    site_packages = tmp_path / "site-packages"
+    (site_packages / "malformed-0.1.0.dist-info").mkdir(parents=True)
+    _create_dist_info(site_packages, "my-project", project_root)
 
     monkeypatch.setattr(
         "prefect.runner._workspace_starter.importlib.metadata.distributions",
-        fake_distributions,
+        lambda: _fake_distributions(site_packages),
     )
 
     assert _has_editable_install_at(project_root, "my-project") is True
