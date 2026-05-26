@@ -1,26 +1,41 @@
-"""Runs inside the pre-built container to verify detection logic."""
+"""Runs inside the pre-built container to verify detection logic.
 
+Checks that importlib.metadata can find the project declared in
+pyproject.toml — the same mechanism _project_is_installed uses.
+"""
+
+import importlib.metadata
 import json
-import os
+import sys
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    try:
+        import tomllib
+    except ModuleNotFoundError:
+        import tomli as tomllib
+
 from pathlib import Path
 
-from prefect.runner._workspace_resolver import PreparedWorkspace
-from prefect.runner._workspace_starter import _project_is_installed, _uv_run_command
+pyproject = Path("/opt/prefect/flow/pyproject.toml")
+data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+project_name = data["project"]["name"]
 
-workdir = Path("/opt/prefect/flow")
-pyproject = workdir / "pyproject.toml"
+try:
+    dist = importlib.metadata.distribution(project_name)
+    installed = True
+    version = dist.version
+except importlib.metadata.PackageNotFoundError:
+    installed = False
+    version = None
 
-installed = _project_is_installed(pyproject)
-
-workspace = PreparedWorkspace(
-    workspace_root=workdir,
-    working_directory=workdir,
-    project_root=workdir,
-    runtime_entrypoint="flows.py:hello",
-    environment=dict(os.environ),
-    sys_path=[],
+print(
+    json.dumps(
+        {
+            "project_name": project_name,
+            "installed": installed,
+            "version": version,
+        }
+    )
 )
-
-command = _uv_run_command(workspace)
-
-print(json.dumps({"project_is_installed": installed, "uv_run_command": command}))

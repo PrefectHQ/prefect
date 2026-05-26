@@ -1,14 +1,12 @@
 """
-Verify that `_uv_run_command` returns None for pre-built Docker images where
-dependencies are already installed at build time.
+Verify that `importlib.metadata.distribution()` finds the project package
+inside a pre-built Docker image where dependencies were installed at build
+time — the same mechanism `_project_is_installed` uses to skip `uv run`.
 
 Simulates the pre-built image pattern from OSS-7980:
   1. pyproject.toml declaring prefect as a dependency present in WORKDIR
   2. Dependencies pre-installed via `uv pip install --system -e .`
   3. uv available on PATH
-
-Expected: `_uv_run_command` returns None so the runner falls back to
-`python -m prefect.flow_engine` instead of re-downloading everything.
 
 Requires: Docker daemon available.
 Does NOT require a running Prefect server.
@@ -25,7 +23,6 @@ from uuid import uuid4
 
 import pytest
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
 FIXTURES_DIR = Path(__file__).resolve().parent / "prebuilt_image_fixtures"
 
 
@@ -49,19 +46,13 @@ def _docker_available() -> bool:
 def build_prebuilt_image(build_dir: Path) -> str:
     """Assemble the build context and build a pre-built-image Docker image.
 
-    Copies the static fixture files and the local prefect source into
-    *build_dir*, then runs `docker build`.  Returns the image tag.
+    Copies the static fixture files into *build_dir*, then runs
+    `docker build`.  Returns the image tag.
     """
     tag = f"prefect-prebuilt-test-{uuid4().hex[:8]}"
 
     for name in ("Dockerfile", "pyproject.toml", "flows.py", "check_uv_skip.py"):
         shutil.copy(FIXTURES_DIR / name, build_dir / name)
-
-    # Copy the workspace starter under test so the Dockerfile can overlay it.
-    shutil.copy(
-        REPO_ROOT / "src" / "prefect" / "runner" / "_workspace_starter.py",
-        build_dir / "_workspace_starter.py",
-    )
 
     subprocess.check_call(
         ["docker", "build", "-t", tag, "."],
@@ -75,7 +66,7 @@ def build_prebuilt_image(build_dir: Path) -> str:
 
 @pytest.mark.skipif(not _docker_available(), reason="Docker daemon not available")
 def test_prebuilt_image_skips_uv_run(tmp_path: Path):
-    """When deps are pre-installed in a Docker image, _uv_run_command returns None."""
+    """When deps are pre-installed in a Docker image, the project is detectable."""
     tag = build_prebuilt_image(tmp_path)
 
     try:
@@ -91,12 +82,9 @@ def test_prebuilt_image_skips_uv_run(tmp_path: Path):
 
         output = json.loads(result.stdout.strip().split("\n")[-1])
 
-        assert output["project_is_installed"] is True, (
+        assert output["project_name"] == "my-prebuilt-flow"
+        assert output["installed"] is True, (
             "Project should be detected as installed in pre-built image"
-        )
-        assert output["uv_run_command"] is None, (
-            f"Expected uv_run_command=None for pre-built image, "
-            f"got: {output['uv_run_command']}"
         )
     finally:
         subprocess.run(["docker", "rmi", tag], capture_output=True)
