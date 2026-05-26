@@ -35,6 +35,12 @@ class _Reservation:
     reserved_at: DateTime
 
 
+@dataclass(frozen=True)
+class _AckedMessage:
+    message: CleanupQueueMessage
+    completed_at: DateTime
+
+
 def _copy_model(model: _T) -> _T:
     return model.model_copy(deep=True)
 
@@ -44,6 +50,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
     Singleton in-memory cleanup queue storage for a single OSS server process.
     """
 
+    _DEFAULT_EXPIRE_LEASE_LIMIT = 100
     _instance: "WorkerCleanupQueue | None" = None
     _initialized = False
 
@@ -59,7 +66,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         self._messages: dict[UUID, CleanupQueueMessage] = {}
         self._reservations: dict[UUID, _Reservation] = {}
         self._dead_letters: dict[UUID, CleanupQueueDeadLetter] = {}
-        self._acked_messages: dict[UUID, CleanupQueueMessage] = {}
+        self._acked_messages: dict[UUID, _AckedMessage] = {}
         self._idempotency_keys: dict[tuple[UUID, str], UUID] = {}
         self._wakeup_sequences: dict[UUID, int] = {}
         self._lock = asyncio.Lock()
@@ -92,6 +99,8 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
 
         should_wake = False
         async with self._lock:
+            current_time = now("UTC")
+            self._prune_completed_idempotency_locked(current_time=current_time)
             existing = self._read_existing_message_locked(
                 message_id=message_id,
                 idempotency_key=idempotency_key,
@@ -104,7 +113,6 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                 )
                 result = _copy_model(existing)
             else:
-                current_time = now("UTC")
                 message = CleanupQueueMessage(
                     message_id=message_id,
                     idempotency_key=idempotency_key,
@@ -129,82 +137,95 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         self,
         *,
         work_pool_id: UUID,
-        lease_duration: timedelta | None = None,
-        max_delivery_attempts: int | None = None,
         cleanup_kinds: Iterable[CleanupKind] | None = None,
-        work_queue_ids: Iterable[UUID | None] | None = None,
+        preferred_work_queue_ids: Iterable[UUID] | None = None,
+        allow_fallback_to_any_queue: bool = True,
     ) -> CleanupQueueReservation | None:
-        lease_duration = self._lease_duration(lease_duration)
-        max_delivery_attempts = self._max_delivery_attempts(max_delivery_attempts)
+        lease_duration = self._lease_duration()
+        max_delivery_attempts = self._max_delivery_attempts()
         cleanup_kind_filter = set(cleanup_kinds) if cleanup_kinds is not None else None
-        work_queue_filter = set(work_queue_ids) if work_queue_ids is not None else None
+        preferred_queue_filter = (
+            set(preferred_work_queue_ids)
+            if preferred_work_queue_ids is not None
+            else None
+        )
+        if preferred_queue_filter is None:
+            queue_preference_passes: tuple[set[UUID] | None, ...] = (None,)
+        elif allow_fallback_to_any_queue:
+            queue_preference_passes = (preferred_queue_filter, None)
+        else:
+            queue_preference_passes = (preferred_queue_filter,)
 
         async with self._lock:
             current_time = now("UTC")
             self._expire_due_leases_locked(
                 current_time=current_time,
                 max_delivery_attempts=max_delivery_attempts,
+                limit=self._DEFAULT_EXPIRE_LEASE_LIMIT,
+                work_pool_id=work_pool_id,
             )
 
-            for message in tuple(self._messages.values()):
-                if message.work_pool_id != work_pool_id:
-                    continue
-                if message.message_id in self._reservations:
-                    continue
-                if (
-                    cleanup_kind_filter is not None
-                    and message.kind not in cleanup_kind_filter
-                ):
-                    continue
-                if (
-                    work_queue_filter is not None
-                    and message.work_queue_id not in work_queue_filter
-                ):
-                    continue
-                if message.delivery_count >= max_delivery_attempts:
-                    self._move_to_dead_letter_locked(
-                        message_id=message.message_id,
-                        reason="max_delivery_attempts_reached",
-                        current_time=current_time,
-                    )
-                    continue
+            for queue_filter in queue_preference_passes:
+                for message in tuple(self._messages.values()):
+                    if message.work_pool_id != work_pool_id:
+                        continue
+                    if message.message_id in self._reservations:
+                        continue
+                    if (
+                        cleanup_kind_filter is not None
+                        and message.kind not in cleanup_kind_filter
+                    ):
+                        continue
+                    if (
+                        queue_filter is not None
+                        and message.work_queue_id not in queue_filter
+                    ):
+                        continue
+                    if message.delivery_count >= max_delivery_attempts:
+                        self._move_to_dead_letter_locked(
+                            message_id=message.message_id,
+                            reason="max_delivery_attempts_reached",
+                            current_time=current_time,
+                        )
+                        continue
 
-                lease_expires_at = current_time + lease_duration
-                updated_message = message.model_copy(
-                    update={
-                        "delivery_count": message.delivery_count + 1,
-                        "updated_at": current_time,
-                    }
-                )
-                self._messages[message.message_id] = updated_message
-                reservation = _Reservation(
-                    token=token_urlsafe(32),
-                    lease_expires_at=lease_expires_at,
-                    reserved_at=current_time,
-                )
-                self._reservations[message.message_id] = reservation
-                return CleanupQueueReservation(
-                    **updated_message.model_dump(),
-                    reservation_token=reservation.token,
-                    lease_expires_at=lease_expires_at,
-                )
+                    lease_expires_at = current_time + lease_duration
+                    updated_message = message.model_copy(
+                        update={
+                            "delivery_count": message.delivery_count + 1,
+                            "updated_at": current_time,
+                        }
+                    )
+                    self._messages[message.message_id] = updated_message
+                    reservation = _Reservation(
+                        token=token_urlsafe(32),
+                        lease_expires_at=lease_expires_at,
+                        reserved_at=current_time,
+                    )
+                    self._reservations[message.message_id] = reservation
+                    return CleanupQueueReservation(
+                        **updated_message.model_dump(),
+                        reservation_token=reservation.token,
+                        lease_expires_at=lease_expires_at,
+                    )
 
         return None
 
     async def ack(
         self,
         *,
+        work_pool_id: UUID,
         message_id: UUID,
         reservation_token: str,
-        max_delivery_attempts: int | None = None,
     ) -> CleanupQueueOperationResult:
-        max_delivery_attempts = self._max_delivery_attempts(max_delivery_attempts)
+        max_delivery_attempts = self._max_delivery_attempts()
         result: CleanupQueueOperationResult
         wake_work_pool_id: UUID | None = None
         async with self._lock:
             current_time = now("UTC")
             operation_result = self._validate_current_reservation_locked(
                 operation="ack",
+                work_pool_id=work_pool_id,
                 message_id=message_id,
                 reservation_token=reservation_token,
                 current_time=current_time,
@@ -219,8 +240,9 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
             else:
                 message = self._messages.pop(message_id)
                 self._reservations.pop(message_id, None)
-                self._acked_messages[message_id] = message.model_copy(
-                    update={"updated_at": current_time}
+                self._acked_messages[message_id] = _AckedMessage(
+                    message=message.model_copy(update={"updated_at": current_time}),
+                    completed_at=current_time,
                 )
                 result = CleanupQueueOperationResult(
                     message_id=message_id,
@@ -235,21 +257,22 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
     async def release(
         self,
         *,
+        work_pool_id: UUID,
         message_id: UUID,
         reservation_token: str,
         reason: str,
-        max_delivery_attempts: int | None = None,
     ) -> CleanupQueueOperationResult:
         if not reason:
             raise ValueError("release reason must be non-empty")
 
-        max_delivery_attempts = self._max_delivery_attempts(max_delivery_attempts)
+        max_delivery_attempts = self._max_delivery_attempts()
         result: CleanupQueueOperationResult
         wake_work_pool_id: UUID | None = None
         async with self._lock:
             current_time = now("UTC")
             operation_result = self._validate_current_reservation_locked(
                 operation="release",
+                work_pool_id=work_pool_id,
                 message_id=message_id,
                 reservation_token=reservation_token,
                 current_time=current_time,
@@ -296,19 +319,19 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
     async def renew(
         self,
         *,
+        work_pool_id: UUID,
         message_id: UUID,
         reservation_token: str,
-        lease_duration: timedelta | None = None,
-        max_delivery_attempts: int | None = None,
     ) -> CleanupQueueOperationResult:
-        lease_duration = self._lease_duration(lease_duration)
-        max_delivery_attempts = self._max_delivery_attempts(max_delivery_attempts)
+        lease_duration = self._lease_duration()
+        max_delivery_attempts = self._max_delivery_attempts()
         result: CleanupQueueOperationResult
         wake_work_pool_id: UUID | None = None
         async with self._lock:
             current_time = now("UTC")
             operation_result = self._validate_current_reservation_locked(
                 operation="renew",
+                work_pool_id=work_pool_id,
                 message_id=message_id,
                 reservation_token=reservation_token,
                 current_time=current_time,
@@ -345,13 +368,16 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
     async def expire_leases(
         self,
         *,
-        max_delivery_attempts: int | None = None,
+        limit: int = _DEFAULT_EXPIRE_LEASE_LIMIT,
+        work_pool_id: UUID | None = None,
     ) -> CleanupQueueLeaseExpiryResult:
-        max_delivery_attempts = self._max_delivery_attempts(max_delivery_attempts)
+        max_delivery_attempts = self._max_delivery_attempts()
         async with self._lock:
             result = self._expire_due_leases_locked(
                 current_time=now("UTC"),
                 max_delivery_attempts=max_delivery_attempts,
+                limit=limit,
+                work_pool_id=work_pool_id,
             )
 
         for message in result.redelivered:
@@ -422,8 +448,8 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         existing = self._messages.get(message_id)
         if existing is None and (dead_letter := self._dead_letters.get(message_id)):
             existing = dead_letter.message
-        if existing is None:
-            existing = self._acked_messages.get(message_id)
+        if existing is None and (acked_message := self._acked_messages.get(message_id)):
+            existing = acked_message.message
 
         if existing is not None:
             if (
@@ -445,8 +471,8 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
             return existing
         if dead_letter := self._dead_letters.get(existing_message_id):
             return dead_letter.message
-        if existing := self._acked_messages.get(existing_message_id):
-            return existing
+        if acked_message := self._acked_messages.get(existing_message_id):
+            return acked_message.message
 
         self._idempotency_keys.pop((work_pool_id, idempotency_key), None)
         return None
@@ -455,17 +481,27 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         self,
         *,
         operation: CleanupQueueOperation,
+        work_pool_id: UUID,
         message_id: UUID,
         reservation_token: str,
         current_time: DateTime,
         max_delivery_attempts: int,
     ) -> CleanupQueueOperationResult | None:
-        if message_id not in self._messages:
+        message = self._messages.get(message_id)
+        if message is None:
             return CleanupQueueOperationResult(
                 message_id=message_id,
                 operation=operation,
                 status="not_found",
                 reason="message_not_found",
+            )
+
+        if message.work_pool_id != work_pool_id:
+            return CleanupQueueOperationResult(
+                message_id=message_id,
+                operation=operation,
+                status="unauthorized",
+                reason="work_pool_mismatch",
             )
 
         reservation = self._reservations.get(message_id)
@@ -513,12 +549,23 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         *,
         current_time: DateTime,
         max_delivery_attempts: int,
+        limit: int,
+        work_pool_id: UUID | None,
     ) -> CleanupQueueLeaseExpiryResult:
+        if limit < 1:
+            raise ValueError("limit must be at least 1")
+
         redelivered: list[CleanupQueueMessage] = []
         dead_lettered: list[CleanupQueueDeadLetter] = []
+        expired_count = 0
 
         for message_id, reservation in tuple(self._reservations.items()):
             if reservation.lease_expires_at > current_time:
+                continue
+            message = self._messages.get(message_id)
+            if work_pool_id is not None and (
+                message is None or message.work_pool_id != work_pool_id
+            ):
                 continue
 
             dead_letter = self._expire_message_lease_locked(
@@ -526,13 +573,14 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                 current_time=current_time,
                 max_delivery_attempts=max_delivery_attempts,
             )
+            expired_count += 1
             if dead_letter is not None:
                 dead_lettered.append(dead_letter)
-                continue
-
-            message = self._messages.get(message_id)
-            if message is not None:
+            elif message := self._messages.get(message_id):
                 redelivered.append(_copy_model(message))
+
+            if expired_count >= limit:
+                break
 
         return CleanupQueueLeaseExpiryResult(
             redelivered=redelivered,
@@ -589,22 +637,40 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         return _copy_model(dead_letter)
 
     @staticmethod
-    def _lease_duration(lease_duration: timedelta | None) -> timedelta:
-        if lease_duration is not None:
-            if lease_duration <= timedelta(0):
-                raise ValueError("lease_duration must be positive")
-            return lease_duration
-
+    def _lease_duration() -> timedelta:
         worker_channel_settings = get_current_settings().server.worker_channel
         return timedelta(seconds=worker_channel_settings.cleanup_lease_seconds)
 
     @staticmethod
-    def _max_delivery_attempts(max_delivery_attempts: int | None) -> int:
-        if max_delivery_attempts is None:
-            worker_channel_settings = get_current_settings().server.worker_channel
-            max_delivery_attempts = (
-                worker_channel_settings.cleanup_max_delivery_attempts
+    def _max_delivery_attempts() -> int:
+        worker_channel_settings = get_current_settings().server.worker_channel
+        return worker_channel_settings.cleanup_max_delivery_attempts
+
+    @staticmethod
+    def _completed_idempotency_retention() -> timedelta | None:
+        worker_channel_settings = get_current_settings().server.worker_channel
+        retention_seconds = (
+            worker_channel_settings.cleanup_completed_idempotency_retention_seconds
+        )
+        if retention_seconds is None:
+            return None
+        return timedelta(seconds=retention_seconds)
+
+    def _prune_completed_idempotency_locked(self, *, current_time: DateTime) -> None:
+        retention = self._completed_idempotency_retention()
+        if retention is None:
+            return
+
+        expired_message_ids = [
+            message_id
+            for message_id, acked_message in self._acked_messages.items()
+            if acked_message.completed_at + retention <= current_time
+        ]
+        for message_id in expired_message_ids:
+            acked_message = self._acked_messages.pop(message_id)
+            idempotency_key = (
+                acked_message.message.work_pool_id,
+                acked_message.message.idempotency_key,
             )
-        if max_delivery_attempts < 1:
-            raise ValueError("max_delivery_attempts must be at least 1")
-        return max_delivery_attempts
+            if self._idempotency_keys.get(idempotency_key) == message_id:
+                self._idempotency_keys.pop(idempotency_key, None)

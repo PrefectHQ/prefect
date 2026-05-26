@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from datetime import timedelta
 import importlib
 from typing import Any, ClassVar, Literal, Protocol, runtime_checkable
 from uuid import UUID
@@ -86,7 +85,8 @@ class WorkerCleanupQueue:
     Implementations own cleanup message reservation correctness. WebSocket
     dispatchers may keep process-local routing state, but ack, release, renew,
     lease expiry, retry accounting, and DLQ transitions must go through this
-    queue.
+    queue. Implementations own the server retry and lease policy and completed
+    idempotency retention semantics.
     """
 
     async def enqueue(
@@ -105,42 +105,41 @@ class WorkerCleanupQueue:
         self,
         *,
         work_pool_id: UUID,
-        lease_duration: timedelta | None = None,
-        max_delivery_attempts: int | None = None,
         cleanup_kinds: Iterable[CleanupKind] | None = None,
-        work_queue_ids: Iterable[UUID | None] | None = None,
+        preferred_work_queue_ids: Iterable[UUID] | None = None,
+        allow_fallback_to_any_queue: bool = True,
     ) -> CleanupQueueReservation | None: ...
 
     async def ack(
         self,
         *,
+        work_pool_id: UUID,
         message_id: UUID,
         reservation_token: str,
-        max_delivery_attempts: int | None = None,
     ) -> CleanupQueueOperationResult: ...
 
     async def release(
         self,
         *,
+        work_pool_id: UUID,
         message_id: UUID,
         reservation_token: str,
         reason: str,
-        max_delivery_attempts: int | None = None,
     ) -> CleanupQueueOperationResult: ...
 
     async def renew(
         self,
         *,
+        work_pool_id: UUID,
         message_id: UUID,
         reservation_token: str,
-        lease_duration: timedelta | None = None,
-        max_delivery_attempts: int | None = None,
     ) -> CleanupQueueOperationResult: ...
 
     async def expire_leases(
         self,
         *,
-        max_delivery_attempts: int | None = None,
+        limit: int = 100,
+        work_pool_id: UUID | None = None,
     ) -> CleanupQueueLeaseExpiryResult: ...
 
     async def read_message(self, message_id: UUID) -> CleanupQueueMessage | None: ...

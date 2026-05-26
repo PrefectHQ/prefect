@@ -40,3 +40,15 @@ class ServerWorkerChannelSettings(PrefectBaseSettings):
             "message is moved to the dead-letter queue."
         ),
     )
+
+    cleanup_completed_idempotency_retention_seconds: float | None = Field(
+        default=None,
+        ge=0.0,
+        description=(
+            "How long completed cleanup idempotency records are retained after "
+            "acknowledgement. None keeps them for the lifetime of the current "
+            "server process. The in-memory backend does not survive restart; "
+            "use Redis for high availability or restart-safe cleanup "
+            "idempotency."
+        ),
+    )
