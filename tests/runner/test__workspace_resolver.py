@@ -141,11 +141,50 @@ class TestWorkspaceResolverProcess:
         assert process.returncode == 0, process.stderr
         assert result.status == "success"
         assert result.workspace is not None
-        assert result.workspace.working_directory == workspace_root.resolve()
-        assert result.workspace.project_root == workspace_root.resolve()
-        assert (workspace_root / "flows" / "hello.py").read_text() == (
+        assert result.workspace.working_directory == local_project.resolve()
+        assert result.workspace.project_root == local_project.resolve()
+        assert (local_project / "flows" / "hello.py").read_text() == (
             "from prefect import flow\n\n@flow\ndef hello():\n    return 'relative'\n"
         )
+        assert not (workspace_root / "flows" / "hello.py").exists()
+
+    async def test_resolves_local_deployment_path_in_place_without_storage(
+        self,
+        prefect_client,
+        tmp_path: Path,
+    ) -> None:
+        local_project = tmp_path / "image-app"
+        flow_file = local_project / "flows" / "hello.py"
+        flow_file.parent.mkdir(parents=True, exist_ok=True)
+        flow_file.write_text(
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'image-local'\n"
+        )
+        local_project.joinpath(".prefectignore").write_text("flows/\n")
+        local_project.joinpath("pyproject.toml").write_text(
+            "[project]\nname = 'image-app'\nversion = '0.1.0'\n"
+        )
+
+        flow_id = await prefect_client.create_flow_from_name("image-local-hello")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="image-local-deployment",
+            entrypoint="flows/hello.py:hello",
+            path=str(local_project),
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        workspace_root = tmp_path / "image-local-workspace"
+        process = _run_workspace_resolver(flow_run.id, workspace_root)
+        result = _parse_result(process)
+
+        assert process.returncode == 0, process.stderr
+        assert result.status == "success"
+        assert result.workspace is not None
+        assert result.workspace.working_directory == local_project.resolve()
+        assert result.workspace.project_root == local_project.resolve()
+        assert not (workspace_root / "flows" / "hello.py").exists()
 
     async def test_resolves_storage_base_path_into_matching_workspace_directory(
         self,

@@ -174,6 +174,16 @@ def _workspace_destination_for_deployment_path(
     return (workspace_root / relative_destination).resolve()
 
 
+def _should_materialize_deployment_storage(deployment: "DeploymentResponse") -> bool:
+    return bool(
+        deployment.storage_document_id
+        or (
+            deployment.path is not None
+            and STORAGE_BASE_PATH_PLACEHOLDER in deployment.path
+        )
+    )
+
+
 @contextlib.contextmanager
 def _redirect_stdout_to_stderr() -> Any:
     stdout = sys.stdout
@@ -245,13 +255,24 @@ async def prepare_workspace(
     resolved_workspace_root.mkdir(parents=True, exist_ok=True)
     working_directory = resolved_workspace_root
 
-    if not deployment.pull_steps:
+    if not deployment.pull_steps and _should_materialize_deployment_storage(deployment):
         working_directory = await _pull_storage_into_workspace(
             client,
             deployment,
             resolved_workspace_root,
             source_cwd,
             storage_base_path,
+        )
+        os.chdir(working_directory)
+        working_directory = Path.cwd().resolve()
+    elif not deployment.pull_steps:
+        resolved_local_path = _resolve_local_deployment_path(
+            deployment.path, source_cwd, storage_base_path
+        )
+        working_directory = (
+            Path(resolved_local_path).resolve()
+            if resolved_local_path is not None
+            else source_cwd
         )
         os.chdir(working_directory)
         working_directory = Path.cwd().resolve()

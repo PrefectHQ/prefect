@@ -1738,6 +1738,37 @@ class TestFlowRunExecute:
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_completed()
 
+    async def test_execute_flow_run_uses_local_deployment_path_in_place(
+        self, prefect_client: PrefectClient, tmp_path: Path
+    ):
+        local_project = tmp_path / "image-app"
+        flow_file = local_project / "flows" / "hello.py"
+        flow_file.parent.mkdir(parents=True)
+        flow_file.write_text(
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'hello'\n"
+        )
+        local_project.joinpath(".prefectignore").write_text("flows/\n")
+
+        flow_id = await prefect_client.create_flow_from_name("image-local-hello")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="image-local-workspace",
+            entrypoint="flows/hello.py:hello",
+            path=str(local_project),
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "execute", str(flow_run.id)],
+            expected_code=0,
+        )
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_completed()
+
     async def test_execute_creates_executor_with_propose_submitting_false(
         self,
         monkeypatch: pytest.MonkeyPatch,
