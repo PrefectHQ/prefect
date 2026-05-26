@@ -160,15 +160,19 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
 
         async with self._lock:
             current_time = now("UTC")
-            self._expire_due_leases_locked(
+            expiry_result = self._expire_due_leases_locked(
                 current_time=current_time,
                 policy=policy,
                 limit=self._DEFAULT_EXPIRE_LEASE_LIMIT,
                 work_pool_id=work_pool_id,
             )
+            wake_work_pool_ids = {
+                message.work_pool_id for message in expiry_result.redelivered
+            }
 
             # Queue affinity is advisory: reserve preferred queue work first, then
             # fall back to any eligible work in the pool when fallback is enabled.
+            result: CleanupQueueReservation | None = None
             for queue_filter in queue_preference_passes:
                 for message in tuple(self._messages.values()):
                     if message.work_pool_id != work_pool_id:
@@ -207,13 +211,19 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         reserved_at=current_time,
                     )
                     self._reservations[message.message_id] = reservation
-                    return CleanupQueueReservation(
+                    result = CleanupQueueReservation(
                         **updated_message.model_dump(),
                         reservation_token=reservation.token,
                         lease_expires_at=lease_expires_at,
                     )
+                    break
+                if result is not None:
+                    break
 
-        return None
+        for wake_work_pool_id in wake_work_pool_ids:
+            await self.wake_dispatchers(wake_work_pool_id)
+
+        return result
 
     async def ack(
         self,

@@ -10,7 +10,10 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from prefect.client.schemas.worker_channel import CANCELLING_TIMEOUT_TEARDOWN
+from prefect.client.schemas.worker_channel import (
+    CANCELLING_TIMEOUT_TEARDOWN,
+    PENDING_CLAIM_TEARDOWN,
+)
 from prefect.server.worker_communication.cleanup_queue import get_worker_cleanup_queue
 from prefect.server.worker_communication.cleanup_queue import memory as memory_module
 from prefect.server.worker_communication.cleanup_queue.memory import WorkerCleanupQueue
@@ -18,6 +21,7 @@ from prefect.settings import (
     PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_COMPLETED_IDEMPOTENCY_RETENTION_SECONDS,
     PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_LEASE_SECONDS,
     PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_MAX_DELIVERY_ATTEMPTS,
+    PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE,
     temporary_settings,
 )
 from prefect.settings.context import get_current_settings
@@ -106,6 +110,18 @@ async def test_get_worker_cleanup_queue_uses_default_in_memory_backend() -> None
         == "prefect.server.worker_communication.cleanup_queue.memory"
     )
     assert isinstance(get_worker_cleanup_queue(), WorkerCleanupQueue)
+
+
+async def test_get_worker_cleanup_queue_rejects_interface_module() -> None:
+    with temporary_settings(
+        {
+            PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE: "prefect.server.worker_communication.cleanup_queue"
+        }
+    ):
+        with pytest.raises(
+            ValueError, match="concrete WorkerCleanupQueue implementation"
+        ):
+            get_worker_cleanup_queue()
 
 
 async def test_enqueue_is_idempotent_for_stable_cleanup_keys(
@@ -476,6 +492,35 @@ async def test_expired_leases_redeliver_then_dlq_at_retry_limit(
     assert dead_letter is not None
     assert dead_letter.final_delivery_count == 2
     assert await queue.reserve(work_pool_id=work_pool_id) is None
+
+
+async def test_reserve_wakes_dispatchers_after_expiring_leases(
+    queue: WorkerCleanupQueue,
+    clock: Clock,
+    cleanup_policy_settings: CleanupPolicySettings,
+) -> None:
+    work_pool_id = uuid4()
+    message_id = await _enqueue_message(queue, work_pool_id=work_pool_id)
+
+    with cleanup_policy_settings(lease_seconds=10.0):
+        reservation = await queue.reserve(work_pool_id=work_pool_id)
+        assert reservation is not None
+        sequence = await queue.read_wakeup_sequence(work_pool_id)
+
+        clock.advance(timedelta(seconds=11))
+        unmatched_reservation = await queue.reserve(
+            work_pool_id=work_pool_id,
+            cleanup_kinds=[PENDING_CLAIM_TEARDOWN],
+        )
+        wakeup = await queue.wait_for_wakeup(work_pool_id, after=sequence, timeout=1)
+
+    redelivered = await queue.reserve(work_pool_id=work_pool_id)
+
+    assert unmatched_reservation is None
+    assert wakeup is not None
+    assert wakeup.sequence == sequence + 1
+    assert redelivered is not None
+    assert redelivered.message_id == message_id
 
 
 async def test_expire_leases_respects_limit_and_work_pool_scope(

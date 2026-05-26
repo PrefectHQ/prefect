@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 import importlib
-from typing import Any, ClassVar, Literal, Protocol, runtime_checkable
+from typing import Any, ClassVar, Literal
 from uuid import UUID
 
 from pydantic import ConfigDict, Field
@@ -13,11 +13,6 @@ from prefect.settings.context import get_current_settings
 from prefect.types import DateTime, NonNegativeInteger, PositiveInteger
 
 CleanupQueueOperation = Literal["ack", "release", "renew"]
-
-
-@runtime_checkable
-class WorkerCleanupQueueModule(Protocol):
-    WorkerCleanupQueue: type[WorkerCleanupQueue]
 
 
 class CleanupQueueMessage(PrefectBaseModel):
@@ -176,11 +171,17 @@ def get_worker_cleanup_queue() -> WorkerCleanupQueue:
     worker_channel_settings = get_current_settings().server.worker_channel
     storage_module = worker_channel_settings.cleanup_queue_storage
     cleanup_queue_module = importlib.import_module(storage_module)
-    if not isinstance(cleanup_queue_module, WorkerCleanupQueueModule):
+    cleanup_queue_class = getattr(cleanup_queue_module, "WorkerCleanupQueue", None)
+    if (
+        not isinstance(cleanup_queue_class, type)
+        or cleanup_queue_class is WorkerCleanupQueue
+        or not issubclass(cleanup_queue_class, WorkerCleanupQueue)
+    ):
         raise ValueError(
-            f"The module {storage_module} does not contain a WorkerCleanupQueue class"
+            f"The module {storage_module} does not contain a concrete "
+            "WorkerCleanupQueue implementation"
         )
-    return cleanup_queue_module.WorkerCleanupQueue()
+    return cleanup_queue_class()
 
 
 __all__ = [
