@@ -16,14 +16,11 @@ from prefect.runner._workspace_resolver import (
 )
 from prefect.runner._workspace_starter import (
     WorkspaceResolvingEngineCommandStarter,
+    _project_is_installed,
     _workspace_command,
     load_flow_from_prepared_workspace,
     resolve_workspace_in_subprocess,
     workspace_environment,
-)
-from prefect.settings import (
-    PREFECT_RUNNER_AUTO_PROVISION_UV,
-    temporary_settings,
 )
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.processutils import command_from_string
@@ -158,7 +155,7 @@ def test_workspace_command_preserves_explicit_command(tmp_path: Path):
     )
 
 
-def test_workspace_command_falls_back_when_auto_provision_uv_disabled(
+def test_workspace_command_falls_back_when_project_already_installed(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ):
     workspace = _prepared_workspace(tmp_path)
@@ -174,9 +171,26 @@ def test_workspace_command_falls_back_when_auto_provision_uv_disabled(
         "prefect.runner._workspace_starter.shutil.which",
         lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
     )
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter._project_is_installed",
+        lambda pyproject: True,
+    )
 
-    with temporary_settings({PREFECT_RUNNER_AUTO_PROVISION_UV: False}):
-        assert _workspace_command(workspace, explicit_command=None) is None
+    assert _workspace_command(workspace, explicit_command=None) is None
+
+
+def test_project_is_installed_returns_true_for_installed_package(tmp_path: Path):
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text("[project]\nname = 'pytest'\nversion = '0.1.0'\n")
+    assert _project_is_installed(pyproject) is True
+
+
+def test_project_is_installed_returns_false_for_missing_package(tmp_path: Path):
+    pyproject = tmp_path / "pyproject.toml"
+    pyproject.write_text(
+        "[project]\nname = 'nonexistent-package-xyz-12345'\nversion = '0.1.0'\n"
+    )
+    assert _project_is_installed(pyproject) is False
 
 
 async def test_resolve_workspace_in_subprocess_returns_success_payload(

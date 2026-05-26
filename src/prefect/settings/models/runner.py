@@ -60,17 +60,6 @@ class RunnerSettings(PrefectBaseSettings):
         description="Number of seconds a runner should wait between queries for scheduled work.",
     )
 
-    auto_provision_uv: bool = Field(
-        default=True,
-        description=(
-            "Whether the runner should automatically use `uv run` to launch flow runs "
-            "when a pyproject.toml declaring prefect as a dependency is detected in the "
-            "working directory. Set to False to disable this behavior and fall back to "
-            "the standard `python -m prefect.flow_engine` launcher, which is useful for "
-            "pre-built Docker images where dependencies are already installed."
-        ),
-    )
-
     crash_on_cancellation_failure: bool = Field(
         default=False,
         description=(

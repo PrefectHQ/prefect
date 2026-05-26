@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.metadata
 import os
 import shutil
 import subprocess
@@ -166,16 +167,38 @@ def _pyproject_declares_prefect_dependency(pyproject: Path) -> bool:
     return _dependencies_include_prefect(project.get("dependencies"))
 
 
-def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
-    if not get_current_settings().runner.auto_provision_uv:
-        return None
+def _project_is_installed(pyproject: Path) -> bool:
+    """Return True if the project declared in pyproject.toml is already installed."""
+    try:
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return False
 
+    project = data.get("project")
+    if not isinstance(project, dict):
+        return False
+
+    name = project.get("name")
+    if not isinstance(name, str) or not name.strip():
+        return False
+
+    try:
+        importlib.metadata.distribution(name)
+        return True
+    except importlib.metadata.PackageNotFoundError:
+        return False
+
+
+def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
     project_root = workspace.project_root
     if project_root is None:
         return None
 
     pyproject = project_root / "pyproject.toml"
     if not pyproject.is_file() or not _pyproject_declares_prefect_dependency(pyproject):
+        return None
+
+    if _project_is_installed(pyproject):
         return None
 
     workspace_path = workspace.environment.get("PATH")
