@@ -55,7 +55,7 @@ def _copy_model(model: _T) -> _T:
 
 class WorkerCleanupQueue(_WorkerCleanupQueue):
     """
-    Singleton in-memory cleanup queue storage for a single OSS server process.
+    Singleton in-memory cleanup queue storage for a single server process.
     """
 
     _DEFAULT_EXPIRE_LEASE_LIMIT = 100
