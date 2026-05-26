@@ -623,3 +623,17 @@ async def test_enqueue_wakes_local_dispatchers(
     assert wakeup is not None
     assert wakeup.work_pool_id == work_pool_id
     assert wakeup.sequence == sequence + 1
+
+
+async def test_wait_for_wakeup_handles_asyncio_timeout(
+    queue: WorkerCleanupQueue,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def raise_timeout(awaitable: Any, timeout: float | None) -> None:
+        if hasattr(awaitable, "close"):
+            awaitable.close()
+        raise asyncio.TimeoutError
+
+    monkeypatch.setattr(memory_module.asyncio, "wait_for", raise_timeout)
+
+    assert await queue.wait_for_wakeup(uuid4(), timeout=1) is None

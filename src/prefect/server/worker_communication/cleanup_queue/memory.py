@@ -454,7 +454,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         ),
                         timeout=timeout,
                     )
-            except TimeoutError:
+            except (TimeoutError, asyncio.TimeoutError):
                 return None
 
             return CleanupQueueWakeup(
