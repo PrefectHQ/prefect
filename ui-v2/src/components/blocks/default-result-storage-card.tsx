@@ -1,22 +1,30 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import type { BlockDocument } from "@/api/block-documents";
+import { Suspense, useDeferredValue, useMemo, useState } from "react";
+import {
+	type BlockDocument,
+	buildListFilterBlockDocumentsQuery,
+} from "@/api/block-documents";
 import { BlockTypeLogo } from "@/components/block-type-logo/block-type-logo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Icon } from "@/components/ui/icons";
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
+	Combobox,
+	ComboboxCommandEmtpy,
+	ComboboxCommandGroup,
+	ComboboxCommandInput,
+	ComboboxCommandItem,
+	ComboboxCommandList,
+	ComboboxContent,
+	ComboboxTrigger,
+} from "@/components/ui/combobox";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { Icon } from "@/components/ui/icons";
 
 type DefaultResultStorageCardProps = {
 	defaultResultStorageBlockId: string | undefined;
 	defaultResultStorageBlock: BlockDocument | undefined;
-	storageBlockDocuments: Array<BlockDocument> | undefined;
 	onUpdateDefaultResultStorage: (blockDocumentId: string) => void;
 	onClearDefaultResultStorage: () => void;
 	isUpdatingDefaultResultStorage: boolean;
@@ -27,7 +35,6 @@ type DefaultResultStorageCardProps = {
 export const DefaultResultStorageCard = ({
 	defaultResultStorageBlockId,
 	defaultResultStorageBlock,
-	storageBlockDocuments = [],
 	onUpdateDefaultResultStorage,
 	onClearDefaultResultStorage,
 	isUpdatingDefaultResultStorage,
@@ -36,19 +43,6 @@ export const DefaultResultStorageCard = ({
 }: DefaultResultStorageCardProps) => {
 	const isMutating =
 		isUpdatingDefaultResultStorage || isClearingDefaultResultStorage;
-	const selectableStorageBlockDocuments =
-		defaultResultStorageBlock &&
-		!storageBlockDocuments.some(
-			(blockDocument) => blockDocument.id === defaultResultStorageBlock.id,
-		)
-			? [defaultResultStorageBlock, ...storageBlockDocuments]
-			: storageBlockDocuments;
-	const selectedBlockDocumentExists = selectableStorageBlockDocuments.some(
-		(blockDocument) => blockDocument.id === defaultResultStorageBlockId,
-	);
-	const selectValue = selectedBlockDocumentExists
-		? defaultResultStorageBlockId
-		: "";
 	const statusState = isLoadingDefaultResultStorageBlock
 		? "loading"
 		: defaultResultStorageBlock
@@ -83,27 +77,14 @@ export const DefaultResultStorageCard = ({
 					)}
 				</div>
 				<div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-					<Select
-						value={selectValue}
-						onValueChange={onUpdateDefaultResultStorage}
-						disabled={
-							isMutating || selectableStorageBlockDocuments.length === 0
-						}
-					>
-						<SelectTrigger
-							className="w-full sm:w-64"
-							aria-label="Default result storage block"
-						>
-							<SelectValue placeholder="Select storage block" />
-						</SelectTrigger>
-						<SelectContent>
-							{selectableStorageBlockDocuments.map((blockDocument) => (
-								<SelectItem key={blockDocument.id} value={blockDocument.id}>
-									{blockDocument.name ?? "Untitled block"}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
+					<div className="w-full sm:w-64">
+						<StorageBlockCombobox
+							selectedBlockDocumentId={defaultResultStorageBlockId}
+							selectedBlockDocumentName={defaultResultStorageBlock?.name}
+							onSelect={onUpdateDefaultResultStorage}
+							isMutating={isMutating}
+						/>
+					</div>
 					<div className="flex flex-wrap gap-2">
 						<Button variant="outline" size="sm" asChild>
 							<Link to="/blocks/catalog">
@@ -126,6 +107,126 @@ export const DefaultResultStorageCard = ({
 				</div>
 			</div>
 		</Card>
+	);
+};
+
+type StorageBlockComboboxProps = {
+	selectedBlockDocumentId: string | undefined;
+	selectedBlockDocumentName: string | null | undefined;
+	onSelect: (blockDocumentId: string) => void;
+	isMutating?: boolean;
+};
+
+const StorageBlockComboboxFallback = ({
+	selectedBlockDocumentName,
+}: {
+	selectedBlockDocumentName: string | null | undefined;
+}) => (
+	<div className="flex h-9 w-full items-center justify-between rounded-md border bg-card px-4 py-2 text-sm text-muted-foreground opacity-50 dark:bg-background">
+		{selectedBlockDocumentName ?? "Select storage block..."}
+		<Icon id="ChevronsUpDown" className="size-4 opacity-50" />
+	</div>
+);
+
+const StorageBlockCombobox = (props: StorageBlockComboboxProps) => {
+	return (
+		<ErrorBoundary
+			fallback={
+				<StorageBlockComboboxFallback
+					selectedBlockDocumentName={props.selectedBlockDocumentName}
+				/>
+			}
+		>
+			<Suspense
+				fallback={
+					<div className="h-9 w-full animate-pulse rounded-md border bg-muted/30" />
+				}
+			>
+				<StorageBlockComboboxImpl {...props} />
+			</Suspense>
+		</ErrorBoundary>
+	);
+};
+
+const StorageBlockComboboxImpl = ({
+	selectedBlockDocumentId,
+	selectedBlockDocumentName,
+	onSelect,
+	isMutating = false,
+}: StorageBlockComboboxProps) => {
+	const [search, setSearch] = useState("");
+	const deferredSearch = useDeferredValue(search);
+
+	const { data } = useSuspenseQuery(
+		buildListFilterBlockDocumentsQuery({
+			offset: 0,
+			sort: "BLOCK_TYPE_AND_NAME_ASC",
+			include_secrets: false,
+			block_documents: {
+				operator: "and_",
+				is_anonymous: { eq_: false },
+				...(deferredSearch ? { name: { like_: deferredSearch } } : {}),
+			},
+			block_schemas: {
+				operator: "and_",
+				block_capabilities: { all_: ["write-path"] },
+			},
+			limit: 50,
+		}),
+	);
+
+	const filteredData = useMemo(() => {
+		if (!deferredSearch) {
+			return data;
+		}
+		return data.filter((blockDocument) =>
+			(blockDocument.name ?? "")
+				.toLowerCase()
+				.includes(deferredSearch.toLowerCase()),
+		);
+	}, [data, deferredSearch]);
+
+	const displayName =
+		filteredData.find((d) => d.id === selectedBlockDocumentId)?.name ??
+		selectedBlockDocumentName;
+
+	return (
+		<Combobox>
+			<ComboboxTrigger
+				selected={Boolean(selectedBlockDocumentId)}
+				aria-label="Default result storage block"
+			>
+				{displayName ?? "Select storage block..."}
+			</ComboboxTrigger>
+			<ComboboxContent>
+				<ComboboxCommandInput
+					value={search}
+					onValueChange={setSearch}
+					placeholder="Search storage blocks..."
+				/>
+				<ComboboxCommandEmtpy>No storage blocks found</ComboboxCommandEmtpy>
+				<ComboboxCommandList>
+					<ComboboxCommandGroup>
+						{filteredData.map((blockDocument) => (
+							<ComboboxCommandItem
+								key={blockDocument.id}
+								disabled={isMutating}
+								selected={selectedBlockDocumentId === blockDocument.id}
+								onSelect={(value) => {
+									if (!isMutating) {
+										onSelect(value);
+									}
+									setSearch("");
+								}}
+								value={blockDocument.id}
+							>
+								{blockDocument.name ?? "Untitled block"}
+							</ComboboxCommandItem>
+						))}
+					</ComboboxCommandGroup>
+				</ComboboxCommandList>
+			</ComboboxContent>
+		</Combobox>
 	);
 };
 
