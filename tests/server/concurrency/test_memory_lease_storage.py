@@ -10,8 +10,6 @@ from prefect.server.concurrency.lease_storage.memory import (
 from prefect.server.utilities.leasing import ResourceLease
 from prefect.types._concurrency import ConcurrencyLeaseHolder
 
-pytestmark = pytest.mark.clear_db
-
 
 class TestMemoryConcurrencyLeaseStorage:
     def test_singleton_pattern(self):
