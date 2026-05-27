@@ -583,15 +583,12 @@ When you run `prefect deploy` with a custom image in `job_variables` and no buil
 
 #### Python project dependencies in custom images
 
-When no explicit flow run command is configured, Prefect looks for a `pyproject.toml` in the prepared workspace.
-If the `pyproject.toml` declares `prefect` in its `[project]` dependencies, Prefect starts the flow run with
-`uv run --no-dev --project <project-root>` so runtime dependencies are installed from the project environment.
-Development dependency groups are not installed for flow runs.
+When a deployment pulls code that includes a `pyproject.toml`, Prefect can automatically prepare the project's runtime
+dependencies before starting the flow run. Development dependency groups are not installed.
 
-If your custom image already contains the required project code and dependencies, disable automatic runtime dependency
-installation by setting `PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES=false` in the image or work pool job variables. With
-this setting disabled, Prefect starts the flow run with the current Python environment instead of preparing dependencies
-from `pyproject.toml`.
+If your custom image already contains the required project code and dependencies, set
+`PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES=false` in the image or work pool job variables. With this setting disabled,
+Prefect assumes the execution environment is already prepared and starts the flow without installing dependencies.
 
 For more information, see [this discussion of custom Docker images](/v3/how-to-guides/deployment_infra/docker/#automatically-build-a-custom-docker-image-with-a-local-dockerfile).
 

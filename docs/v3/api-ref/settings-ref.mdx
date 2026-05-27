@@ -1042,7 +1042,7 @@ Whether to crash flow runs and shut down the runner when cancellation observing 
 `PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE`
 
 ### `auto_install_dependencies`
-Whether pulled flow run workspaces may automatically install project dependencies before execution. Disable this when the execution environment already contains the required code and dependencies.
+Whether runners may install dependencies before executing flow runs. Disable this when the execution environment already contains the required code and dependencies.
 
 **Type**: `boolean`
 
@@ -1420,6 +1420,30 @@ The default limit applied to queries that can return multiple objects, such as `
 
 **Supported environment variables**:
 `PREFECT_SERVER_API_CORS_ALLOWED_HEADERS`, `PREFECT_SERVER_CORS_ALLOWED_HEADERS`
+
+### `websocket_ping_interval`
+WebSocket ping interval in seconds. Only applies when starting the server with `prefect server start`.
+
+**Type**: `number | None`
+
+**Default**: `20.0`
+
+**TOML dotted key path**: `server.api.websocket_ping_interval`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_WEBSOCKET_PING_INTERVAL`
+
+### `websocket_ping_timeout`
+WebSocket ping timeout in seconds. Only applies when starting the server with `prefect server start`.
+
+**Type**: `number | None`
+
+**Default**: `20.0`
+
+**TOML dotted key path**: `server.api.websocket_ping_timeout`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_WEBSOCKET_PING_TIMEOUT`
 
 ### `max_parameter_size`
 The maximum size of parameters (in bytes, JSON-serialized) that can be stored on a flow run or deployment. Set to 0 to disable the limit.

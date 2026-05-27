@@ -861,7 +861,7 @@
                 },
                 "auto_install_dependencies": {
                     "default": true,
-                    "description": "Whether pulled flow run workspaces may automatically install project dependencies before execution. Disable this when the execution environment already contains the required code and dependencies.",
+                    "description": "Whether runners may install dependencies before executing flow runs. Disable this when the execution environment already contains the required code and dependencies.",
                     "supported_environment_variables": [
                         "PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES"
                     ],
@@ -1209,6 +1209,38 @@
                     ],
                     "title": "Cors Allowed Headers",
                     "type": "string"
+                },
+                "websocket_ping_interval": {
+                    "anyOf": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": 20.0,
+                    "description": "WebSocket ping interval in seconds. Only applies when starting the server with `prefect server start`.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_WEBSOCKET_PING_INTERVAL"
+                    ],
+                    "title": "Websocket Ping Interval"
+                },
+                "websocket_ping_timeout": {
+                    "anyOf": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": 20.0,
+                    "description": "WebSocket ping timeout in seconds. Only applies when starting the server with `prefect server start`.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_WEBSOCKET_PING_TIMEOUT"
+                    ],
+                    "title": "Websocket Ping Timeout"
                 },
                 "max_parameter_size": {
                     "default": 524288,
