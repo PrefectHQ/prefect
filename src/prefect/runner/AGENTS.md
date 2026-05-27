@@ -138,6 +138,10 @@ These validations exist to prevent git argument injection. Do not bypass them wh
 
 **Env/sys.path isolation:** `_prepared_workspace_context` mutates `os.environ` and `sys.path` in the caller process but does NOT change `os.getcwd()`. The parent working directory is preserved.
 
+**Local path in-place execution:** When no pull steps are configured and the entrypoint file exists at `deployment.path` but not in the workspace root, `prepare_workspace` sets `working_directory` to the local path — not under `workspace_root`. The workspace directory is still created but is not the execution root. This is the "image-baked" pattern: code lives at a fixed local path (e.g., inside a container), not in object storage.
+
+**Pull-step directory fallback:** When pull steps run but none produces a `directory` output or changes CWD, `_ensure_entrypoint_in_workspace` copies storage into the workspace root as a fallback. This handles setup-only pull steps (e.g., `run_shell_script` for environment prep) that do not control the working directory themselves.
+
 **Automatic `uv` command selection:** When no explicit command is passed, `WorkspaceResolvingEngineCommandStarter` auto-selects `uv run --project <project_root> -m prefect.flow_engine` — but only when all three conditions hold: `pyproject.toml` exists at `project_root`, the `project.dependencies` list includes `prefect`, and `uv` is found via the workspace's `PATH` env var (not the system PATH). If any condition fails, the command falls back to `None`. Explicit commands always take precedence.
 
 ## Reference
