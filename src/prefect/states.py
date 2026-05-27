@@ -57,8 +57,15 @@ def to_state_create(state: State) -> "StateCreate":
         should_persist_result,
     )
 
-    if isinstance(state.data, ResultRecord) and should_persist_result():
-        data = state.data.metadata  # pyright: ignore[reportUnknownMemberType] unable to narrow ResultRecord type
+    from prefect.context import FlowRunContext, TaskRunContext
+
+    if isinstance(state.data, ResultRecord):
+        if TaskRunContext.get() is None and FlowRunContext.get() is None:
+            data = state.data.metadata
+        elif should_persist_result():
+            data = state.data.metadata
+        else:
+            data = None
     else:
         data = None
 
