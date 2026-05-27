@@ -282,12 +282,10 @@ def _find_prematerialized_python(
        *project_root*, matching uv's own behaviour.
     2. An active `VIRTUAL_ENV` that is credibly tied to this workspace
        (located under *project_root*).
-    3. A project root outside Prefect's temporary workspace, which indicates
-       the code was already present in the execution environment.
-    4. The current Python environment already satisfies the project's
+    3. The current Python environment already satisfies the project's
        dependencies that Prefect can verify from installed distribution names
-       and versions.
-    5. An editable install whose `direct_url.json` points at this exact
+       and versions, and can load the entrypoint.
+    4. An editable install whose `direct_url.json` points at this exact
        project root (the `uv pip install --system -e .` pattern).
 
     Returns the path to the Python interpreter if found, or None.
@@ -322,18 +320,13 @@ def _find_prematerialized_python(
             if python is not None:
                 return python
 
-    try:
-        resolved_root.relative_to(workspace.workspace_root.resolve())
-    except ValueError:
-        return sys.executable
-
     pyproject = project_root / "pyproject.toml"
     if project_requirements is None:
         project_requirements = _read_project_requirements(pyproject)
 
     project_name = _read_project_name(pyproject)
 
-    # 4. Current Python already has the declared runtime dependencies.
+    # 3. Current Python already has the declared runtime dependencies.
     if (
         project_requirements
         and _current_environment_satisfies(project_requirements)
@@ -341,7 +334,7 @@ def _find_prematerialized_python(
     ):
         return sys.executable
 
-    # 5. Editable install pointing at this project root (system python)
+    # 4. Editable install pointing at this project root (system python)
     if project_name and _has_editable_install_at(project_root, project_name):
         return sys.executable
 

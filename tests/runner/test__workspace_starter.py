@@ -435,10 +435,10 @@ def test_workspace_command_uses_uv_when_module_entrypoint_needs_project_install(
     ]
 
 
-def test_workspace_command_uses_current_python_for_project_outside_workspace_root(
+def test_workspace_command_uses_current_python_for_installed_project_outside_workspace_root(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Existing in-image project directories should not trigger uv run."""
+    """In-image project directories with installed dependencies should skip uv run."""
     workspace = _prepared_workspace(tmp_path)
     project_root = tmp_path / "prebuilt-project"
     project_root.mkdir()
@@ -446,13 +446,46 @@ def test_workspace_command_uses_current_python_for_project_outside_workspace_roo
     workspace.project_root = project_root
     assert workspace.project_root is not None
     _strip_venv_signals(workspace)
-    _write_pyproject(workspace.project_root, deps="['prefect', 'missing-package']")
+    _write_pyproject(workspace.project_root, deps="['prefect>=3']")
     _mock_installed_distributions(monkeypatch, {"prefect": "3.0.0"})
 
     command = _workspace_command(workspace, explicit_command=None)
     assert command is not None
     assert command_from_string(command) == [
         sys.executable,
+        "-m",
+        "prefect.flow_engine",
+        workspace.runtime_entrypoint,
+    ]
+
+
+def test_workspace_command_uses_uv_for_project_outside_workspace_root_with_missing_dependencies(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """In-image source alone should not bypass uv when dependencies are missing."""
+    workspace = _prepared_workspace(tmp_path)
+    project_root = tmp_path / "prebuilt-project"
+    project_root.mkdir()
+    workspace.working_directory = project_root
+    workspace.project_root = project_root
+    assert workspace.project_root is not None
+    workspace.environment["PATH"] = "/workspace/bin"
+    _strip_venv_signals(workspace)
+    _write_pyproject(workspace.project_root, deps="['prefect', 'missing-package']")
+    _mock_installed_distributions(monkeypatch, {"prefect": "3.0.0"})
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.shutil.which",
+        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
+    )
+
+    command = _workspace_command(workspace, explicit_command=None)
+    assert command is not None
+    assert command_from_string(command) == [
+        "/opt/bin/uv",
+        "run",
+        "--no-dev",
+        "--project",
+        str(workspace.project_root),
         "-m",
         "prefect.flow_engine",
         workspace.runtime_entrypoint,

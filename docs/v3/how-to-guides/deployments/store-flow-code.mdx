@@ -589,10 +589,9 @@ The `--no-dev` flag means development dependency groups are not installed for fl
 
 Prefect skips `uv run` when the project already appears ready to execute:
 
-- The project is already present in the execution environment, such as code baked into a custom Docker image and selected with `set_working_directory`.
 - `UV_PROJECT_ENVIRONMENT` points to a virtual environment. Relative paths are resolved from the project root, matching `uv` behavior.
 - `VIRTUAL_ENV` points to a virtual environment located under the project root.
-- The current Python environment already satisfies the active `[project]` dependencies that Prefect can verify from installed distribution names and versions. Dependencies with extras or direct URLs are handled by `uv run` unless another pre-materialized environment signal applies.
+- The current Python environment can load the flow entrypoint and already satisfies the active `[project]` dependencies that Prefect can verify from installed distribution names and versions. This covers custom Docker images where the code and dependencies are both baked into the image and selected with `set_working_directory`. Dependencies with extras or direct URLs are handled by `uv run` unless another pre-materialized environment signal applies.
 - The current Python environment contains an editable install that points at the prepared project root, such as from `pip install -e .` or `uv pip install --system -e .`.
 
 A `.venv` directory in the project root is not enough by itself for Prefect to skip `uv run`. If your Docker image already
