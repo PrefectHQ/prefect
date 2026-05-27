@@ -139,33 +139,95 @@ def _absolute_file_entrypoint(workspace: PreparedWorkspace) -> str:
     return f"{entrypoint_path.resolve()}:{object_name}"
 
 
-def _dependencies_include_prefect(dependencies: object) -> bool:
-    if not isinstance(dependencies, Iterable) or isinstance(dependencies, (str, bytes)):
-        return False
+def _read_project_requirements(pyproject: Path) -> list[Requirement] | None:
+    try:
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return None
 
+    project = data.get("project")
+    if not isinstance(project, dict):
+        return None
+
+    dependencies = project.get("dependencies")
+    if not isinstance(dependencies, Iterable) or isinstance(dependencies, (str, bytes)):
+        return None
+
+    requirements: list[Requirement] = []
     for dependency in dependencies:
         if not isinstance(dependency, str):
-            continue
+            return None
         try:
-            name = Requirement(dependency).name
+            requirements.append(Requirement(dependency))
         except InvalidRequirement:
+            return None
+
+    return requirements
+
+
+def _requirement_applies_to_current_environment(requirement: Requirement) -> bool:
+    if requirement.marker is None:
+        return True
+    return requirement.marker.evaluate()
+
+
+def _requirements_include_prefect(requirements: Iterable[Requirement]) -> bool:
+    for requirement in requirements:
+        if not _requirement_applies_to_current_environment(requirement):
             continue
-        if canonicalize_name(name) == "prefect":
+        if canonicalize_name(requirement.name) == "prefect":
             return True
     return False
 
 
-def _pyproject_declares_prefect_dependency(pyproject: Path) -> bool:
+def _current_environment_satisfies(requirements: Iterable[Requirement]) -> bool:
+    for requirement in requirements:
+        if not _requirement_applies_to_current_environment(requirement):
+            continue
+        try:
+            distribution = importlib.metadata.distribution(requirement.name)
+        except importlib.metadata.PackageNotFoundError:
+            return False
+        if requirement.specifier and not requirement.specifier.contains(
+            distribution.version,
+            prereleases=True,
+        ):
+            return False
+    return True
+
+
+def _distribution_is_installed(distribution_name: str) -> bool:
     try:
-        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError):
+        importlib.metadata.distribution(distribution_name)
+    except importlib.metadata.PackageNotFoundError:
         return False
+    return True
 
-    project = data.get("project")
-    if not isinstance(project, dict):
+
+def _module_available_from_workspace_path(
+    workspace: PreparedWorkspace, module_name: str
+) -> bool:
+    module_path = Path(*module_name.split("."))
+    for entry in _workspace_sys_path(workspace):
+        base_path = Path(entry)
+        if (base_path / module_path).with_suffix(".py").is_file():
+            return True
+        if (base_path / module_path / "__init__.py").is_file():
+            return True
+    return False
+
+
+def _current_environment_can_load_entrypoint(
+    workspace: PreparedWorkspace, project_name: str | None
+) -> bool:
+    entrypoint_target = workspace.runtime_entrypoint.rsplit(":", 1)[0]
+    if entrypoint_target.endswith(".py"):
+        return True
+    if _module_available_from_workspace_path(workspace, entrypoint_target):
+        return True
+    if project_name is None:
         return False
-
-    return _dependencies_include_prefect(project.get("dependencies"))
+    return _distribution_is_installed(project_name)
 
 
 def _has_editable_install_at(project_root: Path, project_name: str) -> bool:
@@ -205,6 +267,7 @@ def _has_editable_install_at(project_root: Path, project_name: str) -> bool:
 
 def _find_prematerialized_python(
     workspace: PreparedWorkspace,
+    project_requirements: Iterable[Requirement] | None = None,
 ) -> str | None:
     """Return a Python executable if the workspace already has deps available.
 
@@ -216,7 +279,11 @@ def _find_prematerialized_python(
        *project_root*, matching uv's own behaviour.
     2. An active `VIRTUAL_ENV` that is credibly tied to this workspace
        (located under *project_root*).
-    3. An editable install whose `direct_url.json` points at this exact
+    3. A project root outside Prefect's temporary workspace, which indicates
+       the code was already present in the execution environment.
+    4. The current Python environment already satisfies the project's
+       dependencies.
+    5. An editable install whose `direct_url.json` points at this exact
        project root (the `uv pip install --system -e .` pattern).
 
     Returns the path to the Python interpreter if found, or None.
@@ -251,9 +318,26 @@ def _find_prematerialized_python(
             if python is not None:
                 return python
 
-    # 3. Editable install pointing at this project root (system python)
+    try:
+        resolved_root.relative_to(workspace.workspace_root.resolve())
+    except ValueError:
+        return sys.executable
+
     pyproject = project_root / "pyproject.toml"
+    if project_requirements is None:
+        project_requirements = _read_project_requirements(pyproject)
+
     project_name = _read_project_name(pyproject)
+
+    # 4. Current Python already has the declared runtime dependencies.
+    if (
+        project_requirements
+        and _current_environment_satisfies(project_requirements)
+        and _current_environment_can_load_entrypoint(workspace, project_name)
+    ):
+        return sys.executable
+
+    # 5. Editable install pointing at this project root (system python)
     if project_name and _has_editable_install_at(project_root, project_name):
         return sys.executable
 
@@ -294,11 +378,17 @@ def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
         return None
 
     pyproject = project_root / "pyproject.toml"
-    if not pyproject.is_file() or not _pyproject_declares_prefect_dependency(pyproject):
+    if not pyproject.is_file():
+        return None
+
+    project_requirements = _read_project_requirements(pyproject)
+    if project_requirements is None or not _requirements_include_prefect(
+        project_requirements
+    ):
         return None
 
     # Prefer a pre-materialized environment over uv run.
-    python = _find_prematerialized_python(workspace)
+    python = _find_prematerialized_python(workspace, project_requirements)
     if python is not None:
         return command_to_string(
             [
@@ -322,6 +412,7 @@ def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
         [
             uv_executable,
             "run",
+            "--no-dev",
             "--project",
             str(project_root),
             "-m",

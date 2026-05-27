@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.metadata
 import json
 import os
 import subprocess
@@ -7,6 +8,7 @@ import sys
 from collections.abc import Iterator
 from importlib.metadata import PathDistribution
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
@@ -81,6 +83,25 @@ def _fake_distributions(site_packages: Path) -> Iterator[PathDistribution]:
             yield PathDistribution(path)
 
 
+def _mock_installed_distributions(
+    monkeypatch: pytest.MonkeyPatch, versions: dict[str, str]
+) -> None:
+    normalized_versions = {
+        name.lower().replace("_", "-"): version for name, version in versions.items()
+    }
+
+    def fake_distribution(name: str) -> SimpleNamespace:
+        normalized_name = name.lower().replace("_", "-")
+        if normalized_name not in normalized_versions:
+            raise importlib.metadata.PackageNotFoundError(name)
+        return SimpleNamespace(version=normalized_versions[normalized_name])
+
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.importlib.metadata.distribution",
+        fake_distribution,
+    )
+
+
 def test_workspace_environment_prepends_workspace_paths(tmp_path: Path):
     workspace = _prepared_workspace(tmp_path)
     workspace.environment["PYTHONPATH"] = str(tmp_path / "existing")
@@ -109,7 +130,8 @@ def test_workspace_command_uses_uv_for_pyproject_workspace(
     assert workspace.project_root is not None
     workspace.environment["PATH"] = "/workspace/bin"
     _strip_venv_signals(workspace)
-    _write_pyproject(workspace.project_root)
+    _write_pyproject(workspace.project_root, deps="['prefect', 'missing-package']")
+    _mock_installed_distributions(monkeypatch, {"prefect": "3.0.0"})
     captured_paths: list[str | None] = []
 
     def fake_which(executable: str, path: str | None = None) -> str | None:
@@ -128,6 +150,7 @@ def test_workspace_command_uses_uv_for_pyproject_workspace(
     assert command_from_string(command) == [
         "/opt/bin/uv",
         "run",
+        "--no-dev",
         "--project",
         str(workspace.project_root),
         "-m",
@@ -168,7 +191,8 @@ def test_workspace_command_falls_back_without_uv(
     workspace = _prepared_workspace(tmp_path)
     assert workspace.project_root is not None
     _strip_venv_signals(workspace)
-    _write_pyproject(workspace.project_root)
+    _write_pyproject(workspace.project_root, deps="['prefect', 'missing-package']")
+    _mock_installed_distributions(monkeypatch, {"prefect": "3.0.0"})
     monkeypatch.setattr(
         "prefect.runner._workspace_starter.shutil.which",
         lambda executable, path=None: None,
@@ -196,8 +220,9 @@ def test_workspace_command_ignores_dot_venv_without_explicit_signal(
     assert workspace.project_root is not None
     workspace.environment["PATH"] = "/workspace/bin"
     _strip_venv_signals(workspace)
-    _write_pyproject(workspace.project_root)
+    _write_pyproject(workspace.project_root, deps="['prefect', 'missing-package']")
     _create_fake_venv(workspace.project_root / ".venv")
+    _mock_installed_distributions(monkeypatch, {"prefect": "3.0.0"})
 
     monkeypatch.setattr(
         "prefect.runner._workspace_starter.shutil.which",
@@ -209,6 +234,7 @@ def test_workspace_command_ignores_dot_venv_without_explicit_signal(
     assert command_from_string(command) == [
         "/opt/bin/uv",
         "run",
+        "--no-dev",
         "--project",
         str(workspace.project_root),
         "-m",
@@ -277,7 +303,8 @@ def test_workspace_command_uses_editable_install(
     workspace = _prepared_workspace(tmp_path)
     assert workspace.project_root is not None
     _strip_venv_signals(workspace)
-    _write_pyproject(workspace.project_root)
+    _write_pyproject(workspace.project_root, deps="['prefect', 'missing-package']")
+    _mock_installed_distributions(monkeypatch, {"prefect": "3.0.0"})
 
     monkeypatch.setattr(
         "prefect.runner._workspace_starter.shutil.which",
@@ -295,6 +322,98 @@ def test_workspace_command_uses_editable_install(
     assert parts[0] == sys.executable
 
 
+def test_workspace_command_uses_current_python_when_project_dependencies_installed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """System-installed project dependencies should skip uv run."""
+    workspace = _prepared_workspace(tmp_path)
+    assert workspace.project_root is not None
+    _strip_venv_signals(workspace)
+    _write_pyproject(
+        workspace.project_root,
+        deps=("['prefect>=3', 'pandas>=2,<3', 'colorama; sys_platform == \"win32\"']"),
+    )
+    _mock_installed_distributions(
+        monkeypatch,
+        {
+            "prefect": "3.6.0",
+            "pandas": "2.2.3",
+        },
+    )
+
+    command = _workspace_command(workspace, explicit_command=None)
+    assert command is not None
+    assert command_from_string(command) == [
+        sys.executable,
+        "-m",
+        "prefect.flow_engine",
+        workspace.runtime_entrypoint,
+    ]
+
+
+def test_workspace_command_uses_uv_when_module_entrypoint_needs_project_install(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Installed dependencies are not enough when the project module is unavailable."""
+    workspace = _prepared_workspace(tmp_path)
+    assert workspace.project_root is not None
+    workspace.runtime_entrypoint = "package.flows:hello"
+    workspace.environment["PATH"] = "/workspace/bin"
+    _strip_venv_signals(workspace)
+    _write_pyproject(
+        workspace.project_root,
+        deps="['prefect>=3', 'pandas>=2,<3']",
+    )
+    _mock_installed_distributions(
+        monkeypatch,
+        {
+            "prefect": "3.6.0",
+            "pandas": "2.2.3",
+        },
+    )
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.shutil.which",
+        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
+    )
+
+    command = _workspace_command(workspace, explicit_command=None)
+    assert command is not None
+    assert command_from_string(command) == [
+        "/opt/bin/uv",
+        "run",
+        "--no-dev",
+        "--project",
+        str(workspace.project_root),
+        "-m",
+        "prefect.flow_engine",
+        workspace.runtime_entrypoint,
+    ]
+
+
+def test_workspace_command_uses_current_python_for_project_outside_workspace_root(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Existing in-image project directories should not trigger uv run."""
+    workspace = _prepared_workspace(tmp_path)
+    project_root = tmp_path / "prebuilt-project"
+    project_root.mkdir()
+    workspace.working_directory = project_root
+    workspace.project_root = project_root
+    assert workspace.project_root is not None
+    _strip_venv_signals(workspace)
+    _write_pyproject(workspace.project_root, deps="['prefect', 'missing-package']")
+    _mock_installed_distributions(monkeypatch, {"prefect": "3.0.0"})
+
+    command = _workspace_command(workspace, explicit_command=None)
+    assert command is not None
+    assert command_from_string(command) == [
+        sys.executable,
+        "-m",
+        "prefect.flow_engine",
+        workspace.runtime_entrypoint,
+    ]
+
+
 def test_workspace_command_falls_back_to_uv_when_no_prematerialized_env(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ):
@@ -303,7 +422,8 @@ def test_workspace_command_falls_back_to_uv_when_no_prematerialized_env(
     assert workspace.project_root is not None
     workspace.environment["PATH"] = "/workspace/bin"
     _strip_venv_signals(workspace)
-    _write_pyproject(workspace.project_root)
+    _write_pyproject(workspace.project_root, deps="['prefect', 'missing-package']")
+    _mock_installed_distributions(monkeypatch, {"prefect": "3.0.0"})
 
     monkeypatch.setattr(
         "prefect.runner._workspace_starter.shutil.which",
@@ -315,6 +435,7 @@ def test_workspace_command_falls_back_to_uv_when_no_prematerialized_env(
     assert command_from_string(command) == [
         "/opt/bin/uv",
         "run",
+        "--no-dev",
         "--project",
         str(workspace.project_root),
         "-m",
@@ -394,13 +515,16 @@ def test_find_prematerialized_python_prefers_uv_project_environment(
     assert result == expected_python
 
 
-def test_find_prematerialized_python_returns_none_without_signals(tmp_path: Path):
+def test_find_prematerialized_python_returns_none_without_signals(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
     """No pre-materialized env signals means None."""
     workspace = _prepared_workspace(tmp_path)
     assert workspace.project_root is not None
     _strip_venv_signals(workspace)
-    _write_pyproject(workspace.project_root)
+    _write_pyproject(workspace.project_root, deps="['prefect', 'missing-package']")
     _create_fake_venv(workspace.project_root / ".venv")
+    _mock_installed_distributions(monkeypatch, {"prefect": "3.0.0"})
 
     result = _find_prematerialized_python(workspace)
     assert result is None
@@ -412,8 +536,9 @@ def test_unrelated_virtual_env_falls_back_to_uv_run(
     """VIRTUAL_ENV pointing at a valid but unrelated venv should NOT skip uv run."""
     workspace = _prepared_workspace(tmp_path)
     assert workspace.project_root is not None
-    _write_pyproject(workspace.project_root)
+    _write_pyproject(workspace.project_root, deps="['prefect', 'missing-package']")
     workspace.environment.pop("UV_PROJECT_ENVIRONMENT", None)
+    _mock_installed_distributions(monkeypatch, {"prefect": "3.0.0"})
 
     # Create a valid venv outside of project_root
     unrelated_venv = tmp_path / "worker-venv"
@@ -432,6 +557,7 @@ def test_unrelated_virtual_env_falls_back_to_uv_run(
     assert command_from_string(command) == [
         "/opt/bin/uv",
         "run",
+        "--no-dev",
         "--project",
         str(workspace.project_root),
         "-m",
@@ -567,7 +693,8 @@ async def test_workspace_resolving_starter_uses_uv_for_pyproject_workspace(
     workspace = _prepared_workspace(tmp_path)
     assert workspace.project_root is not None
     _strip_venv_signals(workspace)
-    _write_pyproject(workspace.project_root)
+    _write_pyproject(workspace.project_root, deps="['prefect', 'missing-package']")
+    _mock_installed_distributions(monkeypatch, {"prefect": "3.0.0"})
     resolver = AsyncMock(return_value=workspace)
     flow_run = MagicMock()
     flow_run.id = uuid4()
@@ -606,6 +733,7 @@ async def test_workspace_resolving_starter_uses_uv_for_pyproject_workspace(
     assert command_from_string(command) == [
         "/opt/bin/uv",
         "run",
+        "--no-dev",
         "--project",
         str(workspace.project_root),
         "-m",

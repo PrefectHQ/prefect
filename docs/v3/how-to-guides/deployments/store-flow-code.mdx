@@ -583,13 +583,16 @@ When you run `prefect deploy` with a custom image in `job_variables` and no buil
 
 #### Python project dependencies in custom images
 
-When a deployment pulls flow code into an execution environment and no explicit flow run command is configured, Prefect looks for a `pyproject.toml` in the prepared workspace.
-If the `pyproject.toml` declares `prefect` in its `[project]` dependencies, Prefect can start the flow run with `uv run --project <project-root>` so dependencies are available from the project environment.
+When no explicit flow run command is configured, Prefect looks for a `pyproject.toml` in the prepared workspace.
+If the `pyproject.toml` declares `prefect` in its `[project]` dependencies, Prefect can start the flow run with `uv run --no-dev --project <project-root>` so dependencies are available from the project environment.
+The `--no-dev` flag means development dependency groups are not installed for flow runs.
 
-Prefect skips `uv run` when it detects an explicitly pre-built Python environment for the prepared workspace:
+Prefect skips `uv run` when the project already appears ready to execute:
 
+- The project is already present in the execution environment, such as code baked into a custom Docker image and selected with `set_working_directory`.
 - `UV_PROJECT_ENVIRONMENT` points to a virtual environment. Relative paths are resolved from the project root, matching `uv` behavior.
 - `VIRTUAL_ENV` points to a virtual environment located under the project root.
+- The current Python environment already satisfies the active `[project]` dependencies.
 - The current Python environment contains an editable install that points at the prepared project root, such as from `pip install -e .` or `uv pip install --system -e .`.
 
 A `.venv` directory in the project root is not enough by itself for Prefect to skip `uv run`. If your Docker image already
