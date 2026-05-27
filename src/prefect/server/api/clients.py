@@ -1,13 +1,25 @@
 from __future__ import annotations
 
+import asyncio
 import base64
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+import contextvars
+from contextlib import asynccontextmanager
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AsyncIterator,
+    ClassVar,
+    Dict,
+    List,
+    Optional,
+    cast,
+)
 from urllib.parse import quote
 from uuid import UUID
 
 import httpx
 import pydantic
-from httpx import Response
+from httpx import Request, Response
 from starlette import status
 from typing_extensions import Self
 
@@ -27,9 +39,105 @@ if TYPE_CHECKING:
 logger: "logging.Logger" = get_logger(__name__)
 
 
-class BaseClient:
+# Per-request headers pushed by `scoped_headers()`; the httpx request hook
+# installed in `BaseClient.__init__` merges them into outgoing requests so
+# callers can reuse a single shared client across automation actions while
+# still tagging each request with automation-specific identifiers.
+_request_scoped_headers: contextvars.ContextVar[Optional[Dict[str, str]]] = (
+    contextvars.ContextVar("_request_scoped_headers", default=None)
+)
+
+
+async def _apply_scoped_headers(request: Request) -> None:
+    extras = _request_scoped_headers.get()
+    if not extras:
+        return
+    for name, value in extras.items():
+        request.headers[name] = value
+
+
+@asynccontextmanager
+async def scoped_headers(headers: Dict[str, str]) -> AsyncIterator[None]:
+    """Attach headers to every request sent by a shared client in this scope."""
+    token = _request_scoped_headers.set(headers)
+    try:
+        yield
+    finally:
+        _request_scoped_headers.reset(token)
+
+
+class _SharedClientMixin:
+    """
+    Process-level cache of one open client per `(subclass, settings)`.
+
+    Sharing avoids re-running `create_app()`, `setup_logging()` and
+    `Settings.hash_key()` on every automation action. Headers that vary per
+    call (e.g. automation identifiers) must be applied with `scoped_headers()`
+    rather than baked into the cached client.
+
+    The cache assumes a single, long-lived event loop per process: the cached
+    httpx clients and the lazily-created `asyncio.Lock` are bound to the loop
+    they are first used on. That holds for the Prefect server and for the
+    session-scoped test loop. Test suites that spin up per-test loops (e.g. via
+    `asyncio.run`) must call `_reset_shared()` between tests so a client built
+    on a now-dead loop is never handed back.
+    """
+
+    # Set by each subclass in `__init__`.
     _http_client: PrefectHttpxAsyncClient
 
+    # One registry shared by every subclass, keyed by `(cls, id(settings))`.
+    # The settings object is stored next to the client and held by a strong
+    # reference on purpose: keeping it alive means its `id()` cannot be
+    # recycled for a different `Settings` instance while the entry lives, which
+    # would otherwise hand back a client built for stale settings. Distinct
+    # `temporary_settings()` blocks therefore get distinct entries; tests evict
+    # them via `_reset_shared()`.
+    _shared_instances: ClassVar[
+        Dict[tuple[type, int], tuple[Any, "_SharedClientMixin"]]
+    ] = {}
+    _shared_lock: ClassVar[Optional[asyncio.Lock]] = None
+
+    @classmethod
+    async def shared(cls) -> Self:
+        """
+        Return a process-cached client for the current settings, lazily
+        constructed and left open for the lifetime of the process. Headers that
+        vary per call (e.g. automation identifiers) should be set via
+        `scoped_headers()`, not passed at construction.
+        """
+        settings = get_current_settings()
+        key = (cls, id(settings))
+        cached = _SharedClientMixin._shared_instances.get(key)
+        if cached is not None and cached[0] is settings:
+            return cast(Self, cached[1])
+        # Lazily create the lock. The check-and-set needs no extra guard: there
+        # is no `await` between the `is None` test and the assignment, so no
+        # other coroutine on this loop can interleave here. Do not add one.
+        if _SharedClientMixin._shared_lock is None:
+            _SharedClientMixin._shared_lock = asyncio.Lock()
+        async with _SharedClientMixin._shared_lock:
+            cached = _SharedClientMixin._shared_instances.get(key)
+            if cached is not None and cached[0] is settings:
+                return cast(Self, cached[1])
+            instance = cls()
+            await instance._http_client.__aenter__()
+            _SharedClientMixin._shared_instances[key] = (settings, instance)
+            return instance
+
+    @classmethod
+    async def _reset_shared(cls) -> None:
+        """Test helper: close and discard every cached shared instance."""
+        entries = list(_SharedClientMixin._shared_instances.values())
+        _SharedClientMixin._shared_instances.clear()
+        for _settings, instance in entries:
+            try:
+                await instance._http_client.__aexit__(None, None, None)
+            except Exception:
+                pass
+
+
+class BaseClient(_SharedClientMixin):
     def __init__(self, additional_headers: dict[str, str] | None = None):
         from prefect.server.api.server import create_app
 
@@ -53,6 +161,7 @@ class BaseClient:
             base_url=f"http://prefect-in-memory{settings.server.api.base_path or '/api'}",
             enable_csrf_support=settings.server.api.csrf_protection_enabled,
             raise_on_all_errors=False,
+            event_hooks={"request": [_apply_scoped_headers]},
         )
 
     async def __aenter__(self) -> Self:
