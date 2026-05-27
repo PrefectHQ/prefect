@@ -4,9 +4,10 @@ from typing import TYPE_CHECKING, Any, Generator, Iterable, Mapping, Optional
 from prefect.settings.models.root import Settings
 
 if TYPE_CHECKING:
+    from prefect.settings._types import SettingAccessor
     from prefect.settings.legacy import Setting
 
-    SettingKey = Setting | str
+    SettingKey = Setting | SettingAccessor
 
 
 def get_current_settings() -> Settings:

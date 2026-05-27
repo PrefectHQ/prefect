@@ -46,6 +46,7 @@ from .server import ServerSettings
 from .telemetry import TelemetrySettings
 
 if TYPE_CHECKING:
+    from prefect.settings._types import SettingAccessor
     from prefect.settings.legacy import Setting
 
 
@@ -379,9 +380,9 @@ class Settings(PrefectBaseSettings):
 
     def copy_with_update(
         self: Self,
-        updates: Optional[Mapping["Setting | str", Any]] = None,
-        set_defaults: Optional[Mapping["Setting | str", Any]] = None,
-        restore_defaults: Optional[Iterable["Setting | str"]] = None,
+        updates: Optional[Mapping["Setting | SettingAccessor", Any]] = None,
+        set_defaults: Optional[Mapping["Setting | SettingAccessor", Any]] = None,
+        restore_defaults: Optional[Iterable["Setting | SettingAccessor"]] = None,
     ) -> Self:
         """
         Create a new Settings object with validation.

@@ -74,6 +74,7 @@ from prefect.settings.models.api import APISettings
 from prefect.settings.models.client import ClientSettings
 from prefect.settings.models.logging import LoggingSettings
 from prefect.settings.models.results import ResultsSettings
+from prefect.settings.models.root import _get_settings_accessors
 from prefect.settings.models.server import ServerSettings
 from prefect.settings.models.server.api import ServerAPISettings
 from prefect.settings.models.server.database import (
@@ -1587,6 +1588,16 @@ class TestTemporarySettings:
         with pytest.raises(ValueError, match="Unknown setting"):
             with temporary_settings(updates={"server.api.not_real": "nope"}):
                 pass
+
+    def test_setting_accessor_type_alias_is_current(self):
+        from typing import get_args
+
+        from prefect.settings._types import SettingAccessor
+
+        setting_keys = _get_settings_accessors(Settings)
+        expected_accessors = set(setting_keys.values())
+
+        assert set(get_args(SettingAccessor)) == expected_accessors
 
     def test_temporary_settings_restores_on_error(self):
         assert PREFECT_TEST_MODE.value() is True
