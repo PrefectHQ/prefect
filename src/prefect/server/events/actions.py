@@ -20,12 +20,14 @@ from typing import (
     ClassVar,
     Coroutine,
     Dict,
+    Generic,
     List,
     Literal,
     MutableMapping,
     Optional,
     Tuple,
     Type,
+    TypeVar,
     Union,
     cast,
 )
@@ -353,34 +355,75 @@ class EmitEventAction(Action):
         """Create an event from the TriggeredAction"""
 
 
+_SharedClient = TypeVar("_SharedClient")
+
+
+class _AutomationScopedClient(Generic[_SharedClient]):
+    """
+    Async context manager returned by `ExternalDataAction.orchestration_client`
+    and `events_api_client`. It acquires the process-shared client, then enters
+    a `scoped_headers()` block that pushes automation-specific headers into the
+    contextvar consumed by the httpx request hook; on exit the headers are
+    popped. The shared client itself is never closed — it lives for the process
+    lifetime.
+    """
+
+    def __init__(
+        self,
+        factory: Callable[[], Awaitable[_SharedClient]],
+        headers: Dict[str, str],
+    ):
+        self._factory = factory
+        self._headers = headers
+        self._scope: Any = None
+
+    async def __aenter__(self) -> _SharedClient:
+        from prefect.server.api.clients import scoped_headers
+
+        # Acquire the client first; `shared()` issues no requests, so the headers
+        # are not needed yet. Entering the scope only after a successful acquire
+        # means a failure in the factory cannot leak a contextvar token.
+        client = await self._factory()
+        self._scope = scoped_headers(self._headers)
+        await self._scope.__aenter__()
+        return client
+
+    async def __aexit__(self, *exc: Any) -> None:
+        if self._scope is not None:
+            await self._scope.__aexit__(*exc)
+
+
 class ExternalDataAction(Action):
     """Base class for Actions that require data from an external source such as
     the Orchestration API"""
 
+    @staticmethod
+    def _automation_request_headers(
+        triggered_action: "TriggeredAction",
+    ) -> Dict[str, str]:
+        return {
+            "Prefect-Automation-ID": str(triggered_action.automation.id),
+            "Prefect-Automation-Name": (
+                b64encode(triggered_action.automation.name.encode()).decode()
+            ),
+        }
+
     async def orchestration_client(
         self, triggered_action: "TriggeredAction"
-    ) -> "OrchestrationClient":
+    ) -> "_AutomationScopedClient[OrchestrationClient]":
         from prefect.server.api.clients import OrchestrationClient
 
-        return OrchestrationClient(
-            additional_headers={
-                "Prefect-Automation-ID": str(triggered_action.automation.id),
-                "Prefect-Automation-Name": (
-                    b64encode(triggered_action.automation.name.encode()).decode()
-                ),
-            },
+        return _AutomationScopedClient(
+            OrchestrationClient.shared,
+            self._automation_request_headers(triggered_action),
         )
 
     async def events_api_client(
         self, triggered_action: "TriggeredAction"
-    ) -> PrefectServerEventsAPIClient:
-        return PrefectServerEventsAPIClient(
-            additional_headers={
-                "Prefect-Automation-ID": str(triggered_action.automation.id),
-                "Prefect-Automation-Name": (
-                    b64encode(triggered_action.automation.name.encode()).decode()
-                ),
-            },
+    ) -> "_AutomationScopedClient[PrefectServerEventsAPIClient]":
+        return _AutomationScopedClient(
+            PrefectServerEventsAPIClient.shared,
+            self._automation_request_headers(triggered_action),
         )
 
     def reason_from_response(self, response: Response) -> str:
