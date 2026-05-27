@@ -3,16 +3,18 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import Iterable, Mapping
+from dataclasses import dataclass
 from datetime import timedelta
 from hashlib import sha256
 from secrets import token_urlsafe
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import Field
 from redis.asyncio import Redis
+from redis.exceptions import WatchError
 
-from prefect.client.schemas.worker_channel import CleanupKind
+from prefect.client.schemas.worker_channel import CleanupKind, CleanupOperationStatus
 from prefect.server.worker_communication.cleanup_queue import (
     CleanupQueueDeadLetter,
     CleanupQueueLeaseExpiryResult,
@@ -29,6 +31,13 @@ from prefect.settings.base import PrefectBaseSettings, build_settings_config
 from prefect.settings.context import get_current_settings
 from prefect.types import DateTime
 from prefect.types._datetime import now
+
+_MAX_TRANSACTION_ATTEMPTS = 20
+_LeaseExpiryOutcome = (
+    tuple[Literal["redelivered"], CleanupQueueMessage]
+    | tuple[Literal["dead_lettered"], CleanupQueueDeadLetter]
+    | None
+)
 
 
 class RedisWorkerCleanupQueueSettings(PrefectBaseSettings):
@@ -64,479 +73,11 @@ class RedisWorkerCleanupQueueSettings(PrefectBaseSettings):
     ssl: bool = Field(default=False)
 
 
-_ENQUEUE_SCRIPT = """
-local prefix = ARGV[1]
-local message_id = ARGV[2]
-local idempotency_hash = ARGV[3]
-local idempotency_key = ARGV[4]
-local work_pool_id = ARGV[5]
-local work_queue_id = ARGV[6]
-local kind = ARGV[7]
-local target = ARGV[8]
-local data = ARGV[9]
-local current_time = ARGV[10]
-local score = ARGV[11]
-
-local active_key = prefix .. ":messages:" .. message_id
-local dead_key = prefix .. ":dead:" .. message_id
-local acked_key = prefix .. ":acked:" .. message_id
-local idempotency_key_name = prefix .. ":idempotency:" .. work_pool_id .. ":" .. idempotency_hash
-local visible_key = prefix .. ":pool:" .. work_pool_id .. ":visible"
-local pools_key = prefix .. ":pools"
-
-local function validate_existing(key)
-    if redis.call("HGET", key, "idempotency_key") ~= idempotency_key
-        or redis.call("HGET", key, "work_pool_id") ~= work_pool_id then
-        return {"conflict"}
-    end
-    return {"existing", redis.call("HGETALL", key)}
-end
-
-if redis.call("EXISTS", active_key) == 1 then
-    return validate_existing(active_key)
-end
-if redis.call("EXISTS", dead_key) == 1 then
-    return validate_existing(dead_key)
-end
-if redis.call("EXISTS", acked_key) == 1 then
-    return validate_existing(acked_key)
-end
-
-local existing_message_id = redis.call("GET", idempotency_key_name)
-if existing_message_id then
-    local existing_active_key = prefix .. ":messages:" .. existing_message_id
-    local existing_dead_key = prefix .. ":dead:" .. existing_message_id
-    local existing_acked_key = prefix .. ":acked:" .. existing_message_id
-    if redis.call("EXISTS", existing_active_key) == 1 then
-        return validate_existing(existing_active_key)
-    end
-    if redis.call("EXISTS", existing_dead_key) == 1 then
-        return validate_existing(existing_dead_key)
-    end
-    if redis.call("EXISTS", existing_acked_key) == 1 then
-        return validate_existing(existing_acked_key)
-    end
-    redis.call("DEL", idempotency_key_name)
-end
-
-redis.call(
-    "HSET",
-    active_key,
-    "message_id", message_id,
-    "idempotency_key", idempotency_key,
-    "idempotency_hash", idempotency_hash,
-    "work_pool_id", work_pool_id,
-    "work_queue_id", work_queue_id,
-    "kind", kind,
-    "target", target,
-    "data", data,
-    "created_at", current_time,
-    "updated_at", current_time,
-    "delivery_count", "0"
-)
-redis.call("SET", idempotency_key_name, message_id)
-redis.call("ZADD", visible_key, score, message_id)
-redis.call("SADD", pools_key, work_pool_id)
-
-return {"created", redis.call("HGETALL", active_key)}
-"""
-
-_RESERVE_SCRIPT = """
-local prefix = ARGV[1]
-local work_pool_id = ARGV[2]
-local current_time = ARGV[3]
-local lease_expires_at = ARGV[4]
-local lease_expires_ms = ARGV[5]
-local token = ARGV[6]
-local max_delivery_attempts = tonumber(ARGV[7])
-local kind_count = tonumber(ARGV[8])
-local index = 9
-local kind_filters = {}
-for i = 1, kind_count do
-    kind_filters[ARGV[index]] = true
-    index = index + 1
-end
-local preferred_count = tonumber(ARGV[index])
-index = index + 1
-local preferred_queues = {}
-for i = 1, preferred_count do
-    preferred_queues[ARGV[index]] = true
-    index = index + 1
-end
-local allow_fallback = ARGV[index] == "1"
-
-local visible_key = prefix .. ":pool:" .. work_pool_id .. ":visible"
-local reserved_key = prefix .. ":pool:" .. work_pool_id .. ":reserved"
-
-local function kind_allowed(kind)
-    if kind_count == 0 then
-        return true
-    end
-    return kind_filters[kind] == true
-end
-
-local function queue_allowed(work_queue_id, preferred_pass)
-    if preferred_count == 0 then
-        return true
-    end
-    if preferred_pass then
-        return work_queue_id ~= "" and preferred_queues[work_queue_id] == true
-    end
-    return allow_fallback
-end
-
-local function move_to_dead_letter(message_key, reservation_key, reason, release_reason)
-    local message_id = redis.call("HGET", message_key, "message_id")
-    local dead_key = prefix .. ":dead:" .. message_id
-    local fields = redis.call("HGETALL", message_key)
-    if #fields > 0 then
-        redis.call("HSET", dead_key, unpack(fields))
-    end
-    redis.call(
-        "HSET",
-        dead_key,
-        "reason", reason,
-        "final_delivery_count", redis.call("HGET", message_key, "delivery_count") or "0",
-        "moved_at", current_time,
-        "reservation_token", redis.call("HGET", reservation_key, "token") or "",
-        "lease_expires_at", redis.call("HGET", reservation_key, "lease_expires_at") or "",
-        "release_reason", release_reason or ""
-    )
-    redis.call("DEL", message_key)
-    redis.call("DEL", reservation_key)
-    redis.call("ZREM", visible_key, message_id)
-    redis.call("ZREM", reserved_key, message_id)
-end
-
-local function try_reserve(preferred_pass)
-    local message_ids = redis.call("ZRANGE", visible_key, 0, -1)
-    for _, message_id in ipairs(message_ids) do
-        local message_key = prefix .. ":messages:" .. message_id
-        if redis.call("EXISTS", message_key) == 0 then
-            redis.call("ZREM", visible_key, message_id)
-        elseif kind_allowed(redis.call("HGET", message_key, "kind"))
-            and queue_allowed(redis.call("HGET", message_key, "work_queue_id") or "", preferred_pass) then
-            local delivery_count = tonumber(redis.call("HGET", message_key, "delivery_count") or "0")
-            if delivery_count >= max_delivery_attempts then
-                local reservation_key = prefix .. ":reservations:" .. message_id
-                move_to_dead_letter(message_key, reservation_key, "max_delivery_attempts_reached", "")
-            else
-                redis.call("HINCRBY", message_key, "delivery_count", 1)
-                redis.call("HSET", message_key, "updated_at", current_time)
-                redis.call(
-                    "HSET",
-                    prefix .. ":reservations:" .. message_id,
-                    "token", token,
-                    "lease_expires_at", lease_expires_at,
-                    "lease_expires_ms", lease_expires_ms,
-                    "reserved_at", current_time
-                )
-                redis.call("ZREM", visible_key, message_id)
-                redis.call("ZADD", reserved_key, lease_expires_ms, message_id)
-                return redis.call("HGETALL", message_key)
-            end
-        end
-    end
-    return nil
-end
-
-local reserved = try_reserve(preferred_count > 0)
-if reserved then
-    return {"reserved", reserved, token, lease_expires_at}
-end
-if preferred_count > 0 and allow_fallback then
-    reserved = try_reserve(false)
-    if reserved then
-        return {"reserved", reserved, token, lease_expires_at}
-    end
-end
-
-return {"empty"}
-"""
-
-_ACK_SCRIPT = """
-local prefix = ARGV[1]
-local work_pool_id = ARGV[2]
-local message_id = ARGV[3]
-local token = ARGV[4]
-local current_time = ARGV[5]
-local current_ms = tonumber(ARGV[6])
-local max_delivery_attempts = tonumber(ARGV[7])
-local completed_retention_ms = tonumber(ARGV[8])
-
-local message_key = prefix .. ":messages:" .. message_id
-local reservation_key = prefix .. ":reservations:" .. message_id
-local visible_key = prefix .. ":pool:" .. work_pool_id .. ":visible"
-local reserved_key = prefix .. ":pool:" .. work_pool_id .. ":reserved"
-
-local function move_to_dead_letter(reason, release_reason)
-    local dead_key = prefix .. ":dead:" .. message_id
-    local fields = redis.call("HGETALL", message_key)
-    if #fields > 0 then
-        redis.call("HSET", dead_key, unpack(fields))
-    end
-    redis.call(
-        "HSET",
-        dead_key,
-        "reason", reason,
-        "final_delivery_count", redis.call("HGET", message_key, "delivery_count") or "0",
-        "moved_at", current_time,
-        "reservation_token", redis.call("HGET", reservation_key, "token") or "",
-        "lease_expires_at", redis.call("HGET", reservation_key, "lease_expires_at") or "",
-        "release_reason", release_reason or ""
-    )
-    redis.call("DEL", message_key)
-    redis.call("DEL", reservation_key)
-    redis.call("ZREM", visible_key, message_id)
-    redis.call("ZREM", reserved_key, message_id)
-    return redis.call("HGETALL", dead_key)
-end
-
-if redis.call("EXISTS", message_key) == 0 then
-    return {"not_found", "message_not_found"}
-end
-if redis.call("HGET", message_key, "work_pool_id") ~= work_pool_id then
-    return {"unauthorized", "work_pool_mismatch"}
-end
-if redis.call("EXISTS", reservation_key) == 0 then
-    return {"not_current", "no_active_reservation"}
-end
-if redis.call("HGET", reservation_key, "token") ~= token then
-    return {"invalid_token", "reservation_token_mismatch"}
-end
-if tonumber(redis.call("HGET", reservation_key, "lease_expires_ms") or "0") <= current_ms then
-    if tonumber(redis.call("HGET", message_key, "delivery_count") or "0") >= max_delivery_attempts then
-        return {"dead_lettered", "max_delivery_attempts_reached", move_to_dead_letter("max_delivery_attempts_reached", "")}
-    end
-    redis.call("DEL", reservation_key)
-    redis.call("ZREM", reserved_key, message_id)
-    redis.call("HSET", message_key, "updated_at", current_time)
-    redis.call("ZADD", visible_key, current_ms, message_id)
-    return {"expired", "lease_expired", "wake"}
-end
-
-local acked_key = prefix .. ":acked:" .. message_id
-local fields = redis.call("HGETALL", message_key)
-if #fields > 0 then
-    redis.call("HSET", acked_key, unpack(fields))
-end
-redis.call("HSET", acked_key, "updated_at", current_time, "completed_at", current_time)
-redis.call("DEL", message_key)
-redis.call("DEL", reservation_key)
-redis.call("ZREM", visible_key, message_id)
-redis.call("ZREM", reserved_key, message_id)
-if completed_retention_ms >= 0 then
-    local idempotency_hash = redis.call("HGET", acked_key, "idempotency_hash")
-    local idempotency_key_name = prefix .. ":idempotency:" .. work_pool_id .. ":" .. idempotency_hash
-    redis.call("PEXPIRE", acked_key, completed_retention_ms)
-    redis.call("PEXPIRE", idempotency_key_name, completed_retention_ms)
-end
-
-return {"accepted"}
-"""
-
-_RELEASE_SCRIPT = """
-local prefix = ARGV[1]
-local work_pool_id = ARGV[2]
-local message_id = ARGV[3]
-local token = ARGV[4]
-local reason = ARGV[5]
-local current_time = ARGV[6]
-local current_ms = tonumber(ARGV[7])
-local max_delivery_attempts = tonumber(ARGV[8])
-
-local message_key = prefix .. ":messages:" .. message_id
-local reservation_key = prefix .. ":reservations:" .. message_id
-local visible_key = prefix .. ":pool:" .. work_pool_id .. ":visible"
-local reserved_key = prefix .. ":pool:" .. work_pool_id .. ":reserved"
-
-local function move_to_dead_letter(dead_reason, release_reason)
-    local dead_key = prefix .. ":dead:" .. message_id
-    local fields = redis.call("HGETALL", message_key)
-    if #fields > 0 then
-        redis.call("HSET", dead_key, unpack(fields))
-    end
-    redis.call(
-        "HSET",
-        dead_key,
-        "reason", dead_reason,
-        "final_delivery_count", redis.call("HGET", message_key, "delivery_count") or "0",
-        "moved_at", current_time,
-        "reservation_token", redis.call("HGET", reservation_key, "token") or "",
-        "lease_expires_at", redis.call("HGET", reservation_key, "lease_expires_at") or "",
-        "release_reason", release_reason or ""
-    )
-    redis.call("DEL", message_key)
-    redis.call("DEL", reservation_key)
-    redis.call("ZREM", visible_key, message_id)
-    redis.call("ZREM", reserved_key, message_id)
-    return redis.call("HGETALL", dead_key)
-end
-
-if redis.call("EXISTS", message_key) == 0 then
-    return {"not_found", "message_not_found"}
-end
-if redis.call("HGET", message_key, "work_pool_id") ~= work_pool_id then
-    return {"unauthorized", "work_pool_mismatch"}
-end
-if redis.call("EXISTS", reservation_key) == 0 then
-    return {"not_current", "no_active_reservation"}
-end
-if redis.call("HGET", reservation_key, "token") ~= token then
-    return {"invalid_token", "reservation_token_mismatch"}
-end
-if tonumber(redis.call("HGET", reservation_key, "lease_expires_ms") or "0") <= current_ms then
-    if tonumber(redis.call("HGET", message_key, "delivery_count") or "0") >= max_delivery_attempts then
-        return {"dead_lettered", "max_delivery_attempts_reached", move_to_dead_letter("max_delivery_attempts_reached", "")}
-    end
-    redis.call("DEL", reservation_key)
-    redis.call("ZREM", reserved_key, message_id)
-    redis.call("HSET", message_key, "updated_at", current_time)
-    redis.call("ZADD", visible_key, current_ms, message_id)
-    return {"expired", "lease_expired", "wake"}
-end
-if tonumber(redis.call("HGET", message_key, "delivery_count") or "0") >= max_delivery_attempts then
-    return {"dead_lettered", "max_delivery_attempts_reached", move_to_dead_letter("max_delivery_attempts_reached", reason)}
-end
-
-redis.call("DEL", reservation_key)
-redis.call("ZREM", reserved_key, message_id)
-redis.call("HSET", message_key, "updated_at", current_time)
-redis.call("ZADD", visible_key, current_ms, message_id)
-
-return {"accepted", "wake"}
-"""
-
-_RENEW_SCRIPT = """
-local prefix = ARGV[1]
-local work_pool_id = ARGV[2]
-local message_id = ARGV[3]
-local token = ARGV[4]
-local current_time = ARGV[5]
-local current_ms = tonumber(ARGV[6])
-local lease_expires_at = ARGV[7]
-local lease_expires_ms = ARGV[8]
-local max_delivery_attempts = tonumber(ARGV[9])
-
-local message_key = prefix .. ":messages:" .. message_id
-local reservation_key = prefix .. ":reservations:" .. message_id
-local visible_key = prefix .. ":pool:" .. work_pool_id .. ":visible"
-local reserved_key = prefix .. ":pool:" .. work_pool_id .. ":reserved"
-
-local function move_to_dead_letter(reason)
-    local dead_key = prefix .. ":dead:" .. message_id
-    local fields = redis.call("HGETALL", message_key)
-    if #fields > 0 then
-        redis.call("HSET", dead_key, unpack(fields))
-    end
-    redis.call(
-        "HSET",
-        dead_key,
-        "reason", reason,
-        "final_delivery_count", redis.call("HGET", message_key, "delivery_count") or "0",
-        "moved_at", current_time,
-        "reservation_token", redis.call("HGET", reservation_key, "token") or "",
-        "lease_expires_at", redis.call("HGET", reservation_key, "lease_expires_at") or "",
-        "release_reason", ""
-    )
-    redis.call("DEL", message_key)
-    redis.call("DEL", reservation_key)
-    redis.call("ZREM", visible_key, message_id)
-    redis.call("ZREM", reserved_key, message_id)
-    return redis.call("HGETALL", dead_key)
-end
-
-if redis.call("EXISTS", message_key) == 0 then
-    return {"not_found", "message_not_found"}
-end
-if redis.call("HGET", message_key, "work_pool_id") ~= work_pool_id then
-    return {"unauthorized", "work_pool_mismatch"}
-end
-if redis.call("EXISTS", reservation_key) == 0 then
-    return {"not_current", "no_active_reservation"}
-end
-if redis.call("HGET", reservation_key, "token") ~= token then
-    return {"invalid_token", "reservation_token_mismatch"}
-end
-if tonumber(redis.call("HGET", reservation_key, "lease_expires_ms") or "0") <= current_ms then
-    if tonumber(redis.call("HGET", message_key, "delivery_count") or "0") >= max_delivery_attempts then
-        return {"dead_lettered", "max_delivery_attempts_reached", move_to_dead_letter("max_delivery_attempts_reached")}
-    end
-    redis.call("DEL", reservation_key)
-    redis.call("ZREM", reserved_key, message_id)
-    redis.call("HSET", message_key, "updated_at", current_time)
-    redis.call("ZADD", visible_key, current_ms, message_id)
-    return {"expired", "lease_expired", "wake"}
-end
-
-redis.call(
-    "HSET",
-    reservation_key,
-    "token", token,
-    "lease_expires_at", lease_expires_at,
-    "lease_expires_ms", lease_expires_ms
-)
-redis.call("HSET", message_key, "updated_at", current_time)
-redis.call("ZADD", reserved_key, lease_expires_ms, message_id)
-
-return {"accepted", lease_expires_at}
-"""
-
-_EXPIRE_LEASES_SCRIPT = """
-local prefix = ARGV[1]
-local work_pool_id = ARGV[2]
-local current_time = ARGV[3]
-local current_ms = tonumber(ARGV[4])
-local max_delivery_attempts = tonumber(ARGV[5])
-local limit = tonumber(ARGV[6])
-
-local visible_key = prefix .. ":pool:" .. work_pool_id .. ":visible"
-local reserved_key = prefix .. ":pool:" .. work_pool_id .. ":reserved"
-local expired_ids = redis.call("ZRANGEBYSCORE", reserved_key, "-inf", current_ms, "LIMIT", 0, limit)
-local results = {}
-
-local function move_to_dead_letter(message_id, message_key, reservation_key)
-    local dead_key = prefix .. ":dead:" .. message_id
-    local fields = redis.call("HGETALL", message_key)
-    if #fields > 0 then
-        redis.call("HSET", dead_key, unpack(fields))
-    end
-    redis.call(
-        "HSET",
-        dead_key,
-        "reason", "max_delivery_attempts_reached",
-        "final_delivery_count", redis.call("HGET", message_key, "delivery_count") or "0",
-        "moved_at", current_time,
-        "reservation_token", redis.call("HGET", reservation_key, "token") or "",
-        "lease_expires_at", redis.call("HGET", reservation_key, "lease_expires_at") or "",
-        "release_reason", ""
-    )
-    redis.call("DEL", message_key)
-    redis.call("DEL", reservation_key)
-    redis.call("ZREM", visible_key, message_id)
-    redis.call("ZREM", reserved_key, message_id)
-    table.insert(results, {"dead_lettered", redis.call("HGETALL", dead_key)})
-end
-
-for _, message_id in ipairs(expired_ids) do
-    local message_key = prefix .. ":messages:" .. message_id
-    local reservation_key = prefix .. ":reservations:" .. message_id
-    if redis.call("EXISTS", message_key) == 0 then
-        redis.call("DEL", reservation_key)
-        redis.call("ZREM", reserved_key, message_id)
-    elseif tonumber(redis.call("HGET", message_key, "delivery_count") or "0") >= max_delivery_attempts then
-        move_to_dead_letter(message_id, message_key, reservation_key)
-    else
-        redis.call("DEL", reservation_key)
-        redis.call("ZREM", reserved_key, message_id)
-        redis.call("HSET", message_key, "updated_at", current_time)
-        redis.call("ZADD", visible_key, current_ms, message_id)
-        table.insert(results, {"redelivered", redis.call("HGETALL", message_key)})
-    end
-end
-
-return results
-"""
+@dataclass(frozen=True)
+class _QueuePolicy:
+    lease_duration: timedelta
+    max_delivery_attempts: int
+    completed_idempotency_retention: timedelta | None
 
 
 class WorkerCleanupQueue(_WorkerCleanupQueue):
@@ -581,30 +122,73 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
             data=data,
             current_time=current_time,
         )
-        response = await self._eval(
-            _ENQUEUE_SCRIPT,
-            self._prefix(),
-            str(message_id),
-            message_fields["idempotency_hash"],
-            idempotency_key,
-            str(work_pool_id),
-            message_fields["work_queue_id"],
-            kind,
-            message_fields["target"],
-            message_fields["data"],
-            message_fields["created_at"],
-            str(_score_ms(current_time)),
+        idempotency_key_name = self._idempotency_key(
+            work_pool_id, message_fields["idempotency_hash"]
         )
-        status = response[0]
-        if status == "conflict":
-            raise ValueError(
-                "message_id is already associated with a different cleanup message"
-            )
+        active_key = self._message_key(message_id)
+        dead_key = self._dead_key(message_id)
+        acked_key = self._acked_key(message_id)
 
-        message = self._message_from_fields(response[1])
-        if status == "created":
-            await self.wake_dispatchers(work_pool_id)
-        return message
+        for _ in range(_MAX_TRANSACTION_ATTEMPTS):
+            async with self._client().pipeline(transaction=True) as pipe:
+                try:
+                    await pipe.watch(
+                        active_key, dead_key, acked_key, idempotency_key_name
+                    )
+                    existing = await self._read_existing_message_from_keys(
+                        pipe=pipe,
+                        keys=(active_key, dead_key, acked_key),
+                        idempotency_key=idempotency_key,
+                        work_pool_id=work_pool_id,
+                    )
+                    if existing is not None:
+                        pipe.multi()
+                        await pipe.execute()
+                        return existing
+
+                    existing_message_id = await pipe.get(idempotency_key_name)
+                    if existing_message_id is not None:
+                        existing_message_id_string = _decode_redis_value(
+                            existing_message_id
+                        )
+                        existing_keys = (
+                            self._message_key(existing_message_id_string),
+                            self._dead_key(existing_message_id_string),
+                            self._acked_key(existing_message_id_string),
+                        )
+                        await pipe.watch(*existing_keys)
+                        existing = await self._read_existing_message_from_keys(
+                            pipe=pipe,
+                            keys=existing_keys,
+                            idempotency_key=idempotency_key,
+                            work_pool_id=work_pool_id,
+                        )
+                        if existing is not None:
+                            pipe.multi()
+                            await pipe.execute()
+                            return existing
+
+                        pipe.multi()
+                        pipe.delete(idempotency_key_name)
+                        await pipe.execute()
+                        continue
+
+                    pipe.multi()
+                    pipe.hset(active_key, mapping=message_fields)
+                    pipe.set(idempotency_key_name, str(message_id))
+                    pipe.zadd(
+                        self._visible_key(work_pool_id),
+                        {str(message_id): _score_ms(current_time)},
+                    )
+                    pipe.sadd(self._pools_key(), str(work_pool_id))
+                    await pipe.execute()
+                    message = self._message_from_mapping(message_fields)
+                    await self.wake_dispatchers(work_pool_id)
+                    return message
+                except WatchError:
+                    continue
+
+        raise RuntimeError("Redis cleanup queue enqueue transaction failed.")
 
     async def reserve(
         self,
@@ -620,35 +204,33 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
 
         current_time = now("UTC")
         lease_expires_at = current_time + self._policy().lease_duration
-        token = token_urlsafe(32)
-        kind_filters = list(cleanup_kinds or [])
-        preferred_queues = [
-            str(queue_id) for queue_id in preferred_work_queue_ids or []
-        ]
-        response = await self._eval(
-            _RESERVE_SCRIPT,
-            self._prefix(),
-            str(work_pool_id),
-            _format_datetime(current_time),
-            _format_datetime(lease_expires_at),
-            str(_score_ms(lease_expires_at)),
-            token,
-            str(self._policy().max_delivery_attempts),
-            str(len(kind_filters)),
-            *kind_filters,
-            str(len(preferred_queues)),
-            *preferred_queues,
-            "1" if allow_fallback_to_any_queue else "0",
+        reservation_token = token_urlsafe(32)
+        cleanup_kind_filter = (
+            {str(kind) for kind in cleanup_kinds} if cleanup_kinds is not None else None
         )
-        if response[0] == "empty":
-            return None
 
-        message = self._message_from_fields(response[1])
-        return CleanupQueueReservation(
-            **message.model_dump(),
-            reservation_token=response[2],
-            lease_expires_at=response[3],
-        )
+        for queue_filter in self._queue_preference_passes(
+            preferred_work_queue_ids=preferred_work_queue_ids,
+            allow_fallback_to_any_queue=allow_fallback_to_any_queue,
+        ):
+            message_ids = await self._client().zrange(
+                self._visible_key(work_pool_id), 0, -1
+            )
+            for raw_message_id in message_ids:
+                message_id = _decode_redis_value(raw_message_id)
+                reservation = await self._reserve_candidate(
+                    work_pool_id=work_pool_id,
+                    message_id=message_id,
+                    current_time=current_time,
+                    lease_expires_at=lease_expires_at,
+                    reservation_token=reservation_token,
+                    cleanup_kind_filter=cleanup_kind_filter,
+                    queue_filter=queue_filter,
+                )
+                if reservation is not None:
+                    return reservation
+
+        return None
 
     async def ack(
         self,
@@ -657,24 +239,11 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         message_id: UUID,
         reservation_token: str,
     ) -> CleanupQueueOperationResult:
-        current_time = now("UTC")
-        retention = self._policy().completed_idempotency_retention
-        response = await self._eval(
-            _ACK_SCRIPT,
-            self._prefix(),
-            str(work_pool_id),
-            str(message_id),
-            reservation_token,
-            _format_datetime(current_time),
-            str(_score_ms(current_time)),
-            str(self._policy().max_delivery_attempts),
-            str(-1 if retention is None else int(retention.total_seconds() * 1000)),
-        )
-        return await self._operation_result_from_response(
+        return await self._run_operation(
             operation="ack",
             work_pool_id=work_pool_id,
             message_id=message_id,
-            response=response,
+            reservation_token=reservation_token,
         )
 
     async def release(
@@ -688,23 +257,12 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         if not reason:
             raise ValueError("release reason must be non-empty")
 
-        current_time = now("UTC")
-        response = await self._eval(
-            _RELEASE_SCRIPT,
-            self._prefix(),
-            str(work_pool_id),
-            str(message_id),
-            reservation_token,
-            reason,
-            _format_datetime(current_time),
-            str(_score_ms(current_time)),
-            str(self._policy().max_delivery_attempts),
-        )
-        return await self._operation_result_from_response(
+        return await self._run_operation(
             operation="release",
             work_pool_id=work_pool_id,
             message_id=message_id,
-            response=response,
+            reservation_token=reservation_token,
+            release_reason=reason,
         )
 
     async def renew(
@@ -714,25 +272,11 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         message_id: UUID,
         reservation_token: str,
     ) -> CleanupQueueOperationResult:
-        current_time = now("UTC")
-        lease_expires_at = current_time + self._policy().lease_duration
-        response = await self._eval(
-            _RENEW_SCRIPT,
-            self._prefix(),
-            str(work_pool_id),
-            str(message_id),
-            reservation_token,
-            _format_datetime(current_time),
-            str(_score_ms(current_time)),
-            _format_datetime(lease_expires_at),
-            str(_score_ms(lease_expires_at)),
-            str(self._policy().max_delivery_attempts),
-        )
-        return await self._operation_result_from_response(
+        return await self._run_operation(
             operation="renew",
             work_pool_id=work_pool_id,
             message_id=message_id,
-            response=response,
+            reservation_token=reservation_token,
         )
 
     async def expire_leases(
@@ -747,29 +291,42 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         work_pool_ids = (
             [str(work_pool_id)] if work_pool_id else await self._work_pools()
         )
+        current_time = now("UTC")
+        current_ms = _score_ms(current_time)
         remaining = limit
         redelivered: list[CleanupQueueMessage] = []
         dead_lettered: list[CleanupQueueDeadLetter] = []
-        current_time = now("UTC")
 
         for current_work_pool_id in work_pool_ids:
             if remaining <= 0:
                 break
-            response = await self._eval(
-                _EXPIRE_LEASES_SCRIPT,
-                self._prefix(),
-                current_work_pool_id,
-                _format_datetime(current_time),
-                str(_score_ms(current_time)),
-                str(self._policy().max_delivery_attempts),
-                str(remaining),
+
+            expired_message_ids = await self._client().zrangebyscore(
+                self._reserved_key(current_work_pool_id),
+                "-inf",
+                current_ms,
+                start=0,
+                num=remaining,
             )
-            for status, fields in response:
-                if status == "redelivered":
-                    redelivered.append(self._message_from_fields(fields))
-                elif status == "dead_lettered":
-                    dead_lettered.append(self._dead_letter_from_fields(fields))
+            for raw_message_id in expired_message_ids:
+                if remaining <= 0:
+                    break
+
+                outcome = await self._expire_lease_candidate(
+                    work_pool_id=current_work_pool_id,
+                    message_id=_decode_redis_value(raw_message_id),
+                    current_time=current_time,
+                    current_ms=current_ms,
+                )
+                if outcome is None:
+                    continue
+
+                status, payload = outcome
                 remaining -= 1
+                if status == "redelivered":
+                    redelivered.append(payload)
+                else:
+                    dead_lettered.append(payload)
 
         for message in redelivered:
             await self.wake_dispatchers(message.work_pool_id)
@@ -782,7 +339,9 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
     async def read_message(
         self, *, work_pool_id: UUID, message_id: UUID
     ) -> CleanupQueueMessage | None:
-        fields = await self._client().hgetall(self._message_key(message_id))
+        fields = _string_mapping(
+            await self._client().hgetall(self._message_key(message_id))
+        )
         if not fields:
             return None
         message = self._message_from_mapping(fields)
@@ -791,7 +350,9 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
     async def read_dead_letter(
         self, *, work_pool_id: UUID, message_id: UUID
     ) -> CleanupQueueDeadLetter | None:
-        fields = await self._client().hgetall(self._dead_key(message_id))
+        fields = _string_mapping(
+            await self._client().hgetall(self._dead_key(message_id))
+        )
         if not fields:
             return None
         dead_letter = self._dead_letter_from_mapping(fields)
@@ -840,8 +401,501 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
             except (TimeoutError, asyncio.TimeoutError):
                 continue
 
-    async def _eval(self, script: str, *args: Any) -> Any:
-        return await self._client().eval(script, 0, *args)
+    async def _reserve_candidate(
+        self,
+        *,
+        work_pool_id: UUID,
+        message_id: str,
+        current_time: DateTime,
+        lease_expires_at: DateTime,
+        reservation_token: str,
+        cleanup_kind_filter: set[str] | None,
+        queue_filter: set[str] | None,
+    ) -> CleanupQueueReservation | None:
+        visible_key = self._visible_key(work_pool_id)
+        reserved_key = self._reserved_key(work_pool_id)
+        message_key = self._message_key(message_id)
+        reservation_key = self._reservation_key(message_id)
+        lease_expires_ms = _score_ms(lease_expires_at)
+        current_ms = _score_ms(current_time)
+
+        for _ in range(_MAX_TRANSACTION_ATTEMPTS):
+            async with self._client().pipeline(transaction=True) as pipe:
+                try:
+                    await pipe.watch(
+                        visible_key, reserved_key, message_key, reservation_key
+                    )
+                    visible_score = await pipe.zscore(visible_key, message_id)
+                    if visible_score is None:
+                        await pipe.reset()
+                        return None
+
+                    message_fields = _string_mapping(await pipe.hgetall(message_key))
+                    if not message_fields:
+                        pipe.multi()
+                        pipe.zrem(visible_key, message_id)
+                        await pipe.execute()
+                        return None
+
+                    if not self._message_matches_filters(
+                        message_fields=message_fields,
+                        work_pool_id=work_pool_id,
+                        cleanup_kind_filter=cleanup_kind_filter,
+                        queue_filter=queue_filter,
+                    ):
+                        await pipe.reset()
+                        return None
+
+                    reservation_fields = _string_mapping(
+                        await pipe.hgetall(reservation_key)
+                    )
+                    if self._reservation_is_active(
+                        reservation_fields=reservation_fields,
+                        current_ms=current_ms,
+                    ):
+                        pipe.multi()
+                        pipe.zrem(visible_key, message_id)
+                        await pipe.execute()
+                        return None
+
+                    delivery_count = int(message_fields["delivery_count"])
+                    if delivery_count >= self._policy().max_delivery_attempts:
+                        pipe.multi()
+                        self._queue_dead_letter(
+                            pipe=pipe,
+                            message_fields=message_fields,
+                            reservation_fields=reservation_fields,
+                            current_time=current_time,
+                            reason="max_delivery_attempts_reached",
+                        )
+                        await pipe.execute()
+                        return None
+
+                    updated_fields = {
+                        **message_fields,
+                        "delivery_count": str(delivery_count + 1),
+                        "updated_at": _format_datetime(current_time),
+                    }
+                    pipe.multi()
+                    pipe.hset(message_key, mapping=updated_fields)
+                    pipe.hset(
+                        reservation_key,
+                        mapping={
+                            "token": reservation_token,
+                            "lease_expires_at": _format_datetime(lease_expires_at),
+                            "lease_expires_ms": str(lease_expires_ms),
+                            "reserved_at": _format_datetime(current_time),
+                        },
+                    )
+                    pipe.zrem(visible_key, message_id)
+                    pipe.zadd(reserved_key, {message_id: lease_expires_ms})
+                    await pipe.execute()
+
+                    message = self._message_from_mapping(updated_fields)
+                    return CleanupQueueReservation(
+                        **message.model_dump(),
+                        reservation_token=reservation_token,
+                        lease_expires_at=lease_expires_at,
+                    )
+                except WatchError:
+                    continue
+
+        raise RuntimeError("Redis cleanup queue reserve transaction failed.")
+
+    async def _run_operation(
+        self,
+        *,
+        operation: CleanupQueueOperation,
+        work_pool_id: UUID,
+        message_id: UUID,
+        reservation_token: str,
+        release_reason: str | None = None,
+    ) -> CleanupQueueOperationResult:
+        current_time = now("UTC")
+        current_ms = _score_ms(current_time)
+        policy = self._policy()
+        lease_expires_at = (
+            current_time + policy.lease_duration if operation == "renew" else None
+        )
+        message_key = self._message_key(message_id)
+        reservation_key = self._reservation_key(message_id)
+        visible_key = self._visible_key(work_pool_id)
+        reserved_key = self._reserved_key(work_pool_id)
+
+        for _ in range(_MAX_TRANSACTION_ATTEMPTS):
+            async with self._client().pipeline(transaction=True) as pipe:
+                try:
+                    await pipe.watch(
+                        message_key, reservation_key, visible_key, reserved_key
+                    )
+                    message_fields = _string_mapping(await pipe.hgetall(message_key))
+                    reservation_fields = _string_mapping(
+                        await pipe.hgetall(reservation_key)
+                    )
+
+                    if not message_fields:
+                        pipe.multi()
+                        await pipe.execute()
+                        return self._operation_result(
+                            operation=operation,
+                            message_id=message_id,
+                            status="not_found",
+                            reason="message_not_found",
+                        )
+
+                    if message_fields["work_pool_id"] != str(work_pool_id):
+                        pipe.multi()
+                        await pipe.execute()
+                        return self._operation_result(
+                            operation=operation,
+                            message_id=message_id,
+                            status="unauthorized",
+                            reason="work_pool_mismatch",
+                        )
+
+                    if not reservation_fields:
+                        pipe.multi()
+                        await pipe.execute()
+                        return self._operation_result(
+                            operation=operation,
+                            message_id=message_id,
+                            status="not_current",
+                            reason="no_active_reservation",
+                        )
+
+                    if reservation_fields.get("token") != reservation_token:
+                        pipe.multi()
+                        await pipe.execute()
+                        return self._operation_result(
+                            operation=operation,
+                            message_id=message_id,
+                            status="invalid_token",
+                            reason="reservation_token_mismatch",
+                        )
+
+                    if int(reservation_fields.get("lease_expires_ms") or "0") <= (
+                        current_ms
+                    ):
+                        pipe.multi()
+                        if (
+                            int(message_fields["delivery_count"])
+                            >= policy.max_delivery_attempts
+                        ):
+                            dead_letter = self._queue_dead_letter(
+                                pipe=pipe,
+                                message_fields=message_fields,
+                                reservation_fields=reservation_fields,
+                                current_time=current_time,
+                                reason="max_delivery_attempts_reached",
+                            )
+                            await pipe.execute()
+                            return self._operation_result(
+                                operation=operation,
+                                message_id=message_id,
+                                status="dead_lettered",
+                                reason="max_delivery_attempts_reached",
+                                dead_letter=dead_letter,
+                            )
+
+                        self._queue_redelivery(
+                            pipe=pipe,
+                            message_fields=message_fields,
+                            current_time=current_time,
+                            current_ms=current_ms,
+                        )
+                        await pipe.execute()
+                        await self.wake_dispatchers(work_pool_id)
+                        return self._operation_result(
+                            operation=operation,
+                            message_id=message_id,
+                            status="expired",
+                            reason="lease_expired",
+                        )
+
+                    if operation == "ack":
+                        pipe.multi()
+                        self._queue_ack(
+                            pipe=pipe,
+                            message_fields=message_fields,
+                            current_time=current_time,
+                            retention=policy.completed_idempotency_retention,
+                        )
+                        await pipe.execute()
+                        return self._operation_result(
+                            operation=operation,
+                            message_id=message_id,
+                            status="accepted",
+                        )
+
+                    if operation == "release":
+                        pipe.multi()
+                        if (
+                            int(message_fields["delivery_count"])
+                            >= policy.max_delivery_attempts
+                        ):
+                            dead_letter = self._queue_dead_letter(
+                                pipe=pipe,
+                                message_fields=message_fields,
+                                reservation_fields=reservation_fields,
+                                current_time=current_time,
+                                reason="max_delivery_attempts_reached",
+                                release_reason=release_reason,
+                            )
+                            await pipe.execute()
+                            return self._operation_result(
+                                operation=operation,
+                                message_id=message_id,
+                                status="dead_lettered",
+                                reason="max_delivery_attempts_reached",
+                                dead_letter=dead_letter,
+                            )
+
+                        self._queue_redelivery(
+                            pipe=pipe,
+                            message_fields=message_fields,
+                            current_time=current_time,
+                            current_ms=current_ms,
+                        )
+                        await pipe.execute()
+                        await self.wake_dispatchers(work_pool_id)
+                        return self._operation_result(
+                            operation=operation,
+                            message_id=message_id,
+                            status="accepted",
+                        )
+
+                    if operation == "renew":
+                        if lease_expires_at is None:
+                            raise ValueError("lease_expires_at is required for renew")
+
+                        pipe.multi()
+                        self._queue_renew(
+                            pipe=pipe,
+                            message_fields=message_fields,
+                            reservation_token=reservation_token,
+                            current_time=current_time,
+                            lease_expires_at=lease_expires_at,
+                        )
+                        await pipe.execute()
+                        return self._operation_result(
+                            operation=operation,
+                            message_id=message_id,
+                            status="accepted",
+                            lease_expires_at=lease_expires_at,
+                        )
+
+                    raise ValueError(f"Unknown cleanup queue operation: {operation!r}")
+                except WatchError:
+                    continue
+
+        raise RuntimeError("Redis cleanup queue operation transaction failed.")
+
+    async def _expire_lease_candidate(
+        self,
+        *,
+        work_pool_id: str,
+        message_id: str,
+        current_time: DateTime,
+        current_ms: int,
+    ) -> _LeaseExpiryOutcome:
+        visible_key = self._visible_key(work_pool_id)
+        reserved_key = self._reserved_key(work_pool_id)
+        message_key = self._message_key(message_id)
+        reservation_key = self._reservation_key(message_id)
+
+        for _ in range(_MAX_TRANSACTION_ATTEMPTS):
+            async with self._client().pipeline(transaction=True) as pipe:
+                try:
+                    await pipe.watch(
+                        visible_key, reserved_key, message_key, reservation_key
+                    )
+                    reserved_score = await pipe.zscore(reserved_key, message_id)
+                    if reserved_score is None or reserved_score > current_ms:
+                        await pipe.reset()
+                        return None
+
+                    message_fields = _string_mapping(await pipe.hgetall(message_key))
+                    reservation_fields = _string_mapping(
+                        await pipe.hgetall(reservation_key)
+                    )
+
+                    if not message_fields:
+                        pipe.multi()
+                        pipe.delete(reservation_key)
+                        pipe.zrem(reserved_key, message_id)
+                        await pipe.execute()
+                        return None
+
+                    reservation_lease_ms = int(
+                        reservation_fields.get("lease_expires_ms") or "0"
+                    )
+                    if reservation_lease_ms > current_ms:
+                        pipe.multi()
+                        pipe.zadd(reserved_key, {message_id: reservation_lease_ms})
+                        await pipe.execute()
+                        return None
+
+                    pipe.multi()
+                    if (
+                        int(message_fields["delivery_count"])
+                        >= self._policy().max_delivery_attempts
+                    ):
+                        dead_letter = self._queue_dead_letter(
+                            pipe=pipe,
+                            message_fields=message_fields,
+                            reservation_fields=reservation_fields,
+                            current_time=current_time,
+                            reason="max_delivery_attempts_reached",
+                        )
+                        await pipe.execute()
+                        return "dead_lettered", dead_letter
+
+                    message = self._queue_redelivery(
+                        pipe=pipe,
+                        message_fields=message_fields,
+                        current_time=current_time,
+                        current_ms=current_ms,
+                    )
+                    await pipe.execute()
+                    return "redelivered", message
+                except WatchError:
+                    continue
+
+        raise RuntimeError("Redis cleanup queue lease expiry transaction failed.")
+
+    async def _read_existing_message_from_keys(
+        self,
+        *,
+        pipe: Any,
+        keys: tuple[str, ...],
+        idempotency_key: str,
+        work_pool_id: UUID,
+    ) -> CleanupQueueMessage | None:
+        for key in keys:
+            fields = _string_mapping(await pipe.hgetall(key))
+            if not fields:
+                continue
+
+            if fields["idempotency_key"] != idempotency_key or fields[
+                "work_pool_id"
+            ] != str(work_pool_id):
+                raise ValueError(
+                    "message_id is already associated with a different cleanup message"
+                )
+            return self._message_from_mapping(fields)
+
+        return None
+
+    def _queue_ack(
+        self,
+        *,
+        pipe: Any,
+        message_fields: Mapping[str, str],
+        current_time: DateTime,
+        retention: timedelta | None,
+    ) -> None:
+        message_id = message_fields["message_id"]
+        work_pool_id = message_fields["work_pool_id"]
+        current_time_string = _format_datetime(current_time)
+        acked_key = self._acked_key(message_id)
+
+        pipe.hset(
+            acked_key,
+            mapping={
+                **message_fields,
+                "updated_at": current_time_string,
+                "completed_at": current_time_string,
+            },
+        )
+        pipe.delete(self._message_key(message_id))
+        pipe.delete(self._reservation_key(message_id))
+        pipe.zrem(self._visible_key(work_pool_id), message_id)
+        pipe.zrem(self._reserved_key(work_pool_id), message_id)
+
+        if retention is not None:
+            retention_ms = int(retention.total_seconds() * 1000)
+            pipe.pexpire(acked_key, retention_ms)
+            pipe.pexpire(
+                self._idempotency_key(work_pool_id, message_fields["idempotency_hash"]),
+                retention_ms,
+            )
+
+    def _queue_redelivery(
+        self,
+        *,
+        pipe: Any,
+        message_fields: Mapping[str, str],
+        current_time: DateTime,
+        current_ms: int,
+    ) -> CleanupQueueMessage:
+        message_id = message_fields["message_id"]
+        work_pool_id = message_fields["work_pool_id"]
+        updated_fields = {
+            **message_fields,
+            "updated_at": _format_datetime(current_time),
+        }
+        pipe.delete(self._reservation_key(message_id))
+        pipe.zrem(self._reserved_key(work_pool_id), message_id)
+        pipe.hset(self._message_key(message_id), mapping=updated_fields)
+        pipe.zadd(self._visible_key(work_pool_id), {message_id: current_ms})
+        return self._message_from_mapping(updated_fields)
+
+    def _queue_renew(
+        self,
+        *,
+        pipe: Any,
+        message_fields: Mapping[str, str],
+        reservation_token: str,
+        current_time: DateTime,
+        lease_expires_at: DateTime,
+    ) -> None:
+        message_id = message_fields["message_id"]
+        work_pool_id = message_fields["work_pool_id"]
+        lease_expires_ms = _score_ms(lease_expires_at)
+        pipe.hset(
+            self._reservation_key(message_id),
+            mapping={
+                "token": reservation_token,
+                "lease_expires_at": _format_datetime(lease_expires_at),
+                "lease_expires_ms": str(lease_expires_ms),
+            },
+        )
+        pipe.hset(
+            self._message_key(message_id),
+            mapping={
+                **message_fields,
+                "updated_at": _format_datetime(current_time),
+            },
+        )
+        pipe.zadd(self._reserved_key(work_pool_id), {message_id: lease_expires_ms})
+
+    def _queue_dead_letter(
+        self,
+        *,
+        pipe: Any,
+        message_fields: Mapping[str, str],
+        reservation_fields: Mapping[str, str],
+        current_time: DateTime,
+        reason: str,
+        release_reason: str | None = None,
+    ) -> CleanupQueueDeadLetter:
+        message_id = message_fields["message_id"]
+        work_pool_id = message_fields["work_pool_id"]
+        dead_fields = {
+            **message_fields,
+            "reason": reason,
+            "final_delivery_count": message_fields.get("delivery_count") or "0",
+            "moved_at": _format_datetime(current_time),
+            "reservation_token": reservation_fields.get("token", ""),
+            "lease_expires_at": reservation_fields.get("lease_expires_at", ""),
+            "release_reason": release_reason or "",
+        }
+        pipe.hset(self._dead_key(message_id), mapping=dead_fields)
+        pipe.delete(self._message_key(message_id))
+        pipe.delete(self._reservation_key(message_id))
+        pipe.zrem(self._visible_key(work_pool_id), message_id)
+        pipe.zrem(self._reserved_key(work_pool_id), message_id)
+        return self._dead_letter_from_mapping(dead_fields)
 
     def _client(self) -> "Redis":
         if self._redis_client is not None:
@@ -875,16 +929,83 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         return RedisWorkerCleanupQueueSettings().key_prefix.rstrip(":")
 
     async def _work_pools(self) -> list[str]:
-        return list(await self._client().smembers(f"{self._prefix()}:pools"))
+        return [
+            _decode_redis_value(work_pool_id)
+            for work_pool_id in await self._client().smembers(self._pools_key())
+        ]
 
-    def _message_key(self, message_id: UUID) -> str:
+    def _message_key(self, message_id: UUID | str) -> str:
         return f"{self._prefix()}:messages:{message_id}"
 
-    def _dead_key(self, message_id: UUID) -> str:
+    def _reservation_key(self, message_id: UUID | str) -> str:
+        return f"{self._prefix()}:reservations:{message_id}"
+
+    def _dead_key(self, message_id: UUID | str) -> str:
         return f"{self._prefix()}:dead:{message_id}"
 
-    def _wakeup_key(self, work_pool_id: UUID) -> str:
+    def _acked_key(self, message_id: UUID | str) -> str:
+        return f"{self._prefix()}:acked:{message_id}"
+
+    def _idempotency_key(self, work_pool_id: UUID | str, idempotency_hash: str) -> str:
+        return f"{self._prefix()}:idempotency:{work_pool_id}:{idempotency_hash}"
+
+    def _visible_key(self, work_pool_id: UUID | str) -> str:
+        return f"{self._prefix()}:pool:{work_pool_id}:visible"
+
+    def _reserved_key(self, work_pool_id: UUID | str) -> str:
+        return f"{self._prefix()}:pool:{work_pool_id}:reserved"
+
+    def _wakeup_key(self, work_pool_id: UUID | str) -> str:
         return f"{self._prefix()}:wakeup:{work_pool_id}"
+
+    def _pools_key(self) -> str:
+        return f"{self._prefix()}:pools"
+
+    @staticmethod
+    def _message_matches_filters(
+        *,
+        message_fields: Mapping[str, str],
+        work_pool_id: UUID,
+        cleanup_kind_filter: set[str] | None,
+        queue_filter: set[str] | None,
+    ) -> bool:
+        if message_fields["work_pool_id"] != str(work_pool_id):
+            return False
+        if (
+            cleanup_kind_filter is not None
+            and message_fields["kind"] not in cleanup_kind_filter
+        ):
+            return False
+        if (
+            queue_filter is not None
+            and message_fields["work_queue_id"] not in queue_filter
+        ):
+            return False
+        return True
+
+    @staticmethod
+    def _reservation_is_active(
+        *, reservation_fields: Mapping[str, str], current_ms: int
+    ) -> bool:
+        if not reservation_fields:
+            return False
+        return int(reservation_fields.get("lease_expires_ms") or "0") > current_ms
+
+    @staticmethod
+    def _queue_preference_passes(
+        *,
+        preferred_work_queue_ids: Iterable[UUID] | None,
+        allow_fallback_to_any_queue: bool,
+    ) -> tuple[set[str] | None, ...]:
+        if preferred_work_queue_ids is None:
+            return (None,)
+
+        preferred_queue_filter = {
+            str(queue_id) for queue_id in preferred_work_queue_ids
+        }
+        if allow_fallback_to_any_queue:
+            return (preferred_queue_filter, None)
+        return (preferred_queue_filter,)
 
     @staticmethod
     def _message_fields(
@@ -904,7 +1025,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
             "idempotency_hash": _idempotency_hash(idempotency_key),
             "work_pool_id": str(work_pool_id),
             "work_queue_id": "" if work_queue_id is None else str(work_queue_id),
-            "kind": kind,
+            "kind": str(kind),
             "target": json.dumps(dict(target), separators=(",", ":")),
             "data": json.dumps(dict(data or {}), separators=(",", ":")),
             "created_at": _format_datetime(current_time),
@@ -912,11 +1033,8 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
             "delivery_count": "0",
         }
 
-    def _message_from_fields(self, fields: list[str]) -> CleanupQueueMessage:
-        return self._message_from_mapping(_flat_fields_to_mapping(fields))
-
     @staticmethod
-    def _message_from_mapping(fields: Mapping[str, Any]) -> CleanupQueueMessage:
+    def _message_from_mapping(fields: Mapping[str, str]) -> CleanupQueueMessage:
         return CleanupQueueMessage(
             message_id=fields["message_id"],
             idempotency_key=fields["idempotency_key"],
@@ -930,11 +1048,8 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
             delivery_count=int(fields["delivery_count"]),
         )
 
-    def _dead_letter_from_fields(self, fields: list[str]) -> CleanupQueueDeadLetter:
-        return self._dead_letter_from_mapping(_flat_fields_to_mapping(fields))
-
     def _dead_letter_from_mapping(
-        self, fields: Mapping[str, Any]
+        self, fields: Mapping[str, str]
     ) -> CleanupQueueDeadLetter:
         return CleanupQueueDeadLetter(
             message=self._message_from_mapping(fields),
@@ -946,47 +1061,27 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
             release_reason=fields["release_reason"] or None,
         )
 
-    async def _operation_result_from_response(
-        self,
+    @staticmethod
+    def _operation_result(
         *,
         operation: CleanupQueueOperation,
-        work_pool_id: UUID,
         message_id: UUID,
-        response: list[Any],
+        status: CleanupOperationStatus,
+        lease_expires_at: DateTime | None = None,
+        reason: str | None = None,
+        dead_letter: CleanupQueueDeadLetter | None = None,
     ) -> CleanupQueueOperationResult:
-        status = response[0]
-        if status == "accepted":
-            if len(response) > 1 and response[1] == "wake":
-                await self.wake_dispatchers(work_pool_id)
-            lease_expires_at = response[1] if operation == "renew" else None
-            return CleanupQueueOperationResult(
-                message_id=message_id,
-                operation=operation,
-                status="accepted",
-                lease_expires_at=lease_expires_at,
-            )
-
-        if status == "dead_lettered":
-            return CleanupQueueOperationResult(
-                message_id=message_id,
-                operation=operation,
-                status="dead_lettered",
-                reason=response[1],
-                dead_letter=self._dead_letter_from_fields(response[2]),
-            )
-
-        if len(response) > 2 and response[2] == "wake":
-            await self.wake_dispatchers(work_pool_id)
-
         return CleanupQueueOperationResult(
             message_id=message_id,
             operation=operation,
             status=status,
-            reason=response[1],
+            lease_expires_at=lease_expires_at,
+            reason=reason,
+            dead_letter=dead_letter,
         )
 
     @staticmethod
-    def _policy() -> "_QueuePolicy":
+    def _policy() -> _QueuePolicy:
         worker_channel_settings = get_current_settings().server.worker_channel
         retention_seconds = (
             worker_channel_settings.cleanup_completed_idempotency_retention_seconds
@@ -1004,21 +1099,17 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         )
 
 
-class _QueuePolicy:
-    def __init__(
-        self,
-        *,
-        lease_duration: timedelta,
-        max_delivery_attempts: int,
-        completed_idempotency_retention: timedelta | None,
-    ) -> None:
-        self.lease_duration = lease_duration
-        self.max_delivery_attempts = max_delivery_attempts
-        self.completed_idempotency_retention = completed_idempotency_retention
+def _string_mapping(fields: Mapping[Any, Any]) -> dict[str, str]:
+    return {
+        _decode_redis_value(key): _decode_redis_value(value)
+        for key, value in fields.items()
+    }
 
 
-def _flat_fields_to_mapping(fields: list[str]) -> dict[str, str]:
-    return {fields[index]: fields[index + 1] for index in range(0, len(fields), 2)}
+def _decode_redis_value(value: Any) -> str:
+    if isinstance(value, bytes):
+        return value.decode()
+    return str(value)
 
 
 def _format_datetime(value: DateTime) -> str:

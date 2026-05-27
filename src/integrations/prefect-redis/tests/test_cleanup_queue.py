@@ -242,6 +242,36 @@ async def test_redis_stale_reservation_token_is_rejected_after_redelivery(
     assert stale_ack.status == "invalid_token"
 
 
+async def test_redis_release_moves_message_to_dead_letter_at_retry_limit(
+    queue: WorkerCleanupQueue,
+    cleanup_policy_settings: CleanupPolicySettings,
+) -> None:
+    work_pool_id = uuid4()
+    message_id = await _enqueue_message(queue, work_pool_id=work_pool_id)
+
+    with cleanup_policy_settings(max_delivery_attempts=1):
+        reservation = await queue.reserve(work_pool_id=work_pool_id)
+        assert reservation is not None
+
+        result = await queue.release(
+            work_pool_id=work_pool_id,
+            message_id=message_id,
+            reservation_token=reservation.reservation_token,
+            reason="unsupported_cleanup_kind",
+        )
+
+    dead_letter = await queue.read_dead_letter(
+        work_pool_id=work_pool_id, message_id=message_id
+    )
+
+    assert result.status == "dead_lettered"
+    assert result.reason == "max_delivery_attempts_reached"
+    assert dead_letter is not None
+    assert dead_letter.final_delivery_count == 1
+    assert dead_letter.release_reason == "unsupported_cleanup_kind"
+    assert await queue.reserve(work_pool_id=work_pool_id) is None
+
+
 async def test_redis_operation_on_expired_reservation_redelivers_message(
     queue: WorkerCleanupQueue,
     clock: Clock,
