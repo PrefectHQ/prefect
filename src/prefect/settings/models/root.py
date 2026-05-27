@@ -1,4 +1,6 @@
+import inspect
 import warnings
+from functools import cache
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -11,7 +13,7 @@ from typing import (
 )
 from urllib.parse import urlparse
 
-from pydantic import BeforeValidator, Field, SecretStr, model_validator
+from pydantic import AliasChoices, BeforeValidator, Field, SecretStr, model_validator
 from pydantic_settings import SettingsConfigDict
 from typing_extensions import Self
 
@@ -47,14 +49,41 @@ if TYPE_CHECKING:
     from prefect.settings.legacy import Setting
 
 
+@cache
+def _get_settings_accessors(
+    settings: type[PrefectBaseSettings], accessor_prefix: Optional[str] = None
+) -> dict[str, str]:
+    settings_accessors: dict[str, str] = {}
+    for field_name, field in settings.model_fields.items():
+        accessor = (
+            field_name if accessor_prefix is None else f"{accessor_prefix}.{field_name}"
+        )
+        if inspect.isclass(field.annotation) and issubclass(
+            field.annotation, PrefectBaseSettings
+        ):
+            settings_accessors.update(_get_settings_accessors(field.annotation, accessor))
+        else:
+            settings_accessors[accessor] = accessor
+            if field.validation_alias and isinstance(
+                field.validation_alias, AliasChoices
+            ):
+                for alias in field.validation_alias.choices:
+                    if isinstance(alias, str):
+                        settings_accessors[alias.upper()] = accessor
+            else:
+                settings_accessors[
+                    f"{settings.model_config.get('env_prefix')}{field_name.upper()}"
+                ] = accessor
+
+    return settings_accessors
+
+
 def _get_setting_accessor(setting: "Setting | str") -> str:
     if not isinstance(setting, str):
         return setting.accessor
 
-    from prefect.settings.legacy import _get_settings_fields
-
     try:
-        return _get_settings_fields(Settings)[setting].accessor
+        return _get_settings_accessors(Settings)[setting]
     except KeyError:
         raise ValueError(f"Unknown setting: {setting!r}") from None
 
