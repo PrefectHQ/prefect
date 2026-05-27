@@ -1556,6 +1556,38 @@ class TestTemporarySettings:
                     == PREFECT_API_DATABASE_PORT.default()
                 )
 
+    def test_temporary_settings_accepts_setting_accessor_strings(self):
+        assert get_current_settings().server.api.host == "127.0.0.1"
+
+        with temporary_settings(updates={"server.api.host": "0.0.0.0"}) as settings:
+            assert settings.server.api.host == "0.0.0.0"
+            assert get_current_settings().server.api.host == "0.0.0.0"
+
+        assert get_current_settings().server.api.host == "127.0.0.1"
+
+    def test_temporary_settings_accepts_environment_variable_strings(self):
+        with temporary_settings(updates={"PREFECT_SERVER_API_HOST": "0.0.0.0"}):
+            assert get_current_settings().server.api.host == "0.0.0.0"
+
+    def test_temporary_settings_set_defaults_accepts_setting_accessor_strings(self):
+        with temporary_settings(set_defaults={"server.api.host": "0.0.0.0"}):
+            assert get_current_settings().server.api.host == "0.0.0.0"
+
+        with temporary_settings(updates={"server.api.host": "localhost"}):
+            with temporary_settings(set_defaults={"server.api.host": "0.0.0.0"}):
+                assert get_current_settings().server.api.host == "localhost"
+
+    def test_temporary_settings_restore_defaults_accepts_setting_accessor_strings(self):
+        with temporary_settings(updates={"server.api.host": "0.0.0.0"}):
+            assert get_current_settings().server.api.host == "0.0.0.0"
+            with temporary_settings(restore_defaults={"server.api.host"}):
+                assert get_current_settings().server.api.host == "127.0.0.1"
+
+    def test_temporary_settings_rejects_unknown_setting_strings(self):
+        with pytest.raises(ValueError, match="Unknown setting"):
+            with temporary_settings(updates={"server.api.not_real": "nope"}):
+                pass
+
     def test_temporary_settings_restores_on_error(self):
         assert PREFECT_TEST_MODE.value() is True
 

@@ -47,6 +47,18 @@ if TYPE_CHECKING:
     from prefect.settings.legacy import Setting
 
 
+def _get_setting_accessor(setting: "Setting | str") -> str:
+    if not isinstance(setting, str):
+        return setting.accessor
+
+    from prefect.settings.legacy import _get_settings_fields
+
+    try:
+        return _get_settings_fields(Settings)[setting].accessor
+    except KeyError:
+        raise ValueError(f"Unknown setting: {setting!r}") from None
+
+
 class Settings(PrefectBaseSettings):
     """
     Settings for Prefect using Pydantic settings.
@@ -336,9 +348,9 @@ class Settings(PrefectBaseSettings):
 
     def copy_with_update(
         self: Self,
-        updates: Optional[Mapping["Setting", Any]] = None,
-        set_defaults: Optional[Mapping["Setting", Any]] = None,
-        restore_defaults: Optional[Iterable["Setting"]] = None,
+        updates: Optional[Mapping["Setting | str", Any]] = None,
+        set_defaults: Optional[Mapping["Setting | str", Any]] = None,
+        restore_defaults: Optional[Iterable["Setting | str"]] = None,
     ) -> Self:
         """
         Create a new Settings object with validation.
@@ -358,7 +370,8 @@ class Settings(PrefectBaseSettings):
         # defaults, all settings sources will be ignored.
         restore_defaults_obj: dict[str, Any] = {}
         for r in restore_defaults or []:
-            path = r.accessor.split(".")
+            accessor = _get_setting_accessor(r)
+            path = accessor.split(".")
             model = self
             model_cls = model.__class__
             model_fields = model_cls.model_fields
@@ -366,11 +379,11 @@ class Settings(PrefectBaseSettings):
                 model_field = model_fields[key]
                 model_cls = model_field.annotation
                 if model_cls is None:
-                    raise ValueError(f"Invalid setting path: {r.accessor}")
+                    raise ValueError(f"Invalid setting path: {accessor}")
                 model_fields = model_cls.model_fields
 
             model_field = model_fields[path[-1]]
-            assert model_field is not None, f"Invalid setting path: {r.accessor}"
+            assert model_field is not None, f"Invalid setting path: {accessor}"
             if hasattr(model_field, "default"):
                 default = model_field.default
             elif (
@@ -378,10 +391,10 @@ class Settings(PrefectBaseSettings):
             ):
                 default = model_field.default_factory()
             else:
-                raise ValueError(f"No default value for setting: {r.accessor}")
+                raise ValueError(f"No default value for setting: {accessor}")
             set_in_dict(
                 restore_defaults_obj,
-                r.accessor,
+                accessor,
                 default,
             )
         updates = updates or {}
@@ -389,11 +402,11 @@ class Settings(PrefectBaseSettings):
 
         set_defaults_obj: dict[str, Any] = {}
         for setting, value in set_defaults.items():
-            set_in_dict(set_defaults_obj, setting.accessor, value)
+            set_in_dict(set_defaults_obj, _get_setting_accessor(setting), value)
 
         updates_obj: dict[str, Any] = {}
         for setting, value in updates.items():
-            set_in_dict(updates_obj, setting.accessor, value)
+            set_in_dict(updates_obj, _get_setting_accessor(setting), value)
 
         new_settings = self.__class__.model_validate(
             deep_merge_dicts(
