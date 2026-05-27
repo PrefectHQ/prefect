@@ -15,6 +15,7 @@ class TestDatabricksCredentialsPATAuth:
         ).get_client()
         assert isinstance(client, AsyncClient)
         assert client.headers["authorization"] == "Bearer token_value"
+        assert client.headers["user-agent"] == "prefect+prefect-databricks"
 
     def test_backward_compatibility_with_token(self):
         """Test backward compatibility - existing PAT-based credentials work unchanged."""
@@ -37,6 +38,21 @@ class TestDatabricksCredentialsPATAuth:
         client = credentials.get_client()
         assert isinstance(client, AsyncClient)
         assert client.headers["authorization"] == "Bearer token_value"
+
+    def test_get_client_appends_to_user_agent_from_client_kwargs(self):
+        """Test that user-agent headers include Prefect attribution."""
+        credentials = DatabricksCredentials(
+            databricks_instance="databricks_instance",
+            token="token_value",
+            client_kwargs={"headers": {"User-Agent": "custom-client/1.0"}},
+        )
+        client = credentials.get_client()
+        assert isinstance(client, AsyncClient)
+        assert client.headers["authorization"] == "Bearer token_value"
+        assert (
+            client.headers["user-agent"]
+            == "custom-client/1.0 prefect+prefect-databricks"
+        )
 
 
 class TestDatabricksCredentialsServicePrincipalAuth:

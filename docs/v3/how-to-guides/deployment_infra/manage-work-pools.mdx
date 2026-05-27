@@ -93,13 +93,13 @@ prefect work-pool delete 'test-pool'
 Set concurrency:
 
 ```bash
-prefect work-pool set-concurrency-limit [LIMIT] [POOL_NAME]
+prefect work-pool set-concurrency-limit my-pool 10
 ```
 
 Clear concurrency:
 
 ```bash
-prefect work-pool clear-concurrency-limit [POOL_NAME]
+prefect work-pool clear-concurrency-limit my-pool
 ```
 
 ### Base job template

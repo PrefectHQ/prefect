@@ -21,8 +21,6 @@ from prefect.server.schemas.schedules import (
 )
 from prefect.settings import PREFECT_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS
 
-pytestmark = pytest.mark.clear_db
-
 
 @pytest.mark.parametrize(
     "test_params,expected_dict",

@@ -11,8 +11,6 @@ from prefect.server.utilities.user_templates import (
     render_user_template_sync,
 )
 
-pytestmark = pytest.mark.clear_db
-
 
 class NestedTemplateModel(BaseModel):
     when: datetime

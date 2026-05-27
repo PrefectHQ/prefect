@@ -350,6 +350,8 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_API_MAX_PARAMETER_SIZE": {"test_value": 1024},
     "PREFECT_SERVER_API_KEEPALIVE_TIMEOUT": {"test_value": 10},
     "PREFECT_SERVER_API_PORT": {"test_value": 4200},
+    "PREFECT_SERVER_API_WEBSOCKET_PING_INTERVAL": {"test_value": 30.0},
+    "PREFECT_SERVER_API_WEBSOCKET_PING_TIMEOUT": {"test_value": 30.0},
     "PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE": {
         "test_value": "prefect.server.concurrency.lease_storage.filesystem"
     },
@@ -407,6 +409,14 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS": {"test_value": 10},
     "PREFECT_SERVER_DOCKET_NAME": {"test_value": "test-docket"},
     "PREFECT_SERVER_DOCKET_URL": {"test_value": "redis://localhost:6379/0"},
+    "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_COMPLETED_IDEMPOTENCY_RETENTION_SECONDS": {
+        "test_value": 3600.0
+    },
+    "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_LEASE_SECONDS": {"test_value": 60.0},
+    "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_MAX_DELIVERY_ATTEMPTS": {"test_value": 5},
+    "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE": {
+        "test_value": "prefect.server.worker_communication.cleanup_queue.memory"
+    },
     "PREFECT_SERVER_EPHEMERAL_ENABLED": {"test_value": True},
     "PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS": {"test_value": 10},
     "PREFECT_SERVER_EVENTS_CAUSAL_ORDERING": {

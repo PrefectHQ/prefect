@@ -15,8 +15,6 @@ from prefect.server.events.schemas.events import (
 from prefect.types import DateTime
 from prefect.types._datetime import now
 
-pytestmark = pytest.mark.clear_db
-
 
 def test_client_events_do_not_have_defaults_for_the_fields_it_seems_they_should():
     """While it seems tempting to include a default for `occurred` or `id`, these

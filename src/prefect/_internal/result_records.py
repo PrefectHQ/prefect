@@ -16,6 +16,7 @@ from uuid import UUID
 from pydantic import (
     BaseModel,
     Field,
+    PrivateAttr,
     ValidationError,
     field_validator,
     model_validator,
@@ -105,6 +106,14 @@ class ResultRecord(BaseModel, Generic[R]):
 
     metadata: ResultRecordMetadata
     result: R
+    _persisted: bool = PrivateAttr(default=False)
+
+    @property
+    def is_persisted(self) -> bool:
+        return self._persisted
+
+    def mark_persisted(self) -> None:
+        self._persisted = True
 
     @property
     def expiration(self) -> DateTime | None:
