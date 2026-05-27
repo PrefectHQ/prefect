@@ -61,7 +61,9 @@ def _get_settings_accessors(
         if inspect.isclass(field.annotation) and issubclass(
             field.annotation, PrefectBaseSettings
         ):
-            settings_accessors.update(_get_settings_accessors(field.annotation, accessor))
+            settings_accessors.update(
+                _get_settings_accessors(field.annotation, accessor)
+            )
         else:
             settings_accessors[accessor] = accessor
             if field.validation_alias and isinstance(
