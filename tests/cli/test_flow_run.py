@@ -41,6 +41,7 @@ from prefect.states import (
 from prefect.testing.cli import invoke_and_assert
 from prefect.types._datetime import now
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.filesystem import tmpchdir
 
 pytestmark = pytest.mark.clear_db
 
@@ -1734,6 +1735,75 @@ class TestFlowRunExecute:
             command=["flow-run", "execute", str(flow_run.id)],
             expected_code=0,
         )
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_completed()
+
+    async def test_execute_flow_run_uses_local_deployment_path_in_place(
+        self, prefect_client: PrefectClient, tmp_path: Path
+    ):
+        local_project = tmp_path / "image-app"
+        flow_file = local_project / "flows" / "hello.py"
+        flow_file.parent.mkdir(parents=True)
+        flow_file.write_text(
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'hello'\n"
+        )
+        local_project.joinpath(".prefectignore").write_text("flows/\n")
+
+        flow_id = await prefect_client.create_flow_from_name("image-local-hello")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="image-local-workspace",
+            entrypoint="flows/hello.py:hello",
+            path=str(local_project),
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "execute", str(flow_run.id)],
+            expected_code=0,
+        )
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_completed()
+
+    async def test_execute_flow_run_materializes_source_when_pull_steps_do_not_select_workspace(
+        self, prefect_client: PrefectClient, tmp_path: Path
+    ) -> None:
+        local_project = tmp_path / "setup-step-app"
+        flow_file = local_project / "flows" / "hello.py"
+        flow_file.parent.mkdir(parents=True)
+        flow_file.write_text(
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'hello'\n"
+        )
+
+        flow_id = await prefect_client.create_flow_from_name("setup-step-hello")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="setup-step-workspace",
+            entrypoint="flows/hello.py:hello",
+            pull_steps=[
+                {
+                    "prefect.deployments.steps.run_shell_script": {
+                        "script": "echo setup complete",
+                        "stream_output": False,
+                    }
+                }
+            ],
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        with tmpchdir(local_project):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=["flow-run", "execute", str(flow_run.id)],
+                expected_code=0,
+            )
 
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_completed()
