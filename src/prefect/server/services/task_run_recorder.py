@@ -42,6 +42,8 @@ logger: "logging.Logger" = get_logger(__name__)
 DEFAULT_PERSIST_MAX_RETRIES = 5
 
 TaskRunUpsertKey = tuple[str, UUID] | tuple[str, UUID, str, str]
+TaskRunBatchKey = tuple[frozenset[str], str]
+TaskRunBatchByKey = tuple[TaskRunBatchKey, list[dict[str, Any]]]
 
 
 def _task_run_upsert_key(task_run: TaskRun) -> TaskRunUpsertKey:
@@ -334,9 +336,7 @@ async def _record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
         # Batch contiguous rows by keys to avoid column mismatches during bulk insert.
         # Keeping only contiguous runs preserves the global conflict-key sort order
         # established above for deterministic lock acquisition.
-        batches_by_keys: list[
-            tuple[tuple[frozenset[str], str], list[dict[str, Any]]]
-        ] = []
+        batches_by_keys: list[TaskRunBatchByKey] = []
         for tr in unique_task_runs:
             key_signature = (
                 frozenset(tr["task_run_dict"].keys()),

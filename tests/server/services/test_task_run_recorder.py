@@ -1625,6 +1625,12 @@ async def test_bulk_upserts_preserve_global_conflict_key_order_across_column_gro
     session: AsyncSession,
     flow_run: FlowRun,
 ):
+    """Rows with different insert column signatures still execute in global order.
+
+    Bulk inserts must split rows by column signature, but collecting all matching
+    signatures together can reorder already-sorted conflict keys and reintroduce
+    lock-order inversions across concurrent recorders.
+    """
     captured_keys: list[tuple[UUID, str, str]] = []
     original_values = Insert.values
 
