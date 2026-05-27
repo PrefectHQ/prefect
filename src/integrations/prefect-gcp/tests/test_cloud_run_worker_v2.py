@@ -744,21 +744,22 @@ class TestCloudRunWorkerV2KillInfrastructure:
             mock_logger.info.assert_called_once()
             assert "was deleted" in mock_logger.info.call_args[0][0]
 
-    def test_watch_job_execution_reraises_non_404_errors(
+    def test_watch_job_execution_reraises_non_transient_errors(
         self, cloud_run_worker_v2_job_config, mock_credentials
     ):
-        """Test that _watch_job_execution re-raises non-404 HTTP errors."""
+        """Test that _watch_job_execution re-raises non-transient HTTP errors."""
         mock_client = MagicMock()
 
-        # Create a mock execution that is initially running
         mock_execution = MagicMock(spec=ExecutionV2)
         mock_execution.is_running.return_value = True
         mock_execution.name = "projects/test/locations/us-central1/jobs/test-job/executions/test-execution"
 
-        # Create a 500 error (not 404)
+        # 400 is not transient, so it should bubble up immediately
         mock_resp = MagicMock()
-        mock_resp.status = 500
-        mock_http_error = HttpError(resp=mock_resp, content=b"Internal server error")
+        mock_resp.status = 400
+        mock_http_error = HttpError(resp=mock_resp, content=b"Bad request")
+
+        mock_logger = MagicMock(spec=PrefectLogAdapter)
 
         with mock.patch.object(ExecutionV2, "get", side_effect=mock_http_error):
             with pytest.raises(HttpError) as exc_info:
@@ -767,9 +768,81 @@ class TestCloudRunWorkerV2KillInfrastructure:
                     configuration=cloud_run_worker_v2_job_config,
                     execution=mock_execution,
                     poll_interval=0,
+                    logger=mock_logger,
                 )
 
-            assert exc_info.value.status_code == 500
+            assert exc_info.value.status_code == 400
+
+    def test_watch_job_execution_retries_transient_error_then_succeeds(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        """Regression test: a transient 503 during polling should be retried, not crash the flow run."""
+        mock_client = MagicMock()
+
+        running_execution = MagicMock(spec=ExecutionV2)
+        running_execution.is_running.return_value = True
+        running_execution.name = "projects/test/locations/us-central1/jobs/test-job/executions/test-execution"
+
+        completed_execution = MagicMock(spec=ExecutionV2)
+        completed_execution.is_running.return_value = False
+        completed_execution.name = running_execution.name
+
+        mock_resp = MagicMock()
+        mock_resp.status = 503
+        transient_error = HttpError(resp=mock_resp, content=b"Service unavailable")
+
+        mock_logger = MagicMock(spec=PrefectLogAdapter)
+
+        with (
+            mock.patch.object(
+                ExecutionV2, "get", side_effect=[transient_error, completed_execution]
+            ),
+            mock.patch("prefect_gcp.workers.cloud_run_v2.time.sleep"),
+        ):
+            result = CloudRunWorkerV2._watch_job_execution(
+                cr_client=mock_client,
+                configuration=cloud_run_worker_v2_job_config,
+                execution=running_execution,
+                poll_interval=0,
+                logger=mock_logger,
+            )
+
+        assert result is completed_execution
+        mock_logger.warning.assert_called_once()
+        assert "503" in mock_logger.warning.call_args[0][1:].__repr__()
+
+
+class TestCloudRunWorkerV2ExecutionPollRetries:
+    def test_watch_job_execution_404_not_retried(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        """A 404 should immediately raise InfrastructureNotFound, not be retried."""
+        mock_client = MagicMock()
+
+        mock_execution = MagicMock(spec=ExecutionV2)
+        mock_execution.is_running.return_value = True
+        mock_execution.name = "projects/test/locations/us-central1/jobs/test-job/executions/test-execution"
+
+        mock_resp = MagicMock()
+        mock_resp.status = 404
+        mock_http_error = HttpError(resp=mock_resp, content=b"Execution not found")
+
+        mock_logger = MagicMock(spec=PrefectLogAdapter)
+
+        with mock.patch.object(
+            ExecutionV2, "get", side_effect=mock_http_error
+        ) as mock_get:
+            with pytest.raises(InfrastructureNotFound):
+                CloudRunWorkerV2._watch_job_execution(
+                    cr_client=mock_client,
+                    configuration=cloud_run_worker_v2_job_config,
+                    execution=mock_execution,
+                    poll_interval=0,
+                    logger=mock_logger,
+                )
+
+            # 404 is not transient, so get should only be called once
+            assert mock_get.call_count == 1
 
 
 class TestCloudRunWorkerV2CreateJobRetries:
