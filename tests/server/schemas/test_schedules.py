@@ -18,8 +18,6 @@ from prefect.server.schemas.schedules import (
 )
 from prefect.types._datetime import now, parse_datetime
 
-pytestmark = pytest.mark.clear_db
-
 dt = datetime(2020, 1, 1, tzinfo=ZoneInfo("UTC"))
 RRDaily = "FREQ=DAILY"
 
