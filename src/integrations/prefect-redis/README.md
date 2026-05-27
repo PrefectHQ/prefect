@@ -8,20 +8,3 @@
 </p>
 
 For more information about how to use Prefect, please refer to the [Prefect documentation](https://docs.prefect.io/).
-
-## Worker cleanup queue storage
-
-`prefect-redis` provides Redis-backed storage for Prefect server worker cleanup
-delivery. To select it, install `prefect-redis` with the server environment and
-set:
-
-```bash
-PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE=prefect_redis.cleanup_queue
-```
-
-Configure the Redis connection with `PREFECT_REDIS_WORKER_CLEANUP_QUEUE_URL` or
-the discrete `PREFECT_REDIS_WORKER_CLEANUP_QUEUE_HOST`,
-`PREFECT_REDIS_WORKER_CLEANUP_QUEUE_PORT`, and
-`PREFECT_REDIS_WORKER_CLEANUP_QUEUE_DB` settings. Use
-`PREFECT_REDIS_WORKER_CLEANUP_QUEUE_KEY_PREFIX` to isolate deployments that share
-the same Redis database.
