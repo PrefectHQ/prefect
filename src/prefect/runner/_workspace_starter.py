@@ -8,7 +8,7 @@ import subprocess
 import sys
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterable, Iterator
+from typing import TYPE_CHECKING, Any, Iterable, Iterator, NamedTuple
 from uuid import UUID
 
 import anyio
@@ -34,6 +34,12 @@ if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
     from prefect.flows import Flow
     from prefect.runner._control_channel import ControlChannel
+
+
+class _ProjectConfig(NamedTuple):
+    name: str | None
+    requirements: list[Requirement]
+    uses_uv_sources: bool
 
 
 def _decode_process_output(output: bytes | str | None) -> str:
@@ -139,7 +145,7 @@ def _absolute_file_entrypoint(workspace: PreparedWorkspace) -> str:
     return f"{entrypoint_path.resolve()}:{object_name}"
 
 
-def _read_project_requirements(pyproject: Path) -> list[Requirement] | None:
+def _read_project_config(pyproject: Path) -> _ProjectConfig | None:
     try:
         data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):
@@ -148,6 +154,10 @@ def _read_project_requirements(pyproject: Path) -> list[Requirement] | None:
     project = data.get("project")
     if not isinstance(project, dict):
         return None
+
+    name = project.get("name")
+    if not isinstance(name, str) or not name.strip():
+        name = None
 
     dependencies = project.get("dependencies")
     if not isinstance(dependencies, Iterable) or isinstance(dependencies, (str, bytes)):
@@ -162,38 +172,22 @@ def _read_project_requirements(pyproject: Path) -> list[Requirement] | None:
         except InvalidRequirement:
             return None
 
-    return requirements
-
-
-def _project_uses_uv_sources(pyproject: Path) -> bool:
-    try:
-        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError):
-        return False
-
     tool = data.get("tool")
-    if not isinstance(tool, dict):
-        return False
-    uv = tool.get("uv")
-    if not isinstance(uv, dict):
-        return False
-    sources = uv.get("sources")
-    return isinstance(sources, dict) and bool(sources)
+    uv = tool.get("uv") if isinstance(tool, dict) else None
+    sources = uv.get("sources") if isinstance(uv, dict) else None
+    uses_uv_sources = isinstance(sources, dict) and bool(sources)
+
+    return _ProjectConfig(
+        name=name,
+        requirements=requirements,
+        uses_uv_sources=uses_uv_sources,
+    )
 
 
 def _requirement_applies_to_current_environment(requirement: Requirement) -> bool:
     if requirement.marker is None:
         return True
     return requirement.marker.evaluate()
-
-
-def _requirements_include_prefect(requirements: Iterable[Requirement]) -> bool:
-    for requirement in requirements:
-        if not _requirement_applies_to_current_environment(requirement):
-            continue
-        if canonicalize_name(requirement.name) == "prefect":
-            return True
-    return False
 
 
 def _project_import_name(project_name: str) -> str:
@@ -305,109 +299,6 @@ def _has_editable_install_at(project_root: Path, project_name: str) -> bool:
     return False
 
 
-def _find_prematerialized_python(
-    workspace: PreparedWorkspace,
-    project_requirements: Iterable[Requirement] | None = None,
-) -> str | None:
-    """Return a Python executable if the workspace already has deps available.
-
-    Checks for credible signals that the environment is pre-materialized and
-    `uv run` can be skipped:
-
-    1. `UV_PROJECT_ENVIRONMENT` pointing to a valid environment (explicit
-       override, checked first).  Relative paths are resolved against
-       *project_root*, matching uv's own behaviour.
-    2. An active `VIRTUAL_ENV` that is credibly tied to this workspace
-       (located under *project_root*).
-    3. The project does not use uv sources, and the current Python environment
-       already satisfies the project's dependencies that Prefect can verify
-       from installed distribution names and versions, and can load the
-       entrypoint.
-    4. An editable install whose `direct_url.json` points at this exact
-       project root (the `uv pip install --system -e .` pattern).
-
-    Returns the path to the Python interpreter if found, or None.
-    """
-    project_root = workspace.project_root
-    if project_root is None:
-        return None
-
-    resolved_root = project_root.resolve()
-    env = workspace.environment
-
-    # 1. UV_PROJECT_ENVIRONMENT (explicit override — checked first)
-    uv_project_env = env.get("UV_PROJECT_ENVIRONMENT")
-    if uv_project_env:
-        env_path = Path(uv_project_env)
-        if not env_path.is_absolute():
-            env_path = project_root / env_path
-        python = _find_python_in_venv(env_path)
-        if python is not None:
-            return python
-
-    # 2. Active VIRTUAL_ENV — only when it lives under project_root
-    virtual_env = env.get("VIRTUAL_ENV")
-    if virtual_env:
-        venv_path = Path(virtual_env).resolve()
-        try:
-            venv_path.relative_to(resolved_root)
-        except ValueError:
-            pass  # unrelated venv — ignore
-        else:
-            python = _find_python_in_venv(Path(virtual_env))
-            if python is not None:
-                return python
-
-    pyproject = project_root / "pyproject.toml"
-    if project_requirements is None:
-        project_requirements = _read_project_requirements(pyproject)
-
-    project_name = _read_project_name(pyproject)
-
-    # 3. Current Python already has the declared runtime dependencies.
-    if (
-        project_requirements
-        and not _project_uses_uv_sources(pyproject)
-        and _current_environment_satisfies(project_requirements)
-        and _current_environment_can_load_entrypoint(workspace, project_name)
-    ):
-        return sys.executable
-
-    # 4. Editable install pointing at this project root (system python)
-    if project_name and _has_editable_install_at(project_root, project_name):
-        return sys.executable
-
-    return None
-
-
-def _find_python_in_venv(venv_path: Path) -> str | None:
-    """Return the Python interpreter inside a venv directory, or None."""
-    if not venv_path.is_dir():
-        return None
-    for candidate in (
-        venv_path / "bin" / "python",
-        venv_path / "Scripts" / "python.exe",
-    ):
-        if candidate.is_file():
-            return str(candidate)
-    return None
-
-
-def _read_project_name(pyproject: Path) -> str | None:
-    """Read the project name from pyproject.toml, or return None."""
-    try:
-        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
-    except (OSError, tomllib.TOMLDecodeError):
-        return None
-    project = data.get("project")
-    if not isinstance(project, dict):
-        return None
-    name = project.get("name")
-    if not isinstance(name, str) or not name.strip():
-        return None
-    return name
-
-
 def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
     project_root = workspace.project_root
     if project_root is None:
@@ -417,25 +308,64 @@ def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
     if not pyproject.is_file():
         return None
 
-    project_requirements = _read_project_requirements(pyproject)
-    if project_requirements is None or not _requirements_include_prefect(
-        project_requirements
-    ):
+    project_config = _read_project_config(pyproject)
+    if project_config is None:
         return None
 
-    # Prefer a pre-materialized environment over uv run.
-    python = _find_prematerialized_python(workspace, project_requirements)
-    if python is not None:
-        return command_to_string(
-            [
-                python,
-                "-m",
-                "prefect.flow_engine",
-                workspace.runtime_entrypoint,
-            ]
-        )
+    includes_prefect = any(
+        _requirement_applies_to_current_environment(requirement)
+        and canonicalize_name(requirement.name) == "prefect"
+        for requirement in project_config.requirements
+    )
+    if not includes_prefect:
+        return None
 
-    workspace_path = workspace.environment.get("PATH")
+    env = workspace.environment
+    resolved_root = project_root.resolve()
+    engine_command = ["-m", "prefect.flow_engine", workspace.runtime_entrypoint]
+
+    uv_project_env = env.get("UV_PROJECT_ENVIRONMENT")
+    if uv_project_env:
+        env_path = Path(uv_project_env)
+        if not env_path.is_absolute():
+            env_path = project_root / env_path
+        if env_path.is_dir():
+            for candidate in (
+                env_path / "bin" / "python",
+                env_path / "Scripts" / "python.exe",
+            ):
+                if candidate.is_file():
+                    return command_to_string([str(candidate), *engine_command])
+
+    virtual_env = env.get("VIRTUAL_ENV")
+    if virtual_env:
+        venv_path = Path(virtual_env)
+        try:
+            venv_path.resolve().relative_to(resolved_root)
+        except ValueError:
+            pass
+        else:
+            if venv_path.is_dir():
+                for candidate in (
+                    venv_path / "bin" / "python",
+                    venv_path / "Scripts" / "python.exe",
+                ):
+                    if candidate.is_file():
+                        return command_to_string([str(candidate), *engine_command])
+
+    if (
+        not project_config.uses_uv_sources
+        and _current_environment_satisfies(project_config.requirements)
+        and _current_environment_can_load_entrypoint(workspace, project_config.name)
+    ):
+        return command_to_string([sys.executable, *engine_command])
+
+    if project_config.name and _has_editable_install_at(
+        project_root, project_config.name
+    ):
+        return command_to_string([sys.executable, *engine_command])
+
+    workspace_path = env.get("PATH")
     uv_executable = (
         shutil.which("uv", path=workspace_path)
         if workspace_path is not None
@@ -451,9 +381,7 @@ def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
             "--no-dev",
             "--project",
             str(project_root),
-            "-m",
-            "prefect.flow_engine",
-            workspace.runtime_entrypoint,
+            *engine_command,
         ]
     )
 

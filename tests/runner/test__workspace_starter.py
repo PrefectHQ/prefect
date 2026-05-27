@@ -21,7 +21,6 @@ from prefect.runner._workspace_resolver import (
 )
 from prefect.runner._workspace_starter import (
     WorkspaceResolvingEngineCommandStarter,
-    _find_prematerialized_python,
     _has_editable_install_at,
     _workspace_command,
     load_flow_from_prepared_workspace,
@@ -255,6 +254,7 @@ def test_workspace_command_uses_uv_project_environment(
     workspace = _prepared_workspace(tmp_path)
     assert workspace.project_root is not None
     _write_pyproject(workspace.project_root)
+    _create_fake_venv(workspace.project_root / ".venv")
     custom_env = tmp_path / "custom-env"
     expected_python = _create_fake_venv(custom_env)
     workspace.environment["UV_PROJECT_ENVIRONMENT"] = str(custom_env)
@@ -664,36 +664,6 @@ def test_has_editable_install_at_skips_distributions_without_name(
     assert _has_editable_install_at(project_root, "my-project") is True
 
 
-def test_find_prematerialized_python_prefers_uv_project_environment(
-    tmp_path: Path,
-):
-    """UV_PROJECT_ENVIRONMENT is an explicit pre-materialized env signal."""
-    workspace = _prepared_workspace(tmp_path)
-    assert workspace.project_root is not None
-    _create_fake_venv(workspace.project_root / ".venv")
-    custom_env = tmp_path / "custom-env"
-    expected_python = _create_fake_venv(custom_env)
-    workspace.environment["UV_PROJECT_ENVIRONMENT"] = str(custom_env)
-
-    result = _find_prematerialized_python(workspace)
-    assert result == expected_python
-
-
-def test_find_prematerialized_python_returns_none_without_signals(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
-    """No pre-materialized env signals means None."""
-    workspace = _prepared_workspace(tmp_path)
-    assert workspace.project_root is not None
-    _strip_venv_signals(workspace)
-    _write_pyproject(workspace.project_root, deps="['prefect', 'missing-package']")
-    _create_fake_venv(workspace.project_root / ".venv")
-    _mock_installed_distributions(monkeypatch, {"prefect": "3.0.0"})
-
-    result = _find_prematerialized_python(workspace)
-    assert result is None
-
-
 def test_unrelated_virtual_env_falls_back_to_uv_run(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ):
@@ -742,8 +712,14 @@ def test_relative_uv_project_environment_resolved_against_project_root(
     expected_python = _create_fake_venv(workspace.project_root / "my-env")
     workspace.environment["UV_PROJECT_ENVIRONMENT"] = "my-env"
 
-    result = _find_prematerialized_python(workspace)
-    assert result == expected_python
+    command = _workspace_command(workspace, explicit_command=None)
+    assert command is not None
+    assert command_from_string(command) == [
+        expected_python,
+        "-m",
+        "prefect.flow_engine",
+        workspace.runtime_entrypoint,
+    ]
 
 
 async def test_resolve_workspace_in_subprocess_returns_success_payload(
