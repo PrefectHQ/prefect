@@ -67,6 +67,7 @@ export async function nodesContainerFactory() {
 	let nodesLayout: NodesLayoutResponse | null = null;
 	let runData: RunGraphData | null = null;
 	const pendingResizes = new Map<string, NodeSize>();
+	let pendingLayoutRequests = 0;
 
 	container.name = DEFAULT_NODES_CONTAINER_NAME;
 
@@ -93,6 +94,7 @@ export async function nodesContainerFactory() {
 		runData = data;
 		nodesLayout = null;
 		pendingResizes.clear();
+		pendingLayoutRequests++;
 
 		await Promise.all([createNodes(data), createEdges(data)]);
 
@@ -376,6 +378,13 @@ export async function nodesContainerFactory() {
 	}
 
 	function handleLayoutMessage(data: WorkerLayoutMessage): void {
+		pendingLayoutRequests--;
+
+		// Skip stale responses — a newer render cycle has been initiated
+		if (pendingLayoutRequests > 0) {
+			return;
+		}
+
 		nodesLayout = data.layout;
 		applyPendingResizes();
 		setPositions();
