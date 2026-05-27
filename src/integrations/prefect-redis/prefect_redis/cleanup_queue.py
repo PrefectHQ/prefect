@@ -80,6 +80,14 @@ class _QueuePolicy:
     completed_idempotency_retention: timedelta | None
 
 
+@dataclass(frozen=True)
+class _ScopedMessageKeys:
+    message: str
+    reservation: str
+    visible: str
+    reserved: str
+
+
 class WorkerCleanupQueue(_WorkerCleanupQueue):
     """
     Redis-backed cleanup queue storage.
@@ -142,8 +150,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         work_pool_id=work_pool_id,
                     )
                     if existing is not None:
-                        pipe.multi()
-                        await pipe.execute()
+                        await pipe.reset()
                         return existing
 
                     existing_message_id = await pipe.get(idempotency_key_name)
@@ -164,8 +171,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                             work_pool_id=work_pool_id,
                         )
                         if existing is not None:
-                            pipe.multi()
-                            await pipe.execute()
+                            await pipe.reset()
                             return existing
 
                         pipe.multi()
@@ -412,10 +418,9 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         cleanup_kind_filter: set[str] | None,
         queue_filter: set[str] | None,
     ) -> CleanupQueueReservation | None:
-        visible_key = self._visible_key(work_pool_id)
-        reserved_key = self._reserved_key(work_pool_id)
-        message_key = self._message_key(message_id)
-        reservation_key = self._reservation_key(message_id)
+        keys = self._scoped_message_keys(
+            work_pool_id=work_pool_id, message_id=message_id
+        )
         lease_expires_ms = _score_ms(lease_expires_at)
         current_ms = _score_ms(current_time)
 
@@ -423,17 +428,17 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
             async with self._client().pipeline(transaction=True) as pipe:
                 try:
                     await pipe.watch(
-                        visible_key, reserved_key, message_key, reservation_key
+                        keys.visible, keys.reserved, keys.message, keys.reservation
                     )
-                    visible_score = await pipe.zscore(visible_key, message_id)
+                    visible_score = await pipe.zscore(keys.visible, message_id)
                     if visible_score is None:
                         await pipe.reset()
                         return None
 
-                    message_fields = _string_mapping(await pipe.hgetall(message_key))
+                    message_fields = _string_mapping(await pipe.hgetall(keys.message))
                     if not message_fields:
                         pipe.multi()
-                        pipe.zrem(visible_key, message_id)
+                        pipe.zrem(keys.visible, message_id)
                         await pipe.execute()
                         return None
 
@@ -447,21 +452,21 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         return None
 
                     reservation_fields = _string_mapping(
-                        await pipe.hgetall(reservation_key)
+                        await pipe.hgetall(keys.reservation)
                     )
                     if self._reservation_is_active(
                         reservation_fields=reservation_fields,
                         current_ms=current_ms,
                     ):
                         pipe.multi()
-                        pipe.zrem(visible_key, message_id)
+                        pipe.zrem(keys.visible, message_id)
                         await pipe.execute()
                         return None
 
                     delivery_count = int(message_fields["delivery_count"])
                     if delivery_count >= self._policy().max_delivery_attempts:
                         pipe.multi()
-                        self._queue_dead_letter(
+                        self._stage_dead_letter(
                             pipe=pipe,
                             message_fields=message_fields,
                             reservation_fields=reservation_fields,
@@ -477,9 +482,9 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         "updated_at": _format_datetime(current_time),
                     }
                     pipe.multi()
-                    pipe.hset(message_key, mapping=updated_fields)
+                    pipe.hset(keys.message, mapping=updated_fields)
                     pipe.hset(
-                        reservation_key,
+                        keys.reservation,
                         mapping={
                             "token": reservation_token,
                             "lease_expires_at": _format_datetime(lease_expires_at),
@@ -487,8 +492,8 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                             "reserved_at": _format_datetime(current_time),
                         },
                     )
-                    pipe.zrem(visible_key, message_id)
-                    pipe.zadd(reserved_key, {message_id: lease_expires_ms})
+                    pipe.zrem(keys.visible, message_id)
+                    pipe.zadd(keys.reserved, {message_id: lease_expires_ms})
                     await pipe.execute()
 
                     message = self._message_from_mapping(updated_fields)
@@ -517,25 +522,24 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         lease_expires_at = (
             current_time + policy.lease_duration if operation == "renew" else None
         )
-        message_key = self._message_key(message_id)
-        reservation_key = self._reservation_key(message_id)
-        visible_key = self._visible_key(work_pool_id)
-        reserved_key = self._reserved_key(work_pool_id)
+        keys = self._scoped_message_keys(
+            work_pool_id=work_pool_id, message_id=message_id
+        )
 
         for _ in range(_MAX_TRANSACTION_ATTEMPTS):
             async with self._client().pipeline(transaction=True) as pipe:
                 try:
                     await pipe.watch(
-                        message_key, reservation_key, visible_key, reserved_key
+                        keys.message, keys.reservation, keys.visible, keys.reserved
                     )
-                    message_fields = _string_mapping(await pipe.hgetall(message_key))
+                    message_fields = _string_mapping(await pipe.hgetall(keys.message))
                     reservation_fields = _string_mapping(
-                        await pipe.hgetall(reservation_key)
+                        await pipe.hgetall(keys.reservation)
                     )
 
+                    # Validate the current reservation before staging any mutation.
                     if not message_fields:
-                        pipe.multi()
-                        await pipe.execute()
+                        await pipe.reset()
                         return self._operation_result(
                             operation=operation,
                             message_id=message_id,
@@ -544,8 +548,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         )
 
                     if message_fields["work_pool_id"] != str(work_pool_id):
-                        pipe.multi()
-                        await pipe.execute()
+                        await pipe.reset()
                         return self._operation_result(
                             operation=operation,
                             message_id=message_id,
@@ -554,8 +557,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         )
 
                     if not reservation_fields:
-                        pipe.multi()
-                        await pipe.execute()
+                        await pipe.reset()
                         return self._operation_result(
                             operation=operation,
                             message_id=message_id,
@@ -564,8 +566,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         )
 
                     if reservation_fields.get("token") != reservation_token:
-                        pipe.multi()
-                        await pipe.execute()
+                        await pipe.reset()
                         return self._operation_result(
                             operation=operation,
                             message_id=message_id,
@@ -573,6 +574,8 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                             reason="reservation_token_mismatch",
                         )
 
+                    # An expired reservation fails the requested operation and either
+                    # reopens the message or moves it to the dead-letter queue.
                     if int(reservation_fields.get("lease_expires_ms") or "0") <= (
                         current_ms
                     ):
@@ -581,7 +584,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                             int(message_fields["delivery_count"])
                             >= policy.max_delivery_attempts
                         ):
-                            dead_letter = self._queue_dead_letter(
+                            dead_letter = self._stage_dead_letter(
                                 pipe=pipe,
                                 message_fields=message_fields,
                                 reservation_fields=reservation_fields,
@@ -597,7 +600,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                                 dead_letter=dead_letter,
                             )
 
-                        self._queue_redelivery(
+                        self._stage_redelivery(
                             pipe=pipe,
                             message_fields=message_fields,
                             current_time=current_time,
@@ -614,7 +617,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
 
                     if operation == "ack":
                         pipe.multi()
-                        self._queue_ack(
+                        self._stage_ack(
                             pipe=pipe,
                             message_fields=message_fields,
                             current_time=current_time,
@@ -633,7 +636,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                             int(message_fields["delivery_count"])
                             >= policy.max_delivery_attempts
                         ):
-                            dead_letter = self._queue_dead_letter(
+                            dead_letter = self._stage_dead_letter(
                                 pipe=pipe,
                                 message_fields=message_fields,
                                 reservation_fields=reservation_fields,
@@ -650,7 +653,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                                 dead_letter=dead_letter,
                             )
 
-                        self._queue_redelivery(
+                        self._stage_redelivery(
                             pipe=pipe,
                             message_fields=message_fields,
                             current_time=current_time,
@@ -669,7 +672,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                             raise ValueError("lease_expires_at is required for renew")
 
                         pipe.multi()
-                        self._queue_renew(
+                        self._stage_renew(
                             pipe=pipe,
                             message_fields=message_fields,
                             reservation_token=reservation_token,
@@ -698,31 +701,30 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         current_time: DateTime,
         current_ms: int,
     ) -> _LeaseExpiryOutcome:
-        visible_key = self._visible_key(work_pool_id)
-        reserved_key = self._reserved_key(work_pool_id)
-        message_key = self._message_key(message_id)
-        reservation_key = self._reservation_key(message_id)
+        keys = self._scoped_message_keys(
+            work_pool_id=work_pool_id, message_id=message_id
+        )
 
         for _ in range(_MAX_TRANSACTION_ATTEMPTS):
             async with self._client().pipeline(transaction=True) as pipe:
                 try:
                     await pipe.watch(
-                        visible_key, reserved_key, message_key, reservation_key
+                        keys.visible, keys.reserved, keys.message, keys.reservation
                     )
-                    reserved_score = await pipe.zscore(reserved_key, message_id)
+                    reserved_score = await pipe.zscore(keys.reserved, message_id)
                     if reserved_score is None or reserved_score > current_ms:
                         await pipe.reset()
                         return None
 
-                    message_fields = _string_mapping(await pipe.hgetall(message_key))
+                    message_fields = _string_mapping(await pipe.hgetall(keys.message))
                     reservation_fields = _string_mapping(
-                        await pipe.hgetall(reservation_key)
+                        await pipe.hgetall(keys.reservation)
                     )
 
                     if not message_fields:
                         pipe.multi()
-                        pipe.delete(reservation_key)
-                        pipe.zrem(reserved_key, message_id)
+                        pipe.delete(keys.reservation)
+                        pipe.zrem(keys.reserved, message_id)
                         await pipe.execute()
                         return None
 
@@ -731,7 +733,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                     )
                     if reservation_lease_ms > current_ms:
                         pipe.multi()
-                        pipe.zadd(reserved_key, {message_id: reservation_lease_ms})
+                        pipe.zadd(keys.reserved, {message_id: reservation_lease_ms})
                         await pipe.execute()
                         return None
 
@@ -740,7 +742,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         int(message_fields["delivery_count"])
                         >= self._policy().max_delivery_attempts
                     ):
-                        dead_letter = self._queue_dead_letter(
+                        dead_letter = self._stage_dead_letter(
                             pipe=pipe,
                             message_fields=message_fields,
                             reservation_fields=reservation_fields,
@@ -750,7 +752,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         await pipe.execute()
                         return "dead_lettered", dead_letter
 
-                    message = self._queue_redelivery(
+                    message = self._stage_redelivery(
                         pipe=pipe,
                         message_fields=message_fields,
                         current_time=current_time,
@@ -786,7 +788,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
 
         return None
 
-    def _queue_ack(
+    def _stage_ack(
         self,
         *,
         pipe: Any,
@@ -820,7 +822,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                 retention_ms,
             )
 
-    def _queue_redelivery(
+    def _stage_redelivery(
         self,
         *,
         pipe: Any,
@@ -840,7 +842,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         pipe.zadd(self._visible_key(work_pool_id), {message_id: current_ms})
         return self._message_from_mapping(updated_fields)
 
-    def _queue_renew(
+    def _stage_renew(
         self,
         *,
         pipe: Any,
@@ -869,7 +871,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         )
         pipe.zadd(self._reserved_key(work_pool_id), {message_id: lease_expires_ms})
 
-    def _queue_dead_letter(
+    def _stage_dead_letter(
         self,
         *,
         pipe: Any,
@@ -933,6 +935,16 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
             _decode_redis_value(work_pool_id)
             for work_pool_id in await self._client().smembers(self._pools_key())
         ]
+
+    def _scoped_message_keys(
+        self, *, work_pool_id: UUID | str, message_id: UUID | str
+    ) -> _ScopedMessageKeys:
+        return _ScopedMessageKeys(
+            message=self._message_key(message_id),
+            reservation=self._reservation_key(message_id),
+            visible=self._visible_key(work_pool_id),
+            reserved=self._reserved_key(work_pool_id),
+        )
 
     def _message_key(self, message_id: UUID | str) -> str:
         return f"{self._prefix()}:messages:{message_id}"
