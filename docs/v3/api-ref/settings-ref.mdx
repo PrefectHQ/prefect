@@ -1409,6 +1409,30 @@ The default limit applied to queries that can return multiple objects, such as `
 **Supported environment variables**:
 `PREFECT_SERVER_API_CORS_ALLOWED_HEADERS`, `PREFECT_SERVER_CORS_ALLOWED_HEADERS`
 
+### `websocket_ping_interval`
+WebSocket ping interval in seconds. Only applies when starting the server with `prefect server start`.
+
+**Type**: `number`
+
+**Default**: `20.0`
+
+**TOML dotted key path**: `server.api.websocket_ping_interval`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_WEBSOCKET_PING_INTERVAL`
+
+### `websocket_ping_timeout`
+WebSocket ping timeout in seconds. Only applies when starting the server with `prefect server start`.
+
+**Type**: `number`
+
+**Default**: `20.0`
+
+**TOML dotted key path**: `server.api.websocket_ping_timeout`
+
+**Supported environment variables**:
+`PREFECT_SERVER_API_WEBSOCKET_PING_TIMEOUT`
+
 ### `max_parameter_size`
 The maximum size of parameters (in bytes, JSON-serialized) that can be stored on a flow run or deployment. Set to 0 to disable the limit.
 
@@ -2803,6 +2827,13 @@ Settings for controlling server UI behavior
 
 **TOML dotted key path**: `server.ui`
 
+### `worker_channel`
+Settings for controlling server worker channel behavior
+
+**Type**: [ServerWorkerChannelSettings](#serverworkerchannelsettings)
+
+**TOML dotted key path**: `server.worker_channel`
+
 ---
 ## ServerTasksSchedulingSettings
 Settings for controlling server-side behavior related to task scheduling
@@ -2951,6 +2982,60 @@ Whether or not to display promotional content in the UI, including upgrade promp
 
 **Supported environment variables**:
 `PREFECT_SERVER_UI_SHOW_PROMOTIONAL_CONTENT`
+
+---
+## ServerWorkerChannelSettings
+Settings for server-side worker channel storage and delivery policy.
+### `cleanup_queue_storage`
+The module to use for storing worker cleanup delivery messages. The default in-memory backend stores messages, leases, wakeups, and dead-letter entries only in the current server process; use a Redis-backed storage module for high availability or restart-safe cleanup delivery.
+
+**Type**: `string`
+
+**Default**: `prefect.server.worker_communication.cleanup_queue.memory`
+
+**TOML dotted key path**: `server.worker_channel.cleanup_queue_storage`
+
+**Supported environment variables**:
+`PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE`
+
+### `cleanup_lease_seconds`
+The default cleanup message reservation lease duration in seconds.
+
+**Type**: `number`
+
+**Default**: `30.0`
+
+**TOML dotted key path**: `server.worker_channel.cleanup_lease_seconds`
+
+**Supported environment variables**:
+`PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_LEASE_SECONDS`
+
+### `cleanup_max_delivery_attempts`
+The maximum number of committed cleanup reservations before a message is moved to the dead-letter queue.
+
+**Type**: `integer`
+
+**Default**: `3`
+
+**Constraints**:
+- Minimum: 1
+
+**TOML dotted key path**: `server.worker_channel.cleanup_max_delivery_attempts`
+
+**Supported environment variables**:
+`PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_MAX_DELIVERY_ATTEMPTS`
+
+### `cleanup_completed_idempotency_retention_seconds`
+How long completed cleanup idempotency records are retained after acknowledgement. None keeps them for the lifetime of the current server process. The in-memory backend does not survive restart; use Redis for high availability or restart-safe cleanup idempotency.
+
+**Type**: `number | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.worker_channel.cleanup_completed_idempotency_retention_seconds`
+
+**Supported environment variables**:
+`PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_COMPLETED_IDEMPOTENCY_RETENTION_SECONDS`
 
 ---
 ## TasksRunnerSettings
