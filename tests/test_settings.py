@@ -419,12 +419,6 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE": {
         "test_value": "prefect.server.worker_communication.cleanup_queue.memory"
     },
-    "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_REDIS_KEY_PREFIX": {
-        "test_value": "prefect:test:worker-cleanup"
-    },
-    "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_REDIS_URL": {
-        "test_value": "redis://localhost:6379/1"
-    },
     "PREFECT_SERVER_EPHEMERAL_ENABLED": {"test_value": True},
     "PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS": {"test_value": 10},
     "PREFECT_SERVER_EVENTS_CAUSAL_ORDERING": {

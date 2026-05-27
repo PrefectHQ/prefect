@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from collections.abc import AsyncGenerator, Callable, Iterator
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
@@ -10,16 +9,18 @@ from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
+from prefect_redis import cleanup_queue as redis_module
+from prefect_redis.cleanup_queue import (
+    RedisWorkerCleanupQueueSettings,
+    WorkerCleanupQueue,
+)
+from redis.asyncio import Redis
 
 from prefect.client.schemas.worker_channel import CANCELLING_TIMEOUT_TEARDOWN
 from prefect.server.worker_communication.cleanup_queue import get_worker_cleanup_queue
-from prefect.server.worker_communication.cleanup_queue import redis as redis_module
-from prefect.server.worker_communication.cleanup_queue.redis import WorkerCleanupQueue
 from prefect.settings import (
     PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_LEASE_SECONDS,
     PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_MAX_DELIVERY_ATTEMPTS,
-    PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_REDIS_KEY_PREFIX,
-    PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_REDIS_URL,
     PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE,
     temporary_settings,
 )
@@ -36,39 +37,13 @@ class Clock:
 
 
 @pytest.fixture
-async def redis_client() -> AsyncGenerator[Any, None]:
-    aioredis = pytest.importorskip("redis.asyncio")
-    redis_exceptions = pytest.importorskip("redis.exceptions")
-    host = os.environ.get("TEST_REDIS_HOST", "localhost")
-    port = int(os.environ.get("TEST_REDIS_PORT", 6379))
-    db = int(os.environ.get("TEST_REDIS_DB", 0))
-    username = os.environ.get("TEST_REDIS_USERNAME")
-    password = os.environ.get("TEST_REDIS_PASSWORD")
-    url = os.environ.get("TEST_REDIS_URL", f"redis://{host}:{port}/{db}")
-    client = aioredis.Redis.from_url(
-        url,
-        username=username,
-        password=password,
-        decode_responses=True,
-    )
-    try:
-        await client.ping()
-    except redis_exceptions.RedisError as exc:
-        await client.aclose()
-        pytest.skip(f"Redis server is not available: {exc}")
-
-    yield client
-    await client.aclose()
-
-
-@pytest.fixture
-async def queue(redis_client: Any) -> AsyncGenerator[WorkerCleanupQueue, None]:
+async def queue(redis: Redis) -> AsyncGenerator[WorkerCleanupQueue, None]:
     key_prefix = f"prefect:test:cleanup:{uuid4()}"
-    queue = WorkerCleanupQueue(redis_client=redis_client, key_prefix=key_prefix)
+    queue = WorkerCleanupQueue(redis_client=redis, key_prefix=key_prefix)
     yield queue
-    keys = [key async for key in redis_client.scan_iter(f"{key_prefix}:*")]
+    keys = [key async for key in redis.scan_iter(f"{key_prefix}:*")]
     if keys:
-        await redis_client.delete(*keys)
+        await redis.delete(*keys)
 
 
 @pytest.fixture
@@ -127,12 +102,28 @@ async def _enqueue_message(
 async def test_get_worker_cleanup_queue_can_select_redis_backend() -> None:
     with temporary_settings(
         {
-            PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE: "prefect.server.worker_communication.cleanup_queue.redis",
-            PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_REDIS_URL: "redis://localhost:6379/0",
-            PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_REDIS_KEY_PREFIX: "prefect:test:cleanup",
+            PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE: "prefect_redis.cleanup_queue",
         }
     ):
         assert isinstance(get_worker_cleanup_queue(), WorkerCleanupQueue)
+
+
+def test_redis_worker_cleanup_queue_settings_use_integration_namespace(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(
+        "PREFECT_REDIS_WORKER_CLEANUP_QUEUE_KEY_PREFIX",
+        "prefect:test:worker-cleanup",
+    )
+    monkeypatch.setenv(
+        "PREFECT_REDIS_WORKER_CLEANUP_QUEUE_URL",
+        "redis://localhost:6379/4",
+    )
+
+    settings = RedisWorkerCleanupQueueSettings()
+
+    assert settings.key_prefix == "prefect:test:worker-cleanup"
+    assert settings.url == "redis://localhost:6379/4"
 
 
 async def test_redis_enqueue_is_idempotent_for_cleanup_key(
@@ -294,13 +285,11 @@ async def test_redis_concurrent_reserve_attempts_create_one_reservation(
     assert accepted[0].delivery_count == 1
 
 
-async def test_redis_wait_for_wakeup_observes_shared_sequence(
-    redis_client: Any,
-) -> None:
+async def test_redis_wait_for_wakeup_observes_shared_sequence(redis: Redis) -> None:
     work_pool_id = uuid4()
     key_prefix = f"prefect:test:cleanup:{uuid4()}"
-    waiting_queue = WorkerCleanupQueue(redis_client=redis_client, key_prefix=key_prefix)
-    waking_queue = WorkerCleanupQueue(redis_client=redis_client, key_prefix=key_prefix)
+    waiting_queue = WorkerCleanupQueue(redis_client=redis, key_prefix=key_prefix)
+    waking_queue = WorkerCleanupQueue(redis_client=redis, key_prefix=key_prefix)
     sequence = await waiting_queue.read_wakeup_sequence(work_pool_id)
 
     waiter = asyncio.create_task(
@@ -309,9 +298,9 @@ async def test_redis_wait_for_wakeup_observes_shared_sequence(
     await waking_queue.wake_dispatchers(work_pool_id)
     wakeup = await waiter
 
-    keys = [key async for key in redis_client.scan_iter(f"{key_prefix}:*")]
+    keys = [key async for key in redis.scan_iter(f"{key_prefix}:*")]
     if keys:
-        await redis_client.delete(*keys)
+        await redis.delete(*keys)
 
     assert wakeup is not None
     assert wakeup.work_pool_id == work_pool_id

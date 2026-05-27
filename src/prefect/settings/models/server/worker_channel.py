@@ -20,27 +20,9 @@ class ServerWorkerChannelSettings(PrefectBaseSettings):
         description=(
             "The module to use for storing worker cleanup delivery messages. "
             "The default in-memory backend stores messages, leases, wakeups, "
-            "and dead-letter entries only in the current server process; use a "
-            "Redis-backed storage module for high availability or restart-safe "
+            "and dead-letter entries only in the current server process; use "
+            "an external storage module for high availability or restart-safe "
             "cleanup delivery."
-        ),
-    )
-
-    cleanup_queue_redis_url: str = Field(
-        default="redis://localhost:6379/0",
-        description=(
-            "The Redis URL used by the Redis-backed worker cleanup delivery "
-            "queue when `cleanup_queue_storage` is set to the Redis backend."
-        ),
-    )
-
-    cleanup_queue_redis_key_prefix: str = Field(
-        default="prefect:worker-cleanup",
-        min_length=1,
-        description=(
-            "The Redis key prefix used by the Redis-backed worker cleanup "
-            "delivery queue. Use a deployment-specific prefix when sharing a "
-            "Redis database across separate Prefect server deployments."
         ),
     )
 
@@ -65,8 +47,8 @@ class ServerWorkerChannelSettings(PrefectBaseSettings):
         description=(
             "How long completed cleanup idempotency records are retained after "
             "acknowledgement. None keeps them for the lifetime of the current "
-            "server process. The in-memory backend does not survive restart; "
-            "use Redis for high availability or restart-safe cleanup "
+            "server process. The in-memory backend does not survive restart; use "
+            "external storage for high availability or restart-safe cleanup "
             "idempotency."
         ),
     )

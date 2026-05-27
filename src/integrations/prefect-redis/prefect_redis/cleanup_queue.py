@@ -6,8 +6,11 @@ from collections.abc import Iterable, Mapping
 from datetime import timedelta
 from hashlib import sha256
 from secrets import token_urlsafe
-from typing import TYPE_CHECKING, Any
+from typing import Any
 from uuid import UUID
+
+from pydantic import Field
+from redis.asyncio import Redis
 
 from prefect.client.schemas.worker_channel import CleanupKind
 from prefect.server.worker_communication.cleanup_queue import (
@@ -22,12 +25,43 @@ from prefect.server.worker_communication.cleanup_queue import (
 from prefect.server.worker_communication.cleanup_queue import (
     WorkerCleanupQueue as _WorkerCleanupQueue,
 )
+from prefect.settings.base import PrefectBaseSettings, build_settings_config
 from prefect.settings.context import get_current_settings
 from prefect.types import DateTime
 from prefect.types._datetime import now
 
-if TYPE_CHECKING:
-    from redis.asyncio import Redis
+
+class RedisWorkerCleanupQueueSettings(PrefectBaseSettings):
+    """
+    Settings for the Redis-backed worker cleanup queue.
+    """
+
+    model_config = build_settings_config(("redis", "worker_cleanup_queue"))
+
+    key_prefix: str = Field(
+        default="prefect:worker-cleanup",
+        min_length=1,
+        description=(
+            "The Redis key prefix used by the worker cleanup delivery queue. "
+            "Use a deployment-specific prefix when sharing a Redis database "
+            "across separate Prefect server deployments."
+        ),
+    )
+    url: str | None = Field(
+        default=None,
+        description=(
+            "Full Redis URL for worker cleanup queue storage. When set, "
+            "host, port, database, username, password, and SSL settings are "
+            "ignored."
+        ),
+    )
+    host: str = Field(default="localhost")
+    port: int = Field(default=6379)
+    db: int = Field(default=0)
+    username: str = Field(default="default")
+    password: str = Field(default="")
+    health_check_interval: int = Field(default=20)
+    ssl: bool = Field(default=False)
 
 
 _ENQUEUE_SCRIPT = """
@@ -507,7 +541,7 @@ return results
 
 class WorkerCleanupQueue(_WorkerCleanupQueue):
     """
-    Redis-backed cleanup queue storage for self-hosted OSS deployments.
+    Redis-backed cleanup queue storage.
     """
 
     _DEFAULT_EXPIRE_LEASE_LIMIT = 100
@@ -813,17 +847,23 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         if self._redis_client is not None:
             return self._redis_client
 
-        try:
-            from redis.asyncio import Redis
-        except ImportError as exc:
-            raise RuntimeError(
-                "The Redis cleanup queue backend requires redis-py. Install "
-                "Prefect with the `redis` extra to use this backend."
-            ) from exc
+        settings = RedisWorkerCleanupQueueSettings()
+        if settings.url:
+            self._redis_client = Redis.from_url(
+                settings.url,
+                health_check_interval=settings.health_check_interval,
+                decode_responses=True,
+            )
+            return self._redis_client
 
-        settings = get_current_settings().server.worker_channel
-        self._redis_client = Redis.from_url(
-            settings.cleanup_queue_redis_url,
+        self._redis_client = Redis(
+            host=settings.host,
+            port=settings.port,
+            db=settings.db,
+            username=settings.username,
+            password=settings.password,
+            health_check_interval=settings.health_check_interval,
+            ssl=settings.ssl,
             decode_responses=True,
         )
         return self._redis_client
@@ -832,9 +872,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         if self._key_prefix is not None:
             return self._key_prefix.rstrip(":")
 
-        return get_current_settings().server.worker_channel.cleanup_queue_redis_key_prefix.rstrip(
-            ":"
-        )
+        return RedisWorkerCleanupQueueSettings().key_prefix.rstrip(":")
 
     async def _work_pools(self) -> list[str]:
         return list(await self._client().smembers(f"{self._prefix()}:pools"))
