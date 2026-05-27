@@ -331,16 +331,21 @@ async def _record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
                 return "natural-key"
             return "id"
 
-        # Batch by keys to avoid column mismatches during bulk insert.
-        # Each batch preserves the conflict-key sort order established above for
-        # deterministic lock acquisition, preventing deadlocks under concurrency.
-        batches_by_keys: dict[tuple[frozenset[str], str], list] = {}
+        # Batch contiguous rows by keys to avoid column mismatches during bulk insert.
+        # Keeping only contiguous runs preserves the global conflict-key sort order
+        # established above for deterministic lock acquisition.
+        batches_by_keys: list[
+            tuple[tuple[frozenset[str], str], list[dict[str, Any]]]
+        ] = []
         for tr in unique_task_runs:
             key_signature = (
                 frozenset(tr["task_run_dict"].keys()),
                 conflict_target(tr),
             )
-            batches_by_keys.setdefault(key_signature, []).append(tr)
+            if batches_by_keys and batches_by_keys[-1][0] == key_signature:
+                batches_by_keys[-1][1].append(tr)
+            else:
+                batches_by_keys.append((key_signature, [tr]))
 
         logger.debug(
             f"Partitioned task runs into {len(batches_by_keys)} groups by update columns"
@@ -348,7 +353,7 @@ async def _record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
 
         canonical_task_run_ids: dict[TaskRunUpsertKey, UUID] = {}
 
-        for (column_keys, conflict_target_name), batch in batches_by_keys.items():
+        for (column_keys, conflict_target_name), batch in batches_by_keys:
             update_cols = set(column_keys) - {"id", "created"}
 
             logger.debug(f"Preparing to bulk insert {len(batch)} task runs")
