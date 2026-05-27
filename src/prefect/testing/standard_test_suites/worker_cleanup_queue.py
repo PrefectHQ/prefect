@@ -86,7 +86,7 @@ class WorkerCleanupQueueStandardTestSuite:
     async def test_enqueue_is_idempotent_for_stable_cleanup_keys(
         self,
         queue: WorkerCleanupQueue,
-    ):
+    ) -> None:
         work_pool_id = uuid4()
         first_message_id = uuid4()
         second_message_id = uuid4()
@@ -112,7 +112,7 @@ class WorkerCleanupQueueStandardTestSuite:
     async def test_enqueue_deep_copies_payload_state(
         self,
         queue: WorkerCleanupQueue,
-    ):
+    ) -> None:
         work_pool_id = uuid4()
         message_id = uuid4()
         target = {"flow_run": {"id": str(uuid4())}}
@@ -144,7 +144,7 @@ class WorkerCleanupQueueStandardTestSuite:
         self,
         queue: WorkerCleanupQueue,
         clock: QueueTestClock,
-    ):
+    ) -> None:
         work_pool_id = uuid4()
         message_id = await _enqueue_message(queue, work_pool_id=work_pool_id)
 
@@ -161,7 +161,7 @@ class WorkerCleanupQueueStandardTestSuite:
     async def test_reservation_operations_require_current_token(
         self,
         queue: WorkerCleanupQueue,
-    ):
+    ) -> None:
         work_pool_id = uuid4()
         message_id = await _enqueue_message(queue, work_pool_id=work_pool_id)
         reservation = await queue.reserve(work_pool_id=work_pool_id)
@@ -196,7 +196,7 @@ class WorkerCleanupQueueStandardTestSuite:
         self,
         queue: WorkerCleanupQueue,
         operation: Literal["ack", "release", "renew"],
-    ):
+    ) -> None:
         work_pool_id = uuid4()
         message_id = await _enqueue_message(queue, work_pool_id=work_pool_id)
         reservation = await queue.reserve(work_pool_id=work_pool_id)
@@ -241,7 +241,7 @@ class WorkerCleanupQueueStandardTestSuite:
         self,
         queue: WorkerCleanupQueue,
         cleanup_policy_settings: CleanupPolicySettings,
-    ):
+    ) -> None:
         work_pool_id = uuid4()
         other_work_pool_id = uuid4()
         message_id = await _enqueue_message(queue, work_pool_id=work_pool_id)
@@ -280,7 +280,7 @@ class WorkerCleanupQueueStandardTestSuite:
     async def test_reserve_prefers_matching_work_queue_but_falls_back_to_pool(
         self,
         queue: WorkerCleanupQueue,
-    ):
+    ) -> None:
         work_pool_id = uuid4()
         preferred_work_queue_id = uuid4()
         fallback_work_queue_id = uuid4()
@@ -322,7 +322,7 @@ class WorkerCleanupQueueStandardTestSuite:
     async def test_enqueue_after_ack_keeps_idempotency_key_completed(
         self,
         queue: WorkerCleanupQueue,
-    ):
+    ) -> None:
         work_pool_id = uuid4()
         message_id = uuid4()
         idempotency_key = "flow-run-cleanup"
@@ -363,7 +363,7 @@ class WorkerCleanupQueueStandardTestSuite:
         self,
         queue: WorkerCleanupQueue,
         cleanup_policy_settings: CleanupPolicySettings,
-    ):
+    ) -> None:
         work_pool_id = uuid4()
         message_id = uuid4()
         idempotency_key = "flow-run-cleanup"
@@ -401,7 +401,7 @@ class WorkerCleanupQueueStandardTestSuite:
     async def test_release_makes_message_eligible_for_redelivery(
         self,
         queue: WorkerCleanupQueue,
-    ):
+    ) -> None:
         work_pool_id = uuid4()
         message_id = await _enqueue_message(queue, work_pool_id=work_pool_id)
         first = await queue.reserve(work_pool_id=work_pool_id)
@@ -425,7 +425,7 @@ class WorkerCleanupQueueStandardTestSuite:
         self,
         queue: WorkerCleanupQueue,
         cleanup_policy_settings: CleanupPolicySettings,
-    ):
+    ) -> None:
         work_pool_id = uuid4()
         message_id = await _enqueue_message(queue, work_pool_id=work_pool_id)
         with cleanup_policy_settings(max_delivery_attempts=1):
@@ -457,7 +457,7 @@ class WorkerCleanupQueueStandardTestSuite:
         queue: WorkerCleanupQueue,
         clock: QueueTestClock,
         cleanup_policy_settings: CleanupPolicySettings,
-    ):
+    ) -> None:
         work_pool_id = uuid4()
         message_id = await _enqueue_message(queue, work_pool_id=work_pool_id)
         with cleanup_policy_settings(lease_seconds=10.0, max_delivery_attempts=2):
@@ -491,7 +491,7 @@ class WorkerCleanupQueueStandardTestSuite:
         queue: WorkerCleanupQueue,
         clock: QueueTestClock,
         cleanup_policy_settings: CleanupPolicySettings,
-    ):
+    ) -> None:
         work_pool_id = uuid4()
         message_id = await _enqueue_message(queue, work_pool_id=work_pool_id)
 
@@ -522,7 +522,7 @@ class WorkerCleanupQueueStandardTestSuite:
         queue: WorkerCleanupQueue,
         clock: QueueTestClock,
         cleanup_policy_settings: CleanupPolicySettings,
-    ):
+    ) -> None:
         work_pool_id = uuid4()
         other_work_pool_id = uuid4()
         first_message_id = await _enqueue_message(
@@ -563,7 +563,7 @@ class WorkerCleanupQueueStandardTestSuite:
         self,
         queue: WorkerCleanupQueue,
         clock: QueueTestClock,
-    ):
+    ) -> None:
         work_pool_id = uuid4()
         message_id = await _enqueue_message(queue, work_pool_id=work_pool_id)
         reservation = await queue.reserve(work_pool_id=work_pool_id)
@@ -584,7 +584,7 @@ class WorkerCleanupQueueStandardTestSuite:
         queue: WorkerCleanupQueue,
         clock: QueueTestClock,
         cleanup_policy_settings: CleanupPolicySettings,
-    ):
+    ) -> None:
         work_pool_id = uuid4()
         message_id = await _enqueue_message(queue, work_pool_id=work_pool_id)
         with cleanup_policy_settings(lease_seconds=10.0):
@@ -607,7 +607,7 @@ class WorkerCleanupQueueStandardTestSuite:
     async def test_enqueue_wakes_local_dispatchers(
         self,
         queue: WorkerCleanupQueue,
-    ):
+    ) -> None:
         work_pool_id = uuid4()
         sequence = await queue.read_wakeup_sequence(work_pool_id)
         waiter = asyncio.create_task(
