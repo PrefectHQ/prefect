@@ -50,6 +50,19 @@ repos:
         language: pygrep
         entry: '(?<!`)``(?!`)'
         types: [python]
+      - id: generate-settings-types
+        name: Generate settings types
+        language: system
+        entry: python
+        args: [scripts/generate_settings_types.py]
+        files: |
+          (?x)^(
+              scripts/generate_settings_types.py|
+              src/prefect/settings/_types.py|
+              src/prefect/settings/base.py|
+              src/prefect/settings/models/.*
+          )$
+        pass_filenames: false
       - id: check-ui-v2
         name: Check UI v2
         language: system

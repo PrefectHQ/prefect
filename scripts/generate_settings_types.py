@@ -18,7 +18,6 @@ def main():
             "from typing import Literal, TypeAlias",
             "",
             _format_literal("SettingAccessor", accessors),
-            "",
         ]
     )
 
