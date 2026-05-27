@@ -16,7 +16,7 @@ that var, the fixture builds the image on the fly.
 
 The flow itself asserts observable behaviour:
   - cwd == /opt/prefect/flow
-  - no .venv was created (proving `uv run` was skipped)
+  - no .venv was created (proving `uv run` did not materialize a project env)
   - sys.executable is not inside a .venv
 
 Requires: Docker daemon available, Prefect server at PREFECT_API_URL.
@@ -105,7 +105,7 @@ def prebuilt_image(tmp_path_factory: pytest.TempPathFactory) -> str:
     subprocess.run(["docker", "rmi", tag], capture_output=True)
 
 
-async def _create_deployment_and_flow_run() -> tuple[str, str]:
+async def _create_flow_run() -> str:
     """Create a deployment with set_working_directory pull step and a flow run."""
     async with prefect.get_client() as client:
         flow_id = await client.create_flow_from_name(
@@ -126,7 +126,7 @@ async def _create_deployment_and_flow_run() -> tuple[str, str]:
         flow_run = await client.create_flow_run_from_deployment(
             deployment_id=deployment_id
         )
-        return str(deployment_id), str(flow_run.id)
+        return str(flow_run.id)
 
 
 async def _read_flow_run(flow_run_id: str) -> prefect.client.schemas.objects.FlowRun:
@@ -140,7 +140,7 @@ def test_prebuilt_image_flow_run_completes(prebuilt_image: str):
     if not api_url:
         pytest.skip("PREFECT_API_URL not set")
 
-    deployment_id, flow_run_id = anyio.run(_create_deployment_and_flow_run)
+    flow_run_id = anyio.run(_create_flow_run)
 
     # Normalize localhost for Docker on Linux (CI uses --network host)
     container_api_url = api_url

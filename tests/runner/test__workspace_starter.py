@@ -351,6 +351,51 @@ def test_workspace_command_uses_current_python_when_project_dependencies_install
     ]
 
 
+@pytest.mark.parametrize(
+    "dependency",
+    [
+        "pandas[performance]>=2",
+        "pandas @ https://example.com/pandas-2.2.3-py3-none-any.whl",
+    ],
+)
+def test_workspace_command_uses_uv_for_unverifiable_project_dependency(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, dependency: str
+) -> None:
+    """Dependencies with extras or direct URLs need uv to verify materialization."""
+    workspace = _prepared_workspace(tmp_path)
+    assert workspace.project_root is not None
+    workspace.environment["PATH"] = "/workspace/bin"
+    _strip_venv_signals(workspace)
+    _write_pyproject(
+        workspace.project_root,
+        deps=f"['prefect>=3', '{dependency}']",
+    )
+    _mock_installed_distributions(
+        monkeypatch,
+        {
+            "prefect": "3.6.0",
+            "pandas": "2.2.3",
+        },
+    )
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.shutil.which",
+        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
+    )
+
+    command = _workspace_command(workspace, explicit_command=None)
+    assert command is not None
+    assert command_from_string(command) == [
+        "/opt/bin/uv",
+        "run",
+        "--no-dev",
+        "--project",
+        str(workspace.project_root),
+        "-m",
+        "prefect.flow_engine",
+        workspace.runtime_entrypoint,
+    ]
+
+
 def test_workspace_command_uses_uv_when_module_entrypoint_needs_project_install(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

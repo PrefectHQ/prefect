@@ -112,7 +112,6 @@ jobs:
           PREFECT_API_URL: http://127.0.0.1:4200/api
           PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: "prefect.server.concurrency.lease_storage.filesystem"
           SERVER_VERSION: ${{ matrix.server-version.version }}
-          PREBUILT_IMAGE_TAG: ${{ env.PREBUILT_IMAGE_TAG }}
         run: >
           uv run pytest integration-tests/ -n auto -vv
 

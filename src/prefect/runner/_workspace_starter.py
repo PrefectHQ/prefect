@@ -184,6 +184,8 @@ def _current_environment_satisfies(requirements: Iterable[Requirement]) -> bool:
     for requirement in requirements:
         if not _requirement_applies_to_current_environment(requirement):
             continue
+        if requirement.extras or requirement.url:
+            return False
         try:
             distribution = importlib.metadata.distribution(requirement.name)
         except importlib.metadata.PackageNotFoundError:
@@ -218,7 +220,8 @@ def _module_available_from_workspace_path(
 
 
 def _current_environment_can_load_entrypoint(
-    workspace: PreparedWorkspace, project_name: str | None
+    workspace: PreparedWorkspace,
+    project_name: str | None,
 ) -> bool:
     entrypoint_target = workspace.runtime_entrypoint.rsplit(":", 1)[0]
     if entrypoint_target.endswith(".py"):
@@ -282,7 +285,8 @@ def _find_prematerialized_python(
     3. A project root outside Prefect's temporary workspace, which indicates
        the code was already present in the execution environment.
     4. The current Python environment already satisfies the project's
-       dependencies.
+       dependencies that Prefect can verify from installed distribution names
+       and versions.
     5. An editable install whose `direct_url.json` points at this exact
        project root (the `uv pip install --system -e .` pattern).
 

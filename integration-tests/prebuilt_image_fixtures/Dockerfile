@@ -5,7 +5,6 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 COPY prefect_wheel /tmp/prefect_wheel
 RUN uv pip install --system /tmp/prefect_wheel/*.whl && rm -rf /tmp/prefect_wheel
 
-# Simulate the pre-built image pattern: install the project at build time
+# Simulate the pre-built image pattern: flow code already exists in the image.
 WORKDIR /opt/prefect/flow
 COPY pyproject.toml flows.py ./
-RUN uv pip install --system -e .
