@@ -26,6 +26,24 @@ class ServerWorkerChannelSettings(PrefectBaseSettings):
         ),
     )
 
+    cleanup_queue_redis_url: str = Field(
+        default="redis://localhost:6379/0",
+        description=(
+            "The Redis URL used by the Redis-backed worker cleanup delivery "
+            "queue when `cleanup_queue_storage` is set to the Redis backend."
+        ),
+    )
+
+    cleanup_queue_redis_key_prefix: str = Field(
+        default="prefect:worker-cleanup",
+        min_length=1,
+        description=(
+            "The Redis key prefix used by the Redis-backed worker cleanup "
+            "delivery queue. Use a deployment-specific prefix when sharing a "
+            "Redis database across separate Prefect server deployments."
+        ),
+    )
+
     cleanup_lease_seconds: float = Field(
         default=30.0,
         gt=0.0,
