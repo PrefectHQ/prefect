@@ -351,6 +351,20 @@ server {
 }
 ```
 
+#### WebSocket ping settings
+
+When hosting behind a load balancer or reverse proxy, idle WebSocket connections may be dropped by intermediate components before Prefect's clients notice. Tune the server's ping behavior to keep connections alive:
+
+```bash
+# Seconds between WebSocket ping frames sent to clients (default: 20)
+export PREFECT_SERVER_API_WEBSOCKET_PING_INTERVAL=20
+
+# Seconds to wait for a pong response before closing the connection (default: 20)
+export PREFECT_SERVER_API_WEBSOCKET_PING_TIMEOUT=20
+```
+
+Set both values lower than your load balancer's idle connection timeout. These settings only apply when you start the server with `prefect server start`.
+
 #### UI proxy settings
 
 When self-hosting the UI behind a proxy:
