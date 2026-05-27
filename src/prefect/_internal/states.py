@@ -222,12 +222,12 @@ def return_value_to_state_sync(
         # Unless the user has already constructed a result explicitly, use the store
         # to update the data to the correct type
         if not isinstance(state.data, (ResultRecord, ResultRecordMetadata)):
-            result_record = result_store.create_result_record(
-                state.data,
-                key=key,
-                expiration=expiration,
-            )
             if write_result:
+                result_record = result_store.create_result_record(
+                    state.data,
+                    key=key,
+                    expiration=expiration,
+                )
                 try:
                     result_store.persist_result_record(result_record)
                 except Exception as exc:
@@ -235,7 +235,7 @@ def return_value_to_state_sync(
                         "Encountered an error while persisting result: %s Execution will continue, but the result has not been persisted",
                         exc,
                     )
-            state.data = result_record
+                state.data = result_record
         return state
 
     # Determine a new state from the aggregate of contained states
@@ -271,12 +271,12 @@ def return_value_to_state_sync(
         # TODO: We may actually want to set the data to a `StateGroup` object and just
         #       allow it to be unpacked into a tuple and such so users can interact with
         #       it
-        result_record = result_store.create_result_record(
-            retval,
-            key=key,
-            expiration=expiration,
-        )
         if write_result:
+            result_record = result_store.create_result_record(
+                retval,
+                key=key,
+                expiration=expiration,
+            )
             try:
                 result_store.persist_result_record(result_record)
             except Exception as exc:
@@ -284,10 +284,14 @@ def return_value_to_state_sync(
                     "Encountered an error while persisting result: %s Execution will continue, but the result has not been persisted",
                     exc,
                 )
+            data_to_store = result_record
+        else:
+            data_to_store = retval
+            
         return State(
             type=new_state_type,
             message=message,
-            data=result_record,
+            data=data_to_store,
         )
 
     # Generators aren't portable, implicitly convert them to a list.
@@ -300,12 +304,12 @@ def return_value_to_state_sync(
     if isinstance(data, ResultRecord):
         return Completed(data=data)
     else:
-        result_record = result_store.create_result_record(
-            data,
-            key=key,
-            expiration=expiration,
-        )
         if write_result:
+            result_record = result_store.create_result_record(
+                data,
+                key=key,
+                expiration=expiration,
+            )
             try:
                 result_store.persist_result_record(result_record)
             except Exception as exc:
@@ -313,4 +317,8 @@ def return_value_to_state_sync(
                     "Encountered an error while persisting result: %s Execution will continue, but the result has not been persisted",
                     exc,
                 )
-        return Completed(data=result_record)
+            data_to_store = result_record
+        else:
+            data_to_store = data
+            
+        return Completed(data=data_to_store)

@@ -57,15 +57,8 @@ def to_state_create(state: State) -> "StateCreate":
         should_persist_result,
     )
 
-    from prefect.context import FlowRunContext, TaskRunContext
-
     if isinstance(state.data, ResultRecord):
-        if TaskRunContext.get() is None and FlowRunContext.get() is None:
-            data = state.data.metadata
-        elif should_persist_result():
-            data = state.data.metadata
-        else:
-            data = None
+        data = state.data.metadata  # pyright: ignore[reportUnknownMemberType] unable to narrow ResultRecord type
     else:
         data = None
 
@@ -355,12 +348,12 @@ async def return_value_to_state(
         # Unless the user has already constructed a result explicitly, use the store
         # to update the data to the correct type
         if not isinstance(state.data, (ResultRecord, ResultRecordMetadata)):
-            result_record = result_store.create_result_record(
-                state.data,
-                key=key,
-                expiration=expiration,
-            )
             if write_result:
+                result_record = result_store.create_result_record(
+                    state.data,
+                    key=key,
+                    expiration=expiration,
+                )
                 try:
                     await result_store.apersist_result_record(result_record)
                 except Exception as exc:
@@ -368,7 +361,7 @@ async def return_value_to_state(
                         "Encountered an error while persisting result: %s Execution will continue, but the result has not been persisted",
                         exc,
                     )
-            state.data = result_record
+                state.data = result_record
         return state
 
     # Determine a new state from the aggregate of contained states
@@ -404,12 +397,12 @@ async def return_value_to_state(
         # TODO: We may actually want to set the data to a `StateGroup` object and just
         #       allow it to be unpacked into a tuple and such so users can interact with
         #       it
-        result_record = result_store.create_result_record(
-            retval,
-            key=key,
-            expiration=expiration,
-        )
         if write_result:
+            result_record = result_store.create_result_record(
+                retval,
+                key=key,
+                expiration=expiration,
+            )
             try:
                 await result_store.apersist_result_record(result_record)
             except Exception as exc:
@@ -417,10 +410,14 @@ async def return_value_to_state(
                     "Encountered an error while persisting result: %s Execution will continue, but the result has not been persisted",
                     exc,
                 )
+            data_to_store = result_record
+        else:
+            data_to_store = retval
+            
         return State(
             type=new_state_type,
             message=message,
-            data=result_record,
+            data=data_to_store,
         )
 
     # Generators aren't portable, implicitly convert them to a list.
@@ -433,12 +430,12 @@ async def return_value_to_state(
     if isinstance(data, ResultRecord):
         return Completed(data=data)
     else:
-        result_record = result_store.create_result_record(
-            data,
-            key=key,
-            expiration=expiration,
-        )
         if write_result:
+            result_record = result_store.create_result_record(
+                data,
+                key=key,
+                expiration=expiration,
+            )
             try:
                 await result_store.apersist_result_record(result_record)
             except Exception as exc:
@@ -446,7 +443,11 @@ async def return_value_to_state(
                     "Encountered an error while persisting result: %s Execution will continue, but the result has not been persisted",
                     exc,
                 )
-        return Completed(data=result_record)
+            data_to_store = result_record
+        else:
+            data_to_store = data
+            
+        return Completed(data=data_to_store)
 
 
 async def aget_state_exception(state: State) -> BaseException:
