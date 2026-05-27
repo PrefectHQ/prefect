@@ -76,7 +76,10 @@ def _build_transient_retrying(
     initial_delay: float,
     max_delay: float,
     operation_label: Literal[
-        "creating job", "submitting job for execution", "polling job readiness"
+        "creating job",
+        "submitting job for execution",
+        "polling job readiness",
+        "watching job execution",
     ],
     logger: PrefectLogAdapter,
 ) -> Retrying:
@@ -1183,6 +1186,7 @@ class CloudRunWorkerV2(
                 configuration=configuration,
                 execution=execution,
                 poll_interval=poll_interval,
+                logger=logger,
             )
         except InfrastructureNotFound:
             logger.info(
@@ -1241,6 +1245,7 @@ class CloudRunWorkerV2(
         configuration: CloudRunWorkerJobV2Configuration,
         execution: ExecutionV2,
         poll_interval: int,
+        logger: PrefectLogAdapter | None = None,
     ) -> ExecutionV2:
         """
         Update execution status until it is no longer running.
@@ -1252,6 +1257,7 @@ class CloudRunWorkerV2(
                 the job.
             execution (ExecutionV2): The execution to watch.
             poll_interval (int): The number of seconds to wait between polls.
+            logger: Optional logger for retry warnings.
 
         Returns:
             The execution.
@@ -1259,12 +1265,32 @@ class CloudRunWorkerV2(
         Raises:
             InfrastructureNotFound: If the execution is deleted (e.g., by kill_infrastructure).
         """
+        if logger is not None:
+            settings = CloudRunV2WorkerSettings()
+            retrying = _build_transient_retrying(
+                max_attempts=settings.create_job_max_attempts,
+                initial_delay=settings.create_job_initial_delay_seconds,
+                max_delay=settings.create_job_max_delay_seconds,
+                operation_label="watching job execution",
+                logger=logger,
+            )
+        else:
+            retrying = None
+
         while execution.is_running():
             try:
-                execution = ExecutionV2.get(
-                    cr_client=cr_client,
-                    execution_id=execution.name,
-                )
+                if retrying is not None:
+                    for attempt in retrying:
+                        with attempt:
+                            execution = ExecutionV2.get(
+                                cr_client=cr_client,
+                                execution_id=execution.name,
+                            )
+                else:
+                    execution = ExecutionV2.get(
+                        cr_client=cr_client,
+                        execution_id=execution.name,
+                    )
             except HttpError as exc:
                 if exc.status_code == 404:
                     raise InfrastructureNotFound(
