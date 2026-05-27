@@ -244,11 +244,12 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
 
     async def _visible_message_ids(self, work_pool_id: UUID) -> AsyncIterator[str]:
         batch_size = max(self._VISIBLE_SCAN_BATCH_SIZE, 1)
+        visible_key = self._visible_key(work_pool_id)
         start = 0
 
         while True:
             raw_message_ids = await self._client().zrange(
-                self._visible_key(work_pool_id),
+                visible_key,
                 start,
                 start + batch_size - 1,
             )
@@ -256,12 +257,13 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                 return
 
             for raw_message_id in raw_message_ids:
-                yield _decode_redis_value(raw_message_id)
+                message_id = _decode_redis_value(raw_message_id)
+                yield message_id
+                if await self._client().zscore(visible_key, message_id) is not None:
+                    start += 1
 
             if len(raw_message_ids) < batch_size:
                 return
-
-            start += len(raw_message_ids)
 
     async def ack(
         self,

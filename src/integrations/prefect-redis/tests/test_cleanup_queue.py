@@ -196,6 +196,47 @@ async def test_redis_reserve_scans_visible_messages_in_batches(
     assert reservation.message_id == preferred_message_id
 
 
+async def test_redis_reserve_does_not_skip_after_cleaning_stale_visible_entries(
+    queue: WorkerCleanupQueue,
+    redis: Redis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(WorkerCleanupQueue, "_VISIBLE_SCAN_BATCH_SIZE", 2)
+    work_pool_id = uuid4()
+    first_stale_message_id = UUID(int=1)
+    second_stale_message_id = UUID(int=2)
+    eligible_message_id = UUID(int=3)
+
+    await _enqueue_message(
+        queue,
+        work_pool_id=work_pool_id,
+        message_id=first_stale_message_id,
+        idempotency_key="first-stale-cleanup",
+    )
+    await _enqueue_message(
+        queue,
+        work_pool_id=work_pool_id,
+        message_id=second_stale_message_id,
+        idempotency_key="second-stale-cleanup",
+    )
+    await _enqueue_message(
+        queue,
+        work_pool_id=work_pool_id,
+        message_id=eligible_message_id,
+        idempotency_key="eligible-cleanup",
+    )
+
+    await redis.delete(
+        queue._message_key(work_pool_id, first_stale_message_id),
+        queue._message_key(work_pool_id, second_stale_message_id),
+    )
+
+    reservation = await queue.reserve(work_pool_id=work_pool_id)
+
+    assert reservation is not None
+    assert reservation.message_id == eligible_message_id
+
+
 async def test_redis_wait_for_wakeup_observes_shared_sequence(redis: Redis) -> None:
     work_pool_id = uuid4()
     key_prefix = f"prefect:test:cleanup:{uuid4()}"
