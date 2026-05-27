@@ -24,6 +24,8 @@ from prefect.settings import (
     PREFECT_MESSAGING_BROKER,
     PREFECT_MESSAGING_CACHE,
     PREFECT_PROFILES_PATH,
+    PREFECT_SERVER_API_WEBSOCKET_PING_INTERVAL,
+    PREFECT_SERVER_API_WEBSOCKET_PING_TIMEOUT,
     PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE,
     PREFECT_SERVER_EVENTS_CAUSAL_ORDERING,
     Profile,
@@ -700,6 +702,42 @@ class TestAnalyticsEnvVar:
         assert mock_foreground.called
         server_settings = mock_foreground.call_args[0][1]
         assert server_settings["PREFECT_SERVER_ANALYTICS_ENABLED"] == "False"
+
+
+class TestWebsocketPingSettings:
+    def test_default_values(self, monkeypatch: pytest.MonkeyPatch):
+        from unittest.mock import MagicMock
+
+        mock_fg = MagicMock()
+        monkeypatch.setattr("prefect.cli._server_utils._run_in_foreground", mock_fg)
+        monkeypatch.setattr("prefect.cli._server_utils.prestart_check", MagicMock())
+        monkeypatch.setattr("prefect.cli._app.is_interactive", lambda: False)
+
+        invoke_and_assert(command=["server", "start"], expected_code=0)
+
+        kwargs = mock_fg.call_args.kwargs
+        assert kwargs["ws_ping_interval"] == 20.0
+        assert kwargs["ws_ping_timeout"] == 20.0
+
+    def test_custom_values(self, monkeypatch: pytest.MonkeyPatch):
+        from unittest.mock import MagicMock
+
+        mock_fg = MagicMock()
+        monkeypatch.setattr("prefect.cli._server_utils._run_in_foreground", mock_fg)
+        monkeypatch.setattr("prefect.cli._server_utils.prestart_check", MagicMock())
+        monkeypatch.setattr("prefect.cli._app.is_interactive", lambda: False)
+
+        with temporary_settings(
+            {
+                PREFECT_SERVER_API_WEBSOCKET_PING_INTERVAL: 60.0,
+                PREFECT_SERVER_API_WEBSOCKET_PING_TIMEOUT: 45.0,
+            }
+        ):
+            invoke_and_assert(command=["server", "start"], expected_code=0)
+
+        kwargs = mock_fg.call_args.kwargs
+        assert kwargs["ws_ping_interval"] == 60.0
+        assert kwargs["ws_ping_timeout"] == 45.0
 
 
 class TestFormatHostForUrl:
