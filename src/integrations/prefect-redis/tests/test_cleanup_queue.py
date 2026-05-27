@@ -152,6 +152,40 @@ async def test_redis_enqueue_is_idempotent_for_cleanup_key(
     assert second.message_id != second_message_id
 
 
+async def test_redis_message_ids_are_scoped_by_work_pool(
+    queue: WorkerCleanupQueue,
+) -> None:
+    message_id = uuid4()
+    first_work_pool_id = uuid4()
+    second_work_pool_id = uuid4()
+
+    first = await queue.enqueue(
+        message_id=message_id,
+        idempotency_key="flow-run-cleanup",
+        work_pool_id=first_work_pool_id,
+        kind=CANCELLING_TIMEOUT_TEARDOWN,
+        target=_target(),
+    )
+    second = await queue.enqueue(
+        message_id=message_id,
+        idempotency_key="flow-run-cleanup",
+        work_pool_id=second_work_pool_id,
+        kind=CANCELLING_TIMEOUT_TEARDOWN,
+        target=_target(),
+    )
+    first_reservation = await queue.reserve(work_pool_id=first_work_pool_id)
+    second_reservation = await queue.reserve(work_pool_id=second_work_pool_id)
+
+    assert first.message_id == message_id
+    assert second.message_id == message_id
+    assert first.work_pool_id == first_work_pool_id
+    assert second.work_pool_id == second_work_pool_id
+    assert first_reservation is not None
+    assert first_reservation.work_pool_id == first_work_pool_id
+    assert second_reservation is not None
+    assert second_reservation.work_pool_id == second_work_pool_id
+
+
 async def test_redis_enqueue_after_ack_keeps_idempotency_completed(
     queue: WorkerCleanupQueue,
 ) -> None:

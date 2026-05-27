@@ -162,10 +162,14 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         existing_message_id_string = _decode_redis_value(
                             existing_message_id
                         )
+                        existing_scoped_keys = self._scoped_message_keys(
+                            work_pool_id=work_pool_id,
+                            message_id=existing_message_id_string,
+                        )
                         existing_keys = (
-                            self._message_key(existing_message_id_string),
-                            self._dead_key(existing_message_id_string),
-                            self._acked_key(existing_message_id_string),
+                            existing_scoped_keys.message,
+                            existing_scoped_keys.dead,
+                            existing_scoped_keys.acked,
                         )
                         await pipe.watch(*existing_keys)
                         existing = await self._read_existing_message_from_keys(
@@ -350,9 +354,10 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
     async def read_message(
         self, *, work_pool_id: UUID, message_id: UUID
     ) -> CleanupQueueMessage | None:
-        fields = _string_mapping(
-            await self._client().hgetall(self._message_key(message_id))
+        keys = self._scoped_message_keys(
+            work_pool_id=work_pool_id, message_id=message_id
         )
+        fields = _string_mapping(await self._client().hgetall(keys.message))
         if not fields:
             return None
         message = self._message_from_mapping(fields)
@@ -361,9 +366,10 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
     async def read_dead_letter(
         self, *, work_pool_id: UUID, message_id: UUID
     ) -> CleanupQueueDeadLetter | None:
-        fields = _string_mapping(
-            await self._client().hgetall(self._dead_key(message_id))
+        keys = self._scoped_message_keys(
+            work_pool_id=work_pool_id, message_id=message_id
         )
+        fields = _string_mapping(await self._client().hgetall(keys.dead))
         if not fields:
             return None
         dead_letter = self._dead_letter_from_mapping(fields)
@@ -977,25 +983,25 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         self, *, work_pool_id: UUID | str, message_id: UUID | str
     ) -> _ScopedMessageKeys:
         return _ScopedMessageKeys(
-            message=self._message_key(message_id),
-            reservation=self._reservation_key(message_id),
-            dead=self._dead_key(message_id),
-            acked=self._acked_key(message_id),
+            message=self._message_key(work_pool_id, message_id),
+            reservation=self._reservation_key(work_pool_id, message_id),
+            dead=self._dead_key(work_pool_id, message_id),
+            acked=self._acked_key(work_pool_id, message_id),
             visible=self._visible_key(work_pool_id),
             reserved=self._reserved_key(work_pool_id),
         )
 
-    def _message_key(self, message_id: UUID | str) -> str:
-        return f"{self._prefix()}:messages:{message_id}"
+    def _message_key(self, work_pool_id: UUID | str, message_id: UUID | str) -> str:
+        return f"{self._prefix()}:pool:{work_pool_id}:messages:{message_id}"
 
-    def _reservation_key(self, message_id: UUID | str) -> str:
-        return f"{self._prefix()}:reservations:{message_id}"
+    def _reservation_key(self, work_pool_id: UUID | str, message_id: UUID | str) -> str:
+        return f"{self._prefix()}:pool:{work_pool_id}:reservations:{message_id}"
 
-    def _dead_key(self, message_id: UUID | str) -> str:
-        return f"{self._prefix()}:dead:{message_id}"
+    def _dead_key(self, work_pool_id: UUID | str, message_id: UUID | str) -> str:
+        return f"{self._prefix()}:pool:{work_pool_id}:dead:{message_id}"
 
-    def _acked_key(self, message_id: UUID | str) -> str:
-        return f"{self._prefix()}:acked:{message_id}"
+    def _acked_key(self, work_pool_id: UUID | str, message_id: UUID | str) -> str:
+        return f"{self._prefix()}:pool:{work_pool_id}:acked:{message_id}"
 
     def _idempotency_key(self, work_pool_id: UUID | str, idempotency_hash: str) -> str:
         return f"{self._prefix()}:idempotency:{work_pool_id}:{idempotency_hash}"
