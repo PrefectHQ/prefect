@@ -350,6 +350,8 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_API_MAX_PARAMETER_SIZE": {"test_value": 1024},
     "PREFECT_SERVER_API_KEEPALIVE_TIMEOUT": {"test_value": 10},
     "PREFECT_SERVER_API_PORT": {"test_value": 4200},
+    "PREFECT_SERVER_API_WEBSOCKET_PING_INTERVAL": {"test_value": 30.0},
+    "PREFECT_SERVER_API_WEBSOCKET_PING_TIMEOUT": {"test_value": 30.0},
     "PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE": {
         "test_value": "prefect.server.concurrency.lease_storage.filesystem"
     },
