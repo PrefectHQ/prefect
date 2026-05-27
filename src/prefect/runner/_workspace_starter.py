@@ -165,6 +165,22 @@ def _read_project_requirements(pyproject: Path) -> list[Requirement] | None:
     return requirements
 
 
+def _project_uses_uv_sources(pyproject: Path) -> bool:
+    try:
+        data = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except (OSError, tomllib.TOMLDecodeError):
+        return False
+
+    tool = data.get("tool")
+    if not isinstance(tool, dict):
+        return False
+    uv = tool.get("uv")
+    if not isinstance(uv, dict):
+        return False
+    sources = uv.get("sources")
+    return isinstance(sources, dict) and bool(sources)
+
+
 def _requirement_applies_to_current_environment(requirement: Requirement) -> bool:
     if requirement.marker is None:
         return True
@@ -178,6 +194,10 @@ def _requirements_include_prefect(requirements: Iterable[Requirement]) -> bool:
         if canonicalize_name(requirement.name) == "prefect":
             return True
     return False
+
+
+def _project_import_name(project_name: str) -> str:
+    return canonicalize_name(project_name).replace("-", "_")
 
 
 def _current_environment_satisfies(requirements: Iterable[Requirement]) -> bool:
@@ -206,6 +226,16 @@ def _distribution_is_installed(distribution_name: str) -> bool:
     return True
 
 
+def _project_has_local_import_package(project_root: Path, project_name: str) -> bool:
+    import_name = _project_import_name(project_name)
+    for base_path in (project_root, project_root / "src"):
+        if (base_path / import_name).is_dir():
+            return True
+        if (base_path / import_name).with_suffix(".py").is_file():
+            return True
+    return False
+
+
 def _module_available_from_workspace_path(
     workspace: PreparedWorkspace, module_name: str
 ) -> bool:
@@ -225,7 +255,14 @@ def _current_environment_can_load_entrypoint(
 ) -> bool:
     entrypoint_target = workspace.runtime_entrypoint.rsplit(":", 1)[0]
     if entrypoint_target.endswith(".py"):
-        return True
+        if project_name is None or workspace.project_root is None:
+            return True
+        if not _project_has_local_import_package(workspace.project_root, project_name):
+            return True
+        project_import_name = _project_import_name(project_name)
+        return _module_available_from_workspace_path(
+            workspace, project_import_name
+        ) or _distribution_is_installed(project_name)
     if _module_available_from_workspace_path(workspace, entrypoint_target):
         return True
     if project_name is None:
@@ -282,9 +319,10 @@ def _find_prematerialized_python(
        *project_root*, matching uv's own behaviour.
     2. An active `VIRTUAL_ENV` that is credibly tied to this workspace
        (located under *project_root*).
-    3. The current Python environment already satisfies the project's
-       dependencies that Prefect can verify from installed distribution names
-       and versions, and can load the entrypoint.
+    3. The project does not use uv sources, and the current Python environment
+       already satisfies the project's dependencies that Prefect can verify
+       from installed distribution names and versions, and can load the
+       entrypoint.
     4. An editable install whose `direct_url.json` points at this exact
        project root (the `uv pip install --system -e .` pattern).
 
@@ -329,6 +367,7 @@ def _find_prematerialized_python(
     # 3. Current Python already has the declared runtime dependencies.
     if (
         project_requirements
+        and not _project_uses_uv_sources(pyproject)
         and _current_environment_satisfies(project_requirements)
         and _current_environment_can_load_entrypoint(workspace, project_name)
     ):

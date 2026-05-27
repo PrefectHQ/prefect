@@ -591,12 +591,13 @@ Prefect skips `uv run` when the project already appears ready to execute:
 
 - `UV_PROJECT_ENVIRONMENT` points to a virtual environment. Relative paths are resolved from the project root, matching `uv` behavior.
 - `VIRTUAL_ENV` points to a virtual environment located under the project root.
-- The current Python environment can load the flow entrypoint and already satisfies the active `[project]` dependencies that Prefect can verify from installed distribution names and versions. This covers custom Docker images where the code and dependencies are both baked into the image and selected with `set_working_directory`. Dependencies with extras or direct URLs are handled by `uv run` unless another pre-materialized environment signal applies.
+- The current Python environment can load the flow entrypoint and already satisfies the active `[project]` dependencies that Prefect can verify from installed distribution names and versions. This covers custom Docker images where the code and dependencies are both baked into the image and selected with `set_working_directory`. Dependencies with extras, direct URLs, or `[tool.uv.sources]` entries are handled by `uv run` unless another pre-materialized environment signal applies.
 - The current Python environment contains an editable install that points at the prepared project root, such as from `pip install -e .` or `uv pip install --system -e .`.
 
 A `.venv` directory in the project root is not enough by itself for Prefect to skip `uv run`. If your Docker image already
-contains a project virtual environment, set `UV_PROJECT_ENVIRONMENT` or `VIRTUAL_ENV` in the image or work pool job
-variables so Prefect can use that environment directly.
+contains a project virtual environment or a `src`-layout project package that is not importable from the working directory,
+set `UV_PROJECT_ENVIRONMENT` or `VIRTUAL_ENV` in the image or work pool job variables so Prefect can use that environment
+directly.
 
 For more information, see [this discussion of custom Docker images](/v3/how-to-guides/deployment_infra/docker/#automatically-build-a-custom-docker-image-with-a-local-dockerfile).
 

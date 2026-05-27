@@ -48,9 +48,14 @@ def _prepared_workspace(tmp_path: Path) -> PreparedWorkspace:
     )
 
 
-def _write_pyproject(path: Path, name: str = "test-project", deps: str = "['prefect']"):
+def _write_pyproject(
+    path: Path,
+    name: str = "test-project",
+    deps: str = "['prefect']",
+    extra: str = "",
+) -> None:
     (path / "pyproject.toml").write_text(
-        f"[project]\nname = '{name}'\nversion = '0.1.0'\ndependencies = {deps}\n"
+        f"[project]\nname = '{name}'\nversion = '0.1.0'\ndependencies = {deps}\n{extra}"
     )
 
 
@@ -369,6 +374,87 @@ def test_workspace_command_uses_uv_for_unverifiable_project_dependency(
     _write_pyproject(
         workspace.project_root,
         deps=f"['prefect>=3', '{dependency}']",
+    )
+    _mock_installed_distributions(
+        monkeypatch,
+        {
+            "prefect": "3.6.0",
+            "pandas": "2.2.3",
+        },
+    )
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.shutil.which",
+        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
+    )
+
+    command = _workspace_command(workspace, explicit_command=None)
+    assert command is not None
+    assert command_from_string(command) == [
+        "/opt/bin/uv",
+        "run",
+        "--no-dev",
+        "--project",
+        str(workspace.project_root),
+        "-m",
+        "prefect.flow_engine",
+        workspace.runtime_entrypoint,
+    ]
+
+
+def test_workspace_command_uses_uv_when_project_has_uv_sources(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """uv sources can change dependency provenance without changing versions."""
+    workspace = _prepared_workspace(tmp_path)
+    assert workspace.project_root is not None
+    workspace.environment["PATH"] = "/workspace/bin"
+    _strip_venv_signals(workspace)
+    _write_pyproject(
+        workspace.project_root,
+        deps="['prefect>=3', 'my-lib>=1']",
+        extra="\n[tool.uv.sources]\nmy-lib = { path = '../my-lib' }\n",
+    )
+    _mock_installed_distributions(
+        monkeypatch,
+        {
+            "prefect": "3.6.0",
+            "my-lib": "1.0.0",
+        },
+    )
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.shutil.which",
+        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
+    )
+
+    command = _workspace_command(workspace, explicit_command=None)
+    assert command is not None
+    assert command_from_string(command) == [
+        "/opt/bin/uv",
+        "run",
+        "--no-dev",
+        "--project",
+        str(workspace.project_root),
+        "-m",
+        "prefect.flow_engine",
+        workspace.runtime_entrypoint,
+    ]
+
+
+def test_workspace_command_uses_uv_for_file_entrypoint_when_src_package_not_importable(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """File entrypoints can still need uv to install src-layout project packages."""
+    workspace = _prepared_workspace(tmp_path)
+    assert workspace.project_root is not None
+    workspace.environment["PATH"] = "/workspace/bin"
+    _strip_venv_signals(workspace)
+    package_dir = workspace.project_root / "src" / "test_project"
+    package_dir.mkdir(parents=True)
+    (package_dir / "__init__.py").touch()
+    _write_pyproject(
+        workspace.project_root,
+        name="test-project",
+        deps="['prefect>=3', 'pandas>=2,<3']",
     )
     _mock_installed_distributions(
         monkeypatch,
