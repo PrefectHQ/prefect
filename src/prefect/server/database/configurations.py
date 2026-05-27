@@ -241,14 +241,17 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             )
             connect_args: dict[str, Any] = {}
 
-            if self.timeout is not None:
-                connect_args["command_timeout"] = self.timeout
+            # In test mode, use higher timeouts to handle lock contention
+            # during parallel test execution (pytest-xdist). Both statement
+            # execution and connection establishment can block when many
+            # workers compete for the same PostgreSQL tables.
+            command_timeout = self.timeout
+            if PREFECT_TESTING_UNIT_TEST_MODE.value() is True:
+                command_timeout = max(command_timeout or 0.0, 30.0)
 
-            # In test mode, use a higher connection timeout to handle the heavy
-            # load of parallel test execution (pytest-xdist). Establishing a new
-            # asyncpg connection can occasionally take longer than the 5s default
-            # under CI load, which surfaces as a TimeoutError during fixture
-            # setup. Keep the configured value if the user has already raised it.
+            if command_timeout is not None:
+                connect_args["command_timeout"] = command_timeout
+
             connection_timeout = self.connection_timeout
             if PREFECT_TESTING_UNIT_TEST_MODE.value() is True:
                 connection_timeout = max(connection_timeout or 0.0, 30.0)
