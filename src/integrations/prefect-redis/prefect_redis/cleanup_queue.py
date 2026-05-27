@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import Iterable, Mapping
+from collections.abc import AsyncIterator, Iterable, Mapping
 from dataclasses import dataclass
 from datetime import timedelta
 from hashlib import sha256
@@ -98,6 +98,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
     """
 
     _DEFAULT_EXPIRE_LEASE_LIMIT = 100
+    _VISIBLE_SCAN_BATCH_SIZE = 100
 
     def __init__(
         self,
@@ -225,11 +226,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
             preferred_work_queue_ids=preferred_work_queue_ids,
             allow_fallback_to_any_queue=allow_fallback_to_any_queue,
         ):
-            message_ids = await self._client().zrange(
-                self._visible_key(work_pool_id), 0, -1
-            )
-            for raw_message_id in message_ids:
-                message_id = _decode_redis_value(raw_message_id)
+            async for message_id in self._visible_message_ids(work_pool_id):
                 reservation = await self._reserve_candidate(
                     work_pool_id=work_pool_id,
                     message_id=message_id,
@@ -244,6 +241,27 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                     return reservation
 
         return None
+
+    async def _visible_message_ids(self, work_pool_id: UUID) -> AsyncIterator[str]:
+        batch_size = max(self._VISIBLE_SCAN_BATCH_SIZE, 1)
+        start = 0
+
+        while True:
+            raw_message_ids = await self._client().zrange(
+                self._visible_key(work_pool_id),
+                start,
+                start + batch_size - 1,
+            )
+            if not raw_message_ids:
+                return
+
+            for raw_message_id in raw_message_ids:
+                yield _decode_redis_value(raw_message_id)
+
+            if len(raw_message_ids) < batch_size:
+                return
+
+            start += len(raw_message_ids)
 
     async def ack(
         self,

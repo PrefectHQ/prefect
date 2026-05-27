@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncGenerator, Callable, Iterator
-from contextlib import AbstractContextManager, contextmanager
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any
 from uuid import UUID, uuid4
 
 import pytest
@@ -19,13 +17,10 @@ from redis.asyncio import Redis
 from prefect.client.schemas.worker_channel import CANCELLING_TIMEOUT_TEARDOWN
 from prefect.server.worker_communication.cleanup_queue import get_worker_cleanup_queue
 from prefect.settings import (
-    PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_LEASE_SECONDS,
-    PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_MAX_DELIVERY_ATTEMPTS,
     PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE,
     temporary_settings,
 )
-
-CleanupPolicySettings = Callable[..., AbstractContextManager[None]]
+from prefect.testing.standard_test_suites import WorkerCleanupQueueStandardTestSuite
 
 
 @dataclass
@@ -53,26 +48,8 @@ def clock(monkeypatch: pytest.MonkeyPatch) -> Clock:
     return clock
 
 
-@pytest.fixture
-def cleanup_policy_settings() -> CleanupPolicySettings:
-    @contextmanager
-    def settings(
-        *,
-        lease_seconds: float | None = None,
-        max_delivery_attempts: int | None = None,
-    ) -> Iterator[None]:
-        values: dict[Any, Any] = {}
-        if lease_seconds is not None:
-            values[PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_LEASE_SECONDS] = lease_seconds
-        if max_delivery_attempts is not None:
-            values[PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_MAX_DELIVERY_ATTEMPTS] = (
-                max_delivery_attempts
-            )
-
-        with temporary_settings(values):
-            yield
-
-    return settings
+class TestRedisWorkerCleanupQueue(WorkerCleanupQueueStandardTestSuite):
+    pass
 
 
 def _target() -> dict[str, str]:
@@ -126,32 +103,6 @@ def test_redis_worker_cleanup_queue_settings_use_integration_namespace(
     assert settings.url == "redis://localhost:6379/4"
 
 
-async def test_redis_enqueue_is_idempotent_for_cleanup_key(
-    queue: WorkerCleanupQueue,
-) -> None:
-    work_pool_id = uuid4()
-    first_message_id = uuid4()
-    second_message_id = uuid4()
-
-    first = await queue.enqueue(
-        message_id=first_message_id,
-        idempotency_key="flow-run-cleanup",
-        work_pool_id=work_pool_id,
-        kind=CANCELLING_TIMEOUT_TEARDOWN,
-        target=_target(),
-    )
-    second = await queue.enqueue(
-        message_id=second_message_id,
-        idempotency_key="flow-run-cleanup",
-        work_pool_id=work_pool_id,
-        kind=CANCELLING_TIMEOUT_TEARDOWN,
-        target=_target(),
-    )
-
-    assert second.message_id == first.message_id
-    assert second.message_id != second_message_id
-
-
 async def test_redis_message_ids_are_scoped_by_work_pool(
     queue: WorkerCleanupQueue,
 ) -> None:
@@ -186,153 +137,6 @@ async def test_redis_message_ids_are_scoped_by_work_pool(
     assert second_reservation.work_pool_id == second_work_pool_id
 
 
-async def test_redis_enqueue_after_ack_keeps_idempotency_completed(
-    queue: WorkerCleanupQueue,
-) -> None:
-    work_pool_id = uuid4()
-    message_id = uuid4()
-    idempotency_key = "flow-run-cleanup"
-    first = await queue.enqueue(
-        message_id=message_id,
-        idempotency_key=idempotency_key,
-        work_pool_id=work_pool_id,
-        kind=CANCELLING_TIMEOUT_TEARDOWN,
-        target=_target(),
-    )
-    reservation = await queue.reserve(work_pool_id=work_pool_id)
-    assert reservation is not None
-    accepted = await queue.ack(
-        work_pool_id=work_pool_id,
-        message_id=message_id,
-        reservation_token=reservation.reservation_token,
-    )
-
-    duplicate = await queue.enqueue(
-        message_id=uuid4(),
-        idempotency_key=idempotency_key,
-        work_pool_id=work_pool_id,
-        kind=CANCELLING_TIMEOUT_TEARDOWN,
-        target=_target(),
-    )
-
-    assert accepted.status == "accepted"
-    assert duplicate.message_id == first.message_id
-    assert await queue.reserve(work_pool_id=work_pool_id) is None
-
-
-async def test_redis_operations_require_current_reservation_token(
-    queue: WorkerCleanupQueue,
-) -> None:
-    work_pool_id = uuid4()
-    message_id = await _enqueue_message(queue, work_pool_id=work_pool_id)
-    reservation = await queue.reserve(work_pool_id=work_pool_id)
-    assert reservation is not None
-
-    rejected = await queue.ack(
-        work_pool_id=work_pool_id,
-        message_id=message_id,
-        reservation_token="not-the-current-token",
-    )
-    accepted = await queue.ack(
-        work_pool_id=work_pool_id,
-        message_id=message_id,
-        reservation_token=reservation.reservation_token,
-    )
-
-    assert rejected.status == "invalid_token"
-    assert rejected.reason == "reservation_token_mismatch"
-    assert accepted.status == "accepted"
-    assert (
-        await queue.read_message(work_pool_id=work_pool_id, message_id=message_id)
-        is None
-    )
-
-
-async def test_redis_stale_reservation_token_is_rejected_after_redelivery(
-    queue: WorkerCleanupQueue,
-) -> None:
-    work_pool_id = uuid4()
-    message_id = await _enqueue_message(queue, work_pool_id=work_pool_id)
-    first = await queue.reserve(work_pool_id=work_pool_id)
-    assert first is not None
-
-    released = await queue.release(
-        work_pool_id=work_pool_id,
-        message_id=message_id,
-        reservation_token=first.reservation_token,
-        reason="cannot_act",
-    )
-    second = await queue.reserve(work_pool_id=work_pool_id)
-    assert second is not None
-
-    stale_ack = await queue.ack(
-        work_pool_id=work_pool_id,
-        message_id=message_id,
-        reservation_token=first.reservation_token,
-    )
-
-    assert released.status == "accepted"
-    assert second.reservation_token != first.reservation_token
-    assert stale_ack.status == "invalid_token"
-
-
-async def test_redis_release_moves_message_to_dead_letter_at_retry_limit(
-    queue: WorkerCleanupQueue,
-    cleanup_policy_settings: CleanupPolicySettings,
-) -> None:
-    work_pool_id = uuid4()
-    message_id = await _enqueue_message(queue, work_pool_id=work_pool_id)
-
-    with cleanup_policy_settings(max_delivery_attempts=1):
-        reservation = await queue.reserve(work_pool_id=work_pool_id)
-        assert reservation is not None
-
-        result = await queue.release(
-            work_pool_id=work_pool_id,
-            message_id=message_id,
-            reservation_token=reservation.reservation_token,
-            reason="unsupported_cleanup_kind",
-        )
-
-    dead_letter = await queue.read_dead_letter(
-        work_pool_id=work_pool_id, message_id=message_id
-    )
-
-    assert result.status == "dead_lettered"
-    assert result.reason == "max_delivery_attempts_reached"
-    assert dead_letter is not None
-    assert dead_letter.final_delivery_count == 1
-    assert dead_letter.release_reason == "unsupported_cleanup_kind"
-    assert await queue.reserve(work_pool_id=work_pool_id) is None
-
-
-async def test_redis_operation_on_expired_reservation_redelivers_message(
-    queue: WorkerCleanupQueue,
-    clock: Clock,
-    cleanup_policy_settings: CleanupPolicySettings,
-) -> None:
-    work_pool_id = uuid4()
-    message_id = await _enqueue_message(queue, work_pool_id=work_pool_id)
-    with cleanup_policy_settings(lease_seconds=10.0, max_delivery_attempts=2):
-        first = await queue.reserve(work_pool_id=work_pool_id)
-        assert first is not None
-
-        clock.advance(timedelta(seconds=11))
-        expired = await queue.renew(
-            work_pool_id=work_pool_id,
-            message_id=message_id,
-            reservation_token=first.reservation_token,
-        )
-        second = await queue.reserve(work_pool_id=work_pool_id)
-
-    assert expired.status == "expired"
-    assert expired.reason == "lease_expired"
-    assert second is not None
-    assert second.message_id == message_id
-    assert second.delivery_count == 2
-    assert second.reservation_token != first.reservation_token
-
-
 async def test_redis_concurrent_reserve_attempts_create_one_reservation(
     queue: WorkerCleanupQueue,
 ) -> None:
@@ -347,6 +151,49 @@ async def test_redis_concurrent_reserve_attempts_create_one_reservation(
     assert len(accepted) == 1
     assert accepted[0].message_id == message_id
     assert accepted[0].delivery_count == 1
+
+
+async def test_redis_reserve_scans_visible_messages_in_batches(
+    queue: WorkerCleanupQueue,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(WorkerCleanupQueue, "_VISIBLE_SCAN_BATCH_SIZE", 2)
+    work_pool_id = uuid4()
+    preferred_work_queue_id = uuid4()
+    first_unmatched_message_id = UUID(int=1)
+    second_unmatched_message_id = UUID(int=2)
+    preferred_message_id = UUID(int=3)
+
+    await _enqueue_message(
+        queue,
+        work_pool_id=work_pool_id,
+        message_id=first_unmatched_message_id,
+        idempotency_key="first-unmatched-cleanup",
+        work_queue_id=uuid4(),
+    )
+    await _enqueue_message(
+        queue,
+        work_pool_id=work_pool_id,
+        message_id=second_unmatched_message_id,
+        idempotency_key="second-unmatched-cleanup",
+        work_queue_id=uuid4(),
+    )
+    await _enqueue_message(
+        queue,
+        work_pool_id=work_pool_id,
+        message_id=preferred_message_id,
+        idempotency_key="preferred-cleanup",
+        work_queue_id=preferred_work_queue_id,
+    )
+
+    reservation = await queue.reserve(
+        work_pool_id=work_pool_id,
+        preferred_work_queue_ids=[preferred_work_queue_id],
+        allow_fallback_to_any_queue=False,
+    )
+
+    assert reservation is not None
+    assert reservation.message_id == preferred_message_id
 
 
 async def test_redis_wait_for_wakeup_observes_shared_sequence(redis: Redis) -> None:
