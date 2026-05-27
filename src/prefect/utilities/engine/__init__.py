@@ -850,7 +850,9 @@ def emit_task_run_state_change_event(
 ) -> Optional[Event]:
     state_message_truncation_length = 100_000
 
-    if _is_result_record(validated_state.data) and should_persist_result():
+    if _is_result_record(validated_state.data) and (
+        validated_state.data.is_persisted or should_persist_result()
+    ):
         data = validated_state.data.metadata.model_dump(mode="json")
     else:
         data = None

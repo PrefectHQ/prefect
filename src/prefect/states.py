@@ -57,7 +57,11 @@ def to_state_create(state: State) -> "StateCreate":
         should_persist_result,
     )
 
-    if isinstance(state.data, ResultRecord) and should_persist_result():
+    # Preserve metadata for records already written to storage, even if this
+    # serialization happens after run context teardown.
+    if isinstance(state.data, ResultRecord) and (
+        state.data.is_persisted or should_persist_result()
+    ):
         data = state.data.metadata  # pyright: ignore[reportUnknownMemberType] unable to narrow ResultRecord type
     else:
         data = None
