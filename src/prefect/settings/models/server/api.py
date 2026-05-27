@@ -144,12 +144,12 @@ class ServerAPISettings(PrefectBaseSettings):
         ),
     )
 
-    websocket_ping_interval: Optional[float] = Field(
+    websocket_ping_interval: float = Field(
         default=20.0,
         description="WebSocket ping interval in seconds. Only applies when starting the server with `prefect server start`.",
     )
 
-    websocket_ping_timeout: Optional[float] = Field(
+    websocket_ping_timeout: float = Field(
         default=20.0,
         description="WebSocket ping timeout in seconds. Only applies when starting the server with `prefect server start`.",
     )
