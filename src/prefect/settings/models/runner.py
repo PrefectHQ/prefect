@@ -71,6 +71,15 @@ class RunnerSettings(PrefectBaseSettings):
         ),
     )
 
+    auto_install_dependencies: bool = Field(
+        default=True,
+        description=(
+            "Whether pulled flow run workspaces may automatically install project "
+            "dependencies before execution. Disable this when the execution "
+            "environment already contains the required code and dependencies."
+        ),
+    )
+
     server: RunnerServerSettings = Field(
         default_factory=RunnerServerSettings,
         description="Settings for controlling runner server behavior",
