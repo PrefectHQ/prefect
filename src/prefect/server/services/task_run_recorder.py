@@ -37,13 +37,13 @@ from prefect.settings.models.server.services import ServicesBaseSetting
 if TYPE_CHECKING:
     import logging
 
+    TaskRunUpsertKey = tuple[str, UUID] | tuple[str, UUID, str, str]
+    TaskRunBatchKey = tuple[frozenset[str], str]
+    TaskRunBatchByKey = tuple[TaskRunBatchKey, list[dict[str, Any]]]
+
 logger: "logging.Logger" = get_logger(__name__)
 
 DEFAULT_PERSIST_MAX_RETRIES = 5
-
-TaskRunUpsertKey = tuple[str, UUID] | tuple[str, UUID, str, str]
-TaskRunBatchKey = tuple[frozenset[str], str]
-TaskRunBatchByKey = tuple[TaskRunBatchKey, list[dict[str, Any]]]
 
 
 def _task_run_upsert_key(task_run: TaskRun) -> TaskRunUpsertKey:
