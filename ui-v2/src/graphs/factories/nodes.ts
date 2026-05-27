@@ -66,6 +66,7 @@ export async function nodesContainerFactory() {
 
 	let nodesLayout: NodesLayoutResponse | null = null;
 	let runData: RunGraphData | null = null;
+	const pendingResizes = new Map<string, NodeSize>();
 
 	container.name = DEFAULT_NODES_CONTAINER_NAME;
 
@@ -91,6 +92,7 @@ export async function nodesContainerFactory() {
 
 		runData = data;
 		nodesLayout = null;
+		pendingResizes.clear();
 
 		await Promise.all([createNodes(data), createEdges(data)]);
 
@@ -289,6 +291,7 @@ export async function nodesContainerFactory() {
 
 	function resizeNode(nodeId: string, size: NodeSize): void {
 		if (!nodesLayout) {
+			pendingResizes.set(nodeId, size);
 			return;
 		}
 
@@ -374,7 +377,27 @@ export async function nodesContainerFactory() {
 
 	function handleLayoutMessage(data: WorkerLayoutMessage): void {
 		nodesLayout = data.layout;
+		applyPendingResizes();
 		setPositions();
+	}
+
+	function applyPendingResizes(): void {
+		for (const [nodeId, size] of pendingResizes) {
+			const node = nodes.get(nodeId);
+			const nodeLayout = nodesLayout?.positions.get(nodeId);
+
+			if (!node || !nodeLayout) {
+				continue;
+			}
+
+			rows.setOffset({ nodeId, axis: nodeLayout.y, offset: size.height });
+			columns.setOffset({
+				nodeId,
+				axis: nodeLayout.column,
+				offset: size.width,
+			});
+		}
+		pendingResizes.clear();
 	}
 
 	async function highlightSelectedNode(): Promise<void> {
