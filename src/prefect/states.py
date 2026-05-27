@@ -52,12 +52,11 @@ def to_state_create(state: State) -> "StateCreate":
     results should be sent to the API. Other data is only available locally.
     """
     from prefect.client.schemas.actions import StateCreate
+    from prefect.context import FlowRunContext, TaskRunContext
     from prefect.results import (
         ResultRecord,
         should_persist_result,
     )
-
-    from prefect.context import FlowRunContext, TaskRunContext
 
     if isinstance(state.data, ResultRecord):
         if TaskRunContext.get() is None and FlowRunContext.get() is None:
