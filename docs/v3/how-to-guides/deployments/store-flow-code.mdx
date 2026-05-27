@@ -581,6 +581,21 @@ Alternatively, you can create a custom Docker image outside of Prefect by runnin
 When you run `prefect deploy` with a custom image in `job_variables` and no build step, Prefect automatically adds a `set_working_directory` pull step to your deployment. In interactive mode, Prefect prompts you for the working directory inside your image (defaulting to `/opt/prefect/<project-dir>`). In non-interactive mode, it defaults to `/opt/prefect` and prints a warning. To use a different path, add an explicit `set_working_directory` step to the `pull` section of your `prefect.yaml`.
 </Note>
 
+#### Python project dependencies in custom images
+
+When a deployment pulls flow code into an execution environment and no explicit flow run command is configured, Prefect looks for a `pyproject.toml` in the prepared workspace.
+If the `pyproject.toml` declares `prefect` in its `[project]` dependencies, Prefect can start the flow run with `uv run --project <project-root>` so dependencies are available from the project environment.
+
+Prefect skips `uv run` when it detects an explicitly pre-built Python environment for the prepared workspace:
+
+- `UV_PROJECT_ENVIRONMENT` points to a virtual environment. Relative paths are resolved from the project root, matching `uv` behavior.
+- `VIRTUAL_ENV` points to a virtual environment located under the project root.
+- The current Python environment contains an editable install that points at the prepared project root, such as from `pip install -e .` or `uv pip install --system -e .`.
+
+A `.venv` directory in the project root is not enough by itself for Prefect to skip `uv run`. If your Docker image already
+contains a project virtual environment, set `UV_PROJECT_ENVIRONMENT` or `VIRTUAL_ENV` in the image or work pool job
+variables so Prefect can use that environment directly.
+
 For more information, see [this discussion of custom Docker images](/v3/how-to-guides/deployment_infra/docker/#automatically-build-a-custom-docker-image-with-a-local-dockerfile).
 
 ## Blob storage

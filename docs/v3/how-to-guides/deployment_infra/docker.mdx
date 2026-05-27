@@ -167,6 +167,13 @@ Prefect generates a Dockerfile for you that builds an image based off of one of 
 The generated Dockerfile copies the current directory into the Docker image and installs any dependencies listed
 in a `requirements.txt` file.
 
+<Note>
+The generated Dockerfile does not install dependencies declared only in `pyproject.toml`. If your project uses
+`pyproject.toml` for dependencies, use a custom Dockerfile to install them, generate a `requirements.txt` file for
+the generated Dockerfile, or rely on Prefect's [runtime `uv` behavior](/v3/how-to-guides/deployments/store-flow-code#python-project-dependencies-in-custom-images)
+when code is pulled into the execution environment.
+</Note>
+
 ### Automatically build a custom Docker image with a local Dockerfile
 
 If you want to use a custom image, specify the path to your Dockerfile via `DockerImage`:
