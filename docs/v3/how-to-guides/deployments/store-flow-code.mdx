@@ -581,6 +581,19 @@ Alternatively, you can create a custom Docker image outside of Prefect by runnin
 When you run `prefect deploy` with a custom image in `job_variables` and no build step, Prefect automatically adds a `set_working_directory` pull step to your deployment. In interactive mode, Prefect prompts you for the working directory inside your image (defaulting to `/opt/prefect/<project-dir>`). In non-interactive mode, it defaults to `/opt/prefect` and prints a warning. To use a different path, add an explicit `set_working_directory` step to the `pull` section of your `prefect.yaml`.
 </Note>
 
+#### Python project dependencies in custom images
+
+When a deployment pulls code that includes a `pyproject.toml`, Prefect starts the flow run without installing project
+dependencies by default. This keeps custom images predictable and avoids unexpected package installation during flow run
+startup.
+
+If you want Prefect to prepare the project's runtime dependencies before starting the flow run, set
+`PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES=true` in the image or work pool job variables. Default dependency groups are not
+installed.
+
+If your custom image already contains the required project code and dependencies, leave
+`PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES` unset or set it to `false`.
+
 For more information, see [this discussion of custom Docker images](/v3/how-to-guides/deployment_infra/docker/#automatically-build-a-custom-docker-image-with-a-local-dockerfile).
 
 ## Blob storage
