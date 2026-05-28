@@ -2,7 +2,6 @@ import asyncio
 import os
 import subprocess
 import time
-from collections import Counter
 from typing import Any
 
 import anyio
@@ -336,30 +335,16 @@ async def test_pod_eviction_with_backoff_limit(
 
     # We should either have exactly the right 6 events or at least the first 4
     if len(events) == 6:
-        # If we have 6 events, verify we got the expected multiset plus the
-        # meaningful ordering constraints. The replacement pod emits `pending`
-        # and `running` so close together that the watcher may report them in
-        # either order, so we don't assert their exact relative position.
-        observed = [event.event for event in events]
-        assert Counter(observed) == Counter(
-            [
-                "prefect.kubernetes.pod.pending",
-                "prefect.kubernetes.pod.running",
-                "prefect.kubernetes.pod.evicted",
-                "prefect.kubernetes.pod.pending",
-                "prefect.kubernetes.pod.running",
-                "prefect.kubernetes.pod.succeeded",
-            ]
-        ), f"Expected the standard eviction-and-retry events, got: {observed}"
-
-        # Eviction must follow the first pod coming up and precede the retry,
-        # and the flow must end with a successful pod.
-        evicted_index = observed.index("prefect.kubernetes.pod.evicted")
-        assert "prefect.kubernetes.pod.running" in observed[:evicted_index], (
-            f"Expected a running event before eviction, got: {observed}"
-        )
-        assert observed[-1] == "prefect.kubernetes.pod.succeeded", (
-            f"Expected the final event to be succeeded, got: {observed}"
+        # If we have 6 events, they should be in the right order
+        assert [event.event for event in events] == [
+            "prefect.kubernetes.pod.pending",
+            "prefect.kubernetes.pod.running",
+            "prefect.kubernetes.pod.evicted",
+            "prefect.kubernetes.pod.pending",
+            "prefect.kubernetes.pod.running",
+            "prefect.kubernetes.pod.succeeded",
+        ], (
+            f"Expected events to be in the correct order, got: {[event.event for event in events]}"
         )
     else:
         # Otherwise just ensure we have the minimum required events
