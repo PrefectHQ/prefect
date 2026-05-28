@@ -2215,7 +2215,7 @@ class TestSaveBlock:
         assert loaded_alias_block.real_name == "my_real_name"
         assert loaded_alias_block.threads == 8
 
-    async def test_save_block_with_semantic_version(self, unique_block_slug):
+async def test_save_block_with_semantic_version(self, unique_block_slug):
         """Test that blocks with SemanticVersion fields can be saved and loaded."""
         slug = unique_block_slug("blockwithsemanticversion")
 
@@ -2230,8 +2230,8 @@ class TestSaveBlock:
 
         # Test loading the block
         loaded_block = await BlockWithSemanticVersion.load(block_name)
-        assert loaded_block.version == SemanticVersion(1, 2, 3)
-        assert str(loaded_block.version) == "1.2.3"
+        assert loaded_block.version == SemanticVersion(1, 2, 3), "The loaded block version does not match the expected SemanticVersion(1, 2, 3)."
+        assert str(loaded_block.version) == "1.2.3", "The string representation of the loaded block version is incorrect."
 
         # Test updating the block
         loaded_block.version = SemanticVersion(2, 0, 0)
@@ -2239,8 +2239,8 @@ class TestSaveBlock:
 
         # Verify the update
         updated_block = await BlockWithSemanticVersion.load(block_name)
-        assert updated_block.version == SemanticVersion(2, 0, 0)
-        assert str(updated_block.version) == "2.0.0"
+        assert updated_block.version == SemanticVersion(2, 0, 0), "The updated block version does not match the expected SemanticVersion(2, 0, 0)."
+        assert str(updated_block.version) == "2.0.0", "The string representation of the updated block version is incorrect."
 
 
 class TestToBlockType:
