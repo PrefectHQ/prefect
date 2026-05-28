@@ -170,7 +170,7 @@ in a `requirements.txt` file.
 <Note>
 The generated Dockerfile installs dependencies from `requirements.txt`, but not dependencies declared only in
 `pyproject.toml`. If your project uses `pyproject.toml`, either install those dependencies in a custom Dockerfile,
-generate a `requirements.txt` file for the generated Dockerfile, or use Prefect's
+generate a `requirements.txt` file for the generated Dockerfile, or enable Prefect's
 [automatic dependency installation](/v3/how-to-guides/deployments/store-flow-code#python-project-dependencies-in-custom-images)
 when code is pulled at runtime.
 </Note>

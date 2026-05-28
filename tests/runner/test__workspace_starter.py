@@ -83,7 +83,8 @@ def test_workspace_command_uses_uv_for_pyproject_workspace(
         fake_which,
     )
 
-    command = _workspace_command(workspace, explicit_command=None)
+    with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
+        command = _workspace_command(workspace, explicit_command=None)
 
     assert captured_paths == [workspace.environment["PATH"]]
     assert command is not None
@@ -108,7 +109,8 @@ def test_workspace_command_falls_back_without_pyproject(
         lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
     )
 
-    assert _workspace_command(workspace, explicit_command=None) is None
+    with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
+        assert _workspace_command(workspace, explicit_command=None) is None
 
 
 def test_workspace_command_falls_back_without_prefect_dependency(
@@ -124,7 +126,8 @@ def test_workspace_command_falls_back_without_prefect_dependency(
         lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
     )
 
-    assert _workspace_command(workspace, explicit_command=None) is None
+    with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
+        assert _workspace_command(workspace, explicit_command=None) is None
 
 
 def test_workspace_command_falls_back_without_uv(
@@ -143,10 +146,11 @@ def test_workspace_command_falls_back_without_uv(
         lambda executable, path=None: None,
     )
 
-    assert _workspace_command(workspace, explicit_command=None) is None
+    with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
+        assert _workspace_command(workspace, explicit_command=None) is None
 
 
-def test_workspace_command_falls_back_when_dependency_auto_install_disabled(
+def test_workspace_command_does_not_auto_install_dependencies_by_default(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ):
     workspace = _prepared_workspace(tmp_path)
@@ -157,13 +161,16 @@ def test_workspace_command_falls_back_when_dependency_auto_install_disabled(
         "version = '0.1.0'\n"
         "dependencies = ['prefect']\n"
     )
+
+    def fail_if_checked(*args: object, **kwargs: object) -> None:
+        raise AssertionError("uv should not be checked unless auto-install is enabled")
+
     monkeypatch.setattr(
         "prefect.runner._workspace_starter.shutil.which",
-        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
+        fail_if_checked,
     )
 
-    with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: False}):
-        assert _workspace_command(workspace, explicit_command=None) is None
+    assert _workspace_command(workspace, explicit_command=None) is None
 
 
 def test_workspace_command_preserves_explicit_command(tmp_path: Path):
@@ -325,7 +332,8 @@ async def test_workspace_resolving_starter_uses_uv_for_pyproject_workspace(
         workspace_root=tmp_path / "workspace-root",
         deployment_name="workspace-deployment",
     )
-    await starter.start(flow_run)
+    with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
+        await starter.start(flow_run)
 
     assert len(instances) == 1
     command = instances[0].kwargs["command"]
