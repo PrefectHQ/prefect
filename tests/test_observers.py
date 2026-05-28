@@ -722,17 +722,18 @@ class TestFlowRunSuspendingObserver:
         callback = MagicMock()
         observer = FlowRunSuspendingObserver(on_suspended=callback, polling_interval=60)
 
-        async def never_finish(*args: object, **kwargs: object) -> None:
-            await asyncio.Event().wait()
-
         fake_subscriber = AsyncMock()
         fake_subscriber.__aenter__.return_value = fake_subscriber
-        fake_subscriber.__aiter__.return_value = iter([])
-        fake_subscriber.__anext__.side_effect = never_finish
 
-        with patch(
-            "prefect._internal.observers.get_events_subscriber",
-            return_value=fake_subscriber,
+        async def block_forever() -> None:
+            await asyncio.Event().wait()
+
+        with (
+            patch(
+                "prefect._internal.observers.get_events_subscriber",
+                return_value=fake_subscriber,
+            ),
+            patch.object(observer, "_consume_events", side_effect=block_forever),
         ):
             async with observer:
                 assert observer._consumer_task is not None

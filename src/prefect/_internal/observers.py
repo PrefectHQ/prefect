@@ -400,6 +400,8 @@ class FlowRunSuspendingObserver:
         self._polling_task.add_done_callback(self._handle_polling_task_done)
 
     def _handle_polling_task_done(self, task: asyncio.Task[None]):
+        if task.cancelled():
+            return
         if task.exception():
             self.logger.error(
                 "Suspension polling task failed. Execution will continue, but external flow run suspension will fail.",
