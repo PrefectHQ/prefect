@@ -253,9 +253,7 @@ class TestReplicatePodEvent:
         await _replicate_pod_event(
             event={
                 "type": "ADDED",
-                "object": {
-                    "metadata": {"creationTimestamp": "2026-05-11T09:30:00Z"}
-                },
+                "object": {"metadata": {"creationTimestamp": "2026-05-11T09:30:00Z"}},
             },
             uid=str(pod_id),
             name="test",
@@ -273,9 +271,7 @@ class TestReplicatePodEvent:
         await _replicate_pod_event(
             event={
                 "type": "MODIFIED",
-                "object": {
-                    "metadata": {"creationTimestamp": "2026-05-11T09:30:00Z"}
-                },
+                "object": {"metadata": {"creationTimestamp": "2026-05-11T09:30:00Z"}},
             },
             uid=str(pod_id),
             name="test",
