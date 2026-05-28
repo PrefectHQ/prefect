@@ -2223,26 +2223,37 @@ async def test_save_block_with_semantic_version(self, unique_block_slug):
             _block_type_slug = slug
             version: SemanticVersion
 
+        # Define semantic version components to eliminate magic numbers
+        initial_major = 1
+        initial_minor = 2
+        initial_patch = 3
+
+        updated_major = 2
+        updated_minor = 0
+        updated_patch = 0
+
+        initial_version = SemanticVersion(initial_major, initial_minor, initial_patch)
+        updated_version = SemanticVersion(updated_major, updated_minor, updated_patch)
+
         # Test creating and saving a block with SemanticVersion
-        block = BlockWithSemanticVersion(version=SemanticVersion(1, 2, 3))
+        block = BlockWithSemanticVersion(version=initial_version)
         block_name = f"test-semantic-version-block-{uuid4()}"
         await block.save(block_name)
 
         # Test loading the block
         loaded_block = await BlockWithSemanticVersion.load(block_name)
-        assert loaded_block.version == SemanticVersion(1, 2, 3), "The loaded block version does not match the expected SemanticVersion(1, 2, 3)."
+        assert loaded_block.version == initial_version, f"The loaded block version does not match the expected {initial_version}."
         assert str(loaded_block.version) == "1.2.3", "The string representation of the loaded block version is incorrect."
 
         # Test updating the block
-        loaded_block.version = SemanticVersion(2, 0, 0)
+        loaded_block.version = updated_version
         await loaded_block.save(block_name, overwrite=True)
 
         # Verify the update
         updated_block = await BlockWithSemanticVersion.load(block_name)
-        assert updated_block.version == SemanticVersion(2, 0, 0), "The updated block version does not match the expected SemanticVersion(2, 0, 0)."
+        assert updated_block.version == updated_version, f"The updated block version does not match the expected {updated_version}."
         assert str(updated_block.version) == "2.0.0", "The string representation of the updated block version is incorrect."
-
-
+        
 class TestToBlockType:
     def test_to_block_type_from_block(self, test_block: Type[Block]):
         block_type = test_block._to_block_type()
