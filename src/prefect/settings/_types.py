@@ -57,6 +57,7 @@ SettingAccessor: TypeAlias = Literal[
     "results.default_storage_block",
     "results.local_storage_path",
     "results.persist_by_default",
+    "runner.auto_install_dependencies",
     "runner.crash_on_cancellation_failure",
     "runner.poll_frequency",
     "runner.process_limit",

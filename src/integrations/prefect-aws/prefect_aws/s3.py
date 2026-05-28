@@ -19,7 +19,7 @@ from prefect.logging import get_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import filter_files
 from prefect.utilities.pydantic import lookup_type
-from prefect_aws import AwsCredentials, MinIOCredentials
+from prefect_aws import AwsCredentials, BackblazeB2Credentials, MinIOCredentials
 from prefect_aws.client_parameters import AwsClientParameters
 
 
@@ -809,11 +809,13 @@ s3_list_objects = list_objects  # backward compatibility
 
 class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock):
     """
-    Block used to store data using AWS S3 or S3-compatible object storage like MinIO.
+    Block used to store data using AWS S3 or S3-compatible object storage
+    such as Backblaze B2, Cloudflare R2, or MinIO.
 
     Attributes:
         bucket_name: Name of your bucket.
-        credentials: A block containing your credentials to AWS or MinIO.
+        credentials: A block containing your credentials to AWS or to an
+            S3-compatible service.
         bucket_folder: A default path to a folder within the S3 bucket to use
             for reading and writing objects.
     """
@@ -824,9 +826,18 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
 
     bucket_name: str = Field(default=..., description="Name of your bucket.")
 
-    credentials: Union[MinIOCredentials, AwsCredentials] = Field(
-        default_factory=AwsCredentials,
-        description="A block containing your credentials to AWS or MinIO.",
+    # `AwsCredentials` is listed last: its fields are all optional, so
+    # pydantic would otherwise greedily pick it for any dict in the Union.
+    # The vendor-specific blocks have required fields that discriminate
+    # cleanly (`minio_root_user` for MinIO, `application_key_id` for B2).
+    credentials: Union[BackblazeB2Credentials, MinIOCredentials, AwsCredentials] = (
+        Field(
+            default_factory=AwsCredentials,
+            description=(
+                "A block containing your credentials to AWS or to an "
+                "S3-compatible service (Backblaze B2, Cloudflare R2, MinIO, etc.)."
+            ),
+        )
     )
 
     bucket_folder: str = Field(

@@ -39,7 +39,9 @@ class AwsClientParameters(BaseModel):
             then `use_ssl` is ignored.
         config: Advanced configuration for Botocore clients. See
             [botocore docs](https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html)
-            for more details.
+            for more details. A `prefect-aws/<version>` token is always
+            appended to `user_agent_extra`; any caller-supplied value is
+            preserved.
     """  # noqa E501
 
     api_version: Optional[str] = Field(
@@ -142,7 +144,7 @@ class AwsClientParameters(BaseModel):
             # to ensure that verify doesn't re-overwrite verify_cert_path
             params.pop("verify")
 
-        params_override = {}
+        params_override: Dict[str, Any] = {}
         for key, value in params.items():
             if value is None:
                 continue
@@ -159,4 +161,29 @@ class AwsClientParameters(BaseModel):
                     params_override[key] = value
             else:
                 params_override[key] = value
+
+        # Tag the boto3 client with prefect-aws/<version> for attribution.
+        params_override["config"] = _apply_prefect_user_agent(
+            params_override.get("config")
+        )
         return params_override
+
+
+def _apply_prefect_user_agent(config: Optional[Config]) -> Config:
+    """Append `prefect-aws/<version>` to `config.user_agent_extra` (idempotent).
+
+    Mutates `config` in place rather than using `Config.merge`, which would
+    reconstruct the Config from `_user_provided_options` and drop attribute-
+    level adjustments such as the `signature_version=UNSIGNED` conversion
+    applied by `get_params_override`.
+    """
+    from prefect_aws import __version__ as _prefect_aws_version
+
+    token = f"prefect-aws/{_prefect_aws_version}"
+    if config is None:
+        return Config(user_agent_extra=token)
+    existing = getattr(config, "user_agent_extra", None) or ""
+    if token in existing:
+        return config
+    config.user_agent_extra = f"{existing} {token}".strip()
+    return config

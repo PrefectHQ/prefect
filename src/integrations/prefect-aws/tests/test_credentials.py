@@ -6,8 +6,10 @@ from botocore.client import BaseClient
 from moto import mock_aws
 from prefect_aws.credentials import (
     AwsCredentials,
+    BackblazeB2Credentials,
     ClientType,
     MinIOCredentials,
+    S3CompatibleCredentials,
     _get_client_cached,
 )
 
@@ -37,12 +39,38 @@ def test_minio_credentials_get_boto3_session():
     assert isinstance(boto3_session, Session)
 
 
+def test_backblaze_b2_credentials_get_boto3_session():
+    """
+    Asserts that instantiated BackblazeB2Credentials block creates
+    an authenticated boto3 session.
+    """
+
+    b2_credentials_block = BackblazeB2Credentials(
+        application_key_id="key_id", application_key="application_key"
+    )
+    boto3_session = b2_credentials_block.get_boto3_session()
+    assert isinstance(boto3_session, Session)
+
+
+def test_s3_compatible_credentials_base_is_abstract():
+    """
+    The base S3CompatibleCredentials class is abstract (via abc.ABC) and
+    cannot be instantiated directly. This also opts it out of Prefect's
+    Block registry so it does not surface in the Blocks UI.
+    """
+    with pytest.raises(TypeError, match="abstract"):
+        S3CompatibleCredentials()
+
+
 @pytest.mark.parametrize(
     "credentials",
     [
         AwsCredentials(),
         MinIOCredentials(
             minio_root_user="root_user", minio_root_password="root_password"
+        ),
+        BackblazeB2Credentials(
+            application_key_id="key_id", application_key="application_key"
         ),
     ],
 )
@@ -60,6 +88,11 @@ def test_credentials_get_client(credentials, client_type):
             minio_root_user="root_user",
             minio_root_password="root_password",
             region_name="us-east-1",
+        ),
+        BackblazeB2Credentials(
+            application_key_id="key_id",
+            application_key="application_key",
+            region_name="us-west-004",
         ),
     ],
 )
@@ -145,6 +178,34 @@ def test_minio_credentials_change_causes_cache_miss(client_type):
     assert _get_client_cached.cache_info().misses == 2, "Cache should miss twice"
 
 
+@pytest.mark.parametrize("client_type", [member.value for member in ClientType])
+def test_backblaze_b2_credentials_change_causes_cache_miss(client_type):
+    """
+    Changing configuration on a BackblazeB2Credentials instance after
+    fetching a client should cause a cache miss.
+    """
+
+    _get_client_cached.cache_clear()
+
+    credentials = BackblazeB2Credentials(
+        application_key_id="key_id",
+        application_key="application_key",
+        region_name="us-west-004",
+    )
+
+    initial_client = credentials.get_client(client_type)
+
+    credentials.region_name = "us-east-005"
+
+    new_client = credentials.get_client(client_type)
+
+    assert initial_client is not new_client, (
+        "Client should be different after configuration change"
+    )
+
+    assert _get_client_cached.cache_info().misses == 2, "Cache should miss twice"
+
+
 @pytest.mark.parametrize(
     "credentials_type, initial_field, new_field",
     [
@@ -164,6 +225,19 @@ def test_minio_credentials_change_causes_cache_miss(client_type):
                 "region_name": "us-east-2",
                 "minio_root_user": "root_user",
                 "minio_root_password": "root_password",
+            },
+        ),
+        (
+            BackblazeB2Credentials,
+            {
+                "region_name": "us-west-004",
+                "application_key_id": "key_id",
+                "application_key": "application_key",
+            },
+            {
+                "region_name": "us-east-005",
+                "application_key_id": "key_id",
+                "application_key": "application_key",
             },
         ),
     ],
