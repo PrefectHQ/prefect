@@ -2215,7 +2215,7 @@ class TestSaveBlock:
         assert loaded_alias_block.real_name == "my_real_name"
         assert loaded_alias_block.threads == 8
 
-async def test_save_block_with_semantic_version(self, unique_block_slug):
+    async def test_save_block_with_semantic_version(self, unique_block_slug):
         """Test that blocks with SemanticVersion fields can be saved and loaded."""
         slug = unique_block_slug("blockwithsemanticversion")
 
@@ -2223,7 +2223,6 @@ async def test_save_block_with_semantic_version(self, unique_block_slug):
             _block_type_slug = slug
             version: SemanticVersion
 
-        # Define semantic version components to eliminate magic numbers
         initial_major = 1
         initial_minor = 2
         initial_patch = 3
