@@ -49,7 +49,16 @@ def sync_client(app: FastAPI) -> TestClient:
 
 @pytest.fixture
 async def hosted_api_client(use_hosted_api_server) -> AsyncGenerator[AsyncClient, Any]:
-    async with httpx.AsyncClient(base_url=use_hosted_api_server) as async_client:
+    # Use a generous timeout and transport retries to handle transient connection
+    # failures under heavy parallel test execution (pytest-xdist). The default
+    # httpx timeout of 5s is too aggressive when the hosted server subprocess is
+    # under CPU pressure from concurrent tests, causing ConnectTimeout errors.
+    transport = httpx.AsyncHTTPTransport(retries=3)
+    async with httpx.AsyncClient(
+        base_url=use_hosted_api_server,
+        transport=transport,
+        timeout=httpx.Timeout(30.0),
+    ) as async_client:
         yield async_client
 
 
