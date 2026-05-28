@@ -2241,8 +2241,12 @@ class TestSaveBlock:
 
         # Test loading the block
         loaded_block = await BlockWithSemanticVersion.load(block_name)
-        assert loaded_block.version == initial_version, f"The loaded block version does not match the expected {initial_version}."
-        assert str(loaded_block.version) == "1.2.3", "The string representation of the loaded block version is incorrect."
+        assert loaded_block.version == initial_version, (
+            f"The loaded block version does not match the expected {initial_version}."
+        )
+        assert str(loaded_block.version) == "1.2.3", (
+            "The string representation of the loaded block version is incorrect."
+        )
 
         # Test updating the block
         loaded_block.version = updated_version
@@ -2250,9 +2254,14 @@ class TestSaveBlock:
 
         # Verify the update
         updated_block = await BlockWithSemanticVersion.load(block_name)
-        assert updated_block.version == updated_version, f"The updated block version does not match the expected {updated_version}."
-        assert str(updated_block.version) == "2.0.0", "The string representation of the updated block version is incorrect."
-        
+        assert updated_block.version == updated_version, (
+            f"The updated block version does not match the expected {updated_version}."
+        )
+        assert str(updated_block.version) == "2.0.0", (
+            "The string representation of the updated block version is incorrect."
+        )
+
+
 class TestToBlockType:
     def test_to_block_type_from_block(self, test_block: Type[Block]):
         block_type = test_block._to_block_type()
