@@ -1779,7 +1779,12 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         """
         Cancel a flow run by killing its infrastructure and marking it cancelled.
 
-        Only cancels flow runs that were pending (not yet started).
+        Handles both pending (not yet started) and running flow runs.  Skipping
+        running runs was the previous behaviour and caused zombie infrastructure
+        (Kubernetes Jobs, ECS tasks, Docker containers) whenever the flow engine
+        inside the pod could not self-terminate — e.g. a hung future, blocked
+        I/O, or a swallowed exception.  See
+        https://github.com/PrefectHQ/prefect/issues/21616
         """
         try:
             flow_run = await self.client.read_flow_run(flow_run_id)
@@ -1790,10 +1795,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             return
 
         run_logger = self.get_flow_run_logger(flow_run)
-
-        # Only cancel if the flow run was pending (never started)
-        if flow_run.start_time is not None:
-            return
 
         # No infrastructure to kill if no pid
         if not flow_run.infrastructure_pid:
@@ -1851,11 +1852,16 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             run_logger.exception("Error killing infrastructure")
             return
 
+        state_msg = (
+            "Flow run cancelled by worker while running."
+            if flow_run.start_time is not None
+            else "Flow run cancelled by worker while pending."
+        )
         await self._mark_flow_run_as_cancelled(
             flow_run,
-            state_updates={"message": "Flow run cancelled by worker while pending."},
+            state_updates={"message": state_msg},
         )
-        run_logger.info(f"Cancelled pending flow run '{flow_run.id}'")
+        run_logger.info(f"Cancelled flow run '{flow_run.id}'")
 
     async def kill_infrastructure(
         self,
