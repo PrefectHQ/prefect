@@ -376,13 +376,19 @@ class FlowRunSuspendingObserver:
 
         if exc := task.exception():
             self.logger.warning(
-                "The FlowRunSuspendingObserver websocket failed with an exception. Switching to polling mode.",
+                "The FlowRunSuspendingObserver websocket failed with an exception.",
                 exc_info=exc,
             )
         else:
-            self.logger.warning(
-                "The FlowRunSuspendingObserver websocket closed. Switching to polling mode.",
+            self.logger.debug(
+                "The FlowRunSuspendingObserver websocket closed.",
             )
+
+        # Polling is always started in `__aenter__` as a backstop, so the
+        # websocket consumer completing does not require us to start it again
+        # — unless the backstop task itself has already exited.
+        if self._polling_task is not None and not self._polling_task.done():
+            return
 
         self._polling_task = asyncio.create_task(
             critical_service_loop(
@@ -455,15 +461,23 @@ class FlowRunSuspendingObserver:
         if self._events_subscriber is not None:
             self._consumer_task = asyncio.create_task(self._consume_events())
             self._consumer_task.add_done_callback(self._start_polling_task)
-        else:
-            self._polling_task = asyncio.create_task(
-                critical_service_loop(
-                    workload=self._check_for_suspended_flow_runs,
-                    interval=self.polling_interval,
-                    jitter_range=0.3,
-                )
+
+        # Always run polling alongside the websocket consumer as a backstop.
+        # The websocket connection can stay open (no exception, no close) while
+        # silently dropping events — e.g. when the server's per-subscriber
+        # queue overflows under load or the subprocess is CPU-starved. In those
+        # cases `_consume_events` waits forever on `recv()` and the
+        # websocket-failure fallback never fires. Polling at
+        # `polling_interval` guarantees suspension is detected within a
+        # bounded time regardless of websocket health.
+        self._polling_task = asyncio.create_task(
+            critical_service_loop(
+                workload=self._check_for_suspended_flow_runs,
+                interval=self.polling_interval,
+                jitter_range=0.3,
             )
-            self._polling_task.add_done_callback(self._handle_polling_task_done)
+        )
+        self._polling_task.add_done_callback(self._handle_polling_task_done)
 
         return self
 
