@@ -2353,6 +2353,45 @@ def worker_channel_test_client(
     return client
 
 
+class TestReconnectDelay:
+    def test_exponential_backoff(self):
+        transport = WorkerChannelTransport(
+            api_url="http://localhost:4200/api",
+            work_pool_name="test",
+            logger=logging.getLogger("test"),
+            reconnect_base_seconds=1.0,
+            reconnect_max_seconds=30.0,
+        )
+        assert transport.reconnect_delay(1) == 1.0
+        assert transport.reconnect_delay(2) == 2.0
+        assert transport.reconnect_delay(3) == 4.0
+        assert transport.reconnect_delay(6) == 30.0  # clamped to max
+
+    def test_zero_base_returns_zero(self):
+        transport = WorkerChannelTransport(
+            api_url="http://localhost:4200/api",
+            work_pool_name="test",
+            logger=logging.getLogger("test"),
+            reconnect_base_seconds=0,
+            reconnect_max_seconds=30.0,
+        )
+        assert transport.reconnect_delay(1) == 0
+        assert transport.reconnect_delay(9999) == 0
+
+    def test_large_attempt_does_not_overflow(self):
+        transport = WorkerChannelTransport(
+            api_url="http://localhost:4200/api",
+            work_pool_name="test",
+            logger=logging.getLogger("test"),
+            reconnect_base_seconds=1.0,
+            reconnect_max_seconds=30.0,
+        )
+        # These previously raised OverflowError
+        assert transport.reconnect_delay(1024) == 30.0
+        assert transport.reconnect_delay(2000) == 30.0
+        assert transport.reconnect_delay(100_000) == 30.0
+
+
 class TestWorkerChannelClient:
     async def test_worker_uses_real_server_channel_for_setup_and_heartbeat(
         self,
@@ -4884,45 +4923,61 @@ class TestWorkerCancellationHandling:
                 # Should have set up cancellation observer
                 assert worker._cancelling_observer is not None
 
-    async def test_cancel_run_skips_non_pending_flow_runs(
+    async def test_cancel_run_kills_infrastructure_for_running_flow_runs(
         self,
         prefect_client: PrefectClient,
         work_pool: WorkPool,
+        deployment: DeploymentResponse,
     ):
-        """Test that _cancel_run skips flow runs that were not pending."""
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/21616.
 
-        @flow
-        def test_flow():
-            pass
-
-        flow_run = await prefect_client.create_flow_run(
-            test_flow, work_pool_name=work_pool.name
+        _cancel_run must kill infrastructure and mark the run cancelled even when
+        the flow has already started (start_time is not None).  The old guard
+        ``if flow_run.start_time is not None: return`` silently skipped running
+        flows, leaving zombie pods/containers that could never be cleaned up.
+        """
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment.id,
+        )
+        await prefect_client.update_flow_run(
+            flow_run.id, infrastructure_pid="test-pid"
         )
 
         async with WorkerTestImpl(
             work_pool_name=work_pool.name,
             name="test-worker",
         ) as worker:
-            # Create a flow run with start_time set (already started)
-            flow_run_with_start_time = FlowRun(
+            # Simulate a flow run that has already started
+            flow_run_running = FlowRun(
                 id=flow_run.id,
                 flow_id=flow_run.flow_id,
                 name=flow_run.name,
                 state=Running(),
                 start_time=now_fn("UTC"),
+                infrastructure_pid="test-pid",
+                deployment_id=deployment.id,
             )
 
             with mock.patch.object(
                 worker.client, "read_flow_run", new_callable=AsyncMock
             ) as mock_read:
-                mock_read.return_value = flow_run_with_start_time
-                with mock.patch.object(worker, "kill_infrastructure") as mock_kill:
+                mock_read.return_value = flow_run_running
+                with mock.patch.object(
+                    worker, "kill_infrastructure", new_callable=AsyncMock
+                ) as mock_kill:
                     with mock.patch.object(
-                        worker, "_mark_flow_run_as_cancelled"
+                        worker,
+                        "_mark_flow_run_as_cancelled",
+                        new_callable=AsyncMock,
                     ) as mock_mark:
                         await worker._cancel_run(flow_run.id)
-                        mock_kill.assert_not_called()
-                        mock_mark.assert_not_called()
+                        # Infrastructure must be killed even for running flows
+                        mock_kill.assert_called_once()
+                        assert (
+                            mock_kill.call_args[1]["infrastructure_pid"] == "test-pid"
+                        )
+                        # Run must be marked cancelled
+                        mock_mark.assert_called_once()
 
     async def test_cancellation_observer_filters_by_work_pool(
         self,
