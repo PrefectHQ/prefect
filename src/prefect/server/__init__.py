@@ -10,9 +10,13 @@ __all__ = ["models", "orchestration", "schemas", "services"]
 
 
 def __getattr__(name: str) -> object:
-    if name in __all__:
-        module = importlib.import_module(f"{__name__}.{name}")
-        globals()[name] = module
-        return module
+    module_name = f"{__name__}.{name}"
+    try:
+        module = importlib.import_module(module_name)
+    except ModuleNotFoundError as exc:
+        if exc.name != module_name:
+            raise
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from None
 
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    globals()[name] = module
+    return module
