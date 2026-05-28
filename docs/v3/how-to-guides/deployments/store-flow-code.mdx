@@ -588,8 +588,8 @@ dependencies by default. This keeps custom images predictable and avoids unexpec
 startup.
 
 If you want Prefect to prepare the project's runtime dependencies before starting the flow run, set
-`PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES=true` in the image or work pool job variables. Development dependency groups are
-not installed.
+`PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES=true` in the image or work pool job variables. Default dependency groups are not
+installed.
 
 If your custom image already contains the required project code and dependencies, leave
 `PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES` unset or set it to `false`.

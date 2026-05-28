@@ -191,7 +191,7 @@ def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
         [
             uv_executable,
             "run",
-            "--no-dev",
+            "--no-default-groups",
             "--project",
             str(project_root),
             "-m",

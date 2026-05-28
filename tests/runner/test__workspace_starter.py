@@ -91,7 +91,7 @@ def test_workspace_command_uses_uv_for_pyproject_workspace(
     assert command_from_string(command) == [
         "/opt/bin/uv",
         "run",
-        "--no-dev",
+        "--no-default-groups",
         "--project",
         str(workspace.project_root),
         "-m",
@@ -341,7 +341,7 @@ async def test_workspace_resolving_starter_uses_uv_for_pyproject_workspace(
     assert command_from_string(command) == [
         "/opt/bin/uv",
         "run",
-        "--no-dev",
+        "--no-default-groups",
         "--project",
         str(workspace.project_root),
         "-m",
