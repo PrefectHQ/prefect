@@ -687,6 +687,86 @@ async def test_cleanup_preserves_newly_created_empty_groups(redis: Redis):
     }
 
 
+async def test_cleanup_stale_ephemeral_groups_with_idle_consumers(redis: Redis):
+    """Test that ephemeral groups whose consumers are all idle beyond the
+    threshold are destroyed.  This covers the case where a process is killed
+    ungracefully (SIGKILL, OOM, pod eviction) and the finally-block in
+    ephemeral_subscription never runs, leaving a consumer group with an
+    orphaned consumer entry that blocks stream trimming."""
+
+    stream_name = "test-cleanup-stale-stream"
+
+    await redis.xadd(stream_name, {"data": "msg1"})
+    await redis.xadd(stream_name, {"data": "msg2"})
+
+    # Simulate an ephemeral group leaked by a dead process: the group has a
+    # consumer that read a message but the process was killed and never cleaned
+    # up.
+    await redis.xgroup_create(stream_name, "ephemeral-dead-host-abc123", id="0")
+    await redis.xreadgroup(
+        groupname="ephemeral-dead-host-abc123",
+        consumername="websocket-consumer",
+        streams={stream_name: ">"},
+        count=1,
+    )
+
+    # A non-ephemeral group that also has an idle consumer — should NOT be
+    # cleaned up regardless of idle time.
+    await redis.xgroup_create(stream_name, "event-persister", id="0")
+    await redis.xreadgroup(
+        groupname="event-persister",
+        consumername="worker-1",
+        streams={stream_name: ">"},
+        count=1,
+    )
+
+    groups_before = await redis.xinfo_groups(stream_name)
+    assert len(groups_before) == 2
+
+    # Use a threshold of 0ms so that any idle time exceeds it (avoids needing
+    # real sleeps in tests).
+    with patch.dict(
+        "os.environ",
+        {"PREFECT_REDIS_MESSAGING_CONSUMER_TRIM_IDLE_THRESHOLD": "0"},
+    ):
+        await _cleanup_empty_consumer_groups(stream_name)
+
+    groups_after = await redis.xinfo_groups(stream_name)
+    group_names_after = {g["name"] for g in groups_after}
+    assert group_names_after == {"event-persister"}
+
+
+async def test_cleanup_preserves_ephemeral_groups_with_active_consumers(redis: Redis):
+    """Test that ephemeral groups whose consumers are still active (idle below
+    threshold) are NOT cleaned up."""
+
+    stream_name = "test-cleanup-active-stream"
+
+    await redis.xadd(stream_name, {"data": "msg1"})
+
+    await redis.xgroup_create(stream_name, "ephemeral-live-host-xyz", id="0")
+    await redis.xreadgroup(
+        groupname="ephemeral-live-host-xyz",
+        consumername="active-consumer",
+        streams={stream_name: ">"},
+        count=1,
+    )
+
+    groups_before = await redis.xinfo_groups(stream_name)
+    assert len(groups_before) == 1
+
+    # Use an extremely high threshold so the consumer is considered active.
+    with patch.dict(
+        "os.environ",
+        {"PREFECT_REDIS_MESSAGING_CONSUMER_TRIM_IDLE_THRESHOLD": "999999"},
+    ):
+        await _cleanup_empty_consumer_groups(stream_name)
+
+    groups_after = await redis.xinfo_groups(stream_name)
+    assert len(groups_after) == 1
+    assert groups_after[0]["name"] == "ephemeral-live-host-xyz"
+
+
 async def test_consumer_recovers_from_redis_connection_error(
     broker: str, publisher: Publisher
 ):
