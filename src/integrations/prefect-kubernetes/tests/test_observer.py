@@ -240,6 +240,65 @@ class TestReplicatePodEvent:
         assert emitted_event.event == expected_event
         assert emitted_event.occurred == DateTime.fromisoformat(expected_occurred)
 
+    async def test_occurred_is_monotonic_per_pod(self, mock_events_client: AsyncMock):
+        """Consecutive lifecycle events for the same pod must have strictly
+        increasing `occurred` timestamps, even when the underlying Kubernetes
+        timestamps collide or arrive out of order (k8s timestamps have only
+        second-granularity)."""
+        from prefect_kubernetes.observer import _last_event_cache
+
+        pod_id = uuid.uuid4()
+        _last_event_cache.pop(str(pod_id), None)
+
+        await _replicate_pod_event(
+            event={
+                "type": "ADDED",
+                "object": {
+                    "metadata": {"creationTimestamp": "2026-05-11T09:30:00Z"}
+                },
+            },
+            uid=str(pod_id),
+            name="test",
+            namespace="test",
+            labels={
+                "prefect.io/flow-run-id": str(uuid.uuid4()),
+                "prefect.io/flow-run-name": "test-run",
+            },
+            status={"phase": "Pending"},
+            logger=MagicMock(),
+        )
+        pending_occurred = mock_events_client.emit.call_args[1]["event"].occurred
+        mock_events_client.emit.reset_mock()
+
+        await _replicate_pod_event(
+            event={
+                "type": "MODIFIED",
+                "object": {
+                    "metadata": {"creationTimestamp": "2026-05-11T09:30:00Z"}
+                },
+            },
+            uid=str(pod_id),
+            name="test",
+            namespace="test",
+            labels={
+                "prefect.io/flow-run-id": str(uuid.uuid4()),
+                "prefect.io/flow-run-name": "test-run",
+            },
+            status={
+                "phase": "Running",
+                "containerStatuses": [
+                    {
+                        "name": "main",
+                        "state": {"running": {"startedAt": "2026-05-11T09:30:00Z"}},
+                    }
+                ],
+            },
+            logger=MagicMock(),
+        )
+        running_occurred = mock_events_client.emit.call_args[1]["event"].occurred
+
+        assert running_occurred > pending_occurred
+
     async def test_deterministic_event_id(self, mock_events_client: AsyncMock):
         """Test that the event ID is deterministic"""
         pod_id = uuid.uuid4()

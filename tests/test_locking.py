@@ -367,7 +367,11 @@ class TestFileSystemLockManager:
 
     def test_acquire_lock_when_previously_holder_timed_out(self, store):
         key = str(uuid4())
-        assert store.acquire_lock(key=key, holder="holder1", hold_timeout=0.1)
+        # A short timeout shaves wall-clock when the lock is still held, but it
+        # must outlive scheduling jitter on slow CI runners — otherwise holder1's
+        # lease can expire before the immediate `is_locked` check, masking the
+        # behavior under test (holder2 blocking until holder1's lease times out).
+        assert store.acquire_lock(key=key, holder="holder1", hold_timeout=2)
         assert store.is_locked(key=key)
         # blocks and acquires the lock
         assert store.acquire_lock(key=key, holder="holder2")
