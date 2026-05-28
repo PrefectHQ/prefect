@@ -74,6 +74,7 @@ from prefect.settings.models.api import APISettings
 from prefect.settings.models.client import ClientSettings
 from prefect.settings.models.logging import LoggingSettings
 from prefect.settings.models.results import ResultsSettings
+from prefect.settings.models.root import _get_settings_accessors
 from prefect.settings.models.server import ServerSettings
 from prefect.settings.models.server.api import ServerAPISettings
 from prefect.settings.models.server.database import (
@@ -1556,6 +1557,48 @@ class TestTemporarySettings:
                     PREFECT_API_DATABASE_PORT.value()
                     == PREFECT_API_DATABASE_PORT.default()
                 )
+
+    def test_temporary_settings_accepts_setting_accessor_strings(self):
+        assert get_current_settings().server.api.host == "127.0.0.1"
+
+        with temporary_settings(updates={"server.api.host": "0.0.0.0"}) as settings:
+            assert settings.server.api.host == "0.0.0.0"
+            assert get_current_settings().server.api.host == "0.0.0.0"
+
+        assert get_current_settings().server.api.host == "127.0.0.1"
+
+    def test_temporary_settings_accepts_environment_variable_strings(self):
+        with temporary_settings(updates={"PREFECT_SERVER_API_HOST": "0.0.0.0"}):
+            assert get_current_settings().server.api.host == "0.0.0.0"
+
+    def test_temporary_settings_set_defaults_accepts_setting_accessor_strings(self):
+        with temporary_settings(set_defaults={"server.api.host": "0.0.0.0"}):
+            assert get_current_settings().server.api.host == "0.0.0.0"
+
+        with temporary_settings(updates={"server.api.host": "localhost"}):
+            with temporary_settings(set_defaults={"server.api.host": "0.0.0.0"}):
+                assert get_current_settings().server.api.host == "localhost"
+
+    def test_temporary_settings_restore_defaults_accepts_setting_accessor_strings(self):
+        with temporary_settings(updates={"server.api.host": "0.0.0.0"}):
+            assert get_current_settings().server.api.host == "0.0.0.0"
+            with temporary_settings(restore_defaults={"server.api.host"}):
+                assert get_current_settings().server.api.host == "127.0.0.1"
+
+    def test_temporary_settings_rejects_unknown_setting_strings(self):
+        with pytest.raises(ValueError, match="Unknown setting"):
+            with temporary_settings(updates={"server.api.not_real": "nope"}):
+                pass
+
+    def test_setting_accessor_type_alias_is_current(self):
+        from typing import get_args
+
+        from prefect.settings._types import SettingAccessor
+
+        setting_keys = _get_settings_accessors(Settings)
+        expected_accessors = set(setting_keys.values())
+
+        assert set(get_args(SettingAccessor)) == expected_accessors
 
     def test_temporary_settings_restores_on_error(self):
         assert PREFECT_TEST_MODE.value() is True
