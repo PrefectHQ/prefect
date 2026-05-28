@@ -75,7 +75,12 @@ def _build_transient_retrying(
     max_attempts: int,
     initial_delay: float,
     max_delay: float,
-    operation_label: Literal["creating job", "submitting job for execution"],
+    operation_label: Literal[
+        "creating job",
+        "submitting job for execution",
+        "polling job readiness",
+        "watching job execution",
+    ],
     logger: PrefectLogAdapter,
 ) -> Retrying:
     """Build a Retrying that retries transient HTTP errors with exponential jitter."""
@@ -891,12 +896,27 @@ class CloudRunWorkerV2(
             poll_interval: The interval to poll the Cloud Run job, defaults to 5
                 seconds.
         """
-        job = JobV2.get(
-            cr_client=cr_client,
-            project=configuration.project,
-            location=configuration.region,
-            job_name=configuration.job_name,
+        settings = CloudRunV2WorkerSettings()
+        retrying = _build_transient_retrying(
+            max_attempts=settings.create_job_max_attempts,
+            initial_delay=settings.create_job_initial_delay_seconds,
+            max_delay=settings.create_job_max_delay_seconds,
+            operation_label="polling job readiness",
+            logger=logger,
         )
+
+        def _get_job() -> JobV2:
+            for attempt in retrying:
+                with attempt:
+                    return JobV2.get(
+                        cr_client=cr_client,
+                        project=configuration.project,
+                        location=configuration.region,
+                        job_name=configuration.job_name,
+                    )
+            assert False, "unreachable"  # tenacity always raises or returns
+
+        job = _get_job()
 
         while not job.is_ready():
             if not (ready_condition := job.get_ready_condition()):
@@ -904,12 +924,7 @@ class CloudRunWorkerV2(
 
             logger.info(f"Current Job Condition: {ready_condition}")
 
-            job = JobV2.get(
-                cr_client=cr_client,
-                project=configuration.project,
-                location=configuration.region,
-                job_name=configuration.job_name,
-            )
+            job = _get_job()
 
             time.sleep(poll_interval)
 
@@ -1171,6 +1186,7 @@ class CloudRunWorkerV2(
                 configuration=configuration,
                 execution=execution,
                 poll_interval=poll_interval,
+                logger=logger,
             )
         except InfrastructureNotFound:
             logger.info(
@@ -1229,6 +1245,7 @@ class CloudRunWorkerV2(
         configuration: CloudRunWorkerJobV2Configuration,
         execution: ExecutionV2,
         poll_interval: int,
+        logger: PrefectLogAdapter | None = None,
     ) -> ExecutionV2:
         """
         Update execution status until it is no longer running.
@@ -1240,6 +1257,7 @@ class CloudRunWorkerV2(
                 the job.
             execution (ExecutionV2): The execution to watch.
             poll_interval (int): The number of seconds to wait between polls.
+            logger: Optional logger for retry warnings.
 
         Returns:
             The execution.
@@ -1247,12 +1265,32 @@ class CloudRunWorkerV2(
         Raises:
             InfrastructureNotFound: If the execution is deleted (e.g., by kill_infrastructure).
         """
+        if logger is not None:
+            settings = CloudRunV2WorkerSettings()
+            retrying = _build_transient_retrying(
+                max_attempts=settings.create_job_max_attempts,
+                initial_delay=settings.create_job_initial_delay_seconds,
+                max_delay=settings.create_job_max_delay_seconds,
+                operation_label="watching job execution",
+                logger=logger,
+            )
+        else:
+            retrying = None
+
         while execution.is_running():
             try:
-                execution = ExecutionV2.get(
-                    cr_client=cr_client,
-                    execution_id=execution.name,
-                )
+                if retrying is not None:
+                    for attempt in retrying:
+                        with attempt:
+                            execution = ExecutionV2.get(
+                                cr_client=cr_client,
+                                execution_id=execution.name,
+                            )
+                else:
+                    execution = ExecutionV2.get(
+                        cr_client=cr_client,
+                        execution_id=execution.name,
+                    )
             except HttpError as exc:
                 if exc.status_code == 404:
                     raise InfrastructureNotFound(

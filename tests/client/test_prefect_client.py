@@ -3279,6 +3279,25 @@ class TestPrefectClientRaiseForAPIVersionMismatch:
 
         assert "Failed to reach API" in str(e.value)
 
+    async def test_raise_for_api_version_mismatch_redacts_credentials(
+        self, monkeypatch
+    ):
+        client = PrefectClient("http://marvin42:hunter2@example.com:4200/api")
+        monkeypatch.setattr(client, "server_type", ServerType.SERVER)
+
+        async def connect_error(*args, **kwargs):
+            raise httpx.ConnectError
+
+        monkeypatch.setattr(client, "api_version", connect_error)
+
+        with pytest.raises(RuntimeError, match="Failed to reach API") as exc_info:
+            await client.raise_for_api_version_mismatch()
+
+        message = str(exc_info.value)
+        assert "http://example.com:4200/api" in message
+        assert "marvin42" not in message
+        assert "hunter2" not in message
+
     async def test_raise_for_api_version_mismatch_against_cloud(
         self, prefect_client, monkeypatch
     ):
@@ -3439,6 +3458,23 @@ class TestSyncClientRaiseForAPIVersionMismatch:
             sync_prefect_client.raise_for_api_version_mismatch()
 
         assert "Failed to reach API" in str(e.value)
+
+    def test_raise_for_api_version_mismatch_redacts_credentials(self, monkeypatch):
+        client = SyncPrefectClient("http://marvin42:hunter2@example.com:4200/api")
+        monkeypatch.setattr(client, "server_type", ServerType.SERVER)
+
+        def connect_error(*args, **kwargs):
+            raise httpx.ConnectError
+
+        monkeypatch.setattr(client, "api_version", connect_error)
+
+        with pytest.raises(RuntimeError, match="Failed to reach API") as exc_info:
+            client.raise_for_api_version_mismatch()
+
+        message = str(exc_info.value)
+        assert "http://example.com:4200/api" in message
+        assert "marvin42" not in message
+        assert "hunter2" not in message
 
     def test_raise_for_api_version_mismatch_against_cloud(
         self, sync_prefect_client, monkeypatch

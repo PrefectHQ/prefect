@@ -12,9 +12,8 @@ import {
 	setDisabledArtifacts,
 	setDisabledEdges,
 	setDisabledEvents,
-	setHorizontalMode,
 	setHorizontalScaleMultiplier,
-	setVerticalMode,
+	setLayoutMode,
 	type VerticalMode,
 } from "@/graphs";
 
@@ -84,8 +83,7 @@ export function FlowRunGraphSettings() {
 		}
 
 		setSelectedLayoutOption(value);
-		setHorizontalMode(horizontal);
-		setVerticalMode(vertical);
+		setLayoutMode(horizontal, vertical);
 	}, []);
 
 	const handleHideEdgesChange = useCallback((value: boolean) => {
