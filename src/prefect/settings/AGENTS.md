@@ -112,3 +112,5 @@ from prefect.settings.context import get_current_settings
 settings = get_current_settings()
 value = settings.server.services.my_service.my_setting
 ```
+
+`temporary_settings()` accepts both legacy `Setting` objects and dotted-path string keys (e.g., `"server.api.host"`) or uppercase env var names (e.g., `"PREFECT_SERVER_API_HOST"`). Prefer string keys in new tests to avoid importing legacy `Setting` objects.
