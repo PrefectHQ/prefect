@@ -11,12 +11,13 @@ from pydantic import Field
 from typing_extensions import Literal
 
 from prefect import flow, task
+from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.assets import Asset
 from prefect.blocks.abstract import JobBlock, JobRun
 from prefect.context import AssetContext, FlowRunContext
 from prefect.events import emit_event
 from prefect.logging import get_run_logger
-from prefect.utilities.asyncutils import sync_compatible
 from prefect_dbt.cloud.credentials import DbtCloudCredentials
 from prefect_dbt.cloud.exceptions import (
     DbtCloudCreateJobFailed,
@@ -979,10 +980,9 @@ class DbtCloudJobRun(JobRun):  # NOT A BLOCK
                 )
             await asyncio.sleep(interval_seconds)
 
-    @sync_compatible
-    async def get_run(self) -> Dict[str, Any]:
+    async def aget_run(self) -> Dict[str, Any]:
         """
-        Makes a request to the dbt Cloud API to get the run data.
+        Makes a request to the dbt Cloud API to get the run data (async version).
 
         Returns:
             The run data.
@@ -996,35 +996,65 @@ class DbtCloudJobRun(JobRun):  # NOT A BLOCK
         run_data = response.json()["data"]
         return run_data
 
-    @sync_compatible
-    async def get_status_code(self) -> int:
+    @async_dispatch(aget_run)
+    def get_run(self) -> Dict[str, Any]:
+        """
+        Makes a request to the dbt Cloud API to get the run data.
+
+        Returns:
+            The run data.
+        """
+        return from_sync.call_soon_in_loop_thread(
+            create_call(self.aget_run)
+        ).result()
+
+    async def aget_status_code(self) -> int:
+        """
+        Makes a request to the dbt Cloud API to get the run status (async version).
+
+        Returns:
+            The run status code.
+        """
+        run_data = await self.aget_run()
+        run_status_code = run_data.get("status")
+        return run_status_code
+
+    @async_dispatch(aget_status_code)
+    def get_status_code(self) -> int:
         """
         Makes a request to the dbt Cloud API to get the run status.
 
         Returns:
             The run status code.
         """
-        run_data = await self.get_run()
-        run_status_code = run_data.get("status")
-        return run_status_code
+        return from_sync.call_soon_in_loop_thread(
+            create_call(self.aget_status_code)
+        ).result()
 
-    @sync_compatible
-    async def wait_for_completion(self) -> None:
+    async def await_for_completion(self) -> None:
         """
-        Waits for the job run to reach a terminal state.
+        Waits for the job run to reach a terminal state (async version).
         """
         await self._wait_until_state(
             in_final_state_fn=DbtCloudJobRunStatus.is_terminal_status_code,
-            get_state_fn=self.get_status_code,
+            get_state_fn=self.aget_status_code,
             log_state_fn=DbtCloudJobRunStatus,
             timeout_seconds=self._dbt_cloud_job.timeout_seconds,
             interval_seconds=self._dbt_cloud_job.interval_seconds,
         )
 
-    @sync_compatible
-    async def fetch_result(self, step: Optional[int] = None) -> Dict[str, Any]:
+    @async_dispatch(await_for_completion)
+    def wait_for_completion(self) -> None:
         """
-        Gets the results from the job run. Since the results
+        Waits for the job run to reach a terminal state.
+        """
+        return from_sync.call_soon_in_loop_thread(
+            create_call(self.await_for_completion)
+        ).result()
+
+    async def afetch_result(self, step: Optional[int] = None) -> Dict[str, Any]:
+        """
+        Gets the results from the job run (async version). Since the results
         may not be ready, use wait_for_completion before calling this method.
 
         Args:
@@ -1033,7 +1063,7 @@ class DbtCloudJobRun(JobRun):  # NOT A BLOCK
                 omitted, then this method will return the artifacts compiled
                 for the last step in the run.
         """
-        run_data = await self.get_run()
+        run_data = await self.aget_run()
         run_status = DbtCloudJobRunStatus(run_data.get("status"))
         if run_status == DbtCloudJobRunStatus.SUCCESS:
             try:
@@ -1058,14 +1088,29 @@ class DbtCloudJobRun(JobRun):  # NOT A BLOCK
                 "use wait_for_completion() to wait until results are ready."
             )
 
-    @sync_compatible
-    async def get_run_artifacts(
+    @async_dispatch(afetch_result)
+    def fetch_result(self, step: Optional[int] = None) -> Dict[str, Any]:
+        """
+        Gets the results from the job run. Since the results
+        may not be ready, use wait_for_completion before calling this method.
+
+        Args:
+            step: The index of the step in the run to query for artifacts. The
+                first step in the run has the index 1. If the step parameter is
+                omitted, then this method will return the artifacts compiled
+                for the last step in the run.
+        """
+        return from_sync.call_soon_in_loop_thread(
+            create_call(self.afetch_result, step)
+        ).result()
+
+    async def aget_run_artifacts(
         self,
         path: Literal["manifest.json", "catalog.json", "run_results.json"],
         step: Optional[int] = None,
     ) -> Union[Dict[str, Any], str]:
         """
-        Get an artifact generated for a completed run.
+        Get an artifact generated for a completed run (async version).
 
         Args:
             path: The relative path to the run artifact.
@@ -1092,6 +1137,30 @@ class DbtCloudJobRun(JobRun):  # NOT A BLOCK
         else:
             artifact_contents = response.text
         return artifact_contents
+
+    @async_dispatch(aget_run_artifacts)
+    def get_run_artifacts(
+        self,
+        path: Literal["manifest.json", "catalog.json", "run_results.json"],
+        step: Optional[int] = None,
+    ) -> Union[Dict[str, Any], str]:
+        """
+        Get an artifact generated for a completed run.
+
+        Args:
+            path: The relative path to the run artifact.
+            step: The index of the step in the run to query for artifacts. The
+                first step in the run has the index 1. If the step parameter is
+                omitted, then this method will return the artifacts compiled
+                for the last step in the run.
+
+        Returns:
+            The contents of the requested manifest. Returns a `Dict` if the
+                requested artifact is a JSON file and a `str` otherwise.
+        """
+        return from_sync.call_soon_in_loop_thread(
+            create_call(self.aget_run_artifacts, path, step)
+        ).result()
 
     def _select_unsuccessful_commands(
         self,
@@ -1190,7 +1259,7 @@ class DbtCloudJobRun(JobRun):  # NOT A BLOCK
                 # errors and failures are when we need to inspect to figure
                 # out the point of failure
                 try:
-                    run_artifact = await self.get_run_artifacts(
+                    run_artifact = await self.aget_run_artifacts(
                         "run_results.json", run_step["index"]
                     )
                 except JSONDecodeError:
@@ -1224,16 +1293,15 @@ class DbtCloudJobRun(JobRun):  # NOT A BLOCK
             trigger_job_run_options_override.steps_override = steps_override
         return trigger_job_run_options_override
 
-    @sync_compatible
-    async def retry_failed_steps(self) -> "DbtCloudJobRun":  # noqa: F821
+    async def aretry_failed_steps(self) -> "DbtCloudJobRun":  # noqa: F821
         """
-        Retries steps that did not complete successfully in a run.
+        Retries steps that did not complete successfully in a run (async version).
 
         Returns:
             A representation of the dbt Cloud job run.
         """
-        job = await self._dbt_cloud_job.get_job()
-        run = await self.get_run()
+        job = await self._dbt_cloud_job.aget_job()
+        run = await self.aget_run()
 
         trigger_job_run_options_override = await self._build_trigger_job_run_options(
             job=job, run=run
@@ -1244,10 +1312,22 @@ class DbtCloudJobRun(JobRun):  # NOT A BLOCK
             self.logger.info(f"{self._log_prefix} does not have any steps to retry.")
         else:
             self.logger.info(f"{self._log_prefix} has {num_steps} steps to retry.")
-            run = await self._dbt_cloud_job.trigger(
+            run = await self._dbt_cloud_job.atrigger(
                 trigger_job_run_options=trigger_job_run_options_override,
             )
         return run
+
+    @async_dispatch(aretry_failed_steps)
+    def retry_failed_steps(self) -> "DbtCloudJobRun":  # noqa: F821
+        """
+        Retries steps that did not complete successfully in a run.
+
+        Returns:
+            A representation of the dbt Cloud job run.
+        """
+        return from_sync.call_soon_in_loop_thread(
+            create_call(self.aretry_failed_steps)
+        ).result()
 
 
 class DbtCloudJob(JobBlock):
@@ -1315,10 +1395,9 @@ class DbtCloudJob(JobBlock):
         description="The options to use when triggering a job run.",
     )
 
-    @sync_compatible
-    async def get_job(self, order_by: Optional[str] = None) -> Dict[str, Any]:
+    async def aget_job(self, order_by: Optional[str] = None) -> Dict[str, Any]:
         """
-        Retrieve information about a dbt Cloud job.
+        Retrieve information about a dbt Cloud job (async version).
 
         Args:
             order_by: The field to order the results by.
@@ -1336,12 +1415,26 @@ class DbtCloudJob(JobBlock):
             raise DbtCloudGetJobFailed(extract_user_message(ex)) from ex
         return response.json()["data"]
 
-    @sync_compatible
-    async def trigger(
+    @async_dispatch(aget_job)
+    def get_job(self, order_by: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Retrieve information about a dbt Cloud job.
+
+        Args:
+            order_by: The field to order the results by.
+
+        Returns:
+            The job data.
+        """
+        return from_sync.call_soon_in_loop_thread(
+            create_call(self.aget_job, order_by)
+        ).result()
+
+    async def atrigger(
         self, trigger_job_run_options: Optional[TriggerJobRunOptions] = None
     ) -> DbtCloudJobRun:
         """
-        Triggers a dbt Cloud job.
+        Triggers a dbt Cloud job (async version).
 
         Returns:
             A representation of the dbt Cloud job run.
@@ -1371,6 +1464,20 @@ class DbtCloudJob(JobBlock):
             f"{run_data['project_id']}/runs/{run_id}/"
         )
         return run
+
+    @async_dispatch(atrigger)
+    def trigger(
+        self, trigger_job_run_options: Optional[TriggerJobRunOptions] = None
+    ) -> DbtCloudJobRun:
+        """
+        Triggers a dbt Cloud job.
+
+        Returns:
+            A representation of the dbt Cloud job run.
+        """
+        return from_sync.call_soon_in_loop_thread(
+            create_call(self.atrigger, trigger_job_run_options)
+        ).result()
 
 
 @flow
