@@ -3,7 +3,7 @@
 import uuid
 from io import BytesIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, BinaryIO, Coroutine, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any, BinaryIO, Dict, List, Optional, Union
 
 from azure.core.exceptions import ResourceNotFoundError
 
@@ -14,10 +14,11 @@ if TYPE_CHECKING:
 from pydantic import Field
 
 from prefect import task
+from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.blocks.abstract import ObjectStorageBlock
 from prefect.filesystems import WritableDeploymentStorage, WritableFileSystem
 from prefect.logging import get_run_logger
-from prefect.utilities.asyncutils import sync_compatible
 from prefect.utilities.filesystem import filter_files
 from prefect_azure.credentials import AzureBlobStorageCredentials
 
@@ -234,44 +235,15 @@ class AzureBlobStorageContainer(
             return path
         return (Path(self.base_folder) / Path(path)).as_posix()
 
-    @sync_compatible
-    async def download_folder_to_path(
+    async def adownload_folder_to_path(
         self,
         from_folder: str,
         to_folder: Union[str, Path],
         **download_kwargs: Dict[str, Any],
-    ) -> Coroutine[Any, Any, Path]:
-        """Download a folder from the container to a local path.
+    ) -> Path:
+        """Download a folder from the container to a local path (async version).
 
-        Args:
-            from_folder: The folder path in the container to download.
-            to_folder: The local path to download the folder to.
-            **download_kwargs: Additional keyword arguments passed into
-                `BlobClient.download_blob`.
-
-        Returns:
-            The local path where the folder was downloaded.
-
-        Example:
-            Download the contents of container folder `folder` from the container
-                to the local folder `local_folder`:
-
-            ```python
-            from prefect_azure import AzureBlobStorageCredentials
-            from prefect_azure.blob_storage import AzureBlobStorageContainer
-
-            credentials = AzureBlobStorageCredentials(
-                connection_string="connection_string",
-            )
-            block = AzureBlobStorageContainer(
-                container_name="container",
-                credentials=credentials,
-            )
-            block.download_folder_to_path(
-                from_folder="folder",
-                to_folder="local_folder"
-            )
-            ```
+        See `download_folder_to_path` for details.
         """
         self.logger.info(
             "Downloading folder from container %s to path %s",
@@ -309,13 +281,90 @@ class AzureBlobStorageContainer(
 
                 return Path(to_folder)
 
-    @sync_compatible
-    async def download_object_to_file_object(
+    @async_dispatch(adownload_folder_to_path)
+    def download_folder_to_path(
+        self,
+        from_folder: str,
+        to_folder: Union[str, Path],
+        **download_kwargs: Dict[str, Any],
+    ) -> Path:
+        """Download a folder from the container to a local path.
+
+        Args:
+            from_folder: The folder path in the container to download.
+            to_folder: The local path to download the folder to.
+            **download_kwargs: Additional keyword arguments passed into
+                `BlobClient.download_blob`.
+
+        Returns:
+            The local path where the folder was downloaded.
+
+        Example:
+            Download the contents of container folder `folder` from the container
+                to the local folder `local_folder`:
+
+            ```python
+            from prefect_azure import AzureBlobStorageCredentials
+            from prefect_azure.blob_storage import AzureBlobStorageContainer
+
+            credentials = AzureBlobStorageCredentials(
+                connection_string="connection_string",
+            )
+            block = AzureBlobStorageContainer(
+                container_name="container",
+                credentials=credentials,
+            )
+            block.download_folder_to_path(
+                from_folder="folder",
+                to_folder="local_folder"
+            )
+            ```
+        """
+        return from_sync.call_soon_in_loop_thread(
+            create_call(
+                self.adownload_folder_to_path,
+                from_folder,
+                to_folder,
+                **download_kwargs,
+            )
+        ).result()
+
+    async def adownload_object_to_file_object(
         self,
         from_path: str,
         to_file_object: BinaryIO,
         **download_kwargs: Dict[str, Any],
-    ) -> Coroutine[Any, Any, BinaryIO]:
+    ) -> BinaryIO:
+        """Download an object from the container to a file object (async version).
+
+        See `download_object_to_file_object` for details.
+        """
+        self.logger.info(
+            "Downloading object from container %s to file object", self.container_name
+        )
+        full_container_path = self._get_path_relative_to_base_folder(from_path)
+        async with self.credentials as credentials:
+            async with credentials.get_blob_client(
+                self.container_name, full_container_path
+            ) as blob_client:
+                try:
+                    blob_obj = await blob_client.download_blob(**download_kwargs)
+                    await blob_obj.download_to_stream(to_file_object)
+                except ResourceNotFoundError as exc:
+                    raise RuntimeError(
+                        "An error occurred when attempting to download from container"
+                        f" {self.container_name}: {exc.reason}"
+                    ) from exc
+
+            return to_file_object
+
+    @async_dispatch(adownload_object_to_file_object)
+    def download_object_to_file_object(
+        self,
+        from_path: str,
+        to_file_object: BinaryIO,
+        **download_kwargs: Dict[str, Any],
+    ) -> BinaryIO:
         """
         Downloads an object from the container to a file object.
 
@@ -349,8 +398,29 @@ class AzureBlobStorageContainer(
                 )
             ```
         """
+        return from_sync.call_soon_in_loop_thread(
+            create_call(
+                self.adownload_object_to_file_object,
+                from_path,
+                to_file_object,
+                **download_kwargs,
+            )
+        ).result()
+
+    async def adownload_object_to_path(
+        self,
+        from_path: str,
+        to_path: Union[str, Path],
+        **download_kwargs: Dict[str, Any],
+    ) -> Path:
+        """Download an object from the container to a specified path (async version).
+
+        See `download_object_to_path` for details.
+        """
         self.logger.info(
-            "Downloading object from container %s to file object", self.container_name
+            "Downloading object from container %s to path %s",
+            self.container_name,
+            to_path,
         )
         full_container_path = self._get_path_relative_to_base_folder(from_path)
         async with self.credentials as credentials:
@@ -359,22 +429,27 @@ class AzureBlobStorageContainer(
             ) as blob_client:
                 try:
                     blob_obj = await blob_client.download_blob(**download_kwargs)
-                    await blob_obj.download_to_stream(to_file_object)
+
+                    path = Path(to_path)
+
+                    path.parent.mkdir(parents=True, exist_ok=True)
+
+                    with path.open(mode="wb") as to_file:
+                        await blob_obj.readinto(to_file)
                 except ResourceNotFoundError as exc:
                     raise RuntimeError(
                         "An error occurred when attempting to download from container"
                         f" {self.container_name}: {exc.reason}"
                     ) from exc
+                return path
 
-            return to_file_object
-
-    @sync_compatible
-    async def download_object_to_path(
+    @async_dispatch(adownload_object_to_path)
+    def download_object_to_path(
         self,
         from_path: str,
         to_path: Union[str, Path],
         **download_kwargs: Dict[str, Any],
-    ) -> Coroutine[Any, Any, Path]:
+    ) -> Path:
         """
         Downloads an object from a container to a specified path.
 
@@ -408,36 +483,44 @@ class AzureBlobStorageContainer(
             )
             ```
         """
+        return from_sync.call_soon_in_loop_thread(
+            create_call(
+                self.adownload_object_to_path,
+                from_path,
+                to_path,
+                **download_kwargs,
+            )
+        ).result()
+
+    async def aupload_from_file_object(
+        self, from_file_object: BinaryIO, to_path: str, **upload_kwargs: Dict[str, Any]
+    ) -> str:
+        """Upload an object from a file object to the container (async version).
+
+        See `upload_from_file_object` for details.
+        """
         self.logger.info(
-            "Downloading object from container %s to path %s",
-            self.container_name,
-            to_path,
+            "Uploading object to container %s with key %s", self.container_name, to_path
         )
-        full_container_path = self._get_path_relative_to_base_folder(from_path)
+        full_container_path = self._get_path_relative_to_base_folder(to_path)
         async with self.credentials as credentials:
             async with credentials.get_blob_client(
                 self.container_name, full_container_path
             ) as blob_client:
                 try:
-                    blob_obj = await blob_client.download_blob(**download_kwargs)
-
-                    path = Path(to_path)
-
-                    path.parent.mkdir(parents=True, exist_ok=True)
-
-                    with path.open(mode="wb") as to_file:
-                        await blob_obj.readinto(to_file)
+                    await blob_client.upload_blob(from_file_object, **upload_kwargs)
                 except ResourceNotFoundError as exc:
                     raise RuntimeError(
-                        "An error occurred when attempting to download from container"
+                        "An error occurred when attempting to upload from container"
                         f" {self.container_name}: {exc.reason}"
                     ) from exc
-                return path
 
-    @sync_compatible
-    async def upload_from_file_object(
+            return to_path
+
+    @async_dispatch(aupload_from_file_object)
+    def upload_from_file_object(
         self, from_file_object: BinaryIO, to_path: str, **upload_kwargs: Dict[str, Any]
-    ) -> Coroutine[Any, Any, str]:
+    ) -> str:
         """
         Uploads an object from a file object to the specified path in the blob
             storage container.
@@ -473,6 +556,22 @@ class AzureBlobStorageContainer(
                 )
             ```
         """
+        return from_sync.call_soon_in_loop_thread(
+            create_call(
+                self.aupload_from_file_object,
+                from_file_object,
+                to_path,
+                **upload_kwargs,
+            )
+        ).result()
+
+    async def aupload_from_path(
+        self, from_path: Union[str, Path], to_path: str, **upload_kwargs: Dict[str, Any]
+    ) -> str:
+        """Upload an object from a local path to the container (async version).
+
+        See `upload_from_path` for details.
+        """
         self.logger.info(
             "Uploading object to container %s with key %s", self.container_name, to_path
         )
@@ -482,19 +581,20 @@ class AzureBlobStorageContainer(
                 self.container_name, full_container_path
             ) as blob_client:
                 try:
-                    await blob_client.upload_blob(from_file_object, **upload_kwargs)
+                    with open(from_path, "rb") as f:
+                        await blob_client.upload_blob(f, **upload_kwargs)
                 except ResourceNotFoundError as exc:
                     raise RuntimeError(
-                        "An error occurred when attempting to upload from container"
+                        "An error occurred when attempting to upload to container"
                         f" {self.container_name}: {exc.reason}"
                     ) from exc
 
             return to_path
 
-    @sync_compatible
-    async def upload_from_path(
+    @async_dispatch(aupload_from_path)
+    def upload_from_path(
         self, from_path: Union[str, Path], to_path: str, **upload_kwargs: Dict[str, Any]
-    ) -> Coroutine[Any, Any, str]:
+    ) -> str:
         """
         Uploads an object from a local path to the specified destination path in the
             blob storage container.
@@ -529,32 +629,63 @@ class AzureBlobStorageContainer(
             )
             ```
         """
-        self.logger.info(
-            "Uploading object to container %s with key %s", self.container_name, to_path
-        )
-        full_container_path = self._get_path_relative_to_base_folder(to_path)
-        async with self.credentials as credentials:
-            async with credentials.get_blob_client(
-                self.container_name, full_container_path
-            ) as blob_client:
-                try:
-                    with open(from_path, "rb") as f:
-                        await blob_client.upload_blob(f, **upload_kwargs)
-                except ResourceNotFoundError as exc:
-                    raise RuntimeError(
-                        "An error occurred when attempting to upload to container"
-                        f" {self.container_name}: {exc.reason}"
-                    ) from exc
+        return from_sync.call_soon_in_loop_thread(
+            create_call(
+                self.aupload_from_path,
+                from_path,
+                to_path,
+                **upload_kwargs,
+            )
+        ).result()
 
-            return to_path
-
-    @sync_compatible
-    async def upload_from_folder(
+    async def aupload_from_folder(
         self,
         from_folder: Union[str, Path],
         to_folder: str,
         **upload_kwargs: Dict[str, Any],
-    ) -> Coroutine[Any, Any, str]:
+    ) -> str:
+        """Upload files from a local folder to the container (async version).
+
+        See `upload_from_folder` for details.
+        """
+        self.logger.info(
+            "Uploading folder to container %s with key %s",
+            self.container_name,
+            to_folder,
+        )
+        full_container_path = self._get_path_relative_to_base_folder(to_folder)
+        async with self.credentials as credentials:
+            async with credentials.get_container_client(
+                self.container_name
+            ) as container_client:
+                if not Path(from_folder).is_dir():
+                    raise ValueError(f"{from_folder} is not a directory")
+                for path in Path(from_folder).rglob("*"):
+                    if path.is_file():
+                        blob_path = Path(full_container_path) / path.relative_to(
+                            from_folder
+                        )
+                        async with container_client.get_blob_client(
+                            blob_path.as_posix()
+                        ) as blob_client:
+                            try:
+                                await blob_client.upload_blob(
+                                    path.read_bytes(), **upload_kwargs
+                                )
+                            except ResourceNotFoundError as exc:
+                                raise RuntimeError(
+                                    "An error occurred when attempting to upload to "
+                                    f"container {self.container_name}: {exc.reason}"
+                                ) from exc
+            return full_container_path
+
+    @async_dispatch(aupload_from_folder)
+    def upload_from_folder(
+        self,
+        from_folder: Union[str, Path],
+        to_folder: str,
+        **upload_kwargs: Dict[str, Any],
+    ) -> str:
         """
         Uploads files from a local folder to a specified folder in the Azure
             Blob Storage container.
@@ -589,43 +720,30 @@ class AzureBlobStorageContainer(
             )
             ```
         """
-        self.logger.info(
-            "Uploading folder to container %s with key %s",
-            self.container_name,
-            to_folder,
-        )
-        full_container_path = self._get_path_relative_to_base_folder(to_folder)
-        async with self.credentials as credentials:
-            async with credentials.get_container_client(
-                self.container_name
-            ) as container_client:
-                if not Path(from_folder).is_dir():
-                    raise ValueError(f"{from_folder} is not a directory")
-                for path in Path(from_folder).rglob("*"):
-                    if path.is_file():
-                        blob_path = Path(full_container_path) / path.relative_to(
-                            from_folder
-                        )
-                        async with container_client.get_blob_client(
-                            blob_path.as_posix()
-                        ) as blob_client:
-                            try:
-                                await blob_client.upload_blob(
-                                    path.read_bytes(), **upload_kwargs
-                                )
-                            except ResourceNotFoundError as exc:
-                                raise RuntimeError(
-                                    "An error occurred when attempting to upload to "
-                                    f"container {self.container_name}: {exc.reason}"
-                                ) from exc
-            return full_container_path
+        return from_sync.call_soon_in_loop_thread(
+            create_call(
+                self.aupload_from_folder,
+                from_folder,
+                to_folder,
+                **upload_kwargs,
+            )
+        ).result()
 
-    @sync_compatible
-    async def get_directory(
+    async def aget_directory(
+        self, from_path: Optional[str] = None, local_path: Optional[str] = None
+    ) -> None:
+        """Download the contents of a directory to a local path (async version).
+
+        See `get_directory` for details.
+        """
+        await self.adownload_folder_to_path(from_path, local_path)
+
+    @async_dispatch(aget_directory)
+    def get_directory(
         self, from_path: Optional[str] = None, local_path: Optional[str] = None
     ) -> None:
         """
-        Downloads the contents of a direry from the blob storage to a local path.
+        Downloads the contents of a directory from the blob storage to a local path.
 
         Used to enable flow code storage for deployments.
 
@@ -633,27 +751,19 @@ class AzureBlobStorageContainer(
             from_path: The path of the directory in the blob storage.
             local_path: The local path where the directory will be downloaded.
         """
-        await self.download_folder_to_path(from_path, local_path)
+        return from_sync.call_soon_in_loop_thread(
+            create_call(self.aget_directory, from_path, local_path)
+        ).result()
 
-    @sync_compatible
-    async def put_directory(
+    async def aput_directory(
         self,
         local_path: Optional[str] = None,
         to_path: Optional[str] = None,
         ignore_file: Optional[str] = None,
     ) -> None:
-        """
-        Uploads a directory to the blob storage.
+        """Upload a directory to the blob storage (async version).
 
-        Used to enable flow code storage for deployments.
-
-        Args:
-            local_path: The local path of the directory to upload. Defaults to
-                current directory.
-            to_path: The destination path in the blob storage. Defaults to
-                root directory.
-            ignore_file: The path to a file containing patterns to ignore
-                during upload.
+        See `put_directory` for details.
         """
         to_path = "" if to_path is None else to_path
 
@@ -680,12 +790,45 @@ class AzureBlobStorageContainer(
                 with open(local_file_path, "rb") as local_file:
                     local_file_content = local_file.read()
 
-                await self.write_path(
+                await self.awrite_path(
                     remote_file_path.as_posix(), content=local_file_content
                 )
 
-    @sync_compatible
-    async def read_path(self, path: str) -> bytes:
+    @async_dispatch(aput_directory)
+    def put_directory(
+        self,
+        local_path: Optional[str] = None,
+        to_path: Optional[str] = None,
+        ignore_file: Optional[str] = None,
+    ) -> None:
+        """
+        Uploads a directory to the blob storage.
+
+        Used to enable flow code storage for deployments.
+
+        Args:
+            local_path: The local path of the directory to upload. Defaults to
+                current directory.
+            to_path: The destination path in the blob storage. Defaults to
+                root directory.
+            ignore_file: The path to a file containing patterns to ignore
+                during upload.
+        """
+        return from_sync.call_soon_in_loop_thread(
+            create_call(self.aput_directory, local_path, to_path, ignore_file)
+        ).result()
+
+    async def aread_path(self, path: str) -> bytes:
+        """Read the contents of a file at the specified path (async version).
+
+        See `read_path` for details.
+        """
+        file_obj = BytesIO()
+        await self.adownload_object_to_file_object(path, file_obj)
+        return file_obj.getvalue()
+
+    @async_dispatch(aread_path)
+    def read_path(self, path: str) -> bytes:
         """
         Reads the contents of a file at the specified path and returns it as bytes.
 
@@ -697,12 +840,22 @@ class AzureBlobStorageContainer(
         Returns:
             The contents of the file as bytes.
         """
-        file_obj = BytesIO()
-        await self.download_object_to_file_object(path, file_obj)
-        return file_obj.getvalue()
+        return from_sync.call_soon_in_loop_thread(
+            create_call(self.aread_path, path)
+        ).result()
 
-    @sync_compatible
-    async def write_path(self, path: str, content: bytes) -> None:
+    async def awrite_path(self, path: str, content: bytes) -> None:
+        """Write content to the specified path in the blob storage (async version).
+
+        See `write_path` for details.
+        """
+        # `write_path` backs results storage, where re-writing an existing key
+        # (e.g. when a task runs with `refresh_cache=True`) must replace the
+        # existing blob rather than raise `ResourceExistsError`.
+        await self.aupload_from_file_object(BytesIO(content), path, overwrite=True)
+
+    @async_dispatch(awrite_path)
+    def write_path(self, path: str, content: bytes) -> None:
         """
         Writes the content to the specified path in the blob storage.
 
@@ -712,13 +865,32 @@ class AzureBlobStorageContainer(
             path: The path where the content will be written.
             content: The content to be written.
         """
-        # `write_path` backs results storage, where re-writing an existing key
-        # (e.g. when a task runs with `refresh_cache=True`) must replace the
-        # existing blob rather than raise `ResourceExistsError`.
-        await self.upload_from_file_object(BytesIO(content), path, overwrite=True)
+        return from_sync.call_soon_in_loop_thread(
+            create_call(self.awrite_path, path, content)
+        ).result()
 
-    @sync_compatible
-    async def list_blobs(self) -> List[str]:
+    async def alist_blobs(self) -> List[str]:
+        """List blobs available within the specified Azure container (async version).
+
+        See `list_blobs` for details.
+        """
+        self.logger.info(
+            "Listing the blobs within container %s",
+            self.container_name,
+        )
+
+        async with self.credentials as credentials:
+            async with credentials.get_container_client(
+                self.container_name
+            ) as container_client:
+                blobs = container_client.list_blobs()
+                filenames = []
+                async for blob in blobs:
+                    filenames.append(blob.name)
+            return filenames
+
+    @async_dispatch(alist_blobs)
+    def list_blobs(self) -> List[str]:
         """
         Lists blobs available within the specified Azure container.
 
@@ -743,17 +915,6 @@ class AzureBlobStorageContainer(
             block.list_blobs()
             ```
         """
-        self.logger.info(
-            "Listing the blobs within container %s",
-            self.container_name,
-        )
-
-        async with self.credentials as credentials:
-            async with credentials.get_container_client(
-                self.container_name
-            ) as container_client:
-                blobs = container_client.list_blobs()
-                filenames = []
-                async for blob in blobs:
-                    filenames.append(blob.name)
-            return filenames
+        return from_sync.call_soon_in_loop_thread(
+            create_call(self.alist_blobs)
+        ).result()
