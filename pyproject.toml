@@ -324,6 +324,7 @@ filterwarnings = [
     "ignore:Runner\\.execute_flow_run has been deprecated:prefect._internal.compatibility.deprecated.PrefectDeprecationWarning",
     "ignore:Runner\\.execute_bundle has been deprecated:prefect._internal.compatibility.deprecated.PrefectDeprecationWarning",
     "ignore:Runner\\.reschedule_current_flow_runs has been deprecated:prefect._internal.compatibility.deprecated.PrefectDeprecationWarning",
+    "ignore:`sync_compatible` has been deprecated:prefect._internal.compatibility.deprecated.PrefectDeprecationWarning",
     "ignore::sqlalchemy.exc.SAWarning",
     "ignore::ResourceWarning",
     "ignore::pytest.PytestUnraisableExceptionWarning",

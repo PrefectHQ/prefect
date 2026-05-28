@@ -284,6 +284,18 @@ async def test_sync_compatible_allows_forced_behavior_sync_and_async():
     assert await sync_compatible(foo)() == 42
 
 
+def test_sync_compatible_emits_deprecation_warning():
+    from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
+
+    async def foo():
+        return 42
+
+    with pytest.warns(
+        PrefectDeprecationWarning, match="`sync_compatible` has been deprecated"
+    ):
+        sync_compatible(foo)
+
+
 def test_sync_compatible_requires_async_function():
     with pytest.raises(TypeError, match="must be async"):
 
