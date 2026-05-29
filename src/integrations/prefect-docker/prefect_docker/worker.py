@@ -101,6 +101,7 @@ class ImagePullPolicy(enum.Enum):
 
     IF_NOT_PRESENT = "IfNotPresent"
     ALWAYS = "Always"
+    # tries to pull the image, but if not possible it still continues
     ALWAYS_IF_POSSIBLE = "AlwaysIfPossible"
     NEVER = "Never"
 
