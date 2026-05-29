@@ -799,14 +799,16 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                         reauth=configuration.registry_credentials.reauth,
                     )
                 self._logger.info(f"Pulling image {configuration.image!r}...")
-            
+
                 self._pull_image(docker_client, configuration)
             except Exception as exc:
                 image_pull_policy = configuration._determine_image_pull_policy()
                 if image_pull_policy is not ImagePullPolicy.ALWAYS_IF_POSSIBLE:
                     raise exc
                 else:
-                    self._logger.info(f"Pulling for {configuration.image!r} failed. But because ImagePullPolicy is set to {ImagePullPolicy.ALWAYS_IF_POSSIBLE} we still continue. Maybe we have an local one.")
+                    self._logger.info(
+                        f"Pulling for {configuration.image!r} failed. But because ImagePullPolicy is set to {ImagePullPolicy.ALWAYS_IF_POSSIBLE} we still continue. Maybe we have an local one."
+                    )
 
         try:
             self._logger.info(
@@ -931,7 +933,10 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
         """
         image_pull_policy = configuration._determine_image_pull_policy()
 
-        if image_pull_policy in (ImagePullPolicy.ALWAYS, ImagePullPolicy.ALWAYS_IF_POSSIBLE):
+        if image_pull_policy in (
+            ImagePullPolicy.ALWAYS,
+            ImagePullPolicy.ALWAYS_IF_POSSIBLE,
+        ):
             return True
         elif image_pull_policy is ImagePullPolicy.NEVER:
             return False
