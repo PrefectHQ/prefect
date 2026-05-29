@@ -153,7 +153,9 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
         description="Credentials for logging into a Docker registry to pull"
         " images from.",
     )
-    image_pull_policy: Optional[Literal["IfNotPresent", "Always", "Never"]] = Field(
+    image_pull_policy: Optional[
+        Literal["IfNotPresent", "Always", "AlwaysIfPossible", "Never"]
+    ] = Field(
         default=None,
         description="The image pull policy to use when pulling images.",
     )
