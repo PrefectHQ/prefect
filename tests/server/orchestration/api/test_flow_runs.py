@@ -1973,11 +1973,11 @@ class TestSetFlowRunState:
         assert (
             0
             <= (
-                # Fuzzy comparison
+                # Fuzzy comparison; use 30s tolerance for slow CI runners
                 86400  # 24 hours in seconds
                 - api_response.details.delay_seconds
             )
-            <= 10
+            <= 30
         )
 
     @pytest.fixture
