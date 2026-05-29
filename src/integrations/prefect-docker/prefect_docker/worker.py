@@ -101,6 +101,7 @@ class ImagePullPolicy(enum.Enum):
 
     IF_NOT_PRESENT = "IfNotPresent"
     ALWAYS = "Always"
+    ALWAYS_IF_POSSIBLE = "AlwaysIfPossible"
     NEVER = "Never"
 
 
@@ -784,19 +785,27 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
         )
 
         if self._should_pull_image(docker_client, configuration=configuration):
-            # Only authenticate to the registry when we actually need to pull an image.
-            # This prevents unnecessary authentication attempts when the image already
-            # exists locally, improving resilience when registries are unavailable.
-            if configuration.registry_credentials:
-                self._logger.info("Logging into Docker registry...")
-                docker_client.login(
-                    username=configuration.registry_credentials.username,
-                    password=configuration.registry_credentials.password.get_secret_value(),
-                    registry=configuration.registry_credentials.registry_url,
-                    reauth=configuration.registry_credentials.reauth,
-                )
-            self._logger.info(f"Pulling image {configuration.image!r}...")
-            self._pull_image(docker_client, configuration)
+            try:
+                # Only authenticate to the registry when we actually need to pull an image.
+                # This prevents unnecessary authentication attempts when the image already
+                # exists locally, improving resilience when registries are unavailable.
+                if configuration.registry_credentials:
+                    self._logger.info("Logging into Docker registry...")
+                    docker_client.login(
+                        username=configuration.registry_credentials.username,
+                        password=configuration.registry_credentials.password.get_secret_value(),
+                        registry=configuration.registry_credentials.registry_url,
+                        reauth=configuration.registry_credentials.reauth,
+                    )
+                self._logger.info(f"Pulling image {configuration.image!r}...")
+            
+                self._pull_image(docker_client, configuration)
+            except Exception as exc:
+                image_pull_policy = configuration._determine_image_pull_policy()
+                if image_pull_policy is not ImagePullPolicy.ALWAYS_IF_POSSIBLE:
+                    raise exc
+                else:
+                    self._logger.info(f"Pulling for {configuration.image!r} failed. But because ImagePullPolicy is set to {ImagePullPolicy.ALWAYS_IF_POSSIBLE} we still continue. Maybe we have an local one.")
 
         try:
             self._logger.info(
