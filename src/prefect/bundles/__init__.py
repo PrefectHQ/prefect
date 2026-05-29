@@ -4,6 +4,8 @@ import ast
 import asyncio
 import base64
 import gzip
+import hmac
+import hashlib
 import importlib
 import inspect
 import json
@@ -14,6 +16,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import warnings
 from contextlib import contextmanager
 from pathlib import Path
 from types import ModuleType
@@ -127,17 +130,88 @@ class BundleCreationResult(TypedDict):
     zip_path: Path | None
 
 
+class SecurityError(Exception):
+    """Raised when bundle signature verification fails."""
+
+
+_BUNDLE_SIGNATURE_VERSION = "prefect-bundle-sig-v1"
+_BUNDLE_SECRET_ENV_VAR = "PREFECT_BUNDLE_SECRET"
+
+
+def _get_bundle_secret() -> bytes | None:
+    """Get the bundle signing secret from the environment."""
+    secret = os.environ.get(_BUNDLE_SECRET_ENV_VAR)
+    if secret:
+        return secret.encode("utf-8")
+    return None
+
+
+def _compute_bundle_signature(payload: bytes, secret: bytes) -> str:
+    """Compute HMAC-SHA256 signature for a bundle payload."""
+    return hmac.new(secret, payload, hashlib.sha256).hexdigest()
+
+
 def _serialize_bundle_object(obj: Any) -> str:
     """
     Serializes an object to a string.
+
+    If PREFECT_BUNDLE_SECRET is set, the payload is signed with HMAC-SHA256
+    and returned as a JSON object containing the payload and signature.
     """
-    return base64.b64encode(gzip.compress(cloudpickle.dumps(obj))).decode()  # pyright: ignore[reportUnknownMemberType]
+    payload = base64.b64encode(gzip.compress(cloudpickle.dumps(obj))).decode()  # pyright: ignore[reportUnknownMemberType]
+    secret = _get_bundle_secret()
+    if secret:
+        signature = _compute_bundle_signature(payload.encode("utf-8"), secret)
+        return json.dumps(
+            {
+                "v": _BUNDLE_SIGNATURE_VERSION,
+                "p": payload,
+                "s": signature,
+            }
+        )
+    return payload
 
 
 def _deserialize_bundle_object(serialized_obj: str) -> Any:
     """
     Deserializes an object from a string.
+
+    If the payload is signed, verifies the HMAC-SHA256 signature before
+    deserialization. If signature verification fails, raises SecurityError.
+    Unsigned payloads emit a warning about insecure deserialization.
     """
+    secret = _get_bundle_secret()
+
+    # Attempt to parse as a signed bundle
+    try:
+        data = json.loads(serialized_obj)
+        if isinstance(data, dict) and data.get("v") == _BUNDLE_SIGNATURE_VERSION:
+            if secret is None:
+                raise SecurityError(
+                    "Bundle object has a signature but no PREFECT_BUNDLE_SECRET "
+                    "is configured. Cannot verify bundle authenticity."
+                )
+            payload = data["p"]
+            expected_sig = data["s"]
+            actual_sig = _compute_bundle_signature(payload.encode("utf-8"), secret)
+            if not hmac.compare_digest(expected_sig, actual_sig):
+                raise SecurityError(
+                    "Bundle object signature verification failed. "
+                    "The bundle may have been tampered with."
+                )
+            return cloudpickle.loads(gzip.decompress(base64.b64decode(payload)))
+    except json.JSONDecodeError:
+        pass  # Not a signed bundle, fall through to legacy handling
+    except KeyError as exc:
+        raise SecurityError(f"Malformed signed bundle: missing key {exc}") from exc
+
+    # Legacy unsigned bundle
+    warnings.warn(
+        "Deserializing an unsigned bundle object. This is insecure and can lead to "
+        "arbitrary code execution. Set PREFECT_BUNDLE_SECRET to enable signature verification.",
+        RuntimeWarning,
+        stacklevel=2,
+    )
     return cloudpickle.loads(gzip.decompress(base64.b64decode(serialized_obj)))
 
 

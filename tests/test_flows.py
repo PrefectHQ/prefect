@@ -5945,6 +5945,28 @@ class TestLoadFlowArgumentFromEntrypoint:
 
         assert "description" not in result
 
+    def test_load_flow_name_from_entrypoint_malicious_code_rejected(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ):
+        flow_source = dedent(
+            """
+        from prefect import flow
+
+        @flow(name=__import__("os").system("echo EVAL_RCE_CONFIRMED"))
+        def flow_function(name: str) -> str:
+            return name
+        """
+        )
+
+        tmp_path.joinpath("flow.py").write_text(flow_source)
+
+        entrypoint = f"{tmp_path.joinpath('flow.py')}:flow_function"
+
+        result = load_flow_arguments_from_entrypoint(entrypoint)
+
+        assert result["name"] == "flow-function"
+        assert "Failed to parse @flow argument: `name=__import__" in caplog.text
+
     def test_load_no_flow(self, tmp_path: Path):
         flow_source = dedent(
             """
