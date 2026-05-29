@@ -206,6 +206,12 @@ def _deserialize_bundle_object(serialized_obj: str) -> Any:
         raise SecurityError(f"Malformed signed bundle: missing key {exc}") from exc
 
     # Legacy unsigned bundle
+    if secret is not None:
+        raise SecurityError(
+            "Bundle object is unsigned but PREFECT_BUNDLE_SECRET is configured. "
+            "Rejecting legacy unsigned bundle to prevent potential arbitrary code execution."
+        )
+
     warnings.warn(
         "Deserializing an unsigned bundle object. This is insecure and can lead to "
         "arbitrary code execution. Set PREFECT_BUNDLE_SECRET to enable signature verification.",

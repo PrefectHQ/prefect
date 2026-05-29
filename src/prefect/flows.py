@@ -3543,7 +3543,6 @@ def load_flow_arguments_from_entrypoint(
 
                 # if the arg value is not a raw str (i.e. a variable or expression),
                 # then attempt to evaluate it
-                namespace = safe_load_namespace(source_code, filepath=path)
                 literal_arg_value = ast.get_source_segment(source_code, keyword.value)
                 cleaned_value = (
                     literal_arg_value.replace("\n", "") if literal_arg_value else ""
@@ -3553,21 +3552,15 @@ def load_flow_arguments_from_entrypoint(
                     # Use ast.literal_eval for safe evaluation of literal expressions
                     evaluated_value = ast.literal_eval(cleaned_value)
                     result[cast(str, keyword.arg)] = str(evaluated_value)
-                except Exception:
-                    # For non-literal expressions, restrict builtins to prevent RCE
-                    eval_namespace = {**namespace, "__builtins__": {}}
-                    try:
-                        evaluated_value = eval(cleaned_value, eval_namespace)  # type: ignore
-                        result[cast(str, keyword.arg)] = str(evaluated_value)
-                    except Exception as e:
-                        logger.info(
-                            "Failed to parse @flow argument: `%s=%s` due to the following error. Ignoring and falling back to default behavior.",
-                            keyword.arg,
-                            literal_arg_value,
-                            exc_info=e,
-                        )
-                        # ignore the decorator arg and fallback to default behavior
-                        continue
+                except Exception as e:
+                    logger.info(
+                        "Failed to parse @flow argument: `%s=%s` due to the following error. Ignoring and falling back to default behavior.",
+                        keyword.arg,
+                        literal_arg_value,
+                        exc_info=e,
+                    )
+                    # ignore the decorator arg and fallback to default behavior
+                    continue
 
     if "name" in arguments and "name" not in result:
         # If no matching decorator or keyword argument for `name' is found
