@@ -359,17 +359,26 @@ class FlowRunSuspendingObserver:
         # actually happens.  A per-recv timeout lets us run a heartbeat API
         # check when the websocket has been quiet — catching silently-dropped
         # events — without abandoning the websocket connection.
+        #
+        # We use asyncio.wait instead of asyncio.wait_for because wait_for
+        # has CancelledError-leaking edge cases on Python 3.10.
         while True:
-            try:
-                event = await asyncio.wait_for(
-                    self._events_subscriber.__anext__(),
-                    timeout=self.polling_interval,
-                )
-            except StopAsyncIteration:
-                return
-            except TimeoutError:
+            recv_task = asyncio.ensure_future(self._events_subscriber.__anext__())
+            done, _ = await asyncio.wait({recv_task}, timeout=self.polling_interval)
+
+            if not done:
+                recv_task.cancel()
+                try:
+                    await recv_task
+                except (asyncio.CancelledError, StopAsyncIteration):
+                    pass
                 await self._check_for_suspended_flow_runs()
                 continue
+
+            try:
+                event = recv_task.result()
+            except StopAsyncIteration:
+                return
 
             try:
                 flow_run_id = uuid.UUID(
