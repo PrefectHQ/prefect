@@ -354,9 +354,11 @@ class FlowRunSuspendingObserver:
             raise RuntimeError(
                 "Events subscriber not initialized. Please use `async with` to initialize the observer."
             )
-        # Use a per-recv timeout so that a silent websocket (connected but
-        # not delivering events) is detected and the observer falls back to
-        # polling.  The timeout resets after every received message.
+        # The subscriber is filtered to only `prefect.flow-run.Suspended`
+        # events, so the websocket is normally silent until a suspension
+        # actually happens.  A per-recv timeout lets us run a heartbeat API
+        # check when the websocket has been quiet — catching silently-dropped
+        # events — without abandoning the websocket connection.
         while True:
             try:
                 event = await asyncio.wait_for(
@@ -366,12 +368,8 @@ class FlowRunSuspendingObserver:
             except StopAsyncIteration:
                 return
             except TimeoutError:
-                self.logger.info(
-                    "No suspension events received over websocket within"
-                    " %ss; switching to polling.",
-                    self.polling_interval,
-                )
-                return
+                await self._check_for_suspended_flow_runs()
+                continue
 
             try:
                 flow_run_id = uuid.UUID(

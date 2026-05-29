@@ -656,7 +656,7 @@ class TestFlowRunSuspendingObserver:
 
             callback.assert_called_once_with(flow_run_id, suspended_state)
 
-    async def test_consume_events_times_out_and_switches_to_polling(self):
+    async def test_consume_events_heartbeat_on_silence(self):
         callback = MagicMock()
         observer = FlowRunSuspendingObserver(
             on_suspended=callback, polling_interval=0.2
@@ -666,30 +666,29 @@ class TestFlowRunSuspendingObserver:
             await asyncio.Event().wait()
 
         async with observer:
+            # Replace subscriber's __anext__ with a call that never returns
+            observer._events_subscriber = AsyncMock()
+            observer._events_subscriber.__anext__ = AsyncMock(side_effect=block_forever)
+
+            # Cancel the original consumer and start a new one
+            if observer._consumer_task:
+                observer._consumer_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await observer._consumer_task
+
             with patch.object(
-                observer, "_consume_events", wraps=observer._consume_events
-            ):
-                # Replace subscriber's __anext__ with a call that never returns
-                observer._events_subscriber = AsyncMock()
-                observer._events_subscriber.__anext__ = AsyncMock(
-                    side_effect=block_forever
-                )
-
-                # Cancel the original consumer and start a new one
-                if observer._consumer_task:
-                    observer._consumer_task.cancel()
-                    with suppress(asyncio.CancelledError):
-                        await observer._consumer_task
-
+                observer,
+                "_check_for_suspended_flow_runs",
+                new_callable=AsyncMock,
+            ) as check_mock:
                 observer._consumer_task = asyncio.create_task(
                     observer._consume_events()
                 )
-                observer._consumer_task.add_done_callback(observer._start_polling_task)
 
-                # Consumer should time out and exit within polling_interval
+                # Consumer should stay alive and call the heartbeat check
                 await asyncio.sleep(0.5)
-                assert observer._consumer_task.done()
-                assert observer._polling_task is not None
+                assert not observer._consumer_task.done()
+                assert check_mock.await_count >= 1
 
     async def test_clean_event_consumer_completion_starts_polling(self):
         callback = MagicMock()
