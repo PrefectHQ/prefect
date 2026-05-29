@@ -104,6 +104,12 @@ SUPPORTED_SETTINGS = {
 }
 ```
 
+Also regenerate `_types.py` after adding any setting (it is auto-generated — do not edit by hand):
+
+```bash
+uv run python scripts/generate_settings_types.py
+```
+
 ## Accessing Settings
 
 ```python
