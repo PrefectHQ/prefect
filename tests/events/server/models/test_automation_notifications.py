@@ -22,6 +22,8 @@ from prefect.server.events.triggers import listen_for_automation_changes
 from prefect.server.utilities.database import get_dialect
 from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED, temporary_settings
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def sample_automation() -> Automation:

@@ -1,0 +1,210 @@
+---
+title: Infrastructure Debugging
+description: Debug flow run failures from a single pane of glass, with less context-switching between Kubernetes dashboards, AWS consoles, and log aggregators.
+hidden: true
+mode: custom
+keywords: ["debugging", "infrastructure", "Kubernetes", "ECS", "observability", "resource metrics", "CPU", "memory", "exit code", "crashed"]
+---
+
+<div className="px-4 py-16 lg:py-24 max-w-4xl mx-auto">
+
+<div className="text-center mb-16">
+  <h1 className="text-4xl font-medium text-gray-900 dark:text-zinc-50 tracking-tight">
+    Infrastructure Debugging
+  </h1>
+  <p className="mt-4 text-lg text-gray-500 dark:text-zinc-400 max-w-2xl mx-auto">
+    Debug flow run failures from a single pane of glass, with less context-switching
+    between Kubernetes dashboards, AWS consoles, and log aggregators.
+  </p>
+</div>
+
+<div className="mb-12 text-base text-gray-700 dark:text-zinc-300 leading-relaxed space-y-4">
+  <p>
+    When a flow run fails, the first question is always the same: <em>what went wrong?</em>
+  </p>
+  <p>
+    Today, answering that question means jumping between Kubernetes dashboards, AWS consoles,
+    CloudWatch logs, and container runtimes while piecing together clues from systems outside
+    your workflow context. By the time you find the root cause, you've lost
+    minutes (or hours) of productivity.
+  </p>
+  <p>
+    Prefect's infrastructure debugging capabilities change that by surfacing lifecycle states,
+    failure diagnostics, resource metrics, and container logs directly in the Prefect UI and CLI.
+    Prefect becomes your <strong>single pane of glass</strong> for
+    understanding why a run failed, whether the issue is in your code, your infrastructure
+    configuration, or the underlying platform.
+  </p>
+</div>
+
+<div className="mt-16">
+  <h2 className="text-2xl font-medium text-gray-900 dark:text-zinc-50 tracking-tight mb-4">
+    See each infrastructure stage
+  </h2>
+  <div className="text-base text-gray-700 dark:text-zinc-300 leading-relaxed space-y-4">
+    <p>
+      Before a flow run starts executing your code, it passes through several infrastructure
+      stages: submission, scheduling, container startup, and process initialization. Previously,
+      all of this was invisible; a run sat in <code>Pending</code> until it either started or failed.
+    </p>
+    <p>
+      Now, Prefect tracks every stage of the infrastructure lifecycle with dedicated states:
+    </p>
+    <ul className="list-disc pl-6 space-y-2">
+      <li><strong>Submitting</strong>: The worker is actively creating infrastructure (a Kubernetes Job, an ECS task, a local process)</li>
+      <li><strong>InfrastructurePending</strong>: Infrastructure exists while the flow run process is still waiting to start (for example, a pod is pulling images or waiting for node capacity)</li>
+    </ul>
+    <p>
+      These states appear in the UI timeline and are available through the API, so you always
+      know whether a delay is caused by infrastructure provisioning or something else entirely.
+    </p>
+  </div>
+</div>
+
+<div className="mt-16">
+  <h2 className="text-2xl font-medium text-gray-900 dark:text-zinc-50 tracking-tight mb-4">
+    Turn error codes into answers
+  </h2>
+  <div className="text-base text-gray-700 dark:text-zinc-300 leading-relaxed space-y-4">
+    <p>
+      When infrastructure fails, Prefect tells you <em>that</em> it failed, then shows you
+      <em>why</em> and <em>what to do about it</em>.
+    </p>
+    <p>
+      <strong>Automatic failure diagnosis</strong> for Kubernetes and Amazon ECS inspects the actual
+      infrastructure state and translates it into actionable guidance:
+    </p>
+  </div>
+
+  <div className="mt-6">
+    <CardGroup cols={2}>
+      <Card title="OOMKilled" icon="memory">
+        Container exceeded its memory limit. Increase the memory request/limit in your work pool's job template, or optimize your flow to reduce memory usage.
+      </Card>
+      <Card title="ImagePullBackOff" icon="download">
+        Failed to pull the container image. Verify the image name and tag exist, and check that image pull secrets are configured.
+      </Card>
+      <Card title="CrashLoopBackOff" icon="rotate">
+        Container is repeatedly crashing on startup. Check application logs for import errors, missing dependencies, or configuration issues.
+      </Card>
+      <Card title="Unschedulable" icon="server">
+        No nodes match the pod's resource requests or node selectors. Verify cluster capacity and check node affinity/toleration settings.
+      </Card>
+    </CardGroup>
+  </div>
+
+  <div className="text-base text-gray-700 dark:text-zinc-300 leading-relaxed space-y-4 mt-6">
+    <p>
+      A <strong>centralized exit code registry</strong> also translates cryptic process exit codes into
+      plain English. For example, code <code>137</code> indicates an OOM kill, while code
+      <code>127</code> usually means the command is missing. Each explanation includes resolution
+      steps so you can fix the problem from the same workflow.
+    </p>
+  </div>
+</div>
+
+<div className="mt-16">
+  <h2 className="text-2xl font-medium text-gray-900 dark:text-zinc-50 tracking-tight mb-4">
+    Monitor resource usage in real time
+  </h2>
+  <div className="text-base text-gray-700 dark:text-zinc-300 leading-relaxed space-y-4">
+    <p>
+      Wondering if your flow is running out of memory or maxing out CPU? Prefect collects CPU
+      and memory metrics from flow run processes and displays them as real-time charts in the UI.
+    </p>
+    <ul className="list-disc pl-6 space-y-2">
+      <li><strong>Flow run detail page</strong>: Time-series charts for CPU utilization and memory usage appear in the Infrastructure panel, with peak values shown in the title bar for at-a-glance monitoring</li>
+      <li><strong>Deployment page</strong>: Summary cards show the highest CPU and memory usage across all recent flow runs, with a direct link to the run that produced the peak</li>
+    </ul>
+    <p>
+      Use these metrics to right-size your infrastructure, catch memory leaks early, and
+      understand whether a failure was caused by resource exhaustion while staying in Prefect.
+    </p>
+  </div>
+</div>
+
+<div className="mt-16">
+  <h2 className="text-2xl font-medium text-gray-900 dark:text-zinc-50 tracking-tight mb-4">
+    Read container logs without leaving Prefect
+  </h2>
+  <div className="text-base text-gray-700 dark:text-zinc-300 leading-relaxed space-y-4">
+    <p>
+      Some of the hardest failures to debug are the ones where a run crashes <em>before</em> it
+      ever connects to Prefect. An OOM kill during import, a bad entrypoint, a missing
+      dependency. In these cases, the flow run process never initializes its logging handler,
+      so no logs reach Prefect.
+    </p>
+    <p>
+      When a Kubernetes pod or ECS task crashes before the flow run establishes connectivity,
+      the observer automatically fetches the container's stdout and stderr and forwards them
+      as flow run logs. The Python traceback that explains what went wrong appears
+      right alongside the rest of your run's logs in the Prefect UI.
+    </p>
+  </div>
+</div>
+
+<div className="mt-16">
+  <h2 className="text-2xl font-medium text-gray-900 dark:text-zinc-50 tracking-tight mb-4">
+    Understand concurrency at a glance
+  </h2>
+  <div className="text-base text-gray-700 dark:text-zinc-300 leading-relaxed space-y-4">
+    <p>
+      When flow runs queue up waiting for concurrency slots, it's important to understand
+      <em>who</em> is holding those slots and for how long. Prefect now surfaces concurrency
+      utilization across the UI and CLI:
+    </p>
+    <ul className="list-disc pl-6 space-y-2">
+      <li><strong>Work pool and work queue pages</strong> show active slot counts so you can see utilization at a glance</li>
+      <li><strong>CLI commands</strong> (<code>prefect work-pool slots</code>, <code>prefect work-queue slots</code>) show which flow runs occupy each slot and how long they've been running</li>
+      <li><strong>Concurrency status endpoints</strong> provide programmatic access to slot occupancy data for custom dashboards and alerting</li>
+    </ul>
+  </div>
+</div>
+
+<div className="mt-16">
+  <h2 className="text-2xl font-medium text-gray-900 dark:text-zinc-50 tracking-tight mb-4">
+    Trace every step of the journey
+  </h2>
+  <div className="text-base text-gray-700 dark:text-zinc-300 leading-relaxed space-y-4">
+    <p>
+      Enhanced lifecycle logging gives you a detailed narrative of what happens at every stage
+      of a flow run's execution:
+    </p>
+    <ul className="list-disc pl-6 space-y-2">
+      <li><strong>Workers</strong> report each step of infrastructure creation, from job submission to container startup, with timing information and error context</li>
+      <li><strong>Runners</strong> log process management details including subprocess creation, signal handling, and graceful shutdown sequences</li>
+      <li><strong>Pull steps</strong> log code retrieval progress and surface resolution hints when storage access fails (wrong credentials, missing buckets, network issues)</li>
+    </ul>
+    <p>
+      When something goes wrong, each component suggests concrete next steps. Instead of a
+      generic "infrastructure exited with code 1," you get a clear explanation and a path to
+      resolution.
+    </p>
+  </div>
+</div>
+
+<div className="mt-16">
+  <h2 className="text-2xl font-medium text-gray-900 dark:text-zinc-50 tracking-tight mb-6">
+    Get started
+  </h2>
+  <p className="text-base text-gray-500 dark:text-zinc-400 mb-6">
+    Infrastructure debugging capabilities are available today in Prefect Cloud and the latest
+    open source release. Explore the related documentation to learn more:
+  </p>
+  <CardGroup cols={2}>
+    <Card title="States" icon="circle-dot" href="/v3/concepts/states">
+      Learn about Prefect's state model, including the new infrastructure lifecycle states.
+    </Card>
+    <Card title="Work pools" icon="water" href="/v3/concepts/work-pools">
+      Configure and manage the infrastructure that runs your flows.
+    </Card>
+    <Card title="Workers" icon="gears" href="/v3/concepts/workers">
+      Understand how workers submit and monitor flow run infrastructure.
+    </Card>
+    <Card title="Kubernetes integration" icon="dharmachakra" href="/integrations/prefect-kubernetes/index">
+      Deploy and observe flow runs on Kubernetes clusters.
+    </Card>
+  </CardGroup>
+</div>
+
+</div>

@@ -7,7 +7,7 @@ sidebarTitle: flow_runs
 
 ## Functions
 
-### `wait_for_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_runs.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `wait_for_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_runs.py#L57" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wait_for_flow_run(flow_run_id: UUID, timeout: int | None = 10800, poll_interval: int | None = None, client: 'PrefectClient | None' = None, log_states: bool = False) -> FlowRun
@@ -73,7 +73,7 @@ Trigger multiple flow runs and wait for them to finish:
     ```
 
 
-### `apause_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_runs.py#L182" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `apause_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_runs.py#L183" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 apause_flow_run(wait_for_input: Type[T] | None = None, timeout: int = 3600, poll_interval: int = 10, key: str | None = None) -> T | None
@@ -124,7 +124,7 @@ async def my_flow():
 ```
 
 
-### `pause_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_runs.py#L334" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `pause_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_runs.py#L335" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pause_flow_run(wait_for_input: Type[T] | None = None, timeout: int = 3600, poll_interval: int = 10, key: str | None = None) -> T | None
@@ -175,7 +175,7 @@ def my_flow():
 ```
 
 
-### `asuspend_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_runs.py#L489" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `asuspend_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_runs.py#L490" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 asuspend_flow_run(wait_for_input: Type[T] | None = None, flow_run_id: UUID | None = None, timeout: int | None = None, key: str | None = None) -> T | None
@@ -213,7 +213,7 @@ resumed with the input, the flow will resume and the input will be
 loaded and returned from this function.
 
 
-### `suspend_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_runs.py#L614" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `suspend_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_runs.py#L617" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 suspend_flow_run(wait_for_input: Type[T] | None = None, flow_run_id: UUID | None = None, timeout: int | None = None, key: str | None = None) -> T | None
@@ -251,7 +251,7 @@ resumed with the input, the flow will resume and the input will be
 loaded and returned from this function.
 
 
-### `aresume_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_runs.py#L720" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `aresume_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_runs.py#L725" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aresume_flow_run(flow_run_id: UUID, run_input: dict[str, Any] | None = None) -> None
@@ -265,7 +265,7 @@ Resumes a paused flow asynchronously.
 - `run_input`: a dictionary of inputs to provide to the flow run.
 
 
-### `resume_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_runs.py#L746" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `resume_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flow_runs.py#L751" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resume_flow_run(flow_run_id: UUID, run_input: dict[str, Any] | None = None) -> None

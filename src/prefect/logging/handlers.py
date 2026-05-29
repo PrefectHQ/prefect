@@ -16,7 +16,6 @@ from rich.highlighter import Highlighter, NullHighlighter
 from rich.theme import Theme
 from typing_extensions import Self
 
-import prefect.context
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.services import BatchedQueueService
@@ -161,7 +160,9 @@ class APILogHandler(logging.Handler):
         Send a log to the `APILogWorker`
         """
         try:
-            profile = prefect.context.get_settings_context()
+            from prefect.context import get_settings_context
+
+            profile = get_settings_context()
 
             if not profile.settings.logging.to_api.enabled:
                 return  # Respect the global settings toggle
@@ -214,7 +215,9 @@ class APILogHandler(logging.Handler):
 
         if not flow_run_id:
             try:
-                context = prefect.context.get_run_context()
+                from prefect.context import get_run_context
+
+                context = get_run_context()
             except MissingContextError:
                 raise MissingContextError(
                     f"Logger {record.name!r} attempted to send logs to the API without"

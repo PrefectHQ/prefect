@@ -12,7 +12,7 @@ from uuid import uuid4
 import pytest
 import sqlalchemy as sa
 
-from prefect._result_records import ResultRecordMetadata
+from prefect._internal.result_records import ResultRecordMetadata
 from prefect.server import schemas
 from prefect.server.concurrency.lease_storage import get_concurrency_lease_storage
 from prefect.server.database import orm_models as orm
@@ -38,6 +38,7 @@ from prefect.server.orchestration.core_policy import (
     PreserveDeploymentConcurrencyLeaseId,
     PreventDuplicateTransitions,
     PreventPendingTransitions,
+    PreventResultDataLoss,
     PreventRunningTasksFromStoppedFlows,
     ReleaseFlowConcurrencySlots,
     ReleaseTaskConcurrencySlots,
@@ -67,6 +68,8 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.types._datetime import DateTime, now, parse_datetime
+
+pytestmark = pytest.mark.clear_db
 
 # Convert constants from sets to lists for deterministic ordering of tests
 ALL_ORCHESTRATION_STATES = list(
@@ -1158,6 +1161,47 @@ class TestTaskRetryingRule:
             rel_tol=0.1,
         )
 
+    async def test_jitter_with_zero_delay_does_not_raise(
+        self, session, initialize_orchestration
+    ):
+        """Regression test: setting retry_jitter_factor without retry_delay must not
+        raise ZeroDivisionError.
+
+        clamped_poisson_interval(0, ...) divides by zero when computing the exponential
+        CDF with average_interval=0.  The policy must skip jitter and fall back to
+        base_delay (0) when retry_delay is None or 0.
+        """
+        retry_policy = [RetryFailedTasks]
+        initial_state_type = states.StateType.RUNNING
+        proposed_state_type = states.StateType.FAILED
+        intended_transition = (initial_state_type, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "task",
+            *intended_transition,
+        )
+
+        orm_run = ctx.run
+        run_settings = ctx.run_settings
+        orm_run.run_count = 1
+        run_settings.retries = 2
+        # retry_delay intentionally left unset (None → base_delay=0)
+        run_settings.retry_delay = None
+        run_settings.retry_jitter_factor = 0.5
+
+        # Should not raise ZeroDivisionError
+        async with contextlib.AsyncExitStack() as stack:
+            orchestration_start = now("UTC")
+            for rule in retry_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+
+        scheduled_time = ctx.validated_state.state_details.scheduled_time
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.SCHEDULED
+        # With base_delay=0, the scheduled time should be approximately now (no delay).
+        assert abs((scheduled_time - orchestration_start).total_seconds()) < 5
+
     async def test_stops_retrying_eventually(
         self,
         session,
@@ -1513,6 +1557,169 @@ class TestTransitionsFromTerminalStatesRule:
         state_protection = protection_rule(ctx, *intended_transition)
 
         async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+
+@pytest.mark.parametrize("run_type", ["flow"])
+class TestPreventResultDataLoss:
+    """Prevent COMPLETED → COMPLETED transitions that would discard result data.
+
+    See https://github.com/PrefectHQ/prefect/issues/21955
+    """
+
+    async def test_rejects_completed_to_completed_when_result_data_is_lost(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        intended_transition = (StateType.COMPLETED, StateType.COMPLETED)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data=ResultRecordMetadata.model_construct().model_dump(),
+        )
+
+        rule = PreventResultDataLoss(ctx, *intended_transition)
+        async with rule as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+
+    async def test_allows_completed_to_completed_without_result_data(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        intended_transition = (StateType.COMPLETED, StateType.COMPLETED)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data=None,
+        )
+
+        rule = PreventResultDataLoss(ctx, *intended_transition)
+        async with rule as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_allows_completed_to_completed_with_unpersisted_initial(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        intended_transition = (StateType.COMPLETED, StateType.COMPLETED)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data={"type": "unpersisted"},
+        )
+
+        rule = PreventResultDataLoss(ctx, *intended_transition)
+        async with rule as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    async def test_handle_flow_terminal_also_rejects_data_loss(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+    ):
+        """HandleFlowTerminalStateTransitions also guards against data loss."""
+        intended_transition = (StateType.COMPLETED, StateType.COMPLETED)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data=ResultRecordMetadata.model_construct().model_dump(),
+        )
+
+        rule = HandleFlowTerminalStateTransitions(ctx, *intended_transition)
+        async with rule as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+
+    @pytest.mark.parametrize("scalar_data", [1, "hello", True, [1, 2, 3]])
+    async def test_accepts_scalar_initial_data(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        scalar_data: object,
+    ):
+        """Scalar/list initial data must not trigger AttributeError."""
+        intended_transition = (StateType.COMPLETED, StateType.COMPLETED)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data=scalar_data,
+        )
+
+        rule = PreventResultDataLoss(ctx, *intended_transition)
+        async with rule as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+
+    @pytest.mark.parametrize("scalar_data", [1, "hello", True, [1, 2, 3]])
+    async def test_accepts_scalar_proposed_data_with_persisted_initial(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        scalar_data: object,
+    ):
+        """Persisted initial + scalar proposed must not trigger AttributeError."""
+        intended_transition = (StateType.COMPLETED, StateType.COMPLETED)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data=ResultRecordMetadata.model_construct().model_dump(),
+        )
+        # Manually set scalar data on the proposed state
+        assert ctx.proposed_state is not None
+        ctx.proposed_state.data = scalar_data
+
+        rule = PreventResultDataLoss(ctx, *intended_transition)
+        async with rule as ctx:
+            await ctx.validate_proposed_state()
+
+        # Scalar proposed data is not persisted result metadata, so the
+        # transition should be rejected to prevent data loss.
+        assert ctx.response_status == SetStateStatus.REJECT
+
+    @pytest.mark.parametrize("scalar_data", [1, "hello", True, [1, 2, 3]])
+    async def test_handle_flow_terminal_accepts_scalar_initial_data(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        scalar_data: object,
+    ):
+        """HandleFlowTerminalStateTransitions must not AttributeError on scalar data."""
+        intended_transition = (StateType.COMPLETED, StateType.COMPLETED)
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_data=scalar_data,
+        )
+
+        rule = HandleFlowTerminalStateTransitions(ctx, *intended_transition)
+        async with rule as ctx:
             await ctx.validate_proposed_state()
 
         assert ctx.response_status == SetStateStatus.ACCEPT
@@ -3959,6 +4166,106 @@ class TestFlowConcurrencyLimits:
                 await ctx2_retry.validate_proposed_state()
 
             assert ctx2_retry.response_status == SetStateStatus.ACCEPT
+
+    async def test_release_concurrency_slots_with_lease_does_not_require_deployment(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+
+        ctx = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            ctx = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx, *pending_transition)
+            )
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert (
+            ctx.validated_state.state_details.deployment_concurrency_lease_id
+            is not None
+        )
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=1
+        )
+
+        completed_transition = (states.StateType.PENDING, states.StateType.COMPLETED)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *completed_transition,
+            deployment_id=deployment.id,
+            run_override=ctx.run,
+            initial_details=ctx.validated_state.state_details,
+        )
+
+        with mock.patch(
+            "prefect.server.models.deployments.read_deployment",
+            return_value=None,
+        ):
+            async with contextlib.AsyncExitStack() as stack:
+                ctx = await stack.enter_async_context(
+                    ReleaseFlowConcurrencySlots(ctx, *completed_transition)
+                )
+                await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        lease_storage = get_concurrency_lease_storage()
+        lease_ids = await lease_storage.read_active_lease_ids()
+        assert len(lease_ids) == 0
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=0
+        )
+
+    async def test_secure_cleanup_failure_on_fizzle_propagates(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        class StateMutatingRule(BaseOrchestrationRule):
+            FROM_STATES = ALL_ORCHESTRATION_STATES
+            TO_STATES = ALL_ORCHESTRATION_STATES
+
+            async def before_transition(self, initial_state, proposed_state, context):
+                await self.reject_transition(
+                    states.Scheduled(), reason="force deployment concurrency cleanup"
+                )
+
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+        ctx = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        async def flaky_decrement(*args, **kwargs):
+            raise RuntimeError("storage flake during flow cleanup")
+
+        with mock.patch(
+            "prefect.server.models.concurrency_limits_v2.bulk_decrement_active_slots",
+            side_effect=flaky_decrement,
+        ):
+            with pytest.raises(RuntimeError, match="storage flake during flow cleanup"):
+                async with contextlib.AsyncExitStack() as stack:
+                    for rule in [SecureFlowConcurrencySlots, StateMutatingRule]:
+                        ctx = await stack.enter_async_context(
+                            rule(ctx, *pending_transition)
+                        )
+                    await ctx.validate_proposed_state()
+
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=1
+        )
 
     async def test_cancel_new_collision_strategy(
         self,

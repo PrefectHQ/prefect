@@ -51,6 +51,20 @@ This directory contains React components for the Prefect UI migration from Vue t
 - NEVER use `React.FC`
 - NEVER use `as unknown` or `eslint-disable` comments
 
+## DataTable Row Clicks
+
+`DataTable` suppresses `onRowClick` when the click target is or is inside `a, button, input, select, textarea, [role="button"], [role="checkbox"], [role="menuitem"], [role="switch"]`, or `[data-row-click-ignore="true"]`. Do not add `stopPropagation()` to these elements inside rows — it is redundant.
+
+Exception: Radix components that render in a portal (e.g., `DropdownMenuContent`) bubble events through React's synthetic event system even when the DOM node is outside the table. Add `onClick={(e) => e.stopPropagation()}` on the portal content component itself.
+
+## DataTable Column Resizing
+
+Enable with `enableColumnResizing: true` + `columnResizeMode: "onChange"` on the table. `DataTable` renders a drag handle for each resizable column; use `enableResizing: false` on individual columns (e.g., the actions column) to opt them out. Double-click the handle to reset to the column's default size.
+
+**`maxSize` is silently ignored for resizable columns.** `DataTable` only applies `maxWidth` when a column cannot resize. Adding `enableColumnResizing` to a table removes any existing `maxSize` CSS constraint without warning — use `minSize` to set a minimum width floor instead.
+
+To persist widths across sessions: `useLocalStorage<ColumnSizingState>(KEY, {})` wired to `state.columnSizing` + `onColumnSizingChange` on the table.
+
 ## Mutation Error Handling
 
 - Use `toast.error(message)` to surface mutation errors to the user — never `console.error`

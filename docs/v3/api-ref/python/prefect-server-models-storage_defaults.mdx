@@ -1,0 +1,50 @@
+---
+title: storage_defaults
+sidebarTitle: storage_defaults
+---
+
+# `prefect.server.models.storage_defaults`
+
+## Functions
+
+### `validate_server_default_result_storage_block` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/storage_defaults.py#L14" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+validate_server_default_result_storage_block(session: AsyncSession, block_document_id: UUID) -> None
+```
+
+### `write_server_default_result_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/storage_defaults.py#L32" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+write_server_default_result_storage(session: AsyncSession, storage_default: schemas.core.ServerDefaultResultStorage) -> orm_models.Configuration
+```
+
+### `read_server_default_result_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/storage_defaults.py#L45" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_server_default_result_storage(session: AsyncSession) -> schemas.core.ServerDefaultResultStorage
+```
+
+### `clear_server_default_result_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/storage_defaults.py#L58" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+clear_server_default_result_storage(session: AsyncSession) -> bool
+```
+
+### `clear_server_default_result_storage_for_block` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/storage_defaults.py#L65" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+clear_server_default_result_storage_for_block(session: AsyncSession, block_document_id: UUID) -> bool
+```
+
+### `server_default_result_storage_references_block_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/storage_defaults.py#L76" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+server_default_result_storage_references_block_schema(session: AsyncSession, block_schema_id: UUID) -> bool
+```
+
+### `server_default_result_storage_references_block_type` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/storage_defaults.py#L93" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+server_default_result_storage_references_block_type(session: AsyncSession, block_type_id: UUID) -> bool
+```

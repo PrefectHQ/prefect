@@ -16,6 +16,8 @@ from prefect.server.events.filters import (
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.storage.database import query_events, write_events
 
+pytestmark = pytest.mark.clear_db
+
 # Define function types for our test variations
 QueryEventsFn = Callable[..., Awaitable[tuple[list[Event], int, Optional[str]]]]
 

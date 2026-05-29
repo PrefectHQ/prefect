@@ -8,6 +8,8 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
 
+import pytest
+
 # Eagerly import modules that are mock.patch targets. Without this, the
 # autouse reset_sys_modules fixture can delete these lazily-imported modules
 # from sys.modules between tests.  mock.patch then resolves its target to a
@@ -16,6 +18,8 @@ from uuid import uuid4
 import prefect._sdk.generator  # noqa: F401
 import prefect.cli.sdk  # noqa: F401
 from prefect.testing.cli import invoke_and_assert
+
+pytestmark = pytest.mark.clear_db
 
 _GET_CLIENT_PATCH_TARGET = "prefect.cli.sdk.get_client"
 

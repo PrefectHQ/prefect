@@ -57,7 +57,11 @@ def to_state_create(state: State) -> "StateCreate":
         should_persist_result,
     )
 
-    if isinstance(state.data, ResultRecord) and should_persist_result():
+    # Preserve metadata for records already written to storage, even if this
+    # serialization happens after run context teardown.
+    if isinstance(state.data, ResultRecord) and (
+        state.data.is_persisted or should_persist_result()
+    ):
         data = state.data.metadata  # pyright: ignore[reportUnknownMemberType] unable to narrow ResultRecord type
     else:
         data = None
@@ -101,7 +105,7 @@ async def _get_state_result_data_with_retries(
     # grace here about missing results.  The exception below could come in the form
     # of a missing file, a short read, or other types of errors depending on the
     # result storage backend.
-    from prefect._result_records import (
+    from prefect._internal.result_records import (
         ResultRecordMetadata,
     )
     from prefect.results import ResultStore
@@ -466,7 +470,7 @@ async def aget_state_exception(state: State) -> BaseException:
         - `CrashedRun` if the state type is CRASHED.
         - `CancelledRun` if the state type is CANCELLED.
     """
-    from prefect._result_records import (
+    from prefect._internal.result_records import (
         ResultRecord,
         ResultRecordMetadata,
     )
@@ -552,7 +556,7 @@ def get_state_exception(state: State) -> BaseException:
         - `CrashedRun` if the state type is CRASHED.
         - `CancelledRun` if the state type is CANCELLED.
     """
-    from prefect._result_records import (
+    from prefect._internal.result_records import (
         ResultRecord,
         ResultRecordMetadata,
     )

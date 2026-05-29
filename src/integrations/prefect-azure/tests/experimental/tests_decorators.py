@@ -3,7 +3,7 @@ from typing import Generator
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from prefect_azure.experimental.decorators import azure_container_instance
+from prefect_azure.decorators import azure_container_instance
 from prefect_azure.workers.container_instance import AzureContainerWorker
 
 import prefect

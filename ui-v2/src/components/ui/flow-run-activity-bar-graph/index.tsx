@@ -247,7 +247,7 @@ export const FlowRunActivityBarChart = ({
 		<ChartContainer
 			config={{
 				inactivity: {
-					color: "hsl(210 40% 45%)",
+					color: "var(--muted-foreground)",
 				},
 			}}
 			className={cn("relative", className, isTooltipActive && "z-20")}

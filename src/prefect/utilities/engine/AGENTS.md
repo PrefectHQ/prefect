@@ -10,7 +10,7 @@ Two responsibilities live here:
 
 2. **SIGTERM bridge** — installs and tears down Prefect's SIGTERM handler (`TerminationSignal`), coordinates control-intent acknowledgement with the runner, and exposes locked helpers so the engine can atomically commit cancellation intent before signalling readiness to the runner.
 
-Naming and hook-resolution helpers for custom flow/task run names live in sibling `../_engine.py` (flat module), not here.
+Naming and hook-resolution helpers for custom flow/task run names live in `prefect._internal.engine`, not here.
 
 ## Entry Points
 

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
 import { HttpResponse, http } from "msw";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { components } from "@/api/prefect";
 import { createFakeLog, createFakeTaskRun } from "@/mocks";
 import { TaskRunLogs } from ".";
@@ -251,6 +251,40 @@ describe("TaskRunLogs", () => {
 
 		await waitFor(() => {
 			expect(screen.getByText(MOCK_LOGS[6].message)).toBeInTheDocument();
+		});
+
+		// Verify logs are shown in reverse order
+		await waitFor(() => {
+			const logMessages = screen
+				.getAllByRole("listitem")
+				.map((item) => item.textContent);
+			for (let i = 0; i < logMessages.length; i++) {
+				expect(logMessages[i]).toContain(
+					MOCK_LOGS.map((log) => log.message).reverse()[i],
+				);
+			}
+		});
+	});
+
+	it("persists sort order across remounts", async () => {
+		const taskRun = createFakeTaskRun();
+
+		// Simulate localStorage returning a persisted sort order on mount
+		localStorage.getItem = vi.fn((key: string) =>
+			key === "prefect-log-sort-order"
+				? JSON.stringify("TIMESTAMP_DESC")
+				: null,
+		);
+
+		render(<TaskRunLogs taskRun={taskRun} virtualize={false} />, {
+			wrapper: createWrapper(),
+		});
+
+		// Verify the sort order is restored as "Newest to oldest"
+		await waitFor(() => {
+			expect(
+				screen.getByRole("combobox", { name: /log sort order/i }),
+			).toHaveTextContent("Newest to oldest");
 		});
 
 		// Verify logs are shown in reverse order

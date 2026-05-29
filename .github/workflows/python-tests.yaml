@@ -117,12 +117,8 @@ jobs:
               tests/test_datetime.py
               tests/test_exceptions.py
               tests/test_filesystems.py
-              tests/test_flow_engine.py
-              tests/test_flow_runs.py
-              tests/test_flows.py
-              tests/test_flows_compat.py
-              tests/test_futures.py
               tests/test_highlighters.py
+              tests/test_import_smoke.py
               tests/test_infrastructure_bound_flow.py
               tests/test_locking.py
               tests/test_log_prints.py
@@ -131,6 +127,17 @@ jobs:
               tests/test_plugins.py
               tests/test_schedules.py
               tests/test_serializers.py
+              tests/test_types.py
+              tests/test_ui_build_validation.py
+              tests/test_variables.py
+              tests/test_versioning.py
+          - name: "Client Tests: Execution"
+            modules: >-
+              tests/test_flow_engine.py
+              tests/test_flow_runs.py
+              tests/test_flows.py
+              tests/test_flows_compat.py
+              tests/test_futures.py
               tests/test_states.py
               tests/test_subprocess_logging.py
               tests/test_task_engine.py
@@ -138,9 +145,6 @@ jobs:
               tests/test_task_worker.py
               tests/test_tasks.py
               tests/test_transactions.py
-              tests/test_types.py
-              tests/test_variables.py
-              tests/test_versioning.py
               tests/test_waiters.py
           - name: Runner, Worker, Settings, Input, and CLI Tests
             modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
@@ -179,14 +183,11 @@ jobs:
                 tests/test_background_tasks.py
                 tests/test_cache_policies.py
                 tests/test_context.py
+                tests/test_datetime.py
                 tests/test_exceptions.py
                 tests/test_filesystems.py
-                tests/test_flow_engine.py
-                tests/test_flow_runs.py
-                tests/test_flows.py
-                tests/test_flows_compat.py
-                tests/test_futures.py
                 tests/test_highlighters.py
+                tests/test_import_smoke.py
                 tests/test_infrastructure_bound_flow.py
                 tests/test_locking.py
                 tests/test_log_prints.py
@@ -195,15 +196,26 @@ jobs:
                 tests/test_plugins.py
                 tests/test_schedules.py
                 tests/test_serializers.py
+                tests/test_types.py
+                tests/test_ui_build_validation.py
+                tests/test_variables.py
+                tests/test_versioning.py
+          - database: "sqlite"
+            test-type:
+              name: "Client Tests: Execution"
+              modules: >-
+                tests/test_flow_engine.py
+                tests/test_flow_runs.py
+                tests/test_flows.py
+                tests/test_flows_compat.py
+                tests/test_futures.py
                 tests/test_states.py
+                tests/test_subprocess_logging.py
                 tests/test_task_engine.py
                 tests/test_task_runs.py
                 tests/test_task_worker.py
                 tests/test_tasks.py
                 tests/test_transactions.py
-                tests/test_types.py
-                tests/test_variables.py
-                tests/test_versioning.py
                 tests/test_waiters.py
           - database: "sqlite"
             test-type:

@@ -4,9 +4,10 @@ import json
 import os
 import signal
 import subprocess
+from pathlib import Path
 from time import sleep
 from typing import Any, Awaitable, Callable
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
 import anyio
@@ -14,11 +15,13 @@ import pytest
 
 import prefect.exceptions
 from prefect import __development_base_path__, flow
-from prefect.cli.flow_run import LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
+from prefect.cli.flow_run import LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS, execute
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import LogCreate
 from prefect.client.schemas.objects import FlowRun
 from prefect.deployments.runner import RunnerDeployment
+from prefect.runner._flow_run_executor import FlowRunExecutorContext
+from prefect.runner._workspace_starter import WorkspaceResolvingEngineCommandStarter
 from prefect.settings import PREFECT_UI_URL, temporary_settings
 from prefect.settings.context import get_current_settings
 from prefect.states import (
@@ -38,6 +41,9 @@ from prefect.states import (
 from prefect.testing.cli import invoke_and_assert
 from prefect.types._datetime import now
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.filesystem import tmpchdir
+
+pytestmark = pytest.mark.clear_db
 
 
 @flow(name="hello")
@@ -1459,6 +1465,66 @@ class TestFlowRunLogs:
             expected_line_count=251,
         )
 
+    async def test_pagination_infers_page_size_from_server(self, flow_run_factory):
+        """When the server is configured with a non-default API limit, the CLI
+        should still paginate correctly by inferring the page size from the
+        first response rather than relying on a hard-coded value."""
+        from prefect.settings import PREFECT_SERVER_API_DEFAULT_LIMIT
+
+        configured_limit = 50
+        total_logs = 120
+        flow_run = await flow_run_factory(num_logs=total_logs)
+
+        with temporary_settings({PREFECT_SERVER_API_DEFAULT_LIMIT: configured_limit}):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=["flow-run", "logs", str(flow_run.id)],
+                expected_code=0,
+                expected_output_contains=[
+                    f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
+                    for i in range(total_logs)
+                ],
+                expected_line_count=total_logs,
+            )
+
+    async def test_bounded_tail_avoids_default_page_overfetch(
+        self, flow_run_factory, monkeypatch
+    ):
+        from prefect.settings import PREFECT_SERVER_API_DEFAULT_LIMIT
+
+        configured_limit = 100
+        requested_logs = 10
+        flow_run = await flow_run_factory(num_logs=configured_limit)
+        read_log_limits: list[int | None] = []
+        original_read_logs = PrefectClient.read_logs
+
+        async def read_logs_spy(self, *args: Any, **kwargs: Any):
+            read_log_limits.append(kwargs.get("limit"))
+            return await original_read_logs(self, *args, **kwargs)
+
+        monkeypatch.setattr(PrefectClient, "read_logs", read_logs_spy)
+
+        with temporary_settings({PREFECT_SERVER_API_DEFAULT_LIMIT: configured_limit}):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=[
+                    "flow-run",
+                    "logs",
+                    str(flow_run.id),
+                    "--tail",
+                    "--num-logs",
+                    str(requested_logs),
+                ],
+                expected_code=0,
+                expected_output_contains=[
+                    f"Flow run '{flow_run.name}' - Log {i} from flow_run {flow_run.id}."
+                    for i in range(configured_limit - requested_logs, configured_limit)
+                ],
+                expected_line_count=requested_logs,
+            )
+
+        assert read_log_limits == [requested_logs]
+
 
 class TestFlowRunWatch:
     def test_watch_completed_flow_run(self, flow_run: FlowRun, monkeypatch):
@@ -1637,6 +1703,111 @@ class TestFlowRunExecute:
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state.is_completed()
 
+    async def test_execute_flow_run_uses_resolved_pull_step_workspace(
+        self, prefect_client: PrefectClient, tmp_path: Path
+    ):
+        local_project = tmp_path / "local-project"
+        flow_file = local_project / "flows" / "hello.py"
+        flow_file.parent.mkdir(parents=True)
+        flow_file.write_text(
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'hello'\n"
+        )
+
+        flow_id = await prefect_client.create_flow_from_name("pull-step-hello")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="pull-step-workspace",
+            entrypoint="flows/hello.py:hello",
+            pull_steps=[
+                {
+                    "prefect.deployments.steps.set_working_directory": {
+                        "directory": str(local_project)
+                    }
+                }
+            ],
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "execute", str(flow_run.id)],
+            expected_code=0,
+        )
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_completed()
+
+    async def test_execute_flow_run_uses_local_deployment_path_in_place(
+        self, prefect_client: PrefectClient, tmp_path: Path
+    ):
+        local_project = tmp_path / "image-app"
+        flow_file = local_project / "flows" / "hello.py"
+        flow_file.parent.mkdir(parents=True)
+        flow_file.write_text(
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'hello'\n"
+        )
+        local_project.joinpath(".prefectignore").write_text("flows/\n")
+
+        flow_id = await prefect_client.create_flow_from_name("image-local-hello")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="image-local-workspace",
+            entrypoint="flows/hello.py:hello",
+            path=str(local_project),
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        await run_sync_in_worker_thread(
+            invoke_and_assert,
+            command=["flow-run", "execute", str(flow_run.id)],
+            expected_code=0,
+        )
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_completed()
+
+    async def test_execute_flow_run_materializes_source_when_pull_steps_do_not_select_workspace(
+        self, prefect_client: PrefectClient, tmp_path: Path
+    ) -> None:
+        local_project = tmp_path / "setup-step-app"
+        flow_file = local_project / "flows" / "hello.py"
+        flow_file.parent.mkdir(parents=True)
+        flow_file.write_text(
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'hello'\n"
+        )
+
+        flow_id = await prefect_client.create_flow_from_name("setup-step-hello")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="setup-step-workspace",
+            entrypoint="flows/hello.py:hello",
+            pull_steps=[
+                {
+                    "prefect.deployments.steps.run_shell_script": {
+                        "script": "echo setup complete",
+                        "stream_output": False,
+                    }
+                }
+            ],
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        with tmpchdir(local_project):
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=["flow-run", "execute", str(flow_run.id)],
+                expected_code=0,
+            )
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_completed()
+
     async def test_execute_creates_executor_with_propose_submitting_false(
         self,
         monkeypatch: pytest.MonkeyPatch,
@@ -1644,25 +1815,23 @@ class TestFlowRunExecute:
     ):
         """prefect flow-run execute must construct the executor with
         propose_submitting=False so that the Submitting state is never proposed."""
-        from unittest.mock import AsyncMock, patch
-
         deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
         flow_run = await prefect_client.create_flow_run_from_deployment(
             deployment_id=deployment_id
         )
 
         captured_kwargs: dict[str, Any] = {}
+        captured_starter: dict[str, Any] = {}
         mock_submit = AsyncMock(return_value=None)
 
         original_create_executor = None
 
         def capture_create_executor(self_ctx, *args, **kwargs):
+            captured_starter["starter"] = args[1]
             captured_kwargs.update(kwargs)
             result = original_create_executor(self_ctx, *args, **kwargs)
             result.submit = mock_submit
             return result
-
-        from prefect.runner._flow_run_executor import FlowRunExecutorContext
 
         original_create_executor = FlowRunExecutorContext.create_executor
 
@@ -1672,11 +1841,62 @@ class TestFlowRunExecute:
             side_effect=capture_create_executor,
             autospec=True,
         ):
-            from prefect.cli.flow_run import execute
-
             await execute(id=flow_run.id)
 
+        assert isinstance(
+            captured_starter["starter"], WorkspaceResolvingEngineCommandStarter
+        )
+        assert (
+            captured_kwargs.get("resolve_flow")
+            == captured_starter["starter"].resolve_flow
+        )
         assert captured_kwargs.get("propose_submitting") is False
+        assert captured_starter["starter"]._deployment_name is None
+
+    async def test_execute_keeps_workspace_alive_until_executor_context_exits(
+        self,
+        prefect_client: PrefectClient,
+    ):
+        deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        captured_starter: dict[str, WorkspaceResolvingEngineCommandStarter] = {}
+        workspace_exists_during_context_exit: list[bool] = []
+        workspace_path: list[Path] = []
+        mock_submit = AsyncMock(return_value=None)
+
+        original_create_executor = FlowRunExecutorContext.create_executor
+        original_aexit = FlowRunExecutorContext.__aexit__
+
+        def capture_create_executor(self_ctx, *args, **kwargs):
+            starter = args[1]
+            captured_starter["starter"] = starter
+            workspace_path.append(starter._workspace_root)
+            result = original_create_executor(self_ctx, *args, **kwargs)
+            result.submit = mock_submit
+            return result
+
+        async def capture_aexit(self_ctx, *exc_info):
+            workspace = captured_starter["starter"]._workspace_root
+            workspace_exists_during_context_exit.append(workspace.exists())
+            return await original_aexit(self_ctx, *exc_info)
+
+        with (
+            patch.object(
+                FlowRunExecutorContext,
+                "create_executor",
+                side_effect=capture_create_executor,
+                autospec=True,
+            ),
+            patch.object(FlowRunExecutorContext, "__aexit__", capture_aexit),
+        ):
+            await execute(id=flow_run.id)
+
+        assert workspace_exists_during_context_exit == [True]
+        assert workspace_path
+        assert not workspace_path[0].exists()
 
 
 class TestSignalHandling:
@@ -1750,8 +1970,6 @@ class TestSignalHandling:
     ):
         """The SIGTERM reschedule handler is installed before submit() runs,
         so it is active even if submit exits early (e.g. rejected by server)."""
-        from unittest.mock import AsyncMock, patch
-
         monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
 
         deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
@@ -1777,8 +1995,6 @@ class TestSignalHandling:
                 mock_submit,
             ),
         ):
-            from prefect.cli.flow_run import execute
-
             await execute(id=flow_run.id)
 
             # The handler is installed before submit() so it covers the

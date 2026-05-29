@@ -1,4 +1,8 @@
+import pytest
+
 from prefect.server import models, schemas
+
+pytestmark = pytest.mark.clear_db
 
 
 async def test_write_and_read_new_configuration(session):

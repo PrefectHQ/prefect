@@ -23,6 +23,7 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 | FlowRunExecutorContext | _flow_run_executor.py | Async context manager for one-shot execution outside Runner (CLI, bundles) |
 | DirectSubprocessStarter | _starter_direct.py | Runs Flow object via run_flow_in_subprocess |
 | EngineCommandStarter | _starter_engine.py | Spawns `python -m prefect.engine` subprocess |
+| WorkspaceResolvingEngineCommandStarter | _workspace_starter.py | Resolves workspace (pull steps) via `_workspace_resolver` subprocess then delegates to EngineCommandStarter; used by `prefect flow-run execute` |
 | BundleExecutionStarter | _starter_bundle.py | Executes serialized bundle in SpawnProcess |
 
 ## Key Contracts
@@ -40,8 +41,8 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 - `_flow_run_process_map` dict -- replaced by ProcessManager
 - `_kill_process()` -- replaced by ProcessManager.kill()
 - `_run_on_crashed_hooks()` / `_run_on_cancellation_hooks()` -- replaced by HookRunner
-- `execute_flow_run()` -- deprecated (Mar 2026); use `FlowRunExecutorContext` + `EngineCommandStarter`
-- `execute_bundle()` -- deprecated (Mar 2026); use `execute_bundle()` from `prefect._experimental.bundles.execute`
+- `execute_flow_run()` -- deprecated (Mar 2026); use `FlowRunExecutorContext` + `WorkspaceResolvingEngineCommandStarter`
+- `execute_bundle()` -- deprecated (Mar 2026); use `execute_bundle()` from `prefect.bundles.execute`
 - `reschedule_current_flow_runs()` -- deprecated (Mar 2026); SIGTERM rescheduling is now handled inline by the CLI execute path
 
 These will be removed once internal callers (notably ProcessWorker) are migrated. ProcessWorker currently suppresses the deprecation warnings via `warnings.catch_warnings()`.
@@ -78,7 +79,7 @@ This ordering is a hard constraint. Getting it wrong causes ClosedResourceError 
 
 **Failure modes:** If the child never connects or never acks within 1 s, `signal()` returns `False` and the runner falls through to the normal kill path — the engine treats the termination as a crash, same as today.
 
-**Extending intents:** The only intent today is `"cancel"`. The byte map (`_BYTE_FOR_INTENT` in `_control_channel.py` and `_INTENT_FOR_BYTE` in `_internal/control_listener.py`) must stay in sync — adding a new intent (`"suspend"`) is a matched one-line change on each side.
+**Extending intents:** The only intent today is `"cancel"`. The byte map (`_BYTE_FOR_INTENT` in `_control_channel.py` and `_INTENT_FOR_BYTE` in `_internal/control_listener.py`) must stay in sync when adding new intents.
 
 ## ProcessStarter Strategy Pattern
 
@@ -98,7 +99,7 @@ Each execution mode has a ProcessStarter implementation. To add a new execution 
 
 **Two callers set `propose_submitting=False`** via `FlowRunExecutorContext.create_executor(propose_submitting=False)` — both have already advanced the flow run past the Pending state, so proposing Submitting again would be wrong:
 - `prefect flow-run execute` CLI path (invoked by a worker)
-- `execute_bundle()` in `prefect._experimental.bundles.execute` (invoked by bundle dispatch)
+- `execute_bundle()` in `prefect.bundles.execute` (invoked by bundle dispatch)
 
 The cancelling precheck (step 1a) still runs unconditionally even when `propose_submitting=False`.
 
@@ -122,6 +123,26 @@ This matters because `get_directory` typically calls `shutil.copytree(..., dirs_
 - **`directories`** entries starting with `--` trigger a `UserWarning` but are not rejected. The values are passed to `git sparse-checkout set --` (with a `--` separator to prevent flag injection). The warning exists because such paths are unusual; legitimate use is allowed.
 
 These validations exist to prevent git argument injection. Do not bypass them when constructing `GitRepository` programmatically.
+
+## GitRepository Concurrent Pull Protection
+
+`GitRepository.pull_code()` serializes concurrent calls via a `FileLock` (`prefect.locking._filelock`). The lock file sits adjacent to the destination: `destination.parent / (destination.name + ".lock")`. Stale locks from crashed processes are recovered automatically via PID check. Tests that broadly monkeypatch `pathlib.Path.exists` must account for this lock file being created next to the destination.
+
+## Workspace Resolver Subprocess
+
+`_workspace_resolver.py` prepares a flow run workspace in an isolated subprocess (storage pull, pull steps, CWD/env/sys.path capture). Runs as `python -m prefect.runner._workspace_resolver`.
+
+**Stdout is reserved for the JSON `PreparedWorkspaceResult` payload only.** Pull step output (including inherited stdout from child processes) is redirected to stderr. Parse `process.stdout` for the result, `process.stderr` for diagnostics. Violating this breaks callers silently.
+
+**Caller-facing API:** Use `WorkspaceResolvingEngineCommandStarter` (`_workspace_starter.py`) rather than calling the resolver directly. It wraps the subprocess call, memoizes the resolved workspace (one subprocess call per starter instance), and provides `resolve_flow()` that loads the flow inside the resolved workspace context. Pass `starter.resolve_flow` as the `resolve_flow` argument to `FlowRunExecutorContext.create_executor()` — using a separate lambda bypasses the workspace context and will fail to find the flow.
+
+**Env/sys.path isolation:** `_prepared_workspace_context` mutates `os.environ` and `sys.path` in the caller process but does NOT change `os.getcwd()`. The parent working directory is preserved.
+
+**Local path in-place execution:** When no pull steps are configured and the entrypoint file exists at `deployment.path` but not in the workspace root, `prepare_workspace` sets `working_directory` to the local path — not under `workspace_root`. The workspace directory is still created but is not the execution root. This is the "image-baked" pattern: code lives at a fixed local path (e.g., inside a container), not in object storage.
+
+**Pull-step directory fallback:** When pull steps run but none produces a `directory` output or changes CWD, `_ensure_entrypoint_in_workspace` copies storage into the workspace root as a fallback. This handles setup-only pull steps (e.g., `run_shell_script` for environment prep) that do not control the working directory themselves.
+
+**Automatic dependency installation:** By default, `WorkspaceResolvingEngineCommandStarter` does not install dependencies before starting a flow run. When no explicit command is passed and `PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES` is true, it auto-selects `uv run --no-default-groups --project <project_root> -m prefect.flow_engine` — but only when all three conditions hold: `pyproject.toml` exists at `project_root`, the `project.dependencies` list includes `prefect`, and `uv` is found via the workspace's `PATH` env var (not the system PATH). If the setting is false or any condition fails, the command falls back to `None`. Explicit commands always take precedence.
 
 ## Reference
 

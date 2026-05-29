@@ -159,7 +159,24 @@ describe_for_cli(self) -> str
 A human-readable description of the action
 
 
-### `ResumeFlowRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L129" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeleteFlowRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L129" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Deletes a flow run associated with the trigger
+
+
+**Methods:**
+
+#### `describe_for_cli` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L19" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+describe_for_cli(self) -> str
+```
+
+A human-readable description of the action
+
+
+### `ResumeFlowRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L135" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Resumes a flow run associated with the trigger
@@ -176,7 +193,7 @@ describe_for_cli(self) -> str
 A human-readable description of the action
 
 
-### `SuspendFlowRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L135" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SuspendFlowRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L141" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Suspends a flow run associated with the trigger
@@ -193,7 +210,7 @@ describe_for_cli(self) -> str
 A human-readable description of the action
 
 
-### `CallWebhook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L141" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CallWebhook` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L147" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Call a webhook when an Automation is triggered.
@@ -210,7 +227,7 @@ describe_for_cli(self) -> str
 A human-readable description of the action
 
 
-### `SendNotification` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SendNotification` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L160" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Send a notification when an Automation is triggered
@@ -227,7 +244,7 @@ describe_for_cli(self) -> str
 A human-readable description of the action
 
 
-### `WorkPoolAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L165" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkPoolAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L171" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Base class for Actions that operate on Work Pools and need to infer them from
@@ -245,19 +262,19 @@ describe_for_cli(self) -> str
 A human-readable description of the action
 
 
-### `PauseWorkPool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L185" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PauseWorkPool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L191" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Pauses a Work Pool
 
 
-### `ResumeWorkPool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L191" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ResumeWorkPool` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L197" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Resumes a Work Pool
 
 
-### `WorkQueueAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L197" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkQueueAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L203" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Base class for Actions that operate on Work Queues and need to infer them from
@@ -275,13 +292,13 @@ describe_for_cli(self) -> str
 A human-readable description of the action
 
 
-#### `selected_work_queue_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L216" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `selected_work_queue_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 selected_work_queue_requires_id(self) -> Self
 ```
 
-### `PauseWorkQueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L227" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PauseWorkQueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L233" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Pauses a Work Queue
@@ -289,13 +306,13 @@ Pauses a Work Queue
 
 **Methods:**
 
-#### `selected_work_queue_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L216" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `selected_work_queue_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 selected_work_queue_requires_id(self) -> Self
 ```
 
-### `ResumeWorkQueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L233" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ResumeWorkQueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L239" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Resumes a Work Queue
@@ -303,13 +320,13 @@ Resumes a Work Queue
 
 **Methods:**
 
-#### `selected_work_queue_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L216" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `selected_work_queue_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 selected_work_queue_requires_id(self) -> Self
 ```
 
-### `AutomationAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L239" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AutomationAction` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L245" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Base class for Actions that operate on Automations and need to infer them from
@@ -327,13 +344,13 @@ describe_for_cli(self) -> str
 A human-readable description of the action
 
 
-#### `selected_automation_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L258" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `selected_automation_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 selected_automation_requires_id(self) -> Self
 ```
 
-### `PauseAutomation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L269" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PauseAutomation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L275" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Pauses a Work Queue
@@ -341,13 +358,13 @@ Pauses a Work Queue
 
 **Methods:**
 
-#### `selected_automation_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L258" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `selected_automation_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 selected_automation_requires_id(self) -> Self
 ```
 
-### `ResumeAutomation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L275" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ResumeAutomation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L281" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Resumes a Work Queue
@@ -355,13 +372,13 @@ Resumes a Work Queue
 
 **Methods:**
 
-#### `selected_automation_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L258" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `selected_automation_requires_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 selected_automation_requires_id(self) -> Self
 ```
 
-### `DeclareIncident` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L281" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DeclareIncident` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/events/actions.py#L287" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Declares an incident for the triggering event.  Only available on Prefect Cloud

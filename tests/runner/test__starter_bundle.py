@@ -3,8 +3,12 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from prefect.runner._process_manager import ProcessHandle
 from prefect.runner._starter_bundle import BundleExecutionStarter
+
+pytestmark = pytest.mark.clear_db
 
 
 class TestBundleExecutionStarter:
@@ -117,27 +121,6 @@ class TestBundleExecutionStarter:
                 mock_bundle,
                 cwd=None,
                 env={"MY_VAR": "value"},
-            )
-
-    async def test_start_empty_env_passes_none(self):
-        """When env is empty dict (default), passes None to subprocess."""
-        mock_bundle = MagicMock()
-        mock_flow_run = MagicMock()
-        mock_process = MagicMock()
-        mock_process.join = MagicMock()
-
-        starter = BundleExecutionStarter(bundle=mock_bundle)
-
-        with patch(
-            "prefect.runner._starter_bundle.execute_bundle_in_subprocess",
-            return_value=mock_process,
-        ) as mock_exec:
-            await starter.start(mock_flow_run)
-
-            mock_exec.assert_called_once_with(
-                mock_bundle,
-                cwd=None,
-                env=None,
             )
 
     async def test_start_uses_default_task_status(self):

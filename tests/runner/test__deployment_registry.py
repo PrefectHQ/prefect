@@ -3,9 +3,12 @@ from __future__ import annotations
 from unittest.mock import MagicMock
 from uuid import uuid4
 
+import pytest
 from cachetools import LRUCache
 
 from prefect.runner._deployment_registry import DeploymentRegistry
+
+pytestmark = pytest.mark.clear_db
 
 
 class TestDeploymentRegistryIDs:
@@ -14,6 +17,16 @@ class TestDeploymentRegistryIDs:
         dep_id = uuid4()
         registry.register_deployment(dep_id)
         assert dep_id in registry.get_deployment_ids()
+
+    def test_register_deployment_stores_name(self):
+        registry = DeploymentRegistry()
+        dep_id = uuid4()
+        registry.register_deployment(dep_id, "my-deployment")
+        assert registry.get_deployment_name(dep_id) == "my-deployment"
+
+    def test_get_deployment_name_returns_none_for_unknown_uuid(self):
+        registry = DeploymentRegistry()
+        assert registry.get_deployment_name(uuid4()) is None
 
     def test_get_deployment_ids_returns_copy(self):
         registry = DeploymentRegistry()

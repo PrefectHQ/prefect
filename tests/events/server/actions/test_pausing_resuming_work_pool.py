@@ -23,6 +23,8 @@ from prefect.server.schemas.actions import WorkPoolCreate
 from prefect.types import DateTime
 from prefect.utilities.pydantic import parse_obj_as
 
+pytestmark = pytest.mark.clear_db
+
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import ORMWorkPool
 

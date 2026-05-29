@@ -1,10 +1,14 @@
 """Tests for the perpetual services registry and scheduling."""
 
+import pytest
+
 from prefect.server.services.perpetual_services import (
     _PERPETUAL_SERVICES,
     get_enabled_perpetual_services,
     get_perpetual_services,
 )
+
+pytestmark = pytest.mark.clear_db
 
 
 def test_db_vacuum_service_registered():

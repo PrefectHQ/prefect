@@ -5,6 +5,8 @@ from httpx import ASGITransport, AsyncClient
 from prefect._internal.compatibility.starlette import status
 from prefect.server.api.dependencies import LimitBody
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def app():

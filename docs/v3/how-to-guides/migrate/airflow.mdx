@@ -524,14 +524,15 @@ This YAML can define multiple deployments, but in this case we have one named â€
 ### Automation via CI/CD
 Many organizations use CI/CD to deploy Airflow DAGs (for example, a Git push triggers a Jenkins job that lints DAGs and copies them to the Airflow server). With Prefect, you'll likely adjust your CI/CD to **register Prefect deployments** whenever you update the flow code. Prefect's CLI is your friend here. A common pattern is:
 
-1. On merge to main, build a Docker image with your flow code, push it to a registry
-2. Then run `prefect deployment build -n <name> -p <work_pool_name> --cron "<schedule>" -q default -o deployment.yaml` (or use `prefect.yaml`) and apply it.
+1. On merge to main, build a Docker image with your flow code (if applicable) and push it to a registry.
+2. Keep a `prefect.yaml` in version control that defines your work pool, schedule, and other deployment settings.
+3. Run `prefect deploy -n <name>` to create or update the deployment, or use `prefect deploy --all` to deploy every entry in `prefect.yaml` at once.
 
 This can all be scripted. In fact, Prefect provides guidance on using [GitHub Actions or similar tooling to do this](/v3/advanced/deploy-ci-cd). By integrating Prefect's deployment steps into CI, you ensure that any change in your flow code gets reflected in Prefect's orchestrator, much like updating DAG code in Airflow.
 
 Alternatively, if your deployment is set to pull the workflow code from your git repository each time, you only need to push the latest workflow code, and automatically next time your deployment runs it will pull the latest workflow code.
 
-This CI pipeline approach allows versioning and automating your flows deployment, treating them similarly to application code deployments. It's a shift from Airflow where deployment could be syncing a folder - Prefect's method is more **controlled** and **atomic** (you create a deployment manifest and apply it, which registers everything with Prefect).
+This CI pipeline approach allows versioning and automating your flows deployment, treating them similarly to application code deployments. It's a shift from Airflow where deployment could be syncing a folder â€” Prefect's method is more **controlled** and **atomic** (you run `prefect deploy`, which reads your `prefect.yaml` and registers everything with Prefect).
 
 ### Prefect in Production
 Once deployed, Prefect schedules and orchestrates flows based on your **deployments**. Follow these best practices to ensure a reliable production setup:
@@ -540,7 +541,7 @@ Once deployed, Prefect schedules and orchestrates flows based on your **deployme
 - **Keep Workers Active**: Ensure Prefect workers are always running, whether as systemd services, Docker containers, or Kubernetes deployments.
 - **Logging & Observability**: Use Prefect's UI for logs or configure external storage (e.g., S3, Elasticsearch) for **long-term retention**.
 - **Notifications & Alerts**: Set up failure alerts via Slack, email, or Twilio using [**Prefect Automations**](/v3/automate/events/automations-triggers) to ensure timely issue resolution.
-- **CI/CD & Testing**: Validate deployment YAMLs in CI (`prefect deployment build --skip-upload`), and unit test tasks as regular Python functions.
+- **CI/CD & Testing**: Keep `prefect.yaml` in version control and apply it from CI with `prefect deploy`. Unit test tasks as regular Python functions.
 - **Configuration Management**: Replace Airflow Variables/Connections with [**Prefect Blocks**](/v3/develop/variables), storing secrets via CLI, UI, or version-controlled JSON.
 - **Security & Access Control**: Prefect Cloud includes built-in authentication & role-based access; self-hosted setups should secure API and workers accordingly.
 - **Decommissioning Airflow**: Once migration is complete, disable DAGs, archive the code, and shut down Airflow components to reduce operational overhead.

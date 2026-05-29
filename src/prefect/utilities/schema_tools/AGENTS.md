@@ -23,7 +23,7 @@ result = hydrate(parameters, ctx)
 | `"json"` | `{"__prefect_kind": "json", "value": ...}` | parsed value | If `value` is already a non-string (int, bool, list, dict, None), it is returned as-is without JSON decoding |
 | `"workspace_variable"` | `{"__prefect_kind": "workspace_variable", "variable_name": "..."}` | variable value | Requires `render_workspace_variables=True` in context |
 
-**Critical non-obvious invariant:** `jinja` kind always returns a `str`. To preserve the original type of a templated value (int, float, bool, list, dict), use the json+jinja pattern with `| tojson`:
+**Critical non-obvious invariant:** `jinja` kind always returns a `str`. To preserve the original type of a templated value (int, float, bool, list, dict, or Pydantic `BaseModel`), use the json+jinja pattern with `| tojson`. Pydantic models are recursively serialized via `model_dump(mode="json")` — datetime fields and nested models are handled automatically:
 
 ```python
 # Type-preserving round-trip for a single expression:

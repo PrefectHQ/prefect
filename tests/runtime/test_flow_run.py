@@ -14,6 +14,8 @@ from prefect.runtime import flow_run
 from prefect.settings import PREFECT_API_URL, PREFECT_UI_URL
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestAttributeAccessPatterns:
     async def test_access_unknown_attribute_fails(self):

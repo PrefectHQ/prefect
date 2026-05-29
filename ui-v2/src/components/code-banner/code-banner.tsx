@@ -47,9 +47,9 @@ export const CodeBanner = ({
 				{/* macOS-style window header */}
 				<div className="bg-muted/80 border-b border-border px-3 py-2 flex items-center space-x-2">
 					<div className="flex space-x-1">
-						<div className="w-3 h-3 bg-red-500 rounded-full" />
-						<div className="w-3 h-3 bg-yellow-500 rounded-full" />
-						<div className="w-3 h-3 bg-green-500 rounded-full" />
+						<div className="w-3 h-3 bg-sentiment-negative rounded-full" />
+						<div className="w-3 h-3 bg-sentiment-warning rounded-full" />
+						<div className="w-3 h-3 bg-sentiment-positive rounded-full" />
 					</div>
 					<Button
 						variant="ghost"
@@ -64,12 +64,12 @@ export const CodeBanner = ({
 				</div>
 
 				{/* Terminal content */}
-				<div className="bg-gray-800 dark:bg-gray-900 px-4 py-2">
+				<div className="bg-popover px-4 py-2">
 					<p className="py-1">
-						<code className="font-mono text-sm text-gray-300 select-all">
+						<code className="font-mono text-sm text-popover-foreground select-all">
 							{command}
 						</code>
-						<span className="ml-1 -mb-1 inline-block w-[7px] h-[18px] bg-gray-400 terminal-cursor" />
+						<span className="ml-1 -mb-1 inline-block w-[7px] h-[18px] bg-muted-foreground terminal-cursor" />
 					</p>
 				</div>
 			</div>

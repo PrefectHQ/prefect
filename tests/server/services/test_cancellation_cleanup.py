@@ -15,6 +15,8 @@ from prefect.server.services.cancellation_cleanup import (
 )
 from prefect.types._datetime import Duration, now
 
+pytestmark = pytest.mark.clear_db
+
 NON_TERMINAL_STATE_CONSTRUCTORS: dict[states.StateType, Any] = {
     states.StateType.SCHEDULED: states.Scheduled,
     states.StateType.PENDING: states.Pending,

@@ -756,7 +756,7 @@ function RangeView({
 				mode="range"
 				selected={selectedRange}
 				onSelect={handleCalendarSelect}
-				initialFocus
+				autoFocus
 				classNames={{ root: "mx-auto" }}
 			/>
 			<div className="grid grid-cols-1 gap-3">

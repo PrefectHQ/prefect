@@ -1,9 +1,12 @@
 import uuid
+from types import SimpleNamespace
 from typing import Any, Dict
 
 import pytest
 
+import prefect.exceptions
 from prefect.blocks.core import Block
+from prefect.blocks.system import Secret
 from prefect.blocks.webhook import Webhook
 from prefect.client.orchestration import PrefectClient
 from prefect.utilities.annotations import NotSet
@@ -431,6 +434,34 @@ class TestResolveBlockDocumentReferences:
 
         assert result == [block_document.data]
 
+    async def test_resolve_block_document_references_caches_block_document_refs_by_id(
+        self,
+    ):
+        """Repeated block document ID references only trigger one API read."""
+        block_document_id = uuid.uuid4()
+        calls: list[uuid.UUID] = []
+
+        class FakeClient:
+            async def read_block_document(
+                self, block_document_id: uuid.UUID
+            ) -> SimpleNamespace:
+                calls.append(block_document_id)
+                return SimpleNamespace(data={"nested": {"value": "hello"}})
+
+        template = {
+            "first": {"$ref": {"block_document_id": block_document_id}},
+            "second": {"$ref": {"block_document_id": block_document_id}},
+        }
+
+        result = await resolve_block_document_references(template, client=FakeClient())
+
+        assert result == {
+            "first": {"nested": {"value": "hello"}},
+            "second": {"nested": {"value": "hello"}},
+        }
+        assert calls == [block_document_id]
+        assert result["first"] is not result["second"]
+
     async def test_resolve_block_document_references_with_dot_delimited_syntax(
         self, prefect_client, block_document_id
     ):
@@ -448,38 +479,97 @@ class TestResolveBlockDocumentReferences:
 
         assert result == {"key": block_document.data}
 
-    async def test_resolve_block_document_references_raises_on_multiple_placeholders(
+    async def test_resolve_block_document_references_caches_block_document_refs_by_name(
+        self,
+    ):
+        """Repeated named block placeholders only trigger one API read."""
+        calls: list[tuple[str, str]] = []
+
+        class FakeClient:
+            async def read_block_document_by_name(
+                self, name: str, block_type_slug: str
+            ) -> SimpleNamespace:
+                calls.append((block_type_slug, name))
+                return SimpleNamespace(data={"a": 1, "b": "hello"})
+
+        template = {
+            "full": "{{ prefect.blocks.arbitraryblock.my-block }}",
+            "inline": "prefix-{{ prefect.blocks.arbitraryblock.my-block.b }}-suffix",
+            "nested": {
+                "repeat": "{{ prefect.blocks.arbitraryblock.my-block }}",
+            },
+        }
+
+        result = await resolve_block_document_references(template, client=FakeClient())
+
+        assert result == {
+            "full": {"a": 1, "b": "hello"},
+            "inline": "prefix-hello-suffix",
+            "nested": {
+                "repeat": {"a": 1, "b": "hello"},
+            },
+        }
+        assert calls == [("arbitraryblock", "my-block")]
+        assert result["full"] is not result["nested"]["repeat"]
+
+    async def test_resolve_block_document_references_allows_inline_substitution(
+        self, prefect_client, block_document_id
+    ):
+        slug = block_document_id["slug"]
+        doc_name = block_document_id["name"]
+        template = {
+            "key": f"prefix-{{{{ prefect.blocks.{slug}.{doc_name}.b }}}}-suffix"
+        }
+
+        result = await resolve_block_document_references(
+            template, client=prefect_client
+        )
+
+        assert result == {"key": "prefix-hello-suffix"}
+
+    async def test_resolve_block_document_references_allows_inline_substitution_for_system_blocks(
         self, prefect_client
     ):
+        secret_name = f"secret-block-{uuid.uuid4().hex[:8]}"
+        await Secret(value="my-private-repo.com").save(name=secret_name, overwrite=True)
+
+        template = {
+            "key": f"{{{{ prefect.blocks.secret.{secret_name}.value }}}}/my-image-name"
+        }
+        result = await resolve_block_document_references(
+            template, client=prefect_client
+        )
+
+        assert result == {"key": "my-private-repo.com/my-image-name"}
+
+    async def test_resolve_block_document_references_allows_mixed_placeholders_in_string(
+        self, prefect_client, block_document_id
+    ):
+        slug = block_document_id["slug"]
+        doc_name = block_document_id["name"]
         template = {
             "key": (
-                "{{ prefect.blocks.arbitraryblock.arbitrary-block }} {{"
-                " another_placeholder }}"
+                f"{{{{ standard_placeholder }}}}/{{{{ prefect.blocks.{slug}.{doc_name}.b }}}}"
             )
         }
 
-        with pytest.raises(
-            ValueError,
-            match=(
-                "Only a single block placeholder is allowed in a string and no"
-                " surrounding text is allowed."
-            ),
-        ):
-            await resolve_block_document_references(template, client=prefect_client)
+        result = await resolve_block_document_references(
+            template, client=prefect_client
+        )
 
-    async def test_resolve_block_document_references_raises_on_extra_text(
-        self, prefect_client
+        # Standard placeholders should be left intact for later resolution.
+        assert result == {"key": "{{ standard_placeholder }}/hello"}
+
+    async def test_resolve_block_document_references_raises_on_inline_non_scalar_value(
+        self, prefect_client, block_document_id
     ):
-        template = {
-            "key": "{{ prefect.blocks.arbitraryblock.arbitrary-block }} extra text"
-        }
+        slug = block_document_id["slug"]
+        doc_name = block_document_id["name"]
+        template = {"key": f"{{{{ prefect.blocks.{slug}.{doc_name} }}}} extra text"}
 
         with pytest.raises(
             ValueError,
-            match=(
-                "Only a single block placeholder is allowed in a string and no"
-                " surrounding text is allowed."
-            ),
+            match="cannot be used for inline string substitution",
         ):
             await resolve_block_document_references(template, client=prefect_client)
 
@@ -504,6 +594,39 @@ class TestResolveBlockDocumentReferences:
         assert result == {
             "block_attribute": "https://example.com",
         }
+
+    async def test_resolve_block_document_references_raises_helpful_error_for_missing_block_by_name(
+        self, prefect_client
+    ):
+        """Test that missing blocks raise helpful error messages."""
+        template = {
+            "block_ref": "{{ prefect.blocks.aws-credentials.nonexistent-block }}"
+        }
+
+        with pytest.raises(prefect.exceptions.ObjectNotFound) as exc_info:
+            await resolve_block_document_references(template, client=prefect_client)
+
+        error_msg = str(exc_info.value)
+        assert "Block not found: 'nonexistent-block'" in error_msg
+        assert "aws-credentials" in error_msg
+        assert "no longer exists" in error_msg
+
+    async def test_resolve_block_document_references_raises_helpful_error_for_missing_block_by_id(
+        self, prefect_client
+    ):
+        """Test that missing blocks by ID raise helpful error messages."""
+        import uuid
+
+        fake_id = uuid.uuid4()
+        template = {"block_ref": {"$ref": {"block_document_id": fake_id}}}
+
+        with pytest.raises(prefect.exceptions.ObjectNotFound) as exc_info:
+            await resolve_block_document_references(template, client=prefect_client)
+
+        error_msg = str(exc_info.value)
+        assert "Block not found" in error_msg
+        assert str(fake_id) in error_msg
+        assert "no longer exists" in error_msg
 
 
 class TestResolveVariables:
@@ -613,6 +736,56 @@ class TestResolveVariables:
         )
         result = await resolve_variables(template, client=prefect_client)
         assert result == " - "
+
+    async def test_resolve_caches_variable_reads_within_single_call(self):
+        """Repeated variable placeholders only trigger one API read per name."""
+        from unittest.mock import AsyncMock
+
+        from prefect.client.schemas.objects import Variable
+
+        calls: list[str] = []
+        existing_var = Variable(
+            name="my_var",
+            value={"key": "val"},
+            tags=[],
+        )
+
+        async def fake_read_variable_by_name(name: str) -> Variable | None:
+            calls.append(name)
+            if name == "my_var":
+                return existing_var
+            return None
+
+        fake_client = AsyncMock()
+        fake_client.read_variable_by_name = fake_read_variable_by_name
+
+        template: Dict[str, Any] = {
+            "full": "{{ prefect.variables.my_var }}",
+            "inline": "prefix-{{ prefect.variables.my_var }}-suffix",
+            "missing_full": "{{ prefect.variables.gone }}",
+            "missing_inline": "x{{ prefect.variables.gone }}y",
+            "nested": {
+                "repeat": "{{ prefect.variables.my_var }}",
+                "other": "{{ prefect.variables.gone }}",
+            },
+        }
+
+        result = await resolve_variables(template, client=fake_client)
+
+        assert result == {
+            "full": {"key": "val"},
+            "inline": "prefix-{'key': 'val'}-suffix",
+            "missing_full": "",
+            "missing_inline": "xy",
+            "nested": {
+                "repeat": {"key": "val"},
+                "other": "",
+            },
+        }
+
+        assert calls.count("my_var") == 1
+        assert calls.count("gone") == 1
+        assert len(calls) == 2
 
 
 class TestInvalidBlockPlaceholderValidation:

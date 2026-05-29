@@ -12,6 +12,8 @@ from prefect.server.schemas.core import TaskRunResult
 from prefect.types import KeyValueLabels
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestCreateFlowRun:
     async def test_create_flow_run(self, flow, session):
@@ -669,6 +671,7 @@ class TestReadFlowRuns:
                 state=schemas.states.State(
                     type="PENDING",
                     name="My Pending State 4",
+                    timestamp=now_dt,
                 ),
             ),
         )

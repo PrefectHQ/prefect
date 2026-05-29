@@ -29,6 +29,8 @@ from prefect.server.schemas.actions import (
 )
 from prefect.server.schemas.core import ConcurrencyLimitV2
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def concurrency_limit(session: AsyncSession) -> ConcurrencyLimitV2:

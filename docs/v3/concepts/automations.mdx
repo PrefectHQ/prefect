@@ -50,6 +50,7 @@ Actions specify what your automation does when its trigger criteria are met. Cur
 | Action | Type |
 | ------ | ---- |
 | Cancel a flow run | `cancel-flow-run` |
+| Delete a flow run | `delete-flow-run` |
 | Change the state of a flow run | `change-flow-run-state` |
 | Suspend a flow run | `suspend-flow-run` |
 | Resume a flow run | `resume-flow-run` |
@@ -136,6 +137,8 @@ You can access properties of the underlying flow run objects including:
 In addition to its native properties, each object includes an `id` along with `created` and `updated` timestamps.
 
 The `flow_run|ui_url` token returns the URL to view the flow run in the UI.
+
+Use `{{ value | tojson }}` to serialize any template variable to a JSON string. The filter handles Pydantic model objects such as `flow_run`, `deployment`, and `event` directly — for example, `{{ flow_run | tojson(indent=2) }}` renders the full flow run as formatted JSON. The optional `indent` argument controls pretty-printing.
 
 Here's an example relevant to a flow run state-based notification:
 

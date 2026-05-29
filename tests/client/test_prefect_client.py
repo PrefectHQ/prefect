@@ -26,7 +26,7 @@ import prefect.context
 import prefect.exceptions
 import prefect.server.api
 from prefect import flow, tags
-from prefect.client._version_checking import check_server_version
+from prefect._internal.version_checking import check_server_version
 from prefect.client.constants import SERVER_API_VERSION
 from prefect.client.orchestration import (
     PrefectClient,
@@ -78,6 +78,7 @@ from prefect.client.schemas.responses import (
 from prefect.client.schemas.schedules import CronSchedule, IntervalSchedule
 from prefect.client.utilities import inject_client
 from prefect.events import AutomationCore, EventTrigger, Posture
+from prefect.filesystems import LocalFileSystem
 from prefect.server.api.server import create_app
 from prefect.server.database.orm_models import WorkPool
 from prefect.settings import (
@@ -100,6 +101,8 @@ from prefect.tasks import task
 from prefect.testing.utilities import exceptions_equal
 from prefect.types._datetime import DateTime, now
 from prefect.utilities.pydantic import parse_obj_as
+
+pytestmark = pytest.mark.clear_db
 
 
 @pytest.fixture(autouse=True)
@@ -642,6 +645,33 @@ async def test_client_api_url():
 async def test_hello(prefect_client):
     response = await prefect_client.hello()
     assert response.json() == "👋"
+
+
+async def test_read_server_default_result_storage(prefect_client):
+    configuration = await prefect_client.read_server_default_result_storage()
+    assert configuration.default_result_storage_block_id is None
+
+
+async def test_update_and_clear_server_default_result_storage(prefect_client):
+    block_document_id = await LocalFileSystem(
+        basepath="/tmp/prefect-client-server-default"
+    ).asave(
+        name=f"server-default-{uuid4()}",
+        client=prefect_client,
+    )
+
+    updated = await prefect_client.update_server_default_result_storage(
+        block_document_id
+    )
+    assert updated.default_result_storage_block_id == block_document_id
+
+    read_back = await prefect_client.read_server_default_result_storage()
+    assert read_back.default_result_storage_block_id == block_document_id
+
+    await prefect_client.clear_server_default_result_storage()
+
+    cleared = await prefect_client.read_server_default_result_storage()
+    assert cleared.default_result_storage_block_id is None
 
 
 async def test_healthcheck(prefect_client):
@@ -3249,6 +3279,25 @@ class TestPrefectClientRaiseForAPIVersionMismatch:
 
         assert "Failed to reach API" in str(e.value)
 
+    async def test_raise_for_api_version_mismatch_redacts_credentials(
+        self, monkeypatch
+    ):
+        client = PrefectClient("http://marvin42:hunter2@example.com:4200/api")
+        monkeypatch.setattr(client, "server_type", ServerType.SERVER)
+
+        async def connect_error(*args, **kwargs):
+            raise httpx.ConnectError
+
+        monkeypatch.setattr(client, "api_version", connect_error)
+
+        with pytest.raises(RuntimeError, match="Failed to reach API") as exc_info:
+            await client.raise_for_api_version_mismatch()
+
+        message = str(exc_info.value)
+        assert "http://example.com:4200/api" in message
+        assert "marvin42" not in message
+        assert "hunter2" not in message
+
     async def test_raise_for_api_version_mismatch_against_cloud(
         self, prefect_client, monkeypatch
     ):
@@ -3340,6 +3389,31 @@ class TestSyncClient:
         assert prefect.__version__
         assert version == prefect.__version__
 
+    def test_read_server_default_result_storage(self, sync_prefect_client):
+        configuration = sync_prefect_client.read_server_default_result_storage()
+        assert configuration.default_result_storage_block_id is None
+
+    def test_update_and_clear_server_default_result_storage(self, sync_prefect_client):
+        block_document_id = LocalFileSystem(
+            basepath="/tmp/prefect-client-server-default"
+        ).save(
+            name=f"server-default-{uuid4()}",
+            client=sync_prefect_client,
+        )
+
+        updated = sync_prefect_client.update_server_default_result_storage(
+            block_document_id
+        )
+        assert updated.default_result_storage_block_id == block_document_id
+
+        read_back = sync_prefect_client.read_server_default_result_storage()
+        assert read_back.default_result_storage_block_id == block_document_id
+
+        sync_prefect_client.clear_server_default_result_storage()
+
+        cleared = sync_prefect_client.read_server_default_result_storage()
+        assert cleared.default_result_storage_block_id is None
+
     def test_pause_and_resume_deployment(self, sync_prefect_client, flow):
         # Create deployment in unpaused state
         deployment_id = sync_prefect_client.create_deployment(
@@ -3384,6 +3458,23 @@ class TestSyncClientRaiseForAPIVersionMismatch:
             sync_prefect_client.raise_for_api_version_mismatch()
 
         assert "Failed to reach API" in str(e.value)
+
+    def test_raise_for_api_version_mismatch_redacts_credentials(self, monkeypatch):
+        client = SyncPrefectClient("http://marvin42:hunter2@example.com:4200/api")
+        monkeypatch.setattr(client, "server_type", ServerType.SERVER)
+
+        def connect_error(*args, **kwargs):
+            raise httpx.ConnectError
+
+        monkeypatch.setattr(client, "api_version", connect_error)
+
+        with pytest.raises(RuntimeError, match="Failed to reach API") as exc_info:
+            client.raise_for_api_version_mismatch()
+
+        message = str(exc_info.value)
+        assert "http://example.com:4200/api" in message
+        assert "marvin42" not in message
+        assert "hunter2" not in message
 
     def test_raise_for_api_version_mismatch_against_cloud(
         self, sync_prefect_client, monkeypatch

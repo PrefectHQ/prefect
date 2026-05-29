@@ -74,6 +74,7 @@ from prefect.settings.models.api import APISettings
 from prefect.settings.models.client import ClientSettings
 from prefect.settings.models.logging import LoggingSettings
 from prefect.settings.models.results import ResultsSettings
+from prefect.settings.models.root import _get_settings_accessors
 from prefect.settings.models.server import ServerSettings
 from prefect.settings.models.server.api import ServerAPISettings
 from prefect.settings.models.server.database import (
@@ -264,15 +265,32 @@ SUPPORTED_SETTINGS = {
     "PREFECT_EXPERIMENTS_PLUGINS_ALLOW": {
         "test_value": "plugin1,plugin2",
         "expected_value": {"plugin1", "plugin2"},
+        "legacy": True,
     },
     "PREFECT_EXPERIMENTS_PLUGINS_DENY": {
         "test_value": "plugin3",
         "expected_value": {"plugin3"},
+        "legacy": True,
     },
-    "PREFECT_EXPERIMENTS_PLUGINS_ENABLED": {"test_value": True},
-    "PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE": {"test_value": True},
-    "PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS": {"test_value": 30.0},
-    "PREFECT_EXPERIMENTS_PLUGINS_STRICT": {"test_value": True},
+    "PREFECT_EXPERIMENTS_PLUGINS_ENABLED": {"test_value": True, "legacy": True},
+    "PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE": {"test_value": True, "legacy": True},
+    "PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS": {
+        "test_value": 30.0,
+        "legacy": True,
+    },
+    "PREFECT_EXPERIMENTS_PLUGINS_STRICT": {"test_value": True, "legacy": True},
+    "PREFECT_PLUGINS_ALLOW": {
+        "test_value": "plugin1,plugin2",
+        "expected_value": {"plugin1", "plugin2"},
+    },
+    "PREFECT_PLUGINS_DENY": {
+        "test_value": "plugin3",
+        "expected_value": {"plugin3"},
+    },
+    "PREFECT_PLUGINS_ENABLED": {"test_value": True},
+    "PREFECT_PLUGINS_SAFE_MODE": {"test_value": True},
+    "PREFECT_PLUGINS_SETUP_TIMEOUT_SECONDS": {"test_value": 30.0},
+    "PREFECT_PLUGINS_STRICT": {"test_value": True},
     "PREFECT_FLOW_DEFAULT_RETRIES": {"test_value": 10, "legacy": True},
     "PREFECT_FLOWS_DEFAULT_RETRIES": {"test_value": 10},
     "PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS": {"test_value": 10, "legacy": True},
@@ -309,6 +327,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_RESULTS_DEFAULT_STORAGE_BLOCK": {"test_value": "block"},
     "PREFECT_RESULTS_LOCAL_STORAGE_PATH": {"test_value": Path("/path/to/storage")},
     "PREFECT_RESULTS_PERSIST_BY_DEFAULT": {"test_value": True},
+    "PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES": {"test_value": True},
     "PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE": {"test_value": True},
     "PREFECT_FLOWS_HEARTBEAT_FREQUENCY": {"test_value": 30},
     "PREFECT_RUNNER_HEARTBEAT_FREQUENCY": {"test_value": 30, "legacy": True},
@@ -333,6 +352,8 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_API_MAX_PARAMETER_SIZE": {"test_value": 1024},
     "PREFECT_SERVER_API_KEEPALIVE_TIMEOUT": {"test_value": 10},
     "PREFECT_SERVER_API_PORT": {"test_value": 4200},
+    "PREFECT_SERVER_API_WEBSOCKET_PING_INTERVAL": {"test_value": 30.0},
+    "PREFECT_SERVER_API_WEBSOCKET_PING_TIMEOUT": {"test_value": 30.0},
     "PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE": {
         "test_value": "prefect.server.concurrency.lease_storage.filesystem"
     },
@@ -390,6 +411,14 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_DEPLOYMENT_SCHEDULE_MAX_SCHEDULED_RUNS": {"test_value": 10},
     "PREFECT_SERVER_DOCKET_NAME": {"test_value": "test-docket"},
     "PREFECT_SERVER_DOCKET_URL": {"test_value": "redis://localhost:6379/0"},
+    "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_COMPLETED_IDEMPOTENCY_RETENTION_SECONDS": {
+        "test_value": 3600.0
+    },
+    "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_LEASE_SECONDS": {"test_value": 60.0},
+    "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_MAX_DELIVERY_ATTEMPTS": {"test_value": 5},
+    "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE": {
+        "test_value": "prefect.server.worker_communication.cleanup_queue.memory"
+    },
     "PREFECT_SERVER_EPHEMERAL_ENABLED": {"test_value": True},
     "PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS": {"test_value": 10},
     "PREFECT_SERVER_EVENTS_CAUSAL_ORDERING": {
@@ -1528,6 +1557,48 @@ class TestTemporarySettings:
                     PREFECT_API_DATABASE_PORT.value()
                     == PREFECT_API_DATABASE_PORT.default()
                 )
+
+    def test_temporary_settings_accepts_setting_accessor_strings(self):
+        assert get_current_settings().server.api.host == "127.0.0.1"
+
+        with temporary_settings(updates={"server.api.host": "0.0.0.0"}) as settings:
+            assert settings.server.api.host == "0.0.0.0"
+            assert get_current_settings().server.api.host == "0.0.0.0"
+
+        assert get_current_settings().server.api.host == "127.0.0.1"
+
+    def test_temporary_settings_accepts_environment_variable_strings(self):
+        with temporary_settings(updates={"PREFECT_SERVER_API_HOST": "0.0.0.0"}):
+            assert get_current_settings().server.api.host == "0.0.0.0"
+
+    def test_temporary_settings_set_defaults_accepts_setting_accessor_strings(self):
+        with temporary_settings(set_defaults={"server.api.host": "0.0.0.0"}):
+            assert get_current_settings().server.api.host == "0.0.0.0"
+
+        with temporary_settings(updates={"server.api.host": "localhost"}):
+            with temporary_settings(set_defaults={"server.api.host": "0.0.0.0"}):
+                assert get_current_settings().server.api.host == "localhost"
+
+    def test_temporary_settings_restore_defaults_accepts_setting_accessor_strings(self):
+        with temporary_settings(updates={"server.api.host": "0.0.0.0"}):
+            assert get_current_settings().server.api.host == "0.0.0.0"
+            with temporary_settings(restore_defaults={"server.api.host"}):
+                assert get_current_settings().server.api.host == "127.0.0.1"
+
+    def test_temporary_settings_rejects_unknown_setting_strings(self):
+        with pytest.raises(ValueError, match="Unknown setting"):
+            with temporary_settings(updates={"server.api.not_real": "nope"}):
+                pass
+
+    def test_setting_accessor_type_alias_is_current(self):
+        from typing import get_args
+
+        from prefect.settings._types import SettingAccessor
+
+        setting_keys = _get_settings_accessors(Settings)
+        expected_accessors = set(setting_keys.values())
+
+        assert set(get_args(SettingAccessor)) == expected_accessors
 
     def test_temporary_settings_restores_on_error(self):
         assert PREFECT_TEST_MODE.value() is True

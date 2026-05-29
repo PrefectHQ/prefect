@@ -12,7 +12,7 @@ from conftest import (
     _make_node,
     write_manifest,
 )
-from dbt.artifacts.resources.types import NodeType
+from dbt.node_types import NodeType
 from prefect_dbt.core._artifacts import (
     ASSET_NODE_TYPES,
     create_asset_for_node,
@@ -279,7 +279,7 @@ class TestCreateAssetForNode:
 
         assert "postgres://" in asset.key
         assert "my_model" in asset.key
-        assert asset.properties.name == "my_model"
+        assert asset.properties.name == "main.public.my_model"
 
     def test_with_description(self):
         node = DbtNode(

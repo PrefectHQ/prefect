@@ -126,7 +126,6 @@ class ScheduledRunPoller:
             ),
         )
 
-        submitted_ids: set[UUID] = set()
         for flow_run in submittable_flow_runs:
             if flow_run.id in self._submitting_flow_run_ids:
                 continue
@@ -135,13 +134,12 @@ class ScheduledRunPoller:
             except anyio.WouldBlock:
                 break  # sorted: no earlier run fits
             self._submitting_flow_run_ids.add(flow_run.id)
-            submitted_ids.add(flow_run.id)
             task_group.start_soon(self._submit_run, flow_run, task_group, slot_token)
 
         skipped_count = sum(
             1
             for r in submittable_flow_runs
-            if r.id not in self._submitting_flow_run_ids and r.id not in submitted_ids
+            if r.id not in self._submitting_flow_run_ids
         )
         if skipped_count > 0:
             self._logger.info("%d scheduled runs skipped (at capacity)", skipped_count)
@@ -182,18 +180,15 @@ class ScheduledRunPoller:
             pull_interval = getattr(storage, "pull_interval", None)
             if storage and isinstance(pull_interval, (int, float)) and pull_interval:
                 last_adhoc_pull = getattr(storage, "last_adhoc_pull", None)
-                if (
-                    last_adhoc_pull is None
-                    or last_adhoc_pull
-                    < datetime.datetime.now()
-                    - datetime.timedelta(seconds=storage.pull_interval)
-                ):
+                if last_adhoc_pull is None or last_adhoc_pull < now(
+                    "UTC"
+                ) - datetime.timedelta(seconds=storage.pull_interval):
                     self._logger.debug(
                         "Performing adhoc pull of code for flow run %s",
                         flow_run.id,
                     )
                     await storage.pull_code()
-                    storage.last_adhoc_pull = datetime.datetime.now()
+                    storage.last_adhoc_pull = now("UTC")
 
             executor = FlowRunExecutor(
                 flow_run=flow_run,

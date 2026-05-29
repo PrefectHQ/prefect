@@ -10,7 +10,7 @@ Module containing tasks and flows for interacting with dbt Cloud jobs
 
 ## Functions
 
-### `get_dbt_cloud_job_info` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L52" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_dbt_cloud_job_info` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L170" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_dbt_cloud_job_info(dbt_cloud_credentials: DbtCloudCredentials, job_id: int, order_by: Optional[str] = None) -> Dict
@@ -27,7 +27,7 @@ A task to retrieve information about a dbt Cloud job.
 - The job data returned by the dbt Cloud administrative API.
 
 
-### `create_dbt_cloud_job` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L104" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_dbt_cloud_job` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_dbt_cloud_job(dbt_cloud_credentials: DbtCloudCredentials, project_id: int, environment_id: int, name: str, execute_steps: Optional[List[str]] = None, **kwargs: Any) -> Dict
@@ -49,7 +49,7 @@ Defaults to ["dbt build"].
 - The job data returned by the dbt Cloud administrative API.
 
 
-### `delete_dbt_cloud_job` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L177" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_dbt_cloud_job` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L295" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_dbt_cloud_job(dbt_cloud_credentials: DbtCloudCredentials, job_id: int) -> None
@@ -63,7 +63,7 @@ A task to delete a dbt Cloud job.
 - `job_id`: The ID of the job to delete.
 
 
-### `trigger_dbt_cloud_job_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L228" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `trigger_dbt_cloud_job_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L346" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 trigger_dbt_cloud_job_run(dbt_cloud_credentials: DbtCloudCredentials, job_id: int, options: Optional[TriggerJobRunOptions] = None) -> Dict
@@ -138,7 +138,7 @@ trigger_dbt_cloud_job_run()
 ```
 
 
-### `get_run_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L328" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_run_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L446" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_run_id(obj: Dict)
@@ -154,7 +154,7 @@ This task is mainly used to maintain dependency tracking between the
 - `obj`: The JSON body from the trigger job run response.
 
 
-### `trigger_dbt_cloud_job_run_and_wait_for_completion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L374" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `trigger_dbt_cloud_job_run_and_wait_for_completion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L492" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 trigger_dbt_cloud_job_run_and_wait_for_completion(dbt_cloud_credentials: DbtCloudCredentials, job_id: int, trigger_job_run_options: Optional[TriggerJobRunOptions] = None, max_wait_seconds: int = 900, poll_frequency_seconds: int = 10, retry_filtered_models_attempts: int = 3) -> Dict
@@ -254,7 +254,7 @@ asyncio.run(
 ```
 
 
-### `retry_dbt_cloud_job_run_subset_and_wait_for_completion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L680" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `retry_dbt_cloud_job_run_subset_and_wait_for_completion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L798" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 retry_dbt_cloud_job_run_subset_and_wait_for_completion(dbt_cloud_credentials: DbtCloudCredentials, run_id: int, trigger_job_run_options: Optional[TriggerJobRunOptions] = None, max_wait_seconds: int = 900, poll_frequency_seconds: int = 10) -> Dict
@@ -300,10 +300,10 @@ retry_dbt_cloud_job_run_subset_and_wait_for_completion_flow()
 ```
 
 
-### `run_dbt_cloud_job` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L1224" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `run_dbt_cloud_job` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L1346" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-run_dbt_cloud_job(dbt_cloud_job: DbtCloudJob, targeted_retries: int = 3) -> Dict[str, Any]
+run_dbt_cloud_job(dbt_cloud_job: DbtCloudJob, targeted_retries: int = 3, create_assets: bool = False) -> Dict[str, Any]
 ```
 
 
@@ -314,6 +314,8 @@ subset of failed nodes if necessary.
 - `dbt_cloud_job`: Block that holds the information and
 methods to interact with a dbt Cloud job.
 - `targeted_retries`: The number of times to retry failed steps.
+- `create_assets`: Whether to create Prefect asset materializations
+for successfully executed dbt models, seeds, and snapshots.
 
 **Examples:**
 
@@ -336,7 +338,7 @@ run_dbt_cloud_job_flow()
 
 ## Classes
 
-### `DbtCloudJobRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L770" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DbtCloudJobRun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L888" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Class that holds the information and methods to interact
@@ -345,7 +347,13 @@ with the resulting run of a dbt Cloud job.
 
 **Methods:**
 
-#### `fetch_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L872" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `dbt_cloud_credentials` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L904" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+dbt_cloud_credentials(self) -> DbtCloudCredentials
+```
+
+#### `fetch_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L994" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 fetch_result(self, step: Optional[int] = None) -> Dict[str, Any]
@@ -361,7 +369,7 @@ omitted, then this method will return the artifacts compiled
 for the last step in the run.
 
 
-#### `get_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L830" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L952" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_run(self) -> Dict[str, Any]
@@ -373,7 +381,7 @@ Makes a request to the dbt Cloud API to get the run data.
 - The run data.
 
 
-#### `get_run_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L909" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_run_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L1031" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_run_artifacts(self, path: Literal['manifest.json', 'catalog.json', 'run_results.json'], step: Optional[int] = None) -> Union[Dict[str, Any], str]
@@ -393,7 +401,7 @@ for the last step in the run.
 requested artifact is a JSON file and a `str` otherwise.
 
 
-#### `get_status_code` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L847" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_status_code` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L969" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_status_code(self) -> int
@@ -405,7 +413,7 @@ Makes a request to the dbt Cloud API to get the run status.
 - The run status code.
 
 
-#### `retry_failed_steps` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L1075" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `retry_failed_steps` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L1197" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 retry_failed_steps(self) -> 'DbtCloudJobRun'
@@ -417,7 +425,7 @@ Retries steps that did not complete successfully in a run.
 - A representation of the dbt Cloud job run.
 
 
-#### `wait_for_completion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L859" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `wait_for_completion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L981" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wait_for_completion(self) -> None
@@ -426,7 +434,7 @@ wait_for_completion(self) -> None
 Waits for the job run to reach a terminal state.
 
 
-### `DbtCloudJob` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L1100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DbtCloudJob` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L1222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Block that holds the information and methods to interact with a dbt Cloud job.
@@ -471,7 +479,7 @@ dbt_cloud_job_flow()
 
 **Methods:**
 
-#### `get_job` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L1166" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_job` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L1288" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_job(self, order_by: Optional[str] = None) -> Dict[str, Any]
@@ -486,7 +494,7 @@ Retrieve information about a dbt Cloud job.
 - The job data.
 
 
-#### `trigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L1187" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `trigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/cloud/jobs.py#L1309" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 trigger(self, trigger_job_run_options: Optional[TriggerJobRunOptions] = None) -> DbtCloudJobRun

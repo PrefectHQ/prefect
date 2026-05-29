@@ -5,6 +5,8 @@ import pytest
 
 from prefect.runner._limit_manager import LimitManager
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestLimitManagerNoLimit:
     """Tests for limit=None behavior (sentinel path)."""

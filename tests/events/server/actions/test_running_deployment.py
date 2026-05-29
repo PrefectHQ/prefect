@@ -22,6 +22,8 @@ from prefect.server.schemas.actions import VariableCreate, WorkPoolCreate
 from prefect.server.schemas.core import CreatedBy, Deployment, Flow
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 async def test_action_can_omit_parameters():
     """Regression test for https://github.com/PrefectHQ/nebula/issues/2857, where
@@ -346,6 +348,33 @@ async def test_run_deployment_handles_json_workspace_variables(
     }
 
     await action.act(snap_that_naughty_woodchuck)
+
+
+async def test_run_deployment_tojson_serializes_pydantic_event_context(
+    snap_that_naughty_woodchuck: TriggeredAction,
+):
+    action = snap_that_naughty_woodchuck.action
+    assert action
+    assert isinstance(action, actions.RunDeployment)
+
+    action.parameters = {
+        "event": {
+            "__prefect_kind": "json",
+            "value": {
+                "__prefect_kind": "jinja",
+                "template": "{{ event | tojson }}",
+            },
+        }
+    }
+
+    parameters = await action.render_parameters(snap_that_naughty_woodchuck)
+    triggering_event = snap_that_naughty_woodchuck.triggering_event
+    assert triggering_event
+    event_id = triggering_event.id
+    assert event_id
+
+    assert parameters["event"]["id"] == str(event_id)
+    assert parameters["event"]["event"] == "animal.ingested"
 
 
 async def test_run_deployment_parameter_validation_handles_top_level_hydration_error(

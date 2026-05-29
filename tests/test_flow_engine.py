@@ -4,7 +4,7 @@ import signal
 import threading
 import time
 import uuid
-from contextlib import asynccontextmanager, contextmanager
+from contextlib import asynccontextmanager, contextmanager, nullcontext
 from textwrap import dedent
 from types import SimpleNamespace
 from typing import Any, Literal, Optional
@@ -16,8 +16,13 @@ import anyio
 import pydantic
 import pytest
 
+import prefect.flow_engine as flow_engine_module
 import prefect.utilities.engine as engine_utils
 from prefect import Flow, __development_base_path__, flow, states, task
+from prefect._flow_run_suspension import (
+    FlowRunSuspensionRequest,
+    mark_flow_run_suspension_requested,
+)
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas.filters import FlowFilter, FlowFilterName, FlowRunFilter
 from prefect.client.schemas.objects import StateType
@@ -43,6 +48,10 @@ from prefect.flow_engine import (
     MINIMUM_HEARTBEAT_INTERVAL,
     AsyncFlowRunEngine,
     FlowRunEngine,
+    NotSet,
+    _load_flow_from_runtime_entrypoint,
+    _main,
+    _run_flow_from_runtime_entrypoint,
     _run_serialized_call_with_control_bootstrap,
     _runtime_subprocess_env,
     _send_heartbeats,
@@ -56,16 +65,244 @@ from prefect.flow_runs import pause_flow_run, resume_flow_run, suspend_flow_run
 from prefect.input.actions import read_flow_run_input
 from prefect.input.run_input import RunInput
 from prefect.logging import get_run_logger
+from prefect.results import get_result_store
+from prefect.runtime import flow_run as runtime_flow_run
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
+from prefect.settings import PREFECT_LOGGING_LOG_PRINTS, temporary_settings
+from prefect.states import Running
 from prefect.utilities.callables import get_call_parameters
-from prefect.utilities.engine import capture_sigterm, propose_state
+from prefect.utilities.engine import capture_sigterm, propose_state, propose_state_sync
 from prefect.utilities.filesystem import tmpchdir
 
 
 @flow
 async def foo():
     return 42
+
+
+class TestFlowRunNameSetBeforeRunningEvent:
+    @staticmethod
+    def _track_sync_running_names(
+        sync_prefect_client: SyncPrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> list[str]:
+        names_at_running_transition: list[str] = []
+        original_propose = propose_state_sync
+
+        def tracking_propose(client, state, **kwargs):
+            if state.is_running():
+                flow_run = sync_prefect_client.read_flow_run(kwargs["flow_run_id"])
+                names_at_running_transition.append(flow_run.name)
+            return original_propose(client, state, **kwargs)
+
+        monkeypatch.setattr("prefect.flow_engine.propose_state_sync", tracking_propose)
+        return names_at_running_transition
+
+    @staticmethod
+    def _track_async_running_names(
+        sync_prefect_client: SyncPrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> list[str]:
+        names_at_running_transition: list[str] = []
+        original_propose = propose_state
+
+        async def tracking_propose(client, state, **kwargs):
+            if state.is_running():
+                flow_run = sync_prefect_client.read_flow_run(kwargs["flow_run_id"])
+                names_at_running_transition.append(flow_run.name)
+            return await original_propose(client, state, **kwargs)
+
+        monkeypatch.setattr("prefect.flow_engine.propose_state", tracking_propose)
+        return names_at_running_transition
+
+    async def test_sync_flow_string_template_name_set_before_running(
+        self, sync_prefect_client: SyncPrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        names_at_running_transition = self._track_sync_running_names(
+            sync_prefect_client, monkeypatch
+        )
+
+        @flow(flow_run_name="custom-{x}")
+        def my_flow(x):
+            return FlowRunContext.get().flow_run.id
+
+        result = run_flow_sync(my_flow, parameters={"x": "hello"})
+        run = sync_prefect_client.read_flow_run(result)
+
+        assert run.name == "custom-hello"
+        assert names_at_running_transition
+        assert names_at_running_transition[0] == "custom-hello"
+
+    async def test_async_flow_string_template_name_set_before_running(
+        self, sync_prefect_client: SyncPrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        names_at_running_transition = self._track_async_running_names(
+            sync_prefect_client, monkeypatch
+        )
+
+        @flow(flow_run_name="custom-{x}")
+        async def my_flow(x):
+            return FlowRunContext.get().flow_run.id
+
+        result = await run_flow(my_flow, parameters={"x": "world"})
+        run = sync_prefect_client.read_flow_run(result)
+
+        assert run.name == "custom-world"
+        assert names_at_running_transition
+        assert names_at_running_transition[0] == "custom-world"
+
+    async def test_sync_flow_callable_name_set_before_running(
+        self, sync_prefect_client: SyncPrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        names_at_running_transition = self._track_sync_running_names(
+            sync_prefect_client, monkeypatch
+        )
+
+        def generate_name():
+            return "callable-name"
+
+        @flow(flow_run_name=generate_name)
+        def my_flow():
+            return FlowRunContext.get().flow_run.id
+
+        result = run_flow_sync(my_flow)
+        run = sync_prefect_client.read_flow_run(result)
+
+        assert run.name == "callable-name"
+        assert names_at_running_transition
+        assert names_at_running_transition[0] == "callable-name"
+
+    async def test_async_flow_callable_name_set_before_running(
+        self, sync_prefect_client: SyncPrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        names_at_running_transition = self._track_async_running_names(
+            sync_prefect_client, monkeypatch
+        )
+
+        def generate_name():
+            return "callable-name"
+
+        @flow(flow_run_name=generate_name)
+        async def my_flow():
+            return FlowRunContext.get().flow_run.id
+
+        result = await run_flow(my_flow)
+        run = sync_prefect_client.read_flow_run(result)
+
+        assert run.name == "callable-name"
+        assert names_at_running_transition
+        assert names_at_running_transition[0] == "callable-name"
+
+    async def test_sync_flow_callable_with_runtime_params_set_before_running(
+        self, sync_prefect_client: SyncPrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        names_at_running_transition = self._track_sync_running_names(
+            sync_prefect_client, monkeypatch
+        )
+
+        def generate_name():
+            return f"runtime-{runtime_flow_run.parameters['x']}"
+
+        @flow(flow_run_name=generate_name)
+        def my_flow(x):
+            return FlowRunContext.get().flow_run.id
+
+        result = run_flow_sync(my_flow, parameters={"x": "hello"})
+        run = sync_prefect_client.read_flow_run(result)
+
+        assert run.name == "runtime-hello"
+        assert names_at_running_transition
+        assert names_at_running_transition[0] == "runtime-hello"
+
+    async def test_async_flow_callable_with_runtime_params_set_before_running(
+        self, sync_prefect_client: SyncPrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        names_at_running_transition = self._track_async_running_names(
+            sync_prefect_client, monkeypatch
+        )
+
+        def generate_name():
+            return f"runtime-{runtime_flow_run.parameters['x']}"
+
+        @flow(flow_run_name=generate_name)
+        async def my_flow(x):
+            return FlowRunContext.get().flow_run.id
+
+        result = await run_flow(my_flow, parameters={"x": "world"})
+        run = sync_prefect_client.read_flow_run(result)
+
+        assert run.name == "runtime-world"
+        assert names_at_running_transition
+        assert names_at_running_transition[0] == "runtime-world"
+
+    async def test_sync_flow_multi_param_template_name_set_before_running(
+        self, sync_prefect_client: SyncPrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        names_at_running_transition = self._track_sync_running_names(
+            sync_prefect_client, monkeypatch
+        )
+
+        @flow(flow_run_name="custom-{x}-{y}")
+        def my_flow(x, y):
+            return FlowRunContext.get().flow_run.id
+
+        result = run_flow_sync(my_flow, parameters={"x": "hello", "y": "world"})
+        run = sync_prefect_client.read_flow_run(result)
+
+        assert run.name == "custom-hello-world"
+        assert names_at_running_transition
+        assert names_at_running_transition[0] == "custom-hello-world"
+
+    async def test_async_flow_multi_param_template_name_set_before_running(
+        self, sync_prefect_client: SyncPrefectClient, monkeypatch: pytest.MonkeyPatch
+    ):
+        names_at_running_transition = self._track_async_running_names(
+            sync_prefect_client, monkeypatch
+        )
+
+        @flow(flow_run_name="custom-{x}-{y}")
+        async def my_flow(x, y):
+            return FlowRunContext.get().flow_run.id
+
+        result = await run_flow(my_flow, parameters={"x": "hello", "y": "world"})
+        run = sync_prefect_client.read_flow_run(result)
+
+        assert run.name == "custom-hello-world"
+        assert names_at_running_transition
+        assert names_at_running_transition[0] == "custom-hello-world"
+
+    async def test_sync_temporary_context_does_not_break_subflow_log_prints(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        @flow(flow_run_name="child-name")
+        def child_flow():
+            print("hello from child")
+
+        @flow(log_prints=True)
+        def parent_flow():
+            child_flow()
+
+        with temporary_settings({PREFECT_LOGGING_LOG_PRINTS: False}):
+            parent_flow()
+
+        assert "hello from child" in caplog.text
+
+    async def test_async_temporary_context_does_not_break_subflow_log_prints(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        @flow(flow_run_name="child-name")
+        async def child_flow():
+            print("hello from child")
+
+        @flow(log_prints=True)
+        async def parent_flow():
+            await child_flow()
+
+        with temporary_settings({PREFECT_LOGGING_LOG_PRINTS: False}):
+            await parent_flow()
+
+        assert "hello from child" in caplog.text
 
 
 class TestFlowRunEngine:
@@ -1135,6 +1372,266 @@ class TestFlowRetries:
         assert flow_run_count == 2, "Parent flow should exhaust retries"
         assert child_flow_run_count == 4, (
             "Child flow should run 2 times for each parent run"
+        )
+
+
+class TestLoadSubflowRun:
+    """Tests for load_subflow_run reattach behavior to prevent duplicate
+    subflow runs when a process is re-executed (e.g. K8s pod restart)."""
+
+    async def test_sync_reattaches_to_existing_subflow_when_parent_task_run_is_running(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        """When the parent_task_run is still Running (non-final), load_subflow_run
+        should find and return the existing subflow run instead of returning None,
+        which would cause a duplicate to be created."""
+        child_flow_run_ids: list[UUID] = []
+
+        @flow
+        def child():
+            child_flow_run_ids.append(FlowRunContext.get().flow_run.id)
+
+        @flow
+        def parent():
+            child()
+
+        # Run the parent flow normally; this creates the child subflow run
+        parent()
+
+        assert len(child_flow_run_ids) == 1
+        first_child_id = child_flow_run_ids[0]
+
+        # Look up the child flow run and its parent_task_run
+        child_run = sync_prefect_client.read_flow_run(first_child_id)
+        assert child_run.parent_task_run_id is not None
+        parent_task_run = sync_prefect_client.read_task_run(
+            child_run.parent_task_run_id
+        )
+
+        # Simulate the pod-restart scenario: set the parent_task_run to Running
+        # (as if the orphaned subflow's Running state was synced back via
+        # UpdateSubflowParentTaskRun before the process died)
+        sync_prefect_client.set_task_run_state(
+            parent_task_run.id, Running(), force=True
+        )
+        parent_task_run = sync_prefect_client.read_task_run(parent_task_run.id)
+        assert parent_task_run.state.is_running()
+
+        # Now simulate what the engine does on re-execution: call
+        # load_subflow_run with the Running parent_task_run
+        parent_run = sync_prefect_client.read_flow_run(parent_task_run.flow_run_id)
+        engine = FlowRunEngine(flow=child, flow_run=None)
+        context = FlowRunContext(
+            flow=parent,
+            flow_run=parent_run,
+            client=sync_prefect_client,
+            task_runner=parent.task_runner,
+            result_store=get_result_store(),
+        )
+        result = engine.load_subflow_run(
+            parent_task_run=parent_task_run,
+            client=sync_prefect_client,
+            context=context,
+        )
+
+        assert result is not None, (
+            "load_subflow_run should reattach to the existing subflow run"
+        )
+        assert result.id == first_child_id
+
+    async def test_async_reattaches_to_existing_subflow_when_parent_task_run_is_running(
+        self, prefect_client: PrefectClient
+    ):
+        """Async variant: same reattach behavior for AsyncFlowRunEngine."""
+        child_flow_run_ids: list[UUID] = []
+
+        @flow
+        async def child():
+            child_flow_run_ids.append(FlowRunContext.get().flow_run.id)
+
+        @flow
+        async def parent():
+            await child()
+
+        await parent()
+
+        assert len(child_flow_run_ids) == 1
+        first_child_id = child_flow_run_ids[0]
+
+        child_run = await prefect_client.read_flow_run(first_child_id)
+        assert child_run.parent_task_run_id is not None
+        parent_task_run = await prefect_client.read_task_run(
+            child_run.parent_task_run_id
+        )
+
+        await prefect_client.set_task_run_state(
+            parent_task_run.id, Running(), force=True
+        )
+        parent_task_run = await prefect_client.read_task_run(parent_task_run.id)
+        assert parent_task_run.state.is_running()
+
+        parent_run = await prefect_client.read_flow_run(parent_task_run.flow_run_id)
+        engine = AsyncFlowRunEngine(flow=child, flow_run=None)
+        context = FlowRunContext(
+            flow=parent,
+            flow_run=parent_run,
+            client=prefect_client,
+            task_runner=parent.task_runner,
+            result_store=get_result_store(),
+        )
+        result = await engine.load_subflow_run(
+            parent_task_run=parent_task_run,
+            client=prefect_client,
+            context=context,
+        )
+
+        assert result is not None, (
+            "load_subflow_run should reattach to the existing subflow run"
+        )
+        assert result.id == first_child_id
+
+    async def test_does_not_set_return_value_when_reattaching_to_nonfinal_subflow(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        """When reattaching to a non-final subflow run, _return_value should
+        NOT be set so the engine re-executes the flow code."""
+        child_flow_run_id: UUID | None = None
+
+        @flow
+        def child():
+            nonlocal child_flow_run_id
+            child_flow_run_id = FlowRunContext.get().flow_run.id
+
+        @flow
+        def parent():
+            child()
+
+        parent()
+
+        assert child_flow_run_id is not None
+        child_run = sync_prefect_client.read_flow_run(child_flow_run_id)
+        assert child_run.parent_task_run_id is not None
+
+        parent_task_run = sync_prefect_client.read_task_run(
+            child_run.parent_task_run_id
+        )
+
+        # Force parent_task_run to Running
+        sync_prefect_client.set_task_run_state(
+            parent_task_run.id, Running(), force=True
+        )
+        parent_task_run = sync_prefect_client.read_task_run(parent_task_run.id)
+
+        parent_run = sync_prefect_client.read_flow_run(parent_task_run.flow_run_id)
+        engine = FlowRunEngine(flow=child, flow_run=None)
+        context = FlowRunContext(
+            flow=parent,
+            flow_run=parent_run,
+            client=sync_prefect_client,
+            task_runner=parent.task_runner,
+            result_store=get_result_store(),
+        )
+        result = engine.load_subflow_run(
+            parent_task_run=parent_task_run,
+            client=sync_prefect_client,
+            context=context,
+        )
+
+        assert result is not None
+        assert engine._return_value is NotSet, (
+            "_return_value should not be set for non-final parent task runs"
+        )
+
+    async def test_returns_none_when_no_existing_subflow_run(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        """When there is no existing subflow run, load_subflow_run should
+        return None regardless of parent_task_run state."""
+        parent_flow_run_id: UUID | None = None
+
+        @flow
+        def child():
+            pass
+
+        @flow
+        def parent():
+            nonlocal parent_flow_run_id
+            parent_flow_run_id = FlowRunContext.get().flow_run.id
+
+        parent()
+
+        assert parent_flow_run_id is not None
+        parent_run = sync_prefect_client.read_flow_run(parent_flow_run_id)
+
+        # Use a mock task run with a UUID that has no matching subflow runs
+        mock_task_run = MagicMock()
+        mock_task_run.id = uuid.uuid4()
+        mock_task_run.state = Running()
+
+        engine = FlowRunEngine(flow=child, flow_run=None)
+        context = FlowRunContext(
+            flow=parent,
+            flow_run=parent_run,
+            client=sync_prefect_client,
+            task_runner=parent.task_runner,
+            result_store=get_result_store(),
+        )
+        result = engine.load_subflow_run(
+            parent_task_run=mock_task_run,
+            client=sync_prefect_client,
+            context=context,
+        )
+
+        assert result is None
+
+    async def test_sets_return_value_when_parent_task_run_is_final(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        """When parent_task_run is final, _return_value should be set
+        to cache the result (existing behavior preserved)."""
+        child_flow_run_id: UUID | None = None
+
+        @flow
+        def child():
+            nonlocal child_flow_run_id
+            child_flow_run_id = FlowRunContext.get().flow_run.id
+            return 42
+
+        @flow
+        def parent():
+            return child()
+
+        parent()
+
+        assert child_flow_run_id is not None
+        child_run = sync_prefect_client.read_flow_run(child_flow_run_id)
+        assert child_run.parent_task_run_id is not None
+
+        parent_task_run = sync_prefect_client.read_task_run(
+            child_run.parent_task_run_id
+        )
+        # After normal completion, parent_task_run should be final
+        assert parent_task_run.state.is_final()
+
+        parent_run = sync_prefect_client.read_flow_run(parent_task_run.flow_run_id)
+        engine = FlowRunEngine(flow=child, flow_run=None)
+        context = FlowRunContext(
+            flow=parent,
+            flow_run=parent_run,
+            client=sync_prefect_client,
+            task_runner=parent.task_runner,
+            result_store=get_result_store(),
+        )
+        result = engine.load_subflow_run(
+            parent_task_run=parent_task_run,
+            client=sync_prefect_client,
+            context=context,
+        )
+
+        assert result is not None
+        assert result.id == child_run.id
+        assert engine._return_value is not NotSet, (
+            "_return_value should be set for final parent task runs"
         )
 
 
@@ -2316,7 +2813,72 @@ class TestPauseFlowRun:
         assert len(sleep_intervals) == 6
 
 
+class TestFlowRunSuspensionRequest:
+    def test_raise_if_requested_uses_marked_suspended_state(self):
+        suspension_request = FlowRunSuspensionRequest()
+        suspended_state = states.Suspended(message="Suspend me")
+
+        assert not suspension_request.is_requested()
+        assert suspension_request.get_state() is None
+        suspension_request.raise_if_requested()
+
+        suspension_request.mark_requested(suspended_state)
+
+        assert suspension_request.is_requested()
+        assert suspension_request.get_state() is suspended_state
+
+        with pytest.raises(Pause) as exc_info:
+            suspension_request.raise_if_requested()
+
+        assert exc_info.value.state is suspended_state
+
+
 class TestSuspendFlowRun:
+    async def _attach_deployment_to_current_flow_run(self, deployment, session) -> UUID:
+        context = get_run_context()
+        assert context.flow_run
+
+        from prefect.server.models.flow_runs import update_flow_run
+
+        await update_flow_run(
+            session,
+            context.flow_run.id,
+            ServerFlowRun.model_construct(deployment_id=deployment.id),
+        )
+        await session.commit()
+
+        return context.flow_run.id
+
+    async def _create_deployment_backed_flow_run(
+        self,
+        prefect_client: PrefectClient,
+        suspension_flow: Flow[Any, Any],
+    ):
+        flow_id = await prefect_client.create_flow(suspension_flow)
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name=f"flow-run-suspension-{uuid.uuid4()}",
+        )
+        return await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+    async def _run_suspension_boundary_flow(
+        self,
+        prefect_client: PrefectClient,
+        suspension_flow: Flow[Any, Any],
+        engine_type: Literal["sync", "async"],
+    ) -> UUID:
+        flow_run = await self._create_deployment_backed_flow_run(
+            prefect_client, suspension_flow
+        )
+
+        with pytest.raises(Pause):
+            if engine_type == "sync":
+                run_flow_sync(suspension_flow, flow_run=flow_run)
+            else:
+                await run_flow_async(suspension_flow, flow_run=flow_run)
+
+        return flow_run.id
+
     async def test_suspended_flow_runs_do_not_block_execution(
         self, prefect_client, deployment, session
     ):
@@ -2400,7 +2962,6 @@ class TestSuspendFlowRun:
         with pytest.raises(RuntimeError, match="Cannot suspend subflows."):
             await main_flow()
 
-    @pytest.mark.xfail(reason="Brittle caused by 5xx from API")
     async def test_suspend_flow_run_by_id(self, prefect_client, deployment, session):
         flow_run_id = None
         task_completions = 0
@@ -2456,6 +3017,611 @@ class TestSuspendFlowRun:
         state = flow_run.state
         assert state.is_paused(), state
         assert state.name == "Suspended"
+
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_pre_start_suspension_stops_before_running(
+        self,
+        prefect_client: PrefectClient,
+        engine_type: Literal["sync", "async"],
+    ):
+        flow_ran = False
+
+        if engine_type == "sync":
+
+            @flow(name=f"test_pre_start_suspension_{uuid.uuid4()}")
+            def suspendable_flow():
+                nonlocal flow_ran
+                flow_ran = True
+        else:
+
+            @flow(name=f"test_pre_start_suspension_{uuid.uuid4()}")
+            async def suspendable_flow():
+                nonlocal flow_ran
+                flow_ran = True
+
+        flow_run = await self._create_deployment_backed_flow_run(
+            prefect_client, suspendable_flow
+        )
+        await prefect_client.set_flow_run_state(
+            flow_run.id, states.Suspended(), force=True
+        )
+
+        with pytest.raises(Pause):
+            if engine_type == "sync":
+                run_flow_sync(suspendable_flow, flow_run=flow_run)
+            else:
+                await run_flow_async(suspendable_flow, flow_run=flow_run)
+
+        assert not flow_ran
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_paused(), flow_run.state
+        assert flow_run.state.name == "Suspended"
+
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_begin_run_rechecks_suspension_before_running(
+        self,
+        prefect_client: PrefectClient,
+        sync_prefect_client: SyncPrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+        engine_type: Literal["sync", "async"],
+    ):
+        flow_ran = False
+        suspended_state = states.Suspended()
+
+        def suspend_during_flow_run_name_resolution(
+            flow: Flow[Any, Any], parameters: dict[str, Any]
+        ) -> str:
+            _ = flow, parameters
+            flow_run_context = FlowRunContext.get()
+            assert flow_run_context
+            flow_run_id = flow_run_context.flow_run.id
+            sync_prefect_client.set_flow_run_state(
+                flow_run_id,
+                suspended_state,
+                force=True,
+            )
+            assert mark_flow_run_suspension_requested(flow_run_id, suspended_state)
+            return "suspended-before-running"
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.resolve_custom_flow_run_name",
+            suspend_during_flow_run_name_resolution,
+        )
+
+        if engine_type == "sync":
+
+            @flow(
+                name=f"test_begin_run_rechecks_suspension_before_running_{uuid.uuid4()}",
+                flow_run_name="custom-name",
+            )
+            def suspendable_flow():
+                nonlocal flow_ran
+                flow_ran = True
+        else:
+
+            @flow(
+                name=f"test_begin_run_rechecks_suspension_before_running_{uuid.uuid4()}",
+                flow_run_name="custom-name",
+            )
+            async def suspendable_flow():
+                nonlocal flow_ran
+                flow_ran = True
+
+        flow_run = await self._create_deployment_backed_flow_run(
+            prefect_client, suspendable_flow
+        )
+
+        with pytest.raises(Pause):
+            if engine_type == "sync":
+                run_flow_sync(suspendable_flow, flow_run=flow_run)
+            else:
+                await run_flow_async(suspendable_flow, flow_run=flow_run)
+
+        assert not flow_ran
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_paused(), flow_run.state
+        assert flow_run.state.name == "Suspended"
+
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_completion_stops_at_suspension_boundary(
+        self,
+        prefect_client: PrefectClient,
+        engine_type: Literal["sync", "async"],
+    ):
+        task_ran = False
+
+        if engine_type == "sync":
+
+            @task
+            def complete_task_boundary():
+                nonlocal task_ran
+                task_ran = True
+
+            @flow(name=f"test_completion_stops_at_suspension_boundary_{uuid.uuid4()}")
+            def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                complete_task_boundary()
+                suspend_flow_run(flow_run_id=flow_run_id)
+                return "should-not-complete"
+        else:
+
+            @task
+            async def complete_task_boundary():
+                nonlocal task_ran
+                task_ran = True
+
+            @flow(name=f"test_completion_stops_at_suspension_boundary_{uuid.uuid4()}")
+            async def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                await complete_task_boundary()
+                await suspend_flow_run(flow_run_id=flow_run_id)
+                return "should-not-complete"
+
+        flow_run_id = await self._run_suspension_boundary_flow(
+            prefect_client, suspendable_flow, engine_type
+        )
+
+        assert task_ran
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id)
+        assert flow_run.state.is_paused(), flow_run.state
+        assert flow_run.state.name == "Suspended"
+
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_handle_success_rechecks_suspension_before_final_state(
+        self,
+        prefect_client: PrefectClient,
+        sync_prefect_client: SyncPrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+        engine_type: Literal["sync", "async"],
+    ):
+        suspended_state = states.Suspended()
+
+        original_return_value_to_state = flow_engine_module.return_value_to_state
+
+        async def suspend_during_terminal_state_preparation(*args: Any, **kwargs: Any):
+            terminal_state = await original_return_value_to_state(*args, **kwargs)
+            flow_run_context = FlowRunContext.get()
+            assert flow_run_context
+            flow_run_id = flow_run_context.flow_run.id
+            sync_prefect_client.set_flow_run_state(
+                flow_run_id,
+                suspended_state,
+                force=True,
+            )
+            assert mark_flow_run_suspension_requested(flow_run_id, suspended_state)
+            return terminal_state
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.return_value_to_state",
+            suspend_during_terminal_state_preparation,
+        )
+
+        if engine_type == "sync":
+
+            @flow(
+                name=(
+                    "test_handle_success_rechecks_suspension_before_final_state_"
+                    f"{uuid.uuid4()}"
+                )
+            )
+            def suspendable_flow():
+                return "should-not-complete"
+        else:
+
+            @flow(
+                name=(
+                    "test_handle_success_rechecks_suspension_before_final_state_"
+                    f"{uuid.uuid4()}"
+                )
+            )
+            async def suspendable_flow():
+                return "should-not-complete"
+
+        flow_run = await self._create_deployment_backed_flow_run(
+            prefect_client, suspendable_flow
+        )
+
+        with pytest.raises(Pause):
+            if engine_type == "sync":
+                run_flow_sync(suspendable_flow, flow_run=flow_run)
+            else:
+                await run_flow_async(suspendable_flow, flow_run=flow_run)
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_paused(), flow_run.state
+        assert flow_run.state.name == "Suspended"
+
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_handle_exception_rechecks_suspension_before_failed_state(
+        self,
+        prefect_client: PrefectClient,
+        sync_prefect_client: SyncPrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+        engine_type: Literal["sync", "async"],
+    ):
+        suspended_state = states.Suspended()
+
+        original_exception_to_failed_state = (
+            flow_engine_module.exception_to_failed_state
+        )
+
+        async def suspend_during_failed_state_preparation(*args: Any, **kwargs: Any):
+            terminal_state = await original_exception_to_failed_state(*args, **kwargs)
+            flow_run_context = FlowRunContext.get()
+            assert flow_run_context
+            flow_run_id = flow_run_context.flow_run.id
+            sync_prefect_client.set_flow_run_state(
+                flow_run_id,
+                suspended_state,
+                force=True,
+            )
+            assert mark_flow_run_suspension_requested(flow_run_id, suspended_state)
+            return terminal_state
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.exception_to_failed_state",
+            suspend_during_failed_state_preparation,
+        )
+
+        if engine_type == "sync":
+
+            @flow(
+                name=(
+                    "test_handle_exception_rechecks_suspension_before_failed_state_"
+                    f"{uuid.uuid4()}"
+                )
+            )
+            def suspendable_flow():
+                raise ValueError("should pause instead of fail")
+        else:
+
+            @flow(
+                name=(
+                    "test_handle_exception_rechecks_suspension_before_failed_state_"
+                    f"{uuid.uuid4()}"
+                )
+            )
+            async def suspendable_flow():
+                raise ValueError("should pause instead of fail")
+
+        flow_run = await self._create_deployment_backed_flow_run(
+            prefect_client, suspendable_flow
+        )
+
+        with pytest.raises(Pause):
+            if engine_type == "sync":
+                run_flow_sync(suspendable_flow, flow_run=flow_run)
+            else:
+                await run_flow_async(suspendable_flow, flow_run=flow_run)
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_paused(), flow_run.state
+        assert flow_run.state.name == "Suspended"
+
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_exception_stops_at_suspension_boundary(
+        self,
+        prefect_client: PrefectClient,
+        engine_type: Literal["sync", "async"],
+    ):
+        if engine_type == "sync":
+
+            @flow(name=f"test_exception_stops_at_suspension_boundary_{uuid.uuid4()}")
+            def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                suspend_flow_run(flow_run_id=flow_run_id)
+                raise ValueError("should pause instead of fail")
+        else:
+
+            @flow(name=f"test_exception_stops_at_suspension_boundary_{uuid.uuid4()}")
+            async def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                await suspend_flow_run(flow_run_id=flow_run_id)
+                raise ValueError("should pause instead of fail")
+
+        flow_run_id = await self._run_suspension_boundary_flow(
+            prefect_client, suspendable_flow, engine_type
+        )
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id)
+        assert flow_run.state.is_paused(), flow_run.state
+        assert flow_run.state.name == "Suspended"
+
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_timeout_stops_at_suspension_boundary(
+        self,
+        prefect_client: PrefectClient,
+        engine_type: Literal["sync", "async"],
+    ):
+        if engine_type == "sync":
+
+            @flow(
+                name=f"test_timeout_stops_at_suspension_boundary_{uuid.uuid4()}",
+                timeout_seconds=0.5,
+            )
+            def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                suspend_flow_run(flow_run_id=flow_run_id)
+                time.sleep(2)
+        else:
+
+            @flow(
+                name=f"test_timeout_stops_at_suspension_boundary_{uuid.uuid4()}",
+                timeout_seconds=0.5,
+            )
+            async def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                await suspend_flow_run(flow_run_id=flow_run_id)
+                await asyncio.sleep(2)
+
+        flow_run_id = await self._run_suspension_boundary_flow(
+            prefect_client, suspendable_flow, engine_type
+        )
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id)
+        assert flow_run.state.is_paused(), flow_run.state
+        assert flow_run.state.name == "Suspended"
+
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_setup_run_context_marks_refreshed_suspended_state(
+        self,
+        prefect_client: PrefectClient,
+        sync_prefect_client: SyncPrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+        engine_type: Literal["sync", "async"],
+    ):
+        flow_ran = False
+
+        def suspend_after_running(flow_run_id: UUID) -> None:
+            sync_prefect_client.set_flow_run_state(
+                flow_run_id,
+                states.Suspended(),
+                force=True,
+            )
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.observe_flow_run_suspension",
+            lambda *args, **kwargs: nullcontext(),
+        )
+
+        if engine_type == "sync":
+            original_begin_run = FlowRunEngine.begin_run
+
+            def suspend_after_sync_begin_run(engine):
+                state = original_begin_run(engine)
+                suspend_after_running(engine.flow_run.id)
+                return state
+
+            monkeypatch.setattr(
+                FlowRunEngine, "begin_run", suspend_after_sync_begin_run
+            )
+
+            @flow(name=f"test_setup_run_context_marks_suspended_state_{uuid.uuid4()}")
+            def suspendable_flow():
+                nonlocal flow_ran
+                flow_ran = True
+        else:
+            original_begin_run = AsyncFlowRunEngine.begin_run
+
+            async def suspend_after_async_begin_run(engine):
+                state = await original_begin_run(engine)
+                suspend_after_running(engine.flow_run.id)
+                return state
+
+            monkeypatch.setattr(
+                AsyncFlowRunEngine, "begin_run", suspend_after_async_begin_run
+            )
+
+            @flow(name=f"test_setup_run_context_marks_suspended_state_{uuid.uuid4()}")
+            async def suspendable_flow():
+                nonlocal flow_ran
+                flow_ran = True
+
+        flow_run = await self._create_deployment_backed_flow_run(
+            prefect_client, suspendable_flow
+        )
+
+        with pytest.raises(Pause):
+            if engine_type == "sync":
+                run_flow_sync(suspendable_flow, flow_run=flow_run)
+            else:
+                await run_flow_async(suspendable_flow, flow_run=flow_run)
+
+        assert not flow_ran
+
+        flow_run = await prefect_client.read_flow_run(flow_run.id)
+        assert flow_run.state.is_paused(), flow_run.state
+        assert flow_run.state.name == "Suspended"
+
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_task_call_stops_at_suspension_boundary(
+        self,
+        prefect_client: PrefectClient,
+        engine_type: Literal["sync", "async"],
+    ):
+        task_ran = False
+
+        if engine_type == "sync":
+
+            @task
+            def should_not_run():
+                nonlocal task_ran
+                task_ran = True
+
+            @flow(name=f"test_task_call_stops_at_suspension_boundary_{uuid.uuid4()}")
+            def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                suspend_flow_run(flow_run_id=flow_run_id)
+                should_not_run()
+        else:
+
+            @task
+            async def should_not_run():
+                nonlocal task_ran
+                task_ran = True
+
+            @flow(name=f"test_task_call_stops_at_suspension_boundary_{uuid.uuid4()}")
+            async def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                await suspend_flow_run(flow_run_id=flow_run_id)
+                await should_not_run()
+
+        await self._run_suspension_boundary_flow(
+            prefect_client, suspendable_flow, engine_type
+        )
+
+        assert not task_ran
+
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_submit_stops_at_suspension_boundary(
+        self,
+        prefect_client: PrefectClient,
+        engine_type: Literal["sync", "async"],
+    ):
+        task_ran = False
+
+        if engine_type == "sync":
+
+            @task
+            def should_not_run():
+                nonlocal task_ran
+                task_ran = True
+
+            @flow(name=f"test_submit_stops_at_suspension_boundary_{uuid.uuid4()}")
+            def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                suspend_flow_run(flow_run_id=flow_run_id)
+                should_not_run.submit()
+        else:
+
+            @task
+            async def should_not_run():
+                nonlocal task_ran
+                task_ran = True
+
+            @flow(name=f"test_submit_stops_at_suspension_boundary_{uuid.uuid4()}")
+            async def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                await suspend_flow_run(flow_run_id=flow_run_id)
+                should_not_run.submit()
+
+        await self._run_suspension_boundary_flow(
+            prefect_client, suspendable_flow, engine_type
+        )
+
+        assert not task_ran
+
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_map_stops_at_suspension_boundary(
+        self,
+        prefect_client: PrefectClient,
+        engine_type: Literal["sync", "async"],
+    ):
+        task_runs = []
+
+        if engine_type == "sync":
+
+            @task
+            def should_not_run(value: int):
+                task_runs.append(value)
+
+            @flow(name=f"test_map_stops_at_suspension_boundary_{uuid.uuid4()}")
+            def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                suspend_flow_run(flow_run_id=flow_run_id)
+                should_not_run.map([1, 2, 3])
+        else:
+
+            @task
+            async def should_not_run(value: int):
+                task_runs.append(value)
+
+            @flow(name=f"test_map_stops_at_suspension_boundary_{uuid.uuid4()}")
+            async def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                await suspend_flow_run(flow_run_id=flow_run_id)
+                should_not_run.map([1, 2, 3])
+
+        await self._run_suspension_boundary_flow(
+            prefect_client, suspendable_flow, engine_type
+        )
+
+        assert task_runs == []
+
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_apply_async_stops_at_suspension_boundary(
+        self,
+        prefect_client: PrefectClient,
+        engine_type: Literal["sync", "async"],
+    ):
+        if engine_type == "sync":
+
+            @task
+            def should_not_schedule(value: int):
+                return value
+
+            @flow(name=f"test_apply_async_stops_at_suspension_boundary_{uuid.uuid4()}")
+            def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                suspend_flow_run(flow_run_id=flow_run_id)
+                should_not_schedule.apply_async(kwargs={"value": 1})
+        else:
+
+            @task
+            async def should_not_schedule(value: int):
+                return value
+
+            @flow(name=f"test_apply_async_stops_at_suspension_boundary_{uuid.uuid4()}")
+            async def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                await suspend_flow_run(flow_run_id=flow_run_id)
+                should_not_schedule.apply_async(kwargs={"value": 1})
+
+        await self._run_suspension_boundary_flow(
+            prefect_client, suspendable_flow, engine_type
+        )
+
+    @pytest.mark.parametrize("engine_type", ["sync", "async"])
+    async def test_child_flow_stops_at_suspension_boundary(
+        self,
+        prefect_client: PrefectClient,
+        engine_type: Literal["sync", "async"],
+    ):
+        child_ran = False
+
+        if engine_type == "sync":
+
+            @flow(name=f"test_child_flow_boundary_child_{uuid.uuid4()}")
+            def child_flow():
+                nonlocal child_ran
+                child_ran = True
+
+            @flow(name=f"test_child_flow_stops_at_suspension_boundary_{uuid.uuid4()}")
+            def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                suspend_flow_run(flow_run_id=flow_run_id)
+                child_flow()
+        else:
+
+            @flow(name=f"test_child_flow_boundary_child_{uuid.uuid4()}")
+            async def child_flow():
+                nonlocal child_ran
+                child_ran = True
+
+            @flow(name=f"test_child_flow_stops_at_suspension_boundary_{uuid.uuid4()}")
+            async def suspendable_flow():
+                flow_run_id = get_run_context().flow_run.id
+                await suspend_flow_run(flow_run_id=flow_run_id)
+                await child_flow()
+
+        await self._run_suspension_boundary_flow(
+            prefect_client, suspendable_flow, engine_type
+        )
+
+        assert not child_ran
 
     async def test_suspend_can_receive_input(self, deployment, session, prefect_client):
         flow_run_id = None
@@ -2901,6 +4067,135 @@ class TestLoadFlowAndFlowRun:
         assert loaded_flow_run.id == flow_run.id
         assert flow.fn() == "woof!"
 
+    def test_load_flow_from_runtime_entrypoint_converts_plain_function(self, tmp_path):
+        flow_code = """
+        def dog():
+            return "woof!"
+        """
+        fpath = tmp_path / "f.py"
+        fpath.write_text(dedent(flow_code))
+
+        flow = _load_flow_from_runtime_entrypoint(f"{fpath}:dog")
+
+        assert flow.name == "dog"
+        assert flow.fn() == "woof!"
+
+    def test_load_flow_from_runtime_entrypoint_supports_module_path(self, tmp_path):
+        package = tmp_path / "package"
+        package.mkdir()
+        (package / "__init__.py").write_text("")
+        (package / "flows.py").write_text(
+            dedent(
+                """
+                from prefect import flow
+
+                @flow
+                def dog():
+                    return "woof!"
+                """
+            )
+        )
+
+        with tmpchdir(tmp_path):
+            flow = _load_flow_from_runtime_entrypoint("package.flows:dog")
+
+        assert flow.name == "dog"
+        assert flow.fn() == "woof!"
+
+    def test_flow_engine_main_reads_flow_run_id_from_env(self, monkeypatch):
+        flow_run_id = uuid.uuid4()
+        captured: dict[str, object] = {}
+
+        def run_flow_from_runtime_entrypoint(flow_run_id_arg, entrypoint):
+            captured["flow_run_id"] = flow_run_id_arg
+            captured["entrypoint"] = entrypoint
+
+        monkeypatch.setenv("PREFECT__FLOW_RUN_ID", str(flow_run_id))
+        monkeypatch.setattr(
+            "prefect.flow_engine._run_flow_from_runtime_entrypoint",
+            run_flow_from_runtime_entrypoint,
+        )
+
+        assert _main(["package.flows:dog"]) == 0
+        assert captured == {
+            "flow_run_id": flow_run_id,
+            "entrypoint": "package.flows:dog",
+        }
+
+    @pytest.mark.parametrize("argv", [[], ["one", "two"]])
+    def test_flow_engine_main_requires_entrypoint_argument(self, monkeypatch, argv):
+        run_flow_from_runtime_entrypoint = MagicMock()
+        monkeypatch.setenv("PREFECT__FLOW_RUN_ID", str(uuid.uuid4()))
+        monkeypatch.setattr(
+            "prefect.flow_engine._run_flow_from_runtime_entrypoint",
+            run_flow_from_runtime_entrypoint,
+        )
+
+        assert _main(argv) == 1
+        run_flow_from_runtime_entrypoint.assert_not_called()
+
+    @pytest.mark.parametrize("flow_run_id", [None, "not-a-uuid"])
+    def test_flow_engine_main_requires_flow_run_id_env(self, monkeypatch, flow_run_id):
+        run_flow_from_runtime_entrypoint = MagicMock()
+        if flow_run_id is None:
+            monkeypatch.delenv("PREFECT__FLOW_RUN_ID", raising=False)
+        else:
+            monkeypatch.setenv("PREFECT__FLOW_RUN_ID", flow_run_id)
+        monkeypatch.setattr(
+            "prefect.flow_engine._run_flow_from_runtime_entrypoint",
+            run_flow_from_runtime_entrypoint,
+        )
+
+        assert _main(["package.flows:dog"]) == 1
+        run_flow_from_runtime_entrypoint.assert_not_called()
+
+    def test_run_flow_from_runtime_entrypoint_runs_loaded_flow(
+        self, monkeypatch, flow_run
+    ):
+        loaded_flow = MagicMock()
+        run_logger = MagicMock()
+        events: list[object] = []
+
+        @contextmanager
+        def run_metrics(flow_run_arg, flow_arg):
+            events.append(("metrics-enter", flow_run_arg, flow_arg))
+            yield
+            events.append("metrics-exit")
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.configure_from_env",
+            lambda: events.append("configure"),
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine.load_flow_run", lambda flow_run_id: flow_run
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine._load_flow_from_runtime_entrypoint",
+            lambda entrypoint: loaded_flow,
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine.flow_run_logger",
+            lambda flow_run: run_logger,
+        )
+        monkeypatch.setattr("prefect.flow_engine.RunMetrics", run_metrics)
+        monkeypatch.setattr(
+            "prefect.flow_engine.run_flow",
+            lambda flow, flow_run, error_logger: "run-result",
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine._drive_run_flow_result",
+            lambda flow, run_result: events.append(("drive", flow, run_result)),
+        )
+
+        _run_flow_from_runtime_entrypoint(flow_run.id, "package.flows:dog")
+
+        assert events == [
+            "configure",
+            ("metrics-enter", flow_run, loaded_flow),
+            ("drive", loaded_flow, "run-result"),
+            "metrics-exit",
+        ]
+
     async def test_load_flow_from_script_with_module_level_sync_compatible_call(
         self, prefect_client: PrefectClient, tmp_path
     ):
@@ -2935,7 +4230,11 @@ class TestConcurrencyRelease:
     async def test_timeout_concurrency_slot_released_sync(
         self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
     ):
-        @flow(timeout_seconds=1)
+        # Use a generous timeout so that the watcher thread does not fire
+        # before `run_context` reaches its `yield` while under heavy CI load
+        # (the heartbeat-thread setup happens inside the timeout scope and
+        # can take a non-trivial amount of time on contended runners).
+        @flow(timeout_seconds=2)
         def expensive_flow():
             with concurrency(concurrency_limit_v2.name):
                 # Use a time-bounded busy loop instead of time.sleep()
@@ -2956,7 +4255,7 @@ class TestConcurrencyRelease:
     async def test_timeout_concurrency_slot_released_async(
         self, concurrency_limit_v2: ConcurrencyLimitV2, prefect_client: PrefectClient
     ):
-        @flow(timeout_seconds=1)
+        @flow(timeout_seconds=2)
         async def expensive_flow():
             async with aconcurrency(concurrency_limit_v2.name):
                 await asyncio.sleep(10)
@@ -3032,6 +4331,7 @@ class TestRunFlowInSubprocess:
 
         def fake_cloudpickle_wrapped_call(fn: Any, **kwargs: Any) -> MagicMock:
             captured["wrapped_env"] = kwargs["env"]
+            captured["remove_env"] = kwargs["remove_env"]
             return MagicMock(args=(b"payload",))
 
         monkeypatch.setattr(
@@ -3060,10 +4360,69 @@ class TestRunFlowInSubprocess:
             "PREFECT__CONTROL_PORT": "4200",
             "PREFECT__CONTROL_TOKEN": "deadbeef",
         }
+        assert captured["remove_env"] == set()
         assert captured["wrapped_env"] == {
             "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
             "UNRELATED": "value",
         }
+
+    def test_run_flow_in_subprocess_marks_none_env_values_for_removal(
+        self,
+        engine_type: Literal["sync", "async"],
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        captured: dict[str, Any] = {}
+
+        @flow(name=f"clear_env_wrapper_{uuid.uuid4()}")
+        def wrapper_target():
+            return None
+
+        class _FakeProcess:
+            def __init__(self, *, target: Any, args: tuple[Any, ...]) -> None:
+                captured["target"] = target
+                captured["args"] = args
+                self.exitcode = None
+
+            def start(self) -> None:
+                captured["started"] = True
+
+        class _FakeContext:
+            def Process(self, *, target: Any, args: tuple[Any, ...]) -> _FakeProcess:
+                return _FakeProcess(target=target, args=args)
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.multiprocessing.get_context",
+            lambda method: _FakeContext(),
+        )
+
+        def fake_cloudpickle_wrapped_call(fn: Any, **kwargs: Any) -> MagicMock:
+            captured["wrapped_env"] = kwargs["env"]
+            captured["remove_env"] = kwargs["remove_env"]
+            return MagicMock(args=(b"payload",))
+
+        monkeypatch.setattr(
+            "prefect.flow_engine.cloudpickle_wrapped_call",
+            fake_cloudpickle_wrapped_call,
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine.get_current_settings",
+            lambda: MagicMock(to_environment_variables=MagicMock(return_value={})),
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine.os.environ",
+            {"PREFECT__DEPLOYMENT_NAME": "stale-deployment"},
+        )
+
+        process = run_flow_in_subprocess(
+            wrapper_target,
+            env={"PREFECT__DEPLOYMENT_NAME": None},
+        )
+
+        assert isinstance(process, _FakeProcess)
+        assert captured["wrapped_env"] == {
+            "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false"
+        }
+        assert captured["remove_env"] == {"PREFECT__DEPLOYMENT_NAME"}
 
     async def test_with_params(self, engine_type: Literal["sync", "async"]):
         if engine_type == "sync":
