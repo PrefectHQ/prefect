@@ -930,7 +930,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
         """
         image_pull_policy = configuration._determine_image_pull_policy()
 
-        if image_pull_policy is ImagePullPolicy.ALWAYS:
+        if image_pull_policy in (ImagePullPolicy.ALWAYS, ImagePullPolicy.ALWAYS_IF_POSSIBLE):
             return True
         elif image_pull_policy is ImagePullPolicy.NEVER:
             return False
