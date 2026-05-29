@@ -281,7 +281,7 @@ class CredentialsBlockResource:
             partial(self._iam_client.list_access_keys, UserName=self._user_name)
         )
         return any(
-            metadata["AccessKeyId"] == access_key_id
+            metadata["AccessKeyId"] == access_key_id and metadata["Status"] == "Active"
             for metadata in access_keys.get("AccessKeyMetadata", [])
         )
 

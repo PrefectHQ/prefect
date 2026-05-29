@@ -332,6 +332,20 @@ class TestCredentialsBlockResource:
 
         assert needs_provisioning
 
+    async def test_requires_provisioning_with_inactive_block(
+        self, credentials_block_resource, existing_credentials_block
+    ):
+        iam_client = boto3.client("iam")
+        iam_client.update_access_key(
+            UserName="prefect-ecs-user",
+            AccessKeyId=existing_credentials_block["access_key_id"],
+            Status="Inactive",
+        )
+
+        needs_provisioning = await credentials_block_resource.requires_provisioning()
+
+        assert needs_provisioning
+
     @pytest.mark.usefixtures("existing_iam_user", "register_block_types")
     async def test_provision(self, prefect_client, credentials_block_resource):
         advance_mock = MagicMock()
@@ -401,6 +415,48 @@ class TestCredentialsBlockResource:
         iam_client.delete_access_key(
             UserName="prefect-ecs-user",
             AccessKeyId=existing_credentials_block["access_key_id"],
+        )
+
+        base_job_template = {
+            "variables": {
+                "type": "object",
+                "properties": {"aws_credentials": {}},
+            }
+        }
+
+        credentials_block_resource = CredentialsBlockResource(
+            user_name="prefect-ecs-user",
+            block_document_name="work-pool-aws-credentials",
+        )
+        await credentials_block_resource.provision(
+            base_job_template=base_job_template,
+            advance=advance_mock,
+            client=prefect_client,
+        )
+        block_document = await prefect_client.read_block_document_by_name(
+            "work-pool-aws-credentials", "aws-credentials"
+        )
+
+        assert block_document.id == existing_credentials_block["block_document_id"]
+        assert (
+            block_document.data["aws_access_key_id"]
+            != existing_credentials_block["access_key_id"]
+        )
+        assert base_job_template["variables"]["properties"]["aws_credentials"] == {
+            "default": {"$ref": {"block_document_id": str(block_document.id)}},
+        }
+
+        assert advance_mock.call_count == 2
+
+    async def test_provision_refreshes_inactive_block(
+        self, prefect_client, existing_credentials_block
+    ):
+        advance_mock = MagicMock()
+        iam_client = boto3.client("iam")
+        iam_client.update_access_key(
+            UserName="prefect-ecs-user",
+            AccessKeyId=existing_credentials_block["access_key_id"],
+            Status="Inactive",
         )
 
         base_job_template = {
