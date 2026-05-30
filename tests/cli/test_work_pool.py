@@ -11,7 +11,10 @@ import pytest
 import readchar
 
 from prefect import flow as flow_decorator
-from prefect.cli.work_pool import _result_storage_block_name, work_pool_storage_configure_app
+from prefect.cli.work_pool import (
+    _result_storage_block_name,
+    work_pool_storage_configure_app,
+)
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import (
     BlockSchemaCreate,
