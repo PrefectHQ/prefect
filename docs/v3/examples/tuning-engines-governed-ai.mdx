@@ -1,0 +1,385 @@
+---
+title: Governed AI Workflows with Tuning Engines
+description: Coordinate governed AI calls with Prefect deployments, retries, concurrency limits, result persistence, and trace correlation.
+icon: shield-check
+keywords: ["ai", "llm", "governance", "traces", "concurrency", "deployments"]
+---
+
+
+{/*
+This page is automatically generated via the `generate_example_pages.py` script. Any changes to this page will be overwritten.
+*/}
+<a href="https://github.com/PrefectHQ/prefect/blob/main/examples/tuning_engines_governed_ai.py" target="_blank">View on GitHub</a>
+
+
+This example shows how to use Prefect as the workflow runtime while routing model calls through
+Tuning Engines for policy enforcement, usage tracking, and trace correlation.
+
+Prefect owns the orchestration concerns:
+
+- task retries and timeouts around flaky model calls
+- global concurrency limits for provider spend and rate control
+- persisted task results for reruns and debugging
+- deployments, schedules, workers, and flow-run observability
+
+Tuning Engines owns the AI control-plane concerns:
+
+- a single OpenAI-compatible inference endpoint
+- tenant policy, guardrails, approvals, and model routing
+- model/tool/agent/skill traces correlated by `run_id` and `request_id`
+- cost and latency analytics outside of Prefect
+
+## Setup
+
+```bash
+uv add prefect httpx pydantic
+
+export TE_INFERENCE_KEY="sk-te-..."
+export TE_MODEL="gpt-4o-mini"
+
+# Optional. Defaults are shown here.
+export TE_INFERENCE_BASE="https://api.tuningengines.com/v1"
+export TE_API_BASE="https://app.tuningengines.com"
+export TE_TRACE_KEY="$TE_INFERENCE_KEY"
+
+# Create a Prefect global concurrency limit to cap simultaneous governed model calls.
+prefect gcl create te-model-calls --limit 4
+```
+
+Run locally:
+
+```bash
+python examples/tuning_engines_governed_ai.py
+```
+
+Or serve it as a deployment:
+
+```bash
+prefect deploy examples/tuning_engines_governed_ai.py:governed_ai_campaign
+prefect deployment run 'governed-ai-campaign/tuning-engines-governed-ai'
+```
+
+```python
+from __future__ import annotations
+
+import hashlib
+import os
+import uuid
+from typing import Any
+
+import httpx
+from pydantic import BaseModel, Field
+
+from prefect import flow, get_run_logger, task
+from prefect.concurrency.sync import concurrency
+
+TE_INFERENCE_BASE = os.getenv("TE_INFERENCE_BASE", "https://api.tuningengines.com/v1")
+TE_API_BASE = os.getenv("TE_API_BASE", "https://app.tuningengines.com")
+TE_MODEL = os.getenv("TE_MODEL", "gpt-4o-mini")
+
+
+```
+
+## Structured Work Units
+
+Keep workflow inputs and task outputs structured. That makes Prefect parameters,
+persisted results, logs, and reruns much easier to inspect.
+
+```python
+class CampaignRequest(BaseModel):
+    """Business input for the governed AI workflow."""
+
+    topic: str = Field(default="Reduce AI gateway latency without weakening policy")
+    audiences: list[str] = Field(default_factory=lambda: ["executives", "engineers"])
+    tone: str = Field(default="clear and practical")
+
+
+class PromptJob(BaseModel):
+    """One governed model call to execute."""
+
+    audience: str
+    prompt: str
+
+    @property
+    def prompt_hash(self) -> str:
+        return hashlib.sha256(self.prompt.encode("utf-8")).hexdigest()
+
+
+class ModelCallResult(BaseModel):
+    """Safe summary of a model response."""
+
+    audience: str
+    request_id: str
+    model: str
+    status: str
+    output_preview: str
+    latency_ms: int | None = None
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    total_tokens: int | None = None
+    approval_id: str | None = None
+
+
+def _new_id(prefix: str) -> str:
+    return f"{prefix}_{uuid.uuid4().hex}"
+
+
+def _model_to_dict(model: BaseModel) -> dict[str, Any]:
+    if hasattr(model, "model_dump"):
+        return model.model_dump()
+    return model.dict()
+
+
+def _secret(name: str) -> str:
+    value = os.getenv(name)
+    if not value:
+        raise RuntimeError(f"Set {name} before running this example.")
+    return value
+
+
+```
+
+## Build Prompts as a Retriable Task
+
+Prompt construction is deterministic, but keeping it as a task gives Prefect a durable record of
+which work units were generated for each flow run.
+
+```python
+@task(name="build-prompt-jobs", retries=1, persist_result=True)
+def build_prompt_jobs(request: CampaignRequest) -> list[PromptJob]:
+    return [
+        PromptJob(
+            audience=audience,
+            prompt=(
+                f"Write a {request.tone} briefing for {audience}. "
+                f"Topic: {request.topic}. "
+                "Return three bullets and one measurable next step."
+            ),
+        )
+        for audience in request.audiences
+    ]
+
+
+```
+
+## Governed Model Call
+
+This task demonstrates three Prefect features that matter for AI workflows:
+
+- `retries` and `retry_delay_seconds` for transient provider or network failures
+- `timeout_seconds` so a stuck call does not hold the flow forever
+- a global concurrency limit so several deployments can share one AI budget/rate cap
+
+The request sends `run_id` and `request_id` to Tuning Engines so model traces, policy decisions,
+approvals, and usage records can be correlated with the Prefect flow run.
+
+```python
+@task(
+    name="call-governed-model",
+    retries=3,
+    retry_delay_seconds=[5, 20, 60],
+    timeout_seconds=120,
+    persist_result=True,
+)
+def call_governed_model(job: PromptJob, run_id: str) -> ModelCallResult:
+    logger = get_run_logger()
+    request_id = _new_id("req")
+    inference_key = _secret("TE_INFERENCE_KEY")
+
+    payload = {
+        "model": TE_MODEL,
+        "messages": [{"role": "user", "content": job.prompt}],
+        "metadata": {
+            "run_id": run_id,
+            "request_id": request_id,
+            "runtime": "prefect",
+            "workflow": "governed-ai-campaign",
+            "resource": {"type": "model", "name": TE_MODEL},
+        },
+    }
+
+    headers = {
+        "Authorization": f"Bearer {inference_key}",
+        "Content-Type": "application/json",
+        "X-TE-Run-ID": run_id,
+        "X-TE-Request-ID": request_id,
+    }
+
+    with concurrency("te-model-calls", occupy=1):
+        response = httpx.post(
+            f"{TE_INFERENCE_BASE.rstrip('/')}/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=90,
+        )
+
+    if response.status_code == 409:
+        approval_payload = response.json()
+        approval_id = approval_payload.get("approval_id") or approval_payload.get("id")
+        logger.warning("Tuning Engines requires approval for request %s", request_id)
+        return ModelCallResult(
+            audience=job.audience,
+            request_id=request_id,
+            model=TE_MODEL,
+            status="approval_required",
+            output_preview=approval_payload.get("message", "approval required")[:500],
+            latency_ms=int(response.elapsed.total_seconds() * 1000),
+            approval_id=approval_id,
+        )
+    response.raise_for_status()
+
+    body = response.json()
+    content = body["choices"][0]["message"].get("content", "")
+    usage = body.get("usage") or {}
+
+    logger.info("completed governed model call %s for %s", request_id, job.audience)
+    return ModelCallResult(
+        audience=job.audience,
+        request_id=request_id,
+        model=body.get("model", TE_MODEL),
+        status="completed",
+        output_preview=content[:500],
+        latency_ms=int(response.elapsed.total_seconds() * 1000),
+        prompt_tokens=usage.get("prompt_tokens"),
+        completion_tokens=usage.get("completion_tokens"),
+        total_tokens=usage.get("total_tokens"),
+    )
+
+
+```
+
+## Trace Correlation
+
+This task records a small, redacted trace event after the model calls complete. It deliberately
+avoids storing raw prompts, secrets, or provider credentials. Tuning Engines can then connect the
+Prefect run to policy decisions, approvals, usage, cost, and latency.
+
+```python
+@task(name="record-tuning-engines-trace", retries=2, retry_delay_seconds=[10, 30])
+def record_tuning_engines_trace(
+    run_id: str,
+    jobs: list[PromptJob],
+    results: list[ModelCallResult],
+) -> str:
+    trace_key = os.getenv("TE_TRACE_KEY") or _secret("TE_INFERENCE_KEY")
+
+    events: list[dict[str, Any]] = []
+    for job, result in zip(jobs, results):
+        events.append(
+            {
+                "type": "model.call",
+                "request_id": result.request_id,
+                "status": result.status,
+                "metadata": {
+                    "runtime": "prefect",
+                    "audience": job.audience,
+                    "resource": {"type": "model", "name": result.model},
+                    "latency_ms": result.latency_ms,
+                    "tokens": {
+                        "prompt": result.prompt_tokens,
+                        "completion": result.completion_tokens,
+                        "total": result.total_tokens,
+                    },
+                    "approval_id": result.approval_id,
+                    "decision": {
+                        "proposal_hash": job.prompt_hash,
+                        "proposal_summary": (
+                            f"Generated briefing prompt for {job.audience}"
+                        ),
+                        "final_action": "model_call_completed",
+                        "outcome_label": result.status,
+                        "redaction_version": "example-v1",
+                    },
+                },
+            }
+        )
+
+    response = httpx.post(
+        f"{TE_API_BASE.rstrip('/')}/api/v1/traces",
+        headers={
+            "Authorization": f"Bearer {trace_key}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "run_id": run_id,
+            "runtime": "prefect",
+            "events": events,
+        },
+        timeout=30,
+    )
+    response.raise_for_status()
+    return "trace_recorded"
+
+
+@task(name="summarize-campaign", persist_result=True)
+def summarize_campaign(results: list[ModelCallResult]) -> dict[str, Any]:
+    completed = [result for result in results if result.status == "completed"]
+    total_tokens = sum(result.total_tokens or 0 for result in completed)
+    return {
+        "completed": len(completed),
+        "total_tokens": total_tokens,
+        "audiences": [result.audience for result in completed],
+        "previews": {result.audience: result.output_preview for result in completed},
+    }
+
+
+```
+
+## Main Flow
+
+`call_governed_model.submit(...)` lets Prefect run the audience-specific calls concurrently while
+the global concurrency limit still caps total AI traffic across all flow runs and deployments.
+
+```python
+@flow(name="governed-ai-campaign", log_prints=True, persist_result=True)
+def governed_ai_campaign(
+    request: CampaignRequest | None = None,
+) -> dict[str, Any]:
+    logger = get_run_logger()
+    request = request or CampaignRequest()
+    run_id = _new_id("prefect_run")
+
+    jobs = build_prompt_jobs(request)
+    futures = [call_governed_model.submit(job, run_id) for job in jobs]
+    results = [future.result() for future in futures]
+
+    trace_state = record_tuning_engines_trace(run_id, jobs, results)
+    summary = summarize_campaign(results)
+
+    logger.info("Tuning Engines run id: %s", run_id)
+    return {
+        "run_id": run_id,
+        "trace_state": trace_state,
+        "summary": summary,
+    }
+
+
+if __name__ == "__main__":
+    governed_ai_campaign.serve(
+        name="tuning-engines-governed-ai",
+        tags=["ai", "governance", "tuning-engines"],
+    )
+
+```
+
+## What to Look For
+
+In Prefect, inspect:
+
+- task retries and timeout behavior for `call-governed-model`
+- persisted `ModelCallResult` objects for reruns and debugging
+- the `te-model-calls` global concurrency limit
+- deployment runs tagged with `ai`, `governance`, and `tuning-engines`
+
+In Tuning Engines, inspect:
+
+- model usage, latency, token counts, and cost for each request
+- policy decisions and approval events linked to the same `run_id`
+- trace events using normalized event types such as `model.call`
+- redacted decision metadata for proposal, final action, and outcome signals
+
+## Extending the Pattern
+
+Add more Prefect tasks for MCP tool calls, agent calls, or skill invocations, and pass the same
+`run_id` and a fresh `request_id` to each Tuning Engines request. Prefect remains the runtime
+system of record, while Tuning Engines gives the AI calls a shared governance and trace layer.
