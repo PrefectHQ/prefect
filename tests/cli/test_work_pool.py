@@ -11,7 +11,7 @@ import pytest
 import readchar
 
 from prefect import flow as flow_decorator
-from prefect.cli.work_pool import work_pool_storage_configure_app
+from prefect.cli.work_pool import _result_storage_block_name, work_pool_storage_configure_app
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import (
     BlockSchemaCreate,
@@ -1304,7 +1304,7 @@ class TestStorageConfigure:
                 }
             }
             block_document = await prefect_client.read_block_document_by_name(
-                name=f"default-{work_pool.name}-result-storage",
+                name=_result_storage_block_name(work_pool.name),
                 block_type_slug="s3-bucket",
             )
             assert block_document.data == {
@@ -1689,7 +1689,7 @@ class TestStorageConfigure:
                 }
             }
             storage = await prefect_client.read_block_document_by_name(
-                name=f"default-{work_pool.name}-result-storage",
+                name=_result_storage_block_name(work_pool.name),
                 block_type_slug="s3-bucket",
             )
             assert storage.data == {
@@ -1726,7 +1726,7 @@ class TestStorageConfigure:
                 expected_code=0,
             )
             storage = await prefect_client.read_block_document_by_name(
-                name=f"default-{work_pool.name}-result-storage",
+                name=_result_storage_block_name(work_pool.name),
                 block_type_slug="s3-bucket",
             )
             assert storage.data["credentials"] == aws_credentials.data
@@ -1747,7 +1747,7 @@ class TestStorageConfigure:
             )
 
             storage = await prefect_client.read_block_document_by_name(
-                name=f"default-{work_pool.name}-result-storage",
+                name=_result_storage_block_name(work_pool.name),
                 block_type_slug="s3-bucket",
             )
             assert storage.data["credentials"] == {}
@@ -1801,7 +1801,7 @@ class TestStorageConfigure:
                 ],
             )
             storage = await prefect_client.read_block_document_by_name(
-                name=f"default-{work_pool.name}-result-storage",
+                name=_result_storage_block_name(work_pool.name),
                 block_type_slug="s3-bucket",
             )
             assert storage.data["credentials"] == aws_credentials.data
@@ -1834,7 +1834,7 @@ class TestStorageConfigure:
                 ],
             )
             storage = await prefect_client.read_block_document_by_name(
-                name=f"default-{work_pool.name}-result-storage",
+                name=_result_storage_block_name(work_pool.name),
                 block_type_slug="s3-bucket",
             )
             assert storage.data["credentials"] == {}
@@ -1884,7 +1884,7 @@ class TestStorageConfigure:
                 }
             }
             block_document = await prefect_client.read_block_document_by_name(
-                name=f"default-{work_pool.name}-result-storage",
+                name=_result_storage_block_name(work_pool.name),
                 block_type_slug="gcs-bucket",
             )
             assert block_document.data == {
@@ -1991,7 +1991,7 @@ class TestStorageConfigure:
                 }
             }
             storage = await prefect_client.read_block_document_by_name(
-                name=f"default-{work_pool.name}-result-storage",
+                name=_result_storage_block_name(work_pool.name),
                 block_type_slug="gcs-bucket",
             )
             assert storage.data == {
@@ -2028,7 +2028,7 @@ class TestStorageConfigure:
                 expected_code=0,
             )
             storage = await prefect_client.read_block_document_by_name(
-                name=f"default-{work_pool.name}-result-storage",
+                name=_result_storage_block_name(work_pool.name),
                 block_type_slug="gcs-bucket",
             )
             assert storage.data["gcp_credentials"] == gcs_credentials.data
@@ -2049,7 +2049,7 @@ class TestStorageConfigure:
             )
 
             storage = await prefect_client.read_block_document_by_name(
-                name=f"default-{work_pool.name}-result-storage",
+                name=_result_storage_block_name(work_pool.name),
                 block_type_slug="gcs-bucket",
             )
             assert storage.data["gcp_credentials"] == {}
@@ -2103,7 +2103,7 @@ class TestStorageConfigure:
                 ],
             )
             storage = await prefect_client.read_block_document_by_name(
-                name=f"default-{work_pool.name}-result-storage",
+                name=_result_storage_block_name(work_pool.name),
                 block_type_slug="gcs-bucket",
             )
             assert storage.data["gcp_credentials"] == gcs_credentials.data
@@ -2136,7 +2136,7 @@ class TestStorageConfigure:
                 ],
             )
             storage = await prefect_client.read_block_document_by_name(
-                name=f"default-{work_pool.name}-result-storage",
+                name=_result_storage_block_name(work_pool.name),
                 block_type_slug="gcs-bucket",
             )
             assert storage.data["gcp_credentials"] == {}
@@ -2186,7 +2186,7 @@ class TestStorageConfigure:
                 }
             }
             block_document = await prefect_client.read_block_document_by_name(
-                name=f"default-{work_pool.name}-result-storage",
+                name=_result_storage_block_name(work_pool.name),
                 block_type_slug="azure-blob-storage-container",
             )
             assert block_document.data == {
@@ -2271,7 +2271,7 @@ class TestStorageConfigure:
 
             # Simulate a user adding base_folder to the auto-created block.
             storage = await prefect_client.read_block_document_by_name(
-                name=f"default-{work_pool.name}-result-storage",
+                name=_result_storage_block_name(work_pool.name),
                 block_type_slug="azure-blob-storage-container",
             )
             await prefect_client.update_block_document(
@@ -2288,7 +2288,7 @@ class TestStorageConfigure:
             )
 
             storage = await prefect_client.read_block_document_by_name(
-                name=f"default-{work_pool.name}-result-storage",
+                name=_result_storage_block_name(work_pool.name),
                 block_type_slug="azure-blob-storage-container",
             )
             assert storage.data["base_folder"] == "custom/prefix"
