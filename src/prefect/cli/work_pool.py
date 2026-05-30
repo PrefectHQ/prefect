@@ -7,7 +7,9 @@ Manage work pools.
 from __future__ import annotations
 
 import datetime
+import hashlib
 import json
+import re
 import textwrap
 from typing import Annotated, Any, Optional
 
@@ -153,6 +155,19 @@ def _build_launcher(
         exit_with_error(f"{executable_option} cannot be empty.")
 
     return [executable, *(args or [])]
+
+
+def _result_storage_block_name(work_pool_name: str) -> str:
+    """Return a block-document-friendly name derived from a work pool name.
+
+    Block document names must be lowercase.  A 6-character hex suffix derived
+    from the original name ensures that case-variant pools (e.g. ``Prod`` and
+    ``prod``) each get a distinct block document rather than silently sharing
+    one.
+    """
+    slug = re.sub(r"[^a-z0-9]+", "-", work_pool_name.lower()).strip("-") or "pool"
+    suffix = hashlib.md5(work_pool_name.encode()).hexdigest()[:6]
+    return f"default-{slug}-{suffix}-result-storage"
 
 
 def _resolve_launcher_override(
@@ -1379,7 +1394,7 @@ async def storage_configure_s3(
                     " --aws-credentials-block-name to use default credentials."
                 )
 
-        result_storage_block_document_name = f"default-{work_pool_name.lower()}-result-storage"
+        result_storage_block_document_name = _result_storage_block_name(work_pool_name)
         # Always set `credentials` explicitly (a $ref for a named block, or
         # an empty dict for ambient auth). Setting it on every run clears any
         # stale credential reference from a prior --aws-credentials-block-name
@@ -1518,7 +1533,7 @@ async def storage_configure_gcs(
                     " --gcp-credentials-block-name to use default credentials."
                 )
 
-        result_storage_block_document_name = f"default-{work_pool_name.lower()}-result-storage"
+        result_storage_block_document_name = _result_storage_block_name(work_pool_name)
         # Always set `gcp_credentials` explicitly (a $ref for a named block,
         # or an empty dict for ambient auth). Setting it on every run clears
         # any stale credential reference from a prior
@@ -1652,7 +1667,7 @@ async def storage_configure_azure_blob_storage(
                 " `prefect block create azure-blob-storage-credentials`."
             )
 
-        result_storage_block_document_name = f"default-{work_pool_name.lower()}-result-storage"
+        result_storage_block_document_name = _result_storage_block_name(work_pool_name)
         block_data = {
             "container_name": container,
             "credentials": {
