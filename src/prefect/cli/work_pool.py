@@ -161,8 +161,8 @@ def _result_storage_block_name(work_pool_name: str) -> str:
     """Return a block-document-friendly name derived from a work pool name.
 
     Block document names must be lowercase.  A 6-character hex suffix derived
-    from the original name ensures that case-variant pools (e.g. ``Prod`` and
-    ``prod``) each get a distinct block document rather than silently sharing
+    from the original name ensures that case-variant pools (e.g. 'Prod' and
+    'prod') each get a distinct block document rather than silently sharing
     one.
     """
     slug = re.sub(r"[^a-z0-9]+", "-", work_pool_name.lower()).strip("-") or "pool"
