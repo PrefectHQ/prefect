@@ -1,7 +1,8 @@
 import asyncio
 import random
+from contextlib import asynccontextmanager
 from datetime import timedelta
-from typing import Callable, List, Union
+from typing import AsyncGenerator, Callable, List, Union
 from unittest import mock
 from uuid import UUID, uuid4
 
@@ -10,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.events import actions, triggers
 from prefect.server.events.models import automations
+from prefect.server.events.pipeline import EventsPipeline
 from prefect.server.events.schemas.automations import (
     Automation,
     EventTrigger,
@@ -978,3 +980,84 @@ async def test_same_event_in_expect_and_after_proactively_fires_with_for_each_th
                     id=uuid4(),
                 ).receive()
             )
+
+
+async def test_zombie_flow_detection_does_not_fire_when_flow_completes(
+    act: mock.AsyncMock,
+    frozen_time: DateTime,
+    zombie_flow_detection_automation: Automation,
+):
+    assert isinstance(zombie_flow_detection_automation.trigger, EventTrigger)
+    flow_run_id = uuid4()
+    heartbeat = Event(
+        occurred=frozen_time,
+        event="prefect.flow-run.heartbeat",
+        resource={"prefect.resource.id": f"prefect.flow-run.{flow_run_id}"},
+        id=uuid4(),
+    ).receive()
+    completed = Event(
+        occurred=frozen_time + timedelta(seconds=30),
+        event="prefect.flow-run.Completed",
+        resource={"prefect.resource.id": f"prefect.flow-run.{flow_run_id}"},
+        id=uuid4(),
+    ).receive()
+
+    await triggers.reactive_evaluation(heartbeat)
+    await triggers.reactive_evaluation(completed)
+    act.assert_not_awaited()
+
+    await triggers.proactive_evaluation(
+        zombie_flow_detection_automation.trigger,
+        frozen_time + timedelta(seconds=121),
+    )
+
+    act.assert_not_awaited()
+
+
+async def test_events_pipeline_routes_events_to_trigger_evaluation(
+    act: mock.AsyncMock,
+    frozen_time: DateTime,
+    zombie_flow_detection_automation: Automation,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    assert isinstance(zombie_flow_detection_automation.trigger, EventTrigger)
+
+    @asynccontextmanager
+    async def noop_consumer(**kwargs) -> AsyncGenerator:
+        async def handler(message):
+            pass
+
+        yield handler
+
+    @asynccontextmanager
+    async def noop_handler(**kwargs) -> AsyncGenerator:
+        async def handler(message):
+            pass
+
+        yield handler
+
+    monkeypatch.setattr(
+        "prefect.server.services.task_run_recorder.consumer", noop_consumer
+    )
+    monkeypatch.setattr(
+        "prefect.server.events.services.event_persister.create_handler", noop_handler
+    )
+
+    flow_run_id = uuid4()
+    heartbeat = Event(
+        occurred=frozen_time,
+        event="prefect.flow-run.heartbeat",
+        resource={"prefect.resource.id": f"prefect.flow-run.{flow_run_id}"},
+        id=uuid4(),
+    )
+
+    pipeline = EventsPipeline()
+    await pipeline.process_events([heartbeat])
+    act.assert_not_awaited()
+
+    await triggers.proactive_evaluation(
+        zombie_flow_detection_automation.trigger,
+        frozen_time + timedelta(seconds=121),
+    )
+
+    act.assert_awaited_once()
