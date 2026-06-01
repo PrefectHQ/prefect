@@ -241,6 +241,14 @@ class TestCreate:
 
     @pytest.mark.usefixtures("mock_collection_registry")
     def test_create_with_unsupported_type(self, monkeypatch):
+        # Pin the local worker registry so types leaked by other tests
+        # (e.g. UnsupportedWorker in test_base_worker.py) cannot make
+        # "unsupported" a valid type.
+        monkeypatch.setattr(
+            BaseWorker,
+            "get_all_available_worker_types",
+            staticmethod(lambda: ["process"]),
+        )
         invoke_and_assert(
             ["work-pool", "create", "my-pool", "--type", "unsupported"],
             expected_code=1,
