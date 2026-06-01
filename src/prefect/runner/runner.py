@@ -1701,7 +1701,7 @@ class Runner:
             ):
                 return self._deployment_registry.get_flow(flow_run.deployment_id)
             return await load_flow_from_flow_run(
-                self._client, flow_run, storage_base_path=str(self._tmp_dir)
+                flow_run, storage_base_path=str(self._tmp_dir)
             )
 
         self._hook_runner = HookRunner(resolve_flow=_resolve_flow_for_hooks)
