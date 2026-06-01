@@ -426,6 +426,15 @@ def test_inspecting_a_block_malformed_slug():
     )
 
 
+def test_inspecting_a_block_slug_with_multiple_slashes():
+    # Slugs with more than one "/" must not crash with ValueError (regression for
+    # "too many values to unpack"). The CLI should handle them without an unhandled exception.
+    invoke_and_assert(
+        ["block", "inspect", "json/my-block/extra-segment"],
+        expected_code=1,
+    )
+
+
 async def test_deleting_a_block():
     await system.Secret(value="don't delete me please").save("pleasedonterase")
 
