@@ -1379,7 +1379,9 @@ async def storage_configure_s3(
                     " --aws-credentials-block-name to use default credentials."
                 )
 
-        result_storage_block_document_name = f"default-{work_pool_name.lower()}-result-storage"
+        result_storage_block_document_name = (
+            f"default-{work_pool_name.lower()}-result-storage"
+        )
         # Always set `credentials` explicitly (a $ref for a named block, or
         # an empty dict for ambient auth). Setting it on every run clears any
         # stale credential reference from a prior --aws-credentials-block-name
@@ -1518,7 +1520,9 @@ async def storage_configure_gcs(
                     " --gcp-credentials-block-name to use default credentials."
                 )
 
-        result_storage_block_document_name = f"default-{work_pool_name.lower()}-result-storage"
+        result_storage_block_document_name = (
+            f"default-{work_pool_name.lower()}-result-storage"
+        )
         # Always set `gcp_credentials` explicitly (a $ref for a named block,
         # or an empty dict for ambient auth). Setting it on every run clears
         # any stale credential reference from a prior
@@ -1652,7 +1656,9 @@ async def storage_configure_azure_blob_storage(
                 " `prefect block create azure-blob-storage-credentials`."
             )
 
-        result_storage_block_document_name = f"default-{work_pool_name.lower()}-result-storage"
+        result_storage_block_document_name = (
+            f"default-{work_pool_name.lower()}-result-storage"
+        )
         block_data = {
             "container_name": container,
             "credentials": {
