@@ -488,6 +488,21 @@ class TestWorkspaceEnvironmentPythonpathFiltering:
         resolved_site = str(Path(site_packages).resolve())
         assert resolved_site in pythonpath_entries
 
+    def test_filters_stdlib_from_inherited_pythonpath(self, tmp_path: Path) -> None:
+        import sysconfig
+
+        workspace = _prepared_workspace(tmp_path)
+        stdlib = sysconfig.get_paths()["stdlib"]
+        workspace.sys_path = ["/app"]
+        workspace.environment["PYTHONPATH"] = os.pathsep.join([stdlib, "/extra"])
+
+        env = workspace_environment(workspace)
+        pythonpath_entries = env["PYTHONPATH"].split(os.pathsep)
+
+        resolved_stdlib = str(Path(stdlib).resolve())
+        assert resolved_stdlib not in pythonpath_entries
+        assert "/extra" in pythonpath_entries
+
     def test_preserves_stdlib_in_workspace_sys_path(self, tmp_path: Path) -> None:
         import sysconfig
 

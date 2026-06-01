@@ -184,7 +184,7 @@ def workspace_environment(workspace: PreparedWorkspace) -> dict[str, str]:
     existing_pythonpath = environment.get("PYTHONPATH")
     if existing_pythonpath:
         for entry in existing_pythonpath.split(os.pathsep):
-            if entry and entry not in pythonpath_entries:
+            if entry and entry not in pythonpath_entries and not _is_stdlib_path(entry):
                 pythonpath_entries.append(entry)
 
     environment["PYTHONPATH"] = os.pathsep.join(pythonpath_entries)
