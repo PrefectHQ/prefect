@@ -16,9 +16,17 @@ returns the cached result rather than calling the model a second time.
 
 ## Enable AI log summaries
 
-AI log summaries are controlled by an account-level setting that an account administrator must
-enable before summaries are generated. While the setting is disabled, no summaries are produced
-and the model is never called.
+AI log summaries depend on AI features being enabled for your account. An account administrator
+enables them under **Settings > Account Settings > Controls** by turning on the **Marvin AI**
+toggle in the **Data processing** section. This setting is account-wide and applies to all
+workspaces.
+
+While AI features are disabled, no summaries are produced and the model is never called.
+
+<Note>
+AI-enabled features may use third-party models. See the **Marvin AI** setting for links to
+Prefect's data processing addendum and subprocessor documentation.
+</Note>
 
 ## View a summary in the UI
 
