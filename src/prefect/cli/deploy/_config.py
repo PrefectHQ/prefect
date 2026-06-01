@@ -355,7 +355,7 @@ def _filter_matching_deploy_config(
 ) -> list[dict[str, Any]]:
     matching_deployments: list[dict[str, Any]] = []
     if "/" in name:
-        flow_name, deployment_name = name.split("/")
+        flow_name, deployment_name = name.split("/", 1)
         flow_name = flow_name.replace("-", "_")
         matching_deployments = [
             deploy_config
