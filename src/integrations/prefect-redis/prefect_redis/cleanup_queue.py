@@ -156,6 +156,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                     )
                     if existing is not None:
                         await pipe.reset()
+                        await self._wake_dispatchers_if_visible(existing)
                         return existing
 
                     existing_message_id = await pipe.get(idempotency_key_name)
@@ -181,6 +182,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         )
                         if existing is not None:
                             await pipe.reset()
+                            await self._wake_dispatchers_if_visible(existing)
                             return existing
 
                         pipe.multi()
@@ -245,25 +247,30 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
     async def _visible_message_ids(self, work_pool_id: UUID) -> AsyncIterator[str]:
         batch_size = max(self._VISIBLE_SCAN_BATCH_SIZE, 1)
         visible_key = self._visible_key(work_pool_id)
-        start = 0
+        inspected: set[str] = set()
+        window_size = batch_size
 
         while True:
+            # Always scan from the head of the sorted set. The visible set can shrink
+            # while candidates are inspected, so rank-offset pagination can skip work.
             raw_message_ids = await self._client().zrange(
                 visible_key,
-                start,
-                start + batch_size - 1,
+                0,
+                window_size - 1,
             )
             if not raw_message_ids:
                 return
 
             for raw_message_id in raw_message_ids:
                 message_id = _decode_redis_value(raw_message_id)
+                if message_id in inspected:
+                    continue
+                inspected.add(message_id)
                 yield message_id
-                if await self._client().zscore(visible_key, message_id) is not None:
-                    start += 1
 
-            if len(raw_message_ids) < batch_size:
+            if len(raw_message_ids) < window_size:
                 return
+            window_size += batch_size
 
     async def ack(
         self,
@@ -850,6 +857,15 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
             return self._message_from_mapping(fields)
 
         return None
+
+    async def _wake_dispatchers_if_visible(self, message: CleanupQueueMessage) -> None:
+        if (
+            await self._client().zscore(
+                self._visible_key(message.work_pool_id), str(message.message_id)
+            )
+            is not None
+        ):
+            await self.wake_dispatchers(message.work_pool_id)
 
     def _stage_ack(
         self,

@@ -137,6 +137,31 @@ async def test_redis_message_ids_are_scoped_by_work_pool(
     assert second_reservation.work_pool_id == second_work_pool_id
 
 
+async def test_redis_duplicate_enqueue_wakes_when_existing_message_is_visible(
+    queue: WorkerCleanupQueue,
+) -> None:
+    work_pool_id = uuid4()
+    first = await queue.enqueue(
+        message_id=uuid4(),
+        idempotency_key="flow-run-cleanup",
+        work_pool_id=work_pool_id,
+        kind=CANCELLING_TIMEOUT_TEARDOWN,
+        target=_target(),
+    )
+    wakeup_sequence = await queue.read_wakeup_sequence(work_pool_id)
+
+    duplicate = await queue.enqueue(
+        message_id=uuid4(),
+        idempotency_key="flow-run-cleanup",
+        work_pool_id=work_pool_id,
+        kind=CANCELLING_TIMEOUT_TEARDOWN,
+        target=_target(),
+    )
+
+    assert duplicate.message_id == first.message_id
+    assert await queue.read_wakeup_sequence(work_pool_id) == wakeup_sequence + 1
+
+
 async def test_redis_concurrent_reserve_attempts_create_one_reservation(
     queue: WorkerCleanupQueue,
 ) -> None:
@@ -235,6 +260,52 @@ async def test_redis_reserve_does_not_skip_after_cleaning_stale_visible_entries(
 
     assert reservation is not None
     assert reservation.message_id == eligible_message_id
+
+
+async def test_redis_reserve_does_not_skip_when_visible_set_shrinks_between_batches(
+    queue: WorkerCleanupQueue,
+    redis: Redis,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(WorkerCleanupQueue, "_VISIBLE_SCAN_BATCH_SIZE", 1)
+    work_pool_id = uuid4()
+    preferred_work_queue_id = uuid4()
+    unmatched_message_id = UUID(int=1)
+    preferred_message_id = UUID(int=2)
+
+    await _enqueue_message(
+        queue,
+        work_pool_id=work_pool_id,
+        message_id=unmatched_message_id,
+        idempotency_key="unmatched-cleanup",
+        work_queue_id=uuid4(),
+    )
+    await _enqueue_message(
+        queue,
+        work_pool_id=work_pool_id,
+        message_id=preferred_message_id,
+        idempotency_key="preferred-cleanup",
+        work_queue_id=preferred_work_queue_id,
+    )
+
+    original_zscore = redis.zscore
+
+    async def zscore_and_remove_seen_member(name: str, value: str) -> float | None:
+        score = await original_zscore(name, value)
+        if value == str(unmatched_message_id) and score is not None:
+            await redis.zrem(name, value)
+        return score
+
+    monkeypatch.setattr(redis, "zscore", zscore_and_remove_seen_member)
+
+    reservation = await queue.reserve(
+        work_pool_id=work_pool_id,
+        preferred_work_queue_ids=[preferred_work_queue_id],
+        allow_fallback_to_any_queue=False,
+    )
+
+    assert reservation is not None
+    assert reservation.message_id == preferred_message_id
 
 
 async def test_redis_wait_for_wakeup_observes_shared_sequence(redis: Redis) -> None:
