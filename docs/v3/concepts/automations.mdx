@@ -203,6 +203,8 @@ Note that this example also illustrates the ability to use Jinja features such a
 [control structures](https://jinja.palletsprojects.com/en/3.1.x/templates/#list-of-control-structures) when
 templating notifications.
 
+For more on the common use case of passing an upstream flow run's parameters to the flow run invoked by the automation, see the [Passing parameters to a flow run](/v3/how-to-guides/automations/access-parameters-in-templates/) guide.
+
 ### AI log summary
 
 <Note>The `flow_run_log_summary` variable is only available in Prefect Cloud.</Note>
@@ -234,8 +236,6 @@ A few details to keep in mind:
 - **Graceful fallback.** If the summary cannot be generated (for example, during a model
   provider outage), or the triggering event has no associated flow run, the variable renders an
   empty string rather than failing the notification.
-
-For more on the common use case of passing an upstream flow run's parameters to the flow run invoked by the automation, see the [Passing parameters to a flow run](/v3/how-to-guides/automations/access-parameters-in-templates/) guide.
 
 ## Further reading
 
