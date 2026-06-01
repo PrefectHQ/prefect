@@ -148,46 +148,17 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                     await pipe.watch(
                         keys.message, keys.dead, keys.acked, idempotency_key_name
                     )
-                    existing = await self._read_existing_message_from_keys(
+                    existing, retry_enqueue = await self._resolve_existing_enqueue(
                         pipe=pipe,
-                        keys=(keys.message, keys.dead, keys.acked),
+                        keys=keys,
+                        idempotency_key_name=idempotency_key_name,
                         idempotency_key=idempotency_key,
                         work_pool_id=work_pool_id,
                     )
                     if existing is not None:
-                        await pipe.reset()
                         await self._wake_dispatchers_if_visible(existing)
                         return existing
-
-                    existing_message_id = await pipe.get(idempotency_key_name)
-                    if existing_message_id is not None:
-                        existing_message_id_string = _decode_redis_value(
-                            existing_message_id
-                        )
-                        existing_scoped_keys = self._scoped_message_keys(
-                            work_pool_id=work_pool_id,
-                            message_id=existing_message_id_string,
-                        )
-                        existing_keys = (
-                            existing_scoped_keys.message,
-                            existing_scoped_keys.dead,
-                            existing_scoped_keys.acked,
-                        )
-                        await pipe.watch(*existing_keys)
-                        existing = await self._read_existing_message_from_keys(
-                            pipe=pipe,
-                            keys=existing_keys,
-                            idempotency_key=idempotency_key,
-                            work_pool_id=work_pool_id,
-                        )
-                        if existing is not None:
-                            await pipe.reset()
-                            await self._wake_dispatchers_if_visible(existing)
-                            return existing
-
-                        pipe.multi()
-                        pipe.delete(idempotency_key_name)
-                        await pipe.execute()
+                    if retry_enqueue:
                         continue
 
                     pipe.multi()
@@ -370,8 +341,10 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                 else:
                     dead_lettered.append(payload)
 
-        for message in redelivered:
-            await self.wake_dispatchers(message.work_pool_id)
+        for redelivered_work_pool_id in {
+            message.work_pool_id for message in redelivered
+        }:
+            await self.wake_dispatchers(redelivered_work_pool_id)
 
         return CleanupQueueLeaseExpiryResult(
             redelivered=redelivered,
@@ -620,8 +593,8 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                             message_fields=message_fields,
                             current_time=current_time,
                             current_ms=current_ms,
-                            wake_work_pool_id=work_pool_id,
                         )
+                        self._stage_wakeup(pipe=pipe, work_pool_id=work_pool_id)
                         await pipe.execute()
                         await self._notify_local_dispatchers()
                         return self._operation_result(
@@ -677,8 +650,8 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                             message_fields=message_fields,
                             current_time=current_time,
                             current_ms=current_ms,
-                            wake_work_pool_id=work_pool_id,
                         )
+                        self._stage_wakeup(pipe=pipe, work_pool_id=work_pool_id)
                         await pipe.execute()
                         await self._notify_local_dispatchers()
                         return self._operation_result(
@@ -713,6 +686,54 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                     continue
 
         raise RuntimeError("Redis cleanup queue operation transaction failed.")
+
+    async def _resolve_existing_enqueue(
+        self,
+        *,
+        pipe: Pipeline,
+        keys: _ScopedMessageKeys,
+        idempotency_key_name: str,
+        idempotency_key: str,
+        work_pool_id: UUID,
+    ) -> tuple[CleanupQueueMessage | None, bool]:
+        existing = await self._read_existing_message_from_keys(
+            pipe=pipe,
+            keys=(keys.message, keys.dead, keys.acked),
+            idempotency_key=idempotency_key,
+            work_pool_id=work_pool_id,
+        )
+        if existing is not None:
+            await pipe.reset()
+            return existing, False
+
+        existing_message_id = await pipe.get(idempotency_key_name)
+        if existing_message_id is None:
+            return None, False
+
+        existing_message_keys = self._scoped_message_keys(
+            work_pool_id=work_pool_id,
+            message_id=_decode_redis_value(existing_message_id),
+        )
+        existing_keys = (
+            existing_message_keys.message,
+            existing_message_keys.dead,
+            existing_message_keys.acked,
+        )
+        await pipe.watch(*existing_keys)
+        existing = await self._read_existing_message_from_keys(
+            pipe=pipe,
+            keys=existing_keys,
+            idempotency_key=idempotency_key,
+            work_pool_id=work_pool_id,
+        )
+        if existing is not None:
+            await pipe.reset()
+            return existing, False
+
+        pipe.multi()
+        pipe.delete(idempotency_key_name)
+        await pipe.execute()
+        return None, True
 
     async def _expire_lease_candidate(
         self,
@@ -914,7 +935,6 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         message_fields: Mapping[str, str],
         current_time: DateTime,
         current_ms: int,
-        wake_work_pool_id: UUID | None = None,
     ) -> CleanupQueueMessage:
         message_id = message_fields["message_id"]
         updated_fields = {
@@ -925,9 +945,10 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         pipe.zrem(keys.reserved, message_id)
         pipe.hset(keys.message, mapping=updated_fields)
         pipe.zadd(keys.visible, {message_id: current_ms})
-        if wake_work_pool_id is not None:
-            pipe.incr(self._wakeup_key(wake_work_pool_id))
         return self._message_from_mapping(updated_fields)
+
+    def _stage_wakeup(self, *, pipe: Pipeline, work_pool_id: UUID | str) -> None:
+        pipe.incr(self._wakeup_key(work_pool_id))
 
     def _stage_renew(
         self,
