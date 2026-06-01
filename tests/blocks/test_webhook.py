@@ -82,6 +82,22 @@ class TestWebhook:
         with pytest.raises(ValueError, match=f"is not a valid URL.*{reason}"):
             await insecure_webhook.call(payload="some payload")
 
+    async def test_webhook_rejects_restricted_urls_by_default(self):
+        webhook = Webhook(url="https://169.254.169.254")
+
+        with pytest.raises(ValueError, match="is not a valid URL.*private address"):
+            await webhook.call(payload="some payload")
+
+    async def test_webhook_can_opt_in_to_private_urls(self, monkeypatch):
+        send_mock = AsyncMock()
+        monkeypatch.setattr("httpx.AsyncClient.request", send_mock)
+
+        await Webhook(
+            url="https://169.254.169.254", allow_private_urls=True
+        ).call(payload="some payload")
+
+        send_mock.assert_called_once()
+
     async def test_webhook_sends(self, monkeypatch):
         send_mock = AsyncMock()
         monkeypatch.setattr("httpx.AsyncClient.request", send_mock)

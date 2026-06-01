@@ -113,8 +113,8 @@ class AppriseNotificationBlock(AbstractAppriseNotificationBlock, ABC):
         examples=["https://hooks.example.com/XXX"],
     )
     allow_private_urls: bool = Field(
-        default=True,
-        description="Whether to allow notifications to private URLs. Defaults to True.",
+        default=False,
+        description="Whether to allow notifications to private URLs. Defaults to False.",
     )
 
     async def anotify(
@@ -942,8 +942,8 @@ class CustomWebhookNotificationBlock(NotificationBlock):
     )
 
     allow_private_urls: bool = Field(
-        default=True,
-        description="Whether to allow notifications to private URLs. Defaults to True.",
+        default=False,
+        description="Whether to allow notifications to private URLs. Defaults to False.",
     )
 
     secrets: SecretDict = Field(

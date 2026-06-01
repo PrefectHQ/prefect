@@ -1016,13 +1016,23 @@ class TestCustomWebhookRestrictedUrls:
         with pytest.raises(ValueError, match=f"is not a valid URL.*{reason}"):
             await block.notify(subject="test", body="test")
 
-    async def test_allows_private_urls_by_default(self):
+    async def test_rejects_private_urls_by_default(self):
+        block = CustomWebhookNotificationBlock(
+            name="test",
+            url="https://127.0.0.1/webhook",
+            json_data={"msg": "{{body}}"},
+        )
+        with pytest.raises(ValueError, match="is not a valid URL.*private address"):
+            await block.notify(subject="test", body="test")
+
+    async def test_allows_private_urls_when_enabled(self):
         with respx.mock(using="httpx") as xmock:
             xmock.post("https://127.0.0.1/webhook")
             block = CustomWebhookNotificationBlock(
                 name="test",
                 url="https://127.0.0.1/webhook",
                 json_data={"msg": "{{body}}"},
+                allow_private_urls=True,
             )
             await block.notify(subject="test", body="test")
             assert xmock.calls.call_count == 1

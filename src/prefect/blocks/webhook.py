@@ -53,8 +53,8 @@ class Webhook(Block):
         description="A dictionary of headers to send with the webhook request.",
     )
     allow_private_urls: bool = Field(
-        default=True,
-        description="Whether to allow notifications to private URLs. Defaults to True.",
+        default=False,
+        description="Whether to allow notifications to private URLs. Defaults to False.",
     )
     verify: bool = Field(
         default=True,
