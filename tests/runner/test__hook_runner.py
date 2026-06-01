@@ -203,6 +203,68 @@ class TestHookRunnerRunCrashedHooks:
         assert "on_crashed hooks" in caplog.text
 
 
+class TestRunnerResolveFlowForHooksRegression:
+    """Regression tests for https://github.com/PrefectHQ/prefect/issues/22175.
+
+    The `_resolve_flow_for_hooks` closure built in `Runner.__aenter__`
+    previously passed `self._client` as a positional argument to
+    `load_flow_from_flow_run` (decorated with `@client_injector`).
+    The decorator unconditionally prepends its own client, shifting all
+    args so `flow_run` receives a `PrefectClient` instead of a
+    `FlowRun`, causing `AttributeError`.
+    """
+
+    async def test_crashed_hooks_fire_with_runner_resolve_closure(self):
+        """The fixed closure omits self._client so @client_injector
+        injects the client and the positional args stay correct."""
+        crashed_hook = AsyncMock()
+        crashed_hook.__name__ = "on_crashed_hook"
+        flow = _make_flow(on_crashed_hooks=[crashed_hook])
+
+        flow_run = _make_flow_run()
+        flow_run.deployment_id = uuid4()
+        state = _make_state(name="Crashed", is_crashed=True)
+
+        mock_load = AsyncMock(return_value=flow)
+
+        with patch.object(flows_mod, "load_flow_from_flow_run", mock_load):
+            # Reproduce the fixed Runner closure pattern: no explicit client
+            async def resolve_flow(fr):
+                return await flows_mod.load_flow_from_flow_run(
+                    fr, storage_base_path="/tmp"
+                )
+
+            runner = HookRunner(resolve_flow=resolve_flow)
+            await runner.run_crashed_hooks(flow_run, state)
+
+        mock_load.assert_awaited_once_with(flow_run, storage_base_path="/tmp")
+        crashed_hook.assert_awaited_once_with(flow=flow, flow_run=flow_run, state=state)
+
+    async def test_explicit_client_positional_arg_breaks_crashed_hooks(self, caplog):
+        """Demonstrate the original bug: passing a client as the first positional
+        arg to load_flow_from_flow_run causes @client_injector to shift the
+        flow_run into the wrong parameter, triggering AttributeError."""
+        flow_run = _make_flow_run()
+        state = _make_state(name="Crashed", is_crashed=True)
+
+        fake_client = MagicMock()
+
+        with patch(
+            "prefect.client.utilities.get_or_create_client",
+            return_value=(MagicMock(), True),
+        ):
+            # Reproduce the OLD (broken) Runner pattern — double client
+            async def resolve_flow(fr):
+                return await load_flow_from_flow_run(fake_client, fr)
+
+            runner = HookRunner(resolve_flow=resolve_flow)
+
+            with caplog.at_level(logging.WARNING, logger="prefect.flow_runs"):
+                await runner.run_crashed_hooks(flow_run, state)
+
+        assert "on_crashed hooks" in caplog.text
+
+
 class TestCancellationHooksWithClientInjector:
     """Regression tests for https://github.com/PrefectHQ/prefect/issues/12714.
 
