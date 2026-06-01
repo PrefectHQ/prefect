@@ -138,38 +138,6 @@ In addition to its native properties, each object includes an `id` along with `c
 
 The `flow_run|ui_url` token returns the URL to view the flow run in the UI.
 
-### AI log summary
-
-<Note>The `flow_run_log_summary` variable is only available in Prefect Cloud.</Note>
-
-For automations triggered by a flow run event, the `flow_run_log_summary` variable renders an
-AI-generated, one-line summary of the run's logs (for example,
-`Failed due to a KeyError in the extract_data task`). This lets on-call recipients see what
-happened inline instead of clicking through to the UI.
-
-```
-Flow run {{ flow_run.name }} entered state {{ flow_run.state.name }}.
-
-{%- if flow_run_log_summary %}
-AI summary: {{ flow_run_log_summary }}
-{%- endif %}
-```
-
-Wrapping the variable in an `{%- if flow_run_log_summary %}` block keeps the notification tidy when
-the summary is empty (the feature is disabled, the model provider is unavailable, or the event
-has no associated flow run), so recipients do not see a dangling `AI summary:` label.
-
-A few details to keep in mind:
-
-- **Opt in by referencing the variable.** The default notification body does not include it. The
-  summary, and the underlying call to generate it, is only produced when your custom message
-  references `{{ flow_run_log_summary }}`.
-- **Account setting.** AI log summaries must be enabled for your account. When the feature is
-  disabled, the variable renders an empty string and no summary is generated.
-- **Graceful fallback.** If the summary cannot be generated (for example, during a model
-  provider outage), or the triggering event has no associated flow run, the variable renders an
-  empty string rather than failing the notification.
-
 Use `{{ value | tojson }}` to serialize any template variable to a JSON string. The filter handles Pydantic model objects such as `flow_run`, `deployment`, and `event` directly — for example, `{{ flow_run | tojson(indent=2) }}` renders the full flow run as formatted JSON. The optional `indent` argument controls pretty-printing.
 
 Here's an example relevant to a flow run state-based notification:
@@ -234,6 +202,38 @@ Related Resources:
 Note that this example also illustrates the ability to use Jinja features such as iterator and for loop
 [control structures](https://jinja.palletsprojects.com/en/3.1.x/templates/#list-of-control-structures) when
 templating notifications.
+
+### AI log summary
+
+<Note>The `flow_run_log_summary` variable is only available in Prefect Cloud.</Note>
+
+For automations triggered by a flow run event, the `flow_run_log_summary` variable renders an
+AI-generated, one-line summary of the run's logs (for example,
+`Failed due to a KeyError in the extract_data task`). This lets on-call recipients see what
+happened inline instead of clicking through to the UI.
+
+```
+Flow run {{ flow_run.name }} entered state {{ flow_run.state.name }}.
+
+{%- if flow_run_log_summary %}
+AI summary: {{ flow_run_log_summary }}
+{%- endif %}
+```
+
+Wrapping the variable in an `{%- if flow_run_log_summary %}` block keeps the notification tidy when
+the summary is empty (the feature is disabled, the model provider is unavailable, or the event
+has no associated flow run), so recipients do not see a dangling `AI summary:` label.
+
+A few details to keep in mind:
+
+- **Opt in by referencing the variable.** The default notification body does not include it. The
+  summary, and the underlying call to generate it, is only produced when your custom message
+  references `{{ flow_run_log_summary }}`.
+- **Account setting.** AI log summaries must be enabled for your account. When the feature is
+  disabled, the variable renders an empty string and no summary is generated.
+- **Graceful fallback.** If the summary cannot be generated (for example, during a model
+  provider outage), or the triggering event has no associated flow run, the variable renders an
+  empty string rather than failing the notification.
 
 For more on the common use case of passing an upstream flow run's parameters to the flow run invoked by the automation, see the [Passing parameters to a flow run](/v3/how-to-guides/automations/access-parameters-in-templates/) guide.
 
