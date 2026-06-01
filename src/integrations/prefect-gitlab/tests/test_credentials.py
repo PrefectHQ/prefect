@@ -25,6 +25,16 @@ def test_format_git_credentials_personal_access_token():
     assert result == "https://oauth2:my-personal-token@gitlab.com/org/repo.git"
 
 
+def test_format_git_credentials_escapes_personal_access_token():
+    """Test that special characters in personal access tokens are URL-encoded."""
+    credentials = GitLabCredentials(token="my+personal/token=value")
+    result = credentials.format_git_credentials("https://gitlab.com/org/repo.git")
+    assert (
+        result
+        == "https://oauth2:my%2Bpersonal%2Ftoken%3Dvalue@gitlab.com/org/repo.git"
+    )
+
+
 def test_format_git_credentials_deploy_token():
     """Test that deploy tokens (username:token format) are used as-is in URL."""
     credentials = GitLabCredentials(token="deploy-user:deploy-token-value")
@@ -32,11 +42,25 @@ def test_format_git_credentials_deploy_token():
     assert result == "https://deploy-user:deploy-token-value@gitlab.com/org/repo.git"
 
 
+def test_format_git_credentials_escapes_deploy_token_parts():
+    """Test that deploy-token username and token parts are URL-encoded separately."""
+    credentials = GitLabCredentials(token="deploy+user:deploy/token=value")
+    result = credentials.format_git_credentials("https://gitlab.com/org/repo.git")
+    assert result == "https://deploy%2Buser:deploy%2Ftoken%3Dvalue@gitlab.com/org/repo.git"
+
+
 def test_format_git_credentials_already_prefixed():
     """Test that already-prefixed tokens don't get double-prefixed in URL."""
     credentials = GitLabCredentials(token="oauth2:my-token")
     result = credentials.format_git_credentials("https://gitlab.com/org/repo.git")
     assert result == "https://oauth2:my-token@gitlab.com/org/repo.git"
+
+
+def test_format_git_credentials_escapes_already_prefixed_token():
+    """Test that oauth2-prefixed tokens are not double-prefixed but are encoded."""
+    credentials = GitLabCredentials(token="oauth2:my/token=value")
+    result = credentials.format_git_credentials("https://gitlab.com/org/repo.git")
+    assert result == "https://oauth2:my%2Ftoken%3Dvalue@gitlab.com/org/repo.git"
 
 
 def test_format_git_credentials_no_token_raises():

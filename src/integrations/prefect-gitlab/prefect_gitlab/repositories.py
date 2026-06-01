@@ -106,11 +106,7 @@ class GitLabRepository(ReadableDeploymentStorage):
         """
         url_components = urllib.parse.urlparse(self.repository)
         if url_components.scheme in ["https", "http"] and self.credentials is not None:
-            token = self.credentials.token.get_secret_value()
-            updated_components = url_components._replace(
-                netloc=f"oauth2:{token}@{url_components.netloc}"
-            )
-            full_url = urllib.parse.urlunparse(updated_components)
+            full_url = self.credentials.format_git_credentials(self.repository)
         else:
             full_url = self.repository
 
