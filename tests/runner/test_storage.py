@@ -24,7 +24,6 @@ from prefect.runner.storage import (
     RunnerStorage,
     _get_git_clone_error_hint,
     _get_remote_storage_error_hint,
-    _sanitize_git_output,
     create_storage_from_source,
 )
 from prefect.utilities.filesystem import tmpchdir
@@ -1342,35 +1341,6 @@ class TestGitCloneErrorHints:
         repo = GitRepository(url="https://github.com/org/repo.git")
         with pytest.raises(RuntimeError, match="credentials or access token"):
             await repo.pull_code()
-
-    @pytest.mark.parametrize(
-        "raw, expected",
-        [
-            (
-                "fatal: could not read Username for 'https://github.com'",
-                "fatal: could not read Username for 'https://github.com'",
-            ),
-            (
-                "fatal: unable to access 'https://ghp_abc123@github.com/org/repo.git/'",
-                "fatal: unable to access 'https://github.com/org/repo.git/'",
-            ),
-            (
-                "error for https://user:secret@gitlab.com/path and https://tok@example.com/x",
-                "error for https://gitlab.com/path and https://example.com/x",
-            ),
-            ("", ""),
-            ("no urls here", "no urls here"),
-        ],
-    )
-    def test_sanitize_git_output_strips_url_auth(self, raw, expected):
-        assert _sanitize_git_output(raw) == expected
-
-    def test_sanitize_git_output_redacts_extra_secrets(self):
-        text = "remote: token=ghp_abc123 hit rate limit"
-        assert (
-            _sanitize_git_output(text, extra_secrets=["ghp_abc123"])
-            == "remote: token=*** hit rate limit"
-        )
 
     async def test_clone_repo_surfaces_stderr_when_no_hint_matches(self, monkeypatch):
         """When git's stderr doesn't match any known pattern, the raw (sanitized)

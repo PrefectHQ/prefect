@@ -139,6 +139,33 @@ class TestGitLab:
         ]
         assert mock.await_args[0][0][: len(expected_cmd)] == expected_cmd
 
+    async def test_get_directory_redacts_token_in_clone_error(self, monkeypatch):
+        class p:
+            returncode = 1
+
+        async def mock(cmd, stream_output=None, **kwargs):
+            if stream_output:
+                _, err_stream = stream_output
+                err_stream.write(
+                    "fatal: Authentication failed for "
+                    "'https://oauth2:p@ss:word#1@gitlab.com/PrefectHQ/prefect.git/'"
+                )
+            return p()
+
+        monkeypatch.setattr(prefect_gitlab.repositories, "run_process", mock)
+
+        g = GitLabRepository(
+            repository="https://gitlab.com/PrefectHQ/prefect.git",
+            credentials=GitLabCredentials(token=SecretStr("p@ss:word#1")),
+        )
+
+        with pytest.raises(OSError) as exc_info:
+            await g.get_directory()
+
+        message = str(exc_info.value)
+        assert "p@ss:word#1" not in message
+        assert "https://gitlab.com/PrefectHQ/prefect.git/" in message
+
     async def test_cloning_with_custom_depth(self, monkeypatch):
         """Ensure that we can retrieve the whole history, i.e. support true git clone"""  # noqa: E501
 
