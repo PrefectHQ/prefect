@@ -22,7 +22,7 @@ from anyio import run_process
 from pydantic import SecretStr
 
 from prefect._internal.concurrency.api import create_call, from_async
-from prefect._internal.urls import strip_auth_from_url
+from prefect._internal.urls import strip_auth_from_url, strip_auth_from_urls_in_text
 from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.blocks.system import Secret
 from prefect.filesystems import ReadableDeploymentStorage, WritableDeploymentStorage
@@ -499,7 +499,7 @@ class GitRepository:
                 else exc
             )
             safe_url = strip_auth_from_url(self._url)
-            sanitized_stderr = _sanitize_git_output(
+            sanitized_stderr = strip_auth_from_urls_in_text(
                 _decode_stderr(exc),
                 extra_secrets=[parsed_url.password] if parsed_url.password else None,
             )
@@ -1015,29 +1015,6 @@ def _decode_stderr(exc: subprocess.CalledProcessError) -> str:
     if isinstance(exc.stderr, bytes):
         return exc.stderr.decode("utf-8", errors="replace")
     return str(exc.stderr)
-
-
-# Match inline basic-auth creds in URLs (e.g. https://user:token@host/...).
-# The replacement preserves the scheme and host so sanitized output is still
-# readable, but scrubs anything between `://` and the last `@` before the host.
-_URL_AUTH_PATTERN = re.compile(r"(?P<scheme>https?://)[^/\s@]+@", flags=re.IGNORECASE)
-
-
-def _sanitize_git_output(text: str, extra_secrets: Optional[list[str]] = None) -> str:
-    """Strip embedded credentials and caller-supplied secrets from git output.
-
-    Git writes the clone URL back to stderr in many failure modes (e.g. "fatal:
-    could not read Username for 'https://token@github.com'"), so we sanitize
-    before logging or surfacing in error messages. Returns `text` unchanged if
-    nothing needs scrubbing.
-    """
-    if not text:
-        return text
-    sanitized = _URL_AUTH_PATTERN.sub(r"\g<scheme>", text)
-    for secret in extra_secrets or ():
-        if secret:
-            sanitized = sanitized.replace(secret, "***")
-    return sanitized
 
 
 def _get_git_clone_error_hint(exc: subprocess.CalledProcessError) -> str | None:
