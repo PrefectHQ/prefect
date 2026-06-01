@@ -143,21 +143,21 @@ The `flow_run|ui_url` token returns the URL to view the flow run in the UI.
 <Note>The `flow_run_log_summary` variable is only available in Prefect Cloud.</Note>
 
 For automations triggered by a flow run event, the `flow_run_log_summary` token renders an
-AI-generated, one-line explanation of why the run reached its current state (for example,
-`Failed due to a KeyError in the extract_data task`). This lets on-call recipients see the
-likely cause inline instead of clicking through to the UI.
+AI-generated, one-line summary of the run's logs (for example,
+`Failed due to a KeyError in the extract_data task`). This lets on-call recipients see what
+happened inline instead of clicking through to the UI.
 
 ```
 Flow run {{ flow_run.name }} entered state {{ flow_run.state.name }}.
 
 {%- if flow_run_log_summary %}
-Likely cause: {{ flow_run_log_summary }}
+AI summary: {{ flow_run_log_summary }}
 {%- endif %}
 ```
 
 Wrapping the token in an `{%- if flow_run_log_summary %}` block keeps the notification tidy when
 the summary is empty (the feature is disabled, the model provider is unavailable, or the event
-has no associated flow run), so recipients do not see a dangling `Likely cause:` label.
+has no associated flow run), so recipients do not see a dangling `AI summary:` label.
 
 A few details to keep in mind:
 
