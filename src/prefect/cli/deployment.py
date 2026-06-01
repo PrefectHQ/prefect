@@ -12,6 +12,7 @@ import textwrap
 import warnings
 from asyncio import gather
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, Any, Optional, TypedDict
 from uuid import UUID
 
@@ -128,6 +129,74 @@ async def _get_deployment(
         exit_with_error("Only provide a deployed flow's name or id")
 
     return deployment
+
+
+def _schedule_to_yaml(deployment_schedule: DeploymentSchedule) -> dict[str, Any]:
+    """Serialize a deployment schedule into a prefect.yaml-friendly dict.
+
+    `model_dump(mode="json")` handles every schedule type uniformly (interval as
+    seconds, anchor_date as an ISO string, cron/rrule as strings), all of which
+    round-trip cleanly through `prefect.yaml`.
+    """
+    config = {
+        k: v
+        for k, v in deployment_schedule.schedule.model_dump(mode="json").items()
+        if v is not None
+    }
+    config["active"] = deployment_schedule.active
+    return config
+
+
+def _deployment_response_to_yaml(deployment: DeploymentResponse) -> dict[str, Any]:
+    """Convert a server `DeploymentResponse` into a `prefect.yaml` deployment entry.
+
+    The output mirrors the deployment schema accepted by `prefect deploy` so that
+    the result can be pasted into (or written as) a `prefect.yaml` and re-deployed.
+    """
+    entry: dict[str, Any] = {"name": deployment.name}
+
+    if deployment.version is not None:
+        entry["version"] = deployment.version
+    if deployment.tags:
+        entry["tags"] = list(deployment.tags)
+    # `concurrency_limit` on the response is deprecated and always None; the live
+    # value lives on `global_concurrency_limit`. Emit a plain int, or the nested
+    # form when a collision strategy is configured.
+    if deployment.global_concurrency_limit is not None:
+        limit = deployment.global_concurrency_limit.limit
+        if deployment.concurrency_options is not None:
+            entry["concurrency_limit"] = {
+                "limit": limit,
+                "collision_strategy": str(
+                    deployment.concurrency_options.collision_strategy.value
+                ),
+            }
+        else:
+            entry["concurrency_limit"] = limit
+    if deployment.description is not None:
+        entry["description"] = deployment.description
+    entry["entrypoint"] = deployment.entrypoint
+    if deployment.parameters:
+        entry["parameters"] = deployment.parameters
+    if deployment.enforce_parameter_schema is not None:
+        entry["enforce_parameter_schema"] = deployment.enforce_parameter_schema
+    if deployment.paused:
+        entry["paused"] = deployment.paused
+
+    if deployment.work_pool_name is not None:
+        work_pool: dict[str, Any] = {"name": deployment.work_pool_name}
+        if deployment.work_queue_name is not None:
+            work_pool["work_queue_name"] = deployment.work_queue_name
+        if deployment.job_variables:
+            work_pool["job_variables"] = deployment.job_variables
+        entry["work_pool"] = work_pool
+    elif deployment.work_queue_name is not None:
+        entry["work_queue_name"] = deployment.work_queue_name
+
+    if deployment.schedules:
+        entry["schedules"] = [_schedule_to_yaml(s) for s in deployment.schedules]
+
+    return entry
 
 
 # =============================================================================
@@ -272,6 +341,103 @@ async def ls(
             )
 
         _cli.console.print(table)
+
+
+@deployment_app.command()
+@with_cli_exception_handling
+async def export(
+    name: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--name",
+            alias="-n",
+            help=(
+                "A deployed flow's name to export: "
+                "<FLOW_NAME>/<DEPLOYMENT_NAME>. May be provided multiple times."
+            ),
+        ),
+    ] = None,
+    *,
+    all_deployments: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--all",
+            help="Export all deployments on the server.",
+        ),
+    ] = False,
+    output: Annotated[
+        Optional[str],
+        cyclopts.Parameter(
+            "--output",
+            alias="-o",
+            help=(
+                "File to write the exported configuration to. Defaults to stdout "
+                "in non-interactive mode, or prompts for a path interactively."
+            ),
+        ),
+    ] = None,
+):
+    """Export deployment configuration from the server as `prefect.yaml`.
+
+    This is the inverse of `prefect deploy`: instead of turning a `prefect.yaml`
+    into deployments, it reads existing deployments from the server and emits
+    YAML that can be saved and re-deployed.
+
+    Examples:
+        Export a single deployment to stdout:
+        $ prefect deployment export --name my-flow/my-deployment
+
+        Export all deployments to a file:
+        $ prefect deployment export --all --output prefect.yaml
+    """
+    from prefect.cli._app import is_interactive
+    from prefect.cli._prompts import confirm, prompt
+
+    if all_deployments and name:
+        exit_with_error("Provide either --name or --all, not both.")
+    if not all_deployments and not name:
+        exit_with_error("Must provide --name or --all.")
+
+    async with get_client() as client:
+        if all_deployments:
+            deployments = await client.read_deployments()
+        else:
+            deployments = []
+            _assert_deployment_name_format(name)
+            try:
+                deployments.append(await client.read_deployment_by_name(name))
+            except ObjectNotFound:
+                exit_with_error(f"Deployment {name!r} not found!")
+
+    if not deployments:
+        exit_with_error("No deployments found to export.")
+
+    config = {"deployments": [_deployment_response_to_yaml(d) for d in deployments]}
+    rendered = yaml.dump(config, sort_keys=False)
+
+    # determine output destination
+    output_path = output
+    if output_path is None and is_interactive():
+        if confirm(
+            f"Found {len(deployments)} deployment(s). Write to a prefect.yaml file?",
+            default=True,
+        ):
+            output_path = prompt("Output file path", default="prefect.yaml")
+
+    if output_path is None:
+        _cli.console.print(rendered, soft_wrap=True)
+        return
+
+    path = Path(output_path)
+    if (
+        path.exists()
+        and is_interactive()
+        and not confirm(f"{output_path!r} already exists. Overwrite?", default=False)
+    ):
+        exit_with_error("Aborted.")
+
+    path.write_text(rendered)
+    exit_with_success(f"Exported {len(deployments)} deployment(s) to {output_path!r}.")
 
 
 @deployment_app.command()

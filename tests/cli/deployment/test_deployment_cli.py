@@ -1,10 +1,12 @@
 import json
 import sys
 from datetime import timedelta
+from pathlib import Path
 from typing import Any
 from uuid import UUID
 
 import pytest
+import yaml
 
 from prefect import flow
 from prefect.client.orchestration import PrefectClient
@@ -1547,4 +1549,76 @@ class TestDeploymentList:
             ["deployment", "ls", "-o", "xml"],
             expected_code=1,
             expected_output_contains="Only 'json' output format is supported.",
+        )
+
+
+class TestExport:
+    def test_export_single_to_stdout(self, flojo_deployment: DeploymentResponse):
+        result = invoke_and_assert(
+            ["deployment", "export", "--name", "rence-griffith/test-deployment"],
+            expected_code=0,
+            expected_output_contains=[
+                "deployments:",
+                "name: test-deployment",
+                "version: git-commit-hash",
+            ],
+        )
+        parsed = yaml.safe_load(result.stdout)
+        assert len(parsed["deployments"]) == 1
+        entry = parsed["deployments"][0]
+        assert entry["name"] == "test-deployment"
+        assert entry["parameters"] == {"foo": "bar"}
+        assert sorted(entry["tags"]) == ["bar", "foo"]
+        # parameter_openapi_schema is not part of the prefect.yaml schema
+        assert "parameter_openapi_schema" not in entry
+        # schedules round-trip
+        assert entry["schedules"][0]["interval"] == 10.76
+
+    def test_export_all_to_stdout(self, flojo_deployment: DeploymentResponse):
+        result = invoke_and_assert(
+            ["deployment", "export", "--all"],
+            expected_code=0,
+            expected_output_contains=["deployments:", "name: test-deployment"],
+        )
+        parsed = yaml.safe_load(result.stdout)
+        assert any(d["name"] == "test-deployment" for d in parsed["deployments"])
+
+    def test_export_to_file(
+        self, flojo_deployment: DeploymentResponse, tmp_path: "Path"
+    ):
+        out = tmp_path / "prefect.yaml"
+        invoke_and_assert(
+            [
+                "deployment",
+                "export",
+                "--name",
+                "rence-griffith/test-deployment",
+                "--output",
+                str(out),
+            ],
+            expected_code=0,
+            expected_output_contains="Exported 1 deployment(s)",
+        )
+        parsed = yaml.safe_load(out.read_text())
+        assert parsed["deployments"][0]["name"] == "test-deployment"
+
+    def test_export_requires_name_or_all(self):
+        invoke_and_assert(
+            ["deployment", "export"],
+            expected_code=1,
+            expected_output_contains="Must provide --name or --all.",
+        )
+
+    def test_export_rejects_name_and_all(self):
+        invoke_and_assert(
+            ["deployment", "export", "--all", "--name", "foo/bar"],
+            expected_code=1,
+            expected_output_contains="Provide either --name or --all, not both.",
+        )
+
+    def test_export_unknown_deployment(self):
+        invoke_and_assert(
+            ["deployment", "export", "--name", "no/such"],
+            expected_code=1,
+            expected_output_contains="not found",
         )
