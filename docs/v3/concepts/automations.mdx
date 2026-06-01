@@ -150,8 +150,14 @@ likely cause inline instead of clicking through to the UI.
 ```
 Flow run {{ flow_run.name }} entered state {{ flow_run.state.name }}.
 
+{%- if flow_run_log_summary %}
 Likely cause: {{ flow_run_log_summary }}
+{%- endif %}
 ```
+
+Wrapping the token in an `{%- if flow_run_log_summary %}` block keeps the notification tidy when
+the summary is empty (the feature is disabled, the model provider is unavailable, or the event
+has no associated flow run), so recipients do not see a dangling `Likely cause:` label.
 
 A few details to keep in mind:
 
