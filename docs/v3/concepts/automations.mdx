@@ -222,20 +222,9 @@ AI summary: {{ flow_run_log_summary }}
 {%- endif %}
 ```
 
-Wrapping the variable in an `{%- if flow_run_log_summary %}` block keeps the notification tidy when
-the summary is empty (the feature is disabled, the model provider is unavailable, or the event
-has no associated flow run), so recipients do not see a dangling `AI summary:` label.
-
-A few details to keep in mind:
-
-- **Opt in by referencing the variable.** The default notification body does not include it. The
-  summary, and the underlying call to generate it, is only produced when your custom message
-  references `{{ flow_run_log_summary }}`.
-- **Account setting.** AI log summaries must be enabled for your account. When the feature is
-  disabled, the variable renders an empty string and no summary is generated.
-- **Graceful fallback.** If the summary cannot be generated (for example, during a model
-  provider outage), or the triggering event has no associated flow run, the variable renders an
-  empty string rather than failing the notification.
+The variable is opt-in and renders an empty string when the feature is disabled or a summary
+cannot be generated. For setup and behavior details, see the [AI log summaries
+guide](/v3/how-to-guides/ai/flow-run-log-summaries).
 
 ## Further reading
 
