@@ -405,9 +405,12 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
     async def wake_dispatchers(self, work_pool_id: UUID) -> CleanupQueueWakeup:
         sequence = await self._client().incr(self._wakeup_key(work_pool_id))
         wakeup = CleanupQueueWakeup(work_pool_id=work_pool_id, sequence=sequence)
+        await self._notify_local_dispatchers()
+        return wakeup
+
+    async def _notify_local_dispatchers(self) -> None:
         async with self._condition:
             self._condition.notify_all()
-        return wakeup
 
     async def read_wakeup_sequence(self, work_pool_id: UUID) -> int:
         value = await self._client().get(self._wakeup_key(work_pool_id))
@@ -617,9 +620,10 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                             message_fields=message_fields,
                             current_time=current_time,
                             current_ms=current_ms,
+                            wake_work_pool_id=work_pool_id,
                         )
                         await pipe.execute()
-                        await self.wake_dispatchers(work_pool_id)
+                        await self._notify_local_dispatchers()
                         return self._operation_result(
                             operation=operation,
                             message_id=message_id,
@@ -673,9 +677,10 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                             message_fields=message_fields,
                             current_time=current_time,
                             current_ms=current_ms,
+                            wake_work_pool_id=work_pool_id,
                         )
                         await pipe.execute()
-                        await self.wake_dispatchers(work_pool_id)
+                        await self._notify_local_dispatchers()
                         return self._operation_result(
                             operation=operation,
                             message_id=message_id,
@@ -909,6 +914,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         message_fields: Mapping[str, str],
         current_time: DateTime,
         current_ms: int,
+        wake_work_pool_id: UUID | None = None,
     ) -> CleanupQueueMessage:
         message_id = message_fields["message_id"]
         updated_fields = {
@@ -919,6 +925,8 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         pipe.zrem(keys.reserved, message_id)
         pipe.hset(keys.message, mapping=updated_fields)
         pipe.zadd(keys.visible, {message_id: current_ms})
+        if wake_work_pool_id is not None:
+            pipe.incr(self._wakeup_key(wake_work_pool_id))
         return self._message_from_mapping(updated_fields)
 
     def _stage_renew(

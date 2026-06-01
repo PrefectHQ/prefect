@@ -178,6 +178,36 @@ async def test_redis_concurrent_reserve_attempts_create_one_reservation(
     assert accepted[0].delivery_count == 1
 
 
+async def test_redis_release_redelivery_advances_wakeup_in_transaction(
+    queue: WorkerCleanupQueue,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    work_pool_id = uuid4()
+    message_id = await _enqueue_message(queue, work_pool_id=work_pool_id)
+    reservation = await queue.reserve(work_pool_id=work_pool_id)
+    assert reservation is not None
+    sequence = await queue.read_wakeup_sequence(work_pool_id)
+
+    async def fail_separate_wakeup(work_pool_id: UUID) -> None:
+        raise AssertionError("release should not wake with a separate Redis command")
+
+    monkeypatch.setattr(queue, "wake_dispatchers", fail_separate_wakeup)
+
+    result = await queue.release(
+        work_pool_id=work_pool_id,
+        message_id=message_id,
+        reservation_token=reservation.reservation_token,
+        reason="cannot_act",
+    )
+    redelivery = await queue.reserve(work_pool_id=work_pool_id)
+
+    assert result.status == "accepted"
+    assert await queue.read_wakeup_sequence(work_pool_id) == sequence + 1
+    assert redelivery is not None
+    assert redelivery.message_id == message_id
+    assert redelivery.delivery_count == 2
+
+
 async def test_redis_reserve_scans_visible_messages_in_batches(
     queue: WorkerCleanupQueue,
     monkeypatch: pytest.MonkeyPatch,
