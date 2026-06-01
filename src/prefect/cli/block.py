@@ -342,7 +342,7 @@ async def block_delete(
                 exit_with_error(
                     f"{slug!r} is not valid. Slug must contain a '/', e.g. 'json/my-json-block'"
                 )
-            block_type_slug, block_document_name = slug.split("/")
+            block_type_slug, block_document_name = slug.split("/", 1)
             try:
                 block_document = await client.read_block_document_by_name(
                     block_document_name, block_type_slug, include_secrets=False
@@ -445,7 +445,7 @@ async def block_inspect(
                 exit_with_error(
                     f"{slug!r} is not valid. Slug must contain a '/', e.g. 'json/my-json-block'"
                 )
-            block_type_slug, block_document_name = slug.split("/")
+            block_type_slug, block_document_name = slug.split("/", 1)
             try:
                 block_document = await client.read_block_document_by_name(
                     block_document_name, block_type_slug, include_secrets=False
