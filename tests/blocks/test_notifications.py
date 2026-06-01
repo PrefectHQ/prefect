@@ -1200,7 +1200,7 @@ class TestMicrosoftTeamsWebhook:
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.async_notify = AsyncMock()
 
-            block = MicrosoftTeamsWebhook(url=self.SAMPLE_URL)
+            block = MicrosoftTeamsWebhook(url=self.SAMPLE_URL, allow_private_urls=True)
             await block.notify("test")
 
             AppriseMock.assert_called_once()
@@ -1218,7 +1218,7 @@ class TestMicrosoftTeamsWebhook:
             apprise_instance_mock = AppriseMock.return_value
             apprise_instance_mock.notify = MagicMock(return_value=True)
 
-            block = MicrosoftTeamsWebhook(url=self.SAMPLE_URL)
+            block = MicrosoftTeamsWebhook(url=self.SAMPLE_URL, allow_private_urls=True)
 
             @flow
             def test_flow():

@@ -92,9 +92,9 @@ class TestWebhook:
         send_mock = AsyncMock()
         monkeypatch.setattr("httpx.AsyncClient.request", send_mock)
 
-        await Webhook(
-            url="https://169.254.169.254", allow_private_urls=True
-        ).call(payload="some payload")
+        await Webhook(url="https://169.254.169.254", allow_private_urls=True).call(
+            payload="some payload"
+        )
 
         send_mock.assert_called_once()
 
