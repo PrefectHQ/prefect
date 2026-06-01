@@ -341,10 +341,8 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                 else:
                     dead_lettered.append(payload)
 
-        for redelivered_work_pool_id in {
-            message.work_pool_id for message in redelivered
-        }:
-            await self.wake_dispatchers(redelivered_work_pool_id)
+        if redelivered:
+            await self._notify_local_dispatchers()
 
         return CleanupQueueLeaseExpiryResult(
             redelivered=redelivered,
@@ -803,6 +801,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         current_time=current_time,
                         current_ms=current_ms,
                     )
+                    self._stage_wakeup(pipe=pipe, work_pool_id=work_pool_id)
                     await pipe.execute()
                     return "redelivered", message
                 except WatchError:
