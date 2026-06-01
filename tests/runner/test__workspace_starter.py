@@ -16,6 +16,9 @@ from prefect.runner._workspace_resolver import (
 )
 from prefect.runner._workspace_starter import (
     WorkspaceResolvingEngineCommandStarter,
+    _is_stdlib_path,
+    _site_packages_dirs,
+    _stdlib_prefixes,
     _workspace_command,
     load_flow_from_prepared_workspace,
     resolve_workspace_in_subprocess,
@@ -393,3 +396,103 @@ async def test_load_flow_from_prepared_workspace_preserves_module_entrypoint(
 
     assert flow.name == "hello"
     assert sys.path == original_sys_path
+
+
+class TestIsStdlibPath:
+    def test_excludes_stdlib_directory(self) -> None:
+        import sysconfig
+
+        stdlib = sysconfig.get_paths()["stdlib"]
+        assert _is_stdlib_path(stdlib) is True
+
+    def test_excludes_platstdlib_directory(self) -> None:
+        import sysconfig
+
+        platstdlib = sysconfig.get_paths()["platstdlib"]
+        assert _is_stdlib_path(platstdlib) is True
+
+    def test_excludes_lib_dynload(self) -> None:
+        import sysconfig
+
+        stdlib = sysconfig.get_paths()["stdlib"]
+        lib_dynload = os.path.join(stdlib, "lib-dynload")
+        assert _is_stdlib_path(lib_dynload) is True
+
+    def test_excludes_stdlib_adjacent_zip(self) -> None:
+        import sysconfig
+
+        stdlib = sysconfig.get_paths()["stdlib"]
+        stdlib_parent = str(Path(stdlib).parent)
+        assert _is_stdlib_path(os.path.join(stdlib_parent, "python312.zip")) is True
+
+    def test_keeps_site_packages(self) -> None:
+        import sysconfig
+
+        site_packages = sysconfig.get_paths()["purelib"]
+        assert _is_stdlib_path(site_packages) is False
+
+    def test_keeps_empty_string(self) -> None:
+        assert _is_stdlib_path("") is False
+
+    def test_keeps_user_directory(self, tmp_path: Path) -> None:
+        user_dir = str(tmp_path / "my_project")
+        assert _is_stdlib_path(user_dir) is False
+
+    def test_keeps_app_directory(self) -> None:
+        assert _is_stdlib_path("/app") is False
+
+    def test_does_not_exclude_non_python_zip(self) -> None:
+        assert _is_stdlib_path("/opt/lib/mylib.zip") is False
+
+    def test_does_not_exclude_user_python_zip(self) -> None:
+        assert _is_stdlib_path("/app/python_deps.zip") is False
+
+    def test_stdlib_prefixes_returns_nonempty(self) -> None:
+        prefixes = _stdlib_prefixes()
+        assert len(prefixes) > 0
+        for p in prefixes:
+            assert os.path.isabs(p)
+
+    def test_site_packages_dirs_returns_nonempty(self) -> None:
+        dirs = _site_packages_dirs()
+        assert len(dirs) > 0
+        for d in dirs:
+            assert os.path.isabs(d)
+
+
+class TestWorkspaceEnvironmentPythonpathFiltering:
+    def test_excludes_stdlib_from_pythonpath(self, tmp_path: Path) -> None:
+        import sysconfig
+
+        workspace = _prepared_workspace(tmp_path)
+        stdlib = sysconfig.get_paths()["stdlib"]
+        lib_dynload = os.path.join(stdlib, "lib-dynload")
+        site_packages = sysconfig.get_paths()["purelib"]
+
+        workspace.sys_path = [
+            "",
+            stdlib,
+            lib_dynload,
+            site_packages,
+            "/app",
+        ]
+
+        env = workspace_environment(workspace)
+        pythonpath_entries = env["PYTHONPATH"].split(os.pathsep)
+
+        resolved_stdlib = str(Path(stdlib).resolve())
+        resolved_dynload = str(Path(lib_dynload).resolve())
+        assert resolved_stdlib not in pythonpath_entries
+        assert resolved_dynload not in pythonpath_entries
+
+        resolved_site = str(Path(site_packages).resolve())
+        assert resolved_site in pythonpath_entries
+
+    def test_preserves_stdlib_in_workspace_sys_path(self, tmp_path: Path) -> None:
+        import sysconfig
+
+        workspace = _prepared_workspace(tmp_path)
+        stdlib = sysconfig.get_paths()["stdlib"]
+        workspace.sys_path = [stdlib, "/app"]
+
+        assert stdlib in workspace.sys_path

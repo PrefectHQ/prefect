@@ -3,11 +3,8 @@ from __future__ import annotations
 import argparse
 import builtins
 import contextlib
-import functools
 import os
-import site
 import sys
-import sysconfig
 import traceback
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
@@ -123,69 +120,8 @@ def _capture_environment() -> dict[str, str]:
     return dict(os.environ)
 
 
-@functools.lru_cache(maxsize=1)
-def _stdlib_prefixes() -> tuple[str, ...]:
-    """Resolved stdlib directory prefixes whose children should not land on PYTHONPATH."""
-    roots: set[str] = set()
-    paths = sysconfig.get_paths()
-    for key in ("stdlib", "platstdlib"):
-        val = paths.get(key)
-        if val:
-            roots.add(str(Path(val).resolve()))
-    return tuple(sorted(roots))
-
-
-@functools.lru_cache(maxsize=1)
-def _site_packages_dirs() -> tuple[str, ...]:
-    """Resolved site-packages directories that should always be kept."""
-    dirs: set[str] = set()
-    paths = sysconfig.get_paths()
-    for key in ("purelib", "platlib"):
-        val = paths.get(key)
-        if val:
-            dirs.add(str(Path(val).resolve()))
-    try:
-        for sp in site.getsitepackages():
-            dirs.add(str(Path(sp).resolve()))
-    except AttributeError:
-        pass
-    try:
-        usp = site.getusersitepackages()
-        if isinstance(usp, str):
-            dirs.add(str(Path(usp).resolve()))
-    except AttributeError:
-        pass
-    return tuple(sorted(dirs))
-
-
-def _is_stdlib_path(entry: str) -> bool:
-    """True when *entry* is a stdlib, lib-dynload, or stdlib zip path.
-
-    Site-packages directories that live under the stdlib tree are kept.
-    """
-    if not entry:
-        return False
-
-    resolved = str(Path(entry).resolve())
-
-    for sp in _site_packages_dirs():
-        if resolved == sp or resolved.startswith(sp + os.sep):
-            return False
-
-    for root in _stdlib_prefixes():
-        if resolved == root or resolved.startswith(root + os.sep):
-            return True
-
-    if entry.endswith(".zip"):
-        name = Path(entry).name.lower()
-        if name.startswith("python"):
-            return True
-
-    return False
-
-
 def _capture_sys_path() -> list[str]:
-    return [str(p) for p in sys.path if not _is_stdlib_path(str(p))]
+    return [str(path_entry) for path_entry in sys.path]
 
 
 def _get_configured_storage_base_path() -> Path | None:

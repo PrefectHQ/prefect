@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import functools
 import os
 import shutil
+import site
 import subprocess
 import sys
+import sysconfig
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable, Iterator
@@ -109,9 +112,75 @@ def _workspace_sys_path(workspace: PreparedWorkspace) -> list[str]:
     return entries
 
 
+@functools.lru_cache(maxsize=1)
+def _stdlib_prefixes() -> tuple[str, ...]:
+    """Resolved stdlib directory prefixes whose children should not land on PYTHONPATH."""
+    roots: set[str] = set()
+    paths = sysconfig.get_paths()
+    for key in ("stdlib", "platstdlib"):
+        val = paths.get(key)
+        if val:
+            roots.add(str(Path(val).resolve()))
+    return tuple(sorted(roots))
+
+
+@functools.lru_cache(maxsize=1)
+def _site_packages_dirs() -> tuple[str, ...]:
+    """Resolved site-packages directories that should always be kept."""
+    dirs: set[str] = set()
+    paths = sysconfig.get_paths()
+    for key in ("purelib", "platlib"):
+        val = paths.get(key)
+        if val:
+            dirs.add(str(Path(val).resolve()))
+    try:
+        for sp in site.getsitepackages():
+            dirs.add(str(Path(sp).resolve()))
+    except AttributeError:
+        pass
+    try:
+        usp = site.getusersitepackages()
+        if isinstance(usp, str):
+            dirs.add(str(Path(usp).resolve()))
+    except AttributeError:
+        pass
+    return tuple(sorted(dirs))
+
+
+def _is_stdlib_path(entry: str) -> bool:
+    """True when *entry* is a stdlib, lib-dynload, or stdlib zip path.
+
+    Site-packages directories that live under the stdlib tree are kept.
+    Only zip archives that sit next to a known stdlib directory are filtered;
+    user archives like `/app/python_deps.zip` are preserved.
+    """
+    if not entry:
+        return False
+
+    resolved = str(Path(entry).resolve())
+
+    for sp in _site_packages_dirs():
+        if resolved == sp or resolved.startswith(sp + os.sep):
+            return False
+
+    for root in _stdlib_prefixes():
+        if resolved == root or resolved.startswith(root + os.sep):
+            return True
+
+    if entry.endswith(".zip"):
+        resolved_parent = str(Path(entry).resolve().parent)
+        stdlib_parents = {str(Path(r).parent) for r in _stdlib_prefixes()}
+        if resolved_parent in stdlib_parents:
+            return True
+
+    return False
+
+
 def workspace_environment(workspace: PreparedWorkspace) -> dict[str, str]:
     environment = dict(workspace.environment)
-    pythonpath_entries = _workspace_sys_path(workspace)
+    pythonpath_entries = [
+        entry for entry in _workspace_sys_path(workspace) if not _is_stdlib_path(entry)
+    ]
     existing_pythonpath = environment.get("PYTHONPATH")
     if existing_pythonpath:
         for entry in existing_pythonpath.split(os.pathsep):
