@@ -12,6 +12,8 @@ from prefect.settings.base import (
     build_settings_config,  # type: ignore[reportPrivateUsage]
 )
 
+_UNSET: Any = object()
+
 
 class RedisMessagingSettings(PrefectBaseSettings):
     """Settings for connecting to Redis.
@@ -52,6 +54,27 @@ class RedisMessagingSettings(PrefectBaseSettings):
     ssl: bool = Field(
         default=False,
         description="Whether to use SSL for the Redis connection",
+    )
+    socket_timeout: Optional[float] = Field(
+        default=None,
+        description=(
+            "Timeout in seconds for socket read operations. "
+            "None means no timeout (preserves pre-redis-py-8 behavior)."
+        ),
+    )
+    socket_connect_timeout: Optional[float] = Field(
+        default=None,
+        description=(
+            "Timeout in seconds for socket connect operations. "
+            "None means no timeout (preserves pre-redis-py-8 behavior)."
+        ),
+    )
+    protocol: int = Field(
+        default=2,
+        description=(
+            "RESP protocol version. Defaults to 2 for compatibility "
+            "with older Redis servers and proxies."
+        ),
     )
 
     _DISCRETE_FIELDS: frozenset[str] = frozenset(
@@ -133,6 +156,9 @@ def get_async_redis_client(
     health_check_interval: Union[int, None] = None,
     decode_responses: bool = True,
     ssl: Union[bool, None] = None,
+    socket_timeout: Union[float, None, Any] = _UNSET,
+    socket_connect_timeout: Union[float, None, Any] = _UNSET,
+    protocol: Union[int, None] = None,
 ) -> Redis:
     """Retrieves an async Redis client.
 
@@ -151,11 +177,24 @@ def get_async_redis_client(
         decode_responses: Whether to decode binary responses from Redis to
             unicode strings.
         ssl: Whether to use SSL for the connection.
+        socket_timeout: Timeout for socket read operations (None = no timeout).
+        socket_connect_timeout: Timeout for socket connect (None = no timeout).
+        protocol: RESP protocol version (default 2 from settings).
 
     Returns:
         Redis: a Redis client
     """
     settings = RedisMessagingSettings()
+
+    resolved_socket_timeout = (
+        settings.socket_timeout if socket_timeout is _UNSET else socket_timeout
+    )
+    resolved_socket_connect_timeout = (
+        settings.socket_connect_timeout
+        if socket_connect_timeout is _UNSET
+        else socket_connect_timeout
+    )
+    resolved_protocol = protocol if protocol is not None else settings.protocol
 
     url = url or settings.url
     if url:
@@ -164,6 +203,9 @@ def get_async_redis_client(
             health_check_interval=health_check_interval
             or settings.health_check_interval,
             decode_responses=decode_responses,
+            socket_timeout=resolved_socket_timeout,
+            socket_connect_timeout=resolved_socket_connect_timeout,
+            protocol=resolved_protocol,
         )
 
     return Redis(
@@ -175,6 +217,9 @@ def get_async_redis_client(
         health_check_interval=health_check_interval or settings.health_check_interval,
         ssl=ssl or settings.ssl,
         decode_responses=decode_responses,
+        socket_timeout=resolved_socket_timeout,
+        socket_connect_timeout=resolved_socket_connect_timeout,
+        protocol=resolved_protocol,
     )
 
 
@@ -184,6 +229,9 @@ def async_redis_from_settings(
 ) -> Redis:
     options = {
         "decode_responses": True,
+        "socket_timeout": settings.socket_timeout,
+        "socket_connect_timeout": settings.socket_connect_timeout,
+        "protocol": settings.protocol,
         **options,
     }
 
