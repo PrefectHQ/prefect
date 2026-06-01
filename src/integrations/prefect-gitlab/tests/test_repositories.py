@@ -2,12 +2,15 @@ import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Coroutine, Set, Tuple
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import prefect_gitlab
 import pytest
 from prefect_gitlab.credentials import GitLabCredentials
-from prefect_gitlab.repositories import GitLabRepository  # noqa: E402
+from prefect_gitlab.repositories import (  # noqa: E402
+    GitLabRepository,
+    _sanitize_git_error,
+)
 from pydantic import SecretStr
 
 
@@ -138,6 +141,45 @@ class TestGitLab:
             "1",
         ]
         assert mock.await_args[0][0][: len(expected_cmd)] == expected_cmd
+
+    async def test_get_directory_redacts_token_in_error(self, monkeypatch):
+        """Ensure GitLab access tokens are not surfaced in git error messages."""
+
+        class p:
+            returncode = 1
+
+        async def mock(cmd, stream_output=None, **kwargs):
+            if stream_output:
+                _, err_stream = stream_output
+                err_stream.write(
+                    "fatal: Authentication failed for "
+                    "'https://oauth2:XYZ@gitlab.com/PrefectHQ/prefect.git/'"
+                )
+            return p()
+
+        monkeypatch.setattr(prefect_gitlab.repositories, "run_process", mock)
+        g = GitLabRepository(
+            repository="https://gitlab.com/PrefectHQ/prefect.git",
+            credentials=GitLabCredentials(token=SecretStr("XYZ")),
+        )
+
+        with pytest.raises(OSError) as excinfo:
+            await g.get_directory()
+
+        message = str(excinfo.value)
+        assert "XYZ" not in message
+        assert "https://gitlab.com/PrefectHQ/prefect.git" in message
+
+    def test_sanitize_git_error_handles_malformed_credential_url(self):
+        message = (
+            "fatal: Authentication failed for "
+            "'https://oauth2:p@ss:word#1@gitlab.com/PrefectHQ/prefect.git/'"
+        )
+
+        sanitized = _sanitize_git_error(message)
+
+        assert "p@ss:word#1" not in sanitized
+        assert "https://gitlab.com/PrefectHQ/prefect.git/" in sanitized
 
     async def test_cloning_with_custom_depth(self, monkeypatch):
         """Ensure that we can retrieve the whole history, i.e. support true git clone"""  # noqa: E501
@@ -279,6 +321,31 @@ class TestGitLabRepositoryAsyncDispatch:
 
         assert not isinstance(result, Coroutine), "sync context returned coroutine"
         assert result is None
+
+    def test_get_directory_redacts_token_in_sync_error(self, monkeypatch):
+        """Ensure sync GitLab clone failures do not surface access tokens."""
+
+        mock_result = MagicMock()
+        mock_result.returncode = 1
+        mock_result.stderr = (
+            "fatal: Authentication failed for "
+            "'https://oauth2:XYZ@gitlab.com/PrefectHQ/prefect.git/'"
+        )
+        monkeypatch.setattr(
+            "subprocess.run", MagicMock(return_value=mock_result)
+        )
+
+        g = GitLabRepository(
+            repository="https://gitlab.com/PrefectHQ/prefect.git",
+            credentials=GitLabCredentials(token=SecretStr("XYZ")),
+        )
+
+        with pytest.raises(OSError) as excinfo:
+            g.get_directory()
+
+        message = str(excinfo.value)
+        assert "XYZ" not in message
+        assert "https://gitlab.com/PrefectHQ/prefect.git" in message
 
     async def test_get_directory_async_context_returns_coroutine(self, monkeypatch):
         """get_directory should dispatch to async and return coroutine in async context."""

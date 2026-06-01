@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Coroutine, Set, Tuple
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from pydantic import VERSION as PYDANTIC_VERSION
@@ -16,7 +16,7 @@ else:
 
 import prefect_bitbucket
 from prefect_bitbucket.credentials import BitBucketCredentials
-from prefect_bitbucket.repository import BitBucketRepository
+from prefect_bitbucket.repository import BitBucketRepository, _sanitize_git_error
 
 
 class TestBitBucketRepository:
@@ -179,6 +179,46 @@ class TestBitBucketRepository:
             "1",
         ]
         assert mock.await_args[0][0][: len(expected_cmd)] == expected_cmd
+
+    async def test_get_directory_redacts_token_in_error(self, monkeypatch):
+        """Ensure BitBucket access tokens are not surfaced in git error messages."""
+
+        class p:
+            returncode = 1
+
+        async def mock(cmd, stream_output=None, **kwargs):
+            if stream_output:
+                _, err_stream = stream_output
+                err_stream.write(
+                    "fatal: Authentication failed for "
+                    "'https://ABC:XYZ@bitbucket.org/PrefectHQ/prefect.git/'"
+                )
+            return p()
+
+        monkeypatch.setattr(prefect_bitbucket.repository, "run_process", mock)
+        b = BitBucketRepository(
+            repository="https://bitbucket.org/PrefectHQ/prefect.git",
+            bitbucket_credentials=BitBucketCredentials(token="XYZ", username="ABC"),
+        )
+
+        with pytest.raises(OSError) as excinfo:
+            await b.get_directory()
+
+        message = str(excinfo.value)
+        assert "XYZ" not in message
+        assert "ABC:XYZ" not in message
+        assert "https://bitbucket.org/PrefectHQ/prefect.git" in message
+
+    def test_sanitize_git_error_handles_malformed_credential_url(self):
+        message = (
+            "fatal: Authentication failed for "
+            "'https://dev:p@ss:word#1@bitbucket.org/PrefectHQ/prefect.git/'"
+        )
+
+        sanitized = _sanitize_git_error(message)
+
+        assert "dev:p@ss:word#1" not in sanitized
+        assert "https://bitbucket.org/PrefectHQ/prefect.git/" in sanitized
 
     async def test_ssh_fails_with_credential(self, monkeypatch):
         """Ensure that credentials cannot be passed in if the URL is not in the HTTPS
@@ -346,6 +386,32 @@ class TestBitBucketRepositoryAsyncDispatch:
 
         assert not isinstance(result, Coroutine), "sync context returned coroutine"
         assert result is None
+
+    def test_get_directory_redacts_token_in_sync_error(self, monkeypatch):
+        """Ensure sync BitBucket clone failures do not surface access tokens."""
+
+        mock_result = MagicMock()
+        mock_result.returncode = 1
+        mock_result.stderr = (
+            "fatal: Authentication failed for "
+            "'https://ABC:XYZ@bitbucket.org/PrefectHQ/prefect.git/'"
+        )
+        monkeypatch.setattr(
+            "subprocess.run", MagicMock(return_value=mock_result)
+        )
+
+        b = BitBucketRepository(
+            repository="https://bitbucket.org/PrefectHQ/prefect.git",
+            bitbucket_credentials=BitBucketCredentials(token="XYZ", username="ABC"),
+        )
+
+        with pytest.raises(OSError) as excinfo:
+            b.get_directory()
+
+        message = str(excinfo.value)
+        assert "XYZ" not in message
+        assert "ABC:XYZ" not in message
+        assert "https://bitbucket.org/PrefectHQ/prefect.git" in message
 
     async def test_get_directory_async_context_returns_coroutine(self, monkeypatch):
         """get_directory should dispatch to async and return coroutine in async context."""

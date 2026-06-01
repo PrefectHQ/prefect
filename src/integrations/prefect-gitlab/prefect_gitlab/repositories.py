@@ -42,6 +42,7 @@ Examples:
 """
 
 import io
+import re
 import shutil
 import subprocess
 import urllib.parse
@@ -53,6 +54,7 @@ from pydantic import Field
 from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
 
 from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.urls import strip_auth_from_url
 from prefect.filesystems import ReadableDeploymentStorage
 from prefect.utilities.processutils import run_process
 from prefect_gitlab.credentials import GitLabCredentials
@@ -63,6 +65,23 @@ MAX_CLONE_ATTEMPTS = 3
 CLONE_RETRY_MIN_DELAY_SECONDS = 1
 CLONE_RETRY_MIN_DELAY_JITTER_SECONDS = 0
 CLONE_RETRY_MAX_DELAY_JITTER_SECONDS = 3
+_URL_PATTERN = re.compile(r"https?://[^\s'\"<>]+")
+
+
+def _sanitize_git_error(message: str) -> str:
+    def _replace(match: re.Match[str]) -> str:
+        url = match.group(0)
+        try:
+            return strip_auth_from_url(url)
+        except ValueError:
+            auth_end = url.rfind("@")
+            scheme_end = url.find("://")
+            if scheme_end == -1 or auth_end == -1 or auth_end < scheme_end:
+                return url
+
+            return f"{url[: scheme_end + 3]}{url[auth_end + 1 :]}"
+
+    return _URL_PATTERN.sub(_replace, message)
 
 
 class GitLabRepository(ReadableDeploymentStorage):
@@ -176,7 +195,8 @@ class GitLabRepository(ReadableDeploymentStorage):
             process = await run_process(cmd, stream_output=(out_stream, err_stream))
             if process.returncode != 0:
                 err_stream.seek(0)
-                raise OSError(f"Failed to pull from remote:\n {err_stream.read()}")
+                sanitized_error = _sanitize_git_error(err_stream.read())
+                raise OSError(f"Failed to pull from remote:\n {sanitized_error}")
 
             content_source, content_destination = self._get_paths(
                 dst_dir=local_path, src_dir=tmp_dir, sub_directory=from_path
@@ -221,7 +241,8 @@ class GitLabRepository(ReadableDeploymentStorage):
 
             result = subprocess.run(cmd, capture_output=True, text=True)
             if result.returncode != 0:
-                raise OSError(f"Failed to pull from remote:\n {result.stderr}")
+                sanitized_error = _sanitize_git_error(result.stderr)
+                raise OSError(f"Failed to pull from remote:\n {sanitized_error}")
 
             content_source, content_destination = self._get_paths(
                 dst_dir=local_path, src_dir=tmp_dir, sub_directory=from_path
