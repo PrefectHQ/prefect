@@ -692,6 +692,24 @@ async def _trim_stream_to_lowest_delivered_id(stream_name: str) -> None:
     await redis_client.xtrim(stream_name, minid=lowest_id, approximate=False)
 
 
+_redis_server_version: tuple[int, ...] | None = None
+
+
+async def _get_redis_server_version() -> tuple[int, ...]:
+    """Return the Redis server version as a tuple, e.g. `(7, 2, 4)`.
+
+    The result is cached for the lifetime of the process.
+    """
+    global _redis_server_version
+    if _redis_server_version is None:
+        redis_client: Redis = get_async_redis_client()
+        info = await redis_client.info("server")
+        _redis_server_version = tuple(
+            int(part) for part in info["redis_version"].split(".")
+        )
+    return _redis_server_version
+
+
 async def _cleanup_empty_consumer_groups(stream_name: str) -> None:
     """
     Removes ephemeral consumer groups that are abandoned or stale.
@@ -702,10 +720,17 @@ async def _cleanup_empty_consumer_groups(stream_name: str) -> None:
 
     * It has **no consumers** at all (the consumer disconnected cleanly but the
       group was not destroyed).
-    * **All** of its consumers have been idle longer than the configured
-      `trim_idle_threshold`.  This catches groups leaked by ungraceful
-      shutdowns (SIGKILL, OOM-kill, pod eviction) where the `finally` block
-      in `ephemeral_subscription` never ran.
+    * (Redis >= 7.2 only) **All** of its consumers have been idle longer than
+      the configured `trim_idle_threshold`.  This catches groups leaked by
+      ungraceful shutdowns (SIGKILL, OOM-kill, pod eviction) where the
+      `finally` block in `ephemeral_subscription` never ran.
+
+    The idle-based check is gated on Redis >= 7.2 because older versions
+    only update the consumer `idle` timer on *successful* reads. On a quiet
+    stream a live consumer would appear idle and could be incorrectly
+    reaped.  Redis 7.2 changed `idle` to reflect any interaction attempt
+    (including empty `XREADGROUP` polls), making it a reliable liveness
+    signal.
 
     Groups with `last-delivered-id == "0-0"` are skipped because they have
     not consumed any messages yet and may be newly created.
@@ -714,8 +739,13 @@ async def _cleanup_empty_consumer_groups(stream_name: str) -> None:
         stream_name: The name of the Redis stream to clean up groups for
     """
     redis_client: Redis = get_async_redis_client()
-    settings = RedisMessagingConsumerSettings()
-    idle_threshold_ms = int(settings.trim_idle_threshold.total_seconds() * 1000)
+
+    server_version = await _get_redis_server_version()
+    can_use_idle = server_version >= (7, 2)
+
+    if can_use_idle:
+        settings = RedisMessagingConsumerSettings()
+        idle_threshold_ms = int(settings.trim_idle_threshold.total_seconds() * 1000)
 
     try:
         groups = await redis_client.xinfo_groups(stream_name)
@@ -733,10 +763,13 @@ async def _cleanup_empty_consumer_groups(stream_name: str) -> None:
 
             consumers = await redis_client.xinfo_consumers(stream_name, group["name"])
 
-            if consumers and not all(
+            if not consumers:
+                pass  # no consumers — safe to clean up on any version
+            elif can_use_idle and all(
                 consumer["idle"] > idle_threshold_ms for consumer in consumers
             ):
-                # At least one consumer is still active — leave the group alone
+                pass  # all consumers idle beyond threshold (Redis >= 7.2)
+            else:
                 continue
 
             logger.debug(f"Deleting stale ephemeral consumer group '{group['name']}'")
