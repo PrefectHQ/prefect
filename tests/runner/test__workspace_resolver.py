@@ -11,7 +11,11 @@ import pytest
 from prefect.filesystems import LocalFileSystem
 from prefect.runner._workspace_resolver import (
     PreparedWorkspaceResult,
+    _capture_sys_path,
     _find_project_root,
+    _is_stdlib_path,
+    _site_packages_dirs,
+    _stdlib_prefixes,
     get_workspace_resolver_command,
 )
 from prefect.runner.storage import BlockStorageAdapter, RemoteStorage
@@ -829,3 +833,84 @@ class TestProjectRootDetection:
         )
 
         assert _find_project_root(nested_directory, workspace_root) == outside_project
+
+
+class TestCaptureSysPath:
+    def test_excludes_stdlib_directory(self) -> None:
+        import sysconfig
+
+        stdlib = sysconfig.get_paths()["stdlib"]
+        assert _is_stdlib_path(stdlib) is True
+
+    def test_excludes_platstdlib_directory(self) -> None:
+        import sysconfig
+
+        platstdlib = sysconfig.get_paths()["platstdlib"]
+        assert _is_stdlib_path(platstdlib) is True
+
+    def test_excludes_lib_dynload(self) -> None:
+        import sysconfig
+
+        stdlib = sysconfig.get_paths()["stdlib"]
+        lib_dynload = os.path.join(stdlib, "lib-dynload")
+        assert _is_stdlib_path(lib_dynload) is True
+
+    def test_excludes_stdlib_zip(self) -> None:
+        assert _is_stdlib_path("/usr/local/lib/python312.zip") is True
+        assert _is_stdlib_path("/usr/local/lib/python3.12.zip") is True
+
+    def test_keeps_site_packages(self) -> None:
+        import sysconfig
+
+        site_packages = sysconfig.get_paths()["purelib"]
+        assert _is_stdlib_path(site_packages) is False
+
+    def test_keeps_empty_string(self) -> None:
+        assert _is_stdlib_path("") is False
+
+    def test_keeps_user_directory(self, tmp_path: Path) -> None:
+        user_dir = str(tmp_path / "my_project")
+        assert _is_stdlib_path(user_dir) is False
+
+    def test_keeps_app_directory(self) -> None:
+        assert _is_stdlib_path("/app") is False
+
+    def test_capture_sys_path_excludes_stdlib(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import sysconfig
+
+        stdlib = sysconfig.get_paths()["stdlib"]
+        monkeypatch.setattr(
+            sys,
+            "path",
+            [
+                "",
+                stdlib,
+                os.path.join(stdlib, "lib-dynload"),
+                sysconfig.get_paths()["purelib"],
+                "/app",
+            ],
+        )
+
+        captured = _capture_sys_path()
+        assert stdlib not in captured
+        assert os.path.join(stdlib, "lib-dynload") not in captured
+        assert "" in captured
+        assert sysconfig.get_paths()["purelib"] in captured
+        assert "/app" in captured
+
+    def test_does_not_exclude_non_python_zip(self) -> None:
+        assert _is_stdlib_path("/opt/lib/mylib.zip") is False
+
+    def test_stdlib_prefixes_returns_nonempty(self) -> None:
+        prefixes = _stdlib_prefixes()
+        assert len(prefixes) > 0
+        for p in prefixes:
+            assert os.path.isabs(p)
+
+    def test_site_packages_dirs_returns_nonempty(self) -> None:
+        dirs = _site_packages_dirs()
+        assert len(dirs) > 0
+        for d in dirs:
+            assert os.path.isabs(d)
