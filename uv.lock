@@ -4315,7 +4315,7 @@ dev = [
     { name = "pytest", marker = "python_full_version < '3.11'", specifier = ">=8.4.2,<9" },
     { name = "pytest", marker = "python_full_version >= '3.11'", specifier = ">=9,<10" },
     { name = "pytest-asyncio", marker = "python_full_version < '3.11'", specifier = ">=0.21,<1.1" },
-    { name = "pytest-asyncio", marker = "python_full_version >= '3.11'", specifier = ">=1.1,<1.4" },
+    { name = "pytest-asyncio", marker = "python_full_version >= '3.11'", specifier = ">=1.1,<1.5" },
     { name = "pytest-cov", specifier = ">=6.0" },
     { name = "pytest-env", specifier = ">=1.1.5" },
     { name = "pytest-flakefinder", specifier = ">=1.1.0" },
