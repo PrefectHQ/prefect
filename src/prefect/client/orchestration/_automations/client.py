@@ -10,6 +10,8 @@ from prefect.exceptions import ObjectNotFound
 if TYPE_CHECKING:
     from uuid import UUID
 
+    from prefect.client.schemas.sorting import AutomationSort
+    from prefect.events.filters import AutomationFilter
     from prefect.events.schemas.automations import Automation, AutomationCore
 
 
@@ -37,8 +39,24 @@ class AutomationClient(BaseClient):
         )
         response.raise_for_status()
 
-    def read_automations(self) -> list["Automation"]:
-        response = self.request("POST", "/automations/filter")
+    def read_automations(
+        self,
+        *,
+        automations: "AutomationFilter | None" = None,
+        sort: "AutomationSort | None" = None,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list["Automation"]:
+        body: dict[str, object] = {
+            "automations": (
+                automations.model_dump(mode="json") if automations else None
+            ),
+            "sort": sort,
+            "limit": limit,
+            "offset": offset,
+        }
+
+        response = self.request("POST", "/automations/filter", json=body)
         response.raise_for_status()
         from prefect.events.schemas.automations import Automation
 
@@ -196,8 +214,24 @@ class AutomationAsyncClient(BaseAsyncClient):
         )
         response.raise_for_status()
 
-    async def read_automations(self) -> list["Automation"]:
-        response = await self.request("POST", "/automations/filter")
+    async def read_automations(
+        self,
+        *,
+        automations: "AutomationFilter | None" = None,
+        sort: "AutomationSort | None" = None,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list["Automation"]:
+        body: dict[str, object] = {
+            "automations": (
+                automations.model_dump(mode="json") if automations else None
+            ),
+            "sort": sort,
+            "limit": limit,
+            "offset": offset,
+        }
+
+        response = await self.request("POST", "/automations/filter", json=body)
         response.raise_for_status()
         from prefect.events.schemas.automations import Automation
 
