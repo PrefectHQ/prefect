@@ -3,13 +3,14 @@ from pathlib import Path
 
 import cloudpickle
 import pytest
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from prefect.utilities.dispatch import register_type
 from prefect.utilities.pydantic import (
     PartialModel,
     add_cloudpickle_reduction,
     get_class_fields_only,
+    parse_obj_as,
 )
 
 with warnings.catch_warnings():
@@ -203,3 +204,9 @@ class TestJsonPatch:
                 "additionalProperties": {"type": "string"},
             },
         }
+
+
+def test_parse_obj_as_list_with_empty_dict_raises_validation_error():
+    """parse_obj_as should raise ValidationError, not StopIteration, for empty dict."""
+    with pytest.raises(ValidationError):
+        parse_obj_as(list[str], {})
