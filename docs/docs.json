@@ -235,7 +235,8 @@
             "group": "AI",
             "pages": [
               "v3/how-to-guides/ai/index",
-              "v3/how-to-guides/ai/use-prefect-mcp-server"
+              "v3/how-to-guides/ai/use-prefect-mcp-server",
+              "v3/how-to-guides/ai/flow-run-log-summaries"
             ]
           },
           {
@@ -1737,6 +1738,19 @@
                           "v3/api-ref/python/prefect-server-utilities-user_templates",
                           "v3/api-ref/python/prefect-server-utilities-worker_channel"
                         ]
+                      },
+                      {
+                        "group": "worker_communication",
+                        "pages": [
+                          "v3/api-ref/python/prefect-server-worker_communication-__init__",
+                          {
+                            "group": "cleanup_queue",
+                            "pages": [
+                              "v3/api-ref/python/prefect-server-worker_communication-cleanup_queue-__init__",
+                              "v3/api-ref/python/prefect-server-worker_communication-cleanup_queue-memory"
+                            ]
+                          }
+                        ]
                       }
                     ]
                   },
@@ -1782,7 +1796,8 @@
                               "v3/api-ref/python/prefect-settings-models-server-root",
                               "v3/api-ref/python/prefect-settings-models-server-services",
                               "v3/api-ref/python/prefect-settings-models-server-tasks",
-                              "v3/api-ref/python/prefect-settings-models-server-ui"
+                              "v3/api-ref/python/prefect-settings-models-server-ui",
+                              "v3/api-ref/python/prefect-settings-models-server-worker_channel"
                             ]
                           },
                           "v3/api-ref/python/prefect-settings-models-tasks",

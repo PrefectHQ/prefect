@@ -205,6 +205,27 @@ templating notifications.
 
 For more on the common use case of passing an upstream flow run's parameters to the flow run invoked by the automation, see the [Passing parameters to a flow run](/v3/how-to-guides/automations/access-parameters-in-templates/) guide.
 
+### AI log summary
+
+<Note>The `flow_run_log_summary` variable is only available in Prefect Cloud.</Note>
+
+For automations triggered by a flow run event, the `flow_run_log_summary` variable renders an
+AI-generated, one-line summary of the run's logs (for example,
+`Failed due to a KeyError in the extract_data task`). This lets on-call recipients see what
+happened inline instead of clicking through to the UI.
+
+```
+Flow run {{ flow_run.name }} entered state {{ flow_run.state.name }}.
+
+{%- if flow_run_log_summary %}
+AI summary: {{ flow_run_log_summary }}
+{%- endif %}
+```
+
+The variable is opt-in and renders an empty string when the feature is disabled or a summary
+cannot be generated. For setup and behavior details, see the [AI log summaries
+guide](/v3/how-to-guides/ai/flow-run-log-summaries).
+
 ## Further reading
 
 - To learn more about Prefect events, which can trigger automations, see the [events docs](/v3/concepts/events/).

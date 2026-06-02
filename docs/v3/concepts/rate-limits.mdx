@@ -1,7 +1,7 @@
 ---
 title: Rate limits and data retention
-description: Understand Prefect Cloud's API rate limits, how they apply to your account, and how to stay within them.
-keywords: [rate limits, data retention, prefect cloud, api rate limits, 429, throttling]
+description: Understand Prefect Cloud's API rate limits, request size limits, and data retention policies.
+keywords: [rate limits, data retention, prefect cloud, api rate limits, 429, throttling, request size, 413, payload size]
 ---
 
 ## API rate limits
@@ -47,6 +47,28 @@ If you're approaching your rate limits, consider the following:
 ### SDK retry behavior
 
 The Prefect SDK automatically retries rate-limited requests up to 5 times, using the delay specified in the `Retry-After` header. You can customize this behavior through [client settings](/v3/develop/settings-ref#clientsettings).
+
+## Request size limits
+
+Prefect Cloud enforces a **5 MiB** (5,242,880 byte) maximum on request body size for all API endpoints.
+Requests that exceed this limit receive a `413 Content Too Large` response. The `Content-Length` header is
+required on every `POST`, `PUT`, and `PATCH` request; omitting it returns a `411 Length Required` response.
+
+This limit applies to the entire HTTP request body, which includes JSON encoding overhead. Common scenarios
+where you may encounter this limit:
+
+- **Large artifacts** — Table or Markdown artifacts with many rows or large cell values.
+- **Bulk log writes** — Batches of log entries that together exceed 5 MiB.
+- **Flow run inputs** — Large payloads passed through `flow.send_input()` or `send_input()`.
+
+### Reduce request size
+
+If your requests are approaching or exceeding the 5 MiB limit:
+
+- **Paginate or chunk large artifacts** by splitting data across multiple smaller artifact calls instead of one large request.
+- **Store large results externally** and save a reference (such as a URL or storage key) as the artifact value instead of the full dataset.
+- **Reduce log volume per batch** by lowering the `PREFECT_LOGGING_TO_API_BATCH_SIZE` setting so each HTTP request carries fewer log entries.
+- **Trim flow run input payloads** by passing references to external storage instead of large inline values.
 
 ## Query limits
 
