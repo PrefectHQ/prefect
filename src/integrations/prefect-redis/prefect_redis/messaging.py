@@ -5,7 +5,7 @@ import json
 import socket
 import time
 import uuid
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from datetime import timedelta
 from functools import partial
 from types import TracebackType
@@ -45,6 +45,10 @@ logger = get_logger(__name__)
 
 
 M = TypeVar("M", bound=Message)
+
+EPHEMERAL_GROUP_PREFIX = "ephemeral-"
+EPHEMERAL_HEARTBEAT_GROUP_PREFIX = "ephemeral-heartbeat-"
+EPHEMERAL_HEARTBEAT_KEY_PREFIX = "prefect:redis:messaging:ephemeral-group"
 
 
 def _interpret_string_as_timedelta_seconds(value: timedelta | str) -> timedelta:
@@ -120,6 +124,67 @@ class RedisMessagingConsumerSettings(PrefectBaseSettings):
 
 
 MESSAGE_DEDUPLICATION_LOOKBACK = timedelta(minutes=5)
+
+
+def _ephemeral_group_heartbeat_key(stream_name: str, group_name: str) -> str:
+    return f"{EPHEMERAL_HEARTBEAT_KEY_PREFIX}:{stream_name}:{group_name}"
+
+
+def _ephemeral_group_heartbeat_ttl_seconds() -> int:
+    settings = RedisMessagingConsumerSettings()
+    return max(1, int(settings.trim_idle_threshold.total_seconds()))
+
+
+async def _set_ephemeral_group_heartbeat(
+    stream_name: str,
+    group_name: str,
+    ttl_seconds: int,
+) -> None:
+    redis_client: Redis = get_async_redis_client()
+    await redis_client.set(
+        _ephemeral_group_heartbeat_key(stream_name, group_name),
+        "1",
+        ex=ttl_seconds,
+    )
+
+
+async def _ephemeral_group_heartbeat_exists(
+    redis_client: Redis,
+    stream_name: str,
+    group_name: str,
+) -> bool:
+    return bool(
+        await redis_client.exists(
+            _ephemeral_group_heartbeat_key(stream_name, group_name)
+        )
+    )
+
+
+async def _maintain_ephemeral_group_heartbeat(
+    stream_name: str,
+    group_name: str,
+    ttl_seconds: int,
+) -> None:
+    refresh_interval = max(1.0, ttl_seconds / 2)
+
+    while True:
+        try:
+            await _set_ephemeral_group_heartbeat(
+                stream_name,
+                group_name,
+                ttl_seconds,
+            )
+        except RedisError as e:
+            logger.warning(
+                "Unable to refresh heartbeat for ephemeral Redis consumer group "
+                "%r on stream %r: %s",
+                group_name,
+                stream_name,
+                e,
+            )
+            await clear_cached_clients()
+
+        await asyncio.sleep(refresh_interval)
 
 
 class Cache(_Cache):
@@ -601,16 +666,44 @@ async def ephemeral_subscription(
     topic: str, source: Optional[str] = None, group: Optional[str] = None
 ) -> AsyncGenerator[dict[str, Any], None]:
     source = source or topic
-    group_name = group or f"ephemeral-{socket.gethostname()}-{uuid.uuid4().hex}"
+    group_name = group or (
+        f"{EPHEMERAL_HEARTBEAT_GROUP_PREFIX}{socket.gethostname()}-"
+        f"{uuid.uuid4().hex}"
+    )
     redis_client: Redis = get_async_redis_client()
+    heartbeat_ttl_seconds = _ephemeral_group_heartbeat_ttl_seconds()
+    heartbeat_task: asyncio.Task[None] | None = None
 
     await redis_client.xgroup_create(source, group_name, id="0", mkstream=True)
 
     try:
+        await _set_ephemeral_group_heartbeat(
+            source,
+            group_name,
+            heartbeat_ttl_seconds,
+        )
+        heartbeat_task = asyncio.create_task(
+            _maintain_ephemeral_group_heartbeat(
+                source,
+                group_name,
+                heartbeat_ttl_seconds,
+            )
+        )
+
         # Return only the arguments that the Consumer expects.
         yield {"topic": topic, "name": topic, "group": group_name}
     finally:
-        await redis_client.xgroup_destroy(source, group_name)
+        if heartbeat_task:
+            heartbeat_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await heartbeat_task
+
+        try:
+            await redis_client.delete(
+                _ephemeral_group_heartbeat_key(source, group_name)
+            )
+        finally:
+            await redis_client.xgroup_destroy(source, group_name)
 
 
 @asynccontextmanager
@@ -635,9 +728,10 @@ async def _trim_stream_to_lowest_delivered_id(stream_name: str) -> None:
     trims the stream up to that point, as we know all consumers have processed those
     messages.
 
-    Consumer groups with all consumers idle beyond the configured threshold are
-    excluded from the trimming calculation to prevent inactive groups from blocking
-    stream trimming.
+    Heartbeat-managed ephemeral groups with an expired heartbeat are excluded from
+    the trimming calculation to prevent abandoned groups from blocking stream
+    trimming. Legacy groups with all consumers idle beyond the configured threshold
+    are also excluded for backward compatibility.
 
     Args:
         stream_name: The name of the Redis stream to trim
@@ -659,13 +753,29 @@ async def _trim_stream_to_lowest_delivered_id(stream_name: str) -> None:
             # Skip groups that haven't consumed anything
             continue
 
-        # Check if this group has any active (non-idle) consumers
+        # Check if this group is inactive and should not block trimming
         try:
             consumers = await redis_client.xinfo_consumers(stream_name, group["name"])
-            if consumers and all(
+            if not consumers and group["name"].startswith(EPHEMERAL_GROUP_PREFIX):
+                logger.debug(
+                    f"Skipping empty ephemeral consumer group '{group['name']}'"
+                )
+                continue
+
+            if group["name"].startswith(EPHEMERAL_HEARTBEAT_GROUP_PREFIX):
+                if not await _ephemeral_group_heartbeat_exists(
+                    redis_client,
+                    stream_name,
+                    group["name"],
+                ):
+                    logger.debug(
+                        f"Skipping stale ephemeral consumer group '{group['name']}' "
+                        "(heartbeat expired)"
+                    )
+                    continue
+            elif consumers and all(
                 consumer["idle"] > idle_threshold_ms for consumer in consumers
             ):
-                # All consumers in this group are idle beyond threshold
                 logger.debug(
                     f"Skipping idle consumer group '{group['name']}' "
                     f"(all {len(consumers)} consumers idle > {idle_threshold_ms}ms)"
@@ -692,28 +802,6 @@ async def _trim_stream_to_lowest_delivered_id(stream_name: str) -> None:
     await redis_client.xtrim(stream_name, minid=lowest_id, approximate=False)
 
 
-_redis_server_version: tuple[Redis, tuple[int, ...]] | None = None
-
-
-async def _get_redis_server_version(redis_client: Redis | None = None) -> tuple[int, ...]:
-    """Return the Redis server version as a tuple, e.g. `(7, 2, 4)`.
-
-    The result is cached for the lifetime of the Redis client.
-    """
-    global _redis_server_version
-    redis_client = redis_client or get_async_redis_client()
-    if (
-        _redis_server_version is None
-        or _redis_server_version[0] is not redis_client
-    ):
-        info = await redis_client.info("server")
-        _redis_server_version = (
-            redis_client,
-            tuple(int(part) for part in info["redis_version"].split(".")),
-        )
-    return _redis_server_version[1]
-
-
 async def _cleanup_empty_consumer_groups(stream_name: str) -> None:
     """
     Removes ephemeral consumer groups that are abandoned or stale.
@@ -724,18 +812,9 @@ async def _cleanup_empty_consumer_groups(stream_name: str) -> None:
 
     * It has **no consumers** at all (the consumer disconnected cleanly but the
       group was not destroyed).
-    * (Redis >= 7.2 only) **All** of its consumers have been idle longer than
-      the configured `trim_idle_threshold` and have no pending messages.  This
-      catches groups leaked by ungraceful shutdowns (SIGKILL, OOM-kill, pod
-      eviction) where the `finally` block in `ephemeral_subscription` never
-      ran.
-
-    The idle-based check is gated on Redis >= 7.2 because older versions
-    only update the consumer `idle` timer on *successful* reads. On a quiet
-    stream a live consumer would appear idle and could be incorrectly
-    reaped.  Redis 7.2 changed `idle` to reflect any interaction attempt
-    (including empty `XREADGROUP` polls), making it a reliable liveness
-    signal.
+    * It is heartbeat-managed and its heartbeat key has expired.  This catches
+      groups leaked by ungraceful shutdowns (SIGKILL, OOM-kill, pod eviction)
+      where the `finally` block in `ephemeral_subscription` never ran.
 
     Groups with `last-delivered-id == "0-0"` are skipped because they have
     not consumed any messages yet and may be newly created.
@@ -751,34 +830,26 @@ async def _cleanup_empty_consumer_groups(stream_name: str) -> None:
         logger.debug(f"Unable to get consumer groups for stream {stream_name}: {e}")
         return
 
-    can_use_idle = False
-    try:
-        server_version = await _get_redis_server_version(redis_client)
-        can_use_idle = server_version >= (7, 2)
-    except Exception as e:
-        logger.debug(f"Unable to get Redis server version for stream {stream_name}: {e}")
-
-    if can_use_idle:
-        settings = RedisMessagingConsumerSettings()
-        idle_threshold_ms = int(settings.trim_idle_threshold.total_seconds() * 1000)
-
     for group in groups:
         try:
             if group["last-delivered-id"] == "0-0":
                 continue
 
-            if not group["name"].startswith("ephemeral-"):
+            if not group["name"].startswith(EPHEMERAL_GROUP_PREFIX):
                 continue
 
             consumers = await redis_client.xinfo_consumers(stream_name, group["name"])
 
             if not consumers:
                 pass  # no consumers — safe to clean up on any version
-            elif can_use_idle and all(
-                consumer["idle"] > idle_threshold_ms and consumer["pending"] == 0
-                for consumer in consumers
+            elif group["name"].startswith(
+                EPHEMERAL_HEARTBEAT_GROUP_PREFIX
+            ) and not await _ephemeral_group_heartbeat_exists(
+                redis_client,
+                stream_name,
+                group["name"],
             ):
-                pass  # all consumers idle beyond threshold with no in-flight work
+                pass  # heartbeat-managed group whose process stopped refreshing
             else:
                 continue
 

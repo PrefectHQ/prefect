@@ -4,12 +4,13 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from functools import partial
 from typing import AsyncGenerator, Generator, Optional
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import anyio
 import pytest
 from prefect_redis.client import _client_cache, clear_cached_clients
 from prefect_redis.messaging import (
+    EPHEMERAL_HEARTBEAT_GROUP_PREFIX,
     Cache,
     Consumer,
     Message,
@@ -18,7 +19,7 @@ from prefect_redis.messaging import (
     RedisMessagingPublisherSettings,
     StopConsumer,
     _cleanup_empty_consumer_groups,
-    _get_redis_server_version,
+    _ephemeral_group_heartbeat_key,
     _trim_stream_to_lowest_delivered_id,
 )
 from redis.asyncio import Redis
@@ -335,6 +336,10 @@ async def test_verify_ephemeral_cleanup(redis: Redis, broker: str):
     """Verify that ephemeral subscriptions clean up after themselves."""
     async with ephemeral_subscription("message-tests") as consumer_kwargs:
         group_name = consumer_kwargs["group"]
+        heartbeat_key = _ephemeral_group_heartbeat_key("message-tests", group_name)
+        assert group_name.startswith(EPHEMERAL_HEARTBEAT_GROUP_PREFIX)
+        assert await redis.exists(heartbeat_key)
+
         # Verify group exists
         groups = await redis.xinfo_groups("message-tests")
         assert any(g["name"] == group_name for g in groups)
@@ -342,6 +347,7 @@ async def test_verify_ephemeral_cleanup(redis: Redis, broker: str):
     # Verify group is cleaned up
     groups = await redis.xinfo_groups("message-tests")
     assert not any(g["name"] == group_name for g in groups)
+    assert not await redis.exists(heartbeat_key)
 
 
 @pytest.mark.parametrize("batch_size", [1, 5])
@@ -688,37 +694,23 @@ async def test_cleanup_preserves_newly_created_empty_groups(redis: Redis):
     }
 
 
-async def test_cleanup_stale_ephemeral_groups_with_idle_consumers(redis: Redis):
-    """Test that ephemeral groups whose consumers are all idle beyond the
-    threshold and have no pending messages are destroyed on Redis >= 7.2.  This
-    covers the case where a process is killed ungracefully (SIGKILL, OOM, pod
-    eviction) and the finally-block in ephemeral_subscription never runs,
-    leaving a consumer group with an orphaned consumer entry that blocks stream
-    trimming."""
+async def test_cleanup_stale_heartbeat_managed_ephemeral_groups(redis: Redis):
+    """Heartbeat-managed groups are stale when their heartbeat has expired."""
 
     stream_name = "test-cleanup-stale-stream"
 
     await redis.xadd(stream_name, {"data": "msg1"})
     await redis.xadd(stream_name, {"data": "msg2"})
 
-    # Simulate an ephemeral group leaked by a dead process: the group has a
-    # consumer that read a message but the process was killed and never cleaned
-    # up.
-    await redis.xgroup_create(stream_name, "ephemeral-dead-host-abc123", id="0")
-    messages = await redis.xreadgroup(
-        groupname="ephemeral-dead-host-abc123",
+    stale_group_name = f"{EPHEMERAL_HEARTBEAT_GROUP_PREFIX}dead-host-abc123"
+    await redis.xgroup_create(stream_name, stale_group_name, id="0")
+    await redis.xreadgroup(
+        groupname=stale_group_name,
         consumername="websocket-consumer",
         streams={stream_name: ">"},
         count=1,
     )
-    for _, stream_messages in messages:
-        for message_id, _ in stream_messages:
-            await redis.xack(
-                stream_name, "ephemeral-dead-host-abc123", message_id
-            )
 
-    # A non-ephemeral group that also has an idle consumer — should NOT be
-    # cleaned up regardless of idle time.
     await redis.xgroup_create(stream_name, "event-persister", id="0")
     await redis.xreadgroup(
         groupname="event-persister",
@@ -730,214 +722,158 @@ async def test_cleanup_stale_ephemeral_groups_with_idle_consumers(redis: Redis):
     groups_before = await redis.xinfo_groups(stream_name)
     assert len(groups_before) == 2
 
-    # Use a threshold of 0ms so that any idle time exceeds it (avoids needing
-    # real sleeps in tests).  Mock Redis >= 7.2 so idle-based cleanup is used.
-    with (
-        patch.dict(
-            "os.environ",
-            {"PREFECT_REDIS_MESSAGING_CONSUMER_TRIM_IDLE_THRESHOLD": "0"},
-        ),
-        patch(
-            "prefect_redis.messaging._get_redis_server_version",
-            new_callable=AsyncMock,
-            return_value=(7, 2, 0),
-        ),
-    ):
-        await _cleanup_empty_consumer_groups(stream_name)
+    await _cleanup_empty_consumer_groups(stream_name)
 
     groups_after = await redis.xinfo_groups(stream_name)
     group_names_after = {g["name"] for g in groups_after}
     assert group_names_after == {"event-persister"}
 
 
-async def test_cleanup_preserves_idle_ephemeral_groups_with_pending_messages(
+async def test_cleanup_preserves_heartbeat_managed_ephemeral_groups_with_heartbeat(
     redis: Redis,
 ):
-    """Idle consumers with pending messages may still be processing work."""
+    """A heartbeat means the subscription context is still alive."""
 
-    stream_name = "test-cleanup-pending-stream"
+    stream_name = "test-cleanup-live-heartbeat-stream"
+    group_name = f"{EPHEMERAL_HEARTBEAT_GROUP_PREFIX}live-host"
 
     await redis.xadd(stream_name, {"data": "msg1"})
 
-    await redis.xgroup_create(stream_name, "ephemeral-processing-host", id="0")
+    await redis.xgroup_create(stream_name, group_name, id="0")
     await redis.xreadgroup(
-        groupname="ephemeral-processing-host",
+        groupname=group_name,
+        consumername="websocket-consumer",
+        streams={stream_name: ">"},
+        count=1,
+    )
+    await redis.set(
+        _ephemeral_group_heartbeat_key(stream_name, group_name),
+        "1",
+        ex=60,
+    )
+
+    await _cleanup_empty_consumer_groups(stream_name)
+
+    groups_after = await redis.xinfo_groups(stream_name)
+    assert {g["name"] for g in groups_after} == {group_name}
+
+
+async def test_cleanup_preserves_legacy_ephemeral_groups_with_consumers(
+    redis: Redis,
+):
+    """Legacy groups with consumers cannot be safely identified as stale."""
+
+    stream_name = "test-cleanup-legacy-ephemeral-stream"
+
+    await redis.xadd(stream_name, {"data": "msg1"})
+    await redis.xadd(stream_name, {"data": "msg2"})
+
+    await redis.xgroup_create(stream_name, "ephemeral-legacy-host", id="0")
+    await redis.xreadgroup(
+        groupname="ephemeral-legacy-host",
         consumername="websocket-consumer",
         streams={stream_name: ">"},
         count=1,
     )
 
-    consumers = await redis.xinfo_consumers(
-        stream_name, "ephemeral-processing-host"
-    )
-    assert consumers[0]["pending"] == 1
-
-    with (
-        patch.dict(
-            "os.environ",
-            {"PREFECT_REDIS_MESSAGING_CONSUMER_TRIM_IDLE_THRESHOLD": "0"},
-        ),
-        patch(
-            "prefect_redis.messaging._get_redis_server_version",
-            new_callable=AsyncMock,
-            return_value=(7, 2, 0),
-        ),
-    ):
-        await _cleanup_empty_consumer_groups(stream_name)
-
-    groups_after = await redis.xinfo_groups(stream_name)
-    assert {g["name"] for g in groups_after} == {"ephemeral-processing-host"}
-
-
-async def test_cleanup_preserves_ephemeral_groups_with_active_consumers(redis: Redis):
-    """Test that ephemeral groups whose consumers are still active (idle below
-    threshold) are NOT cleaned up on Redis >= 7.2."""
-
-    stream_name = "test-cleanup-active-stream"
-
-    await redis.xadd(stream_name, {"data": "msg1"})
-
-    await redis.xgroup_create(stream_name, "ephemeral-live-host-xyz", id="0")
+    await redis.xgroup_create(stream_name, "ephemeral-empty-host", id="0")
     await redis.xreadgroup(
-        groupname="ephemeral-live-host-xyz",
-        consumername="active-consumer",
-        streams={stream_name: ">"},
-        count=1,
-    )
-
-    groups_before = await redis.xinfo_groups(stream_name)
-    assert len(groups_before) == 1
-
-    # Use an extremely high threshold so the consumer is considered active.
-    # Mock Redis >= 7.2 so idle-based cleanup is used.
-    with (
-        patch.dict(
-            "os.environ",
-            {"PREFECT_REDIS_MESSAGING_CONSUMER_TRIM_IDLE_THRESHOLD": "999999"},
-        ),
-        patch(
-            "prefect_redis.messaging._get_redis_server_version",
-            new_callable=AsyncMock,
-            return_value=(7, 2, 0),
-        ),
-    ):
-        await _cleanup_empty_consumer_groups(stream_name)
-
-    groups_after = await redis.xinfo_groups(stream_name)
-    assert len(groups_after) == 1
-    assert groups_after[0]["name"] == "ephemeral-live-host-xyz"
-
-
-async def test_cleanup_skips_idle_check_on_old_redis(redis: Redis):
-    """On Redis < 7.2, `idle` tracks last *successful* read, not last
-    interaction attempt.  A live consumer on a quiet stream would appear idle,
-    so idle-based cleanup must be disabled.  Groups with zero consumers should
-    still be cleaned up."""
-
-    stream_name = "test-cleanup-old-redis-stream"
-
-    await redis.xadd(stream_name, {"data": "msg1"})
-    await redis.xadd(stream_name, {"data": "msg2"})
-
-    # Ephemeral group with an idle consumer (simulates a dead *or* quiet-stream
-    # consumer — indistinguishable on < 7.2).
-    await redis.xgroup_create(stream_name, "ephemeral-maybe-alive", id="0")
-    await redis.xreadgroup(
-        groupname="ephemeral-maybe-alive",
-        consumername="ambiguous-consumer",
-        streams={stream_name: ">"},
-        count=1,
-    )
-
-    # Ephemeral group with zero consumers — safe to clean up on any version.
-    await redis.xgroup_create(stream_name, "ephemeral-cleanly-left", id="0")
-    await redis.xreadgroup(
-        groupname="ephemeral-cleanly-left",
+        groupname="ephemeral-empty-host",
         consumername="temp",
         streams={stream_name: ">"},
         count=1,
     )
-    await redis.xgroup_delconsumer(stream_name, "ephemeral-cleanly-left", "temp")
+    await redis.xgroup_delconsumer(stream_name, "ephemeral-empty-host", "temp")
 
-    groups_before = await redis.xinfo_groups(stream_name)
-    assert len(groups_before) == 2
-
-    # Mock Redis 6.2 so idle-based cleanup is disabled.
-    with (
-        patch.dict(
-            "os.environ",
-            {"PREFECT_REDIS_MESSAGING_CONSUMER_TRIM_IDLE_THRESHOLD": "0"},
-        ),
-        patch(
-            "prefect_redis.messaging._get_redis_server_version",
-            new_callable=AsyncMock,
-            return_value=(6, 2, 0),
-        ),
-    ):
-        await _cleanup_empty_consumer_groups(stream_name)
+    await _cleanup_empty_consumer_groups(stream_name)
 
     groups_after = await redis.xinfo_groups(stream_name)
-    group_names_after = {g["name"] for g in groups_after}
-    # The group with an idle consumer is preserved (can't safely use idle on < 7.2).
-    # The group with zero consumers is cleaned up.
-    assert group_names_after == {"ephemeral-maybe-alive"}
+    assert {g["name"] for g in groups_after} == {"ephemeral-legacy-host"}
 
 
-async def test_cleanup_preserves_zero_consumer_cleanup_when_version_probe_fails(
+async def test_trimming_skips_stale_heartbeat_managed_ephemeral_groups(
     redis: Redis,
 ):
-    """If the Redis version probe fails, only idle-based cleanup is disabled."""
+    """Expired heartbeat-managed groups should not pin stream trimming."""
 
-    stream_name = "test-cleanup-version-failure-stream"
+    stream_name = "test-trim-stale-heartbeat-stream"
 
-    await redis.xadd(stream_name, {"data": "msg1"})
-    await redis.xadd(stream_name, {"data": "msg2"})
+    message_ids = []
+    for i in range(10):
+        message_ids.append(await redis.xadd(stream_name, {"data": f"msg{i}"}))
 
-    await redis.xgroup_create(stream_name, "ephemeral-with-consumer", id="0")
+    stale_group_name = f"{EPHEMERAL_HEARTBEAT_GROUP_PREFIX}dead-host"
+    await redis.xgroup_create(stream_name, stale_group_name, id="0")
     await redis.xreadgroup(
-        groupname="ephemeral-with-consumer",
+        groupname=stale_group_name,
+        consumername="dead-consumer",
+        streams={stream_name: ">"},
+        count=1,
+    )
+
+    await redis.xgroup_create(stream_name, "active-group", id="0")
+    await redis.xreadgroup(
+        groupname="active-group",
         consumername="consumer",
         streams={stream_name: ">"},
-        count=1,
+        count=10,
     )
 
-    await redis.xgroup_create(stream_name, "ephemeral-empty", id="0")
+    await _trim_stream_to_lowest_delivered_id(stream_name)
+
+    stream_info = await redis.xinfo_stream(stream_name)
+    first_entry_id = (
+        stream_info["first-entry"][0] if stream_info["first-entry"] else None
+    )
+    assert first_entry_id is not None
+    assert first_entry_id > message_ids[0]
+
+
+async def test_trimming_includes_heartbeat_managed_ephemeral_groups_with_heartbeat(
+    redis: Redis,
+):
+    """Live heartbeat-managed groups should still constrain stream trimming."""
+
+    stream_name = "test-trim-live-heartbeat-stream"
+    group_name = f"{EPHEMERAL_HEARTBEAT_GROUP_PREFIX}live-host"
+
+    message_ids = []
+    for i in range(10):
+        message_ids.append(await redis.xadd(stream_name, {"data": f"msg{i}"}))
+
+    await redis.xgroup_create(stream_name, group_name, id="0")
     await redis.xreadgroup(
-        groupname="ephemeral-empty",
-        consumername="temp",
+        groupname=group_name,
+        consumername="websocket-consumer",
         streams={stream_name: ">"},
         count=1,
     )
-    await redis.xgroup_delconsumer(stream_name, "ephemeral-empty", "temp")
+    await redis.set(
+        _ephemeral_group_heartbeat_key(stream_name, group_name),
+        "1",
+        ex=60,
+    )
 
-    with patch(
-        "prefect_redis.messaging._get_redis_server_version",
-        new_callable=AsyncMock,
-        side_effect=RedisConnectionError("version unavailable"),
+    await redis.xgroup_create(stream_name, "advanced-group", id="0")
+    await redis.xreadgroup(
+        groupname="advanced-group",
+        consumername="consumer",
+        streams={stream_name: ">"},
+        count=10,
+    )
+
+    with patch.dict(
+        "os.environ",
+        {"PREFECT_REDIS_MESSAGING_CONSUMER_TRIM_IDLE_THRESHOLD": "0"},
     ):
-        await _cleanup_empty_consumer_groups(stream_name)
+        await _trim_stream_to_lowest_delivered_id(stream_name)
 
-    groups_after = await redis.xinfo_groups(stream_name)
-    group_names_after = {g["name"] for g in groups_after}
-    assert group_names_after == {"ephemeral-with-consumer"}
-
-
-async def test_redis_server_version_cache_is_tied_to_client() -> None:
-    first_client = AsyncMock()
-    second_client = AsyncMock()
-    first_client.info.return_value = {"redis_version": "7.2.0"}
-    second_client.info.return_value = {"redis_version": "6.2.0"}
-
-    with patch("prefect_redis.messaging._redis_server_version", None):
-        assert await _get_redis_server_version(first_client) == (7, 2, 0)
-
-        first_client.info.return_value = {"redis_version": "6.2.0"}
-        assert await _get_redis_server_version(first_client) == (7, 2, 0)
-
-        assert await _get_redis_server_version(second_client) == (6, 2, 0)
-
-    assert first_client.info.call_count == 1
-    assert second_client.info.call_count == 1
+    stream_info = await redis.xinfo_stream(stream_name)
+    first_entry_id = (
+        stream_info["first-entry"][0] if stream_info["first-entry"] else None
+    )
+    assert first_entry_id is not None
+    assert first_entry_id <= message_ids[0]
 
 
 async def test_consumer_recovers_from_redis_connection_error(
