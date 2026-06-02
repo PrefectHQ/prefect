@@ -73,6 +73,7 @@ finally:
 - Don't assert synchronously on hook markers or other side effects right after triggering a cancellation — always poll.
 - Don't use fixed `asyncio.sleep()` delays as a substitute for `_wait_for()` — they either waste time or still race.
 - Don't share state between test files via module-level globals — each file is standalone.
+- Don't use subprocess CLI for infrastructure setup/teardown (work pool CRUD, deployment creation) — use `get_client(sync_client=True)` API calls instead. Subprocess is only for testing cross-process behavior (starting workers, executing flow runs in a separate process).
 
 ## Pitfalls
 
