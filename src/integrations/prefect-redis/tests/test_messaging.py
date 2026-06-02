@@ -837,6 +837,45 @@ async def test_cleanup_skips_idle_check_on_old_redis(redis: Redis):
     assert group_names_after == {"ephemeral-maybe-alive"}
 
 
+async def test_cleanup_preserves_zero_consumer_cleanup_when_version_probe_fails(
+    redis: Redis,
+):
+    """If the Redis version probe fails, only idle-based cleanup is disabled."""
+
+    stream_name = "test-cleanup-version-failure-stream"
+
+    await redis.xadd(stream_name, {"data": "msg1"})
+    await redis.xadd(stream_name, {"data": "msg2"})
+
+    await redis.xgroup_create(stream_name, "ephemeral-with-consumer", id="0")
+    await redis.xreadgroup(
+        groupname="ephemeral-with-consumer",
+        consumername="consumer",
+        streams={stream_name: ">"},
+        count=1,
+    )
+
+    await redis.xgroup_create(stream_name, "ephemeral-empty", id="0")
+    await redis.xreadgroup(
+        groupname="ephemeral-empty",
+        consumername="temp",
+        streams={stream_name: ">"},
+        count=1,
+    )
+    await redis.xgroup_delconsumer(stream_name, "ephemeral-empty", "temp")
+
+    with patch(
+        "prefect_redis.messaging._get_redis_server_version",
+        new_callable=AsyncMock,
+        side_effect=RedisConnectionError("version unavailable"),
+    ):
+        await _cleanup_empty_consumer_groups(stream_name)
+
+    groups_after = await redis.xinfo_groups(stream_name)
+    group_names_after = {g["name"] for g in groups_after}
+    assert group_names_after == {"ephemeral-with-consumer"}
+
+
 async def test_consumer_recovers_from_redis_connection_error(
     broker: str, publisher: Publisher
 ):

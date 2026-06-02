@@ -740,18 +740,22 @@ async def _cleanup_empty_consumer_groups(stream_name: str) -> None:
     """
     redis_client: Redis = get_async_redis_client()
 
-    server_version = await _get_redis_server_version()
-    can_use_idle = server_version >= (7, 2)
-
-    if can_use_idle:
-        settings = RedisMessagingConsumerSettings()
-        idle_threshold_ms = int(settings.trim_idle_threshold.total_seconds() * 1000)
-
     try:
         groups = await redis_client.xinfo_groups(stream_name)
     except Exception as e:
         logger.debug(f"Unable to get consumer groups for stream {stream_name}: {e}")
         return
+
+    can_use_idle = False
+    try:
+        server_version = await _get_redis_server_version()
+        can_use_idle = server_version >= (7, 2)
+    except Exception as e:
+        logger.debug(f"Unable to get Redis server version for stream {stream_name}: {e}")
+
+    if can_use_idle:
+        settings = RedisMessagingConsumerSettings()
+        idle_threshold_ms = int(settings.trim_idle_threshold.total_seconds() * 1000)
 
     for group in groups:
         try:
