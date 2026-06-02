@@ -1342,6 +1342,75 @@ class TestGitCloneErrorHints:
         with pytest.raises(RuntimeError, match="credentials or access token"):
             await repo.pull_code()
 
+    async def test_clone_repo_surfaces_stderr_when_no_hint_matches(self, monkeypatch):
+        """When git's stderr doesn't match any known pattern, the raw (sanitized)
+        stderr should appear in the RuntimeError so users don't have to
+        monkey-patch Prefect to find out what actually went wrong.
+
+        Regression for private-repo clone failures in GCP Cloud Run Jobs where
+        users saw only `exit code 1.` with no further signal.
+        """
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        stderr = (
+            b"remote: Counting objects: 100% (1/1), done.\n"
+            b"error: RPC failed; curl 92 HTTP/2 stream 5 was not closed cleanly\n"
+            b"fatal: early EOF\n"
+        )
+
+        async def mock_run_process_transient(*args, **kwargs):
+            raise subprocess.CalledProcessError(1, ["git", "clone"], stderr=stderr)
+
+        monkeypatch.setattr(
+            "prefect.runner.storage.run_process", mock_run_process_transient
+        )
+
+        repo = GitRepository(url="https://github.com/org/repo.git")
+        with pytest.raises(RuntimeError) as exc_info:
+            await repo.pull_code()
+
+        message = str(exc_info.value)
+        assert "exit code 1" in message
+        assert "git stderr:" in message
+        # The actionable final line should be visible to the user.
+        assert "early EOF" in message
+
+    async def test_clone_repo_logs_sanitized_stderr_at_debug(self, monkeypatch, caplog):
+        """Sanitized stderr should be emitted on the GitRepository debug logger
+        even when credentials are present (so the exception chain is suppressed)."""
+        import logging
+
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        stderr = (
+            b"fatal: unable to access "
+            b"'https://ghp_SECRETTOKEN@github.com/org/repo.git/': HTTP/2 stream closed\n"
+        )
+
+        async def mock_run_process(*args, **kwargs):
+            raise subprocess.CalledProcessError(1, ["git", "clone"], stderr=stderr)
+
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
+
+        # Embed credentials directly in the URL so exc_chain is suppressed.
+        repo = GitRepository(url="https://ghp_SECRETTOKEN@github.com/org/repo.git")
+        with caplog.at_level(
+            logging.DEBUG, logger="prefect.runner.storage.git-repository.repo"
+        ):
+            with pytest.raises(RuntimeError):
+                await repo.pull_code()
+
+        debug_messages = [
+            record.getMessage()
+            for record in caplog.records
+            if record.levelno == logging.DEBUG
+            and "git clone failed" in record.getMessage()
+        ]
+        assert debug_messages, "expected a DEBUG log with sanitized git stderr"
+        joined = "\n".join(debug_messages)
+        assert "ghp_SECRETTOKEN" not in joined, "token must be sanitized"
+        assert "github.com" in joined
+
 
 class TestGitRepositoryConcurrency:
     """Tests for file-based locking in GitRepository.pull_code()."""
