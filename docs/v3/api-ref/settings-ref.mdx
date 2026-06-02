@@ -2999,7 +2999,7 @@ Whether or not to display promotional content in the UI, including upgrade promp
 ## ServerWorkerChannelSettings
 Settings for server-side worker channel storage and delivery policy.
 ### `cleanup_queue_storage`
-The module to use for storing worker cleanup delivery messages. The default in-memory backend stores messages, leases, wakeups, and dead-letter entries only in the current server process; use a Redis-backed storage module for high availability or restart-safe cleanup delivery.
+The module to use for storing worker cleanup delivery messages. The default in-memory backend stores messages, leases, wakeups, and dead-letter entries only in the current server process; use an external storage module for high availability or restart-safe cleanup delivery.
 
 **Type**: `string`
 
@@ -3038,7 +3038,7 @@ The maximum number of committed cleanup reservations before a message is moved t
 `PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_MAX_DELIVERY_ATTEMPTS`
 
 ### `cleanup_completed_idempotency_retention_seconds`
-How long completed cleanup idempotency records are retained after acknowledgement. None keeps them for the lifetime of the current server process. The in-memory backend does not survive restart; use Redis for high availability or restart-safe cleanup idempotency.
+How long completed cleanup idempotency records are retained after acknowledgement. None keeps them for the lifetime of the current server process. The in-memory backend does not survive restart; use external storage for high availability or restart-safe cleanup idempotency.
 
 **Type**: `number | None`
 
