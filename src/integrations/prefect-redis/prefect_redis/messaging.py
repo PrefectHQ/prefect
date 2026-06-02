@@ -725,9 +725,10 @@ async def _cleanup_empty_consumer_groups(stream_name: str) -> None:
     * It has **no consumers** at all (the consumer disconnected cleanly but the
       group was not destroyed).
     * (Redis >= 7.2 only) **All** of its consumers have been idle longer than
-      the configured `trim_idle_threshold`.  This catches groups leaked by
-      ungraceful shutdowns (SIGKILL, OOM-kill, pod eviction) where the
-      `finally` block in `ephemeral_subscription` never ran.
+      the configured `trim_idle_threshold` and have no pending messages.  This
+      catches groups leaked by ungraceful shutdowns (SIGKILL, OOM-kill, pod
+      eviction) where the `finally` block in `ephemeral_subscription` never
+      ran.
 
     The idle-based check is gated on Redis >= 7.2 because older versions
     only update the consumer `idle` timer on *successful* reads. On a quiet
@@ -774,9 +775,10 @@ async def _cleanup_empty_consumer_groups(stream_name: str) -> None:
             if not consumers:
                 pass  # no consumers — safe to clean up on any version
             elif can_use_idle and all(
-                consumer["idle"] > idle_threshold_ms for consumer in consumers
+                consumer["idle"] > idle_threshold_ms and consumer["pending"] == 0
+                for consumer in consumers
             ):
-                pass  # all consumers idle beyond threshold (Redis >= 7.2)
+                pass  # all consumers idle beyond threshold with no in-flight work
             else:
                 continue
 

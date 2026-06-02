@@ -690,10 +690,11 @@ async def test_cleanup_preserves_newly_created_empty_groups(redis: Redis):
 
 async def test_cleanup_stale_ephemeral_groups_with_idle_consumers(redis: Redis):
     """Test that ephemeral groups whose consumers are all idle beyond the
-    threshold are destroyed on Redis >= 7.2.  This covers the case where a
-    process is killed ungracefully (SIGKILL, OOM, pod eviction) and the
-    finally-block in ephemeral_subscription never runs, leaving a consumer
-    group with an orphaned consumer entry that blocks stream trimming."""
+    threshold and have no pending messages are destroyed on Redis >= 7.2.  This
+    covers the case where a process is killed ungracefully (SIGKILL, OOM, pod
+    eviction) and the finally-block in ephemeral_subscription never runs,
+    leaving a consumer group with an orphaned consumer entry that blocks stream
+    trimming."""
 
     stream_name = "test-cleanup-stale-stream"
 
@@ -704,12 +705,17 @@ async def test_cleanup_stale_ephemeral_groups_with_idle_consumers(redis: Redis):
     # consumer that read a message but the process was killed and never cleaned
     # up.
     await redis.xgroup_create(stream_name, "ephemeral-dead-host-abc123", id="0")
-    await redis.xreadgroup(
+    messages = await redis.xreadgroup(
         groupname="ephemeral-dead-host-abc123",
         consumername="websocket-consumer",
         streams={stream_name: ">"},
         count=1,
     )
+    for _, stream_messages in messages:
+        for message_id, _ in stream_messages:
+            await redis.xack(
+                stream_name, "ephemeral-dead-host-abc123", message_id
+            )
 
     # A non-ephemeral group that also has an idle consumer — should NOT be
     # cleaned up regardless of idle time.
@@ -742,6 +748,45 @@ async def test_cleanup_stale_ephemeral_groups_with_idle_consumers(redis: Redis):
     groups_after = await redis.xinfo_groups(stream_name)
     group_names_after = {g["name"] for g in groups_after}
     assert group_names_after == {"event-persister"}
+
+
+async def test_cleanup_preserves_idle_ephemeral_groups_with_pending_messages(
+    redis: Redis,
+):
+    """Idle consumers with pending messages may still be processing work."""
+
+    stream_name = "test-cleanup-pending-stream"
+
+    await redis.xadd(stream_name, {"data": "msg1"})
+
+    await redis.xgroup_create(stream_name, "ephemeral-processing-host", id="0")
+    await redis.xreadgroup(
+        groupname="ephemeral-processing-host",
+        consumername="websocket-consumer",
+        streams={stream_name: ">"},
+        count=1,
+    )
+
+    consumers = await redis.xinfo_consumers(
+        stream_name, "ephemeral-processing-host"
+    )
+    assert consumers[0]["pending"] == 1
+
+    with (
+        patch.dict(
+            "os.environ",
+            {"PREFECT_REDIS_MESSAGING_CONSUMER_TRIM_IDLE_THRESHOLD": "0"},
+        ),
+        patch(
+            "prefect_redis.messaging._get_redis_server_version",
+            new_callable=AsyncMock,
+            return_value=(7, 2, 0),
+        ),
+    ):
+        await _cleanup_empty_consumer_groups(stream_name)
+
+    groups_after = await redis.xinfo_groups(stream_name)
+    assert {g["name"] for g in groups_after} == {"ephemeral-processing-host"}
 
 
 async def test_cleanup_preserves_ephemeral_groups_with_active_consumers(redis: Redis):
