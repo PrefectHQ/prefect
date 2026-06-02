@@ -1384,9 +1384,7 @@ class TestTaskRetries:
         with the base delay and configured jitter factor on every retry.
         """
         mock_jitter = Mock(side_effect=lambda base, clamping_factor: base + 1)
-        monkeypatch.setattr(
-            "prefect.task_engine.clamped_poisson_interval", mock_jitter
-        )
+        monkeypatch.setattr("prefect.task_engine.clamped_poisson_interval", mock_jitter)
 
         @task(retries=3, retry_delay_seconds=10, retry_jitter_factor=3)
         async def flaky_function():
@@ -1404,9 +1402,7 @@ class TestTaskRetries:
         monkeypatch,
     ):
         mock_jitter = Mock(side_effect=lambda base, clamping_factor: base + 1)
-        monkeypatch.setattr(
-            "prefect.task_engine.clamped_poisson_interval", mock_jitter
-        )
+        monkeypatch.setattr("prefect.task_engine.clamped_poisson_interval", mock_jitter)
 
         @task(retries=3, retry_delay_seconds=10, retry_jitter_factor=3)
         def flaky_function():
