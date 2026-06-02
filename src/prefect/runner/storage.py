@@ -14,7 +14,7 @@ from typing import (
     Union,
     runtime_checkable,
 )
-from urllib.parse import quote, urlparse, urlsplit, urlunparse
+from urllib.parse import quote, unquote, urlparse, urlsplit, urlunparse
 from uuid import uuid4
 
 import fsspec  # pyright: ignore[reportMissingTypeStubs]
@@ -501,7 +501,7 @@ class GitRepository:
             safe_url = strip_auth_from_url(self._url)
             sanitized_stderr = strip_auth_from_urls_in_text(
                 _decode_stderr(exc),
-                extra_secrets=[parsed_url.password] if parsed_url.password else None,
+                extra_secrets=_url_auth_secrets(self._url, repository_url),
             )
             # Surface the raw git error at DEBUG so users can opt in via log
             # level when the hint patterns don't match. The exception chain is
@@ -1015,6 +1015,22 @@ def _decode_stderr(exc: subprocess.CalledProcessError) -> str:
     if isinstance(exc.stderr, bytes):
         return exc.stderr.decode("utf-8", errors="replace")
     return str(exc.stderr)
+
+
+def _url_auth_secrets(*urls: str) -> list[str]:
+    """Extract userinfo values from URLs so echoed auth can be redacted."""
+    secrets: list[str] = []
+    seen: set[str] = set()
+    for url in urls:
+        parsed = urlparse(url)
+        for value in (parsed.username, parsed.password):
+            if not value:
+                continue
+            for secret in (value, unquote(value)):
+                if secret and secret not in seen:
+                    secrets.append(secret)
+                    seen.add(secret)
+    return secrets
 
 
 def _get_git_clone_error_hint(exc: subprocess.CalledProcessError) -> str | None:

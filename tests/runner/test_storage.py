@@ -1385,6 +1385,7 @@ class TestGitCloneErrorHints:
         stderr = (
             b"fatal: unable to access "
             b"'https://ghp_SECRETTOKEN@github.com/org/repo.git/': HTTP/2 stream closed\n"
+            b"remote: token ghp_SECRETTOKEN was rejected\n"
         )
 
         async def mock_run_process(*args, **kwargs):
@@ -1397,9 +1398,10 @@ class TestGitCloneErrorHints:
         with caplog.at_level(
             logging.DEBUG, logger="prefect.runner.storage.git-repository.repo"
         ):
-            with pytest.raises(RuntimeError):
+            with pytest.raises(RuntimeError) as exc_info:
                 await repo.pull_code()
 
+        assert "ghp_SECRETTOKEN" not in str(exc_info.value)
         debug_messages = [
             record.getMessage()
             for record in caplog.records
