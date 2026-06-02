@@ -202,6 +202,34 @@ async def test_redis_duplicate_enqueue_wakes_when_existing_message_is_visible(
     assert await queue.read_wakeup_sequence(work_pool_id) == wakeup_sequence + 1
 
 
+async def test_redis_enqueue_advances_wakeup_in_transaction(
+    queue: WorkerCleanupQueue,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    work_pool_id = uuid4()
+    message_id = uuid4()
+    sequence = await queue.read_wakeup_sequence(work_pool_id)
+
+    async def fail_separate_wakeup(work_pool_id: UUID) -> None:
+        raise AssertionError("enqueue should not wake with a separate Redis command")
+
+    monkeypatch.setattr(queue, "wake_dispatchers", fail_separate_wakeup)
+
+    message = await queue.enqueue(
+        message_id=message_id,
+        idempotency_key="flow-run-cleanup",
+        work_pool_id=work_pool_id,
+        kind=CANCELLING_TIMEOUT_TEARDOWN,
+        target=_target(),
+    )
+    reservation = await queue.reserve(work_pool_id=work_pool_id)
+
+    assert message.message_id == message_id
+    assert await queue.read_wakeup_sequence(work_pool_id) == sequence + 1
+    assert reservation is not None
+    assert reservation.message_id == message_id
+
+
 async def test_redis_concurrent_reserve_attempts_create_one_reservation(
     queue: WorkerCleanupQueue,
 ) -> None:

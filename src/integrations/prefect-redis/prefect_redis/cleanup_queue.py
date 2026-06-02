@@ -185,9 +185,10 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                     pipe.set(idempotency_key_name, str(message_id))
                     pipe.zadd(keys.visible, {str(message_id): _score_ms(current_time)})
                     pipe.sadd(self._pools_key(), str(work_pool_id))
+                    self._stage_wakeup(pipe=pipe, work_pool_id=work_pool_id)
                     await pipe.execute()
                     message = self._message_from_mapping(message_fields)
-                    await self.wake_dispatchers(work_pool_id)
+                    await self._notify_local_dispatchers()
                     return message
                 except WatchError:
                     continue
@@ -966,6 +967,8 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         return self._message_from_mapping(updated_fields)
 
     def _stage_wakeup(self, *, pipe: Pipeline, work_pool_id: UUID | str) -> None:
+        # Transitions that make work visible must stage this in the same Redis
+        # transaction so other server processes observe the wakeup with the work.
         pipe.incr(self._wakeup_key(work_pool_id))
 
     def _stage_renew(
