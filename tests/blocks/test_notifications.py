@@ -23,6 +23,10 @@ from prefect.blocks.notifications import (
 )
 from prefect.flows import flow
 
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:'imghdr' is deprecated and slated for removal in Python 3.13:DeprecationWarning"
+)
+
 # A list of the notification classes Pytest should use as parameters to each method in TestAppriseNotificationBlock
 notification_classes = sorted(
     [
