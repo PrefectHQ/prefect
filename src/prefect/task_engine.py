@@ -371,6 +371,29 @@ class BaseTaskRunEngine(Generic[P, R]):
             return False
         return task_run.state.is_running() or task_run.state.is_scheduled()
 
+    def _compute_retry_delay(self) -> Optional[float]:
+        """Compute the next retry delay, applying jitter if configured.
+
+        Mirrors the server-side `RetryFailedTasks` orchestration rule so that
+        locally-executed task retries honor `retry_jitter_factor` (local retries
+        use `set_state(..., force=True)` and bypass server orchestration).
+        """
+        if not self.task.retry_delay_seconds:
+            return None
+        base_delay = (
+            self.task.retry_delay_seconds[
+                min(self.retries, len(self.task.retry_delay_seconds) - 1)
+            ]  # repeat final delay value if attempts exceed specified delays
+            if isinstance(self.task.retry_delay_seconds, Sequence)
+            else self.task.retry_delay_seconds
+        )
+        # guard against base_delay == 0: clamped_poisson_interval divides by zero
+        if self.task.retry_jitter_factor and base_delay > 0:
+            return clamped_poisson_interval(
+                base_delay, clamping_factor=self.task.retry_jitter_factor
+            )
+        return base_delay
+
     def log_finished_message(self) -> None:
         if not self.task_run:
             return
@@ -663,20 +686,13 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         """
         failure_type = "exception" if isinstance(exc_or_state, Exception) else "state"
         if self.retries < self.task.retries and self.can_retry(exc_or_state):
-            if self.task.retry_delay_seconds:
-                delay = (
-                    self.task.retry_delay_seconds[
-                        min(self.retries, len(self.task.retry_delay_seconds) - 1)
-                    ]  # repeat final delay value if attempts exceed specified delays
-                    if isinstance(self.task.retry_delay_seconds, Sequence)
-                    else self.task.retry_delay_seconds
-                )
+            delay = self._compute_retry_delay()
+            if delay is not None:
                 new_state = AwaitingRetry(
                     scheduled_time=prefect.types._datetime.now("UTC")
                     + timedelta(seconds=delay)
                 )
             else:
-                delay = None
                 new_state = Retrying()
 
             self.logger.info(
@@ -1290,20 +1306,13 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         failure_type = "exception" if isinstance(exc_or_state, Exception) else "state"
 
         if self.retries < self.task.retries and await self.can_retry(exc_or_state):
-            if self.task.retry_delay_seconds:
-                delay = (
-                    self.task.retry_delay_seconds[
-                        min(self.retries, len(self.task.retry_delay_seconds) - 1)
-                    ]  # repeat final delay value if attempts exceed specified delays
-                    if isinstance(self.task.retry_delay_seconds, Sequence)
-                    else self.task.retry_delay_seconds
-                )
+            delay = self._compute_retry_delay()
+            if delay is not None:
                 new_state = AwaitingRetry(
                     scheduled_time=prefect.types._datetime.now("UTC")
                     + timedelta(seconds=delay)
                 )
             else:
-                delay = None
                 new_state = Retrying()
 
             self.logger.info(

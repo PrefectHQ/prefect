@@ -106,7 +106,7 @@ def retry_handler(task, task_run, state) -> bool:
         return exc.response.status_code not in do_not_retry_on_these_codes
     except httpx.ConnectError:
         return False
-    except:
+    except Exception:
         return True
 
 

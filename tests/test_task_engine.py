@@ -1372,6 +1372,53 @@ class TestTaskRetries:
             "Failed",
         ]
 
+    async def test_async_task_applies_retry_jitter(
+        self,
+        monkeypatch,
+    ):
+        """Regression test: retry_jitter_factor must be applied to local retries.
+
+        Previously the local task engine ignored retry_jitter_factor entirely
+        (server-side orchestration is bypassed by force=True), so jitter was
+        never computed. We assert the engine invokes clamped_poisson_interval
+        with the base delay and configured jitter factor on every retry.
+        """
+        mock_jitter = Mock(side_effect=lambda base, clamping_factor: base + 1)
+        monkeypatch.setattr(
+            "prefect.task_engine.clamped_poisson_interval", mock_jitter
+        )
+
+        @task(retries=3, retry_delay_seconds=10, retry_jitter_factor=3)
+        async def flaky_function():
+            raise ValueError()
+
+        await flaky_function(return_state=True)
+
+        assert mock_jitter.call_count == 3
+        assert mock_jitter.call_args_list == [
+            call(10, clamping_factor=3) for _ in range(3)
+        ]
+
+    async def test_sync_task_applies_retry_jitter(
+        self,
+        monkeypatch,
+    ):
+        mock_jitter = Mock(side_effect=lambda base, clamping_factor: base + 1)
+        monkeypatch.setattr(
+            "prefect.task_engine.clamped_poisson_interval", mock_jitter
+        )
+
+        @task(retries=3, retry_delay_seconds=10, retry_jitter_factor=3)
+        def flaky_function():
+            raise ValueError()
+
+        flaky_function(return_state=True)
+
+        assert mock_jitter.call_count == 3
+        assert mock_jitter.call_args_list == [
+            call(10, clamping_factor=3) for _ in range(3)
+        ]
+
 
 class TestTaskCrashDetection:
     @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
