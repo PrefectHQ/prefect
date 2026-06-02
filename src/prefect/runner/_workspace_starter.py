@@ -151,13 +151,14 @@ def _is_stdlib_path(entry: str) -> bool:
     """True when *entry* is a stdlib, lib-dynload, or stdlib zip path.
 
     Site-packages directories that live under the stdlib tree are kept.
-    Only zip archives that sit next to a known stdlib directory are filtered;
+    Only interpreter stdlib zip archives next to stdlib directories are filtered;
     user archives like `/app/python_deps.zip` are preserved.
     """
     if not entry:
         return False
 
-    resolved = str(Path(entry).resolve())
+    resolved_path = Path(entry).resolve()
+    resolved = str(resolved_path)
 
     for sp in _site_packages_dirs():
         if resolved == sp or resolved.startswith(sp + os.sep):
@@ -167,8 +168,9 @@ def _is_stdlib_path(entry: str) -> bool:
         if resolved == root or resolved.startswith(root + os.sep):
             return True
 
-    if entry.endswith(".zip"):
-        resolved_parent = str(Path(entry).resolve().parent)
+    interpreter_zip_name = f"python{sys.version_info.major}{sys.version_info.minor}.zip"
+    if resolved_path.name == interpreter_zip_name:
+        resolved_parent = str(resolved_path.parent)
         stdlib_parents = {str(Path(r).parent) for r in _stdlib_prefixes()}
         if resolved_parent in stdlib_parents:
             return True
@@ -178,14 +180,15 @@ def _is_stdlib_path(entry: str) -> bool:
 
 def workspace_environment(workspace: PreparedWorkspace) -> dict[str, str]:
     environment = dict(workspace.environment)
-    pythonpath_entries = [
-        entry for entry in _workspace_sys_path(workspace) if not _is_stdlib_path(entry)
-    ]
+    pythonpath_entries: list[str] = []
+    candidate_entries = _workspace_sys_path(workspace)
     existing_pythonpath = environment.get("PYTHONPATH")
     if existing_pythonpath:
-        for entry in existing_pythonpath.split(os.pathsep):
-            if entry and entry not in pythonpath_entries and not _is_stdlib_path(entry):
-                pythonpath_entries.append(entry)
+        candidate_entries.extend(existing_pythonpath.split(os.pathsep))
+
+    for entry in candidate_entries:
+        if entry and entry not in pythonpath_entries and not _is_stdlib_path(entry):
+            pythonpath_entries.append(entry)
 
     environment["PYTHONPATH"] = os.pathsep.join(pythonpath_entries)
     return environment
