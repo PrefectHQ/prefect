@@ -18,6 +18,7 @@ from prefect_redis.messaging import (
     RedisMessagingPublisherSettings,
     StopConsumer,
     _cleanup_empty_consumer_groups,
+    _get_redis_server_version,
     _trim_stream_to_lowest_delivered_id,
 )
 from redis.asyncio import Redis
@@ -874,6 +875,24 @@ async def test_cleanup_preserves_zero_consumer_cleanup_when_version_probe_fails(
     groups_after = await redis.xinfo_groups(stream_name)
     group_names_after = {g["name"] for g in groups_after}
     assert group_names_after == {"ephemeral-with-consumer"}
+
+
+async def test_redis_server_version_cache_is_tied_to_client() -> None:
+    first_client = AsyncMock()
+    second_client = AsyncMock()
+    first_client.info.return_value = {"redis_version": "7.2.0"}
+    second_client.info.return_value = {"redis_version": "6.2.0"}
+
+    with patch("prefect_redis.messaging._redis_server_version", None):
+        assert await _get_redis_server_version(first_client) == (7, 2, 0)
+
+        first_client.info.return_value = {"redis_version": "6.2.0"}
+        assert await _get_redis_server_version(first_client) == (7, 2, 0)
+
+        assert await _get_redis_server_version(second_client) == (6, 2, 0)
+
+    assert first_client.info.call_count == 1
+    assert second_client.info.call_count == 1
 
 
 async def test_consumer_recovers_from_redis_connection_error(

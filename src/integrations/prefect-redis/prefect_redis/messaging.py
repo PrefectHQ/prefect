@@ -692,22 +692,26 @@ async def _trim_stream_to_lowest_delivered_id(stream_name: str) -> None:
     await redis_client.xtrim(stream_name, minid=lowest_id, approximate=False)
 
 
-_redis_server_version: tuple[int, ...] | None = None
+_redis_server_version: tuple[Redis, tuple[int, ...]] | None = None
 
 
-async def _get_redis_server_version() -> tuple[int, ...]:
+async def _get_redis_server_version(redis_client: Redis | None = None) -> tuple[int, ...]:
     """Return the Redis server version as a tuple, e.g. `(7, 2, 4)`.
 
-    The result is cached for the lifetime of the process.
+    The result is cached for the lifetime of the Redis client.
     """
     global _redis_server_version
-    if _redis_server_version is None:
-        redis_client: Redis = get_async_redis_client()
+    redis_client = redis_client or get_async_redis_client()
+    if (
+        _redis_server_version is None
+        or _redis_server_version[0] is not redis_client
+    ):
         info = await redis_client.info("server")
-        _redis_server_version = tuple(
-            int(part) for part in info["redis_version"].split(".")
+        _redis_server_version = (
+            redis_client,
+            tuple(int(part) for part in info["redis_version"].split(".")),
         )
-    return _redis_server_version
+    return _redis_server_version[1]
 
 
 async def _cleanup_empty_consumer_groups(stream_name: str) -> None:
@@ -748,7 +752,7 @@ async def _cleanup_empty_consumer_groups(stream_name: str) -> None:
 
     can_use_idle = False
     try:
-        server_version = await _get_redis_server_version()
+        server_version = await _get_redis_server_version(redis_client)
         can_use_idle = server_version >= (7, 2)
     except Exception as e:
         logger.debug(f"Unable to get Redis server version for stream {stream_name}: {e}")
