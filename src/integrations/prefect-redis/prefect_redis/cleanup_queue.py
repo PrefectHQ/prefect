@@ -73,6 +73,25 @@ class RedisWorkerCleanupQueueSettings(PrefectBaseSettings):
     password: str = Field(default="")
     health_check_interval: int = Field(default=20)
     ssl: bool = Field(default=False)
+    socket_timeout: float | None = Field(
+        default=None,
+        description=(
+            "Timeout in seconds for socket read operations. None means no timeout."
+        ),
+    )
+    socket_connect_timeout: float | None = Field(
+        default=None,
+        description=(
+            "Timeout in seconds for socket connect operations. None means no timeout."
+        ),
+    )
+    protocol: int = Field(
+        default=2,
+        description=(
+            "RESP protocol version. Defaults to 2 for compatibility "
+            "with older Redis servers and proxies."
+        ),
+    )
 
 
 @dataclass(frozen=True)
@@ -1016,6 +1035,9 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                 settings.url,
                 health_check_interval=settings.health_check_interval,
                 decode_responses=True,
+                socket_timeout=settings.socket_timeout,
+                socket_connect_timeout=settings.socket_connect_timeout,
+                protocol=settings.protocol,
             )
             return self._redis_client
 
@@ -1028,6 +1050,9 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
             health_check_interval=settings.health_check_interval,
             ssl=settings.ssl,
             decode_responses=True,
+            socket_timeout=settings.socket_timeout,
+            socket_connect_timeout=settings.socket_connect_timeout,
+            protocol=settings.protocol,
         )
         return self._redis_client
 

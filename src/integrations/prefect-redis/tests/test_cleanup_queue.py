@@ -96,11 +96,51 @@ def test_redis_worker_cleanup_queue_settings_use_integration_namespace(
         "PREFECT_REDIS_WORKER_CLEANUP_QUEUE_URL",
         "redis://localhost:6379/4",
     )
+    monkeypatch.setenv("PREFECT_REDIS_WORKER_CLEANUP_QUEUE_SOCKET_TIMEOUT", "10.0")
+    monkeypatch.setenv(
+        "PREFECT_REDIS_WORKER_CLEANUP_QUEUE_SOCKET_CONNECT_TIMEOUT", "3.5"
+    )
+    monkeypatch.setenv("PREFECT_REDIS_WORKER_CLEANUP_QUEUE_PROTOCOL", "3")
 
     settings = RedisWorkerCleanupQueueSettings()
 
     assert settings.key_prefix == "prefect:test:worker-cleanup"
     assert settings.url == "redis://localhost:6379/4"
+    assert settings.socket_timeout == 10.0
+    assert settings.socket_connect_timeout == 3.5
+    assert settings.protocol == 3
+
+
+async def test_redis_worker_cleanup_queue_client_preserves_connection_defaults(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("PREFECT_REDIS_WORKER_CLEANUP_QUEUE_URL", raising=False)
+
+    queue = WorkerCleanupQueue()
+    client = queue._client()
+    conn_kwargs = client.connection_pool.connection_kwargs
+
+    assert conn_kwargs.get("socket_timeout") is None
+    assert conn_kwargs.get("socket_connect_timeout") is None
+    assert conn_kwargs.get("protocol") == 2
+    await client.aclose()
+
+
+async def test_redis_worker_cleanup_queue_url_client_preserves_connection_defaults(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(
+        "PREFECT_REDIS_WORKER_CLEANUP_QUEUE_URL", "redis://localhost:6379/4"
+    )
+
+    queue = WorkerCleanupQueue()
+    client = queue._client()
+    conn_kwargs = client.connection_pool.connection_kwargs
+
+    assert conn_kwargs.get("socket_timeout") is None
+    assert conn_kwargs.get("socket_connect_timeout") is None
+    assert conn_kwargs.get("protocol") == 2
+    await client.aclose()
 
 
 async def test_redis_message_ids_are_scoped_by_work_pool(
