@@ -694,12 +694,17 @@ async def _trim_stream_to_lowest_delivered_id(stream_name: str) -> None:
 
 async def _cleanup_empty_consumer_groups(stream_name: str) -> None:
     """
-    Removes consumer groups that have no active consumers and have consumed at least
-    one message.
+    Removes ephemeral consumer groups that have no active consumers, or whose
+    consumers have all been idle beyond the configured trim idle threshold, and have
+    consumed at least one message.
 
     Consumer groups with no consumers that have previously consumed messages are
     considered abandoned and can safely be deleted to prevent them from blocking
     stream trimming operations.
+
+    Ephemeral groups with only stale consumers can be left behind by ungraceful
+    process termination before the ephemeral subscription cleanup runs. These are
+    also safe to remove once all consumers are idle beyond the trim idle threshold.
 
     Groups with last-delivered-id of "0-0" are skipped because they haven't consumed
     any messages yet - they may be newly created and waiting for consumers to be added.
@@ -709,6 +714,8 @@ async def _cleanup_empty_consumer_groups(stream_name: str) -> None:
         stream_name: The name of the Redis stream to clean up groups for
     """
     redis_client: Redis = get_async_redis_client()
+    settings = RedisMessagingConsumerSettings()
+    idle_threshold_ms = int(settings.trim_idle_threshold.total_seconds() * 1000)
 
     try:
         groups = await redis_client.xinfo_groups(stream_name)
@@ -724,9 +731,11 @@ async def _cleanup_empty_consumer_groups(stream_name: str) -> None:
                 continue
 
             consumers = await redis_client.xinfo_consumers(stream_name, group["name"])
-            if not consumers and group["name"].startswith("ephemeral"):
-                # No consumers in this group and it has consumed messages - it's abandoned
-                logger.debug(f"Deleting empty consumer group '{group['name']}'")
+            if group["name"].startswith("ephemeral") and (
+                not consumers
+                or all(consumer["idle"] > idle_threshold_ms for consumer in consumers)
+            ):
+                logger.debug(f"Deleting abandoned consumer group '{group['name']}'")
                 await redis_client.xgroup_destroy(stream_name, group["name"])
         except Exception as e:
             # If we can't check or delete, just continue

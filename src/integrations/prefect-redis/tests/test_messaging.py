@@ -644,6 +644,53 @@ async def test_cleanup_empty_consumer_groups(redis: Redis):
     assert groups_after[0]["name"] == "ephemeral-active-group"
 
 
+async def test_cleanup_stale_ephemeral_consumer_groups(
+    redis: Redis, monkeypatch: pytest.MonkeyPatch
+):
+    """Test that idle ephemeral groups with consumers are cleaned up."""
+
+    stream_name = "test-cleanup-stale-ephemeral-stream"
+
+    await redis.xadd(stream_name, {"data": "test"})
+
+    await redis.xgroup_create(stream_name, "ephemeral-stale-group", id="0")
+    await redis.xgroup_create(stream_name, "ephemeral-active-group", id="0")
+    await redis.xgroup_create(stream_name, "permanent-stale-group", id="0")
+
+    for group_name in [
+        "ephemeral-stale-group",
+        "ephemeral-active-group",
+        "permanent-stale-group",
+    ]:
+        await redis.xreadgroup(
+            groupname=group_name,
+            consumername=f"{group_name}-consumer",
+            streams={stream_name: ">"},
+            count=1,
+        )
+
+    await asyncio.sleep(1.5)
+    monkeypatch.setenv("PREFECT_REDIS_MESSAGING_CONSUMER_TRIM_IDLE_THRESHOLD", "1")
+
+    await redis.xadd(stream_name, {"data": "test2"})
+    await redis.xreadgroup(
+        groupname="ephemeral-active-group",
+        consumername="fresh-consumer",
+        streams={stream_name: ">"},
+        count=1,
+    )
+
+    await _cleanup_empty_consumer_groups(stream_name)
+
+    groups_after = await redis.xinfo_groups(stream_name)
+    group_names_after = {g["name"] for g in groups_after}
+
+    assert group_names_after == {
+        "ephemeral-active-group",
+        "permanent-stale-group",
+    }
+
+
 async def test_cleanup_preserves_newly_created_empty_groups(redis: Redis):
     """Test that newly created empty consumer groups are NOT deleted.
 
