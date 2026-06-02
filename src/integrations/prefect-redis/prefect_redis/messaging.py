@@ -314,6 +314,7 @@ class Consumer(_Consumer):
         max_retries: Optional[int] = None,
         trim_every: Optional[timedelta] = None,
         read_batch_size: Optional[int] = 1,
+        use_consumer_group: bool = True,
     ):
         settings = RedisMessagingConsumerSettings()
 
@@ -348,6 +349,7 @@ class Consumer(_Consumer):
 
         self._last_trimmed: Optional[float] = None
         self._read_batch_size: Optional[int] = read_batch_size
+        self.use_consumer_group = use_consumer_group
 
     async def _ensure_stream_and_group(self, redis_client: Redis) -> None:
         """Ensure the stream and consumer group exist."""
@@ -360,6 +362,45 @@ class Consumer(_Consumer):
             if "BUSYGROUP Consumer Group name already exists" not in str(e):
                 raise
             logger.debug("Consumer group already exists: %s", e)
+
+    async def _run_without_consumer_group(
+        self, handler: MessageHandler, redis_client: Redis
+    ) -> None:
+        last_id = self.starting_message_id
+
+        while True:
+            stream_entries = await redis_client.xread(
+                streams={self.stream: last_id},
+                count=self._read_batch_size,
+                block=int(self.block.total_seconds() * 1000),
+            )
+
+            if not stream_entries:
+                continue
+
+            for _, messages in stream_entries:
+                for message_id, message in messages:
+                    last_id = (
+                        message_id.decode()
+                        if isinstance(message_id, bytes)
+                        else message_id
+                    )
+                    self.starting_message_id = last_id
+                    try:
+                        await self._handle_message(
+                            message_id,
+                            message,
+                            handler,
+                            _noop_ack,
+                        )
+                    except StopConsumer:
+                        return
+                    except Exception:
+                        logger.exception(
+                            "Error handling message %s in consumer %s, continuing",
+                            message_id,
+                            self.name,
+                        )
 
     async def process_pending_messages(
         self,
@@ -426,6 +467,10 @@ class Consumer(_Consumer):
         while True:  # Outer loop for connection resilience
             try:
                 redis_client: Redis = get_async_redis_client()
+
+                if not self.use_consumer_group:
+                    await self._run_without_consumer_group(handler, redis_client)
+                    return
 
                 # Ensure stream and group exist before processing messages
                 await self._ensure_stream_and_group(redis_client)
@@ -601,16 +646,30 @@ async def ephemeral_subscription(
     topic: str, source: Optional[str] = None, group: Optional[str] = None
 ) -> AsyncGenerator[dict[str, Any], None]:
     source = source or topic
-    group_name = group or f"ephemeral-{socket.gethostname()}-{uuid.uuid4().hex}"
+    name = group or f"ephemeral-{socket.gethostname()}-{uuid.uuid4().hex}"
     redis_client: Redis = get_async_redis_client()
 
-    await redis_client.xgroup_create(source, group_name, id="0", mkstream=True)
-
     try:
-        # Return only the arguments that the Consumer expects.
-        yield {"topic": topic, "name": topic, "group": group_name}
-    finally:
-        await redis_client.xgroup_destroy(source, group_name)
+        stream_info = await redis_client.xinfo_stream(source)
+        starting_message_id = stream_info["last-generated-id"]
+    except ResponseError as exc:
+        if "no such key" not in str(exc).lower():
+            raise
+        starting_message_id = "0-0"
+
+    # Ephemeral subscribers only need live messages from this point forward; they do
+    # not need durable consumer-group state. Using XREAD avoids leaking Redis
+    # consumer groups when a process is killed before context manager cleanup runs.
+    yield {
+        "topic": source,
+        "name": name,
+        "starting_message_id": starting_message_id,
+        "use_consumer_group": False,
+    }
+
+
+async def _noop_ack(*args: Any, **kwargs: Any) -> int:
+    return 0
 
 
 @asynccontextmanager
