@@ -667,8 +667,7 @@ async def ephemeral_subscription(
 ) -> AsyncGenerator[dict[str, Any], None]:
     source = source or topic
     group_name = group or (
-        f"{EPHEMERAL_HEARTBEAT_GROUP_PREFIX}{socket.gethostname()}-"
-        f"{uuid.uuid4().hex}"
+        f"{EPHEMERAL_HEARTBEAT_GROUP_PREFIX}{socket.gethostname()}-{uuid.uuid4().hex}"
     )
     redis_client: Redis = get_async_redis_client()
     heartbeat_ttl_seconds = _ephemeral_group_heartbeat_ttl_seconds()
