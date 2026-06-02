@@ -5180,35 +5180,32 @@ class TestSaveUserInputs:
         assert new_deployment["entrypoint"] == "flows/hello.py:my_flow"
         assert new_deployment["work_pool"]["name"] == "inflatable"
 
-    def test_does_not_prompt_save_when_deployment_already_in_prefect_file(self):
-        """A deployment already declared in `prefect.yaml` should not re-prompt."""
+    def test_does_not_prompt_save_when_deployment_already_in_prefect_file(
+        self, work_pool: WorkPool
+    ):
+        """
+        Faithful reproduction of #17409 (the report that motivated #17519): a
+        deployment already fully declared in `prefect.yaml` must not prompt to
+        save again when re-deployed by name.
+        """
         prefect_file = Path("prefect.yaml")
         with prefect_file.open(mode="r") as f:
             contents = yaml.safe_load(f)
 
-        # declare the deployment we're about to deploy so it matches
+        # fully declare the deployment so `deploy -n` needs no interactive input
         contents["deployments"] = [
-            {"name": "default", "entrypoint": "flows/hello.py:my_flow"}
+            {
+                "name": "already-saved",
+                "entrypoint": "flows/hello.py:my_flow",
+                "schedules": [],
+                "work_pool": {"name": work_pool.name},
+            }
         ]
         with prefect_file.open(mode="w") as f:
             yaml.safe_dump(contents, f)
 
         invoke_and_assert(
-            command="deploy flows/hello.py:my_flow -n default",
-            user_input=(
-                # accept create work pool
-                readchar.key.ENTER
-                +
-                # choose process work pool
-                readchar.key.ENTER
-                +
-                # enter work pool name
-                "inflatable"
-                + readchar.key.ENTER
-                # decline schedule
-                + "n"
-                + readchar.key.ENTER
-            ),
+            command="deploy -n already-saved",
             expected_code=0,
             expected_output_contains="View Deployment in UI",
             expected_output_does_not_contain=(
@@ -5219,8 +5216,9 @@ class TestSaveUserInputs:
         with prefect_file.open(mode="r") as f:
             config = yaml.safe_load(f)
 
-        # no new entry was appended
+        # no new entry was appended; the existing one is untouched
         assert len(config["deployments"]) == 1
+        assert config["deployments"][0]["name"] == "already-saved"
 
 
 @pytest.mark.usefixtures("project_dir", "interactive_console", "work_pool")
