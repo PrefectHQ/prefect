@@ -650,6 +650,61 @@ class TestWorkerCleanupConnectionRegistry:
         assert len(cleanup_messages) == 1
         assert operation_results[0]["payload"]["status"] == "error"
 
+    async def test_mismatched_cleanup_result_keeps_capacity_in_use(self, work_pool):
+        cleanup_queue = FakeWorkerCleanupQueue()
+        cleanup_queue.add_message(work_pool_id=work_pool.id)
+        cleanup_queue.add_message(work_pool_id=work_pool.id)
+        third = cleanup_queue.add_message(work_pool_id=work_pool.id)
+        websocket = RecordingWebSocket()
+        registry = worker_channel_utils.WorkerCleanupConnectionRegistry()
+        connection = worker_channel_utils.WorkerChannelConnection(
+            websocket=websocket,
+            db=object(),
+            work_pool_name=work_pool.name,
+            work_pool_id=work_pool.id,
+            consumer_id=uuid.uuid4(),
+            worker_name="test-worker",
+            cleanup_queue=cleanup_queue,
+            cleanup_kinds=(CANCELLING_TIMEOUT_TEARDOWN,),
+            max_cleanup_concurrency=2,
+            cleanup_registry=registry,
+        )
+        connection._ready_sent.set()
+
+        async with registry.register(connection):
+            await registry.dispatch_available(
+                work_pool_id=work_pool.id,
+                cleanup_queue=cleanup_queue,
+            )
+            first_cleanup = CleanupMessageFrame.model_validate(websocket.sent_json[0])
+            second_cleanup = CleanupMessageFrame.model_validate(websocket.sent_json[1])
+
+            await connection._handle_cleanup_operation(
+                CleanupAckFrame.model_validate(
+                    _cleanup_ack_frame(
+                        message_id=second_cleanup.payload.message_id,
+                        reservation_token=first_cleanup.payload.reservation_token,
+                    )
+                )
+            )
+
+        cleanup_messages = [
+            CleanupMessageFrame.model_validate(frame)
+            for frame in websocket.sent_json
+            if frame["type"] == "cleanup.message.v1"
+        ]
+        operation_results = [
+            frame
+            for frame in websocket.sent_json
+            if frame["type"] == "cleanup.operation_result.v1"
+        ]
+        assert len(cleanup_messages) == 2
+        assert third.message_id not in {
+            message.payload.message_id for message in cleanup_messages
+        }
+        assert cleanup_queue.active_reservation_count() == 2
+        assert operation_results[0]["payload"]["status"] == "invalid_token"
+
     async def test_reconnect_preserves_in_flight_cleanup_capacity(self, work_pool):
         cleanup_queue = FakeWorkerCleanupQueue()
         first = cleanup_queue.add_message(work_pool_id=work_pool.id)

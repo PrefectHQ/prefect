@@ -179,7 +179,11 @@ class WorkerCleanupConnectionRegistry:
             return True
 
     async def forget_cleanup_reservation(
-        self, connection: WorkerChannelConnection, reservation_token: str
+        self,
+        connection: WorkerChannelConnection,
+        *,
+        message_id: UUID,
+        reservation_token: str,
     ) -> bool:
         async with self._lock:
             key = self._worker_key(connection)
@@ -187,10 +191,14 @@ class WorkerCleanupConnectionRegistry:
             if current_in_flight is None:
                 return False
 
-            removed = current_in_flight.pop(reservation_token, None) is not None
+            in_flight = current_in_flight.get(reservation_token)
+            if in_flight is None or in_flight.message_id != message_id:
+                return False
+
+            current_in_flight.pop(reservation_token)
             if not current_in_flight:
                 self._cleanup_in_flight_by_worker.pop(key, None)
-            return removed
+            return True
 
     async def dispatch_available(
         self,
@@ -551,7 +559,10 @@ class WorkerChannelConnection:
         cleanup_queue: WorkerCleanupQueue,
         reservation: CleanupQueueReservation,
     ) -> None:
-        await self._forget_cleanup_reservation(reservation.reservation_token)
+        await self._forget_cleanup_reservation(
+            message_id=reservation.message_id,
+            reservation_token=reservation.reservation_token,
+        )
         await cleanup_queue.release(
             work_pool_id=self.work_pool_id,
             message_id=reservation.message_id,
@@ -632,11 +643,18 @@ class WorkerChannelConnection:
                 )
             return False
 
-        return await self._forget_cleanup_reservation(reservation_token)
+        return await self._forget_cleanup_reservation(
+            message_id=result.message_id,
+            reservation_token=reservation_token,
+        )
 
-    async def _forget_cleanup_reservation(self, reservation_token: str) -> bool:
+    async def _forget_cleanup_reservation(
+        self, *, message_id: UUID, reservation_token: str
+    ) -> bool:
         return await self._cleanup_registry.forget_cleanup_reservation(
-            self, reservation_token
+            self,
+            message_id=message_id,
+            reservation_token=reservation_token,
         )
 
     async def _coalesce_snapshot_invalidations(
