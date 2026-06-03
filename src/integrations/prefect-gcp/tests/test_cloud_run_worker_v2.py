@@ -1474,8 +1474,12 @@ class TestCloudRunWorkerV2SubmitJobRecovery:
     def test_falls_back_when_baseline_lookup_raises(
         self, cloud_run_worker_v2_job_config, mock_credentials
     ):
-        # TRANSIENT_READ_MAX_ATTEMPTS=1 keeps the baseline lookup a single shot:
-        # one 503 makes it give up and fall back to None, then submission retries.
+        # TRANSIENT_READ_MAX_ATTEMPTS=1 caps every _read_with_retry call (the
+        # baseline snapshot and the post-submit fetch alike) to a single attempt.
+        # Only the baseline read is made to fail here: one 503 makes it give up
+        # and fall back to None, then submission retries. The post-submit fetch
+        # never fails in this test, so the shared cap is observable only on the
+        # baseline lookup.
         worker = CloudRunWorkerV2("my-work-pool")
         mock_client = MagicMock()
         mock_logger = MagicMock(spec=PrefectLogAdapter)
@@ -1700,6 +1704,64 @@ class TestCloudRunWorkerV2SubmitJobRecovery:
         # the post-submit fetch retried the transient error instead of crashing
         assert mock_exec_get.call_count == 2
         assert result is execution
+
+    @mock.patch.dict(
+        "os.environ",
+        {
+            "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_TRANSIENT_READ_MAX_ATTEMPTS": "2"
+        },
+    )
+    def test_adopts_after_recovery_lookup_retries_transient(
+        self, cloud_run_worker_v2_job_config, mock_credentials
+    ):
+        # The recovery lookup retries a transient error, then succeeds and sees a
+        # new execution already started server-side; the worker adopts it instead
+        # of retrying the submission, avoiding a duplicate run.
+        worker = CloudRunWorkerV2("my-work-pool")
+        mock_client = MagicMock()
+        mock_logger = MagicMock(spec=PrefectLogAdapter)
+
+        mock_resp = MagicMock()
+        mock_resp.status = 503
+        transient_error = HttpError(resp=mock_resp, content=b"Service unavailable")
+        lookup_error = HttpError(resp=mock_resp, content=b"Service unavailable")
+
+        baseline_name = "projects/p/locations/l/jobs/j/executions/exec-baseline"
+        new_name = "projects/p/locations/l/jobs/j/executions/exec-new"
+
+        with mock.patch(
+            "prefect_gcp.workers.cloud_run_v2.JobV2.get",
+            side_effect=[
+                self._job_with_execution(baseline_name),
+                lookup_error,
+                self._job_with_execution(new_name),
+            ],
+        ) as mock_job_get:
+            with mock.patch(
+                "prefect_gcp.workers.cloud_run_v2.JobV2.run",
+                side_effect=transient_error,
+            ) as mock_run:
+                with mock.patch(
+                    "prefect_gcp.workers.cloud_run_v2.ExecutionV2.get"
+                ) as mock_exec_get:
+                    with mock.patch(
+                        "prefect_gcp.workers.cloud_run_v2.time.sleep"
+                    ) as mock_sleep:
+                        result = worker._begin_job_execution(
+                            cr_client=mock_client,
+                            configuration=cloud_run_worker_v2_job_config,
+                            logger=mock_logger,
+                        )
+
+        assert mock_run.call_count == 1
+        # baseline snapshot (1) + recovery lookup retried once (2)
+        assert mock_job_get.call_count == 3
+        mock_sleep.assert_called()
+        mock_exec_get.assert_called_once()
+        assert mock_exec_get.call_args.kwargs["execution_id"] == new_name
+        assert result is mock_exec_get.return_value
+        warning_messages = [call.args[0] for call in mock_logger.warning.call_args_list]
+        assert any("duplicate run" in msg for msg in warning_messages)
 
 
 class TestCloudRunReadRetryEradication:

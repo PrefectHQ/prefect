@@ -155,10 +155,7 @@ def _read_with_retry(
         operation_label=operation_label,
         logger=logger,
     )
-    for attempt in retrying:
-        with attempt:
-            return fn()
-    raise AssertionError("unreachable: tenacity always returns or raises")
+    return retrying(fn)
 
 
 def _get_default_job_body_template() -> Dict[str, Any]:
