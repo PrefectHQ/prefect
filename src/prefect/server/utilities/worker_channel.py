@@ -790,20 +790,26 @@ class WorkerChannelConnection:
                 result=result,
             )
 
-        await self._send_frame(
-            _build_cleanup_operation_result_frame(
-                request_frame_id=frame.id,
-                result=result,
+        send_succeeded = False
+        try:
+            await self._send_frame(
+                _build_cleanup_operation_result_frame(
+                    request_frame_id=frame.id,
+                    result=result,
+                )
             )
-        )
-        freed_capacity = False
-        if not synced_before_send:
-            freed_capacity = await self._sync_cleanup_operation_result(
-                reservation_token=frame.payload.reservation_token,
-                result=result,
-            )
-        if freed_capacity:
-            await self._dispatch_cleanup_available(cleanup_queue)
+            send_succeeded = True
+        except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
+            self._closed.set()
+            raise
+        finally:
+            if not synced_before_send:
+                freed_capacity = await self._sync_cleanup_operation_result(
+                    reservation_token=frame.payload.reservation_token,
+                    result=result,
+                )
+                if send_succeeded and freed_capacity:
+                    await self._dispatch_cleanup_available(cleanup_queue)
 
     async def _dispatch_cleanup_available(
         self,

@@ -520,6 +520,13 @@ class DisconnectingWebSocket(RecordingWebSocket):
         raise WebSocketDisconnect
 
 
+class DisconnectingOperationResultWebSocket(RecordingWebSocket):
+    async def send_json(self, payload: dict[str, Any]) -> None:
+        self.sent_json.append(payload)
+        if payload["type"] == "cleanup.operation_result.v1":
+            raise WebSocketDisconnect
+
+
 class CancellingWebSocket(RecordingWebSocket):
     async def send_json(self, payload: dict[str, Any]) -> None:
         self.sent_json.append(payload)
@@ -1014,6 +1021,87 @@ class TestWorkerCleanupConnectionRegistry:
             if frame["type"] == "cleanup.operation_result.v1"
         ]
         assert operation_results[0]["payload"]["status"] == "accepted"
+
+    @pytest.mark.parametrize("operation", ("ack", "release"))
+    async def test_operation_result_send_failure_frees_cleanup_capacity_on_reconnect(
+        self, work_pool, operation: CleanupQueueOperation
+    ):
+        cleanup_queue = FakeWorkerCleanupQueue()
+        first = cleanup_queue.add_message(work_pool_id=work_pool.id)
+        second = cleanup_queue.add_message(work_pool_id=work_pool.id)
+        consumer_id = uuid.uuid4()
+        registry = worker_channel_utils.WorkerCleanupConnectionRegistry()
+        websocket = DisconnectingOperationResultWebSocket()
+        connection = worker_channel_utils.WorkerChannelConnection(
+            websocket=websocket,
+            db=object(),
+            work_pool_name=work_pool.name,
+            work_pool_id=work_pool.id,
+            consumer_id=consumer_id,
+            worker_name="test-worker",
+            cleanup_queue=cleanup_queue,
+            cleanup_kinds=(CANCELLING_TIMEOUT_TEARDOWN,),
+            max_cleanup_concurrency=1,
+            cleanup_registry=registry,
+        )
+        connection._ready_sent.set()
+
+        async with registry.register(connection):
+            await registry.dispatch_available(
+                work_pool_id=work_pool.id,
+                cleanup_queue=cleanup_queue,
+            )
+            cleanup = CleanupMessageFrame.model_validate(websocket.sent_json[0])
+
+            if operation == "ack":
+                frame = CleanupAckFrame.model_validate(
+                    _cleanup_ack_frame(
+                        message_id=cleanup.payload.message_id,
+                        reservation_token=cleanup.payload.reservation_token,
+                    )
+                )
+                expected_message_id = second.message_id
+            else:
+                frame = CleanupReleaseFrame.model_validate(
+                    _cleanup_release_frame(
+                        message_id=cleanup.payload.message_id,
+                        reservation_token=cleanup.payload.reservation_token,
+                    )
+                )
+                expected_message_id = first.message_id
+
+            with pytest.raises(WebSocketDisconnect):
+                await connection._handle_cleanup_operation(frame)
+
+        replacement_websocket = RecordingWebSocket()
+        replacement_connection = worker_channel_utils.WorkerChannelConnection(
+            websocket=replacement_websocket,
+            db=object(),
+            work_pool_name=work_pool.name,
+            work_pool_id=work_pool.id,
+            consumer_id=consumer_id,
+            worker_name="test-worker",
+            cleanup_queue=cleanup_queue,
+            cleanup_kinds=(CANCELLING_TIMEOUT_TEARDOWN,),
+            max_cleanup_concurrency=1,
+            cleanup_registry=registry,
+        )
+        replacement_connection._ready_sent.set()
+
+        async with registry.register(replacement_connection):
+            await registry.dispatch_available(
+                work_pool_id=work_pool.id,
+                cleanup_queue=cleanup_queue,
+            )
+
+        cleanup_messages = [
+            CleanupMessageFrame.model_validate(frame)
+            for frame in replacement_websocket.sent_json
+            if frame["type"] == "cleanup.message.v1"
+        ]
+        assert [message.payload.message_id for message in cleanup_messages] == [
+            expected_message_id
+        ]
 
     async def test_renew_syncs_lease_before_result_send(self, work_pool):
         cleanup_queue = FakeWorkerCleanupQueue()
