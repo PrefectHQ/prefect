@@ -9,6 +9,7 @@ from uuid import UUID
 
 import pytest
 from starlette.testclient import TestClient
+from starlette.websockets import WebSocketDisconnect
 
 import prefect.server.api.workers as workers_api
 from prefect._internal.uuid7 import uuid7
@@ -19,6 +20,7 @@ from prefect.client.schemas.worker_channel import (
     WORK_POOL_SNAPSHOT_CAPABILITY,
     WORK_POOL_WORKER_CHANNEL_VERSION,
     WORKER_HEARTBEAT_CAPABILITY,
+    CleanupAckFrame,
     CleanupKind,
     CleanupMessageFrame,
     CleanupOperationResultFrame,
@@ -488,6 +490,28 @@ class RecordingWebSocket:
         self.sent_json.append(payload)
 
 
+class DisconnectingWebSocket(RecordingWebSocket):
+    async def send_json(self, payload: dict[str, Any]) -> None:
+        self.sent_json.append(payload)
+        raise WebSocketDisconnect
+
+
+class ErrorAckCleanupQueue(FakeWorkerCleanupQueue):
+    async def ack(
+        self,
+        *,
+        work_pool_id: UUID,
+        message_id: UUID,
+        reservation_token: str,
+    ) -> CleanupQueueOperationResult:
+        return CleanupQueueOperationResult(
+            message_id=message_id,
+            operation="ack",
+            status="error",
+            reason="backend_unavailable",
+        )
+
+
 class TestWorkerCleanupConnectionRegistry:
     async def test_registered_connection_is_ineligible_until_ready_is_sent(
         self, work_pool, cleanup_queue: FakeWorkerCleanupQueue
@@ -525,6 +549,106 @@ class TestWorkerCleanupConnectionRegistry:
 
         assert cleanup_queue.active_reservation_count() == 1
         assert websocket.sent_json[0]["type"] == "cleanup.message.v1"
+
+    async def test_disconnect_during_cleanup_send_removes_connection_from_dispatch(
+        self, work_pool
+    ):
+        cleanup_queue = FakeWorkerCleanupQueue()
+        message = cleanup_queue.add_message(work_pool_id=work_pool.id)
+        websocket = DisconnectingWebSocket()
+        registry = worker_channel_utils.WorkerCleanupConnectionRegistry()
+        connection = worker_channel_utils.WorkerChannelConnection(
+            websocket=websocket,
+            db=object(),
+            work_pool_name=work_pool.name,
+            work_pool_id=work_pool.id,
+            consumer_id=uuid.uuid4(),
+            worker_name="test-worker",
+            cleanup_queue=cleanup_queue,
+            cleanup_kinds=(CANCELLING_TIMEOUT_TEARDOWN,),
+            max_cleanup_concurrency=1,
+            cleanup_registry=registry,
+        )
+        connection._ready_sent.set()
+
+        async with registry.register(connection):
+            await registry.dispatch_available(
+                work_pool_id=work_pool.id,
+                cleanup_queue=cleanup_queue,
+            )
+            await registry.dispatch_available(
+                work_pool_id=work_pool.id,
+                cleanup_queue=cleanup_queue,
+            )
+
+        stored = await cleanup_queue.read_message(
+            work_pool_id=work_pool.id,
+            message_id=message.message_id,
+        )
+        assert stored is not None
+        assert stored.delivery_count == 1
+        assert cleanup_queue.active_reservation_count() == 0
+        assert len(websocket.sent_json) == 1
+
+    async def test_retryable_operation_error_keeps_cleanup_capacity_in_use(
+        self, work_pool
+    ):
+        cleanup_queue = ErrorAckCleanupQueue()
+        first = cleanup_queue.add_message(work_pool_id=work_pool.id)
+        second = cleanup_queue.add_message(work_pool_id=work_pool.id)
+        websocket = RecordingWebSocket()
+        registry = worker_channel_utils.WorkerCleanupConnectionRegistry()
+        connection = worker_channel_utils.WorkerChannelConnection(
+            websocket=websocket,
+            db=object(),
+            work_pool_name=work_pool.name,
+            work_pool_id=work_pool.id,
+            consumer_id=uuid.uuid4(),
+            worker_name="test-worker",
+            cleanup_queue=cleanup_queue,
+            cleanup_kinds=(CANCELLING_TIMEOUT_TEARDOWN,),
+            max_cleanup_concurrency=1,
+            cleanup_registry=registry,
+        )
+        connection._ready_sent.set()
+
+        async with registry.register(connection):
+            await registry.dispatch_available(
+                work_pool_id=work_pool.id,
+                cleanup_queue=cleanup_queue,
+            )
+            first_cleanup = CleanupMessageFrame.model_validate(websocket.sent_json[0])
+
+            await connection._handle_cleanup_operation(
+                CleanupAckFrame.model_validate(
+                    _cleanup_ack_frame(
+                        message_id=first_cleanup.payload.message_id,
+                        reservation_token=first_cleanup.payload.reservation_token,
+                    )
+                )
+            )
+            await registry.dispatch_available(
+                work_pool_id=work_pool.id,
+                cleanup_queue=cleanup_queue,
+            )
+
+        cleanup_messages = [
+            frame
+            for frame in websocket.sent_json
+            if frame["type"] == "cleanup.message.v1"
+        ]
+        operation_results = [
+            frame
+            for frame in websocket.sent_json
+            if frame["type"] == "cleanup.operation_result.v1"
+        ]
+        assert first_cleanup.payload.message_id == first.message_id
+        assert second.message_id not in {
+            CleanupMessageFrame.model_validate(frame).payload.message_id
+            for frame in cleanup_messages
+        }
+        assert len(cleanup_messages) == 1
+        assert operation_results[0]["payload"]["status"] == "error"
 
 
 class TestWorkerChannelCleanupDispatcher:

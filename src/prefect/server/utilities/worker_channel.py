@@ -360,6 +360,7 @@ class WorkerChannelConnection:
         try:
             await self._send_frame(_build_cleanup_message_frame(reservation))
         except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
+            self._closed.set()
             await self._release_cleanup_delivery_failure(
                 cleanup_queue=cleanup_queue,
                 reservation=reservation,
@@ -512,6 +513,9 @@ class WorkerChannelConnection:
         reservation_token: str,
         result: CleanupQueueOperationResult,
     ) -> bool:
+        if result.status == "error":
+            return False
+
         if result.operation == "renew" and result.status == "accepted":
             async with self._cleanup_state_lock:
                 in_flight = self._cleanup_in_flight_by_token.get(reservation_token)
