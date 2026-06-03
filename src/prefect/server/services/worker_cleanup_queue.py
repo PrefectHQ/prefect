@@ -20,6 +20,20 @@ from prefect.settings.context import get_current_settings
 
 logger: logging.Logger = get_logger(__name__)
 
+_service_cleanup_queue: WorkerCleanupQueue | None = None
+_service_cleanup_queue_storage: str | None = None
+
+
+def _get_service_worker_cleanup_queue() -> WorkerCleanupQueue:
+    global _service_cleanup_queue, _service_cleanup_queue_storage
+
+    storage = get_current_settings().server.worker_channel.cleanup_queue_storage
+    if _service_cleanup_queue is None or _service_cleanup_queue_storage != storage:
+        _service_cleanup_queue = get_worker_cleanup_queue()
+        _service_cleanup_queue_storage = storage
+
+    return _service_cleanup_queue
+
 
 @perpetual_service(
     enabled_getter=lambda: (
@@ -27,7 +41,7 @@ logger: logging.Logger = get_logger(__name__)
     ),
 )
 async def expire_worker_cleanup_leases(
-    cleanup_queue: WorkerCleanupQueue = Depends(get_worker_cleanup_queue),
+    cleanup_queue: WorkerCleanupQueue = Depends(_get_service_worker_cleanup_queue),
     perpetual: Perpetual = Perpetual(
         automatic=False,
         every=timedelta(

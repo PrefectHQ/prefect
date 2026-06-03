@@ -6,14 +6,20 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 import pytest
+from uncalled_for import resolved_dependencies
 
 from prefect.client.schemas.worker_channel import CANCELLING_TIMEOUT_TEARDOWN
+from prefect.server.services import worker_cleanup_queue as worker_cleanup_queue_module
 from prefect.server.services.worker_cleanup_queue import expire_worker_cleanup_leases
+from prefect.server.worker_communication.cleanup_queue import (
+    WorkerCleanupQueue as WorkerCleanupQueueInterface,
+)
 from prefect.server.worker_communication.cleanup_queue import memory as memory_module
 from prefect.server.worker_communication.cleanup_queue.memory import WorkerCleanupQueue
 from prefect.settings import (
     PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_LEASE_SECONDS,
     PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_MAX_DELIVERY_ATTEMPTS,
+    PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE,
     temporary_settings,
 )
 from prefect.settings.context import get_current_settings
@@ -157,3 +163,46 @@ async def test_expire_worker_cleanup_leases_uses_configured_batch_size(
         first_result.redelivered[0].message_id,
         second_result.redelivered[0].message_id,
     } == {first_message_id, second_message_id}
+
+
+async def test_service_reuses_cleanup_queue_dependency_per_storage(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeWorkerCleanupQueue(WorkerCleanupQueueInterface):
+        pass
+
+    created: list[WorkerCleanupQueueInterface] = []
+
+    def create_queue() -> WorkerCleanupQueueInterface:
+        queue = FakeWorkerCleanupQueue()
+        created.append(queue)
+        return queue
+
+    monkeypatch.setattr(worker_cleanup_queue_module, "_service_cleanup_queue", None)
+    monkeypatch.setattr(
+        worker_cleanup_queue_module, "_service_cleanup_queue_storage", None
+    )
+    monkeypatch.setattr(
+        worker_cleanup_queue_module, "get_worker_cleanup_queue", create_queue
+    )
+
+    with temporary_settings(
+        {PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE: "storage-one"}
+    ):
+        async with resolved_dependencies(expire_worker_cleanup_leases) as resolved:
+            first_queue = resolved["cleanup_queue"]
+
+        async with resolved_dependencies(expire_worker_cleanup_leases) as resolved:
+            second_queue = resolved["cleanup_queue"]
+
+    assert first_queue is second_queue
+    assert created == [first_queue]
+
+    with temporary_settings(
+        {PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE: "storage-two"}
+    ):
+        async with resolved_dependencies(expire_worker_cleanup_leases) as resolved:
+            third_queue = resolved["cleanup_queue"]
+
+    assert third_queue is not first_queue
+    assert created == [first_queue, third_queue]
