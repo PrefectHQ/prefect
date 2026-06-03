@@ -221,7 +221,9 @@ def get_async_redis_client(
 
     url = url or settings.url
     if url:
-        redis_from_url = RedisCluster.from_url if is_cluster_url(url) else Redis.from_url
+        redis_from_url = (
+            RedisCluster.from_url if is_cluster_url(url) else Redis.from_url
+        )
         return redis_from_url(
             normalize_cluster_url(url),
             health_check_interval=health_check_interval
