@@ -2,9 +2,11 @@ import asyncio
 import functools
 import warnings
 from typing import Any, Callable, Optional, Union
+from urllib.parse import urlparse, urlunparse
 
 from pydantic import Field, model_validator
 from redis.asyncio import Redis
+from redis.asyncio.cluster import RedisCluster
 from typing_extensions import Self, TypeAlias
 
 from prefect.settings.base import (
@@ -99,7 +101,23 @@ CacheKey: TypeAlias = tuple[
     Union[asyncio.AbstractEventLoop, None],
 ]
 
-_client_cache: dict[CacheKey, Redis] = {}
+RedisClient: TypeAlias = Redis | RedisCluster
+
+_client_cache: dict[CacheKey, RedisClient] = {}
+
+
+def is_cluster_url(url: str) -> bool:
+    """Return True if the URL uses the Redis Cluster scheme."""
+    return urlparse(url).scheme in {"redis+cluster", "rediss+cluster"}
+
+
+def normalize_cluster_url(url: str) -> str:
+    """Return a redis-py compatible URL for Redis Cluster connections."""
+    parsed = urlparse(url)
+    if parsed.scheme not in {"redis+cluster", "rediss+cluster"}:
+        return url
+
+    return urlunparse(parsed._replace(scheme=parsed.scheme.replace("+cluster", "")))
 
 
 def _running_loop() -> Union[asyncio.AbstractEventLoop, None]:
@@ -113,7 +131,7 @@ def _running_loop() -> Union[asyncio.AbstractEventLoop, None]:
 
 def cached(fn: Callable[..., Any]) -> Callable[..., Any]:
     @functools.wraps(fn)
-    def cached_fn(*args: Any, **kwargs: Any) -> Redis:
+    def cached_fn(*args: Any, **kwargs: Any) -> RedisClient:
         key = (fn, args, tuple(kwargs.items()), _running_loop())
         if key not in _client_cache:
             _client_cache[key] = fn(*args, **kwargs)
@@ -129,7 +147,9 @@ def close_all_cached_connections() -> None:
     for (_, _, _, loop), client in _client_cache.items():
         if not loop or (loop and loop.is_closed()):
             continue
-        loop.run_until_complete(client.connection_pool.disconnect())
+        connection_pool = getattr(client, "connection_pool", None)
+        if connection_pool is not None:
+            loop.run_until_complete(connection_pool.disconnect())
         loop.run_until_complete(client.aclose())
 
 
@@ -159,15 +179,18 @@ def get_async_redis_client(
     socket_timeout: Union[float, None, Any] = _UNSET,
     socket_connect_timeout: Union[float, None, Any] = _UNSET,
     protocol: Union[int, None] = None,
-) -> Redis:
+) -> RedisClient:
     """Retrieves an async Redis client.
 
     When `url` is provided (or configured via
-    `PREFECT_REDIS_MESSAGING_URL`), `Redis.from_url` is used and
-    the discrete host/port/… arguments are ignored.
+    `PREFECT_REDIS_MESSAGING_URL`), `Redis.from_url` is used for
+    standalone URLs and `RedisCluster.from_url` is used for
+    `redis+cluster://` or `rediss+cluster://` URLs. The discrete
+    host/port/… arguments are ignored.
 
     Args:
-        url: Full Redis URL (e.g. `redis://localhost:6379/0`).
+        url: Full Redis URL (e.g. `redis://localhost:6379/0` or
+            `redis+cluster://localhost:6379`).
         host: The host location.
         port: The port to connect to the host with.
         db: The Redis database to interact with.
@@ -182,7 +205,7 @@ def get_async_redis_client(
         protocol: RESP protocol version (default 2 from settings).
 
     Returns:
-        Redis: a Redis client
+        Redis: a Redis or Redis Cluster client
     """
     settings = RedisMessagingSettings()
 
@@ -198,8 +221,9 @@ def get_async_redis_client(
 
     url = url or settings.url
     if url:
-        return Redis.from_url(
-            url,
+        redis_from_url = RedisCluster.from_url if is_cluster_url(url) else Redis.from_url
+        return redis_from_url(
+            normalize_cluster_url(url),
             health_check_interval=health_check_interval
             or settings.health_check_interval,
             decode_responses=decode_responses,
@@ -226,7 +250,7 @@ def get_async_redis_client(
 @cached
 def async_redis_from_settings(
     settings: RedisMessagingSettings, **options: Any
-) -> Redis:
+) -> RedisClient:
     options = {
         "decode_responses": True,
         "socket_timeout": settings.socket_timeout,
@@ -236,8 +260,11 @@ def async_redis_from_settings(
     }
 
     if settings.url:
-        return Redis.from_url(
-            settings.url,
+        redis_from_url = (
+            RedisCluster.from_url if is_cluster_url(settings.url) else Redis.from_url
+        )
+        return redis_from_url(
+            normalize_cluster_url(settings.url),
             health_check_interval=settings.health_check_interval,
             **options,
         )

@@ -8,8 +8,11 @@ from prefect_redis.client import (
     async_redis_from_settings,
     close_all_cached_connections,
     get_async_redis_client,
+    is_cluster_url,
+    normalize_cluster_url,
 )
 from redis.asyncio import Redis
+from redis.asyncio.cluster import RedisCluster
 
 
 def test_redis_settings_defaults(isolated_redis_db_number: int):
@@ -38,6 +41,34 @@ def test_redis_settings_url_from_env(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("PREFECT_REDIS_MESSAGING_URL", "redis://envhost:6381/3")
     settings = RedisMessagingSettings()
     assert settings.url == "redis://envhost:6381/3"
+
+
+def test_cluster_url_detection():
+    assert is_cluster_url("redis+cluster://redis.example.com:6379")
+    assert is_cluster_url("rediss+cluster://redis.example.com:6379")
+    assert not is_cluster_url("redis://redis.example.com:6379")
+    assert not is_cluster_url("rediss://redis.example.com:6379")
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        (
+            "redis+cluster://redis.example.com:6379",
+            "redis://redis.example.com:6379",
+        ),
+        (
+            "rediss+cluster://user:pass@redis.example.com:6380/0?protocol=3",
+            "rediss://user:pass@redis.example.com:6380/0?protocol=3",
+        ),
+        (
+            "redis://redis.example.com:6379/0",
+            "redis://redis.example.com:6379/0",
+        ),
+    ],
+)
+def test_normalize_cluster_url(url: str, expected: str):
+    assert normalize_cluster_url(url) == expected
 
 
 def test_redis_settings_url_warns_on_conflicting_fields():
@@ -96,6 +127,19 @@ async def test_get_async_redis_client_with_url():
     assert conn_kwargs["port"] == 6382
     assert conn_kwargs["db"] == 4
     await client.aclose()
+
+
+async def test_get_async_redis_client_with_cluster_url():
+    """Cluster URLs create RedisCluster clients after URL normalization."""
+    _client_cache.clear()
+    client = get_async_redis_client(url="redis+cluster://clusterhost:7000")
+    assert isinstance(client, RedisCluster)
+    assert client.nodes_manager.startup_nodes["clusterhost:7000"].host == "clusterhost"
+    assert client.nodes_manager.startup_nodes["clusterhost:7000"].port == 7000
+    assert client.get_connection_kwargs()["decode_responses"] is True
+    assert client.get_connection_kwargs()["protocol"] == 2
+    await client.aclose()
+    _client_cache.clear()
 
 
 async def test_get_async_redis_client_url_with_credentials():
@@ -168,6 +212,21 @@ async def test_async_redis_from_settings_with_url():
     assert conn_kwargs["port"] == 6385
     assert conn_kwargs["db"] == 7
     await client.aclose()
+
+
+async def test_async_redis_from_settings_with_cluster_url():
+    """Settings URL can create a RedisCluster client."""
+    _client_cache.clear()
+    settings = RedisMessagingSettings(url="rediss+cluster://fromurl:6385")
+    client = async_redis_from_settings(settings)
+    assert isinstance(client, RedisCluster)
+    assert client.nodes_manager.startup_nodes["fromurl:6385"].host == "fromurl"
+    assert client.nodes_manager.startup_nodes["fromurl:6385"].port == 6385
+    connection_kwargs = client.get_connection_kwargs()
+    assert connection_kwargs["decode_responses"] is True
+    assert connection_kwargs["protocol"] == 2
+    await client.aclose()
+    _client_cache.clear()
 
 
 def test_redis_settings_connection_defaults():
