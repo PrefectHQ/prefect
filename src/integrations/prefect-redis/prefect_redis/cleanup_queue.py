@@ -336,9 +336,6 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         if limit < 1:
             raise ValueError("limit must be at least 1")
 
-        work_pool_ids = (
-            [str(work_pool_id)] if work_pool_id else await self._work_pools()
-        )
         current_time = now("UTC")
         current_ms = _score_ms(current_time)
         policy = self._policy()
@@ -346,37 +343,30 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         redelivered: list[CleanupQueueMessage] = []
         dead_lettered: list[CleanupQueueDeadLetter] = []
 
-        for current_work_pool_id in work_pool_ids:
+        for current_work_pool_id, message_id in await self._expired_lease_candidates(
+            current_ms=current_ms,
+            limit=remaining,
+            work_pool_id=work_pool_id,
+        ):
             if remaining <= 0:
                 break
 
-            expired_message_ids = await self._client().zrangebyscore(
-                self._reserved_key(current_work_pool_id),
-                "-inf",
-                current_ms,
-                start=0,
-                num=remaining,
+            outcome = await self._expire_lease_candidate(
+                work_pool_id=current_work_pool_id,
+                message_id=message_id,
+                current_time=current_time,
+                current_ms=current_ms,
+                policy=policy,
             )
-            for raw_message_id in expired_message_ids:
-                if remaining <= 0:
-                    break
+            if outcome is None:
+                continue
 
-                outcome = await self._expire_lease_candidate(
-                    work_pool_id=current_work_pool_id,
-                    message_id=_decode_redis_value(raw_message_id),
-                    current_time=current_time,
-                    current_ms=current_ms,
-                    policy=policy,
-                )
-                if outcome is None:
-                    continue
-
-                status, payload = outcome
-                remaining -= 1
-                if status == "redelivered":
-                    redelivered.append(payload)
-                else:
-                    dead_lettered.append(payload)
+            status, payload = outcome
+            remaining -= 1
+            if status == "redelivered":
+                redelivered.append(payload)
+            else:
+                dead_lettered.append(payload)
 
         if redelivered:
             await self._notify_local_dispatchers()
@@ -442,9 +432,13 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
             else asyncio.get_running_loop().time() + max(timeout, 0.0)
         )
 
+        wakeup_channel = self._wakeup_channel(work_pool_id)
         pubsub = self._client().pubsub()
-        await pubsub.subscribe(self._wakeup_channel(work_pool_id))
+        subscribed = False
         try:
+            await pubsub.subscribe(wakeup_channel)
+            subscribed = True
+
             while True:
                 sequence = await self.read_wakeup_sequence(work_pool_id)
                 if sequence > after:
@@ -465,8 +459,11 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                     timeout=wait_timeout,
                 )
         finally:
-            await pubsub.unsubscribe(self._wakeup_channel(work_pool_id))
-            await pubsub.aclose()
+            try:
+                if subscribed:
+                    await pubsub.unsubscribe(wakeup_channel)
+            finally:
+                await pubsub.aclose()
 
     async def _reserve_candidate(
         self,
@@ -560,6 +557,14 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                     )
                     pipe.zrem(keys.visible, message_id)
                     pipe.zadd(keys.reserved, {message_id: lease_expires_ms})
+                    pipe.zadd(
+                        self._reserved_index_key(),
+                        {
+                            self._reserved_index_member(
+                                work_pool_id=work_pool_id, message_id=message_id
+                            ): lease_expires_ms
+                        },
+                    )
                     await pipe.execute()
 
                     message = self._message_from_mapping(updated_fields)
@@ -805,6 +810,9 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         keys = self._scoped_message_keys(
             work_pool_id=work_pool_id, message_id=message_id
         )
+        reserved_index_member = self._reserved_index_member(
+            work_pool_id=work_pool_id, message_id=message_id
+        )
 
         for _ in range(_MAX_TRANSACTION_ATTEMPTS):
             async with self._client().pipeline(transaction=True) as pipe:
@@ -813,8 +821,19 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         keys.visible, keys.reserved, keys.message, keys.reservation
                     )
                     reserved_score = await pipe.zscore(keys.reserved, message_id)
-                    if reserved_score is None or reserved_score > current_ms:
-                        await pipe.reset()
+                    if reserved_score is None:
+                        pipe.multi()
+                        pipe.zrem(self._reserved_index_key(), reserved_index_member)
+                        await pipe.execute()
+                        return None
+
+                    if reserved_score > current_ms:
+                        pipe.multi()
+                        pipe.zadd(
+                            self._reserved_index_key(),
+                            {reserved_index_member: reserved_score},
+                        )
+                        await pipe.execute()
                         return None
 
                     message_fields = _string_mapping(await pipe.hgetall(keys.message))
@@ -826,6 +845,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         pipe.multi()
                         pipe.delete(keys.reservation)
                         pipe.zrem(keys.reserved, message_id)
+                        pipe.zrem(self._reserved_index_key(), reserved_index_member)
                         await pipe.execute()
                         return None
 
@@ -835,6 +855,10 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                     if reservation_lease_ms > current_ms:
                         pipe.multi()
                         pipe.zadd(keys.reserved, {message_id: reservation_lease_ms})
+                        pipe.zadd(
+                            self._reserved_index_key(),
+                            {reserved_index_member: reservation_lease_ms},
+                        )
                         await pipe.execute()
                         return None
 
@@ -980,6 +1004,12 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         pipe.delete(keys.reservation)
         pipe.zrem(keys.visible, message_id)
         pipe.zrem(keys.reserved, message_id)
+        pipe.zrem(
+            self._reserved_index_key(),
+            self._reserved_index_member(
+                work_pool_id=work_pool_id, message_id=message_id
+            ),
+        )
 
         if retention is not None:
             retention_ms = int(retention.total_seconds() * 1000)
@@ -1005,6 +1035,12 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         }
         pipe.delete(keys.reservation)
         pipe.zrem(keys.reserved, message_id)
+        pipe.zrem(
+            self._reserved_index_key(),
+            self._reserved_index_member(
+                work_pool_id=message_fields["work_pool_id"], message_id=message_id
+            ),
+        )
         pipe.hset(keys.message, mapping=updated_fields)
         pipe.zadd(keys.visible, {message_id: current_ms})
         return self._message_from_mapping(updated_fields)
@@ -1043,6 +1079,14 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
             },
         )
         pipe.zadd(keys.reserved, {message_id: lease_expires_ms})
+        pipe.zadd(
+            self._reserved_index_key(),
+            {
+                self._reserved_index_member(
+                    work_pool_id=message_fields["work_pool_id"], message_id=message_id
+                ): lease_expires_ms
+            },
+        )
 
     def _stage_dead_letter(
         self,
@@ -1070,6 +1114,12 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         pipe.delete(keys.reservation)
         pipe.zrem(keys.visible, message_id)
         pipe.zrem(keys.reserved, message_id)
+        pipe.zrem(
+            self._reserved_index_key(),
+            self._reserved_index_member(
+                work_pool_id=message_fields["work_pool_id"], message_id=message_id
+            ),
+        )
         return self._dead_letter_from_mapping(dead_fields)
 
     def _client(self) -> "Redis":
@@ -1115,6 +1165,36 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
             for work_pool_id in await self._client().smembers(self._pools_key())
         ]
 
+    async def _expired_lease_candidates(
+        self,
+        *,
+        current_ms: int,
+        limit: int,
+        work_pool_id: UUID | None,
+    ) -> list[tuple[str, str]]:
+        if work_pool_id is not None:
+            return [
+                (str(work_pool_id), _decode_redis_value(raw_message_id))
+                for raw_message_id in await self._client().zrangebyscore(
+                    self._reserved_key(work_pool_id),
+                    "-inf",
+                    current_ms,
+                    start=0,
+                    num=limit,
+                )
+            ]
+
+        return [
+            self._split_reserved_index_member(raw_member)
+            for raw_member in await self._client().zrangebyscore(
+                self._reserved_index_key(),
+                "-inf",
+                current_ms,
+                start=0,
+                num=limit,
+            )
+        ]
+
     def _scoped_message_keys(
         self, *, work_pool_id: UUID | str, message_id: UUID | str
     ) -> _ScopedMessageKeys:
@@ -1147,6 +1227,20 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
 
     def _reserved_key(self, work_pool_id: UUID | str) -> str:
         return f"{self._prefix()}:pool:{work_pool_id}:reserved"
+
+    def _reserved_index_key(self) -> str:
+        return f"{self._prefix()}:reserved"
+
+    @staticmethod
+    def _reserved_index_member(
+        *, work_pool_id: UUID | str, message_id: UUID | str
+    ) -> str:
+        return f"{work_pool_id}:{message_id}"
+
+    @staticmethod
+    def _split_reserved_index_member(member: Any) -> tuple[str, str]:
+        work_pool_id, message_id = _decode_redis_value(member).split(":", 1)
+        return work_pool_id, message_id
 
     def _wakeup_key(self, work_pool_id: UUID | str) -> str:
         return f"{self._prefix()}:wakeup:{work_pool_id}"
