@@ -480,6 +480,53 @@ def _connect_worker_channel(test_client: TestClient, work_pool_name: str):
     )
 
 
+class RecordingWebSocket:
+    def __init__(self) -> None:
+        self.sent_json: list[dict[str, Any]] = []
+
+    async def send_json(self, payload: dict[str, Any]) -> None:
+        self.sent_json.append(payload)
+
+
+class TestWorkerCleanupConnectionRegistry:
+    async def test_registered_connection_is_ineligible_until_ready_is_sent(
+        self, work_pool, cleanup_queue: FakeWorkerCleanupQueue
+    ):
+        cleanup_queue.add_message(work_pool_id=work_pool.id)
+        websocket = RecordingWebSocket()
+        registry = worker_channel_utils.WorkerCleanupConnectionRegistry()
+        connection = worker_channel_utils.WorkerChannelConnection(
+            websocket=websocket,
+            db=object(),
+            work_pool_name=work_pool.name,
+            work_pool_id=work_pool.id,
+            consumer_id=uuid.uuid4(),
+            worker_name="test-worker",
+            cleanup_queue=cleanup_queue,
+            cleanup_kinds=(CANCELLING_TIMEOUT_TEARDOWN,),
+            max_cleanup_concurrency=1,
+            cleanup_registry=registry,
+        )
+
+        async with registry.register(connection):
+            await registry.dispatch_available(
+                work_pool_id=work_pool.id,
+                cleanup_queue=cleanup_queue,
+            )
+
+            assert cleanup_queue.active_reservation_count() == 0
+            assert websocket.sent_json == []
+
+            connection._ready_sent.set()
+            await registry.dispatch_available(
+                work_pool_id=work_pool.id,
+                cleanup_queue=cleanup_queue,
+            )
+
+        assert cleanup_queue.active_reservation_count() == 1
+        assert websocket.sent_json[0]["type"] == "cleanup.message.v1"
+
+
 class TestWorkerChannelCleanupDispatcher:
     async def test_cleanup_capability_is_accepted_for_capable_workers(
         self, test_client: TestClient, work_pool, cleanup_queue: FakeWorkerCleanupQueue

@@ -292,7 +292,11 @@ class WorkerChannelConnection:
                     continue
 
     async def has_cleanup_capacity(self) -> bool:
-        if not self.cleanup_enabled or self._closed.is_set():
+        if (
+            not self.cleanup_enabled
+            or self._closed.is_set()
+            or not self._ready_sent.is_set()
+        ):
             return False
 
         async with self._cleanup_state_lock:
@@ -329,6 +333,7 @@ class WorkerChannelConnection:
             self._prune_expired_cleanup_reservations_locked()
             if (
                 self._closed.is_set()
+                or not self._ready_sent.is_set()
                 or len(self._cleanup_in_flight_by_token)
                 >= self._max_cleanup_concurrency
             ):
