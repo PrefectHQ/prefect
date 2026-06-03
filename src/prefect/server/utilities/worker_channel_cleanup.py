@@ -49,6 +49,7 @@ class WorkerCleanupConnectionRegistry:
         self._cleanup_in_flight_by_worker: defaultdict[
             tuple[UUID, UUID, str], dict[str, WorkerCleanupInFlight]
         ] = defaultdict(dict)
+        self._cleanup_dispatching_by_worker: set[tuple[UUID, UUID, str]] = set()
         self._lock = asyncio.Lock()
 
     @asynccontextmanager
@@ -175,20 +176,23 @@ class WorkerCleanupConnectionRegistry:
         work_pool_id: UUID,
         cleanup_queue: WorkerCleanupQueue,
     ) -> None:
-        async with self._dispatch_locks[work_pool_id]:
-            async with self._lock:
-                self._prune_expired_cleanup_reservations_for_work_pool_locked(
-                    work_pool_id
-                )
-
-            while True:
+        while True:
+            async with self._dispatch_locks[work_pool_id]:
+                async with self._lock:
+                    self._prune_expired_cleanup_reservations_for_work_pool_locked(
+                        work_pool_id
+                    )
                 candidates = await self._eligible_connections(work_pool_id)
-                if not candidates:
-                    return
 
-                dispatched = False
-                for allow_fallback_to_any_queue in (False, True):
-                    for connection in candidates:
+            if not candidates:
+                return
+
+            dispatched = False
+            for allow_fallback_to_any_queue in (False, True):
+                for connection in candidates:
+                    if not await self._claim_cleanup_dispatch(connection):
+                        continue
+                    try:
                         if await connection.dispatch_one_cleanup_message(
                             cleanup_queue=cleanup_queue,
                             allow_fallback_to_any_queue=allow_fallback_to_any_queue,
@@ -196,11 +200,13 @@ class WorkerCleanupConnectionRegistry:
                             await self._mark_cleanup_dispatched(connection)
                             dispatched = True
                             break
-                    if dispatched:
-                        break
+                    finally:
+                        await self._release_cleanup_dispatch_claim(connection)
+                if dispatched:
+                    break
 
-                if not dispatched:
-                    return
+            if not dispatched:
+                return
 
     def wake_dispatcher(self, work_pool_id: UUID) -> None:
         event = self._dispatch_events_by_work_pool_id.get(work_pool_id)
@@ -353,12 +359,31 @@ class WorkerCleanupConnectionRegistry:
     ) -> tuple[WorkerChannelConnection, ...]:
         async with self._lock:
             connections = tuple(self._connections_by_work_pool_id.get(work_pool_id, ()))
+            dispatching = set(self._cleanup_dispatching_by_worker)
 
         eligible = []
         for connection in connections:
+            if self._worker_key(connection) in dispatching:
+                continue
             if await connection.has_cleanup_capacity():
                 eligible.append(connection)
         return tuple(eligible)
+
+    async def _claim_cleanup_dispatch(
+        self, connection: WorkerChannelConnection
+    ) -> bool:
+        async with self._lock:
+            key = self._worker_key(connection)
+            if key in self._cleanup_dispatching_by_worker:
+                return False
+            self._cleanup_dispatching_by_worker.add(key)
+            return True
+
+    async def _release_cleanup_dispatch_claim(
+        self, connection: WorkerChannelConnection
+    ) -> None:
+        async with self._lock:
+            self._cleanup_dispatching_by_worker.discard(self._worker_key(connection))
 
     async def _mark_cleanup_dispatched(
         self, connection: WorkerChannelConnection

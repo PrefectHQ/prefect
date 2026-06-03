@@ -353,13 +353,14 @@ class WorkerChannelConnection:
         self,
         frame: CleanupAckFrame | CleanupReleaseFrame | CleanupRenewFrame,
     ) -> None:
+        operation = _cleanup_operation_from_frame(frame)
         if not self.cleanup_enabled or self._cleanup_queue is None:
             await self._send_frame(
                 _build_cleanup_operation_result_frame(
                     request_frame_id=frame.id,
                     result=CleanupQueueOperationResult(
                         message_id=frame.payload.message_id,
-                        operation=_cleanup_operation_from_frame(frame),
+                        operation=operation,
                         status="unauthorized",
                         reason="cleanup_delivery_not_accepted",
                     ),
@@ -368,24 +369,35 @@ class WorkerChannelConnection:
             return
 
         cleanup_queue = self._cleanup_queue
-        if isinstance(frame, CleanupAckFrame):
-            result = await cleanup_queue.ack(
-                work_pool_id=self.work_pool_id,
+        try:
+            if isinstance(frame, CleanupAckFrame):
+                result = await cleanup_queue.ack(
+                    work_pool_id=self.work_pool_id,
+                    message_id=frame.payload.message_id,
+                    reservation_token=frame.payload.reservation_token,
+                )
+            elif isinstance(frame, CleanupReleaseFrame):
+                result = await cleanup_queue.release(
+                    work_pool_id=self.work_pool_id,
+                    message_id=frame.payload.message_id,
+                    reservation_token=frame.payload.reservation_token,
+                    reason=frame.payload.reason,
+                )
+            else:
+                result = await cleanup_queue.renew(
+                    work_pool_id=self.work_pool_id,
+                    message_id=frame.payload.message_id,
+                    reservation_token=frame.payload.reservation_token,
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Worker cleanup queue operation failed")
+            result = CleanupQueueOperationResult(
                 message_id=frame.payload.message_id,
-                reservation_token=frame.payload.reservation_token,
-            )
-        elif isinstance(frame, CleanupReleaseFrame):
-            result = await cleanup_queue.release(
-                work_pool_id=self.work_pool_id,
-                message_id=frame.payload.message_id,
-                reservation_token=frame.payload.reservation_token,
-                reason=frame.payload.reason,
-            )
-        else:
-            result = await cleanup_queue.renew(
-                work_pool_id=self.work_pool_id,
-                message_id=frame.payload.message_id,
-                reservation_token=frame.payload.reservation_token,
+                operation=operation,
+                status="error",
+                reason="cleanup_queue_operation_failed",
             )
 
         synced_before_send = result.operation == "renew" and result.status == "accepted"

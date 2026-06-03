@@ -50,7 +50,10 @@ from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities import worker_channel as worker_channel_utils
 from prefect.server.utilities.server import PrefectRouter
-from prefect.server.worker_communication.cleanup_queue import get_worker_cleanup_queue
+from prefect.server.worker_communication.cleanup_queue import (
+    WorkerCleanupQueue,
+    get_worker_cleanup_queue,
+)
 from prefect.types import DateTime
 from prefect.types._datetime import now
 
@@ -186,15 +189,21 @@ class WorkerChannelWorkPoolUpdateEvent:
     changed_fields: dict[str, dict[str, Any]]
 
 
+def _worker_requested_cleanup_delivery(hello: WorkerHelloFrame) -> bool:
+    return (
+        CLEANUP_DELIVERY_CAPABILITY in hello.payload.requested_capabilities
+        and bool(hello.payload.handled_cleanup_kinds)
+        and hello.payload.max_cleanup_concurrency > 0
+    )
+
+
 def _accepted_worker_channel_capabilities(
     hello: WorkerHelloFrame,
+    *,
+    cleanup_queue_available: bool,
 ) -> list[WorkerChannelCapability]:
     accepted = list(_OSS_WORKER_CHANNEL_REQUIRED_CAPABILITIES)
-    if (
-        CLEANUP_DELIVERY_CAPABILITY in hello.payload.requested_capabilities
-        and hello.payload.handled_cleanup_kinds
-        and hello.payload.max_cleanup_concurrency > 0
-    ):
+    if cleanup_queue_available and _worker_requested_cleanup_delivery(hello):
         accepted.append(CLEANUP_DELIVERY_CAPABILITY)
 
     return accepted
@@ -307,6 +316,7 @@ async def _build_worker_ready_frame(
     session: AsyncSession,
     work_pool_name: str,
     hello: WorkerHelloFrame,
+    cleanup_queue_available: bool,
 ) -> tuple[WorkerReadyFrame, WorkerChannelWorkPoolUpdateEvent | None]:
     try:
         selected_channel_version = select_worker_channel_version(
@@ -388,7 +398,10 @@ async def _build_worker_ready_frame(
     )
 
     requested_capabilities = list(dict.fromkeys(hello.payload.requested_capabilities))
-    accepted = _accepted_worker_channel_capabilities(hello)
+    accepted = _accepted_worker_channel_capabilities(
+        hello,
+        cleanup_queue_available=cleanup_queue_available,
+    )
     accepted_set = set(accepted)
     rejected = [
         capability
@@ -1079,6 +1092,16 @@ async def worker_channel_connect(
 
     try:
         hello = await _receive_worker_hello(websocket)
+        cleanup_queue: WorkerCleanupQueue | None = None
+        if _worker_requested_cleanup_delivery(hello):
+            try:
+                cleanup_queue = get_worker_cleanup_queue()
+            except Exception:
+                logger.exception(
+                    "Worker cleanup delivery queue initialization failed; "
+                    "rejecting cleanup delivery capability"
+                )
+
         async with worker_channel_utils.messaging.ephemeral_subscription(
             worker_channel_utils.WORKER_CHANNEL_SNAPSHOT_TOPIC,
         ) as consumer_kwargs:
@@ -1087,6 +1110,7 @@ async def worker_channel_connect(
                     session=session,
                     work_pool_name=work_pool_name,
                     hello=hello,
+                    cleanup_queue_available=cleanup_queue is not None,
                 )
 
             if work_pool_update_event is not None:
@@ -1116,7 +1140,7 @@ async def worker_channel_connect(
                 consumer_id=hello.payload.consumer_id,
                 worker_name=hello.payload.worker_name,
                 cleanup_queue=(
-                    get_worker_cleanup_queue()
+                    cleanup_queue
                     if CLEANUP_DELIVERY_CAPABILITY
                     in ready.payload.accepted_capabilities
                     else None
