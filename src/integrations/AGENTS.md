@@ -59,6 +59,8 @@ For integrations that support running flows directly on infrastructure (no deplo
 
 Integrations that need runtime-configurable behavior use `PrefectBaseSettings` subclasses in a `settings.py` file at the package root. The `build_settings_config(("integrations", "<name>", ...))` call auto-generates the env var prefix — e.g., `build_settings_config(("integrations", "gcp", "cloud_run_v2", "worker"))` maps to `PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_*`.
 
+**Exception: `prefect-redis`** defines settings within each module (not in a `settings.py`) and uses `("redis", <subsystem>)` namespaces — e.g., `("redis", "messaging")` → `PREFECT_REDIS_MESSAGING_*`, `("redis", "worker_cleanup_queue")` → `PREFECT_REDIS_WORKER_CLEANUP_QUEUE_*`. Do not expect `PREFECT_INTEGRATIONS_REDIS_*` env vars there.
+
 Unlike core `prefect.settings`, integration settings are not wired into the root `Settings` hierarchy. Access them by instantiating the class directly: `settings = MyIntegrationSettings()`. Tests override values via `mock.patch.dict("os.environ", {...})`.
 
 ## Related
