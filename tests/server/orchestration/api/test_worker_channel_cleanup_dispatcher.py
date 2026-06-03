@@ -721,6 +721,49 @@ class TestWorkerCleanupConnectionRegistry:
             second.message_id
         ]
 
+    async def test_register_prunes_expired_in_flight_for_abandoned_worker(
+        self, work_pool
+    ):
+        cleanup_queue = FakeWorkerCleanupQueue()
+        registry = worker_channel_utils.WorkerCleanupConnectionRegistry()
+        abandoned_connection = worker_channel_utils.WorkerChannelConnection(
+            websocket=RecordingWebSocket(),
+            db=object(),
+            work_pool_name=work_pool.name,
+            work_pool_id=work_pool.id,
+            consumer_id=uuid.uuid4(),
+            worker_name="abandoned-worker",
+            cleanup_queue=cleanup_queue,
+            cleanup_kinds=(CANCELLING_TIMEOUT_TEARDOWN,),
+            max_cleanup_concurrency=1,
+            cleanup_registry=registry,
+        )
+        assert await registry.track_cleanup_reservation(
+            abandoned_connection,
+            worker_channel_utils.WorkerCleanupInFlight(
+                message_id=uuid.uuid4(),
+                reservation_token="expired-token",
+                lease_expires_at=now("UTC") - timedelta(seconds=1),
+            ),
+            max_cleanup_concurrency=1,
+        )
+
+        new_connection = worker_channel_utils.WorkerChannelConnection(
+            websocket=RecordingWebSocket(),
+            db=object(),
+            work_pool_name=work_pool.name,
+            work_pool_id=work_pool.id,
+            consumer_id=uuid.uuid4(),
+            worker_name="new-worker",
+            cleanup_queue=cleanup_queue,
+            cleanup_kinds=(CANCELLING_TIMEOUT_TEARDOWN,),
+            max_cleanup_concurrency=1,
+            cleanup_registry=registry,
+        )
+
+        async with registry.register(new_connection):
+            assert registry._cleanup_in_flight_by_worker == {}
+
 
 class TestWorkerChannelCleanupDispatcher:
     async def test_cleanup_capability_is_accepted_for_capable_workers(

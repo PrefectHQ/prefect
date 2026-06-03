@@ -104,6 +104,9 @@ class WorkerCleanupConnectionRegistry:
         self, connection: WorkerChannelConnection
     ) -> AsyncIterator[None]:
         async with self._lock:
+            self._prune_expired_cleanup_reservations_for_work_pool_locked(
+                connection.work_pool_id
+            )
             self._connections_by_work_pool_id[connection.work_pool_id].append(
                 connection
             )
@@ -196,6 +199,11 @@ class WorkerCleanupConnectionRegistry:
         cleanup_queue: WorkerCleanupQueue,
     ) -> None:
         async with self._dispatch_locks[work_pool_id]:
+            async with self._lock:
+                self._prune_expired_cleanup_reservations_for_work_pool_locked(
+                    work_pool_id
+                )
+
             while True:
                 candidates = await self._eligible_connections(work_pool_id)
                 if not candidates:
@@ -257,6 +265,16 @@ class WorkerCleanupConnectionRegistry:
         ]
         for token in expired_tokens:
             in_flight.pop(token, None)
+
+    def _prune_expired_cleanup_reservations_for_work_pool_locked(
+        self, work_pool_id: UUID
+    ) -> None:
+        for key, in_flight in tuple(self._cleanup_in_flight_by_worker.items()):
+            if key[0] != work_pool_id:
+                continue
+            self._prune_expired_cleanup_reservations_locked(in_flight)
+            if not in_flight:
+                self._cleanup_in_flight_by_worker.pop(key, None)
 
 
 WORKER_CLEANUP_CONNECTION_REGISTRY = WorkerCleanupConnectionRegistry()
