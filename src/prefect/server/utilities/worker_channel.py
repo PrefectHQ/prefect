@@ -697,10 +697,7 @@ class WorkerChannelConnection:
         await self._send_frame(ready)
         self._ready_sent.set()
         if self.cleanup_enabled and self._cleanup_queue is not None:
-            await self._cleanup_registry.dispatch_available(
-                work_pool_id=self.work_pool_id,
-                cleanup_queue=self._cleanup_queue,
-            )
+            await self._dispatch_cleanup_available(self._cleanup_queue)
             self._cleanup_registry.wake_dispatcher(self.work_pool_id)
 
         while not self._closed.is_set():
@@ -806,10 +803,22 @@ class WorkerChannelConnection:
                 result=result,
             )
         if freed_capacity:
+            await self._dispatch_cleanup_available(cleanup_queue)
+
+    async def _dispatch_cleanup_available(
+        self,
+        cleanup_queue: WorkerCleanupQueue,
+    ) -> None:
+        try:
             await self._cleanup_registry.dispatch_available(
                 work_pool_id=self.work_pool_id,
                 cleanup_queue=cleanup_queue,
             )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Worker channel cleanup dispatch failed")
+            self._cleanup_registry.wake_dispatcher(self.work_pool_id)
 
     async def _sync_cleanup_operation_result(
         self,

@@ -555,7 +555,93 @@ class ErrorAckCleanupQueue(FakeWorkerCleanupQueue):
         )
 
 
+class ToggleFailingReserveCleanupQueue(FakeWorkerCleanupQueue):
+    def __init__(self) -> None:
+        super().__init__()
+        self.reserve_should_fail = False
+
+    async def reserve(
+        self,
+        *,
+        work_pool_id: UUID,
+        cleanup_kinds: Iterable[CleanupKind] | None = None,
+        preferred_work_queue_ids: Iterable[UUID] | None = None,
+        allow_fallback_to_any_queue: bool = True,
+    ) -> CleanupQueueReservation | None:
+        if self.reserve_should_fail:
+            raise RuntimeError("cleanup queue unavailable")
+        return await super().reserve(
+            work_pool_id=work_pool_id,
+            cleanup_kinds=cleanup_kinds,
+            preferred_work_queue_ids=preferred_work_queue_ids,
+            allow_fallback_to_any_queue=allow_fallback_to_any_queue,
+        )
+
+
 class TestWorkerCleanupConnectionRegistry:
+    async def test_send_loop_handles_cleanup_dispatch_failure(self, work_pool):
+        cleanup_queue = ToggleFailingReserveCleanupQueue()
+        cleanup_queue.reserve_should_fail = True
+        websocket = RecordingWebSocket()
+        registry = worker_channel_utils.WorkerCleanupConnectionRegistry()
+        connection = worker_channel_utils.WorkerChannelConnection(
+            websocket=websocket,
+            db=object(),
+            work_pool_name=work_pool.name,
+            work_pool_id=work_pool.id,
+            consumer_id=uuid.uuid4(),
+            worker_name="test-worker",
+            cleanup_queue=cleanup_queue,
+            cleanup_kinds=(CANCELLING_TIMEOUT_TEARDOWN,),
+            max_cleanup_concurrency=1,
+            cleanup_registry=registry,
+        )
+        ready = WorkerReadyFrame.model_validate(
+            {
+                "type": "worker.ready.v1",
+                "id": str(uuid7()),
+                "sent_at": now("UTC").isoformat(),
+                "payload": {
+                    "consumer_id": str(connection.consumer_id),
+                    "worker_id": None,
+                    "selected_channel_version": WORK_POOL_WORKER_CHANNEL_VERSION,
+                    "effective_heartbeat_interval_seconds": 30,
+                    "accepted_capabilities": [
+                        WORKER_HEARTBEAT_CAPABILITY,
+                        WORK_POOL_SNAPSHOT_CAPABILITY,
+                        CLEANUP_DELIVERY_CAPABILITY,
+                    ],
+                    "rejected_capabilities": [],
+                    "effective_max_cleanup_concurrency": 1,
+                    "resolved_work_queues": [],
+                    "initial_snapshot": {
+                        "snapshot_sequence": 1,
+                        "reason": "initial",
+                        "work_pool": {
+                            "id": str(work_pool.id),
+                            "name": work_pool.name,
+                            "type": work_pool.type,
+                            "base_job_template": work_pool.base_job_template or {},
+                            "is_paused": work_pool.is_paused,
+                            "storage_configuration": {},
+                            "default_queue_id": str(work_pool.default_queue_id),
+                        },
+                    },
+                },
+            }
+        )
+
+        send_task = asyncio.create_task(connection._send_loop(ready))
+        try:
+            await asyncio.wait_for(connection._ready_sent.wait(), timeout=0.5)
+            await asyncio.sleep(0)
+
+            assert not send_task.done()
+            assert websocket.sent_json[0]["type"] == "worker.ready.v1"
+        finally:
+            send_task.cancel()
+            await asyncio.gather(send_task, return_exceptions=True)
+
     async def test_registered_connection_is_ineligible_until_ready_is_sent(
         self, work_pool, cleanup_queue: FakeWorkerCleanupQueue
     ):
@@ -878,6 +964,56 @@ class TestWorkerCleanupConnectionRegistry:
             "cleanup.operation_result.v1",
             "cleanup.message.v1",
         ]
+
+    async def test_operation_result_handles_cleanup_dispatch_failure(
+        self, work_pool, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setattr(
+            worker_channel_utils,
+            "_WORKER_CHANNEL_CLEANUP_DISPATCH_POLL_SECONDS",
+            0.01,
+        )
+        cleanup_queue = ToggleFailingReserveCleanupQueue()
+        cleanup_queue.add_message(work_pool_id=work_pool.id)
+        websocket = RecordingWebSocket()
+        registry = worker_channel_utils.WorkerCleanupConnectionRegistry()
+        connection = worker_channel_utils.WorkerChannelConnection(
+            websocket=websocket,
+            db=object(),
+            work_pool_name=work_pool.name,
+            work_pool_id=work_pool.id,
+            consumer_id=uuid.uuid4(),
+            worker_name="test-worker",
+            cleanup_queue=cleanup_queue,
+            cleanup_kinds=(CANCELLING_TIMEOUT_TEARDOWN,),
+            max_cleanup_concurrency=1,
+            cleanup_registry=registry,
+        )
+        connection._ready_sent.set()
+
+        async with registry.register(connection):
+            await registry.dispatch_available(
+                work_pool_id=work_pool.id,
+                cleanup_queue=cleanup_queue,
+            )
+            cleanup = CleanupMessageFrame.model_validate(websocket.sent_json[0])
+            cleanup_queue.reserve_should_fail = True
+
+            await connection._handle_cleanup_operation(
+                CleanupAckFrame.model_validate(
+                    _cleanup_ack_frame(
+                        message_id=cleanup.payload.message_id,
+                        reservation_token=cleanup.payload.reservation_token,
+                    )
+                )
+            )
+
+        operation_results = [
+            frame
+            for frame in websocket.sent_json
+            if frame["type"] == "cleanup.operation_result.v1"
+        ]
+        assert operation_results[0]["payload"]["status"] == "accepted"
 
     async def test_renew_syncs_lease_before_result_send(self, work_pool):
         cleanup_queue = FakeWorkerCleanupQueue()
