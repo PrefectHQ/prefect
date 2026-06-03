@@ -25,8 +25,10 @@ import prefect.server.models as models
 import prefect.server.schemas as schemas
 from prefect._internal.uuid7 import uuid7
 from prefect.client.schemas.worker_channel import (
+    CLEANUP_DELIVERY_CAPABILITY,
     WORK_POOL_SNAPSHOT_CAPABILITY,
     WORKER_HEARTBEAT_CAPABILITY,
+    WorkerChannelCapability,
     WorkerChannelCloseReason,
     WorkerChannelProtocolError,
     WorkerHelloFrame,
@@ -48,6 +50,7 @@ from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities import worker_channel as worker_channel_utils
 from prefect.server.utilities.server import PrefectRouter
+from prefect.server.worker_communication.cleanup_queue import get_worker_cleanup_queue
 from prefect.types import DateTime
 from prefect.types._datetime import now
 
@@ -61,7 +64,7 @@ router: PrefectRouter = PrefectRouter(
 )
 logger: Logger = get_logger("prefect.server.api.workers")
 
-_OSS_WORKER_CHANNEL_ACCEPTED_CAPABILITIES = [
+_OSS_WORKER_CHANNEL_REQUIRED_CAPABILITIES: list[WorkerChannelCapability] = [
     WORKER_HEARTBEAT_CAPABILITY,
     WORK_POOL_SNAPSHOT_CAPABILITY,
 ]
@@ -181,6 +184,20 @@ class WorkerChannelSetupError(Exception):
 class WorkerChannelWorkPoolUpdateEvent:
     work_pool_id: UUID
     changed_fields: dict[str, dict[str, Any]]
+
+
+def _accepted_worker_channel_capabilities(
+    hello: WorkerHelloFrame,
+) -> list[WorkerChannelCapability]:
+    accepted = list(_OSS_WORKER_CHANNEL_REQUIRED_CAPABILITIES)
+    if (
+        CLEANUP_DELIVERY_CAPABILITY in hello.payload.requested_capabilities
+        and hello.payload.handled_cleanup_kinds
+        and hello.payload.max_cleanup_concurrency > 0
+    ):
+        accepted.append(CLEANUP_DELIVERY_CAPABILITY)
+
+    return accepted
 
 
 async def _receive_worker_hello(websocket: WebSocket) -> WorkerHelloFrame:
@@ -371,7 +388,7 @@ async def _build_worker_ready_frame(
     )
 
     requested_capabilities = list(dict.fromkeys(hello.payload.requested_capabilities))
-    accepted = _OSS_WORKER_CHANNEL_ACCEPTED_CAPABILITIES
+    accepted = _accepted_worker_channel_capabilities(hello)
     accepted_set = set(accepted)
     rejected = [
         capability
@@ -393,7 +410,11 @@ async def _build_worker_ready_frame(
                 ),
                 "accepted_capabilities": accepted,
                 "rejected_capabilities": rejected,
-                "effective_max_cleanup_concurrency": 0,
+                "effective_max_cleanup_concurrency": (
+                    hello.payload.max_cleanup_concurrency
+                    if CLEANUP_DELIVERY_CAPABILITY in accepted_set
+                    else 0
+                ),
                 "resolved_work_queues": [
                     {"id": work_queue.id, "name": work_queue.name}
                     for work_queue in work_queues
@@ -1094,6 +1115,17 @@ async def worker_channel_connect(
                 work_pool_id=ready.payload.initial_snapshot.work_pool.id,
                 consumer_id=hello.payload.consumer_id,
                 worker_name=hello.payload.worker_name,
+                cleanup_queue=(
+                    get_worker_cleanup_queue()
+                    if CLEANUP_DELIVERY_CAPABILITY
+                    in ready.payload.accepted_capabilities
+                    else None
+                ),
+                cleanup_kinds=tuple(hello.payload.handled_cleanup_kinds),
+                cleanup_work_queue_ids=tuple(
+                    work_queue.id for work_queue in ready.payload.resolved_work_queues
+                ),
+                max_cleanup_concurrency=ready.payload.effective_max_cleanup_concurrency,
             )
             await connection.run(ready, consumer_kwargs)
 

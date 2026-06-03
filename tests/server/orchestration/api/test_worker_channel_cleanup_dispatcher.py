@@ -1,0 +1,777 @@
+import asyncio
+import threading
+import time
+import uuid
+from collections.abc import Iterable, Mapping
+from datetime import timedelta, timezone
+from typing import Any
+from uuid import UUID
+
+import pytest
+from starlette.testclient import TestClient
+
+import prefect.server.api.workers as workers_api
+from prefect._internal.uuid7 import uuid7
+from prefect.client.schemas.worker_channel import (
+    CANCELLING_TIMEOUT_TEARDOWN,
+    CLEANUP_DELIVERY_CAPABILITY,
+    PENDING_CLAIM_TEARDOWN,
+    WORK_POOL_SNAPSHOT_CAPABILITY,
+    WORK_POOL_WORKER_CHANNEL_VERSION,
+    WORKER_HEARTBEAT_CAPABILITY,
+    CleanupKind,
+    CleanupMessageFrame,
+    CleanupOperationResultFrame,
+    WorkerReadyFrame,
+)
+from prefect.server.events.clients import AssertingEventsClient
+from prefect.server.utilities import worker_channel as worker_channel_utils
+from prefect.server.worker_communication.cleanup_queue import (
+    CleanupQueueDeadLetter,
+    CleanupQueueLeaseExpiryResult,
+    CleanupQueueMessage,
+    CleanupQueueOperation,
+    CleanupQueueOperationResult,
+    CleanupQueueReservation,
+    CleanupQueueWakeup,
+    WorkerCleanupQueue,
+)
+from prefect.types._datetime import now
+
+pytestmark = pytest.mark.clear_db
+
+
+@pytest.fixture(autouse=True)
+def patch_events_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "prefect.server.models.work_queues.PrefectServerEventsClient",
+        AssertingEventsClient,
+    )
+    monkeypatch.setattr(
+        "prefect.server.models.workers.PrefectServerEventsClient",
+        AssertingEventsClient,
+    )
+
+
+class FakeWorkerCleanupQueue(WorkerCleanupQueue):
+    def __init__(self, lease_seconds: float = 30.0) -> None:
+        self._lease_seconds = lease_seconds
+        self._messages: dict[UUID, CleanupQueueMessage] = {}
+        self._reservations: dict[UUID, CleanupQueueReservation] = {}
+        self._wakeup_sequences: dict[UUID, int] = {}
+        self._lock = threading.Lock()
+
+    def add_message(
+        self,
+        *,
+        work_pool_id: UUID,
+        kind: CleanupKind = CANCELLING_TIMEOUT_TEARDOWN,
+        work_queue_id: UUID | None = None,
+        message_id: UUID | None = None,
+    ) -> CleanupQueueMessage:
+        current_time = now("UTC")
+        message = CleanupQueueMessage(
+            message_id=message_id or uuid.uuid4(),
+            idempotency_key=str(uuid.uuid4()),
+            work_pool_id=work_pool_id,
+            work_queue_id=work_queue_id,
+            kind=kind,
+            target={"flow_run_id": uuid.uuid4()},
+            data={},
+            created_at=current_time,
+            updated_at=current_time,
+        )
+        with self._lock:
+            self._messages[message.message_id] = message
+            self._wake_locked(work_pool_id)
+        return message
+
+    def active_reservation_count(self) -> int:
+        with self._lock:
+            return len(self._reservations)
+
+    def active_message_count(self) -> int:
+        with self._lock:
+            return len(self._messages)
+
+    async def enqueue(
+        self,
+        *,
+        message_id: UUID,
+        idempotency_key: str,
+        work_pool_id: UUID,
+        kind: CleanupKind,
+        target: Mapping[str, Any],
+        data: Mapping[str, Any] | None = None,
+        work_queue_id: UUID | None = None,
+    ) -> CleanupQueueMessage:
+        raise NotImplementedError
+
+    async def reserve(
+        self,
+        *,
+        work_pool_id: UUID,
+        cleanup_kinds: Iterable[CleanupKind] | None = None,
+        preferred_work_queue_ids: Iterable[UUID] | None = None,
+        allow_fallback_to_any_queue: bool = True,
+    ) -> CleanupQueueReservation | None:
+        cleanup_kind_filter = set(cleanup_kinds) if cleanup_kinds is not None else None
+        queue_preference_passes = self._queue_preference_passes(
+            preferred_work_queue_ids=preferred_work_queue_ids,
+            allow_fallback_to_any_queue=allow_fallback_to_any_queue,
+        )
+
+        with self._lock:
+            self._expire_due_reservations_locked()
+            for queue_filter in queue_preference_passes:
+                for message in tuple(self._messages.values()):
+                    if message.work_pool_id != work_pool_id:
+                        continue
+                    if message.message_id in self._reservations:
+                        continue
+                    if (
+                        cleanup_kind_filter is not None
+                        and message.kind not in cleanup_kind_filter
+                    ):
+                        continue
+                    if (
+                        queue_filter is not None
+                        and message.work_queue_id not in queue_filter
+                    ):
+                        continue
+
+                    current_time = now("UTC")
+                    updated_message = message.model_copy(
+                        update={
+                            "delivery_count": message.delivery_count + 1,
+                            "updated_at": current_time,
+                        }
+                    )
+                    reservation = CleanupQueueReservation(
+                        **updated_message.model_dump(),
+                        reservation_token=(
+                            f"token-{message.message_id}-{updated_message.delivery_count}"
+                        ),
+                        lease_expires_at=current_time
+                        + timedelta(seconds=self._lease_seconds),
+                    )
+                    self._messages[message.message_id] = updated_message
+                    self._reservations[message.message_id] = reservation
+                    return reservation
+
+        return None
+
+    async def ack(
+        self,
+        *,
+        work_pool_id: UUID,
+        message_id: UUID,
+        reservation_token: str,
+    ) -> CleanupQueueOperationResult:
+        with self._lock:
+            validation = self._validate_current_reservation_locked(
+                operation="ack",
+                work_pool_id=work_pool_id,
+                message_id=message_id,
+                reservation_token=reservation_token,
+            )
+            if validation is not None:
+                return validation
+
+            self._messages.pop(message_id)
+            self._reservations.pop(message_id)
+            return CleanupQueueOperationResult(
+                message_id=message_id,
+                operation="ack",
+                status="accepted",
+            )
+
+    async def release(
+        self,
+        *,
+        work_pool_id: UUID,
+        message_id: UUID,
+        reservation_token: str,
+        reason: str,
+    ) -> CleanupQueueOperationResult:
+        with self._lock:
+            validation = self._validate_current_reservation_locked(
+                operation="release",
+                work_pool_id=work_pool_id,
+                message_id=message_id,
+                reservation_token=reservation_token,
+            )
+            if validation is not None:
+                return validation
+
+            self._reservations.pop(message_id)
+            self._wake_locked(work_pool_id)
+            return CleanupQueueOperationResult(
+                message_id=message_id,
+                operation="release",
+                status="accepted",
+            )
+
+    async def renew(
+        self,
+        *,
+        work_pool_id: UUID,
+        message_id: UUID,
+        reservation_token: str,
+    ) -> CleanupQueueOperationResult:
+        with self._lock:
+            validation = self._validate_current_reservation_locked(
+                operation="renew",
+                work_pool_id=work_pool_id,
+                message_id=message_id,
+                reservation_token=reservation_token,
+            )
+            if validation is not None:
+                return validation
+
+            reservation = self._reservations[message_id]
+            renewed = reservation.model_copy(
+                update={
+                    "lease_expires_at": now("UTC")
+                    + timedelta(seconds=self._lease_seconds)
+                }
+            )
+            self._reservations[message_id] = renewed
+            return CleanupQueueOperationResult(
+                message_id=message_id,
+                operation="renew",
+                status="accepted",
+                lease_expires_at=renewed.lease_expires_at,
+            )
+
+    async def expire_leases(
+        self,
+        *,
+        limit: int = 100,
+        work_pool_id: UUID | None = None,
+    ) -> CleanupQueueLeaseExpiryResult:
+        with self._lock:
+            self._expire_due_reservations_locked(work_pool_id=work_pool_id)
+        return CleanupQueueLeaseExpiryResult()
+
+    async def read_message(
+        self, *, work_pool_id: UUID, message_id: UUID
+    ) -> CleanupQueueMessage | None:
+        with self._lock:
+            message = self._messages.get(message_id)
+            if message is None or message.work_pool_id != work_pool_id:
+                return None
+            return message.model_copy(deep=True)
+
+    async def read_dead_letter(
+        self, *, work_pool_id: UUID, message_id: UUID
+    ) -> CleanupQueueDeadLetter | None:
+        return None
+
+    async def wake_dispatchers(self, work_pool_id: UUID) -> CleanupQueueWakeup:
+        with self._lock:
+            return self._wake_locked(work_pool_id)
+
+    async def read_wakeup_sequence(self, work_pool_id: UUID) -> int:
+        with self._lock:
+            return self._wakeup_sequences.get(work_pool_id, 0)
+
+    async def wait_for_wakeup(
+        self,
+        work_pool_id: UUID,
+        *,
+        after: int = 0,
+        timeout: float | None = None,
+    ) -> CleanupQueueWakeup | None:
+        deadline = None if timeout is None else time.monotonic() + timeout
+        while True:
+            with self._lock:
+                sequence = self._wakeup_sequences.get(work_pool_id, 0)
+                if sequence > after:
+                    return CleanupQueueWakeup(
+                        work_pool_id=work_pool_id, sequence=sequence
+                    )
+
+            if deadline is not None and time.monotonic() >= deadline:
+                return None
+            await asyncio.sleep(0.01)
+
+    def _validate_current_reservation_locked(
+        self,
+        *,
+        operation: CleanupQueueOperation,
+        work_pool_id: UUID,
+        message_id: UUID,
+        reservation_token: str,
+    ) -> CleanupQueueOperationResult | None:
+        message = self._messages.get(message_id)
+        if message is None:
+            return CleanupQueueOperationResult(
+                message_id=message_id,
+                operation=operation,
+                status="not_found",
+                reason="message_not_found",
+            )
+        if message.work_pool_id != work_pool_id:
+            return CleanupQueueOperationResult(
+                message_id=message_id,
+                operation=operation,
+                status="unauthorized",
+                reason="work_pool_mismatch",
+            )
+
+        reservation = self._reservations.get(message_id)
+        if reservation is None:
+            return CleanupQueueOperationResult(
+                message_id=message_id,
+                operation=operation,
+                status="not_current",
+                reason="no_active_reservation",
+            )
+        if reservation.reservation_token != reservation_token:
+            return CleanupQueueOperationResult(
+                message_id=message_id,
+                operation=operation,
+                status="invalid_token",
+                reason="reservation_token_mismatch",
+            )
+        if reservation.lease_expires_at <= now("UTC"):
+            self._reservations.pop(message_id)
+            self._wake_locked(work_pool_id)
+            return CleanupQueueOperationResult(
+                message_id=message_id,
+                operation=operation,
+                status="expired",
+                reason="lease_expired",
+            )
+
+        return None
+
+    def _expire_due_reservations_locked(
+        self, *, work_pool_id: UUID | None = None
+    ) -> None:
+        current_time = now("UTC")
+        for message_id, reservation in tuple(self._reservations.items()):
+            if work_pool_id is not None and reservation.work_pool_id != work_pool_id:
+                continue
+            if reservation.lease_expires_at <= current_time:
+                self._reservations.pop(message_id)
+                self._wake_locked(reservation.work_pool_id)
+
+    def _wake_locked(self, work_pool_id: UUID) -> CleanupQueueWakeup:
+        sequence = self._wakeup_sequences.get(work_pool_id, 0) + 1
+        self._wakeup_sequences[work_pool_id] = sequence
+        return CleanupQueueWakeup(work_pool_id=work_pool_id, sequence=sequence)
+
+    @staticmethod
+    def _queue_preference_passes(
+        *,
+        preferred_work_queue_ids: Iterable[UUID] | None,
+        allow_fallback_to_any_queue: bool,
+    ) -> tuple[set[UUID] | None, ...]:
+        if preferred_work_queue_ids is None:
+            return (None,)
+
+        preferred_queue_filter = set(preferred_work_queue_ids)
+        if allow_fallback_to_any_queue:
+            return (preferred_queue_filter, None)
+        return (preferred_queue_filter,)
+
+
+@pytest.fixture
+def cleanup_queue(monkeypatch: pytest.MonkeyPatch) -> FakeWorkerCleanupQueue:
+    queue = FakeWorkerCleanupQueue(lease_seconds=0.05)
+    monkeypatch.setattr(workers_api, "get_worker_cleanup_queue", lambda: queue)
+    monkeypatch.setattr(
+        worker_channel_utils,
+        "_WORKER_CHANNEL_CLEANUP_DISPATCH_POLL_SECONDS",
+        0.05,
+    )
+    return queue
+
+
+def _worker_channel_frame(frame_type: str, payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "type": frame_type,
+        "id": str(uuid7()),
+        "sent_at": now("UTC").astimezone(timezone.utc).isoformat(),
+        "payload": payload,
+    }
+
+
+def _worker_hello_frame(**payload_overrides: Any) -> dict[str, Any]:
+    payload = {
+        "consumer_id": str(uuid.uuid4()),
+        "worker_name": "test-worker",
+        "worker_type": "process",
+        "heartbeat_interval_seconds": 30,
+        "supported_channel_versions": [WORK_POOL_WORKER_CHANNEL_VERSION],
+        "requested_capabilities": [
+            WORKER_HEARTBEAT_CAPABILITY,
+            WORK_POOL_SNAPSHOT_CAPABILITY,
+        ],
+        "work_queue_names": [],
+        "handled_cleanup_kinds": [],
+        "max_cleanup_concurrency": 0,
+        "create_pool_if_not_found": False,
+        "default_base_job_template": {},
+        "worker_metadata": None,
+    }
+    payload.update(payload_overrides)
+    return _worker_channel_frame("worker.hello.v1", payload)
+
+
+def _cleanup_worker_hello_frame(**payload_overrides: Any) -> dict[str, Any]:
+    payload = {
+        "requested_capabilities": [
+            WORKER_HEARTBEAT_CAPABILITY,
+            WORK_POOL_SNAPSHOT_CAPABILITY,
+            CLEANUP_DELIVERY_CAPABILITY,
+        ],
+        "handled_cleanup_kinds": [CANCELLING_TIMEOUT_TEARDOWN],
+        "max_cleanup_concurrency": 1,
+    }
+    payload.update(payload_overrides)
+    return _worker_hello_frame(**payload)
+
+
+def _cleanup_ack_frame(*, message_id: UUID, reservation_token: str) -> dict[str, Any]:
+    return _worker_channel_frame(
+        "cleanup.ack.v1",
+        {
+            "message_id": str(message_id),
+            "reservation_token": reservation_token,
+        },
+    )
+
+
+def _cleanup_release_frame(
+    *, message_id: UUID, reservation_token: str, reason: str = "cannot_act"
+) -> dict[str, Any]:
+    return _worker_channel_frame(
+        "cleanup.release.v1",
+        {
+            "message_id": str(message_id),
+            "reservation_token": reservation_token,
+            "reason": reason,
+        },
+    )
+
+
+def _cleanup_renew_frame(*, message_id: UUID, reservation_token: str) -> dict[str, Any]:
+    return _worker_channel_frame(
+        "cleanup.renew.v1",
+        {
+            "message_id": str(message_id),
+            "reservation_token": reservation_token,
+        },
+    )
+
+
+def _authenticate_worker_channel(websocket) -> None:
+    websocket.send_json({"type": "auth", "token": None})
+    assert websocket.receive_json() == {"type": "auth_success"}
+
+
+def _connect_worker_channel(test_client: TestClient, work_pool_name: str):
+    return test_client.websocket_connect(
+        f"/api/work_pools/{work_pool_name}/workers/connect",
+        subprotocols=("prefect",),
+    )
+
+
+class TestWorkerChannelCleanupDispatcher:
+    async def test_cleanup_capability_is_accepted_for_capable_workers(
+        self, test_client: TestClient, work_pool, cleanup_queue: FakeWorkerCleanupQueue
+    ):
+        with _connect_worker_channel(test_client, work_pool.name) as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(_cleanup_worker_hello_frame(max_cleanup_concurrency=2))
+
+            ready = WorkerReadyFrame.model_validate(websocket.receive_json())
+
+        assert CLEANUP_DELIVERY_CAPABILITY in ready.payload.accepted_capabilities
+        assert ready.payload.rejected_capabilities == []
+        assert ready.payload.effective_max_cleanup_concurrency == 2
+
+    async def test_cleanup_capability_is_rejected_without_worker_capacity(
+        self, test_client: TestClient, work_pool, cleanup_queue: FakeWorkerCleanupQueue
+    ):
+        with _connect_worker_channel(test_client, work_pool.name) as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(
+                _worker_hello_frame(
+                    requested_capabilities=[
+                        WORKER_HEARTBEAT_CAPABILITY,
+                        WORK_POOL_SNAPSHOT_CAPABILITY,
+                        CLEANUP_DELIVERY_CAPABILITY,
+                    ],
+                    handled_cleanup_kinds=[CANCELLING_TIMEOUT_TEARDOWN],
+                    max_cleanup_concurrency=0,
+                )
+            )
+
+            ready = WorkerReadyFrame.model_validate(websocket.receive_json())
+
+        assert CLEANUP_DELIVERY_CAPABILITY not in ready.payload.accepted_capabilities
+        assert ready.payload.rejected_capabilities == [CLEANUP_DELIVERY_CAPABILITY]
+        assert ready.payload.effective_max_cleanup_concurrency == 0
+
+    async def test_dispatches_cleanup_message_and_sends_ack_result(
+        self, test_client: TestClient, work_pool, cleanup_queue: FakeWorkerCleanupQueue
+    ):
+        message = cleanup_queue.add_message(work_pool_id=work_pool.id)
+
+        with _connect_worker_channel(test_client, work_pool.name) as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(_cleanup_worker_hello_frame())
+            WorkerReadyFrame.model_validate(websocket.receive_json())
+
+            cleanup = CleanupMessageFrame.model_validate(websocket.receive_json())
+            websocket.send_json(
+                _cleanup_ack_frame(
+                    message_id=cleanup.payload.message_id,
+                    reservation_token=cleanup.payload.reservation_token,
+                )
+            )
+            result = CleanupOperationResultFrame.model_validate(
+                websocket.receive_json()
+            )
+
+        assert cleanup.payload.message_id == message.message_id
+        assert result.payload.message_id == message.message_id
+        assert result.payload.operation == "ack"
+        assert result.payload.status == "accepted"
+        assert cleanup_queue.active_message_count() == 0
+
+    async def test_capacity_limits_delivery_until_operation_completes(
+        self, test_client: TestClient, work_pool, cleanup_queue: FakeWorkerCleanupQueue
+    ):
+        first = cleanup_queue.add_message(work_pool_id=work_pool.id)
+        second = cleanup_queue.add_message(work_pool_id=work_pool.id)
+
+        with _connect_worker_channel(test_client, work_pool.name) as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(_cleanup_worker_hello_frame(max_cleanup_concurrency=1))
+            WorkerReadyFrame.model_validate(websocket.receive_json())
+
+            first_cleanup = CleanupMessageFrame.model_validate(websocket.receive_json())
+            assert cleanup_queue.active_reservation_count() == 1
+            websocket.send_json(
+                _cleanup_ack_frame(
+                    message_id=first_cleanup.payload.message_id,
+                    reservation_token=first_cleanup.payload.reservation_token,
+                )
+            )
+            CleanupOperationResultFrame.model_validate(websocket.receive_json())
+            second_cleanup = CleanupMessageFrame.model_validate(
+                websocket.receive_json()
+            )
+
+        assert {
+            first_cleanup.payload.message_id,
+            second_cleanup.payload.message_id,
+        } == {
+            first.message_id,
+            second.message_id,
+        }
+
+    async def test_multiple_workers_receive_distinct_messages(
+        self, test_client: TestClient, work_pool, cleanup_queue: FakeWorkerCleanupQueue
+    ):
+        first = cleanup_queue.add_message(work_pool_id=work_pool.id)
+        second = cleanup_queue.add_message(work_pool_id=work_pool.id)
+
+        with _connect_worker_channel(test_client, work_pool.name) as first_websocket:
+            _authenticate_worker_channel(first_websocket)
+            first_websocket.send_json(
+                _cleanup_worker_hello_frame(worker_name="worker-1")
+            )
+            WorkerReadyFrame.model_validate(first_websocket.receive_json())
+            first_cleanup = CleanupMessageFrame.model_validate(
+                first_websocket.receive_json()
+            )
+
+            with _connect_worker_channel(
+                test_client, work_pool.name
+            ) as second_websocket:
+                _authenticate_worker_channel(second_websocket)
+                second_websocket.send_json(
+                    _cleanup_worker_hello_frame(worker_name="worker-2")
+                )
+                WorkerReadyFrame.model_validate(second_websocket.receive_json())
+                second_cleanup = CleanupMessageFrame.model_validate(
+                    second_websocket.receive_json()
+                )
+
+        assert first_cleanup.payload.message_id != second_cleanup.payload.message_id
+        assert {
+            first_cleanup.payload.message_id,
+            second_cleanup.payload.message_id,
+        } == {
+            first.message_id,
+            second.message_id,
+        }
+
+    async def test_no_reservation_when_worker_cannot_handle_cleanup_kind(
+        self, test_client: TestClient, work_pool, cleanup_queue: FakeWorkerCleanupQueue
+    ):
+        cleanup_queue.add_message(
+            work_pool_id=work_pool.id,
+            kind=PENDING_CLAIM_TEARDOWN,
+        )
+
+        with _connect_worker_channel(test_client, work_pool.name) as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(_cleanup_worker_hello_frame())
+            WorkerReadyFrame.model_validate(websocket.receive_json())
+            await asyncio.sleep(0.1)
+
+        assert cleanup_queue.active_reservation_count() == 0
+        assert cleanup_queue.active_message_count() == 1
+
+    async def test_invalid_reservation_token_returns_operation_result(
+        self, test_client: TestClient, work_pool, cleanup_queue: FakeWorkerCleanupQueue
+    ):
+        cleanup_queue.add_message(work_pool_id=work_pool.id)
+
+        with _connect_worker_channel(test_client, work_pool.name) as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(_cleanup_worker_hello_frame())
+            WorkerReadyFrame.model_validate(websocket.receive_json())
+            cleanup = CleanupMessageFrame.model_validate(websocket.receive_json())
+
+            websocket.send_json(
+                _cleanup_ack_frame(
+                    message_id=cleanup.payload.message_id,
+                    reservation_token="wrong-token",
+                )
+            )
+            result = CleanupOperationResultFrame.model_validate(
+                websocket.receive_json()
+            )
+
+        assert result.payload.status == "invalid_token"
+        assert result.payload.reason == "reservation_token_mismatch"
+        assert cleanup_queue.active_reservation_count() == 1
+
+    async def test_release_result_frees_capacity_and_redelivers_with_new_token(
+        self, test_client: TestClient, work_pool, cleanup_queue: FakeWorkerCleanupQueue
+    ):
+        cleanup_queue.add_message(work_pool_id=work_pool.id)
+
+        with _connect_worker_channel(test_client, work_pool.name) as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(_cleanup_worker_hello_frame())
+            WorkerReadyFrame.model_validate(websocket.receive_json())
+            cleanup = CleanupMessageFrame.model_validate(websocket.receive_json())
+
+            websocket.send_json(
+                _cleanup_release_frame(
+                    message_id=cleanup.payload.message_id,
+                    reservation_token=cleanup.payload.reservation_token,
+                )
+            )
+            result = CleanupOperationResultFrame.model_validate(
+                websocket.receive_json()
+            )
+            redelivery = CleanupMessageFrame.model_validate(websocket.receive_json())
+
+            websocket.send_json(
+                _cleanup_ack_frame(
+                    message_id=cleanup.payload.message_id,
+                    reservation_token=cleanup.payload.reservation_token,
+                )
+            )
+            stale_result = CleanupOperationResultFrame.model_validate(
+                websocket.receive_json()
+            )
+
+        assert result.payload.status == "accepted"
+        assert redelivery.payload.message_id == cleanup.payload.message_id
+        assert redelivery.payload.reservation_token != cleanup.payload.reservation_token
+        assert stale_result.payload.status == "invalid_token"
+        assert stale_result.payload.reason == "reservation_token_mismatch"
+
+    async def test_renew_preserves_capacity_and_returns_new_lease(
+        self, test_client: TestClient, work_pool, cleanup_queue: FakeWorkerCleanupQueue
+    ):
+        cleanup_queue.add_message(work_pool_id=work_pool.id)
+
+        with _connect_worker_channel(test_client, work_pool.name) as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(_cleanup_worker_hello_frame())
+            WorkerReadyFrame.model_validate(websocket.receive_json())
+            cleanup = CleanupMessageFrame.model_validate(websocket.receive_json())
+
+            websocket.send_json(
+                _cleanup_renew_frame(
+                    message_id=cleanup.payload.message_id,
+                    reservation_token=cleanup.payload.reservation_token,
+                )
+            )
+            result = CleanupOperationResultFrame.model_validate(
+                websocket.receive_json()
+            )
+
+        assert result.payload.operation == "renew"
+        assert result.payload.status == "accepted"
+        assert result.payload.lease_expires_at is not None
+        assert cleanup_queue.active_reservation_count() == 1
+
+    async def test_reconnect_can_ack_current_reservation_token(
+        self, test_client: TestClient, work_pool, cleanup_queue: FakeWorkerCleanupQueue
+    ):
+        cleanup_queue._lease_seconds = 30
+        cleanup_queue.add_message(work_pool_id=work_pool.id)
+
+        with _connect_worker_channel(test_client, work_pool.name) as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(_cleanup_worker_hello_frame())
+            WorkerReadyFrame.model_validate(websocket.receive_json())
+            cleanup = CleanupMessageFrame.model_validate(websocket.receive_json())
+
+        with _connect_worker_channel(test_client, work_pool.name) as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(_cleanup_worker_hello_frame())
+            WorkerReadyFrame.model_validate(websocket.receive_json())
+
+            websocket.send_json(
+                _cleanup_ack_frame(
+                    message_id=cleanup.payload.message_id,
+                    reservation_token=cleanup.payload.reservation_token,
+                )
+            )
+            result = CleanupOperationResultFrame.model_validate(
+                websocket.receive_json()
+            )
+
+        assert result.payload.status == "accepted"
+        assert cleanup_queue.active_message_count() == 0
+
+    async def test_disconnect_redelivers_after_lease_expiry(
+        self, test_client: TestClient, work_pool, cleanup_queue: FakeWorkerCleanupQueue
+    ):
+        message = cleanup_queue.add_message(work_pool_id=work_pool.id)
+
+        with _connect_worker_channel(test_client, work_pool.name) as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(_cleanup_worker_hello_frame())
+            WorkerReadyFrame.model_validate(websocket.receive_json())
+            first_cleanup = CleanupMessageFrame.model_validate(websocket.receive_json())
+
+        await asyncio.sleep(0.08)
+
+        with _connect_worker_channel(test_client, work_pool.name) as websocket:
+            _authenticate_worker_channel(websocket)
+            websocket.send_json(_cleanup_worker_hello_frame())
+            WorkerReadyFrame.model_validate(websocket.receive_json())
+            redelivery = CleanupMessageFrame.model_validate(websocket.receive_json())
+
+        assert first_cleanup.payload.message_id == message.message_id
+        assert redelivery.payload.message_id == message.message_id
+        assert redelivery.payload.delivery_count == 2
+        assert (
+            redelivery.payload.reservation_token
+            != first_cleanup.payload.reservation_token
+        )
