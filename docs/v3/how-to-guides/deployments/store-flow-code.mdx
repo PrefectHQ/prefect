@@ -591,6 +591,19 @@ If you want Prefect to prepare the project's runtime dependencies before startin
 `PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES=true` in the image or work pool job variables. Default dependency groups are not
 installed.
 
+<Note>
+Setting `PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES=true` is necessary but not sufficient. Prefect only
+uses `uv` to install dependencies at runtime when **all** of the following conditions are met:
+
+1. `PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES` is set to `true`.
+2. A `pyproject.toml` exists at the detected project root.
+3. The `[project.dependencies]` list in that `pyproject.toml` includes `prefect`.
+4. `uv` is available on the runtime environment's `PATH`.
+
+If any condition is not met, Prefect silently falls back to running the flow without installing
+dependencies. Verify each condition when debugging missing packages at runtime.
+</Note>
+
 If your custom image already contains the required project code and dependencies, leave
 `PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES` unset or set it to `false`.
 
