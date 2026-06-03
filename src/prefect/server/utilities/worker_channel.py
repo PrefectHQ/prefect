@@ -129,20 +129,22 @@ class WorkerCleanupConnectionRegistry:
                 connections = self._connections_by_work_pool_id.get(
                     connection.work_pool_id
                 )
-                if connections is None:
-                    return
-                try:
-                    connections.remove(connection)
-                except ValueError:
-                    return
-                if not connections:
-                    self._connections_by_work_pool_id.pop(connection.work_pool_id, None)
-                    event_to_wake = self._dispatch_events_by_work_pool_id.get(
-                        connection.work_pool_id, None
-                    )
-                    loop_to_wake = self._dispatch_loops_by_work_pool_id.get(
-                        connection.work_pool_id, None
-                    )
+                if connections is not None:
+                    try:
+                        connections.remove(connection)
+                    except ValueError:
+                        pass
+                    else:
+                        if not connections:
+                            self._connections_by_work_pool_id.pop(
+                                connection.work_pool_id, None
+                            )
+                            event_to_wake = self._dispatch_events_by_work_pool_id.get(
+                                connection.work_pool_id, None
+                            )
+                            loop_to_wake = self._dispatch_loops_by_work_pool_id.get(
+                                connection.work_pool_id, None
+                            )
 
             if event_to_wake is not None:
                 self._set_dispatch_event(event_to_wake, loop_to_wake)
