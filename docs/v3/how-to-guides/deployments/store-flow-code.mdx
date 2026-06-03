@@ -597,7 +597,7 @@ uses `uv` to install dependencies at runtime when **all** of the following condi
 
 1. `PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES` is set to `true`.
 2. A `pyproject.toml` exists at the detected project root.
-3. The `[project.dependencies]` list in that `pyproject.toml` includes `prefect`.
+3. The `dependencies` list under `[project]` in that `pyproject.toml` includes `prefect`.
 4. `uv` is available on the runtime environment's `PATH`.
 
 If any condition is not met, Prefect silently falls back to running the flow without installing
