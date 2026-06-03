@@ -134,6 +134,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
     """
 
     _DEFAULT_EXPIRE_LEASE_LIMIT = 100
+    _LEGACY_EXPIRE_POOL_SCAN_BATCH_SIZE = 25
     _VISIBLE_SCAN_BATCH_SIZE = 100
 
     def __init__(
@@ -1184,7 +1185,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                 )
             ]
 
-        return [
+        candidates = [
             self._split_reserved_index_member(raw_member)
             for raw_member in await self._client().zrangebyscore(
                 self._reserved_index_key(),
@@ -1194,6 +1195,61 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                 num=limit,
             )
         ]
+        if len(candidates) >= limit:
+            return candidates
+
+        candidates.extend(
+            await self._legacy_expired_lease_candidates(
+                current_ms=current_ms,
+                limit=limit - len(candidates),
+            )
+        )
+        return candidates
+
+    async def _legacy_expired_lease_candidates(
+        self,
+        *,
+        current_ms: int,
+        limit: int,
+    ) -> list[tuple[str, str]]:
+        if limit <= 0:
+            return []
+
+        cursor_key = self._legacy_expiry_cursor_key()
+        cursor_value = await self._client().get(cursor_key)
+        cursor = (
+            int(_decode_redis_value(cursor_value)) if cursor_value is not None else 0
+        )
+
+        # Redis cleanup queues written before the global reserved index only have
+        # per-pool reserved sets. Advance a persisted cursor in bounded pages so
+        # upgraded servers can drain those leases without full-pool sweeps.
+        cursor, raw_work_pool_ids = await self._client().sscan(
+            self._pools_key(),
+            cursor=cursor,
+            count=self._LEGACY_EXPIRE_POOL_SCAN_BATCH_SIZE,
+        )
+        await self._client().set(cursor_key, cursor)
+
+        candidates: list[tuple[str, str]] = []
+        for raw_work_pool_id in raw_work_pool_ids:
+            if len(candidates) >= limit:
+                break
+
+            work_pool_id = _decode_redis_value(raw_work_pool_id)
+            expired_message_ids = await self._client().zrangebyscore(
+                self._reserved_key(work_pool_id),
+                "-inf",
+                current_ms,
+                start=0,
+                num=limit - len(candidates),
+            )
+            candidates.extend(
+                (work_pool_id, _decode_redis_value(raw_message_id))
+                for raw_message_id in expired_message_ids
+            )
+
+        return candidates
 
     def _scoped_message_keys(
         self, *, work_pool_id: UUID | str, message_id: UUID | str
@@ -1230,6 +1286,9 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
 
     def _reserved_index_key(self) -> str:
         return f"{self._prefix()}:reserved"
+
+    def _legacy_expiry_cursor_key(self) -> str:
+        return f"{self._prefix()}:reserved:legacy-scan-cursor"
 
     @staticmethod
     def _reserved_index_member(

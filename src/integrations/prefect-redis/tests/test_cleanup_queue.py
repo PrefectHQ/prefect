@@ -342,6 +342,22 @@ async def test_redis_expire_leases_without_pool_uses_global_reserved_index(
     assert await queue._client().zcard(queue._reserved_index_key()) == 0
 
 
+async def test_redis_expire_leases_without_pool_drains_legacy_reserved_sets(
+    queue: WorkerCleanupQueue,
+    clock: Clock,
+) -> None:
+    work_pool_id = uuid4()
+    message_id = await _enqueue_message(queue, work_pool_id=work_pool_id)
+    assert await queue.reserve(work_pool_id=work_pool_id) is not None
+    await queue._client().delete(queue._reserved_index_key())
+    clock.advance(timedelta(minutes=1))
+
+    result = await queue.expire_leases()
+
+    assert [message.message_id for message in result.redelivered] == [message_id]
+    assert result.dead_lettered == []
+
+
 async def test_redis_reserve_scans_visible_messages_in_batches(
     queue: WorkerCleanupQueue,
     monkeypatch: pytest.MonkeyPatch,
