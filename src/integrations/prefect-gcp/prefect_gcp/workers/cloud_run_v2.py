@@ -80,20 +80,23 @@ def _is_transient_http_error(exc: Exception) -> bool:
     return False
 
 
+_OperationLabel = Literal[
+    "creating job",
+    "submitting job for execution",
+    "polling job readiness",
+    "watching job execution",
+    "looking up the latest execution",
+    "verifying the submitted execution",
+    "fetching the submitted execution",
+]
+
+
 def _build_transient_retrying(
     *,
     max_attempts: int,
     initial_delay: float,
     max_delay: float,
-    operation_label: Literal[
-        "creating job",
-        "submitting job for execution",
-        "polling job readiness",
-        "watching job execution",
-        "looking up the latest execution",
-        "verifying the submitted execution",
-        "fetching the submitted execution",
-    ],
+    operation_label: _OperationLabel,
     logger: PrefectLogAdapter,
 ) -> Retrying:
     """Build a Retrying that retries transient HTTP errors with exponential jitter."""
@@ -128,14 +131,9 @@ _ReadT = TypeVar("_ReadT")
 def _read_with_retry(
     fn: Callable[[], _ReadT],
     *,
-    operation_label: Literal[
-        "polling job readiness",
-        "watching job execution",
-        "looking up the latest execution",
-        "verifying the submitted execution",
-        "fetching the submitted execution",
-    ],
+    operation_label: _OperationLabel,
     logger: PrefectLogAdapter,
+    settings: CloudRunV2WorkerSettings | None = None,
 ) -> _ReadT:
     """Run an idempotent Cloud Run read through the shared transient-retry policy.
 
@@ -144,8 +142,12 @@ def _read_with_retry(
     retries. Reads are side-effect free, so retrying never risks starting a
     duplicate execution. Non-transient errors (404, 400, ...) are reraised
     immediately for the caller to handle.
+
+    Pass settings to reuse one CloudRunV2WorkerSettings across a polling loop
+    instead of rereading it from disk on every poll.
     """
-    settings = CloudRunV2WorkerSettings()
+    if settings is None:
+        settings = CloudRunV2WorkerSettings()
     retrying = _build_transient_retrying(
         max_attempts=settings.transient_read_max_attempts,
         initial_delay=settings.transient_read_initial_delay_seconds,
@@ -951,6 +953,8 @@ class CloudRunWorkerV2(
                 seconds.
         """
 
+        settings = CloudRunV2WorkerSettings()
+
         def _get_job() -> JobV2:
             return _read_with_retry(
                 lambda: JobV2.get(
@@ -961,6 +965,7 @@ class CloudRunWorkerV2(
                 ),
                 operation_label="polling job readiness",
                 logger=logger,
+                settings=settings,
             )
 
         job = _get_job()
@@ -1324,6 +1329,7 @@ class CloudRunWorkerV2(
         Raises:
             InfrastructureNotFound: If the execution is deleted (e.g., by kill_infrastructure).
         """
+        settings = CloudRunV2WorkerSettings()
         while execution.is_running():
             current_name = execution.name
             try:
@@ -1334,6 +1340,7 @@ class CloudRunWorkerV2(
                     ),
                     operation_label="watching job execution",
                     logger=logger,
+                    settings=settings,
                 )
             except HttpError as exc:
                 if exc.status_code == 404:
