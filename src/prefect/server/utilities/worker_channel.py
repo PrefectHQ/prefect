@@ -786,15 +786,15 @@ class WorkerChannelConnection:
                 reservation_token=frame.payload.reservation_token,
             )
 
-        freed_capacity = await self._sync_cleanup_operation_result(
-            reservation_token=frame.payload.reservation_token,
-            result=result,
-        )
         await self._send_frame(
             _build_cleanup_operation_result_frame(
                 request_frame_id=frame.id,
                 result=result,
             )
+        )
+        freed_capacity = await self._sync_cleanup_operation_result(
+            reservation_token=frame.payload.reservation_token,
+            result=result,
         )
         if freed_capacity:
             await self._cleanup_registry.dispatch_available(

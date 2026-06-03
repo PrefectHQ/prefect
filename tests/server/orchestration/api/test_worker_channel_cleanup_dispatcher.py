@@ -525,6 +525,19 @@ class CancellingWebSocket(RecordingWebSocket):
         raise asyncio.CancelledError
 
 
+class BlockingOperationResultWebSocket(RecordingWebSocket):
+    def __init__(self) -> None:
+        super().__init__()
+        self.operation_result_send_started = asyncio.Event()
+        self.release_operation_result_send = asyncio.Event()
+
+    async def send_json(self, payload: dict[str, Any]) -> None:
+        if payload["type"] == "cleanup.operation_result.v1":
+            self.operation_result_send_started.set()
+            await self.release_operation_result_send.wait()
+        await super().send_json(payload)
+
+
 class ErrorAckCleanupQueue(FakeWorkerCleanupQueue):
     async def ack(
         self,
@@ -792,6 +805,78 @@ class TestWorkerCleanupConnectionRegistry:
         assert second_cleanup_messages[0].payload.reservation_token != (
             first_cleanup.payload.reservation_token
         )
+
+    async def test_operation_result_send_precedes_capacity_release(self, work_pool):
+        cleanup_queue = FakeWorkerCleanupQueue()
+        first = cleanup_queue.add_message(work_pool_id=work_pool.id)
+        second = cleanup_queue.add_message(work_pool_id=work_pool.id)
+        websocket = BlockingOperationResultWebSocket()
+        registry = worker_channel_utils.WorkerCleanupConnectionRegistry()
+        connection = worker_channel_utils.WorkerChannelConnection(
+            websocket=websocket,
+            db=object(),
+            work_pool_name=work_pool.name,
+            work_pool_id=work_pool.id,
+            consumer_id=uuid.uuid4(),
+            worker_name="test-worker",
+            cleanup_queue=cleanup_queue,
+            cleanup_kinds=(CANCELLING_TIMEOUT_TEARDOWN,),
+            max_cleanup_concurrency=1,
+            cleanup_registry=registry,
+        )
+        connection._ready_sent.set()
+
+        async with registry.register(connection):
+            await registry.dispatch_available(
+                work_pool_id=work_pool.id,
+                cleanup_queue=cleanup_queue,
+            )
+            first_cleanup = CleanupMessageFrame.model_validate(websocket.sent_json[0])
+            operation_task = asyncio.create_task(
+                connection._handle_cleanup_operation(
+                    CleanupAckFrame.model_validate(
+                        _cleanup_ack_frame(
+                            message_id=first_cleanup.payload.message_id,
+                            reservation_token=first_cleanup.payload.reservation_token,
+                        )
+                    )
+                )
+            )
+            await websocket.operation_result_send_started.wait()
+
+            dispatch_task = asyncio.create_task(
+                registry.dispatch_available(
+                    work_pool_id=work_pool.id,
+                    cleanup_queue=cleanup_queue,
+                )
+            )
+            await asyncio.wait_for(dispatch_task, timeout=0.5)
+            assert cleanup_queue.active_reservation_count() == 0
+            assert [
+                frame["type"]
+                for frame in websocket.sent_json
+                if frame["type"] == "cleanup.message.v1"
+            ] == ["cleanup.message.v1"]
+
+            websocket.release_operation_result_send.set()
+            await operation_task
+
+        sent_frame_types = [frame["type"] for frame in websocket.sent_json]
+        cleanup_messages = [
+            CleanupMessageFrame.model_validate(frame)
+            for frame in websocket.sent_json
+            if frame["type"] == "cleanup.message.v1"
+        ]
+        assert first_cleanup.payload.message_id == first.message_id
+        assert [message.payload.message_id for message in cleanup_messages] == [
+            first.message_id,
+            second.message_id,
+        ]
+        assert sent_frame_types == [
+            "cleanup.message.v1",
+            "cleanup.operation_result.v1",
+            "cleanup.message.v1",
+        ]
 
     async def test_mismatched_cleanup_result_keeps_capacity_in_use(self, work_pool):
         cleanup_queue = FakeWorkerCleanupQueue()
