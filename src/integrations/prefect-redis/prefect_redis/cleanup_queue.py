@@ -24,8 +24,6 @@ from prefect.server.worker_communication.cleanup_queue import (
     CleanupQueueOperationResult,
     CleanupQueueReservation,
     CleanupQueueWakeup,
-    record_cleanup_queue_dead_letter,
-    record_cleanup_queue_lease_expiry_result,
 )
 from prefect.server.worker_communication.cleanup_queue import (
     WorkerCleanupQueue as _WorkerCleanupQueue,
@@ -42,6 +40,23 @@ _LeaseExpiryActionResult = (
     | None
 )
 _CurrentReservationState = tuple[dict[str, str], dict[str, str]]
+
+try:
+    from prefect.server.worker_communication.cleanup_queue import (
+        record_cleanup_queue_dead_letter,
+        record_cleanup_queue_lease_expiry_result,
+    )
+except ImportError:  # pragma: no cover - compatibility with older Prefect cores
+
+    def record_cleanup_queue_dead_letter(
+        dead_letter: CleanupQueueDeadLetter, *, source: str
+    ) -> None:
+        pass
+
+    def record_cleanup_queue_lease_expiry_result(
+        result: CleanupQueueLeaseExpiryResult,
+    ) -> None:
+        pass
 
 
 class RedisWorkerCleanupQueueSettings(PrefectBaseSettings):
