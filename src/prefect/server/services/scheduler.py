@@ -214,7 +214,7 @@ async def _collect_flow_runs(
 )
 async def schedule_deployments(
     perpetual: Perpetual = Perpetual(
-        automatic=False,
+        automatic=True,
         every=timedelta(
             seconds=get_current_settings().server.services.scheduler.loop_seconds
         ),
@@ -290,7 +290,7 @@ async def schedule_deployments(
 )
 async def schedule_recent_deployments(
     perpetual: Perpetual = Perpetual(
-        automatic=False,
+        automatic=True,
         every=timedelta(
             seconds=get_current_settings().server.services.scheduler.recent_deployments_loop_seconds
         ),
