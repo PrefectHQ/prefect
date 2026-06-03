@@ -1468,13 +1468,13 @@ class TestCloudRunWorkerV2SubmitJobRecovery:
     @mock.patch.dict(
         "os.environ",
         {
-            "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_TRANSIENT_READ_MAX_ATTEMPTS": "1"
+            "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_API_READ_RETRY_MAX_ATTEMPTS": "1"
         },
     )
     def test_falls_back_when_baseline_lookup_raises(
         self, cloud_run_worker_v2_job_config, mock_credentials
     ):
-        # TRANSIENT_READ_MAX_ATTEMPTS=1 caps every _read_with_retry call (the
+        # API_READ_RETRY_MAX_ATTEMPTS=1 caps every _read_with_retry call (the
         # baseline snapshot and the post-submit fetch alike) to a single attempt.
         # Only the baseline read is made to fail here: one 503 makes it give up
         # and fall back to None, then submission retries. The post-submit fetch
@@ -1518,7 +1518,7 @@ class TestCloudRunWorkerV2SubmitJobRecovery:
     @mock.patch.dict(
         "os.environ",
         {
-            "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_TRANSIENT_READ_MAX_ATTEMPTS": "2"
+            "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_API_READ_RETRY_MAX_ATTEMPTS": "2"
         },
     )
     def test_fails_fast_after_recovery_lookup_retries_exhausted(
@@ -1618,7 +1618,7 @@ class TestCloudRunWorkerV2SubmitJobRecovery:
     @mock.patch.dict(
         "os.environ",
         {
-            "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_TRANSIENT_READ_MAX_ATTEMPTS": "2"
+            "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_API_READ_RETRY_MAX_ATTEMPTS": "2"
         },
     )
     def test_baseline_lookup_retries_transient_then_succeeds(
@@ -1662,7 +1662,7 @@ class TestCloudRunWorkerV2SubmitJobRecovery:
     @mock.patch.dict(
         "os.environ",
         {
-            "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_TRANSIENT_READ_MAX_ATTEMPTS": "2"
+            "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_API_READ_RETRY_MAX_ATTEMPTS": "2"
         },
     )
     def test_post_submit_fetch_retries_transient_then_succeeds(
@@ -1708,7 +1708,7 @@ class TestCloudRunWorkerV2SubmitJobRecovery:
     @mock.patch.dict(
         "os.environ",
         {
-            "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_TRANSIENT_READ_MAX_ATTEMPTS": "2"
+            "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_API_READ_RETRY_MAX_ATTEMPTS": "2"
         },
     )
     def test_adopts_after_recovery_lookup_retries_transient(

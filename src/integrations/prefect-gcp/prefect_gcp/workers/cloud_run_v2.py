@@ -149,9 +149,9 @@ def _read_with_retry(
     if settings is None:
         settings = CloudRunV2WorkerSettings()
     retrying = _build_transient_retrying(
-        max_attempts=settings.transient_read_max_attempts,
-        initial_delay=settings.transient_read_initial_delay_seconds,
-        max_delay=settings.transient_read_max_delay_seconds,
+        max_attempts=settings.api_read_retry_max_attempts,
+        initial_delay=settings.api_read_retry_initial_delay_seconds,
+        max_delay=settings.api_read_retry_max_delay_seconds,
         operation_label=operation_label,
         logger=logger,
     )

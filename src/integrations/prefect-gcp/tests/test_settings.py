@@ -19,9 +19,9 @@ class TestCloudRunV2WorkerSettings:
         assert settings.submit_job_max_attempts == 3
         assert settings.submit_job_initial_delay_seconds == 1.0
         assert settings.submit_job_max_delay_seconds == 10.0
-        assert settings.transient_read_max_attempts == 3
-        assert settings.transient_read_initial_delay_seconds == 1.0
-        assert settings.transient_read_max_delay_seconds == 10.0
+        assert settings.api_read_retry_max_attempts == 3
+        assert settings.api_read_retry_initial_delay_seconds == 1.0
+        assert settings.api_read_retry_max_delay_seconds == 10.0
 
     def test_load_from_env(self):
         with mock.patch.dict(
@@ -44,20 +44,20 @@ class TestCloudRunV2WorkerSettings:
         assert settings.submit_job_initial_delay_seconds == 1.5
         assert settings.submit_job_max_delay_seconds == 30.0
 
-    def test_transient_read_load_from_env(self):
+    def test_api_read_retry_load_from_env(self):
         with mock.patch.dict(
             "os.environ",
             {
-                "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_TRANSIENT_READ_MAX_ATTEMPTS": "8",
-                "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_TRANSIENT_READ_INITIAL_DELAY_SECONDS": "0.5",
-                "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_TRANSIENT_READ_MAX_DELAY_SECONDS": "15.0",
+                "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_API_READ_RETRY_MAX_ATTEMPTS": "8",
+                "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_API_READ_RETRY_INITIAL_DELAY_SECONDS": "0.5",
+                "PREFECT_INTEGRATIONS_GCP_CLOUD_RUN_V2_WORKER_API_READ_RETRY_MAX_DELAY_SECONDS": "15.0",
             },
         ):
             settings = CloudRunV2WorkerSettings()
 
-        assert settings.transient_read_max_attempts == 8
-        assert settings.transient_read_initial_delay_seconds == 0.5
-        assert settings.transient_read_max_delay_seconds == 15.0
+        assert settings.api_read_retry_max_attempts == 8
+        assert settings.api_read_retry_initial_delay_seconds == 0.5
+        assert settings.api_read_retry_max_delay_seconds == 15.0
 
     @pytest.mark.parametrize("invalid_value", [0, -1])
     def test_invalid_max_attempts_raises(self, invalid_value):
@@ -90,19 +90,19 @@ class TestCloudRunV2WorkerSettings:
             CloudRunV2WorkerSettings(submit_job_max_delay_seconds=invalid_value)
 
     @pytest.mark.parametrize("invalid_value", [0, -1])
-    def test_invalid_transient_read_max_attempts_raises(self, invalid_value):
+    def test_invalid_api_read_retry_max_attempts_raises(self, invalid_value):
         with pytest.raises(ValidationError):
-            CloudRunV2WorkerSettings(transient_read_max_attempts=invalid_value)
+            CloudRunV2WorkerSettings(api_read_retry_max_attempts=invalid_value)
 
     @pytest.mark.parametrize("invalid_value", [0, -1.0])
-    def test_invalid_transient_read_initial_delay_raises(self, invalid_value):
+    def test_invalid_api_read_retry_initial_delay_raises(self, invalid_value):
         with pytest.raises(ValidationError):
-            CloudRunV2WorkerSettings(transient_read_initial_delay_seconds=invalid_value)
+            CloudRunV2WorkerSettings(api_read_retry_initial_delay_seconds=invalid_value)
 
     @pytest.mark.parametrize("invalid_value", [0, -1.0])
-    def test_invalid_transient_read_max_delay_raises(self, invalid_value):
+    def test_invalid_api_read_retry_max_delay_raises(self, invalid_value):
         with pytest.raises(ValidationError):
-            CloudRunV2WorkerSettings(transient_read_max_delay_seconds=invalid_value)
+            CloudRunV2WorkerSettings(api_read_retry_max_delay_seconds=invalid_value)
 
 
 class TestSettingsHierarchy:

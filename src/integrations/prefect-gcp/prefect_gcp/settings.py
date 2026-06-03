@@ -69,11 +69,11 @@ class CloudRunV2WorkerSettings(PrefectBaseSettings):
         ),
     )
 
-    transient_read_max_attempts: int = Field(
+    api_read_retry_max_attempts: int = Field(
         default=3,
         ge=1,
         description=(
-            "The maximum number of attempts for transient-error retries on "
+            "The maximum number of attempts for retries on "
             "read-only Cloud Run V2 API calls (job readiness polling, execution "
             "watching, and the submission baseline, recovery, and fetch lookups). "
             "Increase this value to allow more retries when a read fails due to "
@@ -81,7 +81,7 @@ class CloudRunV2WorkerSettings(PrefectBaseSettings):
         ),
     )
 
-    transient_read_initial_delay_seconds: float = Field(
+    api_read_retry_initial_delay_seconds: float = Field(
         default=1.0,
         gt=0,
         description=(
@@ -90,7 +90,7 @@ class CloudRunV2WorkerSettings(PrefectBaseSettings):
         ),
     )
 
-    transient_read_max_delay_seconds: float = Field(
+    api_read_retry_max_delay_seconds: float = Field(
         default=10.0,
         gt=0,
         description=(
