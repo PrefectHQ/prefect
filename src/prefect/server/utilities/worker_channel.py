@@ -616,6 +616,12 @@ class WorkerChannelConnection:
 
         try:
             await self._send_frame(_build_cleanup_message_frame(reservation))
+        except asyncio.CancelledError:
+            await self._release_cleanup_delivery_failure(
+                cleanup_queue=cleanup_queue,
+                reservation=reservation,
+            )
+            raise
         except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
             self._closed.set()
             await self._release_cleanup_delivery_failure(

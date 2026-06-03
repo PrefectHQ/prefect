@@ -518,6 +518,12 @@ class DisconnectingWebSocket(RecordingWebSocket):
         raise WebSocketDisconnect
 
 
+class CancellingWebSocket(RecordingWebSocket):
+    async def send_json(self, payload: dict[str, Any]) -> None:
+        self.sent_json.append(payload)
+        raise asyncio.CancelledError
+
+
 class ErrorAckCleanupQueue(FakeWorkerCleanupQueue):
     async def ack(
         self,
@@ -610,6 +616,43 @@ class TestWorkerCleanupConnectionRegistry:
         assert stored is not None
         assert stored.delivery_count == 1
         assert cleanup_queue.active_reservation_count() == 0
+        assert len(websocket.sent_json) == 1
+
+    async def test_cleanup_send_cancellation_releases_reserved_message(self, work_pool):
+        cleanup_queue = FakeWorkerCleanupQueue()
+        message = cleanup_queue.add_message(work_pool_id=work_pool.id)
+        websocket = CancellingWebSocket()
+        registry = worker_channel_utils.WorkerCleanupConnectionRegistry()
+        connection = worker_channel_utils.WorkerChannelConnection(
+            websocket=websocket,
+            db=object(),
+            work_pool_name=work_pool.name,
+            work_pool_id=work_pool.id,
+            consumer_id=uuid.uuid4(),
+            worker_name="test-worker",
+            cleanup_queue=cleanup_queue,
+            cleanup_kinds=(CANCELLING_TIMEOUT_TEARDOWN,),
+            max_cleanup_concurrency=1,
+            cleanup_registry=registry,
+        )
+        connection._ready_sent.set()
+
+        async with registry.register(connection):
+            with pytest.raises(asyncio.CancelledError):
+                await registry.dispatch_available(
+                    work_pool_id=work_pool.id,
+                    cleanup_queue=cleanup_queue,
+                )
+
+            assert cleanup_queue.active_reservation_count() == 0
+            assert registry._cleanup_in_flight_by_worker == {}
+
+        stored = await cleanup_queue.read_message(
+            work_pool_id=work_pool.id,
+            message_id=message.message_id,
+        )
+        assert stored is not None
+        assert stored.delivery_count == 1
         assert len(websocket.sent_json) == 1
 
     async def test_retryable_operation_error_keeps_cleanup_capacity_in_use(
