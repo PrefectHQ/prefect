@@ -24,6 +24,7 @@ from prefect.client.schemas.worker_channel import (
     CleanupKind,
     CleanupMessageFrame,
     CleanupOperationResultFrame,
+    CleanupReleaseFrame,
     WorkerReadyFrame,
 )
 from prefect.server.events.clients import AssertingEventsClient
@@ -714,6 +715,83 @@ class TestWorkerCleanupConnectionRegistry:
         }
         assert len(cleanup_messages) == 1
         assert operation_results[0]["payload"]["status"] == "error"
+
+    async def test_release_redelivery_prefers_another_eligible_worker(self, work_pool):
+        cleanup_queue = FakeWorkerCleanupQueue()
+        message = cleanup_queue.add_message(work_pool_id=work_pool.id)
+        registry = worker_channel_utils.WorkerCleanupConnectionRegistry()
+        first_websocket = RecordingWebSocket()
+        second_websocket = RecordingWebSocket()
+        first_connection = worker_channel_utils.WorkerChannelConnection(
+            websocket=first_websocket,
+            db=object(),
+            work_pool_name=work_pool.name,
+            work_pool_id=work_pool.id,
+            consumer_id=uuid.uuid4(),
+            worker_name="worker-1",
+            cleanup_queue=cleanup_queue,
+            cleanup_kinds=(CANCELLING_TIMEOUT_TEARDOWN,),
+            max_cleanup_concurrency=1,
+            cleanup_registry=registry,
+        )
+        second_connection = worker_channel_utils.WorkerChannelConnection(
+            websocket=second_websocket,
+            db=object(),
+            work_pool_name=work_pool.name,
+            work_pool_id=work_pool.id,
+            consumer_id=uuid.uuid4(),
+            worker_name="worker-2",
+            cleanup_queue=cleanup_queue,
+            cleanup_kinds=(CANCELLING_TIMEOUT_TEARDOWN,),
+            max_cleanup_concurrency=1,
+            cleanup_registry=registry,
+        )
+
+        async with registry.register(first_connection):
+            async with registry.register(second_connection):
+                first_connection._ready_sent.set()
+                second_connection._ready_sent.set()
+
+                await registry.dispatch_available(
+                    work_pool_id=work_pool.id,
+                    cleanup_queue=cleanup_queue,
+                )
+                first_cleanup = CleanupMessageFrame.model_validate(
+                    first_websocket.sent_json[0]
+                )
+
+                await first_connection._handle_cleanup_operation(
+                    CleanupReleaseFrame.model_validate(
+                        _cleanup_release_frame(
+                            message_id=first_cleanup.payload.message_id,
+                            reservation_token=first_cleanup.payload.reservation_token,
+                        )
+                    )
+                )
+
+        first_cleanup_messages = [
+            frame
+            for frame in first_websocket.sent_json
+            if frame["type"] == "cleanup.message.v1"
+        ]
+        first_operation_results = [
+            frame
+            for frame in first_websocket.sent_json
+            if frame["type"] == "cleanup.operation_result.v1"
+        ]
+        second_cleanup_messages = [
+            CleanupMessageFrame.model_validate(frame)
+            for frame in second_websocket.sent_json
+            if frame["type"] == "cleanup.message.v1"
+        ]
+        assert len(first_cleanup_messages) == 1
+        assert first_operation_results[0]["payload"]["status"] == "accepted"
+        assert [frame.payload.message_id for frame in second_cleanup_messages] == [
+            message.message_id
+        ]
+        assert second_cleanup_messages[0].payload.reservation_token != (
+            first_cleanup.payload.reservation_token
+        )
 
     async def test_mismatched_cleanup_result_keeps_capacity_in_use(self, work_pool):
         cleanup_queue = FakeWorkerCleanupQueue()

@@ -245,6 +245,7 @@ class WorkerCleanupConnectionRegistry:
                             cleanup_queue=cleanup_queue,
                             allow_fallback_to_any_queue=allow_fallback_to_any_queue,
                         ):
+                            await self._mark_cleanup_dispatched(connection)
                             dispatched = True
                             break
                     if dispatched:
@@ -389,6 +390,21 @@ class WorkerCleanupConnectionRegistry:
             if await connection.has_cleanup_capacity():
                 eligible.append(connection)
         return tuple(eligible)
+
+    async def _mark_cleanup_dispatched(
+        self, connection: WorkerChannelConnection
+    ) -> None:
+        async with self._lock:
+            connections = self._connections_by_work_pool_id.get(connection.work_pool_id)
+            if connections is None or len(connections) < 2:
+                return
+
+            try:
+                index = connections.index(connection)
+            except ValueError:
+                return
+
+            connections.append(connections.pop(index))
 
     def _cleanup_in_flight_for_connection_locked(
         self, connection: WorkerChannelConnection
