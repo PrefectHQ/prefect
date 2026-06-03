@@ -94,6 +94,9 @@ class WorkerCleanupConnectionRegistry:
         self._dispatch_locks: defaultdict[UUID, asyncio.Lock] = defaultdict(
             asyncio.Lock
         )
+        self._cleanup_in_flight_by_worker: defaultdict[
+            tuple[UUID, UUID, str], dict[str, WorkerCleanupInFlight]
+        ] = defaultdict(dict)
         self._lock = asyncio.Lock()
 
     @asynccontextmanager
@@ -121,6 +124,70 @@ class WorkerCleanupConnectionRegistry:
                 if not connections:
                     self._connections_by_work_pool_id.pop(connection.work_pool_id, None)
                     self._dispatch_locks.pop(connection.work_pool_id, None)
+
+    async def has_cleanup_capacity(
+        self, connection: WorkerChannelConnection, max_cleanup_concurrency: int
+    ) -> bool:
+        async with self._lock:
+            in_flight = self._cleanup_in_flight_for_connection_locked(connection)
+            self._prune_expired_cleanup_reservations_locked(in_flight)
+            self._drop_empty_cleanup_in_flight_locked(connection, in_flight)
+            return len(in_flight) < max_cleanup_concurrency
+
+    async def track_cleanup_reservation(
+        self,
+        connection: WorkerChannelConnection,
+        in_flight: WorkerCleanupInFlight,
+        max_cleanup_concurrency: int,
+    ) -> bool:
+        async with self._lock:
+            current_in_flight = self._cleanup_in_flight_for_connection_locked(
+                connection
+            )
+            self._prune_expired_cleanup_reservations_locked(current_in_flight)
+            if len(current_in_flight) >= max_cleanup_concurrency:
+                self._drop_empty_cleanup_in_flight_locked(connection, current_in_flight)
+                return False
+
+            current_in_flight[in_flight.reservation_token] = in_flight
+            return True
+
+    async def update_cleanup_lease(
+        self,
+        connection: WorkerChannelConnection,
+        *,
+        reservation_token: str,
+        lease_expires_at: DateTime,
+    ) -> bool:
+        async with self._lock:
+            current_in_flight = self._cleanup_in_flight_for_connection_locked(
+                connection
+            )
+            in_flight = current_in_flight.get(reservation_token)
+            if in_flight is None:
+                self._drop_empty_cleanup_in_flight_locked(connection, current_in_flight)
+                return False
+
+            current_in_flight[reservation_token] = WorkerCleanupInFlight(
+                message_id=in_flight.message_id,
+                reservation_token=in_flight.reservation_token,
+                lease_expires_at=lease_expires_at,
+            )
+            return True
+
+    async def forget_cleanup_reservation(
+        self, connection: WorkerChannelConnection, reservation_token: str
+    ) -> bool:
+        async with self._lock:
+            key = self._worker_key(connection)
+            current_in_flight = self._cleanup_in_flight_by_worker.get(key)
+            if current_in_flight is None:
+                return False
+
+            removed = current_in_flight.pop(reservation_token, None) is not None
+            if not current_in_flight:
+                self._cleanup_in_flight_by_worker.pop(key, None)
+            return removed
 
     async def dispatch_available(
         self,
@@ -160,6 +227,36 @@ class WorkerCleanupConnectionRegistry:
             if await connection.has_cleanup_capacity():
                 eligible.append(connection)
         return tuple(eligible)
+
+    def _cleanup_in_flight_for_connection_locked(
+        self, connection: WorkerChannelConnection
+    ) -> dict[str, WorkerCleanupInFlight]:
+        return self._cleanup_in_flight_by_worker[self._worker_key(connection)]
+
+    @staticmethod
+    def _worker_key(connection: WorkerChannelConnection) -> tuple[UUID, UUID, str]:
+        return (connection.work_pool_id, connection.consumer_id, connection.worker_name)
+
+    def _drop_empty_cleanup_in_flight_locked(
+        self,
+        connection: WorkerChannelConnection,
+        in_flight: dict[str, WorkerCleanupInFlight],
+    ) -> None:
+        if not in_flight:
+            self._cleanup_in_flight_by_worker.pop(self._worker_key(connection), None)
+
+    @staticmethod
+    def _prune_expired_cleanup_reservations_locked(
+        in_flight: dict[str, WorkerCleanupInFlight],
+    ) -> None:
+        current_time = now("UTC")
+        expired_tokens = [
+            token
+            for token, reservation in in_flight.items()
+            if reservation.lease_expires_at <= current_time
+        ]
+        for token in expired_tokens:
+            in_flight.pop(token, None)
 
 
 WORKER_CLEANUP_CONNECTION_REGISTRY = WorkerCleanupConnectionRegistry()
@@ -201,8 +298,6 @@ class WorkerChannelConnection:
         self._cleanup_work_queue_ids = cleanup_work_queue_ids
         self._max_cleanup_concurrency = max_cleanup_concurrency
         self._cleanup_registry = cleanup_registry
-        self._cleanup_in_flight_by_token: dict[str, WorkerCleanupInFlight] = {}
-        self._cleanup_state_lock = asyncio.Lock()
 
     @property
     def cleanup_enabled(self) -> bool:
@@ -299,9 +394,9 @@ class WorkerChannelConnection:
         ):
             return False
 
-        async with self._cleanup_state_lock:
-            self._prune_expired_cleanup_reservations_locked()
-            return len(self._cleanup_in_flight_by_token) < self._max_cleanup_concurrency
+        return await self._cleanup_registry.has_cleanup_capacity(
+            self, self._max_cleanup_concurrency
+        )
 
     async def dispatch_one_cleanup_message(
         self,
@@ -329,24 +424,18 @@ class WorkerChannelConnection:
         if reservation is None:
             return False
 
-        async with self._cleanup_state_lock:
-            self._prune_expired_cleanup_reservations_locked()
-            if (
-                self._closed.is_set()
-                or not self._ready_sent.is_set()
-                or len(self._cleanup_in_flight_by_token)
-                >= self._max_cleanup_concurrency
-            ):
-                should_release = True
-            else:
-                self._cleanup_in_flight_by_token[reservation.reservation_token] = (
-                    WorkerCleanupInFlight(
-                        message_id=reservation.message_id,
-                        reservation_token=reservation.reservation_token,
-                        lease_expires_at=reservation.lease_expires_at,
-                    )
-                )
-                should_release = False
+        if self._closed.is_set() or not self._ready_sent.is_set():
+            should_release = True
+        else:
+            should_release = not await self._cleanup_registry.track_cleanup_reservation(
+                self,
+                WorkerCleanupInFlight(
+                    message_id=reservation.message_id,
+                    reservation_token=reservation.reservation_token,
+                    lease_expires_at=reservation.lease_expires_at,
+                ),
+                self._max_cleanup_concurrency,
+            )
 
         if should_release:
             await cleanup_queue.release(
@@ -517,36 +606,20 @@ class WorkerChannelConnection:
             return False
 
         if result.operation == "renew" and result.status == "accepted":
-            async with self._cleanup_state_lock:
-                in_flight = self._cleanup_in_flight_by_token.get(reservation_token)
-                if in_flight is not None and result.lease_expires_at is not None:
-                    self._cleanup_in_flight_by_token[reservation_token] = (
-                        WorkerCleanupInFlight(
-                            message_id=in_flight.message_id,
-                            reservation_token=in_flight.reservation_token,
-                            lease_expires_at=result.lease_expires_at,
-                        )
-                    )
+            if result.lease_expires_at is not None:
+                await self._cleanup_registry.update_cleanup_lease(
+                    self,
+                    reservation_token=reservation_token,
+                    lease_expires_at=result.lease_expires_at,
+                )
             return False
 
         return await self._forget_cleanup_reservation(reservation_token)
 
     async def _forget_cleanup_reservation(self, reservation_token: str) -> bool:
-        async with self._cleanup_state_lock:
-            return (
-                self._cleanup_in_flight_by_token.pop(reservation_token, None)
-                is not None
-            )
-
-    def _prune_expired_cleanup_reservations_locked(self) -> None:
-        current_time = now("UTC")
-        expired_tokens = [
-            token
-            for token, in_flight in self._cleanup_in_flight_by_token.items()
-            if in_flight.lease_expires_at <= current_time
-        ]
-        for token in expired_tokens:
-            self._cleanup_in_flight_by_token.pop(token, None)
+        return await self._cleanup_registry.forget_cleanup_reservation(
+            self, reservation_token
+        )
 
     async def _coalesce_snapshot_invalidations(
         self,
