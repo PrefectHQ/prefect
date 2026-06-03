@@ -62,7 +62,7 @@ Both V1 and V2 UI bundles are served simultaneously when available: V1 at `PREFE
 - `api/` — FastAPI REST endpoints
 - `database/` — Connections, ORM models, and Alembic migrations
 - `orchestration/` — State transition rules and policies
-- `services/` — Background services (scheduler, event services, task queue)
+- `services/` — Background services (scheduler, event services, task queue). Every perpetual service function must declare `Perpetual(automatic=True, ...)` — this allows the docket worker to reschedule the service after a Redis disruption. Using `automatic=False` causes services to silently stop running after Redis outages. `tests/server/services/test_perpetual_services.py` enforces this invariant across the full registry.
 - `events/` — Server-side event processing: trigger evaluation, action execution, messaging, streaming (see also `../events/` for client-side schemas)
 - `concurrency/` — Server-side concurrency management
 - `logs/` — Log storage and retrieval
