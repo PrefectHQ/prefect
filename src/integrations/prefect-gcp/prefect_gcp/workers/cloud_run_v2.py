@@ -3,7 +3,17 @@ from __future__ import annotations
 import re
 import shlex
 import time
-from typing import TYPE_CHECKING, Any, Dict, Final, List, Literal, Optional
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    Final,
+    List,
+    Literal,
+    Optional,
+    TypeVar,
+)
 from uuid import uuid4
 
 from anyio.abc import TaskStatus
@@ -80,6 +90,9 @@ def _build_transient_retrying(
         "submitting job for execution",
         "polling job readiness",
         "watching job execution",
+        "looking up the latest execution",
+        "verifying the submitted execution",
+        "fetching the submitted execution",
     ],
     logger: PrefectLogAdapter,
 ) -> Retrying:
@@ -107,6 +120,43 @@ def _build_transient_retrying(
         before_sleep=_log_retry,
         sleep=time.sleep,
     )
+
+
+_ReadT = TypeVar("_ReadT")
+
+
+def _read_with_retry(
+    fn: Callable[[], _ReadT],
+    *,
+    operation_label: Literal[
+        "polling job readiness",
+        "watching job execution",
+        "looking up the latest execution",
+        "verifying the submitted execution",
+        "fetching the submitted execution",
+    ],
+    logger: PrefectLogAdapter,
+) -> _ReadT:
+    """Run an idempotent Cloud Run read through the shared transient-retry policy.
+
+    Every read against the Cloud Run API (JobV2.get / ExecutionV2.get) goes
+    through this helper so a new read call site cannot silently skip transient
+    retries. Reads are side-effect free, so retrying never risks starting a
+    duplicate execution. Non-transient errors (404, 400, ...) are reraised
+    immediately for the caller to handle.
+    """
+    settings = CloudRunV2WorkerSettings()
+    retrying = _build_transient_retrying(
+        max_attempts=settings.transient_read_max_attempts,
+        initial_delay=settings.transient_read_initial_delay_seconds,
+        max_delay=settings.transient_read_max_delay_seconds,
+        operation_label=operation_label,
+        logger=logger,
+    )
+    for attempt in retrying:
+        with attempt:
+            return fn()
+    raise AssertionError("unreachable: tenacity always returns or raises")
 
 
 def _get_default_job_body_template() -> Dict[str, Any]:
@@ -803,7 +853,11 @@ class CloudRunWorkerV2(
                 "v2",
                 client_options=options,
                 credentials=gcp_creds,
-                num_retries=3,  # Set to 3 in case of intermittent/connection issues
+                # num_retries only retries fetching the API discovery document used
+                # to build the client, not the operational jobs().run()/get() calls
+                # (which default to num_retries=0). Transient errors on those calls
+                # are handled by the tenacity retries elsewhere in this module.
+                num_retries=3,
             )
             .projects()
             .locations()
@@ -896,25 +950,18 @@ class CloudRunWorkerV2(
             poll_interval: The interval to poll the Cloud Run job, defaults to 5
                 seconds.
         """
-        settings = CloudRunV2WorkerSettings()
-        retrying = _build_transient_retrying(
-            max_attempts=settings.create_job_max_attempts,
-            initial_delay=settings.create_job_initial_delay_seconds,
-            max_delay=settings.create_job_max_delay_seconds,
-            operation_label="polling job readiness",
-            logger=logger,
-        )
 
         def _get_job() -> JobV2:
-            for attempt in retrying:
-                with attempt:
-                    return JobV2.get(
-                        cr_client=cr_client,
-                        project=configuration.project,
-                        location=configuration.region,
-                        job_name=configuration.job_name,
-                    )
-            assert False, "unreachable"  # tenacity always raises or returns
+            return _read_with_retry(
+                lambda: JobV2.get(
+                    cr_client=cr_client,
+                    project=configuration.project,
+                    location=configuration.region,
+                    job_name=configuration.job_name,
+                ),
+                operation_label="polling job readiness",
+                logger=logger,
+            )
 
         job = _get_job()
 
@@ -970,11 +1017,15 @@ class CloudRunWorkerV2(
             job has not run before or the lookup fails.
         """
         try:
-            job = JobV2.get(
-                cr_client=cr_client,
-                project=configuration.project,
-                location=configuration.region,
-                job_name=configuration.job_name,
+            job = _read_with_retry(
+                lambda: JobV2.get(
+                    cr_client=cr_client,
+                    project=configuration.project,
+                    location=configuration.region,
+                    job_name=configuration.job_name,
+                ),
+                operation_label="looking up the latest execution",
+                logger=logger,
             )
         except Exception as exc:
             logger.debug(
@@ -1024,11 +1075,15 @@ class CloudRunWorkerV2(
                 error instead of retrying.
         """
         try:
-            job = JobV2.get(
-                cr_client=cr_client,
-                project=configuration.project,
-                location=configuration.region,
-                job_name=configuration.job_name,
+            job = _read_with_retry(
+                lambda: JobV2.get(
+                    cr_client=cr_client,
+                    project=configuration.project,
+                    location=configuration.region,
+                    job_name=configuration.job_name,
+                ),
+                operation_label="verifying the submitted execution",
+                logger=logger,
             )
         except Exception as lookup_exc:
             logger.warning(
@@ -1124,9 +1179,13 @@ class CloudRunWorkerV2(
                     execution_name = submission["metadata"]["name"]
 
             assert execution_name is not None
-            job_execution = ExecutionV2.get(
-                cr_client=cr_client,
-                execution_id=execution_name,
+            job_execution = _read_with_retry(
+                lambda: ExecutionV2.get(
+                    cr_client=cr_client,
+                    execution_id=execution_name,
+                ),
+                operation_label="fetching the submitted execution",
+                logger=logger,
             )
 
             command_list = configuration.job_body["template"]["template"]["containers"][
@@ -1245,7 +1304,7 @@ class CloudRunWorkerV2(
         configuration: CloudRunWorkerJobV2Configuration,
         execution: ExecutionV2,
         poll_interval: int,
-        logger: PrefectLogAdapter | None = None,
+        logger: PrefectLogAdapter,
     ) -> ExecutionV2:
         """
         Update execution status until it is no longer running.
@@ -1257,7 +1316,7 @@ class CloudRunWorkerV2(
                 the job.
             execution (ExecutionV2): The execution to watch.
             poll_interval (int): The number of seconds to wait between polls.
-            logger: Optional logger for retry warnings.
+            logger: The logger to use for retry warnings.
 
         Returns:
             The execution.
@@ -1265,36 +1324,21 @@ class CloudRunWorkerV2(
         Raises:
             InfrastructureNotFound: If the execution is deleted (e.g., by kill_infrastructure).
         """
-        if logger is not None:
-            settings = CloudRunV2WorkerSettings()
-            retrying = _build_transient_retrying(
-                max_attempts=settings.create_job_max_attempts,
-                initial_delay=settings.create_job_initial_delay_seconds,
-                max_delay=settings.create_job_max_delay_seconds,
-                operation_label="watching job execution",
-                logger=logger,
-            )
-        else:
-            retrying = None
-
         while execution.is_running():
+            current_name = execution.name
             try:
-                if retrying is not None:
-                    for attempt in retrying:
-                        with attempt:
-                            execution = ExecutionV2.get(
-                                cr_client=cr_client,
-                                execution_id=execution.name,
-                            )
-                else:
-                    execution = ExecutionV2.get(
+                execution = _read_with_retry(
+                    lambda: ExecutionV2.get(
                         cr_client=cr_client,
-                        execution_id=execution.name,
-                    )
+                        execution_id=current_name,
+                    ),
+                    operation_label="watching job execution",
+                    logger=logger,
+                )
             except HttpError as exc:
                 if exc.status_code == 404:
                     raise InfrastructureNotFound(
-                        f"Cloud Run V2 execution {execution.name!r} was deleted."
+                        f"Cloud Run V2 execution {current_name!r} was deleted."
                     ) from exc
                 raise
 
