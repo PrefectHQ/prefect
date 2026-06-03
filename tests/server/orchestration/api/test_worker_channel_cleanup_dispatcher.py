@@ -30,6 +30,9 @@ from prefect.client.schemas.worker_channel import (
 )
 from prefect.server.events.clients import AssertingEventsClient
 from prefect.server.utilities import worker_channel as worker_channel_utils
+from prefect.server.utilities import (
+    worker_channel_cleanup as worker_channel_cleanup_utils,
+)
 from prefect.server.worker_communication.cleanup_queue import (
     CleanupQueueMessage,
     CleanupQueueOperation,
@@ -185,7 +188,7 @@ def cleanup_queue(
         queue = InstrumentedMemoryCleanupQueue()
         monkeypatch.setattr(workers_api, "get_worker_cleanup_queue", lambda: queue)
         monkeypatch.setattr(
-            worker_channel_utils,
+            worker_channel_cleanup_utils,
             "_WORKER_CHANNEL_CLEANUP_DISPATCH_POLL_SECONDS",
             0.05,
         )
@@ -738,7 +741,7 @@ class TestWorkerCleanupConnectionRegistry:
         self, work_pool, monkeypatch: pytest.MonkeyPatch
     ):
         monkeypatch.setattr(
-            worker_channel_utils,
+            worker_channel_cleanup_utils,
             "_WORKER_CHANNEL_CLEANUP_DISPATCH_POLL_SECONDS",
             0.01,
         )
@@ -1216,7 +1219,7 @@ class TestWorkerChannelCleanupDispatcher:
         monkeypatch: pytest.MonkeyPatch,
     ):
         monkeypatch.setattr(
-            worker_channel_utils,
+            worker_channel_cleanup_utils,
             "_WORKER_CHANNEL_CLEANUP_DISPATCH_POLL_SECONDS",
             5.0,
         )
