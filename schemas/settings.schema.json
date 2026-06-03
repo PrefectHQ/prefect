@@ -1770,6 +1770,42 @@
             "title": "ServerServicesCancellationCleanupSettings",
             "type": "object"
         },
+        "ServerServicesCleanupReconcilerSettings": {
+            "description": "Settings for controlling the cleanup reconciler service.",
+            "properties": {
+                "enabled": {
+                    "default": true,
+                    "description": "Whether or not to start the cleanup reconciler service in the server application.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_CLEANUP_RECONCILER_ENABLED"
+                    ],
+                    "title": "Enabled",
+                    "type": "boolean"
+                },
+                "loop_seconds": {
+                    "default": 5,
+                    "description": "The cleanup reconciler service will look for expired cleanup message leases this often. Defaults to `5`.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_CLEANUP_RECONCILER_LOOP_SECONDS"
+                    ],
+                    "title": "Loop Seconds",
+                    "type": "number"
+                },
+                "batch_size": {
+                    "default": 100,
+                    "description": "The maximum number of expired cleanup message leases to process per service loop. Defaults to `100`.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_CLEANUP_RECONCILER_BATCH_SIZE"
+                    ],
+                    "title": "Batch Size",
+                    "type": "integer"
+                }
+            },
+            "title": "ServerServicesCleanupReconcilerSettings",
+            "type": "object"
+        },
         "ServerServicesDBVacuumSettings": {
             "description": "Settings for controlling the database vacuum service",
             "properties": {
@@ -2228,9 +2264,9 @@
                     "$ref": "#/$defs/ServerServicesRepossessorSettings",
                     "supported_environment_variables": []
                 },
-                "worker_cleanup_queue": {
-                    "$ref": "#/$defs/ServerServicesWorkerCleanupQueueSettings",
-                    "description": "Settings for controlling the worker cleanup queue service",
+                "cleanup_reconciler": {
+                    "$ref": "#/$defs/ServerServicesCleanupReconcilerSettings",
+                    "description": "Settings for controlling the cleanup reconciler service",
                     "supported_environment_variables": []
                 },
                 "task_run_recorder": {
@@ -2335,42 +2371,6 @@
                 }
             },
             "title": "ServerServicesTriggersSettings",
-            "type": "object"
-        },
-        "ServerServicesWorkerCleanupQueueSettings": {
-            "description": "Settings for controlling the worker cleanup queue service.",
-            "properties": {
-                "enabled": {
-                    "default": true,
-                    "description": "Whether or not to start the worker cleanup queue service in the server application.",
-                    "supported_environment_variables": [
-                        "PREFECT_SERVER_SERVICES_WORKER_CLEANUP_QUEUE_ENABLED"
-                    ],
-                    "title": "Enabled",
-                    "type": "boolean"
-                },
-                "loop_seconds": {
-                    "default": 5,
-                    "description": "The worker cleanup queue service will look for expired cleanup message leases this often. Defaults to `5`.",
-                    "exclusiveMinimum": 0,
-                    "supported_environment_variables": [
-                        "PREFECT_SERVER_SERVICES_WORKER_CLEANUP_QUEUE_LOOP_SECONDS"
-                    ],
-                    "title": "Loop Seconds",
-                    "type": "number"
-                },
-                "batch_size": {
-                    "default": 100,
-                    "description": "The maximum number of expired cleanup message leases to process per service loop. Defaults to `100`.",
-                    "exclusiveMinimum": 0,
-                    "supported_environment_variables": [
-                        "PREFECT_SERVER_SERVICES_WORKER_CLEANUP_QUEUE_BATCH_SIZE"
-                    ],
-                    "title": "Batch Size",
-                    "type": "integer"
-                }
-            },
-            "title": "ServerServicesWorkerCleanupQueueSettings",
             "type": "object"
         },
         "ServerSettings": {

@@ -542,24 +542,24 @@ class ServerServicesRepossessorSettings(ServicesBaseSetting):
     )
 
 
-class ServerServicesWorkerCleanupQueueSettings(ServicesBaseSetting):
+class ServerServicesCleanupReconcilerSettings(ServicesBaseSetting):
     """
-    Settings for controlling the worker cleanup queue service.
+    Settings for controlling the cleanup reconciler service.
     """
 
     model_config: ClassVar[SettingsConfigDict] = build_settings_config(
-        ("server", "services", "worker_cleanup_queue")
+        ("server", "services", "cleanup_reconciler")
     )
 
     enabled: bool = Field(
         default=True,
-        description="Whether or not to start the worker cleanup queue service in the server application.",
+        description="Whether or not to start the cleanup reconciler service in the server application.",
     )
 
     loop_seconds: float = Field(
         default=5,
         gt=0,
-        description="The worker cleanup queue service will look for expired cleanup message leases this often. Defaults to `5`.",
+        description="The cleanup reconciler service will look for expired cleanup message leases this often. Defaults to `5`.",
     )
 
     batch_size: int = Field(
@@ -704,9 +704,9 @@ class ServerServicesSettings(PrefectBaseSettings):
         default_factory=ServerServicesRepossessorSettings,
         description="Settings for controlling the repossessor service",
     )
-    worker_cleanup_queue: ServerServicesWorkerCleanupQueueSettings = Field(
-        default_factory=ServerServicesWorkerCleanupQueueSettings,
-        description="Settings for controlling the worker cleanup queue service",
+    cleanup_reconciler: ServerServicesCleanupReconcilerSettings = Field(
+        default_factory=ServerServicesCleanupReconcilerSettings,
+        description="Settings for controlling the cleanup reconciler service",
     )
     task_run_recorder: ServerServicesTaskRunRecorderSettings = Field(
         default_factory=ServerServicesTaskRunRecorderSettings,

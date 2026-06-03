@@ -9,8 +9,8 @@ import pytest
 from uncalled_for import resolved_dependencies
 
 from prefect.client.schemas.worker_channel import CANCELLING_TIMEOUT_TEARDOWN
-from prefect.server.services import worker_cleanup_queue as worker_cleanup_queue_module
-from prefect.server.services.worker_cleanup_queue import expire_worker_cleanup_leases
+from prefect.server.services import cleanup_reconciler as cleanup_reconciler_module
+from prefect.server.services.cleanup_reconciler import reconcile_cleanup_delivery
 from prefect.server.worker_communication.cleanup_queue import (
     WorkerCleanupQueue as WorkerCleanupQueueInterface,
 )
@@ -68,7 +68,7 @@ async def _enqueue_message(
     return message_id
 
 
-async def test_expire_worker_cleanup_leases_redelivers_expired_messages(
+async def test_reconcile_cleanup_delivery_redelivers_expired_messages(
     queue: WorkerCleanupQueue,
     clock: Clock,
     caplog: pytest.LogCaptureFixture,
@@ -84,9 +84,9 @@ async def test_expire_worker_cleanup_leases_redelivers_expired_messages(
         clock.advance(timedelta(seconds=11))
 
         with caplog.at_level(
-            logging.INFO, logger="prefect.server.services.worker_cleanup_queue"
+            logging.INFO, logger="prefect.server.services.cleanup_reconciler"
         ):
-            result = await expire_worker_cleanup_leases(cleanup_queue=queue)
+            result = await reconcile_cleanup_delivery(cleanup_queue=queue)
 
     assert [message.message_id for message in result.redelivered] == [message_id]
     assert result.dead_lettered == []
@@ -97,7 +97,7 @@ async def test_expire_worker_cleanup_leases_redelivers_expired_messages(
     assert "redelivered=1 dead_lettered=0" in caplog.text
 
 
-async def test_expire_worker_cleanup_leases_logs_dead_letter_context(
+async def test_reconcile_cleanup_delivery_logs_dead_letter_context(
     queue: WorkerCleanupQueue,
     clock: Clock,
     caplog: pytest.LogCaptureFixture,
@@ -119,7 +119,7 @@ async def test_expire_worker_cleanup_leases_logs_dead_letter_context(
             logging.WARNING,
             logger="prefect.server.worker_communication.cleanup_queue",
         ):
-            result = await expire_worker_cleanup_leases(cleanup_queue=queue)
+            result = await reconcile_cleanup_delivery(cleanup_queue=queue)
 
     assert [dead.message.message_id for dead in result.dead_lettered] == [message_id]
     assert result.redelivered == []
@@ -132,13 +132,13 @@ async def test_expire_worker_cleanup_leases_logs_dead_letter_context(
     assert "source=memory_cleanup_queue" in log_text
 
 
-async def test_expire_worker_cleanup_leases_uses_configured_batch_size(
+async def test_reconcile_cleanup_delivery_uses_configured_batch_size(
     queue: WorkerCleanupQueue,
     clock: Clock,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     settings = get_current_settings()
-    monkeypatch.setattr(settings.server.services.worker_cleanup_queue, "batch_size", 1)
+    monkeypatch.setattr(settings.server.services.cleanup_reconciler, "batch_size", 1)
     work_pool_id = uuid4()
     first_message_id = await _enqueue_message(
         queue, work_pool_id=work_pool_id, idempotency_key="first"
@@ -154,8 +154,8 @@ async def test_expire_worker_cleanup_leases_uses_configured_batch_size(
         assert await queue.reserve(work_pool_id=work_pool_id) is not None
         clock.advance(timedelta(seconds=11))
 
-        first_result = await expire_worker_cleanup_leases(cleanup_queue=queue)
-        second_result = await expire_worker_cleanup_leases(cleanup_queue=queue)
+        first_result = await reconcile_cleanup_delivery(cleanup_queue=queue)
+        second_result = await reconcile_cleanup_delivery(cleanup_queue=queue)
 
     assert len(first_result.redelivered) == 1
     assert len(second_result.redelivered) == 1
@@ -178,21 +178,21 @@ async def test_service_reuses_cleanup_queue_dependency_per_storage(
         created.append(queue)
         return queue
 
-    monkeypatch.setattr(worker_cleanup_queue_module, "_service_cleanup_queue", None)
+    monkeypatch.setattr(cleanup_reconciler_module, "_service_cleanup_queue", None)
     monkeypatch.setattr(
-        worker_cleanup_queue_module, "_service_cleanup_queue_storage", None
+        cleanup_reconciler_module, "_service_cleanup_queue_storage", None
     )
     monkeypatch.setattr(
-        worker_cleanup_queue_module, "get_worker_cleanup_queue", create_queue
+        cleanup_reconciler_module, "get_worker_cleanup_queue", create_queue
     )
 
     with temporary_settings(
         {PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE: "storage-one"}
     ):
-        async with resolved_dependencies(expire_worker_cleanup_leases) as resolved:
+        async with resolved_dependencies(reconcile_cleanup_delivery) as resolved:
             first_queue = resolved["cleanup_queue"]
 
-        async with resolved_dependencies(expire_worker_cleanup_leases) as resolved:
+        async with resolved_dependencies(reconcile_cleanup_delivery) as resolved:
             second_queue = resolved["cleanup_queue"]
 
     assert first_queue is second_queue
@@ -201,7 +201,7 @@ async def test_service_reuses_cleanup_queue_dependency_per_storage(
     with temporary_settings(
         {PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE: "storage-two"}
     ):
-        async with resolved_dependencies(expire_worker_cleanup_leases) as resolved:
+        async with resolved_dependencies(reconcile_cleanup_delivery) as resolved:
             third_queue = resolved["cleanup_queue"]
 
     assert third_queue is not first_queue

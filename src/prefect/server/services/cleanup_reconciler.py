@@ -1,5 +1,5 @@
 """
-The worker cleanup queue service. Handles cleanup message lease expiry.
+The cleanup reconciler service. Handles cleanup message lease expiry.
 """
 
 from __future__ import annotations
@@ -37,22 +37,22 @@ def _get_service_worker_cleanup_queue() -> WorkerCleanupQueue:
 
 @perpetual_service(
     enabled_getter=lambda: (
-        get_current_settings().server.services.worker_cleanup_queue.enabled
+        get_current_settings().server.services.cleanup_reconciler.enabled
     ),
 )
-async def expire_worker_cleanup_leases(
+async def reconcile_cleanup_delivery(
     cleanup_queue: WorkerCleanupQueue = Depends(_get_service_worker_cleanup_queue),
     perpetual: Perpetual = Perpetual(
         automatic=False,
         every=timedelta(
-            seconds=get_current_settings().server.services.worker_cleanup_queue.loop_seconds
+            seconds=get_current_settings().server.services.cleanup_reconciler.loop_seconds
         ),
     ),
 ) -> CleanupQueueLeaseExpiryResult:
     """
-    Expire overdue worker cleanup reservations and apply retry/DLQ policy.
+    Reconcile overdue cleanup reservations and apply retry/DLQ policy.
     """
-    settings = get_current_settings().server.services.worker_cleanup_queue
+    settings = get_current_settings().server.services.cleanup_reconciler
     result = await cleanup_queue.expire_leases(limit=settings.batch_size)
 
     if result.redelivered or result.dead_lettered:
