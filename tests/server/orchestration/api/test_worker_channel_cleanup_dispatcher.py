@@ -962,6 +962,61 @@ class TestWorkerCleanupConnectionRegistry:
         async with registry.register(new_connection):
             assert registry._cleanup_in_flight_by_worker == {}
 
+    async def test_register_restarts_exiting_cleanup_dispatcher(self, work_pool):
+        cleanup_queue = FakeWorkerCleanupQueue()
+        registry = worker_channel_utils.WorkerCleanupConnectionRegistry()
+        exiting_task_started = asyncio.Event()
+        exiting_task_released = asyncio.Event()
+
+        async def exiting_dispatcher() -> None:
+            exiting_task_started.set()
+            await exiting_task_released.wait()
+
+        exiting_task = asyncio.create_task(exiting_dispatcher())
+        await exiting_task_started.wait()
+        registry._dispatch_tasks_by_work_pool_id[work_pool.id] = exiting_task
+        registry._exiting_dispatch_tasks_by_work_pool_id[work_pool.id] = exiting_task
+        stale_event = asyncio.Event()
+        registry._dispatch_events_by_work_pool_id[work_pool.id] = stale_event
+        registry._dispatch_loops_by_work_pool_id[work_pool.id] = (
+            asyncio.get_running_loop()
+        )
+
+        connection = worker_channel_utils.WorkerChannelConnection(
+            websocket=RecordingWebSocket(),
+            db=object(),
+            work_pool_name=work_pool.name,
+            work_pool_id=work_pool.id,
+            consumer_id=uuid.uuid4(),
+            worker_name="replacement-worker",
+            cleanup_queue=cleanup_queue,
+            cleanup_kinds=(CANCELLING_TIMEOUT_TEARDOWN,),
+            max_cleanup_concurrency=1,
+            cleanup_registry=registry,
+        )
+
+        replacement_task: asyncio.Task[None] | None = None
+        try:
+            async with registry.register(connection):
+                replacement_task = registry._dispatch_tasks_by_work_pool_id[
+                    work_pool.id
+                ]
+                assert replacement_task is not exiting_task
+                assert replacement_task is not None
+                assert not replacement_task.done()
+                assert (
+                    registry._dispatch_events_by_work_pool_id[work_pool.id]
+                    is not stale_event
+                )
+                assert registry._exiting_dispatch_tasks_by_work_pool_id == {}
+        finally:
+            exiting_task_released.set()
+            tasks = [exiting_task]
+            if replacement_task is not None:
+                replacement_task.cancel()
+                tasks.append(replacement_task)
+            await asyncio.gather(*tasks, return_exceptions=True)
+
 
 class TestWorkerChannelCleanupDispatcher:
     async def test_cleanup_capability_is_accepted_for_capable_workers(

@@ -98,6 +98,9 @@ class WorkerCleanupConnectionRegistry:
         self._dispatch_events_by_work_pool_id: dict[UUID, asyncio.Event] = {}
         self._dispatch_loops_by_work_pool_id: dict[UUID, asyncio.AbstractEventLoop] = {}
         self._dispatch_tasks_by_work_pool_id: dict[UUID, asyncio.Task[None]] = {}
+        self._exiting_dispatch_tasks_by_work_pool_id: dict[
+            UUID, asyncio.Task[None]
+        ] = {}
         self._cleanup_in_flight_by_worker: defaultdict[
             tuple[UUID, UUID, str], dict[str, WorkerCleanupInFlight]
         ] = defaultdict(dict)
@@ -268,16 +271,22 @@ class WorkerCleanupConnectionRegistry:
     ) -> None:
         task = self._dispatch_tasks_by_work_pool_id.get(work_pool_id)
         if task is not None and not task.done():
-            self.wake_dispatcher(work_pool_id)
-            return
+            if (
+                self._exiting_dispatch_tasks_by_work_pool_id.get(work_pool_id)
+                is not task
+            ):
+                self.wake_dispatcher(work_pool_id)
+                return
 
         if task is not None:
-            try:
-                task.result()
-            except asyncio.CancelledError:
-                pass
-            except Exception:
-                logger.exception("Worker channel cleanup dispatcher failed")
+            self._exiting_dispatch_tasks_by_work_pool_id.pop(work_pool_id, None)
+            if task.done():
+                try:
+                    task.result()
+                except asyncio.CancelledError:
+                    pass
+                except Exception:
+                    logger.exception("Worker channel cleanup dispatcher failed")
 
         loop = asyncio.get_running_loop()
         event = asyncio.Event()
@@ -315,8 +324,17 @@ class WorkerCleanupConnectionRegistry:
                         self._connections_by_work_pool_id.get(work_pool_id)
                     )
                     event = self._dispatch_events_by_work_pool_id.get(work_pool_id)
-                if not has_connections or event is None:
-                    return
+                    if not has_connections or event is None:
+                        current_task = asyncio.current_task()
+                        if (
+                            current_task is not None
+                            and self._dispatch_tasks_by_work_pool_id.get(work_pool_id)
+                            is current_task
+                        ):
+                            self._exiting_dispatch_tasks_by_work_pool_id[
+                                work_pool_id
+                            ] = current_task
+                        return
 
                 try:
                     event.clear()
@@ -346,10 +364,16 @@ class WorkerCleanupConnectionRegistry:
                     is current_task
                 ):
                     self._dispatch_tasks_by_work_pool_id.pop(work_pool_id, None)
+                    self._exiting_dispatch_tasks_by_work_pool_id.pop(work_pool_id, None)
                     if not self._connections_by_work_pool_id.get(work_pool_id):
                         self._dispatch_events_by_work_pool_id.pop(work_pool_id, None)
                         self._dispatch_loops_by_work_pool_id.pop(work_pool_id, None)
                         self._dispatch_locks.pop(work_pool_id, None)
+                elif (
+                    self._exiting_dispatch_tasks_by_work_pool_id.get(work_pool_id)
+                    is current_task
+                ):
+                    self._exiting_dispatch_tasks_by_work_pool_id.pop(work_pool_id, None)
 
     async def _wait_for_dispatch_wakeup(
         self,
