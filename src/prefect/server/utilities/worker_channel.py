@@ -786,16 +786,25 @@ class WorkerChannelConnection:
                 reservation_token=frame.payload.reservation_token,
             )
 
+        synced_before_send = result.operation == "renew" and result.status == "accepted"
+        if synced_before_send:
+            await self._sync_cleanup_operation_result(
+                reservation_token=frame.payload.reservation_token,
+                result=result,
+            )
+
         await self._send_frame(
             _build_cleanup_operation_result_frame(
                 request_frame_id=frame.id,
                 result=result,
             )
         )
-        freed_capacity = await self._sync_cleanup_operation_result(
-            reservation_token=frame.payload.reservation_token,
-            result=result,
-        )
+        freed_capacity = False
+        if not synced_before_send:
+            freed_capacity = await self._sync_cleanup_operation_result(
+                reservation_token=frame.payload.reservation_token,
+                result=result,
+            )
         if freed_capacity:
             await self._cleanup_registry.dispatch_available(
                 work_pool_id=self.work_pool_id,
