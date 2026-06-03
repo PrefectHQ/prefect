@@ -41,6 +41,7 @@ from prefect.server.worker_communication.cleanup_queue import (
     CleanupQueueOperation,
     CleanupQueueOperationResult,
     CleanupQueueReservation,
+    CleanupQueueWakeup,
     WorkerCleanupQueue,
 )
 from prefect.types import DateTime
@@ -94,6 +95,9 @@ class WorkerCleanupConnectionRegistry:
         self._dispatch_locks: defaultdict[UUID, asyncio.Lock] = defaultdict(
             asyncio.Lock
         )
+        self._dispatch_events_by_work_pool_id: dict[UUID, asyncio.Event] = {}
+        self._dispatch_loops_by_work_pool_id: dict[UUID, asyncio.AbstractEventLoop] = {}
+        self._dispatch_tasks_by_work_pool_id: dict[UUID, asyncio.Task[None]] = {}
         self._cleanup_in_flight_by_worker: defaultdict[
             tuple[UUID, UUID, str], dict[str, WorkerCleanupInFlight]
         ] = defaultdict(dict)
@@ -110,10 +114,17 @@ class WorkerCleanupConnectionRegistry:
             self._connections_by_work_pool_id[connection.work_pool_id].append(
                 connection
             )
+            assert connection._cleanup_queue is not None
+            self._ensure_cleanup_dispatcher_locked(
+                work_pool_id=connection.work_pool_id,
+                cleanup_queue=connection._cleanup_queue,
+            )
 
         try:
             yield
         finally:
+            event_to_wake: asyncio.Event | None = None
+            loop_to_wake: asyncio.AbstractEventLoop | None = None
             async with self._lock:
                 connections = self._connections_by_work_pool_id.get(
                     connection.work_pool_id
@@ -126,7 +137,15 @@ class WorkerCleanupConnectionRegistry:
                     return
                 if not connections:
                     self._connections_by_work_pool_id.pop(connection.work_pool_id, None)
-                    self._dispatch_locks.pop(connection.work_pool_id, None)
+                    event_to_wake = self._dispatch_events_by_work_pool_id.get(
+                        connection.work_pool_id, None
+                    )
+                    loop_to_wake = self._dispatch_loops_by_work_pool_id.get(
+                        connection.work_pool_id, None
+                    )
+
+            if event_to_wake is not None:
+                self._set_dispatch_event(event_to_wake, loop_to_wake)
 
     async def has_cleanup_capacity(
         self, connection: WorkerChannelConnection, max_cleanup_concurrency: int
@@ -231,6 +250,131 @@ class WorkerCleanupConnectionRegistry:
 
                 if not dispatched:
                     return
+
+    def wake_dispatcher(self, work_pool_id: UUID) -> None:
+        event = self._dispatch_events_by_work_pool_id.get(work_pool_id)
+        loop = self._dispatch_loops_by_work_pool_id.get(work_pool_id)
+        if event is not None:
+            self._set_dispatch_event(event, loop)
+
+    def _ensure_cleanup_dispatcher_locked(
+        self,
+        *,
+        work_pool_id: UUID,
+        cleanup_queue: WorkerCleanupQueue,
+    ) -> None:
+        task = self._dispatch_tasks_by_work_pool_id.get(work_pool_id)
+        if task is not None and not task.done():
+            self.wake_dispatcher(work_pool_id)
+            return
+
+        if task is not None:
+            try:
+                task.result()
+            except asyncio.CancelledError:
+                pass
+            except Exception:
+                logger.exception("Worker channel cleanup dispatcher failed")
+
+        loop = asyncio.get_running_loop()
+        event = asyncio.Event()
+        self._dispatch_events_by_work_pool_id[work_pool_id] = event
+        self._dispatch_loops_by_work_pool_id[work_pool_id] = loop
+        self._dispatch_tasks_by_work_pool_id[work_pool_id] = asyncio.create_task(
+            self._dispatch_loop(
+                work_pool_id=work_pool_id,
+                cleanup_queue=cleanup_queue,
+            )
+        )
+        event.set()
+
+    @staticmethod
+    def _set_dispatch_event(
+        event: asyncio.Event, loop: asyncio.AbstractEventLoop | None
+    ) -> None:
+        if loop is not None and loop.is_running():
+            loop.call_soon_threadsafe(event.set)
+            return
+        event.set()
+
+    async def _dispatch_loop(
+        self,
+        *,
+        work_pool_id: UUID,
+        cleanup_queue: WorkerCleanupQueue,
+    ) -> None:
+        try:
+            wakeup_sequence = 0
+
+            while True:
+                async with self._lock:
+                    has_connections = bool(
+                        self._connections_by_work_pool_id.get(work_pool_id)
+                    )
+                    event = self._dispatch_events_by_work_pool_id.get(work_pool_id)
+                if not has_connections or event is None:
+                    return
+
+                try:
+                    event.clear()
+                    await self.dispatch_available(
+                        work_pool_id=work_pool_id,
+                        cleanup_queue=cleanup_queue,
+                    )
+
+                    wakeup = await self._wait_for_dispatch_wakeup(
+                        work_pool_id=work_pool_id,
+                        cleanup_queue=cleanup_queue,
+                        after=wakeup_sequence,
+                        event=event,
+                    )
+                    if wakeup is not None:
+                        wakeup_sequence = wakeup.sequence
+                except asyncio.CancelledError:
+                    raise
+                except Exception:
+                    logger.exception("Worker channel cleanup dispatch failed")
+                    await asyncio.sleep(_WORKER_CHANNEL_CLEANUP_DISPATCH_POLL_SECONDS)
+        finally:
+            current_task = asyncio.current_task()
+            async with self._lock:
+                if (
+                    self._dispatch_tasks_by_work_pool_id.get(work_pool_id)
+                    is current_task
+                ):
+                    self._dispatch_tasks_by_work_pool_id.pop(work_pool_id, None)
+                    if not self._connections_by_work_pool_id.get(work_pool_id):
+                        self._dispatch_events_by_work_pool_id.pop(work_pool_id, None)
+                        self._dispatch_loops_by_work_pool_id.pop(work_pool_id, None)
+                        self._dispatch_locks.pop(work_pool_id, None)
+
+    async def _wait_for_dispatch_wakeup(
+        self,
+        *,
+        work_pool_id: UUID,
+        cleanup_queue: WorkerCleanupQueue,
+        after: int,
+        event: asyncio.Event,
+    ) -> CleanupQueueWakeup | None:
+        queue_task = asyncio.create_task(
+            cleanup_queue.wait_for_wakeup(
+                work_pool_id,
+                after=after,
+                timeout=_WORKER_CHANNEL_CLEANUP_DISPATCH_POLL_SECONDS,
+            )
+        )
+        event_task = asyncio.create_task(event.wait())
+        done, pending = await asyncio.wait(
+            {queue_task, event_task}, return_when=asyncio.FIRST_COMPLETED
+        )
+
+        for task in pending:
+            task.cancel()
+        await asyncio.gather(*pending, return_exceptions=True)
+
+        if queue_task in done:
+            return queue_task.result()
+        return None
 
     async def _eligible_connections(
         self, work_pool_id: UUID
@@ -350,8 +494,6 @@ class WorkerChannelConnection:
         receive_task = asyncio.create_task(self._receive_loop())
         fanout_task = asyncio.create_task(self._fanout_loop(consumer_kwargs))
         tasks = {send_task, receive_task, fanout_task}
-        if self.cleanup_enabled:
-            tasks.add(asyncio.create_task(self._cleanup_dispatch_loop()))
 
         try:
             done, pending = await asyncio.wait(
@@ -506,6 +648,12 @@ class WorkerChannelConnection:
     async def _send_loop(self, ready: WorkerReadyFrame) -> None:
         await self._send_frame(ready)
         self._ready_sent.set()
+        if self.cleanup_enabled and self._cleanup_queue is not None:
+            await self._cleanup_registry.dispatch_available(
+                work_pool_id=self.work_pool_id,
+                cleanup_queue=self._cleanup_queue,
+            )
+            self._cleanup_registry.wake_dispatcher(self.work_pool_id)
 
         while not self._closed.is_set():
             invalidation = await self._snapshot_queue.get()
@@ -533,25 +681,6 @@ class WorkerChannelConnection:
     ) -> None:
         async with self._send_lock:
             await self.websocket.send_json(frame.model_dump(mode="json"))
-
-    async def _cleanup_dispatch_loop(self) -> None:
-        assert self._cleanup_queue is not None
-        cleanup_queue = self._cleanup_queue
-        await self._ready_sent.wait()
-        wakeup_sequence = await cleanup_queue.read_wakeup_sequence(self.work_pool_id)
-
-        while not self._closed.is_set():
-            await self._cleanup_registry.dispatch_available(
-                work_pool_id=self.work_pool_id,
-                cleanup_queue=cleanup_queue,
-            )
-            wakeup = await cleanup_queue.wait_for_wakeup(
-                self.work_pool_id,
-                after=wakeup_sequence,
-                timeout=_WORKER_CHANNEL_CLEANUP_DISPATCH_POLL_SECONDS,
-            )
-            if wakeup is not None:
-                wakeup_sequence = wakeup.sequence
 
     async def _release_cleanup_delivery_failure(
         self,

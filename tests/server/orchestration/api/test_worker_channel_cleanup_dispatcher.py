@@ -61,6 +61,9 @@ class FakeWorkerCleanupQueue(WorkerCleanupQueue):
         self._messages: dict[UUID, CleanupQueueMessage] = {}
         self._reservations: dict[UUID, CleanupQueueReservation] = {}
         self._wakeup_sequences: dict[UUID, int] = {}
+        self._wait_for_wakeup_calls = 0
+        self._active_wait_for_wakeup_calls = 0
+        self._max_active_wait_for_wakeup_calls = 0
         self._lock = threading.Lock()
 
     def add_message(
@@ -95,6 +98,14 @@ class FakeWorkerCleanupQueue(WorkerCleanupQueue):
     def active_message_count(self) -> int:
         with self._lock:
             return len(self._messages)
+
+    def wait_for_wakeup_call_count(self) -> int:
+        with self._lock:
+            return self._wait_for_wakeup_calls
+
+    def max_active_wait_for_wakeup_calls(self) -> int:
+        with self._lock:
+            return self._max_active_wait_for_wakeup_calls
 
     async def enqueue(
         self,
@@ -285,18 +296,29 @@ class FakeWorkerCleanupQueue(WorkerCleanupQueue):
         after: int = 0,
         timeout: float | None = None,
     ) -> CleanupQueueWakeup | None:
+        with self._lock:
+            self._wait_for_wakeup_calls += 1
+            self._active_wait_for_wakeup_calls += 1
+            self._max_active_wait_for_wakeup_calls = max(
+                self._max_active_wait_for_wakeup_calls,
+                self._active_wait_for_wakeup_calls,
+            )
         deadline = None if timeout is None else time.monotonic() + timeout
-        while True:
-            with self._lock:
-                sequence = self._wakeup_sequences.get(work_pool_id, 0)
-                if sequence > after:
-                    return CleanupQueueWakeup(
-                        work_pool_id=work_pool_id, sequence=sequence
-                    )
+        try:
+            while True:
+                with self._lock:
+                    sequence = self._wakeup_sequences.get(work_pool_id, 0)
+                    if sequence > after:
+                        return CleanupQueueWakeup(
+                            work_pool_id=work_pool_id, sequence=sequence
+                        )
 
-            if deadline is not None and time.monotonic() >= deadline:
-                return None
-            await asyncio.sleep(0.01)
+                if deadline is not None and time.monotonic() >= deadline:
+                    return None
+                await asyncio.sleep(0.01)
+        finally:
+            with self._lock:
+                self._active_wait_for_wakeup_calls -= 1
 
     def _validate_current_reservation_locked(
         self,
@@ -856,6 +878,46 @@ class TestWorkerChannelCleanupDispatcher:
         assert CLEANUP_DELIVERY_CAPABILITY not in ready.payload.accepted_capabilities
         assert ready.payload.rejected_capabilities == [CLEANUP_DELIVERY_CAPABILITY]
         assert ready.payload.effective_max_cleanup_concurrency == 0
+
+    def test_idle_cleanup_workers_share_one_dispatcher(
+        self,
+        test_client: TestClient,
+        work_pool,
+        cleanup_queue: FakeWorkerCleanupQueue,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        monkeypatch.setattr(
+            worker_channel_utils,
+            "_WORKER_CHANNEL_CLEANUP_DISPATCH_POLL_SECONDS",
+            5.0,
+        )
+
+        with _connect_worker_channel(test_client, work_pool.name) as first_websocket:
+            _authenticate_worker_channel(first_websocket)
+            first_websocket.send_json(
+                _cleanup_worker_hello_frame(worker_name="worker-1")
+            )
+            WorkerReadyFrame.model_validate(first_websocket.receive_json())
+
+            with _connect_worker_channel(
+                test_client, work_pool.name
+            ) as second_websocket:
+                _authenticate_worker_channel(second_websocket)
+                second_websocket.send_json(
+                    _cleanup_worker_hello_frame(worker_name="worker-2")
+                )
+                WorkerReadyFrame.model_validate(second_websocket.receive_json())
+
+                deadline = time.monotonic() + 1
+                while (
+                    cleanup_queue.wait_for_wakeup_call_count() == 0
+                    and time.monotonic() < deadline
+                ):
+                    time.sleep(0.01)
+                time.sleep(0.1)
+
+                assert cleanup_queue.wait_for_wakeup_call_count() >= 1
+                assert cleanup_queue.max_active_wait_for_wakeup_calls() == 1
 
     async def test_dispatches_cleanup_message_and_sends_ack_result(
         self, test_client: TestClient, work_pool, cleanup_queue: FakeWorkerCleanupQueue
