@@ -2533,6 +2533,13 @@ Settings for controlling server services
 
 **TOML dotted key path**: `server.services.repossessor`
 
+### `worker_cleanup_queue`
+Settings for controlling the worker cleanup queue service
+
+**Type**: [ServerServicesWorkerCleanupQueueSettings](#serverservicesworkercleanupqueuesettings)
+
+**TOML dotted key path**: `server.services.worker_cleanup_queue`
+
 ### `task_run_recorder`
 
 **Type**: [ServerServicesTaskRunRecorderSettings](#serverservicestaskrunrecordersettings)
@@ -2654,6 +2661,45 @@ The number of events the triggers service will attempt to read from the message 
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_TRIGGERS_PG_NOTIFY_HEARTBEAT_INTERVAL_SECONDS`
+
+---
+## ServerServicesWorkerCleanupQueueSettings
+Settings for controlling the worker cleanup queue service.
+### `enabled`
+Whether or not to start the worker cleanup queue service in the server application.
+
+**Type**: `boolean`
+
+**Default**: `True`
+
+**TOML dotted key path**: `server.services.worker_cleanup_queue.enabled`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_WORKER_CLEANUP_QUEUE_ENABLED`
+
+### `loop_seconds`
+The worker cleanup queue service will look for expired cleanup message leases this often. Defaults to `5`.
+
+**Type**: `number`
+
+**Default**: `5`
+
+**TOML dotted key path**: `server.services.worker_cleanup_queue.loop_seconds`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_WORKER_CLEANUP_QUEUE_LOOP_SECONDS`
+
+### `batch_size`
+The maximum number of expired cleanup message leases to process per service loop. Defaults to `100`.
+
+**Type**: `integer`
+
+**Default**: `100`
+
+**TOML dotted key path**: `server.services.worker_cleanup_queue.batch_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_WORKER_CLEANUP_QUEUE_BATCH_SIZE`
 
 ---
 ## ServerSettings

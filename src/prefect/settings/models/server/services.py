@@ -542,6 +542,33 @@ class ServerServicesRepossessorSettings(ServicesBaseSetting):
     )
 
 
+class ServerServicesWorkerCleanupQueueSettings(ServicesBaseSetting):
+    """
+    Settings for controlling the worker cleanup queue service.
+    """
+
+    model_config: ClassVar[SettingsConfigDict] = build_settings_config(
+        ("server", "services", "worker_cleanup_queue")
+    )
+
+    enabled: bool = Field(
+        default=True,
+        description="Whether or not to start the worker cleanup queue service in the server application.",
+    )
+
+    loop_seconds: float = Field(
+        default=5,
+        gt=0,
+        description="The worker cleanup queue service will look for expired cleanup message leases this often. Defaults to `5`.",
+    )
+
+    batch_size: int = Field(
+        default=100,
+        gt=0,
+        description="The maximum number of expired cleanup message leases to process per service loop. Defaults to `100`.",
+    )
+
+
 class ServerServicesTaskRunRecorderSettings(ServicesBaseSetting):
     """
     Settings for controlling the task run recorder service
@@ -676,6 +703,10 @@ class ServerServicesSettings(PrefectBaseSettings):
     repossessor: ServerServicesRepossessorSettings = Field(
         default_factory=ServerServicesRepossessorSettings,
         description="Settings for controlling the repossessor service",
+    )
+    worker_cleanup_queue: ServerServicesWorkerCleanupQueueSettings = Field(
+        default_factory=ServerServicesWorkerCleanupQueueSettings,
+        description="Settings for controlling the worker cleanup queue service",
     )
     task_run_recorder: ServerServicesTaskRunRecorderSettings = Field(
         default_factory=ServerServicesTaskRunRecorderSettings,

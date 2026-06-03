@@ -135,6 +135,12 @@ def test_repossessor_service_registered():
     assert "monitor_expired_leases" in service_names
 
 
+def test_worker_cleanup_queue_service_registered():
+    """Test that worker cleanup queue perpetual service is registered."""
+    service_names = [config.function.__name__ for config in _PERPETUAL_SERVICES]
+    assert "expire_worker_cleanup_leases" in service_names
+
+
 def test_foreman_service_registered():
     """Test that foreman perpetual service is registered."""
     service_names = [config.function.__name__ for config in _PERPETUAL_SERVICES]

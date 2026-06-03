@@ -24,6 +24,8 @@ from prefect.server.worker_communication.cleanup_queue import (
     CleanupQueueOperationResult,
     CleanupQueueReservation,
     CleanupQueueWakeup,
+    record_cleanup_queue_dead_letter,
+    record_cleanup_queue_lease_expiry_result,
 )
 from prefect.server.worker_communication.cleanup_queue import (
     WorkerCleanupQueue as _WorkerCleanupQueue,
@@ -363,11 +365,13 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
 
         if redelivered:
             await self._notify_local_dispatchers()
-
-        return CleanupQueueLeaseExpiryResult(
+        result = CleanupQueueLeaseExpiryResult(
             redelivered=redelivered,
             dead_lettered=dead_lettered,
         )
+        record_cleanup_queue_lease_expiry_result(result)
+
+        return result
 
     async def read_message(
         self, *, work_pool_id: UUID, message_id: UUID
@@ -394,7 +398,10 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         return dead_letter if dead_letter.message.work_pool_id == work_pool_id else None
 
     async def wake_dispatchers(self, work_pool_id: UUID) -> CleanupQueueWakeup:
-        sequence = await self._client().incr(self._wakeup_key(work_pool_id))
+        async with self._client().pipeline(transaction=True) as pipe:
+            pipe.incr(self._wakeup_key(work_pool_id))
+            pipe.publish(self._wakeup_channel(work_pool_id), "1")
+            sequence, _ = await pipe.execute()
         wakeup = CleanupQueueWakeup(work_pool_id=work_pool_id, sequence=sequence)
         await self._notify_local_dispatchers()
         return wakeup
@@ -420,24 +427,31 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
             else asyncio.get_running_loop().time() + max(timeout, 0.0)
         )
 
-        while True:
-            sequence = await self.read_wakeup_sequence(work_pool_id)
-            if sequence > after:
-                return CleanupQueueWakeup(work_pool_id=work_pool_id, sequence=sequence)
+        pubsub = self._client().pubsub()
+        await pubsub.subscribe(self._wakeup_channel(work_pool_id))
+        try:
+            while True:
+                sequence = await self.read_wakeup_sequence(work_pool_id)
+                if sequence > after:
+                    return CleanupQueueWakeup(
+                        work_pool_id=work_pool_id, sequence=sequence
+                    )
 
-            if deadline is None:
-                wait_timeout = 1.0
-            else:
-                remaining = deadline - asyncio.get_running_loop().time()
-                if remaining <= 0:
-                    return None
-                wait_timeout = min(remaining, 1.0)
+                if deadline is None:
+                    wait_timeout = 1.0
+                else:
+                    remaining = deadline - asyncio.get_running_loop().time()
+                    if remaining <= 0:
+                        return None
+                    wait_timeout = min(remaining, 1.0)
 
-            try:
-                async with self._condition:
-                    await asyncio.wait_for(self._condition.wait(), timeout=wait_timeout)
-            except (TimeoutError, asyncio.TimeoutError):
-                continue
+                await pubsub.get_message(
+                    ignore_subscribe_messages=True,
+                    timeout=wait_timeout,
+                )
+        finally:
+            await pubsub.unsubscribe(self._wakeup_channel(work_pool_id))
+            await pubsub.aclose()
 
     async def _reserve_candidate(
         self,
@@ -499,7 +513,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                     delivery_count = int(message_fields["delivery_count"])
                     if delivery_count >= policy.max_delivery_attempts:
                         pipe.multi()
-                        self._stage_dead_letter(
+                        dead_letter = self._stage_dead_letter(
                             pipe=pipe,
                             keys=keys,
                             message_fields=message_fields,
@@ -508,6 +522,9 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                             reason="max_delivery_attempts_reached",
                         )
                         await pipe.execute()
+                        record_cleanup_queue_dead_letter(
+                            dead_letter, source="redis_cleanup_queue.reserve"
+                        )
                         return None
 
                     updated_fields = {
@@ -597,6 +614,10 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                                 reason="max_delivery_attempts_reached",
                             )
                             await pipe.execute()
+                            record_cleanup_queue_dead_letter(
+                                dead_letter,
+                                source=f"redis_cleanup_queue.{operation}",
+                            )
                             return self._operation_result(
                                 operation=operation,
                                 message_id=message_id,
@@ -654,6 +675,10 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                                 release_reason=release_reason,
                             )
                             await pipe.execute()
+                            record_cleanup_queue_dead_letter(
+                                dead_letter,
+                                source="redis_cleanup_queue.release",
+                            )
                             return self._operation_result(
                                 operation=operation,
                                 message_id=message_id,
@@ -812,6 +837,9 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                             reason="max_delivery_attempts_reached",
                         )
                         await pipe.execute()
+                        record_cleanup_queue_dead_letter(
+                            dead_letter, source="redis_cleanup_queue.expire_leases"
+                        )
                         return "dead_lettered", dead_letter
 
                     message = self._stage_redelivery(
@@ -970,6 +998,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         # Transitions that make work visible must stage this in the same Redis
         # transaction so other server processes observe the wakeup with the work.
         pipe.incr(self._wakeup_key(work_pool_id))
+        pipe.publish(self._wakeup_channel(work_pool_id), "1")
 
     def _stage_renew(
         self,
@@ -1106,6 +1135,9 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
 
     def _wakeup_key(self, work_pool_id: UUID | str) -> str:
         return f"{self._prefix()}:wakeup:{work_pool_id}"
+
+    def _wakeup_channel(self, work_pool_id: UUID | str) -> str:
+        return f"{self._prefix()}:wakeup-channel:{work_pool_id}"
 
     def _pools_key(self) -> str:
         return f"{self._prefix()}:pools"

@@ -455,3 +455,31 @@ async def test_redis_wait_for_wakeup_observes_shared_sequence(redis: Redis) -> N
     assert wakeup is not None
     assert wakeup.work_pool_id == work_pool_id
     assert wakeup.sequence == sequence + 1
+
+
+async def test_redis_wait_for_wakeup_receives_cross_instance_hint(
+    redis: Redis,
+) -> None:
+    work_pool_id = uuid4()
+    key_prefix = f"prefect:test:cleanup:{uuid4()}"
+    waiting_queue = WorkerCleanupQueue(redis_client=redis, key_prefix=key_prefix)
+    waking_queue = WorkerCleanupQueue(redis_client=redis, key_prefix=key_prefix)
+    sequence = await waiting_queue.read_wakeup_sequence(work_pool_id)
+
+    started_at = asyncio.get_running_loop().time()
+    waiter = asyncio.create_task(
+        waiting_queue.wait_for_wakeup(work_pool_id, after=sequence, timeout=2)
+    )
+    await asyncio.sleep(0.05)
+    await waking_queue.wake_dispatchers(work_pool_id)
+    wakeup = await waiter
+    elapsed = asyncio.get_running_loop().time() - started_at
+
+    keys = [key async for key in redis.scan_iter(f"{key_prefix}:*")]
+    if keys:
+        await redis.delete(*keys)
+
+    assert wakeup is not None
+    assert wakeup.work_pool_id == work_pool_id
+    assert wakeup.sequence == sequence + 1
+    assert elapsed < 0.5
