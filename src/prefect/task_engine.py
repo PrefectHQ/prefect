@@ -374,9 +374,9 @@ class BaseTaskRunEngine(Generic[P, R]):
     def _compute_retry_delay(self) -> Optional[float]:
         """Compute the next retry delay, applying jitter if configured.
 
-        Mirrors the server-side `RetryFailedTasks` orchestration rule so that
-        locally-executed task retries honor `retry_jitter_factor` (local retries
-        use `set_state(..., force=True)` and bypass server orchestration).
+        The task engine orchestrates retries locally and never proposes states to
+        the server, so the server's `RetryFailedTasks` rule (which applies jitter)
+        never runs for tasks. This mirrors that rule's jitter logic client-side.
         """
         if not self.task.retry_delay_seconds:
             return None
