@@ -10,6 +10,7 @@ Orchestration backend managing flow runs, scheduling, and state tracking. This i
 - **Auth token comparisons must use `hmac.compare_digest`** — never compare auth tokens with `==` or `!=`. Direct equality checks are vulnerable to timing attacks that can leak secrets. Applies to CSRF tokens (`api/middleware.py`), HTTP basic auth (`api/server.py`), and WebSocket auth (`utilities/subscriptions.py`).
 - **Use `SizedParameters` for action schema `parameters` fields** — `schemas/actions.py` defines `SizedParameters = Annotated[Dict[str, Any], AfterValidator(validate_parameter_size_field)]`. Any action model that accepts flow run or deployment parameters must use this type instead of `Dict[str, Any]`. It enforces the `PREFECT_SERVER_API_MAX_PARAMETER_SIZE` limit (default 512 KB, set to 0 to disable) and returns a 422 on violation.
 - **Use `NormalizedSchedule` for action schema `schedule` fields** — `schemas/actions.py` defines `NormalizedSchedule = Annotated[SCHEDULE_TYPES, AfterValidator(normalize_schedule_rrule)]`. Any action model that accepts a schedule on the write path must use this type instead of bare `SCHEDULE_TYPES`. The validator injects an explicit `DTSTART` into rrule strings, preventing dateutil from walking millions of occurrences from the 2020 legacy anchor on every scheduler loop (see PrefectHQ/prefect#21362). The validator is intentionally on the *field* (via `Annotated`) not on `RRuleSchedule` itself — if it were on the class it would fire on DB reads and re-phase `INTERVAL>1` schedules. The same `NormalizedSchedule` is mirrored in `client/schemas/actions.py`.
+- **Perpetual services must use `Perpetual(automatic=True, ...)`** — this lets Docket reschedule them after Redis disruptions. `tests/server/services/test_perpetual_services.py` enforces the registry-wide invariant.
 
 ## Adding a New API Endpoint
 
@@ -62,7 +63,7 @@ Both V1 and V2 UI bundles are served simultaneously when available: V1 at `PREFE
 - `api/` — FastAPI REST endpoints
 - `database/` — Connections, ORM models, and Alembic migrations
 - `orchestration/` — State transition rules and policies
-- `services/` — Background services (scheduler, event services, task queue). Every perpetual service function must declare `Perpetual(automatic=True, ...)` — this allows the docket worker to reschedule the service after a Redis disruption. Using `automatic=False` causes services to silently stop running after Redis outages. `tests/server/services/test_perpetual_services.py` enforces this invariant across the full registry.
+- `services/` — Background services (scheduler, event services, task queue)
 - `events/` — Server-side event processing: trigger evaluation, action execution, messaging, streaming (see also `../events/` for client-side schemas)
 - `concurrency/` — Server-side concurrency management
 - `logs/` — Log storage and retrieval
