@@ -305,6 +305,59 @@ async def test_redis_expire_leases_redelivery_advances_wakeup_in_transaction(
     assert redelivery.delivery_count == 2
 
 
+async def test_redis_expire_leases_without_pool_uses_global_reserved_index(
+    queue: WorkerCleanupQueue,
+    clock: Clock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    first_work_pool_id = uuid4()
+    second_work_pool_id = uuid4()
+    first_message_id = await _enqueue_message(
+        queue, work_pool_id=first_work_pool_id, idempotency_key="first"
+    )
+    second_message_id = await _enqueue_message(
+        queue, work_pool_id=second_work_pool_id, idempotency_key="second"
+    )
+    assert await queue.reserve(work_pool_id=first_work_pool_id) is not None
+    assert await queue.reserve(work_pool_id=second_work_pool_id) is not None
+    assert await queue._client().zcard(queue._reserved_index_key()) == 2
+
+    async def fail_pool_scan() -> list[str]:
+        raise AssertionError("unscoped expiry should not scan the work-pool set")
+
+    monkeypatch.setattr(queue, "_work_pools", fail_pool_scan)
+    clock.advance(timedelta(minutes=1))
+
+    first_result = await queue.expire_leases(limit=1)
+    second_result = await queue.expire_leases(limit=1)
+
+    assert {
+        message.message_id
+        for message in first_result.redelivered + second_result.redelivered
+    } == {first_message_id, second_message_id}
+    assert first_result.dead_lettered == []
+    assert second_result.dead_lettered == []
+    assert len(first_result.redelivered) == 1
+    assert len(second_result.redelivered) == 1
+    assert await queue._client().zcard(queue._reserved_index_key()) == 0
+
+
+async def test_redis_expire_leases_without_pool_drains_legacy_reserved_sets(
+    queue: WorkerCleanupQueue,
+    clock: Clock,
+) -> None:
+    work_pool_id = uuid4()
+    message_id = await _enqueue_message(queue, work_pool_id=work_pool_id)
+    assert await queue.reserve(work_pool_id=work_pool_id) is not None
+    await queue._client().delete(queue._reserved_index_key())
+    clock.advance(timedelta(minutes=1))
+
+    result = await queue.expire_leases()
+
+    assert [message.message_id for message in result.redelivered] == [message_id]
+    assert result.dead_lettered == []
+
+
 async def test_redis_reserve_scans_visible_messages_in_batches(
     queue: WorkerCleanupQueue,
     monkeypatch: pytest.MonkeyPatch,
@@ -455,3 +508,62 @@ async def test_redis_wait_for_wakeup_observes_shared_sequence(redis: Redis) -> N
     assert wakeup is not None
     assert wakeup.work_pool_id == work_pool_id
     assert wakeup.sequence == sequence + 1
+
+
+async def test_redis_wait_for_wakeup_receives_cross_instance_hint(
+    redis: Redis,
+) -> None:
+    work_pool_id = uuid4()
+    key_prefix = f"prefect:test:cleanup:{uuid4()}"
+    waiting_queue = WorkerCleanupQueue(redis_client=redis, key_prefix=key_prefix)
+    waking_queue = WorkerCleanupQueue(redis_client=redis, key_prefix=key_prefix)
+    sequence = await waiting_queue.read_wakeup_sequence(work_pool_id)
+
+    started_at = asyncio.get_running_loop().time()
+    waiter = asyncio.create_task(
+        waiting_queue.wait_for_wakeup(work_pool_id, after=sequence, timeout=2)
+    )
+    await asyncio.sleep(0.05)
+    await waking_queue.wake_dispatchers(work_pool_id)
+    wakeup = await waiter
+    elapsed = asyncio.get_running_loop().time() - started_at
+
+    keys = [key async for key in redis.scan_iter(f"{key_prefix}:*")]
+    if keys:
+        await redis.delete(*keys)
+
+    assert wakeup is not None
+    assert wakeup.work_pool_id == work_pool_id
+    assert wakeup.sequence == sequence + 1
+    assert elapsed < 0.5
+
+
+async def test_redis_wait_for_wakeup_closes_pubsub_on_cancelled_subscribe() -> None:
+    class CancellingPubSub:
+        closed = False
+        unsubscribed = False
+
+        async def subscribe(self, channel: str) -> None:
+            raise asyncio.CancelledError
+
+        async def unsubscribe(self, channel: str) -> None:
+            self.unsubscribed = True
+
+        async def aclose(self) -> None:
+            self.closed = True
+
+    class FakeRedis:
+        def __init__(self, pubsub: CancellingPubSub) -> None:
+            self._pubsub = pubsub
+
+        def pubsub(self) -> CancellingPubSub:
+            return self._pubsub
+
+    pubsub = CancellingPubSub()
+    queue = WorkerCleanupQueue(redis_client=FakeRedis(pubsub))  # type: ignore[arg-type]
+
+    with pytest.raises(asyncio.CancelledError):
+        await queue.wait_for_wakeup(uuid4())
+
+    assert pubsub.closed
+    assert not pubsub.unsubscribed
