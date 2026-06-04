@@ -128,7 +128,6 @@ ARG SQLITE_VERSION
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
-ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 ENV UV_SYSTEM_PYTHON=1
 
@@ -188,7 +187,7 @@ COPY --from=python-builder /opt/prefect/dist ./dist
 # Extras to include during installation
 ARG PREFECT_EXTRAS=[redis,client,otel]
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install "./dist/prefect.tar.gz${PREFECT_EXTRAS:-""}" && \
+    UV_COMPILE_BYTECODE=1 uv pip install "./dist/prefect.tar.gz${PREFECT_EXTRAS:-""}" && \
     rm -rf dist/
 
 # Remove setuptools
@@ -197,7 +196,7 @@ RUN uv pip uninstall setuptools
 # Install any extra packages
 ARG EXTRA_PIP_PACKAGES
 RUN --mount=type=cache,target=/root/.cache/uv \
-    [ -z "${EXTRA_PIP_PACKAGES:-""}" ] || uv pip install "${EXTRA_PIP_PACKAGES}"
+    [ -z "${EXTRA_PIP_PACKAGES:-""}" ] || UV_COMPILE_BYTECODE=1 uv pip install "${EXTRA_PIP_PACKAGES}"
 
 # Smoke test
 RUN prefect version
