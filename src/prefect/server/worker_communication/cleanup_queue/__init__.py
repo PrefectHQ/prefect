@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 import importlib
+import logging
 from typing import Any, ClassVar, Literal
 from uuid import UUID
 
@@ -9,10 +10,33 @@ from pydantic import ConfigDict, Field
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.client.schemas.worker_channel import CleanupKind, CleanupOperationStatus
+from prefect.logging import get_logger
 from prefect.settings.context import get_current_settings
 from prefect.types import DateTime, NonNegativeInteger, PositiveInteger
 
+try:
+    from prometheus_client import Counter
+except ImportError:  # pragma: no cover - prometheus_client is a runtime dependency
+    Counter = None
+
 CleanupQueueOperation = Literal["ack", "release", "renew"]
+
+logger: logging.Logger = get_logger(__name__)
+
+if Counter is not None:
+    CLEANUP_QUEUE_DEAD_LETTERS = Counter(
+        "prefect_worker_cleanup_queue_dead_letters_total",
+        "Worker cleanup queue messages moved to the dead-letter queue.",
+        ["kind", "reason"],
+    )
+    CLEANUP_QUEUE_LEASE_EXPIRATIONS = Counter(
+        "prefect_worker_cleanup_queue_lease_expirations_total",
+        "Worker cleanup queue lease expirations by transition result.",
+        ["result"],
+    )
+else:
+    CLEANUP_QUEUE_DEAD_LETTERS = None
+    CLEANUP_QUEUE_LEASE_EXPIRATIONS = None
 
 
 class CleanupQueueMessage(PrefectBaseModel):
@@ -251,6 +275,54 @@ class WorkerCleanupQueue:
         ...
 
 
+def record_cleanup_queue_dead_letter(
+    dead_letter: CleanupQueueDeadLetter, *, source: str
+) -> None:
+    """
+    Record observability signals for a cleanup message DLQ transition.
+    """
+    message = dead_letter.message
+    if CLEANUP_QUEUE_DEAD_LETTERS is not None:
+        CLEANUP_QUEUE_DEAD_LETTERS.labels(
+            kind=str(message.kind),
+            reason=dead_letter.reason,
+        ).inc()
+
+    logger.warning(
+        "Worker cleanup message moved to dead-letter queue: "
+        "message_id=%s cleanup_kind=%s work_pool_id=%s "
+        "final_delivery_count=%s reason=%s release_reason=%s "
+        "lease_expires_at=%s source=%s",
+        message.message_id,
+        message.kind,
+        message.work_pool_id,
+        dead_letter.final_delivery_count,
+        dead_letter.reason,
+        dead_letter.release_reason,
+        dead_letter.lease_expires_at,
+        source,
+    )
+
+
+def record_cleanup_queue_lease_expiry_result(
+    result: CleanupQueueLeaseExpiryResult,
+) -> None:
+    """
+    Record aggregate lease-expiry transition metrics.
+    """
+    if CLEANUP_QUEUE_LEASE_EXPIRATIONS is None:
+        return
+
+    if result.redelivered:
+        CLEANUP_QUEUE_LEASE_EXPIRATIONS.labels(result="redelivered").inc(
+            len(result.redelivered)
+        )
+    if result.dead_lettered:
+        CLEANUP_QUEUE_LEASE_EXPIRATIONS.labels(result="dead_lettered").inc(
+            len(result.dead_lettered)
+        )
+
+
 def get_worker_cleanup_queue() -> WorkerCleanupQueue:
     """
     Return a cleanup queue instance from the configured storage module.
@@ -281,4 +353,6 @@ __all__ = [
     "CleanupQueueWakeup",
     "WorkerCleanupQueue",
     "get_worker_cleanup_queue",
+    "record_cleanup_queue_dead_letter",
+    "record_cleanup_queue_lease_expiry_result",
 ]
