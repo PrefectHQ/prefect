@@ -43,7 +43,7 @@ def _get_service_worker_cleanup_queue() -> WorkerCleanupQueue:
 async def reconcile_cleanup_delivery(
     cleanup_queue: WorkerCleanupQueue = Depends(_get_service_worker_cleanup_queue),
     perpetual: Perpetual = Perpetual(
-        automatic=False,
+        automatic=True,
         every=timedelta(
             seconds=get_current_settings().server.services.cleanup_reconciler.loop_seconds
         ),
