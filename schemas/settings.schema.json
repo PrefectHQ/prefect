@@ -859,6 +859,15 @@
                     "title": "Crash On Cancellation Failure",
                     "type": "boolean"
                 },
+                "auto_install_dependencies": {
+                    "default": false,
+                    "description": "Whether runners may install dependencies before executing flow runs. Enable this when deployments pull code that needs dependencies prepared at runtime.",
+                    "supported_environment_variables": [
+                        "PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES"
+                    ],
+                    "title": "Auto Install Dependencies",
+                    "type": "boolean"
+                },
                 "server": {
                     "$ref": "#/$defs/RunnerServerSettings",
                     "supported_environment_variables": []
@@ -1200,6 +1209,24 @@
                     ],
                     "title": "Cors Allowed Headers",
                     "type": "string"
+                },
+                "websocket_ping_interval": {
+                    "default": 20.0,
+                    "description": "WebSocket ping interval in seconds. Only applies when starting the server with `prefect server start`.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_WEBSOCKET_PING_INTERVAL"
+                    ],
+                    "title": "Websocket Ping Interval",
+                    "type": "number"
+                },
+                "websocket_ping_timeout": {
+                    "default": 20.0,
+                    "description": "WebSocket ping timeout in seconds. Only applies when starting the server with `prefect server start`.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_API_WEBSOCKET_PING_TIMEOUT"
+                    ],
+                    "title": "Websocket Ping Timeout",
+                    "type": "number"
                 },
                 "max_parameter_size": {
                     "default": 524288,
@@ -2450,6 +2477,11 @@
                     "$ref": "#/$defs/ServerUISettings",
                     "description": "Settings for controlling server UI behavior",
                     "supported_environment_variables": []
+                },
+                "worker_channel": {
+                    "$ref": "#/$defs/ServerWorkerChannelSettings",
+                    "description": "Settings for controlling server worker channel behavior",
+                    "supported_environment_variables": []
                 }
             },
             "title": "ServerSettings",
@@ -2601,6 +2633,59 @@
                 }
             },
             "title": "ServerUISettings",
+            "type": "object"
+        },
+        "ServerWorkerChannelSettings": {
+            "description": "Settings for server-side worker channel storage and delivery policy.",
+            "properties": {
+                "cleanup_queue_storage": {
+                    "default": "prefect.server.worker_communication.cleanup_queue.memory",
+                    "description": "The module to use for storing worker cleanup delivery messages. The default in-memory backend stores messages, leases, wakeups, and dead-letter entries only in the current server process; use an external storage module for high availability or restart-safe cleanup delivery.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE"
+                    ],
+                    "title": "Cleanup Queue Storage",
+                    "type": "string"
+                },
+                "cleanup_lease_seconds": {
+                    "default": 30.0,
+                    "description": "The default cleanup message reservation lease duration in seconds.",
+                    "exclusiveMinimum": 0.0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_LEASE_SECONDS"
+                    ],
+                    "title": "Cleanup Lease Seconds",
+                    "type": "number"
+                },
+                "cleanup_max_delivery_attempts": {
+                    "default": 3,
+                    "description": "The maximum number of committed cleanup reservations before a message is moved to the dead-letter queue.",
+                    "minimum": 1,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_MAX_DELIVERY_ATTEMPTS"
+                    ],
+                    "title": "Cleanup Max Delivery Attempts",
+                    "type": "integer"
+                },
+                "cleanup_completed_idempotency_retention_seconds": {
+                    "anyOf": [
+                        {
+                            "minimum": 0.0,
+                            "type": "number"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "How long completed cleanup idempotency records are retained after acknowledgement. None keeps them for the lifetime of the current server process. The in-memory backend does not survive restart; use external storage for high availability or restart-safe cleanup idempotency.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_COMPLETED_IDEMPOTENCY_RETENTION_SECONDS"
+                    ],
+                    "title": "Cleanup Completed Idempotency Retention Seconds"
+                }
+            },
+            "title": "ServerWorkerChannelSettings",
             "type": "object"
         },
         "TasksRunnerSettings": {

@@ -170,6 +170,119 @@ async def test_async_redis_from_settings_with_url():
     await client.aclose()
 
 
+def test_redis_settings_connection_defaults():
+    """Settings default to socket_timeout=None, socket_connect_timeout=None, protocol=2."""
+    settings = RedisMessagingSettings()
+    assert settings.socket_timeout is None
+    assert settings.socket_connect_timeout is None
+    assert settings.protocol == 2
+
+
+def test_redis_settings_connection_from_env(monkeypatch: pytest.MonkeyPatch):
+    """Connection settings can be configured via environment variables."""
+    monkeypatch.setenv("PREFECT_REDIS_MESSAGING_SOCKET_TIMEOUT", "10.0")
+    monkeypatch.setenv("PREFECT_REDIS_MESSAGING_SOCKET_CONNECT_TIMEOUT", "3.5")
+    monkeypatch.setenv("PREFECT_REDIS_MESSAGING_PROTOCOL", "3")
+    settings = RedisMessagingSettings()
+    assert settings.socket_timeout == 10.0
+    assert settings.socket_connect_timeout == 3.5
+    assert settings.protocol == 3
+
+
+async def test_get_async_redis_client_default_socket_timeout():
+    """Default clients have socket_timeout=None (no timeout) for redis-py 8 compat."""
+    _client_cache.clear()
+    client = get_async_redis_client()
+    conn_kwargs = client.connection_pool.connection_kwargs
+    assert conn_kwargs.get("socket_timeout") is None
+    assert conn_kwargs.get("socket_connect_timeout") is None
+    await client.aclose()
+    _client_cache.clear()
+
+
+async def test_get_async_redis_client_default_protocol():
+    """Default clients use protocol=2 for older Redis/proxy compatibility."""
+    _client_cache.clear()
+    client = get_async_redis_client()
+    conn_kwargs = client.connection_pool.connection_kwargs
+    assert conn_kwargs.get("protocol") == 2
+    await client.aclose()
+    _client_cache.clear()
+
+
+async def test_get_async_redis_client_explicit_socket_timeout():
+    """Explicit socket_timeout overrides the settings default."""
+    _client_cache.clear()
+    client = get_async_redis_client(socket_timeout=30.0, socket_connect_timeout=5.0)
+    conn_kwargs = client.connection_pool.connection_kwargs
+    assert conn_kwargs["socket_timeout"] == 30.0
+    assert conn_kwargs["socket_connect_timeout"] == 5.0
+    await client.aclose()
+    _client_cache.clear()
+
+
+async def test_get_async_redis_client_url_passes_socket_timeout():
+    """socket_timeout/protocol are passed through the from_url path."""
+    _client_cache.clear()
+    client = get_async_redis_client(url="redis://localhost:6379/0")
+    conn_kwargs = client.connection_pool.connection_kwargs
+    assert conn_kwargs.get("socket_timeout") is None
+    assert conn_kwargs.get("socket_connect_timeout") is None
+    assert conn_kwargs.get("protocol") == 2
+    await client.aclose()
+    _client_cache.clear()
+
+
+async def test_get_async_redis_client_url_query_overrides_keyword_defaults():
+    """URL query params override keyword defaults (redis-py from_url behavior)."""
+    _client_cache.clear()
+    client = get_async_redis_client(
+        url="redis://localhost:6379/0?socket_timeout=7&socket_connect_timeout=3"
+    )
+    conn_kwargs = client.connection_pool.connection_kwargs
+    assert conn_kwargs["socket_timeout"] == 7
+    assert conn_kwargs["socket_connect_timeout"] == 3
+    await client.aclose()
+    _client_cache.clear()
+
+
+async def test_async_redis_from_settings_passes_connection_defaults():
+    """async_redis_from_settings passes socket_timeout/protocol from settings."""
+    _client_cache.clear()
+    settings = RedisMessagingSettings()
+    client = async_redis_from_settings(settings)
+    conn_kwargs = client.connection_pool.connection_kwargs
+    assert conn_kwargs.get("socket_timeout") is None
+    assert conn_kwargs.get("socket_connect_timeout") is None
+    assert conn_kwargs.get("protocol") == 2
+    await client.aclose()
+    _client_cache.clear()
+
+
+async def test_async_redis_from_settings_options_override():
+    """Options kwargs override settings defaults in async_redis_from_settings."""
+    _client_cache.clear()
+    settings = RedisMessagingSettings()
+    client = async_redis_from_settings(settings, socket_timeout=15.0, protocol=3)
+    conn_kwargs = client.connection_pool.connection_kwargs
+    assert conn_kwargs["socket_timeout"] == 15.0
+    assert conn_kwargs["protocol"] == 3
+    await client.aclose()
+    _client_cache.clear()
+
+
+async def test_async_redis_from_settings_url_with_connection_defaults():
+    """async_redis_from_settings with url passes connection defaults."""
+    _client_cache.clear()
+    settings = RedisMessagingSettings(url="redis://localhost:6379/0")
+    client = async_redis_from_settings(settings)
+    conn_kwargs = client.connection_pool.connection_kwargs
+    assert conn_kwargs.get("socket_timeout") is None
+    assert conn_kwargs.get("protocol") == 2
+    await client.aclose()
+    _client_cache.clear()
+
+
 @patch("prefect_redis.client._client_cache")
 def test_close_all_cached_connections(mock_cache):
     """Test that close_all_cached_connections properly closes all clients"""
