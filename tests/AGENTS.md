@@ -54,6 +54,10 @@ uv run pytest tests/path/to/file.py --no-clear-db -x
 
 If it passes, delete the `pytestmark` (or per-test marker) and commit.
 
+### Event assertions
+
+Creating a domain object emits a lifecycle event: building a `flow`, `work_pool`, `variable`, block, concurrency limit, etc. (via fixture or model call) emits `prefect.<object>.{created,...}`. Server tests that assert on `AssertingEventsClient` totals or ordering must `AssertingEventsClient.reset()` after fixture setup, so they count only the events from the action under test rather than the events emitted while building fixtures.
+
 ### Type Hints
 - Full type hints on all test functions and fixtures (Python >=3.12 style: `dict[str, str]`)
 - Return type hints on fixtures, omit `-> None` on test functions
