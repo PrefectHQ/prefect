@@ -55,7 +55,6 @@ async def create_flow(
         orm_models.Flow: the newly-created or existing flow
     """
 
-    upsert_start = now("UTC")
     insert_stmt = (
         db.queries.insert(db.Flow)
         .values(**flow.model_dump_for_orm(exclude_unset=True))
@@ -63,7 +62,8 @@ async def create_flow(
             index_elements=db.orm.flow_unique_upsert_columns,
         )
     )
-    await session.execute(insert_stmt)
+    insert_result = await session.execute(insert_stmt)
+    inserted = insert_result.rowcount == 1
 
     query = (
         sa.select(db.Flow)
@@ -74,7 +74,7 @@ async def create_flow(
     result = await session.execute(query)
     model = result.scalar_one()
 
-    if model.created >= upsert_start:
+    if inserted:
         await emit_flow_created_event(model)
 
     return model

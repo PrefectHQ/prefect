@@ -447,6 +447,15 @@ async def delete_work_pool(
     if work_pool is None:
         return False
 
+    queues = await read_work_queues(session=session, work_pool_id=work_pool_id)
+    async with clients.PrefectServerEventsClient() as events_client:
+        for queue in queues:
+            await events_client.emit(
+                await work_queue_deleted_event(
+                    session=session, work_queue=queue, occurred=now("UTC")
+                )
+            )
+
     await emit_work_pool_deleted_event(work_pool)
 
     await session.execute(delete(db.WorkPool).where(db.WorkPool.id == work_pool_id))

@@ -62,6 +62,51 @@ class TestWorkPoolLifecycleEvents:
             },
         )
 
+    async def test_delete_work_pool_emits_deleted_events_for_its_queues(
+        self, client: AsyncClient
+    ):
+        created = await client.post(
+            "/work_pools/",
+            json=WorkPoolCreate(name="events-pool-cascade", type="test").model_dump(
+                mode="json"
+            ),
+        )
+        pool = created.json()
+        extra_queue = await client.post(
+            "/work_pools/events-pool-cascade/queues",
+            json=WorkQueueCreate(name="extra-queue").model_dump(mode="json"),
+        )
+        assert extra_queue.status_code == 201, extra_queue.text
+        extra_queue_id = extra_queue.json()["id"]
+        AssertingEventsClient.reset()
+
+        response = await client.delete("/work_pools/events-pool-cascade")
+        assert response.status_code == 204
+
+        # The pool's default queue and the custom queue should each emit a
+        # delete event before the pool itself is removed.
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-queue.deleted",
+            resource={
+                "prefect.resource.id": (
+                    f"prefect.work-queue.{pool['default_queue_id']}"
+                ),
+            },
+        )
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-queue.deleted",
+            resource={
+                "prefect.resource.id": f"prefect.work-queue.{extra_queue_id}",
+                "prefect.resource.name": "extra-queue",
+            },
+        )
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.work-pool.deleted",
+            resource={
+                "prefect.resource.id": f"prefect.work-pool.{pool['id']}",
+            },
+        )
+
 
 class TestWorkQueueLifecycleEvents:
     async def test_create_work_queue_emits_created_event(
