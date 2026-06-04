@@ -1,17 +1,17 @@
 """Typed payloads and builders for `prefect.<object>.{created,updated,deleted}`
 lifecycle events.
 
-Each payload describes a domain object's post-state — everything a consumer
-needs to act on the change without reading the object back from the API. The
-shapes mirror Prefect Cloud's lifecycle-event payloads so the two emit the same
-thing, minus Cloud-only concepts (accounts, workspaces, actors).
+Each payload is the shape of the event's `payload` field for a domain object —
+what a consumer sees on the event without reading the object back from the API.
+The shapes mirror Prefect Cloud's lifecycle-event payloads so the two emit the
+same thing.
 
 The builders here are pure functions of an ORM object and a timestamp, with no
 dependency on the model layer, so any model module can import them without
 risking a circular import.
 """
 
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Optional
 from uuid import UUID
 
 from pydantic import ConfigDict, Field
@@ -60,9 +60,9 @@ def _lifecycle_event(
 
 
 class VariableEventPayload(PrefectBaseModel):
-    """A variable's post-state: its name, value, and tags."""
+    """The payload of a variable lifecycle event: its name, value, and tags."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)
 
     name: str
     value: StrictVariableValue
@@ -75,7 +75,7 @@ def variable_created_event(variable: "ORMVariable", occurred: DateTime) -> Event
 
 
 def variable_updated_event(variable: "ORMVariable", occurred: DateTime) -> Event:
-    """Create an event for variable updates, carrying the full post-state."""
+    """Create an event for variable updates."""
     return _variable_event("updated", variable, occurred)
 
 
@@ -96,9 +96,9 @@ def _variable_event(action: str, variable: "ORMVariable", occurred: DateTime) ->
 
 
 class FlowEventPayload(PrefectBaseModel):
-    """A flow's post-state: its name, tags, and labels."""
+    """The payload of a flow lifecycle event: its name, tags, and labels."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)
 
     name: str
     tags: List[str] = Field(default_factory=list)
@@ -111,7 +111,7 @@ def flow_created_event(flow: "ORMFlow", occurred: DateTime) -> Event:
 
 
 def flow_updated_event(flow: "ORMFlow", occurred: DateTime) -> Event:
-    """Create an event for flow updates, carrying the full post-state."""
+    """Create an event for flow updates."""
     return _flow_event("updated", flow, occurred)
 
 
@@ -132,9 +132,10 @@ def _flow_event(action: str, flow: "ORMFlow", occurred: DateTime) -> Event:
 
 
 class BlockTypeEventPayload(PrefectBaseModel):
-    """A block type's post-state: its identity, presentation, and protection."""
+    """The payload of a block type lifecycle event: its identity, presentation,
+    and protection."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)
 
     name: str
     slug: str
@@ -151,7 +152,7 @@ def block_type_created_event(block_type: "BlockType", occurred: DateTime) -> Eve
 
 
 def block_type_updated_event(block_type: "BlockType", occurred: DateTime) -> Event:
-    """Create an event for block type updates, carrying the full post-state."""
+    """Create an event for block type updates."""
     return _block_type_event("updated", block_type, occurred)
 
 
@@ -190,8 +191,9 @@ class BlockSchemaEventPayload(PrefectBaseModel):
 
 
 class BlockDocumentEventPayload(PrefectBaseModel):
-    """A block document's post-state: its name, the non-secret string values of
-    its data, and the nested block schema (capabilities and block type)."""
+    """The payload of a block document lifecycle event: its name, the non-secret
+    string values of its data, and the nested block schema (capabilities and
+    block type)."""
 
     name: Optional[str] = None
     data: Dict[str, str] = Field(default_factory=dict)
@@ -208,7 +210,7 @@ def block_document_created_event(
 def block_document_updated_event(
     block_document: "BlockDocument", occurred: DateTime
 ) -> Event:
-    """Create an event for block document updates, carrying the full post-state."""
+    """Create an event for block document updates."""
     return _block_document_event("updated", block_document, occurred)
 
 
@@ -274,10 +276,10 @@ def _block_document_event(
 
 
 class ConcurrencyLimitV2EventPayload(PrefectBaseModel):
-    """A global concurrency limit's published configuration. Runtime slot
-    accounting is intentionally omitted — the event carries configuration."""
+    """The payload of a global concurrency limit lifecycle event: its name,
+    limit, active flag, and slot decay rate."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)
 
     name: str
     limit: int
@@ -295,7 +297,7 @@ def concurrency_limit_v2_created_event(
 def concurrency_limit_v2_updated_event(
     concurrency_limit: "ConcurrencyLimitV2", occurred: DateTime
 ) -> Event:
-    """Create an event for global concurrency limit updates, with post-state."""
+    """Create an event for global concurrency limit updates."""
     return _concurrency_limit_v2_event("updated", concurrency_limit, occurred)
 
 
@@ -322,10 +324,10 @@ def _concurrency_limit_v2_event(
 
 
 class ConcurrencyLimitEventPayload(PrefectBaseModel):
-    """A tag-based (v1) concurrency limit's configuration: the tag it applies to
-    and its limit. Active slot run-ids are runtime accounting and are omitted."""
+    """The payload of a tag-based (v1) concurrency limit lifecycle event: the tag
+    it applies to and its limit."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)
 
     tag: str
     concurrency_limit: int
@@ -341,7 +343,7 @@ def concurrency_limit_created_event(
 def concurrency_limit_updated_event(
     concurrency_limit: "ConcurrencyLimit", occurred: DateTime
 ) -> Event:
-    """Create an event for tag-based concurrency limit updates, with post-state."""
+    """Create an event for tag-based concurrency limit updates."""
     return _concurrency_limit_event("updated", concurrency_limit, occurred)
 
 
@@ -368,11 +370,11 @@ def _concurrency_limit_event(
 
 
 class ArtifactCollectionEventPayload(PrefectBaseModel):
-    """An artifact collection's post-state: the collection key, the artifact
-    type, and its data and description. The latest artifact and its flow/task
-    runs ride the event's `related` resources, not the payload."""
+    """The payload of an artifact collection lifecycle event: the collection key,
+    the artifact type, and its data and description. The latest artifact and its
+    flow/task runs ride the event's `related` resources, not the payload."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(from_attributes=True)
 
     key: str
     type: Optional[str] = None
@@ -390,7 +392,7 @@ def artifact_collection_created_event(
 def artifact_collection_updated_event(
     artifact_collection: "ORMArtifactCollection", occurred: DateTime
 ) -> Event:
-    """Create an event for artifact collection updates, carrying the post-state."""
+    """Create an event for artifact collection updates."""
     return _artifact_collection_event("updated", artifact_collection, occurred)
 
 
@@ -450,7 +452,7 @@ def automation_created_event(automation: "Automation", occurred: DateTime) -> Ev
 
 
 def automation_updated_event(automation: "Automation", occurred: DateTime) -> Event:
-    """Create an event for automation updates, carrying the full post-state."""
+    """Create an event for automation updates."""
     return _automation_event("updated", automation, occurred)
 
 

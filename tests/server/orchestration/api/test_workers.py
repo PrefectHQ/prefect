@@ -557,6 +557,7 @@ class TestDeleteWorkPool:
 
 class TestUpdateWorkPool:
     async def test_update_work_pool(self, client, session, work_pool):
+        AssertingEventsClient.reset()
         response = await client.patch(
             f"/work_pools/{work_pool.name}",
             json=dict(is_paused=True, concurrency_limit=5),
