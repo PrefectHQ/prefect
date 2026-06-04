@@ -67,7 +67,7 @@ Both V1 and V2 UI bundles are served simultaneously when available: V1 at `PREFE
 - `events/` — Server-side event processing: trigger evaluation, action execution, messaging, streaming (see also `../events/` for client-side schemas)
 - `concurrency/` — Server-side concurrency management
 - `logs/` — Log storage and retrieval
-- `worker_communication/` — Pluggable server-side messaging to workers: cleanup delivery queue for expired/cancelled flow run teardown. The abstract interface is in `cleanup_queue/__init__.py`; the default in-memory backend (`cleanup_queue/memory.py`) is a process-level singleton and is not restart-safe. Configure `PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE` to point to a module exposing a concrete `WorkerCleanupQueue` subclass for HA or Redis-backed deployments.
+- `worker_communication/` — Pluggable server-side messaging to workers: cleanup delivery queue for expired/cancelled flow run teardown. The abstract interface is in `cleanup_queue/__init__.py`; the default in-memory backend (`cleanup_queue/memory.py`) is a process-level singleton and is not restart-safe. Lease expiry is not self-managed — it is driven by the `services/cleanup_reconciler.py` perpetual service calling `expire_leases()`. Configure `PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE` to point to a module exposing a concrete `WorkerCleanupQueue` subclass for HA or Redis-backed deployments.
 
 ## Related
 
