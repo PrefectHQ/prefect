@@ -37,6 +37,18 @@ def test_parse_image_tag(value, expected):
 @pytest.mark.parametrize(
     "value,expected",
     [
+        ("img:1.0:2.0", ("img", "1.0:2.0")),
+        ("myorg/myimage:1.0:beta", ("myorg/myimage", "1.0:beta")),
+    ],
+)
+def test_parse_image_tag_extra_colon(value, expected):
+    # A second colon in the tag/digest segment must not crash the unpack
+    assert parse_image_tag(value) == expected
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
         ("20.10.0", "20.10.0"),
         ("v20.10.10", "v20.10.10"),
         ("v20.10.0-ce", "v20.10.0"),
