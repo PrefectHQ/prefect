@@ -1,8 +1,8 @@
 ---
 title: Manage Deployment schedules
 sidebarTitle: Manage Deployment schedules
-description: Learn how to pause and resume deployment schedules using the Prefect CLI.
-keywords: ["schedule", "pause", "resume", "manage", "CLI"]
+description: Learn how to pause, resume, and remove deployment schedules using the Prefect CLI.
+keywords: ["schedule", "pause", "resume", "clear", "remove", "manage", "CLI"]
 ---
 
 You can pause and resume deployment schedules individually or in bulk. 
@@ -86,6 +86,24 @@ To skip the interactive confirmation (useful for CI/CD pipelines or scripts), us
 ```bash
 prefect --no-prompt deployment schedule pause --all
 prefect --no-prompt deployment schedule resume --all
+```
+
+## Remove all schedules from a deployment
+
+To remove all schedules from a deployment, use `prefect deployment schedule clear`:
+
+```bash
+prefect deployment schedule clear my-flow/my-deployment
+```
+
+You will be prompted to confirm before schedules are removed.
+
+### Skip the confirmation prompt
+
+To skip the confirmation prompt (useful in scripts or CI pipelines), pass the `-y` flag:
+
+```bash
+prefect deployment schedule clear my-flow/my-deployment -y
 ```
 
 ## Use cases
