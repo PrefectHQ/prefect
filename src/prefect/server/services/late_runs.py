@@ -57,7 +57,7 @@ async def monitor_late_runs(
     docket: Docket = CurrentDocket(),
     db: PrefectDBInterface = Depends(provide_database_interface),
     perpetual: Perpetual = Perpetual(
-        automatic=False,
+        automatic=True,
         every=timedelta(
             seconds=get_current_settings().server.services.late_runs.loop_seconds
         ),
