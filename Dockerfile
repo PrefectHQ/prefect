@@ -31,10 +31,11 @@ WORKDIR /opt/ui
 RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
     apt-get update && \
     apt-get upgrade --no-install-recommends -y && \
-    apt-get install --no-install-recommends -y \
-    # Required for arm64 builds
-    chromium \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    # Retry with refreshed index on mirror-sync failures (hash/size mismatch)
+    (apt-get install --no-install-recommends -y chromium || \
+     (rm -rf /var/lib/apt/lists/* && apt-get update && \
+      apt-get install --no-install-recommends -y chromium)) && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies separately so they cache
 COPY ./ui/package*.json ./
@@ -56,10 +57,11 @@ WORKDIR /opt/ui-v2
 RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
     apt-get update && \
     apt-get upgrade --no-install-recommends -y && \
-    apt-get install --no-install-recommends -y \
-    # Required for arm64 builds
-    chromium \
-    && apt-get clean && rm -rf /var/lib/apt/lists/*
+    # Retry with refreshed index on mirror-sync failures (hash/size mismatch)
+    (apt-get install --no-install-recommends -y chromium || \
+     (rm -rf /var/lib/apt/lists/* && apt-get update && \
+      apt-get install --no-install-recommends -y chromium)) && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies separately so they cache
 COPY ./ui-v2/package*.json ./
