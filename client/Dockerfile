@@ -44,7 +44,6 @@ ARG SQLITE_VERSION
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
-ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 ENV UV_SYSTEM_PYTHON=1
 
@@ -79,7 +78,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.5.30 /uv /bin/uv
 # Install prefect from the sdist
 COPY --from=python-builder /opt/prefect/dist ./dist
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install "./dist/prefect_client.tar.gz" && \
+    UV_COMPILE_BYTECODE=1 uv pip install "./dist/prefect_client.tar.gz" && \
     rm -rf dist/
 
 # Remove setuptools
