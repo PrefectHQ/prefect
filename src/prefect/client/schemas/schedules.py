@@ -26,6 +26,44 @@ MAX_ITERATIONS = 1000
 MAX_RRULE_LENGTH = 6500
 
 
+def _iana_timezone_name(tzinfo: datetime.tzinfo) -> str:
+    """Extract a valid IANA timezone name from a tzinfo object.
+
+    Supports `zoneinfo.ZoneInfo` (has `.key`) and
+    `dateutil.tz.gettz()` / `dateutil.tz.tzfile` (has `._filename`).
+    Falls back to `"UTC"` when no valid name can be determined.
+    """
+    # zoneinfo.ZoneInfo exposes .key
+    key: Optional[str] = getattr(tzinfo, "key", None)
+    if key and is_valid_timezone(key):
+        return key
+
+    # dateutil tzfile: inspect the underlying file path
+    filename: Optional[str] = getattr(tzinfo, "_filename", None)
+    if filename:
+        marker = "/zoneinfo/"
+        idx = filename.find(marker)
+        if idx != -1:
+            candidate = filename[idx + len(marker) :]
+            if candidate and is_valid_timezone(candidate):
+                return candidate
+
+    # dateutil tzfile may also expose ._name
+    name: Optional[str] = getattr(tzinfo, "_name", None)
+    if name and is_valid_timezone(name):
+        return name
+
+    # Last resort: tzname(None) if it happens to be a valid IANA name
+    try:
+        tz_name = tzinfo.tzname(None)  # type: ignore[arg-type]
+    except Exception:
+        tz_name = None
+    if tz_name and is_valid_timezone(tz_name):
+        return tz_name
+
+    return "UTC"
+
+
 def is_valid_timezone(v: str) -> bool:
     """
     Validate that the provided timezone is a valid IANA timezone.
@@ -204,26 +242,27 @@ class RRuleSchedule(PrefectBaseModel):
         if isinstance(rrule, dateutil.rrule.rrule):
             dtstart = _rrule_dt(rrule)
             if dtstart and dtstart.tzinfo is not None:
-                timezone = dtstart.tzinfo.tzname(dtstart)
+                timezone = _iana_timezone_name(dtstart.tzinfo)
             else:
                 timezone = "UTC"
             return RRuleSchedule(rrule=str(rrule), timezone=timezone)
         rrules = _rrule(rrule)
         dtstarts = [dts for rr in rrules if (dts := _rrule_dt(rr)) is not None]
         unique_dstarts = set(d.astimezone(ZoneInfo("UTC")) for d in dtstarts)
-        unique_timezones = set(d.tzinfo for d in dtstarts if d.tzinfo is not None)
+        unique_tz_names = set(
+            _iana_timezone_name(d.tzinfo) for d in dtstarts if d.tzinfo is not None
+        )
 
-        if len(unique_timezones) > 1:
+        if len(unique_tz_names) > 1:
             raise ValueError(
-                f"rruleset has too many dtstart timezones: {unique_timezones}"
+                f"rruleset has too many dtstart timezones: {unique_tz_names}"
             )
 
         if len(unique_dstarts) > 1:
             raise ValueError(f"rruleset has too many dtstarts: {unique_dstarts}")
 
-        if unique_dstarts and unique_timezones:
-            [unique_tz] = unique_timezones
-            timezone = unique_tz.tzname(dtstarts[0])
+        if unique_dstarts and unique_tz_names:
+            [timezone] = unique_tz_names
         else:
             timezone = "UTC"
 

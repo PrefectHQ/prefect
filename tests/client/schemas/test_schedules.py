@@ -1,6 +1,9 @@
 import datetime
 from itertools import combinations
+from zoneinfo import ZoneInfo
 
+import dateutil.rrule
+import dateutil.tz
 import pytest
 
 from prefect.client.schemas.actions import (
@@ -230,3 +233,133 @@ class TestDeploymentFlowRunCreate:
         assert len(dumped["parameters"]["dates"]) == 2
         assert dumped["parameters"]["dates"][0] == "2025-10-24"
         assert dumped["parameters"]["dates"][1] == "2025-10-25"
+
+
+class TestRRuleScheduleFromRRule:
+    """Verify that from_rrule() preserves IANA timezone names across DST."""
+
+    # dtstart before 2024 spring-forward (Mar 10 02:00 ET)
+    _DTSTART_BEFORE_DST = datetime.datetime(2024, 3, 1, 9, 0, 0)
+
+    def _assert_daily_9am_across_dst(
+        self, schedule: RRuleSchedule, tz_name: str
+    ) -> None:
+        """Shared assertions for timezone preservation and DST correctness."""
+        assert schedule.timezone == tz_name
+        rrule_out = schedule.to_rrule()
+        tz = ZoneInfo(tz_name)
+        # Generate enough occurrences to span the DST transition
+        occurrences = list(rrule_out[:20])
+        assert len(occurrences) >= 15
+        for dt in occurrences:
+            local = dt.astimezone(tz)
+            assert local.hour == 9, (
+                f"Expected 9 AM {tz_name}, got {local.hour}:00 on {local.date()}"
+            )
+
+    @pytest.mark.parametrize(
+        "tz_factory,tz_name",
+        [
+            pytest.param(
+                lambda: ZoneInfo("America/New_York"),
+                "America/New_York",
+                id="zoneinfo",
+            ),
+            pytest.param(
+                lambda: dateutil.tz.gettz("America/New_York"),
+                "America/New_York",
+                id="dateutil",
+            ),
+        ],
+    )
+    def test_single_rrule_preserves_iana_timezone(
+        self, tz_factory: object, tz_name: str
+    ) -> None:
+        tz = tz_factory()  # type: ignore[operator]
+        rule = dateutil.rrule.rrule(
+            freq=dateutil.rrule.DAILY,
+            dtstart=self._DTSTART_BEFORE_DST.replace(tzinfo=tz),
+        )
+        schedule = RRuleSchedule.from_rrule(rule)
+        self._assert_daily_9am_across_dst(schedule, tz_name)
+
+    @pytest.mark.parametrize(
+        "tz_factory,tz_name",
+        [
+            pytest.param(
+                lambda: ZoneInfo("America/New_York"),
+                "America/New_York",
+                id="zoneinfo",
+            ),
+            pytest.param(
+                lambda: dateutil.tz.gettz("America/New_York"),
+                "America/New_York",
+                id="dateutil",
+            ),
+        ],
+    )
+    def test_rruleset_preserves_iana_timezone(
+        self, tz_factory: object, tz_name: str
+    ) -> None:
+        tz = tz_factory()  # type: ignore[operator]
+        rule = dateutil.rrule.rrule(
+            freq=dateutil.rrule.DAILY,
+            dtstart=self._DTSTART_BEFORE_DST.replace(tzinfo=tz),
+        )
+        rset = dateutil.rrule.rruleset()
+        rset.rrule(rule)
+        schedule = RRuleSchedule.from_rrule(rset)
+        self._assert_daily_9am_across_dst(schedule, tz_name)
+
+    def test_naive_rrule_defaults_to_utc(self) -> None:
+        rule = dateutil.rrule.rrule(
+            freq=dateutil.rrule.DAILY,
+            dtstart=self._DTSTART_BEFORE_DST,
+        )
+        schedule = RRuleSchedule.from_rrule(rule)
+        assert schedule.timezone == "UTC"
+
+    def test_naive_rruleset_defaults_to_utc(self) -> None:
+        rule = dateutil.rrule.rrule(
+            freq=dateutil.rrule.DAILY,
+            dtstart=self._DTSTART_BEFORE_DST,
+        )
+        rset = dateutil.rrule.rruleset()
+        rset.rrule(rule)
+        schedule = RRuleSchedule.from_rrule(rset)
+        assert schedule.timezone == "UTC"
+
+    def test_rruleset_rejects_multiple_dtstarts(self) -> None:
+        tz = ZoneInfo("America/New_York")
+        r1 = dateutil.rrule.rrule(
+            freq=dateutil.rrule.DAILY,
+            dtstart=datetime.datetime(2024, 1, 1, 9, 0, tzinfo=tz),
+        )
+        r2 = dateutil.rrule.rrule(
+            freq=dateutil.rrule.DAILY,
+            dtstart=datetime.datetime(2024, 6, 1, 9, 0, tzinfo=tz),
+        )
+        rset = dateutil.rrule.rruleset()
+        rset.rrule(r1)
+        rset.rrule(r2)
+        with pytest.raises(ValueError, match="too many dtstarts"):
+            RRuleSchedule.from_rrule(rset)
+
+    def test_rruleset_rejects_multiple_timezones(self) -> None:
+        r1 = dateutil.rrule.rrule(
+            freq=dateutil.rrule.DAILY,
+            dtstart=datetime.datetime(
+                2024, 1, 1, 9, 0, tzinfo=ZoneInfo("America/New_York")
+            ),
+        )
+        r2 = dateutil.rrule.rrule(
+            freq=dateutil.rrule.DAILY,
+            dtstart=datetime.datetime(
+                2024, 1, 1, 9, 0, tzinfo=ZoneInfo("America/Chicago")
+            ),
+        )
+        rset = dateutil.rrule.rruleset()
+        rset.rrule(r1)
+        rset.rrule(r2)
+        with pytest.raises(ValueError, match="too many dtstart timezones"):
+            RRuleSchedule.from_rrule(rset)
