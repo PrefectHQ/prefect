@@ -12,7 +12,7 @@ A class for configuring or automatically discovering settings to be used with Pr
 
 ## Classes
 
-### `PrefectDbtSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/settings.py#L24" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PrefectDbtSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/settings.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 dbt settings that directly affect the PrefectDbtRunner.
@@ -24,7 +24,7 @@ All other dbt settings should be used as normal, e.g. in the dbt_project.yml fil
 
 **Methods:**
 
-#### `load_profiles_yml` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/settings.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load_profiles_yml` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/settings.py#L89" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load_profiles_yml(self) -> dict[str, Any]
@@ -39,7 +39,7 @@ Load and parse the profiles.yml file.
 - `ValueError`: If profiles.yml is not found
 
 
-#### `resolve_profiles_yml` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/settings.py#L103" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `resolve_profiles_yml` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/settings.py#L107" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resolve_profiles_yml(self) -> Generator[str, None, None]
@@ -59,7 +59,7 @@ Example:
 ```
 
 
-#### `validate_for_orchestrator` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/settings.py#L54" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_for_orchestrator` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-dbt/prefect_dbt/core/settings.py#L58" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_for_orchestrator(self) -> None
