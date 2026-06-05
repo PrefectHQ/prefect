@@ -2,6 +2,51 @@
 title: 3.7
 ---
 
+## 3.7.4 - From cradle to grave
+
+*Released on June 05, 2026*
+
+**New Features 🎉**
+
+* Emit lifecycle events (`created`, `updated`, `deleted`) for all domain objects including variables, flows, block documents, block types, concurrency limits, artifact collections, and automations by [@chrisguidry](https://github.com/chrisguidry) in [#22226](https://github.com/PrefectHQ/prefect/pull/22226)
+
+**Enhancements ➕➕**
+
+* Add Redis-backed cleanup queue backend with optimistic transactions and cross-process wakeups by [@desertaxle](https://github.com/desertaxle) in [#22109](https://github.com/PrefectHQ/prefect/pull/22109)
+* Add cleanup reconciler for worker channel delivery with lease expiry, retry, and dead-letter policies by [@desertaxle](https://github.com/desertaxle) in [#22205](https://github.com/PrefectHQ/prefect/pull/22205)
+* Add cleanup delivery dispatcher for routing reserved cleanup messages to workers over WebSocket by [@desertaxle](https://github.com/desertaxle) in [#22206](https://github.com/PrefectHQ/prefect/pull/22206)
+* Add configurable filter params (`automations`, `sort`, `limit`, `offset`) to `read_automations` client methods by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22191](https://github.com/PrefectHQ/prefect/pull/22191)
+* Surface sanitized git clone stderr in error messages when no known hint matches by [@zzstoatzz](https://github.com/zzstoatzz) in [#22196](https://github.com/PrefectHQ/prefect/pull/22196)
+
+**Bug Fixes 🐞**
+
+* Fix deploy init field parsing by [@zzstoatzz](https://github.com/zzstoatzz) in [#22183](https://github.com/PrefectHQ/prefect/pull/22183)
+* Fix `parse_obj_as()` crash with `StopIteration` on empty dict by [@devteamaegis](https://github.com/devteamaegis) in [#22188](https://github.com/PrefectHQ/prefect/pull/22188)
+* Fix prompt to save new deployments into an existing `prefect.yaml` by [@zzstoatzz](https://github.com/zzstoatzz) in [#22195](https://github.com/PrefectHQ/prefect/pull/22195)
+* Filter stdlib paths from `PYTHONPATH` to prevent subprocess CLI breakage by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22179](https://github.com/PrefectHQ/prefect/pull/22179)
+* Recover perpetual services after Redis disruption by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22213](https://github.com/PrefectHQ/prefect/pull/22213)
+
+**Documentation 📓**
+
+* Document max request size limit for Prefect Cloud API by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22186](https://github.com/PrefectHQ/prefect/pull/22186)
+* Document `flow_run_log_summary` automation template variable by [@mitchnielsen](https://github.com/mitchnielsen) in [#22192](https://github.com/PrefectHQ/prefect/pull/22192)
+* Clarify runtime auto-install gating conditions by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22209](https://github.com/PrefectHQ/prefect/pull/22209)
+* Document deployment schedule clear command by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22221](https://github.com/PrefectHQ/prefect/pull/22221)
+* Use canonical `PREFECT_TASKS_*` env vars in retries guide by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22235](https://github.com/PrefectHQ/prefect/pull/22235)
+
+**Development & Tidiness 🧹**
+
+* Preserve cyclopts modules in `reset_sys_modules` by [@zzstoatzz](https://github.com/zzstoatzz) in [#22194](https://github.com/PrefectHQ/prefect/pull/22194)
+* Increase `hold_timeout` in `test_wait_for_lock` to prevent race condition by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22202](https://github.com/PrefectHQ/prefect/pull/22202)
+* Use `automatic=True` for cleanup reconciler perpetual service by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22225](https://github.com/PrefectHQ/prefect/pull/22225)
+* Scope `uv` bytecode compilation to image builds by [@zzstoatzz](https://github.com/zzstoatzz) in [#22227](https://github.com/PrefectHQ/prefect/pull/22227)
+* Upgrade UI builder stages from bullseye to bookworm by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22231](https://github.com/PrefectHQ/prefect/pull/22231)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.7.3...3.7.4
+
+
+---
+
 ## 3.7.3 - Scheduler go brrrr
 
 *Released on June 01, 2026*

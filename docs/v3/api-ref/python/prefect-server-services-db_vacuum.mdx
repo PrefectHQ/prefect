@@ -35,7 +35,7 @@ accumulating if a cycle overlaps with in-progress work.
 ### `schedule_vacuum_tasks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L55" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-schedule_vacuum_tasks(docket: Docket = CurrentDocket(), perpetual: Perpetual = Perpetual(automatic=False, every=timedelta(seconds=get_current_settings().server.services.db_vacuum.loop_seconds))) -> None
+schedule_vacuum_tasks(docket: Docket = CurrentDocket(), perpetual: Perpetual = Perpetual(automatic=True, every=timedelta(seconds=get_current_settings().server.services.db_vacuum.loop_seconds))) -> None
 ```
 
 
@@ -52,7 +52,7 @@ via PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED=true.
 ### `schedule_event_vacuum_tasks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/db_vacuum.py#L89" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-schedule_event_vacuum_tasks(docket: Docket = CurrentDocket(), perpetual: Perpetual = Perpetual(automatic=False, every=timedelta(seconds=get_current_settings().server.services.db_vacuum.loop_seconds))) -> None
+schedule_event_vacuum_tasks(docket: Docket = CurrentDocket(), perpetual: Perpetual = Perpetual(automatic=True, every=timedelta(seconds=get_current_settings().server.services.db_vacuum.loop_seconds))) -> None
 ```
 
 
