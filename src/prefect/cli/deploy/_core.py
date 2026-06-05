@@ -19,7 +19,10 @@ from prefect.cli._prompts import (
 )
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import WorkerFilter
-from prefect.deployments.base import _save_deployment_to_prefect_file
+from prefect.deployments.base import (
+    _deployment_already_saved_to_prefect_file,
+    _save_deployment_to_prefect_file,
+)
 from prefect.deployments.runner import RunnerDeployment
 from prefect.deployments.steps.core import run_steps
 from prefect.exceptions import ObjectNotFound
@@ -420,7 +423,9 @@ async def _run_single_deploy(
         )
         console.print(message, soft_wrap=True)
 
-    if is_interactive() and not prefect_file.exists():
+    if is_interactive() and not _deployment_already_saved_to_prefect_file(
+        deploy_config_before_templating, prefect_file
+    ):
         if confirm(
             (
                 "Would you like to save configuration for this deployment for faster"
