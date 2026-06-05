@@ -25,7 +25,7 @@ Revoke a single expired lease (docket task).
 ### `monitor_expired_leases` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/repossessor.py#L63" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-monitor_expired_leases(docket: Docket = CurrentDocket(), lease_storage: ConcurrencyLeaseStorage = Depends(get_concurrency_lease_storage), perpetual: Perpetual = Perpetual(automatic=False, every=timedelta(seconds=get_current_settings().server.services.repossessor.loop_seconds))) -> None
+monitor_expired_leases(docket: Docket = CurrentDocket(), lease_storage: ConcurrencyLeaseStorage = Depends(get_concurrency_lease_storage), perpetual: Perpetual = Perpetual(automatic=True, every=timedelta(seconds=get_current_settings().server.services.repossessor.loop_seconds))) -> None
 ```
 
 
