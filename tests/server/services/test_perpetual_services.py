@@ -1,6 +1,8 @@
 """Tests for the perpetual services registry and scheduling."""
 
 import pytest
+from docket import Perpetual
+from docket.dependencies import get_single_dependency_parameter_of_type
 
 from prefect.server.services.perpetual_services import (
     _PERPETUAL_SERVICES,
@@ -135,6 +137,12 @@ def test_repossessor_service_registered():
     assert "monitor_expired_leases" in service_names
 
 
+def test_cleanup_reconciler_service_registered():
+    """Test that cleanup reconciler perpetual service is registered."""
+    service_names = [config.function.__name__ for config in _PERPETUAL_SERVICES]
+    assert "reconcile_cleanup_delivery" in service_names
+
+
 def test_foreman_service_registered():
     """Test that foreman perpetual service is registered."""
     service_names = [config.function.__name__ for config in _PERPETUAL_SERVICES]
@@ -221,3 +229,17 @@ def test_get_enabled_perpetual_services_respects_settings(monkeypatch):
     service_names = [config.function.__name__ for config in services]
     assert "monitor_cancelled_flow_runs" not in service_names
     assert "monitor_subflow_runs" not in service_names
+
+
+def test_all_perpetual_services_use_automatic_true():
+    """All perpetual services must use automatic=True so the docket worker
+    reschedules them after a Redis disruption."""
+    for config in _PERPETUAL_SERVICES:
+        perpetual = get_single_dependency_parameter_of_type(config.function, Perpetual)
+        assert perpetual is not None, (
+            f"{config.function.__name__} has no Perpetual dependency"
+        )
+        assert perpetual.automatic is True, (
+            f"{config.function.__name__} uses automatic=False; "
+            "all perpetual services must use automatic=True for Redis recovery"
+        )

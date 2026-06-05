@@ -12,10 +12,42 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import prefect.server.schemas as schemas
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
+from prefect.server.events import clients
+from prefect.server.events.schemas import lifecycle
 from prefect.types._datetime import now
 
 # Clients creating V1 limits can't maintain leases, so we use a long TTL to maintain compatibility.
 V1_LEASE_TTL = timedelta(days=100 * 365)  # ~100 years
+
+
+async def emit_concurrency_limit_created_event(
+    concurrency_limit: orm_models.ConcurrencyLimit,
+) -> None:
+    """Emit an event when a tag-based concurrency limit is created."""
+    async with clients.PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            lifecycle.concurrency_limit_created_event(concurrency_limit, now("UTC"))
+        )
+
+
+async def emit_concurrency_limit_updated_event(
+    concurrency_limit: orm_models.ConcurrencyLimit,
+) -> None:
+    """Emit an event when a tag-based concurrency limit is updated."""
+    async with clients.PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            lifecycle.concurrency_limit_updated_event(concurrency_limit, now("UTC"))
+        )
+
+
+async def emit_concurrency_limit_deleted_event(
+    concurrency_limit: orm_models.ConcurrencyLimit,
+) -> None:
+    """Emit an event when a tag-based concurrency limit is deleted."""
+    async with clients.PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            lifecycle.concurrency_limit_deleted_event(concurrency_limit, now("UTC"))
+        )
 
 
 @db_injector
@@ -34,6 +66,7 @@ async def create_concurrency_limit(
     # https://docs.sqlalchemy.org/en/14/dialects/sqlite.html#the-set-clause
     concurrency_limit.updated = now("UTC")  # type: ignore[assignment]
 
+    upsert_start = now("UTC")
     insert_stmt = (
         db.queries.insert(db.ConcurrencyLimit)
         .values(**insert_values)
@@ -54,7 +87,14 @@ async def create_concurrency_limit(
     )
 
     result = await session.execute(query)
-    return result.scalar_one()
+    model = result.scalar_one()
+
+    if model.created >= upsert_start:
+        await emit_concurrency_limit_created_event(model)
+    else:
+        await emit_concurrency_limit_updated_event(model)
+
+    return model
 
 
 @db_injector
@@ -145,12 +185,20 @@ async def delete_concurrency_limit(
     session: AsyncSession,
     concurrency_limit_id: UUID,
 ) -> bool:
-    query = sa.delete(db.ConcurrencyLimit).where(
-        db.ConcurrencyLimit.id == concurrency_limit_id
+    existing = await read_concurrency_limit(
+        session, concurrency_limit_id=concurrency_limit_id
     )
+    if existing is None:
+        return False
 
-    result = await session.execute(query)
-    return result.rowcount > 0
+    await emit_concurrency_limit_deleted_event(existing)
+
+    await session.execute(
+        sa.delete(db.ConcurrencyLimit).where(
+            db.ConcurrencyLimit.id == concurrency_limit_id
+        )
+    )
+    return True
 
 
 @db_injector
@@ -159,10 +207,16 @@ async def delete_concurrency_limit_by_tag(
     session: AsyncSession,
     tag: str,
 ) -> bool:
-    query = sa.delete(db.ConcurrencyLimit).where(db.ConcurrencyLimit.tag == tag)
+    existing = await read_concurrency_limit_by_tag(session, tag=tag)
+    if existing is None:
+        return False
 
-    result = await session.execute(query)
-    return result.rowcount > 0
+    await emit_concurrency_limit_deleted_event(existing)
+
+    await session.execute(
+        sa.delete(db.ConcurrencyLimit).where(db.ConcurrencyLimit.tag == tag)
+    )
+    return True
 
 
 @db_injector
