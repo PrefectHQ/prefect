@@ -24,18 +24,17 @@ ARG EXTRA_PIP_PACKAGES=""
 FROM prefecthq/prefect-sqlite:${SQLITE_VERSION} AS sqlite-builder
 
 # Build the V1 UI distributable.
-FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-bullseye-slim AS ui-builder
+FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-bookworm-slim AS ui-builder
 
 WORKDIR /opt/ui
 
 RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
     apt-get update && \
     apt-get upgrade --no-install-recommends -y && \
-    # Retry with refreshed index on mirror-sync failures (hash/size mismatch)
-    (apt-get install --no-install-recommends -y chromium || \
-     (rm -rf /var/lib/apt/lists/* && apt-get update && \
-      apt-get install --no-install-recommends -y chromium)) && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+    apt-get install --no-install-recommends -y \
+    # Required for arm64 builds
+    chromium \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies separately so they cache
 COPY ./ui/package*.json ./
@@ -46,7 +45,7 @@ COPY ./ui .
 RUN npm run build
 
 # Build the V2 UI distributable.
-FROM --platform=$BUILDPLATFORM node:${NODE_V2_VERSION}-bullseye-slim AS ui-v2-builder
+FROM --platform=$BUILDPLATFORM node:${NODE_V2_VERSION}-bookworm-slim AS ui-v2-builder
 
 # Optional Amplitude API key for analytics (build still works without it)
 ARG VITE_AMPLITUDE_API_KEY=""
@@ -57,11 +56,10 @@ WORKDIR /opt/ui-v2
 RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
     apt-get update && \
     apt-get upgrade --no-install-recommends -y && \
-    # Retry with refreshed index on mirror-sync failures (hash/size mismatch)
-    (apt-get install --no-install-recommends -y chromium || \
-     (rm -rf /var/lib/apt/lists/* && apt-get update && \
-      apt-get install --no-install-recommends -y chromium)) && \
-    apt-get clean && rm -rf /var/lib/apt/lists/*
+    apt-get install --no-install-recommends -y \
+    # Required for arm64 builds
+    chromium \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies separately so they cache
 COPY ./ui-v2/package*.json ./
