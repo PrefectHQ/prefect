@@ -2584,7 +2584,7 @@ class TestWorkerChannelConnect:
         )
         assert event_count_after == event_count_before
 
-    def test_connect_rejects_unsupported_optional_cleanup_delivery(
+    def test_connect_accepts_optional_cleanup_delivery_for_capable_worker(
         self, test_client: TestClient, work_pool
     ):
         hello = _worker_hello_frame(
@@ -2605,9 +2605,10 @@ class TestWorkerChannelConnect:
         assert ready.payload.accepted_capabilities == [
             WORKER_HEARTBEAT_CAPABILITY,
             WORK_POOL_SNAPSHOT_CAPABILITY,
+            CLEANUP_DELIVERY_CAPABILITY,
         ]
-        assert ready.payload.rejected_capabilities == [CLEANUP_DELIVERY_CAPABILITY]
-        assert ready.payload.effective_max_cleanup_concurrency == 0
+        assert ready.payload.rejected_capabilities == []
+        assert ready.payload.effective_max_cleanup_concurrency == 1
 
     def test_connect_rejects_unknown_optional_capability(
         self, test_client: TestClient, work_pool
