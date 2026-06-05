@@ -115,3 +115,28 @@ import { deployments } from "/snippets/resource-management/vars.mdx"
 ```
 
 For more information on how to use snippets, see the [Mintlify documentation](https://mintlify.com/docs/reusable-snippets).
+
+### Documenting Cloud-only features
+
+Some features are only available in Prefect Cloud and have no open source equivalent (for example SSO, audit logs,
+incidents, SLAs, and the `send-email-notification` automation action). Document these features so that customers and
+downstream consumers (such as the Terraform provider and SDKs) can discover them.
+
+Follow these conventions:
+
+- **Where Cloud-only guides live.** Account, workspace, and user management guides live under
+  [`how-to-guides/cloud/`](/v3/how-to-guides/cloud/connect-to-cloud). Prefer this location for new Cloud-only how-to
+  content.
+- **Mark the feature.** When a Cloud-only feature appears on a page that also covers open source behavior (for example a
+  shared concept page), mark it so readers can tell the editions apart. Use one of:
+  - A Cloud badge at the top of the page or section:
+    ```html
+    <span class="badge cloud"></span>
+    ```
+    The badge renders a "Prefect Cloud" label; the span is intentionally empty.
+  - A `<Note>` callout for inline cases, for example when a single table row or variable is Cloud-only:
+    ```html
+    <Note>This action is only available in Prefect Cloud.</Note>
+    ```
+
+This keeps the Cloud-only surface discoverable from the open source documentation, where most readers start.
