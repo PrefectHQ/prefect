@@ -41,6 +41,10 @@ Server:
   SQLite version:     3.47.1
 ```
 
+<Note>
+If you run Prefect against a separate server (self-hosted or Prefect Cloud), the client and server versions must be compatible. See [Versioning and compatibility](/v3/get-started/versioning) for the rules.
+</Note>
+
 <Accordion title="More commands for power users">
 
 
@@ -108,7 +112,7 @@ pip install -U prefect-client
 ```
 
 <Note>
-When installing a client against a self-hosted server, see [Versioning and compatibility](/v3/get-started/versioning) for which client versions work with a given server. Prefect Cloud is compatible with all client versions.
+Prefect Cloud is compatible with all client versions. Against a self-hosted server, the client version must be compatible with the server. See [Versioning and compatibility](/v3/get-started/versioning).
 </Note>
 
 ## Next steps
