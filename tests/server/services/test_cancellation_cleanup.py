@@ -454,6 +454,27 @@ async def test_handle_cancelling_timeout_skips_push_pool_runs(
     assert await cleanup_queue.reserve(work_pool_id=push_work_pool.id) is None
 
 
+async def test_handle_cancelling_timeout_skips_managed_pool_runs(
+    cleanup_queue: WorkerCleanupQueue,
+    cancelling_flow_run_maker: Callable[..., Awaitable[Any]],
+    managed_work_pool: Any,
+    session: AsyncSession,
+):
+    flow_run = await cancelling_flow_run_maker(work_pool_override=managed_work_pool)
+
+    with temporary_settings(
+        {PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_CANCELLING_TIMEOUT_SECONDS: 60}
+    ):
+        message, _ = await _handle_cancelling_timeout_for_run(flow_run, cleanup_queue)
+
+    assert message is None
+    await session.refresh(flow_run)
+    assert flow_run.state is not None
+    assert flow_run.state.type == states.StateType.CANCELLED
+    assert flow_run.state.message == CANCELLING_TIMEOUT_CANCELLED_MESSAGE
+    assert await cleanup_queue.reserve(work_pool_id=managed_work_pool.id) is None
+
+
 async def test_handle_cancelling_timeout_allows_missing_infrastructure_pid(
     cleanup_queue: WorkerCleanupQueue,
     cancelling_flow_run_maker: Callable[..., Awaitable[Any]],

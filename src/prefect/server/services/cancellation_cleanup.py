@@ -32,6 +32,7 @@ CANCELLING_TIMEOUT_CANCELLED_MESSAGE = (
 )
 CANCELLING_TIMEOUT_CHECK_KEY_PREFIX = "cancelling-timeout"
 PUSH_WORK_POOL_TYPE_SUFFIX = ":push"
+MANAGED_WORK_POOL_TYPE_SUFFIX = ":managed"
 logger: logging.Logger = get_logger(__name__)
 
 _service_cleanup_queue: WorkerCleanupQueue | None = None
@@ -75,7 +76,7 @@ async def schedule_cancelling_timeout_check_for_state(
     *,
     docket: Docket,
     flow_run_id: UUID,
-    state: states.State[Any] | None,
+    state: states.State | None,
 ) -> None:
     settings = get_current_settings().server.services.cancellation_cleanup
     if (
@@ -197,7 +198,7 @@ async def handle_cancelling_timeout(
     *,
     db: PrefectDBInterface = Depends(provide_database_interface),
     cleanup_queue: WorkerCleanupQueue = Depends(_get_service_worker_cleanup_queue),
-    retry: Retry = Retry(attempts=None),
+    retry: Retry = Retry.forever(delay=datetime.timedelta(seconds=0.5)),
 ) -> CleanupQueueMessage | None:
     """Handle a scheduled CANCELLING timeout check for a single flow run."""
     settings = get_current_settings().server.services.cancellation_cleanup
@@ -312,13 +313,18 @@ async def handle_cancelling_timeout(
             )
             return None
 
-        if work_pool_type and str(work_pool_type).endswith(PUSH_WORK_POOL_TYPE_SUFFIX):
+        work_pool_type = str(work_pool_type) if work_pool_type else None
+        if work_pool_type and work_pool_type.endswith(
+            (PUSH_WORK_POOL_TYPE_SUFFIX, MANAGED_WORK_POOL_TYPE_SUFFIX)
+        ):
             logger.info(
-                "Skipping CANCELLING timeout cleanup for push-pool flow run: "
-                "flow_run_id=%s work_queue_id=%s work_pool_id=%s",
+                "Skipping CANCELLING timeout cleanup for workerless work pool flow "
+                "run: flow_run_id=%s work_queue_id=%s work_pool_id=%s "
+                "work_pool_type=%s",
                 flow_run.id,
                 flow_run.work_queue_id,
                 work_pool_id,
+                work_pool_type,
             )
             return None
 

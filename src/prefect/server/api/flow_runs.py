@@ -743,7 +743,7 @@ async def bulk_set_flow_run_state(
 
     # Process flow runs sequentially to avoid session conflicts
     for flow_run in db_flow_runs:
-        state_to_schedule: schemas.states.State[Any] | None = None
+        state_to_schedule: schemas.states.State | None = None
         async with db.session_context(
             begin_transaction=True, with_for_update=True
         ) as session:
