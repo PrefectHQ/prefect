@@ -26,6 +26,9 @@ Emitted when a new deployment is created.
 | `prefect.flow.{uuid}` | `flow` | Always |
 | `prefect.work-queue.{uuid}` | `work-queue` | When a work queue is assigned |
 | `prefect.work-pool.{uuid}` | `work-pool` | When a work pool is assigned (includes `prefect.work-pool.type` label) |
+| `prefect.block-document.{uuid}` | `storage` | When a storage block document is configured |
+| `prefect.block-document.{uuid}` | `infrastructure` | When an infrastructure block document is configured |
+| `prefect.concurrency-limit.{uuid}` | `concurrency-limit` | When a concurrency limit is assigned |
 
 ### Payload
 
