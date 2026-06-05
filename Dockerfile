@@ -24,7 +24,7 @@ ARG EXTRA_PIP_PACKAGES=""
 FROM prefecthq/prefect-sqlite:${SQLITE_VERSION} AS sqlite-builder
 
 # Build the V1 UI distributable.
-FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-bullseye-slim AS ui-builder
+FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-bookworm-slim AS ui-builder
 
 WORKDIR /opt/ui
 
@@ -45,7 +45,7 @@ COPY ./ui .
 RUN npm run build
 
 # Build the V2 UI distributable.
-FROM --platform=$BUILDPLATFORM node:${NODE_V2_VERSION}-bullseye-slim AS ui-v2-builder
+FROM --platform=$BUILDPLATFORM node:${NODE_V2_VERSION}-bookworm-slim AS ui-v2-builder
 
 # Optional Amplitude API key for analytics (build still works without it)
 ARG VITE_AMPLITUDE_API_KEY=""
