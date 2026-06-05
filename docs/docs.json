@@ -58,7 +58,8 @@
             "pages": [
               "v3/get-started/index",
               "v3/get-started/install",
-              "v3/get-started/quickstart"
+              "v3/get-started/quickstart",
+              "v3/get-started/versioning"
             ]
           }
         ],
@@ -2445,7 +2446,7 @@
       "source": "/latest/integrations/prefect-sqlalchemy/database"
     },
     {
-      "destination": "/contribute/styles-practices",
+      "destination": "/v3/get-started/versioning",
       "source": "/latest/contributing/versioning"
     },
     {
