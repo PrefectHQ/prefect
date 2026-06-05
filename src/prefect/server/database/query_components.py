@@ -670,14 +670,6 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                     TaskRun.state_type.in_(schemas.states.TERMINAL_STATES),
                     TaskRun.expected_start_time,
                 ),
-                (
-                    sa.and_(
-                        TaskRun.start_time.is_(None),
-                        TaskRun.end_time.is_(None),
-                        TaskRun.expected_start_time.is_not(None),
-                    ),
-                    TaskRun.expected_start_time,
-                ),
                 else_=sa.null(),
             ),
         )
@@ -809,7 +801,6 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                         graph.c.state_type.in_(schemas.states.TERMINAL_STATES),
                         graph.c.end_time >= param_since,
                     ),
-                    graph.c.end_time.is_(None),
                 )
             )
             .order_by(graph.c.start_time, graph.c.end_time)
@@ -1033,14 +1024,6 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                     TaskRun.state_type.in_(schemas.states.TERMINAL_STATES),
                     TaskRun.expected_start_time,
                 ),
-                (
-                    sa.and_(
-                        TaskRun.start_time.is_(None),
-                        TaskRun.end_time.is_(None),
-                        TaskRun.expected_start_time.is_not(None),
-                    ),
-                    TaskRun.expected_start_time,
-                ),
                 else_=sa.null(),
             ),
         )
@@ -1164,7 +1147,6 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                         graph.c.state_type.in_(schemas.states.TERMINAL_STATES),
                         graph.c.end_time >= param_since,
                     ),
-                    graph.c.end_time.is_(None),
                 )
             )
             .order_by(graph.c.start_time, graph.c.end_time)

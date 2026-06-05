@@ -188,25 +188,45 @@ async def test_reading_graph_for_flow_run_with_string_since_field(
     assert graph.nodes == []
 
 
-async def test_pending_task_with_expected_start_time_is_included(
+async def test_pending_downstream_task_is_included_in_graph(
     session: AsyncSession,
     db: PrefectDBInterface,
-    flow_run,  # db.FlowRun,
+    flow_run,
     base_time: datetime.datetime,
 ):
-    pending_task = db.TaskRun(
+    parent_task = db.TaskRun(
         id=uuid4(),
         flow_run_id=flow_run.id,
-        name="task-pending-expected",
-        task_key="task-pending-expected",
-        dynamic_key="task-pending-expected",
+        name="parent-task",
+        task_key="parent-task",
+        dynamic_key="parent-task",
+        state_type=StateType.COMPLETED,
+        state_name="Completed",
+        start_time=base_time,
+        end_time=base_time + datetime.timedelta(seconds=1),
+    )
+
+    pending_child = db.TaskRun(
+        id=uuid4(),
+        flow_run_id=flow_run.id,
+        name="pending-child",
+        task_key="pending-child",
+        dynamic_key="pending-child",
         state_type=StateType.PENDING,
         state_name="Pending",
         expected_start_time=base_time + datetime.timedelta(seconds=30),
-        start_time=None,
-        end_time=None,
+        task_inputs={
+            "x": [
+                {
+                    "id": str(parent_task.id),
+                    "input_type": "task_run",
+                }
+            ]
+        },
     )
-    session.add(pending_task)
+
+    session.add(parent_task)
+    session.add(pending_child)
     await session.commit()
 
     graph = await read_flow_run_graph(
@@ -215,11 +235,14 @@ async def test_pending_task_with_expected_start_time_is_included(
     )
 
     nodes_by_id = dict(graph.nodes)
-    assert pending_task.id in nodes_by_id
-    node = nodes_by_id[pending_task.id]
-    assert node.start_time == pending_task.expected_start_time
-    assert node.end_time is None
-    assert node.state_type == StateType.PENDING
+
+    assert parent_task.id in nodes_by_id
+    assert pending_child.id in nodes_by_id
+
+    child_node = nodes_by_id[pending_child.id]
+
+    assert parent_task.id in child_node.parent_ids
+    assert child_node.state_type == StateType.PENDING
 
 
 async def test_since_preserves_active_non_terminal_nodes_with_null_end_time(
