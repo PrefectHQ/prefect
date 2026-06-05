@@ -24,6 +24,13 @@ The `variables` endpoints are a good canonical example of this pattern for simpl
 
 **Singleton server settings** (not tied to a specific run or resource) skip a dedicated table — store them as JSON in the `Configuration` key-value store via `models/configuration.py`. Define a string key constant in the wrapping module (see `models/storage_defaults.py` for the pattern).
 
+## Object Lifecycle Events
+
+Domain objects emit `prefect.<object>.{created,updated,deleted}` events from their `models/` CRUD functions (`models/variables.py` is the simplest example). Two non-obvious rules:
+
+- **Builders live in `events/schemas/lifecycle.py`, not `models/events.py`.** `models/events.py` imports `models.deployments`, so a model imported early in `models/__init__` (e.g. `block_types`, `block_documents`) that imports a builder from there triggers a circular import. The builders in `lifecycle.py` are pure functions of an ORM object + timestamp with no model-layer imports, so any model can use them safely.
+- **Emission is inline and pre-commit.** `emit_*` helpers reference `clients.PrefectServerEventsClient` as a module attribute (so the autouse test fixture's single patch on `events.clients.PrefectServerEventsClient` captures them) and publish within the request transaction — there is no request-scoped buffer, so a rolled-back create still emits.
+
 ## Database Migrations
 
 Migrations use Alembic via wrapper functions in `database/alembic_commands.py`:
