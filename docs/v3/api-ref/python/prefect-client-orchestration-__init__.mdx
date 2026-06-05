@@ -141,7 +141,7 @@ Returns the count of flow runs matching all criteria for flow runs.
 create_artifact(self, artifact: 'ArtifactCreate') -> 'Artifact'
 ```
 
-#### `create_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L176" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L194" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_automation(self, automation: 'AutomationCore') -> 'UUID'
@@ -497,7 +497,7 @@ were held.
 delete_artifact(self, artifact_id: 'UUID') -> None
 ```
 
-#### `delete_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L304" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L338" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_automation(self, automation_id: 'UUID') -> None
@@ -620,7 +620,7 @@ Deletes a flow run input.
 delete_global_concurrency_limit_by_name(self, name: str) -> 'Response'
 ```
 
-#### `delete_resource_owned_automations` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L328" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_resource_owned_automations` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L362" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_resource_owned_automations(self, resource_id: str) -> None
@@ -685,7 +685,7 @@ Delete a work queue by its ID.
 filter_flow_run_input(self, flow_run_id: 'UUID', key_prefix: str, limit: int, exclude_keys: 'set[str]') -> 'list[FlowRunInput]'
 ```
 
-#### `find_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L206" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `find_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L240" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 find_automation(self, id_or_name: 'str | UUID') -> 'Automation | None'
@@ -833,7 +833,7 @@ Query the Prefect API for work queues with names with a specific prefix.
 of the work queues
 
 
-#### `pause_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L286" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `pause_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L320" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pause_automation(self, automation_id: 'UUID') -> None
@@ -876,19 +876,19 @@ Run API version compatibility check once per process/API/client version.
 read_artifacts(self, **kwargs: Unpack['ArtifactReadParams']) -> list['Artifact']
 ```
 
-#### `read_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L241" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L275" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_automation(self, automation_id: 'UUID | str') -> 'Automation | None'
 ```
 
-#### `read_automations` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L199" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_automations` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L217" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_automations(self) -> list['Automation']
 ```
 
-#### `read_automations_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L252" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_automations_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L286" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_automations_by_name(self, name: str) -> list['Automation']
@@ -1332,7 +1332,7 @@ read_logs(self, log_filter: 'LogFilter | None' = None, limit: int | None = None,
 Read flow and task run logs.
 
 
-#### `read_resource_related_automations` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L315" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_resource_related_automations` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L349" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_resource_related_automations(self, resource_id: str) -> list['Automation']
@@ -1654,7 +1654,7 @@ slots will never be released.
 - `httpx.RequestError`: If request fails
 
 
-#### `resume_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L295" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `resume_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L329" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resume_automation(self, automation_id: 'UUID') -> None
@@ -1776,7 +1776,7 @@ forcing the Prefect API to accept the state
 update_artifact(self, artifact_id: 'UUID', artifact: 'ArtifactUpdate') -> None
 ```
 
-#### `update_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L187" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L205" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_automation(self, automation_id: 'UUID', automation: 'AutomationCore') -> None
@@ -2040,7 +2040,7 @@ Returns the count of flow runs matching all criteria for flow runs.
 create_artifact(self, artifact: 'ArtifactCreate') -> 'Artifact'
 ```
 
-#### `create_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L17" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L19" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_automation(self, automation: 'AutomationCore') -> 'UUID'
@@ -2399,7 +2399,7 @@ were held.
 delete_artifact(self, artifact_id: 'UUID') -> None
 ```
 
-#### `delete_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L145" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L163" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_automation(self, automation_id: 'UUID') -> None
@@ -2522,7 +2522,7 @@ Deletes a flow run input.
 delete_global_concurrency_limit_by_name(self, name: str) -> 'Response'
 ```
 
-#### `delete_resource_owned_automations` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L167" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_resource_owned_automations` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L185" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_resource_owned_automations(self, resource_id: str) -> None
@@ -2587,7 +2587,7 @@ Delete a work queue by its ID.
 filter_flow_run_input(self, flow_run_id: 'UUID', key_prefix: str, limit: int, exclude_keys: 'set[str]') -> 'list[FlowRunInput]'
 ```
 
-#### `find_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `find_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L65" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 find_automation(self, id_or_name: 'str | UUID') -> 'Automation | None'
@@ -2729,7 +2729,7 @@ Query the Prefect API for work queues with names with a specific prefix.
 of the work queues
 
 
-#### `pause_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L127" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `pause_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L145" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pause_automation(self, automation_id: 'UUID') -> None
@@ -2772,19 +2772,19 @@ Run API version compatibility check once per process/API/client version.
 read_artifacts(self, **kwargs: Unpack['ArtifactReadParams']) -> list['Artifact']
 ```
 
-#### `read_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L82" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_automation(self, automation_id: 'UUID | str') -> 'Automation | None'
 ```
 
-#### `read_automations` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L40" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_automations` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L42" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_automations(self) -> list['Automation']
 ```
 
-#### `read_automations_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L93" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_automations_by_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L111" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_automations_by_name(self, name: str) -> list['Automation']
@@ -3228,7 +3228,7 @@ read_logs(self, log_filter: 'LogFilter | None' = None, limit: int | None = None,
 Read flow and task run logs.
 
 
-#### `read_resource_related_automations` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L156" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_resource_related_automations` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L174" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_resource_related_automations(self, resource_id: str) -> list['Automation']
@@ -3550,7 +3550,7 @@ slots will never be released.
 - `httpx.RequestError`: If request fails
 
 
-#### `resume_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L136" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `resume_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resume_automation(self, automation_id: 'UUID') -> None
@@ -3672,7 +3672,7 @@ forcing the Prefect API to accept the state
 update_artifact(self, artifact_id: 'UUID', artifact: 'ArtifactUpdate') -> None
 ```
 
-#### `update_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L28" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_automations/client.py#L30" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_automation(self, automation_id: 'UUID', automation: 'AutomationCore') -> None

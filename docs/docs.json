@@ -1597,7 +1597,8 @@
                               "v3/api-ref/python/prefect-server-events-schemas-__init__",
                               "v3/api-ref/python/prefect-server-events-schemas-automations",
                               "v3/api-ref/python/prefect-server-events-schemas-events",
-                              "v3/api-ref/python/prefect-server-events-schemas-labelling"
+                              "v3/api-ref/python/prefect-server-events-schemas-labelling",
+                              "v3/api-ref/python/prefect-server-events-schemas-lifecycle"
                             ]
                           },
                           {
@@ -1695,6 +1696,7 @@
                           "v3/api-ref/python/prefect-server-services-__init__",
                           "v3/api-ref/python/prefect-server-services-base",
                           "v3/api-ref/python/prefect-server-services-cancellation_cleanup",
+                          "v3/api-ref/python/prefect-server-services-cleanup_reconciler",
                           "v3/api-ref/python/prefect-server-services-db_vacuum",
                           "v3/api-ref/python/prefect-server-services-foreman",
                           "v3/api-ref/python/prefect-server-services-late_runs",
@@ -1736,7 +1738,8 @@
                           "v3/api-ref/python/prefect-server-utilities-subscriptions",
                           "v3/api-ref/python/prefect-server-utilities-text_search_parser",
                           "v3/api-ref/python/prefect-server-utilities-user_templates",
-                          "v3/api-ref/python/prefect-server-utilities-worker_channel"
+                          "v3/api-ref/python/prefect-server-utilities-worker_channel",
+                          "v3/api-ref/python/prefect-server-utilities-worker_channel_cleanup"
                         ]
                       },
                       {
