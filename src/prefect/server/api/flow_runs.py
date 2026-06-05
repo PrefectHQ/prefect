@@ -13,13 +13,14 @@ from uuid import UUID
 import orjson
 import sqlalchemy as sa
 from docket import Depends as DocketDepends
-from docket import Retry
+from docket import Docket, Retry
 from fastapi import (
     Body,
     Depends,
     HTTPException,
     Path,
     Query,
+    Request,
     Response,
 )
 from fastapi.encoders import jsonable_encoder
@@ -53,6 +54,9 @@ from prefect.server.schemas.responses import (
     FlowRunPaginationResponse,
     OrchestrationResult,
 )
+from prefect.server.services.cancellation_cleanup import (
+    schedule_cancelling_timeout_check_for_state,
+)
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
 from prefect.types._datetime import earliest_possible_datetime, now
@@ -66,9 +70,14 @@ logger: "logging.Logger" = get_logger("server.api")
 router: PrefectRouter = PrefectRouter(prefix="/flow_runs", tags=["Flow Runs"])
 
 
+def _get_request_docket(request: Request) -> Docket | None:
+    return getattr(request.app.state, "docket", None)
+
+
 @router.post("/")
 async def create_flow_run(
     flow_run: schemas.actions.FlowRunCreate,
+    request: Request,
     db: PrefectDBInterface = Depends(provide_database_interface),
     response: Response = None,  # type: ignore
     created_by: Optional[schemas.core.CreatedBy] = Depends(dependencies.get_created_by),
@@ -124,12 +133,27 @@ async def create_flow_run(
             flow_run=flow_run_object,
             orchestration_parameters=orchestration_parameters,
         )
-        if model.created >= right_now:
-            response.status_code = status.HTTP_201_CREATED
-
-        return schemas.responses.FlowRunResponse.model_validate(
+        created = model.created >= right_now
+        timeout_check_state = (
+            schemas.states.State.from_orm_without_result(model.state)
+            if created and model.state
+            else None
+        )
+        flow_run_id = model.id
+        flow_run_response = schemas.responses.FlowRunResponse.model_validate(
             model, from_attributes=True
         )
+
+    if docket := _get_request_docket(request):
+        await schedule_cancelling_timeout_check_for_state(
+            docket=docket,
+            flow_run_id=flow_run_id,
+            state=timeout_check_state,
+        )
+    if created:
+        response.status_code = status.HTTP_201_CREATED
+
+    return flow_run_response
 
 
 @router.patch("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
@@ -669,6 +693,7 @@ async def bulk_delete_flow_runs(
 
 @router.post("/bulk_set_state")
 async def bulk_set_flow_run_state(
+    request: Request,
     flow_runs: Optional[schemas.filters.FlowRunFilter] = Body(
         None, description="Filter criteria for flow runs to update"
     ),
@@ -718,6 +743,7 @@ async def bulk_set_flow_run_state(
 
     # Process flow runs sequentially to avoid session conflicts
     for flow_run in db_flow_runs:
+        state_to_schedule: schemas.states.State[Any] | None = None
         async with db.session_context(
             begin_transaction=True, with_for_update=True
         ) as session:
@@ -739,6 +765,11 @@ async def bulk_set_flow_run_state(
                         details=orchestration_result.details,
                     )
                 )
+                if (
+                    orchestration_result.status
+                    == schemas.responses.SetStateStatus.ACCEPT
+                ):
+                    state_to_schedule = orchestration_result.state
             except Exception as e:
                 results.append(
                     FlowRunOrchestrationResult(
@@ -748,6 +779,15 @@ async def bulk_set_flow_run_state(
                         details=schemas.responses.StateAbortDetails(reason=str(e)),
                     )
                 )
+                continue
+
+        if state_to_schedule is not None:
+            if docket := _get_request_docket(request):
+                await schedule_cancelling_timeout_check_for_state(
+                    docket=docket,
+                    flow_run_id=flow_run.id,
+                    state=state_to_schedule,
+                )
 
     return FlowRunBulkSetStateResponse(results=results)
 
@@ -755,6 +795,7 @@ async def bulk_set_flow_run_state(
 @router.post("/{id:uuid}/set_state")
 async def set_flow_run_state(
     response: Response,
+    request: Request,
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     state: schemas.actions.StateCreate = Body(..., description="The intended state."),
     force: bool = Body(
@@ -795,6 +836,14 @@ async def set_flow_run_state(
             orchestration_parameters=orchestration_parameters,
             client_version=client_version,
         )
+
+    if orchestration_result.status == schemas.responses.SetStateStatus.ACCEPT:
+        if docket := _get_request_docket(request):
+            await schedule_cancelling_timeout_check_for_state(
+                docket=docket,
+                flow_run_id=flow_run_id,
+                state=orchestration_result.state,
+            )
 
     # set the 201 if a new state was created
     if orchestration_result.state and orchestration_result.state.timestamp >= right_now:

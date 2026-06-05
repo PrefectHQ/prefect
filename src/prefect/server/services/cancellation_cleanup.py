@@ -5,13 +5,13 @@ The CancellationCleanup service. Responsible for cancelling tasks and subflows t
 import datetime
 import logging
 from typing import Annotated, Any
-from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 import sqlalchemy as sa
-from docket import CurrentDocket, Depends, Docket, Logged, Perpetual
-from sqlalchemy.sql.expression import or_
+from docket import CurrentDocket, Depends, Docket, Logged, Perpetual, Retry
 
 import prefect.server.models as models
+from prefect._internal.uuid7 import uuid7
 from prefect.client.schemas.worker_channel import CANCELLING_TIMEOUT_TEARDOWN
 from prefect.logging import get_logger
 from prefect.server.database import PrefectDBInterface, provide_database_interface
@@ -30,13 +30,8 @@ NON_TERMINAL_STATES = list(set(states.StateType) - states.TERMINAL_STATES)
 CANCELLING_TIMEOUT_CANCELLED_MESSAGE = (
     "Flow run cancellation timed out; marked this flow run as Cancelled."
 )
-CANCELLING_TIMEOUT_CLEANUP_STATE_ID_CONTEXT_KEY = (
-    "__prefect_cancelling_timeout_cleanup_state_id"
-)
-IN_MEMORY_CLEANUP_QUEUE_STORAGE = (
-    "prefect.server.worker_communication.cleanup_queue.memory"
-)
-IN_MEMORY_CLEANUP_QUEUE_MARKER_TOKEN = uuid4()
+CANCELLING_TIMEOUT_CHECK_KEY_PREFIX = "cancelling-timeout"
+PUSH_WORK_POOL_TYPE_SUFFIX = ":push"
 logger: logging.Logger = get_logger(__name__)
 
 _service_cleanup_queue: WorkerCleanupQueue | None = None
@@ -54,47 +49,51 @@ def _get_service_worker_cleanup_queue() -> WorkerCleanupQueue:
     return _service_cleanup_queue
 
 
-def _mark_cancelling_timeout_cleanup_complete(
-    flow_run: Any, cleanup_state_id: UUID
+def cancelling_timeout_check_key(flow_run_id: UUID) -> str:
+    return f"{CANCELLING_TIMEOUT_CHECK_KEY_PREFIX}:{flow_run_id}"
+
+
+async def schedule_cancelling_timeout_check(
+    *,
+    docket: Docket,
+    flow_run_id: UUID,
+    flow_run_state_id: UUID,
+    when: datetime.datetime,
 ) -> None:
-    flow_run.context = {
-        **(flow_run.context or {}),
-        CANCELLING_TIMEOUT_CLEANUP_STATE_ID_CONTEXT_KEY: (
-            _cancelling_timeout_cleanup_marker_value(cleanup_state_id)
-        ),
-    }
-
-
-def _uses_in_memory_cleanup_queue_storage() -> bool:
-    return (
-        get_current_settings().server.worker_channel.cleanup_queue_storage
-        == IN_MEMORY_CLEANUP_QUEUE_STORAGE
+    await docket.replace(
+        handle_cancelling_timeout,
+        key=cancelling_timeout_check_key(flow_run_id),
+        when=when,
+    )(
+        flow_run_id=flow_run_id,
+        flow_run_state_id=flow_run_state_id,
+        timeout_cancelled_state_id=uuid7(),
     )
 
 
-def _cancelling_timeout_cleanup_marker_value(cleanup_state_id: UUID) -> str:
-    if _uses_in_memory_cleanup_queue_storage():
-        return f"{cleanup_state_id}:{IN_MEMORY_CLEANUP_QUEUE_MARKER_TOKEN}"
-    return str(cleanup_state_id)
+async def schedule_cancelling_timeout_check_for_state(
+    *,
+    docket: Docket,
+    flow_run_id: UUID,
+    state: states.State[Any] | None,
+) -> None:
+    settings = get_current_settings().server.services.cancellation_cleanup
+    if (
+        not settings.enabled
+        or state is None
+        or state.type != states.StateType.CANCELLING
+        or state.id is None
+        or state.timestamp is None
+    ):
+        return
 
-
-def _cancelling_timeout_cleanup_marker_expression(
-    db: PrefectDBInterface,
-) -> sa.ColumnElement[str]:
-    marker = sa.cast(db.FlowRun.state_id, sa.String)
-    if db.dialect.name == "sqlite":
-        marker_hex = sa.func.replace(marker, "-", "")
-        marker = sa.func.printf(
-            "%s-%s-%s-%s-%s",
-            sa.func.substr(marker_hex, 1, 8),
-            sa.func.substr(marker_hex, 9, 4),
-            sa.func.substr(marker_hex, 13, 4),
-            sa.func.substr(marker_hex, 17, 4),
-            sa.func.substr(marker_hex, 21, 12),
-        )
-    if _uses_in_memory_cleanup_queue_storage():
-        return marker + f":{IN_MEMORY_CLEANUP_QUEUE_MARKER_TOKEN}"
-    return marker
+    await schedule_cancelling_timeout_check(
+        docket=docket,
+        flow_run_id=flow_run_id,
+        flow_run_state_id=state.id,
+        when=state.timestamp
+        + datetime.timedelta(seconds=settings.cancelling_timeout_seconds),
+    )
 
 
 # Docket task function for cancelling child task runs of a cancelled flow run
@@ -132,6 +131,7 @@ async def cancel_child_task_runs(
 async def cancel_subflow_run(
     subflow_run_id: Annotated[UUID, Logged],
     *,
+    docket: Docket = CurrentDocket(),
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
     """Cancel a subflow run whose parent flow run was cancelled (docket task)."""
@@ -164,17 +164,193 @@ async def cancel_subflow_run(
         ):
             return
 
+        if (
+            flow_run.deployment_id
+            and flow_run.state.type == states.StateType.CANCELLING
+        ):
+            return
+
         if flow_run.deployment_id:
             state = states.Cancelling(message="The parent flow run was cancelled.")
         else:
             state = states.Cancelled(message="The parent flow run was cancelled.")
 
     async with db.session_context(begin_transaction=True) as session:
-        await models.flow_runs.set_flow_run_state(
+        state_result = await models.flow_runs.set_flow_run_state(
             session=session,
             flow_run_id=subflow_run_id,
             state=state,
         )
+
+    if state_result.status == responses.SetStateStatus.ACCEPT:
+        await schedule_cancelling_timeout_check_for_state(
+            docket=docket,
+            flow_run_id=subflow_run_id,
+            state=state_result.state,
+        )
+
+
+async def handle_cancelling_timeout(
+    flow_run_id: Annotated[UUID, Logged],
+    flow_run_state_id: Annotated[UUID, Logged],
+    timeout_cancelled_state_id: Annotated[UUID, Logged],
+    *,
+    db: PrefectDBInterface = Depends(provide_database_interface),
+    cleanup_queue: WorkerCleanupQueue = Depends(_get_service_worker_cleanup_queue),
+    retry: Retry = Retry(attempts=None),
+) -> CleanupQueueMessage | None:
+    """Handle a scheduled CANCELLING timeout check for a single flow run."""
+    settings = get_current_settings().server.services.cancellation_cleanup
+    cleanup_enqueue_parameters: dict[str, Any] | None = None
+    cleanup_state_id: UUID | None = None
+
+    async with db.session_context(begin_transaction=True) as session:
+        flow_run_result = await session.execute(
+            sa.select(
+                db.FlowRun,
+                db.WorkQueue.work_pool_id,
+                db.WorkPool.type,
+            )
+            .outerjoin(db.WorkQueue, db.FlowRun.work_queue_id == db.WorkQueue.id)
+            .outerjoin(db.WorkPool, db.WorkQueue.work_pool_id == db.WorkPool.id)
+            .where(db.FlowRun.id == flow_run_id)
+            .with_for_update(of=db.FlowRun)
+        )
+        row = flow_run_result.first()
+        if row is None:
+            logger.info(
+                "Flow run %s no longer exists, skipping CANCELLING timeout",
+                flow_run_id,
+            )
+            return None
+
+        flow_run, work_pool_id, work_pool_type = row
+        if (
+            flow_run.state_type == states.StateType.CANCELLED
+            and flow_run.state_id == timeout_cancelled_state_id
+        ):
+            cleanup_state_id = flow_run.state_id
+        else:
+            if flow_run.state_id != flow_run_state_id:
+                logger.info(
+                    "Flow run %s is in a new state, skipping CANCELLING timeout",
+                    flow_run.id,
+                )
+                return None
+
+            if flow_run.state_type != states.StateType.CANCELLING:
+                logger.info(
+                    "Flow run %s is no longer CANCELLING, skipping timeout",
+                    flow_run.id,
+                )
+                return None
+
+            if flow_run.state_timestamp is None:
+                logger.info(
+                    "Flow run %s has no CANCELLING state timestamp, skipping timeout",
+                    flow_run.id,
+                )
+                return None
+
+            deadline = flow_run.state_timestamp + datetime.timedelta(
+                seconds=settings.cancelling_timeout_seconds
+            )
+            if deadline > now("UTC"):
+                logger.info(
+                    "Flow run %s has not reached the CANCELLING timeout, rescheduling",
+                    flow_run.id,
+                )
+                retry.at(deadline)
+                return None
+
+            try:
+                from prefect.server.orchestration.core_policy import CoreFlowPolicy
+
+                state_result = await models.flow_runs.set_flow_run_state(
+                    session=session,
+                    flow_run_id=flow_run.id,
+                    state=states.Cancelled(
+                        id=timeout_cancelled_state_id,
+                        message=CANCELLING_TIMEOUT_CANCELLED_MESSAGE,
+                    ),
+                    flow_policy=CoreFlowPolicy,
+                )
+            except ObjectNotFoundError:
+                logger.info(
+                    "Flow run %s was removed during CANCELLING timeout, skipping",
+                    flow_run.id,
+                )
+                return None
+
+            if state_result.status != responses.SetStateStatus.ACCEPT:
+                logger.info(
+                    "CANCELLING timeout state transition for flow run %s was not "
+                    "accepted",
+                    flow_run.id,
+                    extra={
+                        "status": state_result.status.value,
+                        "reason": getattr(state_result.details, "reason", None),
+                    },
+                )
+                return None
+
+            if (
+                state_result.state is None
+                or state_result.state.id is None
+                or state_result.state.type != states.StateType.CANCELLED
+            ):
+                return None
+
+            cleanup_state_id = state_result.state.id
+
+        if flow_run.work_queue_id is None or work_pool_id is None:
+            logger.warning(
+                "Skipping CANCELLING timeout cleanup for unroutable flow run: "
+                "flow_run_id=%s work_queue_id=%s",
+                flow_run.id,
+                flow_run.work_queue_id,
+            )
+            return None
+
+        if work_pool_type and str(work_pool_type).endswith(PUSH_WORK_POOL_TYPE_SUFFIX):
+            logger.info(
+                "Skipping CANCELLING timeout cleanup for push-pool flow run: "
+                "flow_run_id=%s work_queue_id=%s work_pool_id=%s",
+                flow_run.id,
+                flow_run.work_queue_id,
+                work_pool_id,
+            )
+            return None
+
+        cleanup_enqueue_parameters = {
+            "message_id": uuid5(
+                NAMESPACE_URL,
+                "prefect:"
+                f"{CANCELLING_TIMEOUT_TEARDOWN}:"
+                f"{flow_run.id}:{cleanup_state_id}",
+            ),
+            "idempotency_key": (
+                f"{CANCELLING_TIMEOUT_TEARDOWN}:{flow_run.id}:{cleanup_state_id}"
+            ),
+            "work_pool_id": work_pool_id,
+            "work_queue_id": flow_run.work_queue_id,
+            "kind": CANCELLING_TIMEOUT_TEARDOWN,
+            "target": {
+                "flow_run_id": str(flow_run.id),
+                "infrastructure_pid": flow_run.infrastructure_pid,
+            },
+        }
+
+    if cleanup_enqueue_parameters is None:
+        return None
+
+    message = await cleanup_queue.enqueue(**cleanup_enqueue_parameters)
+    logger.info(
+        "Enqueued CANCELLING timeout cleanup message: flow_run_id=%s message_id=%s",
+        flow_run_id,
+        message.message_id,
+    )
+    return message
 
 
 @perpetual_service(
@@ -182,214 +358,50 @@ async def cancel_subflow_run(
         get_current_settings().server.services.cancellation_cleanup.enabled
     ),
 )
-async def enqueue_cancelling_timeout_teardowns(
-    *,
+async def ensure_cancelling_timeout_checks(
+    docket: Docket = CurrentDocket(),
     db: PrefectDBInterface = Depends(provide_database_interface),
-    cleanup_queue: WorkerCleanupQueue = Depends(_get_service_worker_cleanup_queue),
     perpetual: Perpetual = Perpetual(
         automatic=True,
         every=datetime.timedelta(
             seconds=get_current_settings().server.services.cancellation_cleanup.loop_seconds
         ),
     ),
-) -> list[CleanupQueueMessage]:
-    """Enqueue worker cleanup for flow runs stuck in CANCELLING past the timeout."""
+) -> None:
+    """Seed Docket timeout checks for flow runs already in CANCELLING."""
+
     settings = get_current_settings().server.services.cancellation_cleanup
     batch_size = 200
-    cutoff = now("UTC") - datetime.timedelta(
-        seconds=settings.cancelling_timeout_seconds
+    cancelling_flow_query = (
+        sa.select(
+            db.FlowRun.id,
+            db.FlowRun.state_id,
+            db.FlowRun.state_timestamp,
+        )
+        .where(
+            db.FlowRun.state_type == states.StateType.CANCELLING,
+            db.FlowRun.state_id.is_not(None),
+            db.FlowRun.state_timestamp.is_not(None),
+        )
+        .order_by(db.FlowRun.state_timestamp, db.FlowRun.id)
+        .limit(batch_size)
     )
-    enqueued_messages: list[CleanupQueueMessage] = []
-    last_seen: tuple[datetime.datetime, UUID] | None = None
-    while True:
-        cleanup_state_id_marker = db.FlowRun.context[
-            CANCELLING_TIMEOUT_CLEANUP_STATE_ID_CONTEXT_KEY
-        ].as_string()
-        cleanup_state_id_marker_value = _cancelling_timeout_cleanup_marker_expression(
-            db
+
+    async with db.session_context() as session:
+        result = await session.execute(cancelling_flow_query)
+    cancelling_flow_runs = result.all()
+
+    for flow_run_id, flow_run_state_id, state_timestamp in cancelling_flow_runs:
+        await docket.add(
+            handle_cancelling_timeout,
+            key=cancelling_timeout_check_key(flow_run_id),
+            when=state_timestamp
+            + datetime.timedelta(seconds=settings.cancelling_timeout_seconds),
+        )(
+            flow_run_id=flow_run_id,
+            flow_run_state_id=flow_run_state_id,
+            timeout_cancelled_state_id=uuid7(),
         )
-        candidate_query = (
-            sa.select(db.FlowRun.state_timestamp, db.FlowRun.id)
-            .outerjoin(db.FlowRunState, db.FlowRun.state_id == db.FlowRunState.id)
-            .where(
-                db.FlowRun.state_timestamp.is_not(None),
-                or_(
-                    sa.and_(
-                        db.FlowRun.state_type == states.StateType.CANCELLING,
-                        db.FlowRun.state_timestamp <= cutoff,
-                    ),
-                    sa.and_(
-                        db.FlowRun.state_type == states.StateType.CANCELLED,
-                        db.FlowRunState.message == CANCELLING_TIMEOUT_CANCELLED_MESSAGE,
-                        or_(
-                            db.FlowRun.context.is_(None),
-                            cleanup_state_id_marker.is_(None),
-                            cleanup_state_id_marker != cleanup_state_id_marker_value,
-                        ),
-                    ),
-                ),
-            )
-            .order_by(db.FlowRun.state_timestamp, db.FlowRun.id)
-            .limit(batch_size)
-        )
-        if last_seen is not None:
-            last_seen_timestamp, last_seen_id = last_seen
-            candidate_query = candidate_query.where(
-                or_(
-                    db.FlowRun.state_timestamp > last_seen_timestamp,
-                    sa.and_(
-                        db.FlowRun.state_timestamp == last_seen_timestamp,
-                        db.FlowRun.id > last_seen_id,
-                    ),
-                )
-            )
-
-        async with db.session_context() as session:
-            result = await session.execute(candidate_query)
-        candidates = result.all()
-        if not candidates:
-            break
-
-        for state_timestamp, flow_run_id in candidates:
-            cleanup_enqueue_parameters: dict[str, Any] | None = None
-            cleanup_state_id: UUID | None = None
-            async with db.session_context(begin_transaction=True) as session:
-                flow_run_result = await session.execute(
-                    sa.select(
-                        db.FlowRun,
-                        db.WorkQueue.work_pool_id,
-                        db.FlowRunState.message,
-                    )
-                    .outerjoin(
-                        db.WorkQueue, db.FlowRun.work_queue_id == db.WorkQueue.id
-                    )
-                    .outerjoin(
-                        db.FlowRunState, db.FlowRun.state_id == db.FlowRunState.id
-                    )
-                    .where(db.FlowRun.id == flow_run_id)
-                    .with_for_update(of=db.FlowRun)
-                )
-                row = flow_run_result.first()
-                if row is None:
-                    continue
-
-                flow_run, work_pool_id, state_message = row
-                if flow_run.state_type == states.StateType.CANCELLING:
-                    if (
-                        flow_run.state_id is None
-                        or flow_run.state_timestamp is None
-                        or flow_run.state_timestamp > cutoff
-                    ):
-                        continue
-
-                    try:
-                        state_result = await models.flow_runs.set_flow_run_state(
-                            session=session,
-                            flow_run_id=flow_run.id,
-                            state=states.Cancelled(
-                                message=CANCELLING_TIMEOUT_CANCELLED_MESSAGE
-                            ),
-                        )
-                    except ObjectNotFoundError:
-                        continue
-
-                    if state_result.status != responses.SetStateStatus.ACCEPT:
-                        logger.info(
-                            "CANCELLING timeout state transition for flow run %s was "
-                            "not accepted",
-                            flow_run.id,
-                            extra={
-                                "status": state_result.status.value,
-                                "reason": getattr(state_result.details, "reason", None),
-                            },
-                        )
-                        continue
-
-                    if (
-                        state_result.state is None
-                        or state_result.state.id is None
-                        or state_result.state.type != states.StateType.CANCELLED
-                    ):
-                        continue
-
-                    cleanup_state_id = state_result.state.id
-                elif flow_run.state_type == states.StateType.CANCELLED:
-                    cleanup_state_id = flow_run.state_id
-                    if (
-                        cleanup_state_id is None
-                        or state_message != CANCELLING_TIMEOUT_CANCELLED_MESSAGE
-                        or (flow_run.context or {}).get(
-                            CANCELLING_TIMEOUT_CLEANUP_STATE_ID_CONTEXT_KEY
-                        )
-                        == _cancelling_timeout_cleanup_marker_value(cleanup_state_id)
-                    ):
-                        continue
-                else:
-                    continue
-
-                if flow_run.work_queue_id is None or work_pool_id is None:
-                    logger.warning(
-                        "Skipping CANCELLING timeout cleanup for unroutable flow run: "
-                        "flow_run_id=%s work_queue_id=%s",
-                        flow_run.id,
-                        flow_run.work_queue_id,
-                    )
-                    if cleanup_state_id is not None:
-                        _mark_cancelling_timeout_cleanup_complete(
-                            flow_run, cleanup_state_id
-                        )
-                    continue
-
-                cleanup_enqueue_parameters = {
-                    "message_id": uuid5(
-                        NAMESPACE_URL,
-                        "prefect:"
-                        f"{CANCELLING_TIMEOUT_TEARDOWN}:"
-                        f"{flow_run.id}:{cleanup_state_id}",
-                    ),
-                    "idempotency_key": (
-                        f"{CANCELLING_TIMEOUT_TEARDOWN}:"
-                        f"{flow_run.id}:{cleanup_state_id}"
-                    ),
-                    "work_pool_id": work_pool_id,
-                    "work_queue_id": flow_run.work_queue_id,
-                    "kind": CANCELLING_TIMEOUT_TEARDOWN,
-                    "target": {
-                        "flow_run_id": str(flow_run.id),
-                        "infrastructure_pid": flow_run.infrastructure_pid,
-                    },
-                }
-
-            if cleanup_enqueue_parameters is not None:
-                message = await cleanup_queue.enqueue(**cleanup_enqueue_parameters)
-                enqueued_messages.append(message)
-                if cleanup_state_id is not None:
-                    async with db.session_context(begin_transaction=True) as session:
-                        marker_flow_run = await models.flow_runs.read_flow_run(
-                            session=session,
-                            flow_run_id=flow_run_id,
-                            for_update=True,
-                        )
-                        if (
-                            marker_flow_run is not None
-                            and marker_flow_run.state_id == cleanup_state_id
-                        ):
-                            _mark_cancelling_timeout_cleanup_complete(
-                                marker_flow_run, cleanup_state_id
-                            )
-
-        last_state_timestamp, last_flow_run_id = candidates[-1]
-        last_seen = (last_state_timestamp, last_flow_run_id)
-        if len(candidates) < batch_size:
-            break
-
-    if enqueued_messages:
-        logger.info(
-            "Enqueued CANCELLING timeout cleanup messages: count=%s",
-            len(enqueued_messages),
-        )
-
-    return enqueued_messages
 
 
 # Perpetual monitor for cancelled flow runs with child tasks (find and flood pattern)
@@ -452,7 +464,7 @@ async def monitor_subflow_runs(
     subflow_query = (
         sa.select(db.FlowRun.id)
         .where(
-            or_(
+            sa.or_(
                 db.FlowRun.state_type == states.StateType.PENDING,
                 db.FlowRun.state_type == states.StateType.SCHEDULED,
                 db.FlowRun.state_type == states.StateType.RUNNING,
