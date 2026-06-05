@@ -1,0 +1,22 @@
+---
+title: prefect-dask
+---
+
+## 0.3.7
+
+_Released on June 05, 2026_
+
+**Bug Fixes**
+
+- Pin `distributed!=2024.10.0` to avoid `AttributeError` with `DaskTaskRunner` [#18999](https://github.com/PrefectHQ/prefect/pull/18999) by [@zzstoatzz](https://github.com/zzstoatzz)
+
+**Enhancements**
+
+- Fail loudly when unable to connect to custom Dask cluster [#18432](https://github.com/PrefectHQ/prefect/pull/18432) by [@zzstoatzz](https://github.com/zzstoatzz)
+
+**Maintenance**
+
+- Set up automatic API reference docs via `mdxify` [#20714](https://github.com/PrefectHQ/prefect/pull/20714) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Fix integration API reference generation [#20789](https://github.com/PrefectHQ/prefect/pull/20789) by [@desertaxle](https://github.com/desertaxle)
+- Remove Python 3.9 support [#19273](https://github.com/PrefectHQ/prefect/pull/19273) by [@desertaxle](https://github.com/desertaxle)
+

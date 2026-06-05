@@ -781,6 +781,7 @@
                     "group": "SDK Reference",
                     "pages": [
                       "integrations/prefect-redis/api-ref/prefect_redis-blocks",
+                      "integrations/prefect-redis/api-ref/prefect_redis-cleanup_queue",
                       "integrations/prefect-redis/api-ref/prefect_redis-client",
                       "integrations/prefect-redis/api-ref/prefect_redis-lease_storage",
                       "integrations/prefect-redis/api-ref/prefect_redis-locking",
