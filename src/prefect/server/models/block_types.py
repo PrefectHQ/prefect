@@ -13,11 +13,38 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prefect.server import schemas
 from prefect.server.database import PrefectDBInterface, db_injector
 from prefect.server.database.orm_models import BlockType
+from prefect.server.events import clients
+from prefect.server.events.schemas import lifecycle
 from prefect.server.models import storage_defaults
+from prefect.types._datetime import now
 
 if TYPE_CHECKING:
     from prefect.client.schemas import BlockType as ClientBlockType
     from prefect.client.schemas.actions import BlockTypeUpdate as ClientBlockTypeUpdate
+
+
+async def emit_block_type_created_event(block_type: BlockType) -> None:
+    """Emit an event when a block type is created."""
+    async with clients.PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            lifecycle.block_type_created_event(block_type, now("UTC"))
+        )
+
+
+async def emit_block_type_updated_event(block_type: BlockType) -> None:
+    """Emit an event when a block type is updated."""
+    async with clients.PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            lifecycle.block_type_updated_event(block_type, now("UTC"))
+        )
+
+
+async def emit_block_type_deleted_event(block_type: BlockType) -> None:
+    """Emit an event when a block type is deleted."""
+    async with clients.PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            lifecycle.block_type_deleted_event(block_type, now("UTC"))
+        )
 
 
 @db_injector
@@ -45,6 +72,7 @@ async def create_block_type(
             block_type.model_dump(mode="json")
         )
 
+    upsert_start = now("UTC")
     insert_values = block_type.model_dump_for_orm(
         exclude_unset=False, exclude={"created", "updated", "id"}
     )
@@ -75,7 +103,12 @@ async def create_block_type(
     )
 
     result = await session.execute(query)
-    return result.scalar()
+    model = result.scalar()
+
+    if model is not None and model.created >= upsert_start:
+        await emit_block_type_created_event(model)
+
+    return model
 
 
 @db_injector
@@ -192,13 +225,20 @@ async def update_block_type(
             )
         )
 
+    existing = await session.get(db.BlockType, block_type_id)
+    if existing is None:
+        return False
+
     update_statement = (
         sa.update(db.BlockType)
         .where(db.BlockType.id == block_type_id)
         .values(**block_type.model_dump_for_orm(exclude_unset=True, exclude={"id"}))
     )
-    result = await session.execute(update_statement)
-    return result.rowcount > 0
+    await session.execute(update_statement)
+
+    await session.refresh(existing)
+    await emit_block_type_updated_event(existing)
+    return True
 
 
 @db_injector
@@ -216,6 +256,10 @@ async def delete_block_type(
         bool: True if the block type was updated
     """
 
+    existing = await session.get(db.BlockType, block_type_id)
+    if existing is None:
+        return False
+
     default_references_block_type = (
         await storage_defaults.server_default_result_storage_references_block_type(
             session=session,
@@ -223,11 +267,11 @@ async def delete_block_type(
         )
     )
 
-    result = await session.execute(
+    await emit_block_type_deleted_event(existing)
+
+    await session.execute(
         sa.delete(db.BlockType).where(db.BlockType.id == block_type_id)
     )
-    if result.rowcount <= 0:
-        return False
 
     if default_references_block_type:
         await storage_defaults.clear_server_default_result_storage(session=session)

@@ -94,8 +94,14 @@ async def invalid_work_pool(session):
 
 
 def assert_status_events(resource_name: str, events: List[str]):
+    # Status assertions only care about status transitions; lifecycle
+    # created/updated/deleted events (e.g. from creating the work pool and its
+    # default queue) are emitted separately and are not counted here.
     found_events = [
-        event for item in AssertingEventsClient.all for event in item.events
+        event
+        for item in AssertingEventsClient.all
+        for event in item.events
+        if not event.event.endswith((".created", ".updated", ".deleted"))
     ]
     assert len(events) == len(found_events)
 
@@ -551,6 +557,7 @@ class TestDeleteWorkPool:
 
 class TestUpdateWorkPool:
     async def test_update_work_pool(self, client, session, work_pool):
+        AssertingEventsClient.reset()
         response = await client.patch(
             f"/work_pools/{work_pool.name}",
             json=dict(is_paused=True, concurrency_limit=5),
@@ -1480,6 +1487,9 @@ class TestUpdateWorkQueue:
         assert work_queue_1.concurrency_limit is None
         assert work_queue_1.status == "NOT_READY"
 
+        # Only count events from the update below, not work-pool/queue creation
+        AssertingEventsClient.reset()
+
         new_data = schemas.actions.WorkQueueUpdate(
             is_paused=True, concurrency_limit=3
         ).model_dump(mode="json", exclude_unset=True)
@@ -1514,6 +1524,9 @@ class TestUpdateWorkQueue:
         work_pool,
     ):
         assert work_queue_1.status == "NOT_READY"
+
+        # Only count events from the update below, not work-pool/queue creation
+        AssertingEventsClient.reset()
 
         new_data = schemas.actions.WorkQueueUpdate(
             is_paused=True, concurrency_limit=3
@@ -1554,6 +1567,9 @@ class TestUpdateWorkQueue:
         paused_work_queue,
     ):
         assert paused_work_queue.status == "PAUSED"
+
+        # Only count events from the update below, not work-queue creation
+        AssertingEventsClient.reset()
 
         new_data = schemas.actions.WorkQueueUpdate(
             is_paused=True,
@@ -1600,6 +1616,9 @@ class TestUpdateWorkQueue:
         ready_work_queue,
     ):
         assert ready_work_queue.status == "READY"
+
+        # Only count events from the update below, not work-queue creation
+        AssertingEventsClient.reset()
 
         new_data = schemas.actions.WorkQueueUpdate(
             is_paused=False,
@@ -2372,9 +2391,17 @@ class TestWorkerChannelConnect:
     async def test_connect_rolls_back_created_pool_without_status_event_on_failure(
         self, test_client: TestClient, session: AsyncSession
     ):
-        event_count_before = sum(
-            len(getattr(client, "events", [])) for client in AssertingEventsClient.all
-        )
+        def status_event_count() -> int:
+            # Lifecycle created/updated/deleted events are emitted inline and are
+            # not the subject of this test, which checks for status events.
+            return sum(
+                1
+                for client in AssertingEventsClient.all
+                for event in getattr(client, "events", [])
+                if not event.event.endswith((".created", ".updated", ".deleted"))
+            )
+
+        event_count_before = status_event_count()
         hello = _worker_hello_frame(
             create_pool_if_not_found=True,
             default_base_job_template=_valid_base_job_template(),
@@ -2395,9 +2422,7 @@ class TestWorkerChannelConnect:
             session=session, work_pool_name="rolled-back-pool"
         )
         assert created is None
-        event_count_after = sum(
-            len(getattr(client, "events", [])) for client in AssertingEventsClient.all
-        )
+        event_count_after = status_event_count()
         assert event_count_after == event_count_before
 
     async def test_connect_handles_concurrent_missing_work_pool_creation(
