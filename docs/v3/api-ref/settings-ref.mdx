@@ -1986,6 +1986,18 @@ The cancellation cleanup service will look for non-terminal tasks and subflows t
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS`, `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS`
 
+### `cancelling_timeout_seconds`
+The cancellation cleanup service will enqueue worker cleanup for flow runs that remain in CANCELLING longer than this many seconds. Defaults to `300`.
+
+**Type**: `number`
+
+**Default**: `300`
+
+**TOML dotted key path**: `server.services.cancellation_cleanup.cancelling_timeout_seconds`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_CANCELLING_TIMEOUT_SECONDS`, `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_CANCELLING_TIMEOUT_SECONDS`
+
 ---
 ## ServerServicesCleanupReconcilerSettings
 Settings for controlling the cleanup reconciler service.

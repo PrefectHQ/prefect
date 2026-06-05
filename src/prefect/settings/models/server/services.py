@@ -44,6 +44,17 @@ class ServerServicesCancellationCleanupSettings(ServicesBaseSetting):
         ),
     )
 
+    cancelling_timeout_seconds: float = Field(
+        default=300,
+        gt=0,
+        description="The cancellation cleanup service will enqueue worker cleanup for flow runs that remain in CANCELLING longer than this many seconds. Defaults to `300`.",
+        validation_alias=AliasChoices(
+            AliasPath("cancelling_timeout_seconds"),
+            "prefect_server_services_cancellation_cleanup_cancelling_timeout_seconds",
+            "prefect_api_services_cancellation_cleanup_cancelling_timeout_seconds",
+        ),
+    )
+
 
 _VALID_VACUUM_TYPES = frozenset({"events", "flow_runs"})
 

@@ -115,6 +115,7 @@ def test_event_vacuum_runs_in_ephemeral_mode():
 def test_cancellation_cleanup_services_registered():
     """Test that cancellation cleanup perpetual services are registered."""
     service_names = [config.function.__name__ for config in _PERPETUAL_SERVICES]
+    assert "enqueue_cancelling_timeout_teardowns" in service_names
     assert "monitor_cancelled_flow_runs" in service_names
     assert "monitor_subflow_runs" in service_names
 
@@ -192,6 +193,7 @@ def test_get_perpetual_services_filters_ephemeral_mode():
     services = get_perpetual_services(ephemeral=True, webserver_only=False)
     # Cancellation cleanup services are not marked for ephemeral mode
     service_names = [config.function.__name__ for config in services]
+    assert "enqueue_cancelling_timeout_teardowns" not in service_names
     assert "monitor_cancelled_flow_runs" not in service_names
     assert "monitor_subflow_runs" not in service_names
     # Proactive triggers and event vacuum ARE marked for ephemeral mode
@@ -204,6 +206,7 @@ def test_get_perpetual_services_filters_webserver_mode():
     services = get_perpetual_services(ephemeral=False, webserver_only=True)
     # Cancellation cleanup services are not marked for webserver mode
     service_names = [config.function.__name__ for config in services]
+    assert "enqueue_cancelling_timeout_teardowns" not in service_names
     assert "monitor_cancelled_flow_runs" not in service_names
     assert "monitor_subflow_runs" not in service_names
 
@@ -219,6 +222,7 @@ def test_get_enabled_perpetual_services_respects_settings(monkeypatch):
 
     services = get_enabled_perpetual_services(ephemeral=False, webserver_only=False)
     service_names = [config.function.__name__ for config in services]
+    assert "enqueue_cancelling_timeout_teardowns" in service_names
     assert "monitor_cancelled_flow_runs" in service_names
     assert "monitor_subflow_runs" in service_names
 
@@ -227,6 +231,7 @@ def test_get_enabled_perpetual_services_respects_settings(monkeypatch):
 
     services = get_enabled_perpetual_services(ephemeral=False, webserver_only=False)
     service_names = [config.function.__name__ for config in services]
+    assert "enqueue_cancelling_timeout_teardowns" not in service_names
     assert "monitor_cancelled_flow_runs" not in service_names
     assert "monitor_subflow_runs" not in service_names
 

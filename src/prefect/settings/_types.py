@@ -138,6 +138,7 @@ SettingAccessor: TypeAlias = Literal[
     "server.memoize_block_auto_registration",
     "server.metrics_enabled",
     "server.register_blocks_on_start",
+    "server.services.cancellation_cleanup.cancelling_timeout_seconds",
     "server.services.cancellation_cleanup.enabled",
     "server.services.cancellation_cleanup.loop_seconds",
     "server.services.cleanup_reconciler.batch_size",
