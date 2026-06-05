@@ -311,6 +311,30 @@ class TestRRuleScheduleFromRRule:
         schedule = RRuleSchedule.from_rrule(rset)
         self._assert_daily_9am_across_dst(schedule, tz_name)
 
+    def test_single_rrule_preserves_name_bearing_tzinfo(self) -> None:
+        """Regression: tzinfo with a public .name attribute (e.g. pendulum)."""
+
+        class _NameTZ(datetime.tzinfo):
+            """Minimal tzinfo stub that exposes .name like pendulum zones."""
+
+            name = "America/New_York"
+
+            def utcoffset(self, dt: datetime.datetime | None) -> datetime.timedelta:
+                return datetime.timedelta(hours=-5)
+
+            def tzname(self, dt: datetime.datetime | None) -> str:
+                return "EST"
+
+            def dst(self, dt: datetime.datetime | None) -> datetime.timedelta:
+                return datetime.timedelta(0)
+
+        rule = dateutil.rrule.rrule(
+            freq=dateutil.rrule.DAILY,
+            dtstart=self._DTSTART_BEFORE_DST.replace(tzinfo=_NameTZ()),
+        )
+        schedule = RRuleSchedule.from_rrule(rule)
+        assert schedule.timezone == "America/New_York"
+
     def test_naive_rrule_defaults_to_utc(self) -> None:
         rule = dateutil.rrule.rrule(
             freq=dateutil.rrule.DAILY,

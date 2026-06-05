@@ -29,8 +29,8 @@ MAX_RRULE_LENGTH = 6500
 def _iana_timezone_name(tzinfo: datetime.tzinfo) -> str:
     """Extract a valid IANA timezone name from a tzinfo object.
 
-    Supports `zoneinfo.ZoneInfo` (has `.key`) and
-    `dateutil.tz.gettz()` / `dateutil.tz.tzfile` (has `._filename`).
+    Supports `zoneinfo.ZoneInfo` (`.key`), pendulum-style zones (`.name`),
+    and `dateutil.tz.gettz()` / `dateutil.tz.tzfile` (`._filename`).
     Falls back to `"UTC"` when no valid name can be determined.
     """
     # zoneinfo.ZoneInfo exposes .key
@@ -38,20 +38,26 @@ def _iana_timezone_name(tzinfo: datetime.tzinfo) -> str:
     if key and is_valid_timezone(key):
         return key
 
+    # pendulum (and some other libraries) expose .name
+    name: Optional[str] = getattr(tzinfo, "name", None)
+    if name and is_valid_timezone(name):
+        return name
+
     # dateutil tzfile: inspect the underlying file path
     filename: Optional[str] = getattr(tzinfo, "_filename", None)
     if filename:
+        normalized = filename.replace("\\", "/")
         marker = "/zoneinfo/"
-        idx = filename.find(marker)
+        idx = normalized.find(marker)
         if idx != -1:
-            candidate = filename[idx + len(marker) :]
+            candidate = normalized[idx + len(marker) :]
             if candidate and is_valid_timezone(candidate):
                 return candidate
 
     # dateutil tzfile may also expose ._name
-    name: Optional[str] = getattr(tzinfo, "_name", None)
-    if name and is_valid_timezone(name):
-        return name
+    private_name: Optional[str] = getattr(tzinfo, "_name", None)
+    if private_name and is_valid_timezone(private_name):
+        return private_name
 
     # Last resort: tzname(None) if it happens to be a valid IANA name
     try:
