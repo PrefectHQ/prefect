@@ -282,19 +282,9 @@ In almost all other cases, we bump the minor version, which denotes a non-backwa
 the major version changes to denote a backwards compatible change that is significant in some way, such as a major release
 milestone.
 
-### Version composition
-
-Versions are composed of three parts: MAJOR.MINOR.PATCH. For example, the version 2.5.0 has a major version of 2, a minor version
-of 5, and patch version of 0.
-
-Occasionally, we add a suffix to the version such as `rc`, `a`, or `b`. These indicate pre-release versions that users can
-opt into for testing and experimentation prior to a generally available release.
-
-Each release will increase one of the version numbers. If we increase a number other than the patch version, the versions to the
-right of it reset to zero.
-
 ## Versioning scheme, deprecation, and compatibility
 
 The user-facing versioning policy lives in [Versioning and compatibility](/v3/get-started/versioning). It covers
-how Prefect increments major, minor, and patch versions (which does not strictly follow semantic versioning), the
-deprecation window, and which client versions are compatible with a given server or Prefect Cloud.
+version composition (the `MAJOR.MINOR.PATCH` parts and pre-release suffixes), how Prefect increments each number
+(which does not strictly follow semantic versioning), the deprecation window, and which client versions are
+compatible with a given server or Prefect Cloud.
