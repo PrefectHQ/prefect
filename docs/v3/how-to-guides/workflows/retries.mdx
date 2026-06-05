@@ -158,6 +158,6 @@ You can set the default retries and retry delays for all tasks via Prefect's set
 The default values can be overridden on a per-task basis via the `retries` and `retry_delay_seconds` parameters.
 
 ```
-prefect config set PREFECT_TASK_DEFAULT_RETRIES=2
-prefect config set PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS="1,10,100"
+prefect config set PREFECT_TASKS_DEFAULT_RETRIES=2
+prefect config set PREFECT_TASKS_DEFAULT_RETRY_DELAY_SECONDS="1,10,100"
 ```
