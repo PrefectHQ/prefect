@@ -2,19 +2,19 @@
 title: 3.7
 ---
 
-## 3.7.4
+## 3.7.4 - From cradle to grave
 
 *Released on June 05, 2026*
 
 **New Features 🎉**
 
 * Emit lifecycle events (`created`, `updated`, `deleted`) for all domain objects including variables, flows, block documents, block types, concurrency limits, artifact collections, and automations by [@chrisguidry](https://github.com/chrisguidry) in [#22226](https://github.com/PrefectHQ/prefect/pull/22226)
-* Add Redis-backed cleanup queue backend with optimistic transactions and cross-process wakeups by [@desertaxle](https://github.com/desertaxle) in [#22109](https://github.com/PrefectHQ/prefect/pull/22109)
-* Add cleanup reconciler for worker channel delivery with lease expiry, retry, and dead-letter policies by [@desertaxle](https://github.com/desertaxle) in [#22205](https://github.com/PrefectHQ/prefect/pull/22205)
-* Add cleanup delivery dispatcher for routing reserved cleanup messages to workers over WebSocket by [@desertaxle](https://github.com/desertaxle) in [#22206](https://github.com/PrefectHQ/prefect/pull/22206)
 
 **Enhancements ➕➕**
 
+* Add Redis-backed cleanup queue backend with optimistic transactions and cross-process wakeups by [@desertaxle](https://github.com/desertaxle) in [#22109](https://github.com/PrefectHQ/prefect/pull/22109)
+* Add cleanup reconciler for worker channel delivery with lease expiry, retry, and dead-letter policies by [@desertaxle](https://github.com/desertaxle) in [#22205](https://github.com/PrefectHQ/prefect/pull/22205)
+* Add cleanup delivery dispatcher for routing reserved cleanup messages to workers over WebSocket by [@desertaxle](https://github.com/desertaxle) in [#22206](https://github.com/PrefectHQ/prefect/pull/22206)
 * Add configurable filter params (`automations`, `sort`, `limit`, `offset`) to `read_automations` client methods by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22191](https://github.com/PrefectHQ/prefect/pull/22191)
 * Surface sanitized git clone stderr in error messages when no known hint matches by [@zzstoatzz](https://github.com/zzstoatzz) in [#22196](https://github.com/PrefectHQ/prefect/pull/22196)
 
