@@ -129,6 +129,42 @@ class TestEventEmitterLifecycle:
         assert "Unable to connect to the events WebSocket" in caplog.text
         assert "Upgrade the Prefect client" in caplog.text
 
+    @pytest.mark.parametrize(
+        "exc",
+        [
+            TimeoutError("timed out during opening handshake"),
+            OSError("connection refused"),
+        ],
+        ids=["timeout", "oserror"],
+    )
+    async def test_transient_connection_failure_degrades_to_null_client(
+        self, exc: Exception, caplog: pytest.LogCaptureFixture
+    ):
+        """EventEmitter falls back to NullEventsClient on a transient events
+        WebSocket failure (handshake timeout, dropped connection, network error)
+        that outlived the events client's own retries.  The flow run must not
+        crash — fixes the asymmetry where only HTTP 4xx rejections were caught."""
+        failing_client = AssertingEventsClient()
+
+        async def _raise_on_enter(self_inner):  # noqa: N803
+            raise exc
+
+        emitter = EventEmitter(
+            runner_name="test-runner",
+            client=AsyncMock(),
+            get_events_client=lambda: failing_client,
+        )
+
+        with (
+            patch.object(type(failing_client), "__aenter__", _raise_on_enter),
+            caplog.at_level(logging.WARNING, logger="prefect.runner.event_emitter"),
+        ):
+            async with emitter:
+                # Must not raise; should have fallen back to NullEventsClient
+                assert isinstance(emitter._events_client, NullEventsClient)
+
+        assert "Unable to connect to the events WebSocket" in caplog.text
+
 
 class TestEventEmitterEmitFlowRunCancelled:
     async def test_emits_cancelled_event(self):
