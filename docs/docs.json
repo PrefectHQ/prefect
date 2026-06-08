@@ -1917,6 +1917,7 @@
       {
         "pages": [
           "v3/release-notes/index",
+          "v3/release-notes/versioning",
           {
             "group": "OSS",
             "pages": [
@@ -2449,7 +2450,7 @@
       "source": "/latest/integrations/prefect-sqlalchemy/database"
     },
     {
-      "destination": "/contribute/styles-practices",
+      "destination": "/v3/release-notes/versioning",
       "source": "/latest/contributing/versioning"
     },
     {
