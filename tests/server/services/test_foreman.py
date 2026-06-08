@@ -260,6 +260,8 @@ class TestForeman:
         await create_online_worker_with_old_heartbeat(session, ready_work_pool)
         await session.commit()
 
+        # Count only events emitted by the foreman run, not fixture creation
+        AssertingEventsClient.reset()
         await monitor_worker_health()
 
         # Check worker is marked offline
@@ -308,6 +310,8 @@ class TestForeman:
         assert ready_work_pool.status == schemas.statuses.WorkPoolStatus.READY
         await session.commit()
 
+        # Count only events emitted by the foreman run, not fixture creation
+        AssertingEventsClient.reset()
         await monitor_worker_health()
 
         # Check one worker is marked offline
@@ -345,6 +349,8 @@ class TestForeman:
         """
         assert paused_work_pool.status == schemas.statuses.WorkPoolStatus.PAUSED
 
+        # Count only events emitted by the foreman run, not fixture creation
+        AssertingEventsClient.reset()
         await monitor_worker_health()
 
         # Check work pool is still marked paused
@@ -388,6 +394,8 @@ class TestForeman:
 
         assert work_pool_response.json()["status"] == "NOT_READY"
 
+        # Count only events emitted by the foreman run, not fixture creation
+        AssertingEventsClient.reset()
         await monitor_worker_health()
 
         work_pool_response = await client.get(f"/work_pools/{not_ready_work_pool.name}")
@@ -409,6 +417,8 @@ class TestForeman:
         )
         await session.commit()
 
+        # Count only events emitted by the foreman run, not fixture creation
+        AssertingEventsClient.reset()
         await monitor_worker_health()
 
         # Check worker is marked offline
@@ -433,6 +443,8 @@ class TestForeman:
         await create_online_worker_with_old_heartbeat(session, ready_work_pool)
         await session.commit()
 
+        # Count only events emitted by the foreman run, not fixture creation
+        AssertingEventsClient.reset()
         await monitor_worker_health()
 
         # Check worker is marked offline
@@ -463,6 +475,7 @@ class TestForeman:
         settings = get_current_settings().server.services.foreman
         monkeypatch.setattr(settings, "inactivity_heartbeat_multiple", 0)
 
+        # Don't reset here: this test counts events across both foreman runs
         await monitor_worker_health()
 
         # Check work pool is marked not_ready
@@ -493,6 +506,8 @@ class TestForeman:
         assert deployment.status == "READY"
         await session.commit()
 
+        # Count only events emitted by the foreman run, not fixture creation
+        AssertingEventsClient.reset()
         await monitor_worker_health()
 
         # Check deployment is marked not_ready
@@ -547,6 +562,8 @@ class TestForeman:
 
         await session.commit()
 
+        # Count only events emitted by the foreman run, not fixture creation
+        AssertingEventsClient.reset()
         await monitor_worker_health()
 
         # Check deployment remains ready
@@ -558,6 +575,8 @@ class TestForeman:
         assert len(events) == 0
 
     async def test_foreman_with_no_deployments_to_update(self):
+        # Count only events emitted by the foreman run, not fixture creation
+        AssertingEventsClient.reset()
         await monitor_worker_health()
 
         assert not AssertingEventsClient.last
@@ -590,6 +609,8 @@ class TestForeman:
 
         await session.commit()
 
+        # Count only events emitted by the foreman run, not fixture creation
+        AssertingEventsClient.reset()
         await monitor_worker_health()
 
         assert not AssertingEventsClient.last
@@ -726,6 +747,8 @@ class TestForemanWorkQueueService:
 
         await session.commit()
 
+        # Count only events emitted by the foreman run, not fixture creation
+        AssertingEventsClient.reset()
         await monitor_worker_health()
 
         wq_response = await client.get(f"/work_queues/{wq.id}")
@@ -743,6 +766,8 @@ class TestForemanWorkQueueService:
         )
         await session.commit()
 
+        # Count only events emitted by the foreman run, not fixture creation
+        AssertingEventsClient.reset()
         await monitor_worker_health()
 
         for wq in work_queues:
@@ -759,6 +784,8 @@ class TestForemanWorkQueueService:
         assert wq.status == schemas.statuses.WorkQueueStatus.READY
         await session.commit()
 
+        # Count only events emitted by the foreman run, not fixture creation
+        AssertingEventsClient.reset()
         await monitor_worker_health()
 
         # Assert that the queue is marked as not ready
@@ -770,6 +797,8 @@ class TestForemanWorkQueueService:
         await self.poll_work_queue_by_name(session, name=wq.name)
         await session.commit()
 
+        # Count only events emitted by the foreman run, not fixture creation
+        AssertingEventsClient.reset()
         await monitor_worker_health()
 
         # Assert that queue is not marked as ready
@@ -788,6 +817,8 @@ class TestForemanWorkQueueService:
         )
         await session.commit()
 
+        # Count only events emitted by the foreman run, not fixture creation
+        AssertingEventsClient.reset()
         await monitor_worker_health()
 
         # Assert that recently polled queues are unchanged
@@ -828,6 +859,8 @@ class TestForemanWorkQueueService:
 
         await session.commit()
 
+        # Count only events emitted by the foreman run, not fixture creation
+        AssertingEventsClient.reset()
         await monitor_worker_health()
 
         # Check work queues are marked not_ready
@@ -895,6 +928,8 @@ class TestForemanWorkQueueService:
         )
         await session.commit()
 
+        # Count only events emitted by the foreman run, not fixture creation
+        AssertingEventsClient.reset()
         await monitor_worker_health()
 
         assert len(AssertingEventsClient.all) == 0

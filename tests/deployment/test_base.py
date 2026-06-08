@@ -6,6 +6,7 @@ import yaml
 
 import prefect
 from prefect.deployments.base import (
+    _deployment_already_saved_to_prefect_file,
     configure_project_by_recipe,
     initialize_project,
 )
@@ -140,4 +141,57 @@ class TestInitProject:
         assert (
             contents["deployments"][0]["work_pool"]["job_variables"]["image"]
             == "{{ build_image.image }}"
+        )
+
+
+class TestDeploymentAlreadySavedToPrefectFile:
+    """
+    Unit coverage for the matching check that gates the interactive save prompt
+    in `prefect deploy`.  Restores coverage removed in #17519 and underpins the
+    fix for #17409 (don't re-prompt already-declared deployments) and the Slack
+    report (do prompt for new deployments in an existing file).
+    """
+
+    def _write(self, deployments) -> Path:
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump({"deployments": deployments}, f)
+        return prefect_file
+
+    def test_returns_false_when_file_missing(self):
+        assert not _deployment_already_saved_to_prefect_file(
+            {"name": "x", "entrypoint": "flows/hello.py:my_flow"},
+            prefect_file=Path("does-not-exist.yaml"),
+        )
+
+    def test_returns_true_on_name_and_entrypoint_match(self):
+        prefect_file = self._write(
+            [{"name": "x", "entrypoint": "flows/hello.py:my_flow"}]
+        )
+        assert _deployment_already_saved_to_prefect_file(
+            {"name": "x", "entrypoint": "flows/hello.py:my_flow"},
+            prefect_file=prefect_file,
+        )
+
+    def test_returns_false_when_name_matches_but_entrypoint_differs(self):
+        prefect_file = self._write(
+            [{"name": "x", "entrypoint": "flows/hello.py:my_flow"}]
+        )
+        assert not _deployment_already_saved_to_prefect_file(
+            {"name": "x", "entrypoint": "flows/other.py:my_flow"},
+            prefect_file=prefect_file,
+        )
+
+    def test_returns_false_for_new_deployment_in_scaffolded_file(self):
+        # an `init`-scaffolded file has a single null-field placeholder entry;
+        # a real deployment must not match it (the Slack-reported case)
+        initialize_project()
+        assert not _deployment_already_saved_to_prefect_file(
+            {"name": "default", "entrypoint": "flows/hello.py:my_flow"},
+        )
+
+    def test_returns_false_when_no_deployments_declared(self):
+        self._write(None)
+        assert not _deployment_already_saved_to_prefect_file(
+            {"name": "x", "entrypoint": "flows/hello.py:my_flow"},
         )

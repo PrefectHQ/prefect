@@ -397,7 +397,9 @@ class TestFileSystemLockManager:
 
     def test_wait_for_lock(self, store):
         key = str(uuid4())
-        assert store.acquire_lock(key, holder="holder1", hold_timeout=0.1)
+        # Use a hold_timeout large enough that the lock won't expire before the
+        # is_locked assertion runs (0.1s races on busy CI runners).
+        assert store.acquire_lock(key, holder="holder1", hold_timeout=1)
         assert store.is_locked(key)
         assert store.wait_for_lock(key)
         assert not store.is_locked(key)

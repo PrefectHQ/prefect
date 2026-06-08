@@ -21,7 +21,7 @@ This method will drop this state's `data` if it is not a result type. Only
 results should be sent to the API. Other data is only available locally.
 
 
-### `get_state_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L74" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_state_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_state_result(state: 'State[R]', raise_on_failure: bool = True, retry_result_failure: bool = True) -> 'R'
@@ -33,13 +33,13 @@ Get the result from a state.
 See `State.result()`
 
 
-### `format_exception` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L183" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `format_exception` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L187" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 format_exception(exc: BaseException, tb: TracebackType = None) -> str
 ```
 
-### `exception_to_crashed_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L199" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `exception_to_crashed_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L203" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 exception_to_crashed_state(exc: BaseException, result_store: Optional['ResultStore'] = None) -> State
@@ -50,7 +50,7 @@ Takes an exception that occurs _outside_ of user code and converts it to a
 'Crash' exception with a 'Crashed' state.
 
 
-### `exception_to_failed_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L251" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `exception_to_failed_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L255" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 exception_to_failed_state(exc: Optional[BaseException] = None, result_store: Optional['ResultStore'] = None, write_result: bool = False, **kwargs: Any) -> State[BaseException]
@@ -60,7 +60,7 @@ exception_to_failed_state(exc: Optional[BaseException] = None, result_store: Opt
 Convenience function for creating `Failed` states from exceptions
 
 
-### `return_value_to_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L304" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `return_value_to_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L308" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 return_value_to_state(retval: 'R', result_store: 'ResultStore', key: Optional[str] = None, expiration: Optional[datetime.datetime] = None, write_result: bool = False) -> 'State[R]'
@@ -87,7 +87,7 @@ Callers should resolve all futures into states before passing return values to t
 function.
 
 
-### `aget_state_exception` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L445" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `aget_state_exception` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L449" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aget_state_exception(state: State) -> BaseException
@@ -117,7 +117,7 @@ When a wrapper exception is returned, the type will be:
     - `CancelledRun` if the state type is CANCELLED.
 
 
-### `get_state_exception` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L531" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_state_exception` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L535" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_state_exception(state: State) -> BaseException
@@ -147,7 +147,7 @@ When a wrapper exception is returned, the type will be:
     - `CancelledRun` if the state type is CANCELLED.
 
 
-### `araise_state_exception` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L631" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `araise_state_exception` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L635" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 araise_state_exception(state: State) -> None
@@ -157,7 +157,7 @@ araise_state_exception(state: State) -> None
 Given a FAILED or CRASHED state, raise the contained exception asynchronously.
 
 
-### `raise_state_exception` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L642" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `raise_state_exception` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L646" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 raise_state_exception(state: State) -> None
@@ -167,7 +167,7 @@ raise_state_exception(state: State) -> None
 Given a FAILED or CRASHED state, raise the contained exception.
 
 
-### `is_state_iterable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L652" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `is_state_iterable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L656" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_state_iterable(obj: Any) -> TypeGuard[Iterable[State]]
@@ -184,7 +184,7 @@ Supported iterables are:
 Other iterables will return `False` even if they contain states.
 
 
-### `Scheduled` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L738" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Scheduled` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L742" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 Scheduled(cls: Type['State[R]'] = State, scheduled_time: Optional[datetime.datetime] = None, **kwargs: Any) -> 'State[R]'
@@ -197,7 +197,7 @@ Convenience function for creating `Scheduled` states.
 - a Scheduled state
 
 
-### `Completed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L758" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Completed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L762" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 Completed(cls: Type['State[R]'] = State, **kwargs: Any) -> 'State[R]'
@@ -210,7 +210,7 @@ Convenience function for creating `Completed` states.
 - a Completed state
 
 
-### `Running` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L768" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Running` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L772" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 Running(cls: Type['State[R]'] = State, **kwargs: Any) -> 'State[R]'
@@ -223,7 +223,7 @@ Convenience function for creating `Running` states.
 - a Running state
 
 
-### `Failed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L777" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Failed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L781" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 Failed(cls: Type['State[R]'] = State, **kwargs: Any) -> 'State[R]'
@@ -236,7 +236,7 @@ Convenience function for creating `Failed` states.
 - a Failed state
 
 
-### `Crashed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L786" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Crashed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L790" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 Crashed(cls: Type['State[R]'] = State, **kwargs: Any) -> 'State[R]'
@@ -249,7 +249,7 @@ Convenience function for creating `Crashed` states.
 - a Crashed state
 
 
-### `Cancelling` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L795" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Cancelling` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L799" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 Cancelling(cls: Type['State[R]'] = State, **kwargs: Any) -> 'State[R]'
@@ -262,7 +262,7 @@ Convenience function for creating `Cancelling` states.
 - a Cancelling state
 
 
-### `Cancelled` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L804" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Cancelled` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L808" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 Cancelled(cls: Type['State[R]'] = State, **kwargs: Any) -> 'State[R]'
@@ -275,7 +275,7 @@ Convenience function for creating `Cancelled` states.
 - a Cancelled state
 
 
-### `Pending` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L813" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Pending` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L817" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 Pending(cls: Type['State[R]'] = State, **kwargs: Any) -> 'State[R]'
@@ -288,7 +288,7 @@ Convenience function for creating `Pending` states.
 - a Pending state
 
 
-### `Paused` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L822" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Paused` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L826" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 Paused(cls: Type['State[R]'] = State, timeout_seconds: Optional[int] = None, pause_expiration_time: Optional[datetime.datetime] = None, reschedule: bool = False, pause_key: Optional[str] = None, **kwargs: Any) -> 'State[R]'
@@ -301,7 +301,7 @@ Convenience function for creating `Paused` states.
 - a Paused state
 
 
-### `Suspended` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L860" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Suspended` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L864" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 Suspended(cls: Type['State[R]'] = State, timeout_seconds: Optional[int] = None, pause_expiration_time: Optional[datetime.datetime] = None, pause_key: Optional[str] = None, **kwargs: Any) -> 'State[R]'
@@ -314,7 +314,7 @@ Convenience function for creating `Suspended` states.
 - a Suspended state
 
 
-### `AwaitingRetry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L883" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AwaitingRetry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L887" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 AwaitingRetry(cls: Type['State[R]'] = State, scheduled_time: Optional[datetime.datetime] = None, **kwargs: Any) -> 'State[R]'
@@ -327,7 +327,7 @@ Convenience function for creating `AwaitingRetry` states.
 - an AwaitingRetry state
 
 
-### `AwaitingConcurrencySlot` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L898" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AwaitingConcurrencySlot` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L902" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 AwaitingConcurrencySlot(cls: Type['State[R]'] = State, scheduled_time: Optional[datetime.datetime] = None, **kwargs: Any) -> 'State[R]'
@@ -340,7 +340,7 @@ Convenience function for creating `AwaitingConcurrencySlot` states.
 - an AwaitingConcurrencySlot state
 
 
-### `Submitting` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L913" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Submitting` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L917" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 Submitting(cls: Type['State[R]'] = State, **kwargs: Any) -> 'State[R]'
@@ -353,7 +353,7 @@ Convenience function for creating `Submitting` states.
 - a Submitting state
 
 
-### `InfrastructurePending` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L922" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `InfrastructurePending` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L926" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 InfrastructurePending(cls: Type['State[R]'] = State, **kwargs: Any) -> 'State[R]'
@@ -366,7 +366,7 @@ Convenience function for creating `InfrastructurePending` states.
 - an InfrastructurePending state
 
 
-### `Retrying` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L931" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Retrying` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L935" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 Retrying(cls: Type['State[R]'] = State, **kwargs: Any) -> 'State[R]'
@@ -379,7 +379,7 @@ Convenience function for creating `Retrying` states.
 - a Retrying state
 
 
-### `Late` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L940" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `Late` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L944" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 Late(cls: Type['State[R]'] = State, scheduled_time: Optional[datetime.datetime] = None, **kwargs: Any) -> 'State[R]'
@@ -394,47 +394,47 @@ Convenience function for creating `Late` states.
 
 ## Classes
 
-### `StateGroup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L675" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `StateGroup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L679" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `all_completed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L689" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `all_completed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L693" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 all_completed(self) -> bool
 ```
 
-#### `all_final` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L704" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `all_final` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L708" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 all_final(self) -> bool
 ```
 
-#### `any_cancelled` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L692" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `any_cancelled` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L696" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 any_cancelled(self) -> bool
 ```
 
-#### `any_failed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L695" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `any_failed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L699" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 any_failed(self) -> bool
 ```
 
-#### `any_paused` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L701" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `any_paused` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L705" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 any_paused(self) -> bool
 ```
 
-#### `counts_message` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L707" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `counts_message` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L711" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 counts_message(self) -> str
 ```
 
-#### `fail_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L686" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `fail_count` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/states.py#L690" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 fail_count(self) -> int

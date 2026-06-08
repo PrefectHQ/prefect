@@ -69,6 +69,36 @@ class CloudRunV2WorkerSettings(PrefectBaseSettings):
         ),
     )
 
+    api_read_retry_max_attempts: int = Field(
+        default=3,
+        ge=1,
+        description=(
+            "The maximum number of attempts for retries on "
+            "read-only Cloud Run V2 API calls (job readiness polling, execution "
+            "watching, and the submission baseline, recovery, and fetch lookups). "
+            "Increase this value to allow more retries when a read fails due to "
+            "transient issues like HTTP 429/500/503 from the Cloud Run API."
+        ),
+    )
+
+    api_read_retry_initial_delay_seconds: float = Field(
+        default=1.0,
+        gt=0,
+        description=(
+            "The initial delay in seconds for exponential jitter backoff between "
+            "retries on read-only Cloud Run V2 API calls."
+        ),
+    )
+
+    api_read_retry_max_delay_seconds: float = Field(
+        default=10.0,
+        gt=0,
+        description=(
+            "The maximum delay in seconds for exponential jitter backoff between "
+            "retries on read-only Cloud Run V2 API calls."
+        ),
+    )
+
 
 class CloudRunV2Settings(PrefectBaseSettings):
     """Settings for the Cloud Run V2 integration."""

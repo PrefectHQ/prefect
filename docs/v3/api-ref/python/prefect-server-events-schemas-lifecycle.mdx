@@ -1,0 +1,505 @@
+---
+title: lifecycle
+sidebarTitle: lifecycle
+---
+
+# `prefect.server.events.schemas.lifecycle`
+
+
+Typed payloads and builders for `prefect.<object>.{created,updated,deleted}`
+lifecycle events.
+
+Each payload is the shape of the event's `payload` field for a domain object —
+what a consumer sees on the event without reading the object back from the API.
+The shapes mirror Prefect Cloud's lifecycle-event payloads so the two emit the
+same thing.
+
+The builders here are pure functions of an ORM object and a timestamp, with no
+dependency on the model layer, so any model module can import them without
+risking a circular import.
+
+
+## Functions
+
+### `variable_created_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L72" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+variable_created_event(variable: 'ORMVariable', occurred: DateTime) -> Event
+```
+
+
+Create an event for variable creation.
+
+
+### `variable_updated_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L77" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+variable_updated_event(variable: 'ORMVariable', occurred: DateTime) -> Event
+```
+
+
+Create an event for variable updates.
+
+
+### `variable_deleted_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L82" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+variable_deleted_event(variable: 'ORMVariable', occurred: DateTime) -> Event
+```
+
+
+Create an event for variable deletion.
+
+
+### `flow_created_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L108" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+flow_created_event(flow: 'ORMFlow', occurred: DateTime) -> Event
+```
+
+
+Create an event for flow creation.
+
+
+### `flow_updated_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L113" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+flow_updated_event(flow: 'ORMFlow', occurred: DateTime) -> Event
+```
+
+
+Create an event for flow updates.
+
+
+### `flow_deleted_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L118" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+flow_deleted_event(flow: 'ORMFlow', occurred: DateTime) -> Event
+```
+
+
+Create an event for flow deletion.
+
+
+### `block_type_created_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L149" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+block_type_created_event(block_type: 'BlockType', occurred: DateTime) -> Event
+```
+
+
+Create an event for block type creation.
+
+
+### `block_type_updated_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+block_type_updated_event(block_type: 'BlockType', occurred: DateTime) -> Event
+```
+
+
+Create an event for block type updates.
+
+
+### `block_type_deleted_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L159" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+block_type_deleted_event(block_type: 'BlockType', occurred: DateTime) -> Event
+```
+
+
+Create an event for block type deletion.
+
+
+### `block_document_created_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L203" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+block_document_created_event(block_document: 'BlockDocument', occurred: DateTime) -> Event
+```
+
+
+Create an event for block document creation.
+
+
+### `block_document_updated_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L210" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+block_document_updated_event(block_document: 'BlockDocument', occurred: DateTime) -> Event
+```
+
+
+Create an event for block document updates.
+
+
+### `block_document_deleted_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L217" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+block_document_deleted_event(block_document: 'BlockDocument', occurred: DateTime) -> Event
+```
+
+
+Create an event for block document deletion.
+
+
+### `concurrency_limit_v2_created_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L290" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+concurrency_limit_v2_created_event(concurrency_limit: 'ConcurrencyLimitV2', occurred: DateTime) -> Event
+```
+
+
+Create an event for global concurrency limit creation.
+
+
+### `concurrency_limit_v2_updated_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L297" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+concurrency_limit_v2_updated_event(concurrency_limit: 'ConcurrencyLimitV2', occurred: DateTime) -> Event
+```
+
+
+Create an event for global concurrency limit updates.
+
+
+### `concurrency_limit_v2_deleted_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L304" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+concurrency_limit_v2_deleted_event(concurrency_limit: 'ConcurrencyLimitV2', occurred: DateTime) -> Event
+```
+
+
+Create an event for global concurrency limit deletion.
+
+
+### `concurrency_limit_created_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L336" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+concurrency_limit_created_event(concurrency_limit: 'ConcurrencyLimit', occurred: DateTime) -> Event
+```
+
+
+Create an event for tag-based concurrency limit creation.
+
+
+### `concurrency_limit_updated_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L343" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+concurrency_limit_updated_event(concurrency_limit: 'ConcurrencyLimit', occurred: DateTime) -> Event
+```
+
+
+Create an event for tag-based concurrency limit updates.
+
+
+### `concurrency_limit_deleted_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L350" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+concurrency_limit_deleted_event(concurrency_limit: 'ConcurrencyLimit', occurred: DateTime) -> Event
+```
+
+
+Create an event for tag-based concurrency limit deletion.
+
+
+### `artifact_collection_created_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L385" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+artifact_collection_created_event(artifact_collection: 'ORMArtifactCollection', occurred: DateTime) -> Event
+```
+
+
+Create an event for artifact collection creation.
+
+
+### `artifact_collection_updated_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L392" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+artifact_collection_updated_event(artifact_collection: 'ORMArtifactCollection', occurred: DateTime) -> Event
+```
+
+
+Create an event for artifact collection updates.
+
+
+### `artifact_collection_deleted_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L399" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+artifact_collection_deleted_event(artifact_collection: 'ORMArtifactCollection', occurred: DateTime) -> Event
+```
+
+
+Create an event for artifact collection deletion.
+
+
+### `automation_created_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L449" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+automation_created_event(automation: 'Automation', occurred: DateTime) -> Event
+```
+
+
+Create an event for automation creation.
+
+
+### `automation_updated_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L454" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+automation_updated_event(automation: 'Automation', occurred: DateTime) -> Event
+```
+
+
+Create an event for automation updates.
+
+
+### `automation_deleted_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L459" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+automation_deleted_event(automation: 'Automation', occurred: DateTime) -> Event
+```
+
+
+Create an event for automation deletion.
+
+
+## Classes
+
+### `VariableEventPayload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L62" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+The payload of a variable lifecycle event: its name, value, and tags.
+
+
+**Methods:**
+
+#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate_list(cls, obj: Any) -> list[Self]
+```
+
+#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_fields(self: Self) -> Self
+```
+
+Reset the fields of the model that are in the `_reset_fields` set.
+
+**Returns:**
+- A new instance of the model with the reset fields.
+
+
+### `FlowEventPayload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L98" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+The payload of a flow lifecycle event: its name, tags, and labels.
+
+
+**Methods:**
+
+#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate_list(cls, obj: Any) -> list[Self]
+```
+
+#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_fields(self: Self) -> Self
+```
+
+Reset the fields of the model that are in the `_reset_fields` set.
+
+**Returns:**
+- A new instance of the model with the reset fields.
+
+
+### `BlockTypeEventPayload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L134" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+The payload of a block type lifecycle event: its identity, presentation,
+and protection.
+
+
+**Methods:**
+
+#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate_list(cls, obj: Any) -> list[Self]
+```
+
+#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_fields(self: Self) -> Self
+```
+
+Reset the fields of the model that are in the `_reset_fields` set.
+
+**Returns:**
+- A new instance of the model with the reset fields.
+
+
+### `BlockDocumentBlockType` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L179" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+The block type a block document belongs to, nested on its block schema.
+
+
+**Methods:**
+
+#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate_list(cls, obj: Any) -> list[Self]
+```
+
+#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_fields(self: Self) -> Self
+```
+
+Reset the fields of the model that are in the `_reset_fields` set.
+
+**Returns:**
+- A new instance of the model with the reset fields.
+
+
+### `BlockSchemaEventPayload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L186" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+The schema a block document conforms to, with its block type nested.
+
+
+**Methods:**
+
+#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate_list(cls, obj: Any) -> list[Self]
+```
+
+#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_fields(self: Self) -> Self
+```
+
+Reset the fields of the model that are in the `_reset_fields` set.
+
+**Returns:**
+- A new instance of the model with the reset fields.
+
+
+### `BlockDocumentEventPayload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L193" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+The payload of a block document lifecycle event: its name, the non-secret
+string values of its data, and the nested block schema (capabilities and
+block type).
+
+
+**Methods:**
+
+#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate_list(cls, obj: Any) -> list[Self]
+```
+
+#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_fields(self: Self) -> Self
+```
+
+Reset the fields of the model that are in the `_reset_fields` set.
+
+**Returns:**
+- A new instance of the model with the reset fields.
+
+
+### `ConcurrencyLimitV2EventPayload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L278" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+The payload of a global concurrency limit lifecycle event: its name,
+limit, active flag, and slot decay rate.
+
+
+**Methods:**
+
+#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate_list(cls, obj: Any) -> list[Self]
+```
+
+#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_fields(self: Self) -> Self
+```
+
+Reset the fields of the model that are in the `_reset_fields` set.
+
+**Returns:**
+- A new instance of the model with the reset fields.
+
+
+### `ConcurrencyLimitEventPayload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L326" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+The payload of a tag-based (v1) concurrency limit lifecycle event: the tag
+it applies to and its limit.
+
+
+**Methods:**
+
+#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate_list(cls, obj: Any) -> list[Self]
+```
+
+#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_fields(self: Self) -> Self
+```
+
+Reset the fields of the model that are in the `_reset_fields` set.
+
+**Returns:**
+- A new instance of the model with the reset fields.
+
+
+### `ArtifactCollectionEventPayload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/schemas/lifecycle.py#L372" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+The payload of an artifact collection lifecycle event: the collection key,
+the artifact type, and its data and description. The latest artifact and its
+flow/task runs ride the event's `related` resources, not the payload.
+
+
+**Methods:**
+
+#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate_list(cls, obj: Any) -> list[Self]
+```
+
+#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_fields(self: Self) -> Self
+```
+
+Reset the fields of the model that are in the `_reset_fields` set.
+
+**Returns:**
+- A new instance of the model with the reset fields.
+

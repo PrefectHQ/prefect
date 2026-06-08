@@ -15,7 +15,7 @@ The Foreman service. Monitors workers and marks stale resources as offline/not r
 ### `monitor_worker_health` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/foreman.py#L35" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-monitor_worker_health(perpetual: Perpetual = Perpetual(automatic=False, every=timedelta(seconds=get_current_settings().server.services.foreman.loop_seconds))) -> None
+monitor_worker_health(perpetual: Perpetual = Perpetual(automatic=True, every=timedelta(seconds=get_current_settings().server.services.foreman.loop_seconds))) -> None
 ```
 
 

@@ -14,14 +14,47 @@ from sqlalchemy.sql import Select
 import prefect.server.models as models
 from prefect.server import schemas
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
+from prefect.server.events import clients
+from prefect.server.events.schemas import lifecycle
 from prefect.server.schemas.actions import BlockDocumentReferenceCreate
 from prefect.server.schemas.core import BlockDocument
 from prefect.server.schemas.filters import BlockSchemaFilter
 from prefect.server.utilities.database import UUID as UUIDTypeDecorator
+from prefect.types._datetime import now
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 from prefect.utilities.names import obfuscate
 
 T = TypeVar("T", bound=tuple)
+
+
+async def emit_block_document_created_event(block_document: BlockDocument) -> None:
+    """Emit an event when a (non-anonymous) block document is created."""
+    if block_document.is_anonymous:
+        return
+    async with clients.PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            lifecycle.block_document_created_event(block_document, now("UTC"))
+        )
+
+
+async def emit_block_document_updated_event(block_document: BlockDocument) -> None:
+    """Emit an event when a (non-anonymous) block document is updated."""
+    if block_document.is_anonymous:
+        return
+    async with clients.PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            lifecycle.block_document_updated_event(block_document, now("UTC"))
+        )
+
+
+async def emit_block_document_deleted_event(block_document: BlockDocument) -> None:
+    """Emit an event when a (non-anonymous) block document is deleted."""
+    if block_document.is_anonymous:
+        return
+    async with clients.PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            lifecycle.block_document_deleted_event(block_document, now("UTC"))
+        )
 
 
 @db_injector
@@ -81,6 +114,8 @@ async def create_block_document(
         include_secrets=False,
     )
     assert new_block_document
+
+    await emit_block_document_created_event(new_block_document)
 
     return new_block_document
 
@@ -480,10 +515,18 @@ async def delete_block_document(
     session: AsyncSession,
     block_document_id: UUID,
 ) -> bool:
-    query = sa.delete(db.BlockDocument).where(db.BlockDocument.id == block_document_id)
-    result = await session.execute(query)
-    if result.rowcount <= 0:
+    block_document = await read_block_document_by_id(
+        session=session,
+        block_document_id=block_document_id,
+        include_secrets=False,
+    )
+    if block_document is None:
         return False
+
+    await emit_block_document_deleted_event(block_document)
+
+    query = sa.delete(db.BlockDocument).where(db.BlockDocument.id == block_document_id)
+    await session.execute(query)
 
     await models.storage_defaults.clear_server_default_result_storage_for_block(
         session=session,
@@ -627,6 +670,15 @@ async def update_block_document(
                 await delete_block_document_reference(
                     session, block_document_reference_id=block_document_reference.id
                 )
+
+    await session.flush()
+    updated_block_document = await read_block_document_by_id(
+        session=session,
+        block_document_id=block_document_id,
+        include_secrets=False,
+    )
+    if updated_block_document is not None:
+        await emit_block_document_updated_event(updated_block_document)
 
     return True
 
