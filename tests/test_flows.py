@@ -1803,6 +1803,22 @@ class TestFlowParameterTypes:
         # See #1638.
         assert my_flow(data) == data
 
+    def test_serialize_parameters_falls_back_on_self_referential_types(self):
+        @flow
+        def my_flow(x):
+            return x
+
+        class Cyclic:
+            def __init__(self):
+                self.me = self
+
+        data = Cyclic()
+        # jsonable_encoder recurses into unknown objects with no cycle limit, so a
+        # self-referential value raises RecursionError instead of TypeError/ValueError.
+        # serialize_parameters should fall back to the placeholder rather than crash.
+        # See #22244.
+        assert my_flow.serialize_parameters({"x": data}) == {"x": "<Cyclic>"}
+
     def test_flow_parameter_annotations_can_be_non_pydantic_classes(self):
         class Test:
             pass
