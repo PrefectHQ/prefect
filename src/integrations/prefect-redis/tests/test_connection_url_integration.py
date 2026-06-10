@@ -1,5 +1,5 @@
 """Tests that a connection URL (including Sentinel) flows through the messaging
-client, the lock manager, and the ``RedisDatabase`` block.
+client, the lock manager, and the `RedisDatabase` block.
 
 These exercise client construction only; they do not require a live Sentinel
 topology (building a Sentinel-backed client is lazy and does not connect).

@@ -1,14 +1,14 @@
 """Redis connection URL parsing and client construction.
 
-This module centralizes how ``prefect_redis`` turns a connection URL into a Redis
-client so that the messaging client, the lock manager, and the ``RedisDatabase``
+This module centralizes how `prefect_redis` turns a connection URL into a Redis
+client so that the messaging client, the lock manager, and the `RedisDatabase`
 block all share a single parser and builder rather than each constructing a
-``redis.Redis`` from scalar host/port settings.
+`redis.Redis` from scalar host/port settings.
 
-A ``+sentinel`` suffix on the scheme selects Sentinel discovery: the current master
-is resolved through the listed Sentinel daemons via ``Sentinel.master_for()`` and
-failover is followed automatically. A ``rediss`` prefix turns on TLS for the data
-nodes. The grammar follows the ``redis-sentinel-url`` convention::
+A `+sentinel` suffix on the scheme selects Sentinel discovery: the current master
+is resolved through the listed Sentinel daemons via `Sentinel.master_for()` and
+failover is followed automatically. A `rediss` prefix turns on TLS for the data
+nodes. The grammar follows the `redis-sentinel-url` convention::
 
     redis://[user:pass@]host:port[/db][?params]
     rediss://[user:pass@]host:port[/db][?params]
@@ -18,9 +18,9 @@ nodes. The grammar follows the ``redis-sentinel-url`` convention::
 Ports are optional and default to 6379 for single-node URLs and 26379 (the
 Sentinel convention) for Sentinel members.
 
-Single-node URLs accept ``tls_insecure`` and ``tls_ca_file`` query parameters; the
-Sentinel schemes additionally accept ``sentinel_username``, ``sentinel_password``,
-``sentinel_ssl``, ``sentinel_tls_insecure`` and ``sentinel_tls_ca_file`` to configure
+Single-node URLs accept `tls_insecure` and `tls_ca_file` query parameters; the
+Sentinel schemes additionally accept `sentinel_username`, `sentinel_password`,
+`sentinel_ssl`, `sentinel_tls_insecure` and `sentinel_tls_ca_file` to configure
 the connections to the Sentinel daemons separately from the data nodes.
 """
 
@@ -28,15 +28,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Any, Union
-from urllib.parse import parse_qs, unquote, urlsplit, urlunsplit
+from urllib.parse import SplitResult, parse_qs, unquote, urlsplit, urlunsplit
 
 import redis
 import redis.asyncio
 from redis.asyncio.sentinel import Sentinel as AsyncSentinel
 from redis.sentinel import Sentinel as SyncSentinel
 
-# Connection URL schemes. A ``+sentinel`` suffix selects Sentinel discovery; a
-# ``rediss`` prefix turns on TLS for the data nodes.
+# Connection URL schemes. A `+sentinel` suffix selects Sentinel discovery; a
+# `rediss` prefix turns on TLS for the data nodes.
 SCHEME_SENTINEL = frozenset({"redis+sentinel", "rediss+sentinel"})
 SCHEME_TLS = frozenset({"rediss", "rediss+sentinel"})
 SCHEME_ALL = frozenset({"redis", "rediss"}) | SCHEME_SENTINEL
@@ -63,11 +63,11 @@ class RedisUrlError(ValueError):
 class RedisConnectionConfig:
     """Validated description of a Redis connection parsed from a URL.
 
-    ``connection_kwargs`` and ``sentinel_kwargs`` hold redis-py-native keys
-    (``username``, ``password``, ``ssl``, ``ssl_cert_reqs``, ``ssl_check_hostname``,
-    ``ssl_ca_certs``) so a caller can splat them directly. In Sentinel mode
-    ``connection_kwargs`` applies to the data-node (master) connections and
-    ``sentinel_kwargs`` to the Sentinel daemons.
+    `connection_kwargs` and `sentinel_kwargs` hold redis-py-native keys
+    (`username`, `password`, `ssl`, `ssl_cert_reqs`, `ssl_check_hostname`,
+    `ssl_ca_certs`) so a caller can splat them directly. In Sentinel mode
+    `connection_kwargs` applies to the data-node (master) connections and
+    `sentinel_kwargs` to the Sentinel daemons.
     """
 
     db: int
@@ -80,14 +80,35 @@ class RedisConnectionConfig:
     sentinel_kwargs: dict[str, Any] = field(default_factory=dict)
 
 
+def _split_connection_url(url: str) -> "tuple[SplitResult, str]":
+    """Split a connection URL, tolerating multi-host netlocs with IPv6 members.
+
+    Recent CPython releases reject netlocs like `s1:26379,[::1]:26379` with
+    "Invalid IPv6 URL" because data precedes a bracket, so the netloc is carved
+    off by hand and `urlsplit` parses the URL with a placeholder host instead.
+
+    Returns:
+        The parsed parts (scheme, path, query, fragment) and the raw netloc.
+    """
+    scheme, separator, remainder = url.partition("://")
+    if not separator:
+        return urlsplit(url), ""
+    end = len(remainder)
+    for terminator in "/?#":
+        index = remainder.find(terminator)
+        if index != -1:
+            end = min(end, index)
+    netloc, tail = remainder[:end], remainder[end:]
+    return urlsplit(f"{scheme}://netloc-placeholder{tail}"), netloc
+
+
 def redact_redis_url(url: str) -> str:
-    """Return ``url`` with the userinfo password and sensitive query values masked."""
+    """Return `url` with the userinfo password and sensitive query values masked."""
     try:
-        parts = urlsplit(url)
+        parts, netloc = _split_connection_url(url)
     except ValueError:
         return _REDACTED
 
-    netloc = parts.netloc
     if "@" in netloc:
         userinfo, hostpart = netloc.rsplit("@", 1)
         if ":" in userinfo:
@@ -138,10 +159,10 @@ def _parse_db(segment: str, *, url: str) -> int:
 def _split_members(
     hostpart: str, *, url: str, default_port: int = _DEFAULT_PORT
 ) -> list[tuple[str, int]]:
-    """Split a comma-separated ``host:port,host2:port2`` netloc into members.
+    """Split a comma-separated `host:port,host2:port2` netloc into members.
 
-    ``urlsplit`` only exposes the segment before the first comma through
-    ``.hostname``/``.port``, so the multi-host netloc is split by hand.
+    `urlsplit` only exposes the segment before the first comma through
+    `.hostname`/`.port`, so the multi-host netloc is split by hand.
     """
     members: list[tuple[str, int]] = []
     for raw_entry in hostpart.split(","):
@@ -187,13 +208,13 @@ def _build_ssl_kwargs(
 
 
 def parse_redis_url(url: str) -> RedisConnectionConfig:
-    """Parse a Redis connection URL into a validated ``RedisConnectionConfig``.
+    """Parse a Redis connection URL into a validated `RedisConnectionConfig`.
 
     Raises:
         RedisUrlError: With secrets redacted, for any unsupported scheme, malformed
             member list, missing Sentinel service name, or out-of-range database index.
     """
-    parts = urlsplit(url)
+    parts, netloc = _split_connection_url(url)
     scheme = parts.scheme.lower()
     if scheme not in SCHEME_ALL:
         raise RedisUrlError(
@@ -203,7 +224,6 @@ def parse_redis_url(url: str) -> RedisConnectionConfig:
     is_sentinel = scheme in SCHEME_SENTINEL
     tls_default = scheme in SCHEME_TLS
 
-    netloc = parts.netloc
     userinfo = ""
     hostpart = netloc
     if "@" in netloc:
@@ -288,14 +308,14 @@ def parse_redis_url(url: str) -> RedisConnectionConfig:
 def build_redis_client(
     config: RedisConnectionConfig, *, asynchronous: bool, **extra: Any
 ) -> Union[redis.Redis, redis.asyncio.Redis]:
-    """Build a Redis client from a parsed ``RedisConnectionConfig``.
+    """Build a Redis client from a parsed `RedisConnectionConfig`.
 
-    When ``config.is_sentinel`` is set the current master is resolved through the
+    When `config.is_sentinel` is set the current master is resolved through the
     Sentinel daemons and the returned client follows failover automatically.
     Otherwise a plain single-node client is returned.
 
-    ``extra`` holds additional redis-py connection kwargs the caller wants applied to
-    the data-node connection (e.g. ``decode_responses`` or ``health_check_interval``).
+    `extra` holds additional redis-py connection kwargs the caller wants applied to
+    the data-node connection (e.g. `decode_responses` or `health_check_interval`).
     """
     if config.is_sentinel:
         assert config.service_name is not None  # guaranteed by parse_redis_url
@@ -325,5 +345,5 @@ def build_redis_client(
 def redis_client_from_url(
     url: str, *, asynchronous: bool, **extra: Any
 ) -> Union[redis.Redis, redis.asyncio.Redis]:
-    """Convenience wrapper: ``build_redis_client(parse_redis_url(url), ...)``."""
+    """Convenience wrapper: `build_redis_client(parse_redis_url(url), ...)`."""
     return build_redis_client(parse_redis_url(url), asynchronous=asynchronous, **extra)

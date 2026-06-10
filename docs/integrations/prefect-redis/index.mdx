@@ -85,7 +85,9 @@ export PREFECT_SERVER_DOCKET_URL="redis+sentinel://sentinel-a:26379,sentinel-b:2
 
 ### Lock manager
 
-```python
+{/* notest: requires a prefect-redis release with Sentinel support */}
+
+```python notest
 from prefect_redis import RedisLockManager
 
 lock_manager = RedisLockManager(
@@ -95,7 +97,9 @@ lock_manager = RedisLockManager(
 
 ### `RedisDatabase` block
 
-```python
+{/* notest: requires a prefect-redis release with Sentinel support */}
+
+```python notest
 from prefect_redis import RedisDatabase
 
 block = RedisDatabase.from_connection_string(
