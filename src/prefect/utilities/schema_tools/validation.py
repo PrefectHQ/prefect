@@ -4,10 +4,12 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Any, cast
 
 import jsonschema
+import referencing.exceptions
 from jsonschema.exceptions import ValidationError as JSONSchemaValidationError
 from jsonschema.validators import Draft202012Validator, create
 from referencing.jsonschema import ObjectSchema, Schema
 
+from prefect._internal.schemas._registry import non_fetching_registry
 from prefect.utilities.collections import remove_nested_keys
 from prefect.utilities.schema_tools.hydration import HydrationError, Placeholder
 
@@ -87,9 +89,13 @@ def validate(
 
     if raise_on_error:
         try:
-            jsonschema.validate(obj, schema, _VALIDATOR)
+            jsonschema.validate(
+                obj, schema, _VALIDATOR, registry=non_fetching_registry()
+            )
         except RecursionError:
             raise CircularSchemaRefError
+        except referencing.exceptions.Unresolvable as exc:
+            raise ValidationError(f"Validation failed. Failure reason: {exc}") from exc
         except JSONSchemaValidationError as exc:
             if exc.json_path == "$":
                 error_message = "Validation failed."
@@ -102,10 +108,16 @@ def validate(
         return []
     else:
         try:
-            validator = _VALIDATOR(schema, format_checker=_VALIDATOR.FORMAT_CHECKER)
+            validator = _VALIDATOR(
+                schema,
+                format_checker=_VALIDATOR.FORMAT_CHECKER,
+                registry=non_fetching_registry(),
+            )
             errors = list(validator.iter_errors(obj))  # type: ignore
         except RecursionError:
             raise CircularSchemaRefError
+        except referencing.exceptions.Unresolvable as exc:
+            raise ValidationError(f"Validation failed. Failure reason: {exc}") from exc
         return errors
 
 
