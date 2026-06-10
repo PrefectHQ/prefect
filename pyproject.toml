@@ -157,7 +157,7 @@ dev = [
     # Python 3.10 support.
     "pytest>=9,<10; python_version >= '3.11'",
     "pytest>=8.4.2,<9; python_version < '3.11'",
-    "pytest-asyncio>=1.1,<1.4; python_version >= '3.11'",
+    "pytest-asyncio>=1.1,<1.5; python_version >= '3.11'",
     "pytest-asyncio>=0.21,<1.1; python_version < '3.11'",
     "pytest-cov>=6.0",
     "pytest-env>=1.1.5",
@@ -175,7 +175,7 @@ dev = [
     "yamllint>=1.35.1",
     "respx>=0.22.0",
     "codespell==2.4.2",
-    "ruff==0.15.14",
+    "ruff==0.15.15",
     "mypy==1.19.1",
     "types-cachetools>=5.3.1",
     "types-PyYAML>=6.0.12",

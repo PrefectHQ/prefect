@@ -1,0 +1,72 @@
+---
+title: AI log summaries
+sidebarTitle: AI log summaries
+description: Use AI-generated summaries of flow run logs to understand failures faster.
+keywords: ["AI", "log summary", "flow run logs", "failure", "notification", "automation"]
+---
+
+<Note>AI log summaries are only available in Prefect Cloud.</Note>
+
+An AI log summary is a short, AI-generated description of a flow run's logs, such as
+`Failed due to a KeyError in the extract_data task`. Instead of scrolling through raw logs to
+work out what happened, you get the gist in one line.
+
+Summaries are generated on demand and cached, so requesting the same flow run's summary again
+returns the cached result rather than calling the model a second time.
+
+## Enable AI log summaries
+
+AI log summaries depend on AI features being enabled for your account. An account administrator
+enables them under **Settings > Account Settings > Controls** by turning on the **Marvin AI**
+toggle in the **Data processing** section. This setting is account-wide and applies to all
+workspaces.
+
+While AI features are disabled, no summaries are produced and the model is never called.
+
+<Note>
+AI-enabled features may use third-party models. See the **Marvin AI** setting for links to
+Prefect's data processing addendum and subprocessor documentation.
+</Note>
+
+## View a summary in the UI
+
+Open a flow run in the Prefect Cloud UI and select the **Logs** tab. Click the AI summary icon in
+the top-right corner of the log panel, next to the log search, to generate a summary of the run's
+logs. The summary appears inline above the logs. This is useful for investigating a single run
+after the fact.
+
+## Include a summary in automation notifications
+
+You can also surface the summary automatically in notifications sent by an automation, so an
+on-call recipient sees the likely explanation inline without opening the UI.
+
+Reference the `flow_run_log_summary` variable in a [custom notification
+template](/v3/concepts/automations#templating-with-jinja) on an automation triggered by a flow
+run event:
+
+```
+Flow run {{ flow_run.name }} entered state {{ flow_run.state.name }}.
+
+{%- if flow_run_log_summary %}
+AI summary: {{ flow_run_log_summary }}
+{%- endif %}
+```
+
+A few details to keep in mind:
+
+- **Opt in by referencing the variable.** The summary, and the underlying call to generate it,
+  is only produced when your custom message references `{{ flow_run_log_summary }}`. The default
+  notification body does not include it.
+- **Account setting applies.** If AI log summaries are disabled for your account, the variable
+  renders an empty string and no summary is generated.
+- **Graceful fallback.** If the summary cannot be generated (for example, during a model provider
+  outage), or the triggering event has no associated flow run, the variable renders an empty
+  string rather than failing the notification.
+
+Wrapping the variable in an `{%- if flow_run_log_summary %}` block keeps the notification tidy
+when the summary is empty, so recipients do not see a dangling `AI summary:` label.
+
+## Further reading
+
+- [Templating notifications with Jinja](/v3/concepts/automations#templating-with-jinja)
+- [Sending notifications with automations](/v3/concepts/automations#sending-notifications-with-automations)

@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import sysconfig
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
@@ -393,3 +394,98 @@ async def test_load_flow_from_prepared_workspace_preserves_module_entrypoint(
 
     assert flow.name == "hello"
     assert sys.path == original_sys_path
+
+
+async def test_load_flow_from_prepared_workspace_preserves_stdlib_imports(
+    tmp_path: Path,
+) -> None:
+    workspace = _prepared_workspace(tmp_path)
+    workspace.sys_path = [sysconfig.get_paths()["stdlib"], *workspace.sys_path]
+    flow_file = workspace.working_directory / "flows.py"
+    flow_file.write_text(
+        "import mailbox\n"
+        "from prefect import flow\n\n"
+        "@flow\n"
+        "def hello():\n"
+        "    return mailbox.Mailbox\n"
+    )
+    parent_cwd = tmp_path / "parent-cwd"
+    parent_cwd.mkdir()
+    original_sys_path = list(sys.path)
+    original_mailbox = sys.modules.pop("mailbox", None)
+
+    try:
+        with tmpchdir(parent_cwd):
+            flow = await load_flow_from_prepared_workspace(workspace)
+            assert Path.cwd() == parent_cwd.resolve()
+    finally:
+        if original_mailbox is None:
+            sys.modules.pop("mailbox", None)
+        else:
+            sys.modules["mailbox"] = original_mailbox
+
+    assert flow.name == "hello"
+    assert sys.path == original_sys_path
+
+
+class TestWorkspaceEnvironmentPythonpathFiltering:
+    def test_excludes_stdlib_from_pythonpath(self, tmp_path: Path) -> None:
+        workspace = _prepared_workspace(tmp_path)
+        stdlib = sysconfig.get_paths()["stdlib"]
+        lib_dynload = os.path.join(stdlib, "lib-dynload")
+        stdlib_zip = (
+            Path(stdlib).parent
+            / f"python{sys.version_info.major}{sys.version_info.minor}.zip"
+        )
+        adjacent_user_zip = Path(stdlib).parent / "python_helpers.zip"
+        app_zip = tmp_path / "python_deps.zip"
+        site_packages = sysconfig.get_paths()["purelib"]
+
+        workspace.sys_path = [
+            "",
+            stdlib,
+            lib_dynload,
+            str(stdlib_zip),
+            site_packages,
+            str(adjacent_user_zip),
+            str(app_zip),
+            "/app",
+        ]
+
+        env = workspace_environment(workspace)
+        pythonpath_entries = env["PYTHONPATH"].split(os.pathsep)
+
+        resolved_stdlib = str(Path(stdlib).resolve())
+        resolved_dynload = str(Path(lib_dynload).resolve())
+        resolved_stdlib_zip = str(stdlib_zip.resolve())
+        assert resolved_stdlib not in pythonpath_entries
+        assert resolved_dynload not in pythonpath_entries
+        assert resolved_stdlib_zip not in pythonpath_entries
+
+        resolved_site = str(Path(site_packages).resolve())
+        assert resolved_site in pythonpath_entries
+        assert str(adjacent_user_zip) in pythonpath_entries
+        assert str(app_zip) in pythonpath_entries
+
+    def test_filters_stdlib_from_inherited_pythonpath(self, tmp_path: Path) -> None:
+        workspace = _prepared_workspace(tmp_path)
+        stdlib = sysconfig.get_paths()["stdlib"]
+        stdlib_zip = (
+            Path(stdlib).parent
+            / f"python{sys.version_info.major}{sys.version_info.minor}.zip"
+        )
+        app_zip = tmp_path / "python_deps.zip"
+        workspace.sys_path = ["/app"]
+        workspace.environment["PYTHONPATH"] = os.pathsep.join(
+            [stdlib, str(stdlib_zip), str(app_zip), "/extra"]
+        )
+
+        env = workspace_environment(workspace)
+        pythonpath_entries = env["PYTHONPATH"].split(os.pathsep)
+
+        resolved_stdlib = str(Path(stdlib).resolve())
+        resolved_stdlib_zip = str(stdlib_zip.resolve())
+        assert resolved_stdlib not in pythonpath_entries
+        assert resolved_stdlib_zip not in pythonpath_entries
+        assert str(app_zip) in pythonpath_entries
+        assert "/extra" in pythonpath_entries

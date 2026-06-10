@@ -1,0 +1,23 @@
+---
+title: cleanup_reconciler
+sidebarTitle: cleanup_reconciler
+---
+
+# `prefect.server.services.cleanup_reconciler`
+
+
+
+The cleanup reconciler service. Handles cleanup message lease expiry.
+
+
+## Functions
+
+### `reconcile_cleanup_delivery` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cleanup_reconciler.py#L43" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reconcile_cleanup_delivery(cleanup_queue: WorkerCleanupQueue = Depends(_get_service_worker_cleanup_queue), perpetual: Perpetual = Perpetual(automatic=True, every=timedelta(seconds=get_current_settings().server.services.cleanup_reconciler.loop_seconds))) -> CleanupQueueLeaseExpiryResult
+```
+
+
+Reconcile overdue cleanup reservations and apply retry/DLQ policy.
+

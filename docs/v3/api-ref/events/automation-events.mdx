@@ -1,11 +1,68 @@
 ---
 title: Automation events
-description: Events emitted when automations trigger, resolve, and execute actions.
-keywords: ["reactive", "proactive", "action lifecycle", "trigger state"]
+description: Events emitted when automations are created, updated, deleted, trigger, resolve, and execute actions.
+keywords: ["reactive", "proactive", "action lifecycle", "trigger state", "lifecycle", "CRUD"]
 ---
 
-Automation events track the lifecycle of automation triggers and the actions they
-execute. For more on automations, see [Automations](/v3/concepts/automations).
+Automation events cover two categories: CRUD lifecycle events emitted when
+automations are created, updated, or deleted, and trigger lifecycle events
+emitted when an automation fires and executes actions. For more on automations,
+see [Automations](/v3/concepts/automations).
+
+## Automation lifecycle events
+
+### `prefect.automation.created`
+
+Emitted when a new automation is created.
+
+#### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.automation.{uuid}` |
+| `prefect.resource.name` | Automation name |
+
+#### Related resources
+
+This event has no related resources.
+
+#### Payload
+
+The full automation serialized as JSON, including `id`, `name`, `description`,
+`enabled`, `trigger`, `actions`, `actions_on_trigger`, and
+`actions_on_resolve`.
+
+### `prefect.automation.updated`
+
+Emitted when an automation is updated.
+
+#### Resource
+
+Same as [`prefect.automation.created`](#prefectautomationcreated).
+
+#### Related resources
+
+This event has no related resources.
+
+#### Payload
+
+Same as [`prefect.automation.created`](#prefectautomationcreated).
+
+### `prefect.automation.deleted`
+
+Emitted when an automation is deleted.
+
+#### Resource
+
+Same as [`prefect.automation.created`](#prefectautomationcreated).
+
+#### Related resources
+
+This event has no related resources.
+
+#### Payload
+
+Same as [`prefect.automation.created`](#prefectautomationcreated).
 
 ## Trigger state events
 

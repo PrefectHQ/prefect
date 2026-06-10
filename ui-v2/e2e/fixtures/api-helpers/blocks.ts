@@ -49,10 +49,14 @@ export async function listBlockSchemas(
 
 export async function listBlockDocuments(
 	client: PrefectApiClient,
+	options?: { nameFilter?: string },
 ): Promise<BlockDocument[]> {
 	const { data, error } = await client.POST("/block_documents/filter", {
 		body: {
 			include_secrets: false,
+			...(options?.nameFilter && {
+				block_documents: { name: { like_: `${options.nameFilter}%` } },
+			}),
 		},
 	});
 	if (error) {
@@ -114,7 +118,9 @@ export async function cleanupBlockDocuments(
 	client: PrefectApiClient,
 	namePrefix: string,
 ): Promise<void> {
-	const documents = await listBlockDocuments(client);
+	const documents = await listBlockDocuments(client, {
+		nameFilter: namePrefix,
+	});
 	const toDelete = documents.filter((d) => d.name?.startsWith(namePrefix));
 	await Promise.all(
 		toDelete.map((d) =>
