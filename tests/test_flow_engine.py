@@ -23,6 +23,7 @@ from prefect._flow_run_suspension import (
     FlowRunSuspensionRequest,
     mark_flow_run_suspension_requested,
 )
+from prefect.cache_policies import INPUTS
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas.filters import FlowFilter, FlowFilterName, FlowRunFilter
 from prefect.client.schemas.objects import StateType
@@ -1636,113 +1637,122 @@ class TestLoadSubflowRun:
 
 
 class TestSubflowDynamicKeyRace:
-    """Tests for the fix to concurrent subflow calls adopting the wrong
-    persisted result on parent flow retry (OSS-8038).
+    """Regression tests for concurrent subflow calls adopting the wrong
+    persisted result on parent flow retry (OSS-8038 / #22259).
 
-    Subflow tracking task runs use UUID dynamic keys (stable=False) when
-    called from within a task context (concurrent), but keep stable
-    sequential keys for direct sequential subflow calls (preserving the
-    retry optimization).
+    When subflows are called from within submitted tasks, the tracking
+    task run now uses UUID dynamic keys so that on retry, a re-executed
+    subflow call cannot match a different subflow's completed task run.
     """
 
-    async def test_direct_subflow_uses_stable_dynamic_key(
+    async def test_concurrent_subflow_retry_returns_correct_result(
         self, sync_prefect_client: SyncPrefectClient
     ):
-        """Direct subflow calls (no task context) use stable sequential keys
-        to preserve the retry optimization."""
-        child_flow_run_ids: list[UUID] = []
+        """Regression test: on the second attempt of a parent flow,
+        a re-executed wrapper task must call its own child subflow
+        and return the correct chunk's result — not an adopted result
+        from a sibling subflow that completed on the first attempt.
 
-        @flow
-        def child(x: int) -> int:
-            child_flow_run_ids.append(FlowRunContext.get().flow_run.id)
-            return x
+        Without the fix, chunk-0's subflow call on attempt 2 matches
+        a sibling's completed tracking task run (due to positional
+        dynamic_key collision) and silently returns the wrong data.
+        """
+        child_results: dict[str, str] = {}
+        attempt = 0
 
-        @flow
+        @flow(persist_result=True)
+        def child(chunk: str) -> str:
+            result = f"result-for-{chunk}"
+            child_results[chunk] = result
+            return result
+
+        @task(persist_result=True, cache_policy=INPUTS)
+        def run_chunk(chunk: str) -> str:
+            return child(chunk)
+
+        @flow(retries=1, persist_result=True)
         def parent():
-            child(1)
-            child(2)
+            nonlocal attempt
+            attempt += 1
 
-        parent()
+            futures = [run_chunk.submit(f"chunk-{i}") for i in range(4)]
+            results = {}
+            for i, f in enumerate(futures):
+                r = f.result()
+                results[f"chunk-{i}"] = r
 
-        assert len(child_flow_run_ids) == 2
+            # Fail on first attempt after all subflows complete,
+            # forcing a retry where cached wrapper tasks short-circuit
+            # but the parent re-executes the flow body.
+            if attempt == 1:
+                raise ValueError("force retry")
 
-        for child_id in child_flow_run_ids:
-            child_run = sync_prefect_client.read_flow_run(child_id)
-            assert child_run.parent_task_run_id is not None
-            task_run = sync_prefect_client.read_task_run(child_run.parent_task_run_id)
-            # Sequential integer keys are short: "0", "1", etc.
-            assert task_run.dynamic_key in ("0", "1"), (
-                f"Expected stable sequential key, got: {task_run.dynamic_key}"
+            return results
+
+        final = parent()
+
+        assert attempt == 2
+        # Each chunk must have its own correct result — no cross-adoption
+        for i in range(4):
+            chunk_name = f"chunk-{i}"
+            assert final[chunk_name] == f"result-for-{chunk_name}", (
+                f"{chunk_name} got wrong result: {final[chunk_name]}"
             )
 
-    async def test_subflow_from_task_uses_uuid_dynamic_key(
-        self, sync_prefect_client: SyncPrefectClient
+    async def test_async_subflow_from_task_uses_uuid_dynamic_key(
+        self, prefect_client: PrefectClient
     ):
-        """Subflow calls from within a task context get UUID dynamic keys
-        to prevent race conditions under concurrency."""
+        """Async path: subflow tracking task runs called from within a
+        task context get UUID dynamic keys (mirrors sync behaviour)."""
         child_flow_run_ids: list[UUID] = []
 
         @flow
-        def child(x: int) -> int:
+        async def child(x: int) -> int:
             child_flow_run_ids.append(FlowRunContext.get().flow_run.id)
             return x
 
         @task
-        def run_child(x: int) -> int:
-            return child(x)
+        async def run_child(x: int) -> int:
+            return await child(x)
 
         @flow
-        def parent():
-            run_child(1)
-            run_child(2)
+        async def parent():
+            return await run_child(1)
 
-        parent()
+        await parent()
 
-        assert len(child_flow_run_ids) == 2
+        assert len(child_flow_run_ids) == 1
+        child_run = await prefect_client.read_flow_run(child_flow_run_ids[0])
+        assert child_run.parent_task_run_id is not None
+        task_run = await prefect_client.read_task_run(child_run.parent_task_run_id)
+        assert len(task_run.dynamic_key) > 8, (
+            f"Expected UUID dynamic key, got: {task_run.dynamic_key}"
+        )
 
-        for child_id in child_flow_run_ids:
-            child_run = sync_prefect_client.read_flow_run(child_id)
-            assert child_run.parent_task_run_id is not None
-            task_run = sync_prefect_client.read_task_run(child_run.parent_task_run_id)
-            assert len(task_run.dynamic_key) > 8, (
-                f"Expected UUID dynamic key, got sequential key: {task_run.dynamic_key}"
-            )
-
-    async def test_concurrent_subflows_get_distinct_dynamic_keys(
+    async def test_direct_subflow_keeps_stable_key_for_retry_optimisation(
         self, sync_prefect_client: SyncPrefectClient
     ):
-        """Concurrent subflow calls must each get unique dynamic keys
-        to prevent one from adopting another's result on retry."""
+        """Direct subflow calls (no task context) keep stable sequential
+        keys so the retry optimisation (reuse completed subflow result)
+        still works."""
         child_flow_run_ids: list[UUID] = []
 
         @flow
-        def child(x: int) -> int:
+        def child() -> str:
             child_flow_run_ids.append(FlowRunContext.get().flow_run.id)
-            return x
-
-        @task
-        def run_child(x: int) -> int:
-            return child(x)
+            return "hello"
 
         @flow
         def parent():
-            futures = [run_child.submit(i) for i in range(4)]
-            return [f.result() for f in futures]
+            child()
 
-        result = parent()
-        assert sorted(result) == [0, 1, 2, 3]
+        parent()
 
-        assert len(child_flow_run_ids) == 4
-
-        dynamic_keys: set[str] = set()
-        for child_id in child_flow_run_ids:
-            child_run = sync_prefect_client.read_flow_run(child_id)
-            assert child_run.parent_task_run_id is not None
-            task_run = sync_prefect_client.read_task_run(child_run.parent_task_run_id)
-            dynamic_keys.add(task_run.dynamic_key)
-
-        assert len(dynamic_keys) == 4, (
-            f"Expected 4 distinct dynamic keys, got {len(dynamic_keys)}: {dynamic_keys}"
+        child_run = sync_prefect_client.read_flow_run(child_flow_run_ids[0])
+        assert child_run.parent_task_run_id is not None
+        task_run = sync_prefect_client.read_task_run(child_run.parent_task_run_id)
+        assert task_run.dynamic_key == "0", (
+            f"Expected stable key '0', got: {task_run.dynamic_key}"
         )
 
 

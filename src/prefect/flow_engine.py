@@ -1675,6 +1675,9 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
 
+            # Use UUID dynamic keys when called from within a task
+            # (concurrent context) to prevent nondeterministic key
+            # assignment across threads.
             in_task = TaskRunContext.get() is not None
 
             parent_task_run = await parent_task.create_run(

@@ -885,6 +885,14 @@ class Task(Generic[P, R]):
         deferred: bool = False,
         stable: bool = True,
     ) -> TaskRun:
+        """Create a task run for this task.
+
+        Args:
+            stable: Controls dynamic-key stability for engine-created tracking
+                task runs. When True (default), uses a sequential counter that
+                enables retry optimisation. When False, uses a UUID to avoid
+                nondeterministic key collisions under concurrency.
+        """
         from prefect._internal.engine import dynamic_key_for_task_run
         from prefect.utilities.engine import collect_task_run_inputs_sync
 
@@ -905,6 +913,8 @@ class Task(Generic[P, R]):
                 dynamic_key = dynamic_key_for_task_run(
                     context=flow_run_context, task=self, stable=stable
                 )
+                # dynamic_key is always a str: either "0","1",... (stable)
+                # or a hex UUID (unstable). Truncate UUID for display only.
                 if stable:
                     task_run_name = f"{self.name}-{dynamic_key}"
                 else:
