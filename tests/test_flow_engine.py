@@ -1639,15 +1639,17 @@ class TestSubflowDynamicKeyRace:
     """Tests for the fix to concurrent subflow calls adopting the wrong
     persisted result on parent flow retry (OSS-8038).
 
-    Subflow tracking task runs now use UUID dynamic keys (stable=False)
-    to prevent nondeterministic positional matching under concurrency.
+    Subflow tracking task runs use UUID dynamic keys (stable=False) when
+    called from within a task context (concurrent), but keep stable
+    sequential keys for direct sequential subflow calls (preserving the
+    retry optimization).
     """
 
-    async def test_sync_subflow_tracking_task_gets_uuid_dynamic_key(
+    async def test_direct_subflow_uses_stable_dynamic_key(
         self, sync_prefect_client: SyncPrefectClient
     ):
-        """Subflow tracking task runs should get UUID dynamic keys,
-        not sequential integers, to prevent race conditions."""
+        """Direct subflow calls (no task context) use stable sequential keys
+        to preserve the retry optimization."""
         child_flow_run_ids: list[UUID] = []
 
         @flow
@@ -1668,36 +1670,40 @@ class TestSubflowDynamicKeyRace:
             child_run = sync_prefect_client.read_flow_run(child_id)
             assert child_run.parent_task_run_id is not None
             task_run = sync_prefect_client.read_task_run(child_run.parent_task_run_id)
-            # UUID dynamic keys are 36-char strings with hyphens
-            # Sequential integer keys would be "0", "1", etc.
-            assert len(task_run.dynamic_key) > 8, (
-                f"Expected UUID dynamic key, got sequential key: {task_run.dynamic_key}"
+            # Sequential integer keys are short: "0", "1", etc.
+            assert task_run.dynamic_key in ("0", "1"), (
+                f"Expected stable sequential key, got: {task_run.dynamic_key}"
             )
 
-    async def test_async_subflow_tracking_task_gets_uuid_dynamic_key(
-        self, prefect_client: PrefectClient
+    async def test_subflow_from_task_uses_uuid_dynamic_key(
+        self, sync_prefect_client: SyncPrefectClient
     ):
-        """Async variant: subflow tracking task runs should get UUID dynamic keys."""
+        """Subflow calls from within a task context get UUID dynamic keys
+        to prevent race conditions under concurrency."""
         child_flow_run_ids: list[UUID] = []
 
         @flow
-        async def child(x: int) -> int:
+        def child(x: int) -> int:
             child_flow_run_ids.append(FlowRunContext.get().flow_run.id)
             return x
 
-        @flow
-        async def parent():
-            await child(1)
-            await child(2)
+        @task
+        def run_child(x: int) -> int:
+            return child(x)
 
-        await parent()
+        @flow
+        def parent():
+            run_child(1)
+            run_child(2)
+
+        parent()
 
         assert len(child_flow_run_ids) == 2
 
         for child_id in child_flow_run_ids:
-            child_run = await prefect_client.read_flow_run(child_id)
+            child_run = sync_prefect_client.read_flow_run(child_id)
             assert child_run.parent_task_run_id is not None
-            task_run = await prefect_client.read_task_run(child_run.parent_task_run_id)
+            task_run = sync_prefect_client.read_task_run(child_run.parent_task_run_id)
             assert len(task_run.dynamic_key) > 8, (
                 f"Expected UUID dynamic key, got sequential key: {task_run.dynamic_key}"
             )

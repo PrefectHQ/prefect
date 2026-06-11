@@ -71,6 +71,7 @@ from prefect.context import (
     SettingsContext,
     SyncClientContext,
     TagsContext,
+    TaskRunContext,
     _deployment_id,
     _deployment_parameters,
     get_settings_context,
@@ -973,12 +974,17 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
 
+            # Use UUID dynamic keys when called from within a task
+            # (concurrent context) to prevent nondeterministic key
+            # assignment across threads.
+            in_task = TaskRunContext.get() is not None
+
             parent_task_run = run_coro_as_sync(
                 parent_task.create_run(
                     flow_run_context=flow_run_ctx,
                     parameters=self.parameters,
                     wait_for=self.wait_for,
-                    stable=False,
+                    stable=not in_task,
                 )
             )
 
@@ -1669,11 +1675,13 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
 
+            in_task = TaskRunContext.get() is not None
+
             parent_task_run = await parent_task.create_run(
                 flow_run_context=flow_run_ctx,
                 parameters=self.parameters,
                 wait_for=self.wait_for,
-                stable=False,
+                stable=not in_task,
             )
 
             # check if there is already a flow run for this subflow
