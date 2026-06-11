@@ -978,6 +978,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     flow_run_context=flow_run_ctx,
                     parameters=self.parameters,
                     wait_for=self.wait_for,
+                    stable=False,
                 )
             )
 
@@ -1672,6 +1673,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 flow_run_context=flow_run_ctx,
                 parameters=self.parameters,
                 wait_for=self.wait_for,
+                stable=False,
             )
 
             # check if there is already a flow run for this subflow

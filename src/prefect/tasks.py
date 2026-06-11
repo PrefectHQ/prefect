@@ -883,6 +883,7 @@ class Task(Generic[P, R]):
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         extra_task_inputs: Optional[dict[str, set[RunInput]]] = None,
         deferred: bool = False,
+        stable: bool = True,
     ) -> TaskRun:
         from prefect._internal.engine import dynamic_key_for_task_run
         from prefect.utilities.engine import collect_task_run_inputs_sync
@@ -902,9 +903,12 @@ class Task(Generic[P, R]):
                 task_run_name = self.name
             else:
                 dynamic_key = dynamic_key_for_task_run(
-                    context=flow_run_context, task=self
+                    context=flow_run_context, task=self, stable=stable
                 )
-                task_run_name = f"{self.name}-{dynamic_key}"
+                if stable:
+                    task_run_name = f"{self.name}-{dynamic_key}"
+                else:
+                    task_run_name = f"{self.name}-{dynamic_key[:3]}"
 
             if deferred:
                 state = Scheduled()

@@ -1635,6 +1635,111 @@ class TestLoadSubflowRun:
         )
 
 
+class TestSubflowDynamicKeyRace:
+    """Tests for the fix to concurrent subflow calls adopting the wrong
+    persisted result on parent flow retry (OSS-8038).
+
+    Subflow tracking task runs now use UUID dynamic keys (stable=False)
+    to prevent nondeterministic positional matching under concurrency.
+    """
+
+    async def test_sync_subflow_tracking_task_gets_uuid_dynamic_key(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        """Subflow tracking task runs should get UUID dynamic keys,
+        not sequential integers, to prevent race conditions."""
+        child_flow_run_ids: list[UUID] = []
+
+        @flow
+        def child(x: int) -> int:
+            child_flow_run_ids.append(FlowRunContext.get().flow_run.id)
+            return x
+
+        @flow
+        def parent():
+            child(1)
+            child(2)
+
+        parent()
+
+        assert len(child_flow_run_ids) == 2
+
+        for child_id in child_flow_run_ids:
+            child_run = sync_prefect_client.read_flow_run(child_id)
+            assert child_run.parent_task_run_id is not None
+            task_run = sync_prefect_client.read_task_run(child_run.parent_task_run_id)
+            # UUID dynamic keys are 36-char strings with hyphens
+            # Sequential integer keys would be "0", "1", etc.
+            assert len(task_run.dynamic_key) > 8, (
+                f"Expected UUID dynamic key, got sequential key: {task_run.dynamic_key}"
+            )
+
+    async def test_async_subflow_tracking_task_gets_uuid_dynamic_key(
+        self, prefect_client: PrefectClient
+    ):
+        """Async variant: subflow tracking task runs should get UUID dynamic keys."""
+        child_flow_run_ids: list[UUID] = []
+
+        @flow
+        async def child(x: int) -> int:
+            child_flow_run_ids.append(FlowRunContext.get().flow_run.id)
+            return x
+
+        @flow
+        async def parent():
+            await child(1)
+            await child(2)
+
+        await parent()
+
+        assert len(child_flow_run_ids) == 2
+
+        for child_id in child_flow_run_ids:
+            child_run = await prefect_client.read_flow_run(child_id)
+            assert child_run.parent_task_run_id is not None
+            task_run = await prefect_client.read_task_run(child_run.parent_task_run_id)
+            assert len(task_run.dynamic_key) > 8, (
+                f"Expected UUID dynamic key, got sequential key: {task_run.dynamic_key}"
+            )
+
+    async def test_concurrent_subflows_get_distinct_dynamic_keys(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        """Concurrent subflow calls must each get unique dynamic keys
+        to prevent one from adopting another's result on retry."""
+        child_flow_run_ids: list[UUID] = []
+
+        @flow
+        def child(x: int) -> int:
+            child_flow_run_ids.append(FlowRunContext.get().flow_run.id)
+            return x
+
+        @task
+        def run_child(x: int) -> int:
+            return child(x)
+
+        @flow
+        def parent():
+            futures = [run_child.submit(i) for i in range(4)]
+            return [f.result() for f in futures]
+
+        result = parent()
+        assert sorted(result) == [0, 1, 2, 3]
+
+        assert len(child_flow_run_ids) == 4
+
+        dynamic_keys: set[str] = set()
+        for child_id in child_flow_run_ids:
+            child_run = sync_prefect_client.read_flow_run(child_id)
+            assert child_run.parent_task_run_id is not None
+            task_run = sync_prefect_client.read_task_run(child_run.parent_task_run_id)
+            dynamic_keys.add(task_run.dynamic_key)
+
+        assert len(dynamic_keys) == 4, (
+            f"Expected 4 distinct dynamic keys, got {len(dynamic_keys)}: {dynamic_keys}"
+        )
+
+
 class TestFlowCrashDetection:
     @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
     async def test_interrupt_in_flow_function_crashes_flow(
