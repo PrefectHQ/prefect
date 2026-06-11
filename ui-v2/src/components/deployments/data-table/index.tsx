@@ -102,6 +102,7 @@ const createColumns = ({
 				<ActivityCell {...props} />
 			</div>
 		),
+		enableResizing: false,
 		size: 300,
 		minSize: 160,
 	}),
