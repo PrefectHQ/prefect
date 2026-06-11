@@ -10,7 +10,7 @@ Tasks for interacting with shell commands
 
 ## Functions
 
-### `shell_run_command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L27" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `shell_run_command` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L108" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 shell_run_command(command: str, env: dict[str, str] | None = None, helper_command: str | None = None, shell: str | None = None, extension: str | None = None, return_all: bool = False, stream_level: int = logging.INFO, cwd: str | bytes | os.PathLike[str] | None = None) -> list[str] | str
@@ -42,7 +42,7 @@ defaults to 20 equivalent to `logging.INFO`.
 
 ## Classes
 
-### `ShellProcess` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L124" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ShellProcess` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L205" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A class representing a shell process.
@@ -52,7 +52,7 @@ Supports both async (anyio.abc.Process) and sync (subprocess.Popen) processes.
 
 **Methods:**
 
-#### `afetch_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L234" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `afetch_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L358" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 afetch_result(self) -> list[str]
@@ -64,7 +64,7 @@ Retrieve the output of the shell operation (async version).
 - The lines output from the shell operation as a list.
 
 
-#### `await_for_completion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L170" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `await_for_completion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L269" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 await_for_completion(self) -> None
@@ -73,7 +73,7 @@ await_for_completion(self) -> None
 Wait for the shell command to complete after a process is triggered (async version).
 
 
-#### `fetch_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L246" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `fetch_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L370" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 fetch_result(self) -> list[str]
@@ -85,7 +85,7 @@ Retrieve the output of the shell operation (sync version).
 - The lines output from the shell operation as a list.
 
 
-#### `pid` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L141" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `pid` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 pid(self) -> int
@@ -97,7 +97,7 @@ The PID of the process.
 - The PID of the process.
 
 
-#### `return_code` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L151" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `return_code` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L232" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 return_code(self) -> int | None
@@ -109,7 +109,7 @@ The return code of the process.
 - The return code of the process, or `None` if the process is still running.
 
 
-#### `wait_for_completion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L197" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `wait_for_completion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L296" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wait_for_completion(self) -> None
@@ -118,7 +118,7 @@ wait_for_completion(self) -> None
 Wait for the shell command to complete after a process is triggered (sync version).
 
 
-### `ShellOperation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L258" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ShellOperation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L382" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A block representing a shell operation, containing multiple commands.
@@ -152,7 +152,7 @@ shell_operation = ShellOperation.load("BLOCK_NAME")
 
 **Methods:**
 
-#### `aclose` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L564" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aclose` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L702" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aclose(self)
@@ -161,7 +161,7 @@ aclose(self)
 Close the job block (async version).
 
 
-#### `arun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L483" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `arun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L617" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 arun(self, **open_kwargs: dict[str, Any]) -> list[str]
@@ -191,7 +191,7 @@ shell_output = await ShellOperation(
 ```
 
 
-#### `atrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L410" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `atrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L536" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 atrigger(self, **open_kwargs: dict[str, Any]) -> ShellProcess
@@ -223,7 +223,7 @@ async with ShellOperation(
 ```
 
 
-#### `close` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L572" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `close` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L710" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 close(self)
@@ -232,7 +232,7 @@ close(self)
 Close the job block (sync version).
 
 
-#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L521" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L661" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run(self, **open_kwargs: dict[str, Any]) -> list[str]
@@ -262,7 +262,7 @@ shell_output = ShellOperation(
 ```
 
 
-#### `trigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L448" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `trigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-shell/prefect_shell/commands.py#L578" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 trigger(self, **open_kwargs: dict[str, Any]) -> ShellProcess

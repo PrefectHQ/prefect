@@ -5,8 +5,29 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
+from prefect.server.events import clients
+from prefect.server.events.schemas import lifecycle
 from prefect.server.schemas import filters, sorting
 from prefect.server.schemas.actions import VariableCreate, VariableUpdate
+from prefect.types._datetime import now
+
+
+async def emit_variable_created_event(variable: orm_models.Variable) -> None:
+    """Emit an event when a variable is created."""
+    async with clients.PrefectServerEventsClient() as events_client:
+        await events_client.emit(lifecycle.variable_created_event(variable, now("UTC")))
+
+
+async def emit_variable_updated_event(variable: orm_models.Variable) -> None:
+    """Emit an event when a variable is updated."""
+    async with clients.PrefectServerEventsClient() as events_client:
+        await events_client.emit(lifecycle.variable_updated_event(variable, now("UTC")))
+
+
+async def emit_variable_deleted_event(variable: orm_models.Variable) -> None:
+    """Emit an event when a variable is deleted."""
+    async with clients.PrefectServerEventsClient() as events_client:
+        await events_client.emit(lifecycle.variable_deleted_event(variable, now("UTC")))
 
 
 @db_injector
@@ -26,6 +47,8 @@ async def create_variable(
     model = db.Variable(**variable.model_dump())
     session.add(model)
     await session.flush()
+
+    await emit_variable_created_event(model)
 
     return model
 
@@ -113,14 +136,20 @@ async def update_variable(
     """
     Updates a variable by id.
     """
+    existing = await read_variable(session, variable_id)
+    if existing is None:
+        return False
+
     query = (
         sa.update(db.Variable)
         .where(db.Variable.id == variable_id)
         .values(**variable.model_dump_for_orm(exclude_unset=True))
     )
+    await session.execute(query)
 
-    result = await session.execute(query)
-    return result.rowcount > 0
+    await session.refresh(existing)
+    await emit_variable_updated_event(existing)
+    return True
 
 
 @db_injector
@@ -130,14 +159,20 @@ async def update_variable_by_name(
     """
     Updates a variable by name.
     """
+    existing = await read_variable_by_name(session, name)
+    if existing is None:
+        return False
+
     query = (
         sa.update(db.Variable)
-        .where(db.Variable.name == name)
+        .where(db.Variable.id == existing.id)
         .values(**variable.model_dump_for_orm(exclude_unset=True))
     )
+    await session.execute(query)
 
-    result = await session.execute(query)
-    return result.rowcount > 0
+    await session.refresh(existing)
+    await emit_variable_updated_event(existing)
+    return True
 
 
 @db_injector
@@ -147,11 +182,15 @@ async def delete_variable(
     """
     Delete a variable by id.
     """
+    existing = await read_variable(session, variable_id)
+    if existing is None:
+        return False
+
+    await emit_variable_deleted_event(existing)
 
     query = sa.delete(db.Variable).where(db.Variable.id == variable_id)
-
-    result = await session.execute(query)
-    return result.rowcount > 0
+    await session.execute(query)
+    return True
 
 
 @db_injector
@@ -161,8 +200,12 @@ async def delete_variable_by_name(
     """
     Delete a variable by name.
     """
+    existing = await read_variable_by_name(session, name)
+    if existing is None:
+        return False
 
-    query = sa.delete(db.Variable).where(db.Variable.name == name)
+    await emit_variable_deleted_event(existing)
 
-    result = await session.execute(query)
-    return result.rowcount > 0
+    query = sa.delete(db.Variable).where(db.Variable.id == existing.id)
+    await session.execute(query)
+    return True

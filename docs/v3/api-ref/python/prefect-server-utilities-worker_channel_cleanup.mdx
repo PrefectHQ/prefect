@@ -1,0 +1,56 @@
+---
+title: worker_channel_cleanup
+sidebarTitle: worker_channel_cleanup
+---
+
+# `prefect.server.utilities.worker_channel_cleanup`
+
+## Classes
+
+### `WorkerCleanupInFlight` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel_cleanup.py#L29" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+### `WorkerCleanupConnectionRegistry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel_cleanup.py#L35" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `dispatch_available` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel_cleanup.py#L173" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+dispatch_available(self) -> None
+```
+
+#### `forget_cleanup_reservation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel_cleanup.py#L151" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+forget_cleanup_reservation(self, connection: WorkerChannelConnection) -> bool
+```
+
+#### `has_cleanup_capacity` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel_cleanup.py#L101" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+has_cleanup_capacity(self, connection: WorkerChannelConnection, max_cleanup_concurrency: int) -> bool
+```
+
+#### `register` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel_cleanup.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+register(self, connection: WorkerChannelConnection) -> AsyncIterator[None]
+```
+
+#### `track_cleanup_reservation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel_cleanup.py#L110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+track_cleanup_reservation(self, connection: WorkerChannelConnection, in_flight: WorkerCleanupInFlight, max_cleanup_concurrency: int) -> bool
+```
+
+#### `update_cleanup_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel_cleanup.py#L128" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+update_cleanup_lease(self, connection: WorkerChannelConnection) -> bool
+```
+
+#### `wake_dispatcher` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel_cleanup.py#L211" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+wake_dispatcher(self, work_pool_id: UUID) -> None
+```

@@ -1770,6 +1770,42 @@
             "title": "ServerServicesCancellationCleanupSettings",
             "type": "object"
         },
+        "ServerServicesCleanupReconcilerSettings": {
+            "description": "Settings for controlling the cleanup reconciler service.",
+            "properties": {
+                "enabled": {
+                    "default": true,
+                    "description": "Whether or not to start the cleanup reconciler service in the server application.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_CLEANUP_RECONCILER_ENABLED"
+                    ],
+                    "title": "Enabled",
+                    "type": "boolean"
+                },
+                "loop_seconds": {
+                    "default": 5,
+                    "description": "The cleanup reconciler service will look for expired cleanup message leases this often. Defaults to `5`.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_CLEANUP_RECONCILER_LOOP_SECONDS"
+                    ],
+                    "title": "Loop Seconds",
+                    "type": "number"
+                },
+                "batch_size": {
+                    "default": 100,
+                    "description": "The maximum number of expired cleanup message leases to process per service loop. Defaults to `100`.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_CLEANUP_RECONCILER_BATCH_SIZE"
+                    ],
+                    "title": "Batch Size",
+                    "type": "integer"
+                }
+            },
+            "title": "ServerServicesCleanupReconcilerSettings",
+            "type": "object"
+        },
         "ServerServicesDBVacuumSettings": {
             "description": "Settings for controlling the database vacuum service",
             "properties": {
@@ -2228,6 +2264,11 @@
                     "$ref": "#/$defs/ServerServicesRepossessorSettings",
                     "supported_environment_variables": []
                 },
+                "cleanup_reconciler": {
+                    "$ref": "#/$defs/ServerServicesCleanupReconcilerSettings",
+                    "description": "Settings for controlling the cleanup reconciler service",
+                    "supported_environment_variables": []
+                },
                 "task_run_recorder": {
                     "$ref": "#/$defs/ServerServicesTaskRunRecorderSettings",
                     "supported_environment_variables": []
@@ -2640,7 +2681,7 @@
             "properties": {
                 "cleanup_queue_storage": {
                     "default": "prefect.server.worker_communication.cleanup_queue.memory",
-                    "description": "The module to use for storing worker cleanup delivery messages. The default in-memory backend stores messages, leases, wakeups, and dead-letter entries only in the current server process; use a Redis-backed storage module for high availability or restart-safe cleanup delivery.",
+                    "description": "The module to use for storing worker cleanup delivery messages. The default in-memory backend stores messages, leases, wakeups, and dead-letter entries only in the current server process; use an external storage module for high availability or restart-safe cleanup delivery.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE"
                     ],
@@ -2678,7 +2719,7 @@
                         }
                     ],
                     "default": null,
-                    "description": "How long completed cleanup idempotency records are retained after acknowledgement. None keeps them for the lifetime of the current server process. The in-memory backend does not survive restart; use Redis for high availability or restart-safe cleanup idempotency.",
+                    "description": "How long completed cleanup idempotency records are retained after acknowledgement. None keeps them for the lifetime of the current server process. The in-memory backend does not survive restart; use external storage for high availability or restart-safe cleanup idempotency.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_COMPLETED_IDEMPOTENCY_RETENTION_SECONDS"
                     ],

@@ -69,8 +69,12 @@ for more on emitting your own events.
 | `prefect.deployment.updated` | Deployment fields changed | [Deployment events](/v3/api-ref/events/deployment-events) |
 | `prefect.deployment.deleted` | Deployment deleted | [Deployment events](/v3/api-ref/events/deployment-events) |
 | `prefect.deployment.{status}` | Deployment status transitions | [Deployment events](/v3/api-ref/events/deployment-events) |
+| `prefect.work-pool.created` | Work pool created | [Work pool and queue events](/v3/api-ref/events/work-pool-queue-events) |
+| `prefect.work-pool.deleted` | Work pool deleted | [Work pool and queue events](/v3/api-ref/events/work-pool-queue-events) |
 | `prefect.work-pool.{status}` | Work pool status transitions | [Work pool and queue events](/v3/api-ref/events/work-pool-queue-events) |
 | `prefect.work-pool.updated` | Work pool fields changed | [Work pool and queue events](/v3/api-ref/events/work-pool-queue-events) |
+| `prefect.work-queue.created` | Work queue created | [Work pool and queue events](/v3/api-ref/events/work-pool-queue-events) |
+| `prefect.work-queue.deleted` | Work queue deleted | [Work pool and queue events](/v3/api-ref/events/work-pool-queue-events) |
 | `prefect.work-queue.{status}` | Work queue status transitions | [Work pool and queue events](/v3/api-ref/events/work-pool-queue-events) |
 | `prefect.work-queue.updated` | Work queue fields changed | [Work pool and queue events](/v3/api-ref/events/work-pool-queue-events) |
 
@@ -88,8 +92,11 @@ for more on emitting your own events.
 
 | Event | Description | Page |
 |-------|-------------|------|
-| `prefect.artifact.created` | Artifact created | [Artifact and asset events](/v3/api-ref/events/artifact-asset-events) |
-| `prefect.artifact.updated` | Artifact updated | [Artifact and asset events](/v3/api-ref/events/artifact-asset-events) |
+| `prefect.artifact-collection.created` | Artifact collection created | [Artifact and asset events](/v3/api-ref/events/artifact-asset-events) |
+| `prefect.artifact-collection.updated` | Artifact collection latest version changed | [Artifact and asset events](/v3/api-ref/events/artifact-asset-events) |
+| `prefect.artifact-collection.deleted` | Artifact collection deleted | [Artifact and asset events](/v3/api-ref/events/artifact-asset-events) |
+| `prefect.artifact.created` | Individual artifact created | [Artifact and asset events](/v3/api-ref/events/artifact-asset-events) |
+| `prefect.artifact.updated` | Individual artifact updated | [Artifact and asset events](/v3/api-ref/events/artifact-asset-events) |
 | `prefect.asset.referenced` | Upstream asset referenced | [Artifact and asset events](/v3/api-ref/events/artifact-asset-events) |
 | `prefect.asset.materialization.succeeded` | Asset materialization succeeded | [Artifact and asset events](/v3/api-ref/events/artifact-asset-events) |
 | `prefect.asset.materialization.failed` | Asset materialization failed | [Artifact and asset events](/v3/api-ref/events/artifact-asset-events) |
@@ -98,6 +105,9 @@ for more on emitting your own events.
 
 | Event | Description | Page |
 |-------|-------------|------|
+| `prefect.concurrency-limit.created` | Concurrency limit created | [Concurrency events](/v3/api-ref/events/concurrency-events) |
+| `prefect.concurrency-limit.updated` | Concurrency limit configuration changed | [Concurrency events](/v3/api-ref/events/concurrency-events) |
+| `prefect.concurrency-limit.deleted` | Concurrency limit deleted | [Concurrency events](/v3/api-ref/events/concurrency-events) |
 | `prefect.concurrency-limit.acquired` | Concurrency slots acquired | [Concurrency events](/v3/api-ref/events/concurrency-events) |
 | `prefect.concurrency-limit.released` | Concurrency slots released | [Concurrency events](/v3/api-ref/events/concurrency-events) |
 
@@ -105,6 +115,9 @@ for more on emitting your own events.
 
 | Event | Description | Page |
 |-------|-------------|------|
+| `prefect.automation.created` | Automation created | [Automation events](/v3/api-ref/events/automation-events) |
+| `prefect.automation.updated` | Automation updated | [Automation events](/v3/api-ref/events/automation-events) |
+| `prefect.automation.deleted` | Automation deleted | [Automation events](/v3/api-ref/events/automation-events) |
 | `prefect.automation.triggered` | Automation trigger fired | [Automation events](/v3/api-ref/events/automation-events) |
 | `prefect.automation.resolved` | Automation trigger resolved | [Automation events](/v3/api-ref/events/automation-events) |
 | `prefect.automation.action.triggered` | Automation action started | [Automation events](/v3/api-ref/events/automation-events) |

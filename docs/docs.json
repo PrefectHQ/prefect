@@ -235,7 +235,8 @@
             "group": "AI",
             "pages": [
               "v3/how-to-guides/ai/index",
-              "v3/how-to-guides/ai/use-prefect-mcp-server"
+              "v3/how-to-guides/ai/use-prefect-mcp-server",
+              "v3/how-to-guides/ai/flow-run-log-summaries"
             ]
           },
           {
@@ -780,6 +781,7 @@
                     "group": "SDK Reference",
                     "pages": [
                       "integrations/prefect-redis/api-ref/prefect_redis-blocks",
+                      "integrations/prefect-redis/api-ref/prefect_redis-cleanup_queue",
                       "integrations/prefect-redis/api-ref/prefect_redis-client",
                       "integrations/prefect-redis/api-ref/prefect_redis-lease_storage",
                       "integrations/prefect-redis/api-ref/prefect_redis-locking",
@@ -1596,7 +1598,8 @@
                               "v3/api-ref/python/prefect-server-events-schemas-__init__",
                               "v3/api-ref/python/prefect-server-events-schemas-automations",
                               "v3/api-ref/python/prefect-server-events-schemas-events",
-                              "v3/api-ref/python/prefect-server-events-schemas-labelling"
+                              "v3/api-ref/python/prefect-server-events-schemas-labelling",
+                              "v3/api-ref/python/prefect-server-events-schemas-lifecycle"
                             ]
                           },
                           {
@@ -1694,6 +1697,7 @@
                           "v3/api-ref/python/prefect-server-services-__init__",
                           "v3/api-ref/python/prefect-server-services-base",
                           "v3/api-ref/python/prefect-server-services-cancellation_cleanup",
+                          "v3/api-ref/python/prefect-server-services-cleanup_reconciler",
                           "v3/api-ref/python/prefect-server-services-db_vacuum",
                           "v3/api-ref/python/prefect-server-services-foreman",
                           "v3/api-ref/python/prefect-server-services-late_runs",
@@ -1735,7 +1739,8 @@
                           "v3/api-ref/python/prefect-server-utilities-subscriptions",
                           "v3/api-ref/python/prefect-server-utilities-text_search_parser",
                           "v3/api-ref/python/prefect-server-utilities-user_templates",
-                          "v3/api-ref/python/prefect-server-utilities-worker_channel"
+                          "v3/api-ref/python/prefect-server-utilities-worker_channel",
+                          "v3/api-ref/python/prefect-server-utilities-worker_channel_cleanup"
                         ]
                       },
                       {
@@ -1912,6 +1917,7 @@
       {
         "pages": [
           "v3/release-notes/index",
+          "v3/release-notes/versioning",
           {
             "group": "OSS",
             "pages": [
@@ -2444,7 +2450,7 @@
       "source": "/latest/integrations/prefect-sqlalchemy/database"
     },
     {
-      "destination": "/contribute/styles-practices",
+      "destination": "/v3/release-notes/versioning",
       "source": "/latest/contributing/versioning"
     },
     {
