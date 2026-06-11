@@ -883,16 +883,8 @@ class Task(Generic[P, R]):
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         extra_task_inputs: Optional[dict[str, set[RunInput]]] = None,
         deferred: bool = False,
-        stable: bool = True,
+        dynamic_key: Optional[str] = None,
     ) -> TaskRun:
-        """Create a task run for this task.
-
-        Args:
-            stable: Controls dynamic-key stability for engine-created tracking
-                task runs. When True (default), uses a sequential counter that
-                enables retry optimisation. When False, uses a UUID to avoid
-                nondeterministic key collisions under concurrency.
-        """
         from prefect._internal.engine import dynamic_key_for_task_run
         from prefect.utilities.engine import collect_task_run_inputs_sync
 
@@ -909,16 +901,13 @@ class Task(Generic[P, R]):
             if not flow_run_context:
                 dynamic_key = f"{self.task_key}-{str(uuid4().hex)}"
                 task_run_name = self.name
+            elif dynamic_key is not None:
+                task_run_name = f"{self.name}-{dynamic_key}"
             else:
                 dynamic_key = dynamic_key_for_task_run(
-                    context=flow_run_context, task=self, stable=stable
+                    context=flow_run_context, task=self
                 )
-                # dynamic_key is always a str: either "0","1",... (stable)
-                # or a hex UUID (unstable). Truncate UUID for display only.
-                if stable:
-                    task_run_name = f"{self.name}-{dynamic_key}"
-                else:
-                    task_run_name = f"{self.name}-{dynamic_key[:3]}"
+                task_run_name = f"{self.name}-{dynamic_key}"
 
             if deferred:
                 state = Scheduled()

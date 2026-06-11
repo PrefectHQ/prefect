@@ -53,7 +53,11 @@ from prefect._flow_run_suspension import (
 )
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.control_listener import Intent, configure_from_env, get_intent
-from prefect._internal.engine import get_hook_name, resolve_custom_flow_run_name
+from prefect._internal.engine import (
+    dynamic_key_for_task_run,
+    get_hook_name,
+    resolve_custom_flow_run_name,
+)
 from prefect._internal.metrics import RunMetrics
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
@@ -974,17 +978,21 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
 
-            # Use UUID dynamic keys when called from within a task
-            # (concurrent context) to prevent nondeterministic key
-            # assignment across threads.
-            in_task = TaskRunContext.get() is not None
+            # Under concurrency (task.submit() wrapper pattern), call order
+            # is nondeterministic so a counter-based key would collide with
+            # a sibling's tracking task run on retry.  Use a UUID key instead.
+            explicit_key: str | None = None
+            if TaskRunContext.get() is not None:
+                explicit_key = dynamic_key_for_task_run(
+                    context=flow_run_ctx, task=parent_task, stable=False
+                )
 
             parent_task_run = run_coro_as_sync(
                 parent_task.create_run(
                     flow_run_context=flow_run_ctx,
                     parameters=self.parameters,
                     wait_for=self.wait_for,
-                    stable=not in_task,
+                    dynamic_key=explicit_key,
                 )
             )
 
@@ -1675,16 +1683,20 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
 
-            # Use UUID dynamic keys when called from within a task
-            # (concurrent context) to prevent nondeterministic key
-            # assignment across threads.
-            in_task = TaskRunContext.get() is not None
+            # Under concurrency (task.submit() wrapper pattern), call order
+            # is nondeterministic so a counter-based key would collide with
+            # a sibling's tracking task run on retry.  Use a UUID key instead.
+            explicit_key: str | None = None
+            if TaskRunContext.get() is not None:
+                explicit_key = dynamic_key_for_task_run(
+                    context=flow_run_ctx, task=parent_task, stable=False
+                )
 
             parent_task_run = await parent_task.create_run(
                 flow_run_context=flow_run_ctx,
                 parameters=self.parameters,
                 wait_for=self.wait_for,
-                stable=not in_task,
+                dynamic_key=explicit_key,
             )
 
             # check if there is already a flow run for this subflow
