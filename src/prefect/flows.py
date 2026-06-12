@@ -706,7 +706,11 @@ class Flow(Generic[P, R]):
                 from fastapi.encoders import jsonable_encoder
 
                 serialized_parameters[key] = jsonable_encoder(value)
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, RecursionError):
+                # `jsonable_encoder` recurses into unknown objects with no cycle
+                # or depth limit, so a deeply-nested or self-referential value
+                # raises `RecursionError`. Treat it like any other unserializable
+                # value and fall back to the placeholder below.
                 logger.debug(
                     f"Parameter {key!r} for flow {self.name!r} is unserializable. "
                     f"Type {type(value).__name__!r} and will not be stored "

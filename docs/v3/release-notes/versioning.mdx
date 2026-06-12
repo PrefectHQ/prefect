@@ -1,0 +1,56 @@
+---
+title: Versioning and compatibility
+sidebarTitle: Versioning
+description: How Prefect versions releases and which client versions are compatible with a given server or Prefect Cloud
+icon: code-compare
+keywords: ["version", "versioning", "semver", "compatibility", "client", "server", "deprecation", "upgrade"]
+---
+
+Prefect versions are composed of three parts: `MAJOR.MINOR.PATCH`. For example, `3.2.1` has a major version of `3`, a minor version of `2`, and a patch version of `1`.
+
+<Note>
+Prefect's versioning scheme does not strictly follow [semantic versioning](https://semver.org/). In particular, a **minor** version increase may include a non-backwards-compatible change. Read the rules below before pinning a version or upgrading.
+</Note>
+
+Occasionally a version carries a suffix such as `rc`, `a`, or `b`. These indicate pre-release versions that you can opt into for testing and experimentation prior to a generally available release.
+
+## Versioning scheme
+
+Prefect increases the **major** version when significant and widespread changes are made to the core product.
+
+Prefect increases the **minor** version when:
+
+*   Introducing a new concept that changes how you use Prefect
+*   Changing an existing concept in a way that fundamentally alters its usage
+*   Removing a deprecated feature
+
+Prefect increases the **patch** version when:
+
+*   Making enhancements to existing features
+*   Fixing behavior in existing features
+*   Adding new capabilities to existing concepts
+*   Updating dependencies
+
+Each release increases one of the version numbers. When a number other than the patch version increases, the numbers to the right of it reset to zero.
+
+## Deprecation
+
+At times, Prefect deprecates a feature. A feature is deprecated when it will no longer be maintained. Frequently, a deprecated feature has a new and improved alternative.
+
+Deprecated features are retained for at least **3** minor version increases or **6 months**, whichever is longer. Prefect may retain deprecated features longer than this period.
+
+Prefect sometimes includes changes to behavior to fix a bug. These changes are not categorized as breaking changes.
+
+## Client compatibility with a Prefect server
+
+The Prefect client includes anything that runs task or flow code (for example, workers and the Python client) and any consumer of Prefect metadata (for example, the Prefect UI and CLI). A Prefect server stores this metadata and serves it through the REST API.
+
+When you run your own Prefect server, you are in charge of ensuring its version is compatible with the clients using it. Prefect aims to maintain backwards compatibility with old clients for each server release. In contrast, you sometimes cannot use a new client with an old server: the newer client may expect the server to support capabilities it does not yet include.
+
+For this reason, we recommend that **all clients are the same version as the server or older**.
+
+For example, you can use a client on `3.1.0` with a server on `3.4.0`. You cannot use a client on `3.4.0` with a server on `3.1.0`.
+
+## Client compatibility with Prefect Cloud
+
+Prefect Cloud targets compatibility with all versions of Prefect clients. If you encounter a compatibility issue, please [file a bug report](https://github.com/PrefectHQ/prefect/issues/new/choose).

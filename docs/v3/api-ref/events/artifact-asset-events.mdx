@@ -1,11 +1,81 @@
 ---
 title: Artifact and asset events
-description: Events emitted when artifacts are created or updated and when assets are referenced or materialized.
-keywords: ["lineage", "materialization", "data tracking", "observability"]
+description: Events emitted when artifacts and artifact collections are created or updated and when assets are referenced or materialized.
+keywords: ["lineage", "materialization", "data tracking", "observability", "artifact collection", "lifecycle"]
 ---
 
-Artifact events track artifact creation and updates. Asset events track data
-lineage through upstream references and downstream materializations.
+Artifact events track individual artifact creation and updates. Artifact
+collection events track the lifecycle of keyed artifact collections. Asset
+events track data lineage through upstream references and downstream
+materializations.
+
+## Artifact collection events
+
+An artifact collection groups all artifacts that share the same key. Collection
+lifecycle events are emitted when that collection is created, updated (the
+latest artifact changes), or deleted (all artifacts for the key are removed).
+
+### `prefect.artifact-collection.created`
+
+Emitted when a keyed artifact collection is first created (that is, when the
+first artifact with a given key is written).
+
+#### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.artifact-collection.{uuid}` |
+| `prefect.resource.name` | Artifact key |
+
+#### Related resources
+
+| Resource ID pattern | Role | When present |
+|---------------------|------|--------------|
+| `prefect.artifact.{uuid}` | `latest` | The artifact that is currently the latest version in this collection |
+| `prefect.flow-run.{uuid}` | `flow-run` | When the artifact was created by a flow run |
+| `prefect.task-run.{uuid}` | `task-run` | When the artifact was created by a task run |
+
+#### Payload
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `key` | string | Artifact key |
+| `type` | string or null | Artifact type (for example, `markdown`, `table`, `progress`, `image`) |
+| `data` | any or null | Artifact data |
+| `description` | string or null | Artifact description |
+
+### `prefect.artifact-collection.updated`
+
+Emitted when the latest artifact in a collection changes (for example, a new
+artifact with the same key is written).
+
+#### Resource
+
+Same as [`prefect.artifact-collection.created`](#prefectartifact-collectioncreated).
+
+#### Related resources
+
+Same as [`prefect.artifact-collection.created`](#prefectartifact-collectioncreated), reflecting the new latest artifact.
+
+#### Payload
+
+Same as [`prefect.artifact-collection.created`](#prefectartifact-collectioncreated).
+
+### `prefect.artifact-collection.deleted`
+
+Emitted when all artifacts for a key are removed and the collection is deleted.
+
+#### Resource
+
+Same as [`prefect.artifact-collection.created`](#prefectartifact-collectioncreated).
+
+#### Related resources
+
+Same as [`prefect.artifact-collection.created`](#prefectartifact-collectioncreated).
+
+#### Payload
+
+Same as [`prefect.artifact-collection.created`](#prefectartifact-collectioncreated).
 
 ## Artifact events
 

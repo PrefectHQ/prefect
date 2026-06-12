@@ -1,6 +1,5 @@
 import os
 import subprocess
-import sys
 import time
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -9,6 +8,7 @@ import uv
 
 import prefect
 from prefect import flow, get_client, task
+from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.objects import FlowRun
 from prefect.flow_runs import suspend_flow_run
 from prefect.settings import PREFECT_API_URL
@@ -90,31 +90,14 @@ def test_external_suspension_stops_flow_run_at_next_task_boundary(tmp_path: Path
     marker_dir.mkdir()
     execution_log_path = tmp_path / "flow-run-execute.log"
 
-    work_pool_created = False
     deployment_id: UUID | None = None
     flow_run_id: UUID | None = None
     execution_process: subprocess.Popen[str] | None = None
     execution_log = None
 
     try:
-        subprocess.check_call(
-            [
-                uv.find_uv_bin(),
-                "run",
-                "--isolated",
-                "prefect",
-                "work-pool",
-                "create",
-                work_pool_name,
-                "-t",
-                "process",
-            ],
-            stdout=sys.stdout,
-            stderr=sys.stderr,
-            cwd=REPO_ROOT,
-            env=cli_env,
-        )
-        work_pool_created = True
+        with get_client(sync_client=True) as client:
+            client.create_work_pool(WorkPoolCreate(name=work_pool_name, type="process"))
 
         deployment_id = prefect.flow.from_source(
             source=str(REPO_ROOT),
@@ -214,20 +197,8 @@ def test_external_suspension_stops_flow_run_at_next_task_boundary(tmp_path: Path
             with get_client(sync_client=True) as client:
                 client.delete_deployment(deployment_id)
 
-        if work_pool_created:
-            subprocess.check_call(
-                [
-                    uv.find_uv_bin(),
-                    "run",
-                    "--isolated",
-                    "prefect",
-                    "--no-prompt",
-                    "work-pool",
-                    "delete",
-                    work_pool_name,
-                ],
-                stdout=sys.stdout,
-                stderr=sys.stderr,
-                cwd=REPO_ROOT,
-                env=cli_env,
-            )
+        with get_client(sync_client=True) as client:
+            try:
+                client.delete_work_pool(work_pool_name)
+            except Exception:
+                pass
