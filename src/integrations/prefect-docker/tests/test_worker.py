@@ -924,7 +924,7 @@ async def test_image_pull_policy_always_if_possible_use_existing_local_image_if_
         registry_url="registry.hub.docker.com",
     )
 
-    mock_docker_client.login.get.side_effect = APIError(
+    mock_docker_client.login.side_effect = APIError(
         "Server not reachable or image does not exist"
     )
 
