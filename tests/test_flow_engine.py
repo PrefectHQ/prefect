@@ -1648,56 +1648,63 @@ class TestSubflowDynamicKeyRace:
     async def test_concurrent_subflow_retry_returns_correct_result(
         self, sync_prefect_client: SyncPrefectClient
     ):
-        """Regression test: on the second attempt of a parent flow,
-        a re-executed wrapper task must call its own child subflow
-        and return the correct chunk's result — not an adopted result
-        from a sibling subflow that completed on the first attempt.
+        """Regression test for #22259: on attempt 2 of a parent flow,
+        an uncached wrapper task re-executes and calls its child subflow.
+        Without the fix, the child's tracking task run adopts a sibling's
+        completed tracking task run (due to positional dynamic_key
+        collision) and silently returns the wrong persisted result.
 
-        Without the fix, chunk-0's subflow call on attempt 2 matches
-        a sibling's completed tracking task run (due to positional
-        dynamic_key collision) and silently returns the wrong data.
+        Shape:
+        - Attempt 1: chunk-1, chunk-2, chunk-3 complete; chunk-0 fails
+          *before* calling child, so siblings occupy counter keys first.
+        - Attempt 2: chunk-1..3 are served from INPUTS cache; chunk-0
+          re-executes and must create/run its own child flow run.
+        - Assert the final result for chunk-0 is correct and that the
+          child flow actually executed for chunk-0 on the second attempt.
         """
-        child_results: dict[str, str] = {}
+        # per-test nonce avoids cache pollution across test runs
+        nonce = uuid.uuid4().hex[:8]
+        child_executions: list[str] = []
         attempt = 0
 
         @flow(persist_result=True)
-        def child(chunk: str) -> str:
-            result = f"result-for-{chunk}"
-            child_results[chunk] = result
-            return result
+        def child(chunk: str, nonce: str) -> str:
+            child_executions.append(chunk)
+            return f"result-for-{chunk}"
 
         @task(persist_result=True, cache_policy=INPUTS)
-        def run_chunk(chunk: str) -> str:
-            return child(chunk)
+        def run_chunk(chunk: str, nonce: str) -> str:
+            # On attempt 1, chunk-0 fails before calling child so it
+            # never caches.  Siblings complete and their subflows occupy
+            # counter-based tracking task keys.
+            if chunk == "chunk-0" and attempt == 1:
+                raise ValueError(f"{chunk} fails on first attempt")
+            return child(chunk, nonce)
 
         @flow(retries=1, persist_result=True)
         def parent():
             nonlocal attempt
             attempt += 1
 
-            futures = [run_chunk.submit(f"chunk-{i}") for i in range(4)]
-            results = {}
-            for i, f in enumerate(futures):
-                r = f.result()
-                results[f"chunk-{i}"] = r
-
-            # Fail on first attempt after all subflows complete,
-            # forcing a retry where cached wrapper tasks short-circuit
-            # but the parent re-executes the flow body.
-            if attempt == 1:
-                raise ValueError("force retry")
-
-            return results
+            # Submit chunk-1..3 first so their subflows complete and
+            # occupy counter-based tracking task keys on attempt 1,
+            # then submit chunk-0 which will fail.
+            order = ["chunk-1", "chunk-2", "chunk-3", "chunk-0"]
+            futures = {name: run_chunk.submit(name, nonce) for name in order}
+            return {name: f.result() for name, f in futures.items()}
 
         final = parent()
 
         assert attempt == 2
-        # Each chunk must have its own correct result — no cross-adoption
-        for i in range(4):
-            chunk_name = f"chunk-{i}"
-            assert final[chunk_name] == f"result-for-{chunk_name}", (
-                f"{chunk_name} got wrong result: {final[chunk_name]}"
+        # chunk-0 must have its own correct result — not an adopted sibling's
+        for name in ["chunk-0", "chunk-1", "chunk-2", "chunk-3"]:
+            assert final[name] == f"result-for-{name}", (
+                f"{name} got wrong result: {final[name]}"
             )
+        # The child flow must have actually executed for chunk-0
+        assert "chunk-0" in child_executions, (
+            "child flow never executed for chunk-0 on retry"
+        )
 
     async def test_async_subflow_from_task_uses_uuid_dynamic_key(
         self, prefect_client: PrefectClient

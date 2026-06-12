@@ -978,12 +978,12 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
 
-            # Under concurrency (task.submit() wrapper pattern), call order
-            # is nondeterministic so a counter-based key would collide with
-            # a sibling's tracking task run on retry.  Use a UUID key instead.
-            explicit_key: str | None = None
+            # In a task context, sibling call order is nondeterministic so a
+            # counter-based dynamic_key would let a retried subflow adopt the
+            # wrong sibling's completed tracking task run.  Use a UUID instead.
+            dynamic_key: str | None = None
             if TaskRunContext.get() is not None:
-                explicit_key = dynamic_key_for_task_run(
+                dynamic_key = dynamic_key_for_task_run(
                     context=flow_run_ctx, task=parent_task, stable=False
                 )
 
@@ -992,7 +992,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     flow_run_context=flow_run_ctx,
                     parameters=self.parameters,
                     wait_for=self.wait_for,
-                    dynamic_key=explicit_key,
+                    dynamic_key=dynamic_key,
                 )
             )
 
@@ -1683,12 +1683,12 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
 
-            # Under concurrency (task.submit() wrapper pattern), call order
-            # is nondeterministic so a counter-based key would collide with
-            # a sibling's tracking task run on retry.  Use a UUID key instead.
-            explicit_key: str | None = None
+            # In a task context, sibling call order is nondeterministic so a
+            # counter-based dynamic_key would let a retried subflow adopt the
+            # wrong sibling's completed tracking task run.  Use a UUID instead.
+            dynamic_key: str | None = None
             if TaskRunContext.get() is not None:
-                explicit_key = dynamic_key_for_task_run(
+                dynamic_key = dynamic_key_for_task_run(
                     context=flow_run_ctx, task=parent_task, stable=False
                 )
 
@@ -1696,7 +1696,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 flow_run_context=flow_run_ctx,
                 parameters=self.parameters,
                 wait_for=self.wait_for,
-                dynamic_key=explicit_key,
+                dynamic_key=dynamic_key,
             )
 
             # check if there is already a flow run for this subflow
