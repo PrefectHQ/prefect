@@ -1159,6 +1159,40 @@ async def test_querying_by_resource_id_with_underscores(
     assert events[0].id == event.id
 
 
+async def test_querying_by_resource_labels_with_backslash(
+    session: AsyncSession,
+) -> None:
+    """Regression test: label values containing literal backslashes must not be
+    misinterpreted as LIKE escape sequences (see OSS-8039)."""
+    event = ReceivedEvent(
+        occurred=now("UTC"),
+        event="test.backslash",
+        resource={
+            "prefect.resource.id": "res.backslash",
+            "my.path": "path\\to\\thing",
+        },
+        related=[],
+        payload={},
+        id=uuid4(),
+        received=now("UTC"),
+    )
+    await write_events(session, [event])
+
+    events, _, _ = await query_events(
+        session=session,
+        filter=EventFilter(
+            occurred=EventOccurredFilter(
+                since=event.occurred - timedelta(seconds=1),
+                until=event.occurred + timedelta(seconds=1),
+            ),
+            resource=EventResourceFilter(labels={"my.path": ["path\\to\\thing"]}),
+        ),
+    )
+
+    assert len(events) == 1
+    assert events[0].id == event.id
+
+
 async def test_querying_by_related_nothing(
     events_query_session: AsyncSession,
     full_occurred_range: EventOccurredFilter,
