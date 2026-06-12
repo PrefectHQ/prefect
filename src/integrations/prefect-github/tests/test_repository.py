@@ -84,6 +84,7 @@ class TestGitHubRepository:
                 err_stream.write(
                     "fatal: Authentication failed for "
                     "'https://XYZ@github.com/PrefectHQ/prefect.git/'"
+                    "\nremote: token XYZ rejected"
                 )
             return p()
 
