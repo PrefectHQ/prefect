@@ -9,6 +9,7 @@ Official integrations extending Prefect with external services and platforms. Ea
 - **Released by pushing a tag** in the format `prefect-<name>-<semver>` (e.g., `prefect-dbt-0.7.20`).
 - **Integrations use the latest released `prefect` from PyPI by default.** Only use an editable install of core Prefect when you're actively developing an interface in core that the integration will consume directly.
 - Use blocks for credentials — never hardcode secrets in flows.
+- **Git error sanitization**: Git-based integrations must strip credentials from subprocess stderr before raising errors. Implement `_git_error_extra_secrets()` returning raw and URL-encoded credential variants, then wrap stderr with `strip_auth_from_urls_in_text(stderr, extra_secrets=self._git_error_extra_secrets())` from `prefect._internal.urls`. Raw stderr leaks tokens in tracebacks.
 
 ## Integration Layout
 
