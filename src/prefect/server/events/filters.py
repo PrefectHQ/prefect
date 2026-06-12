@@ -263,7 +263,9 @@ def _is_like_match_expression(
     is_negated = match_expression.startswith("!")
 
     translation = str.maketrans({"*": "%", "?": "_", "%": "\\%", "_": "\\_"})
-    expression = column.like(match_expression.removeprefix("!").translate(translation))
+    expression = column.like(
+        match_expression.removeprefix("!").translate(translation), escape="\\"
+    )
 
     return ~expression if is_negated else expression
 
