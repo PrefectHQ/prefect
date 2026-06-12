@@ -809,7 +809,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                     raise exc
                 else:
                     self._logger.info(
-                        f"Pulling for {configuration.image!r} failed. But because ImagePullPolicy is set to {ImagePullPolicy.ALWAYS_IF_POSSIBLE} we still continue. Maybe we have an local one."
+                        f"Pulling for {configuration.image!r} failed. But because ImagePullPolicy is set to '{ImagePullPolicy.ALWAYS_IF_POSSIBLE}' we still continue. Maybe we have an local one."
                     )
 
         try:
