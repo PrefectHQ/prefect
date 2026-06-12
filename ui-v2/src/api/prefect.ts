@@ -8482,7 +8482,7 @@ export interface components {
          */
         IntervalSchedule: {
             /** Interval */
-            interval: number | string;
+            interval: number;
             /**
              * Anchor Date
              * Format: date-time
@@ -10044,6 +10044,30 @@ export interface components {
             loop_seconds: number;
         };
         /**
+         * ServerServicesCleanupReconcilerSettings
+         * @description Settings for controlling the cleanup reconciler service.
+         */
+        ServerServicesCleanupReconcilerSettings: {
+            /**
+             * Enabled
+             * @description Whether or not to start the cleanup reconciler service in the server application.
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Loop Seconds
+             * @description The cleanup reconciler service will look for expired cleanup message leases this often. Defaults to `5`.
+             * @default 5
+             */
+            loop_seconds: number;
+            /**
+             * Batch Size
+             * @description The maximum number of expired cleanup message leases to process per service loop. Defaults to `100`.
+             * @default 100
+             */
+            batch_size: number;
+        };
+        /**
          * ServerServicesDBVacuumSettings
          * @description Settings for controlling the database vacuum service
          */
@@ -10345,6 +10369,8 @@ export interface components {
             scheduler?: components["schemas"]["ServerServicesSchedulerSettings"];
             pause_expirations?: components["schemas"]["ServerServicesPauseExpirationsSettings"];
             repossessor?: components["schemas"]["ServerServicesRepossessorSettings"];
+            /** @description Settings for controlling the cleanup reconciler service */
+            cleanup_reconciler?: components["schemas"]["ServerServicesCleanupReconcilerSettings"];
             task_run_recorder?: components["schemas"]["ServerServicesTaskRunRecorderSettings"];
             triggers?: components["schemas"]["ServerServicesTriggersSettings"];
         };
