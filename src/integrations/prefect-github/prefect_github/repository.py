@@ -66,7 +66,11 @@ class GitHubRepository(ReadableDeploymentStorage):
         All other repos should be the same as `self.repository`.
         """
         url_components = urlparse(self.repository_url)
-        if url_components.scheme == "https" and self.credentials is not None:
+        if (
+            url_components.scheme == "https"
+            and self.credentials is not None
+            and self.credentials.token is not None
+        ):
             token_value = self.credentials.token.get_secret_value()
             updated_components = url_components._replace(
                 netloc=f"{token_value}@{url_components.netloc}"
@@ -78,7 +82,7 @@ class GitHubRepository(ReadableDeploymentStorage):
         return full_url
 
     def _git_error_extra_secrets(self) -> list[str]:
-        if self.credentials is None:
+        if self.credentials is None or self.credentials.token is None:
             return []
         return [self.credentials.token.get_secret_value()]
 
