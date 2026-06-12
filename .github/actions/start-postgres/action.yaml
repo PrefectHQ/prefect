@@ -1,0 +1,66 @@
+name: Start PostgreSQL
+description: Pull and start a PostgreSQL container with retry logic for transient Docker Hub failures
+
+inputs:
+  image:
+    description: Docker image to use
+    default: "postgres:16"
+  max-attempts:
+    description: Maximum number of pull attempts
+    default: "6"
+
+runs:
+  using: composite
+  steps:
+    - name: Pull PostgreSQL image with retry
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        MAX_ATTEMPTS: ${{ inputs.max-attempts }}
+      run: |
+        for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
+          echo "Pulling $IMAGE (attempt $attempt/$MAX_ATTEMPTS)..."
+          if docker pull "$IMAGE"; then
+            echo "Successfully pulled $IMAGE"
+            break
+          fi
+          if [ "$attempt" -eq "$MAX_ATTEMPTS" ]; then
+            echo "::error::Failed to pull $IMAGE after $MAX_ATTEMPTS attempts"
+            exit 1
+          fi
+          sleep_time=$((attempt * 10))
+          echo "::warning::Docker pull failed, retrying in ${sleep_time}s..."
+          sleep "$sleep_time"
+        done
+
+    - name: Start PostgreSQL container
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+      run: |
+        docker run -d \
+          --name postgres \
+          -e POSTGRES_USER=prefect \
+          -e POSTGRES_PASSWORD=prefect \
+          -e POSTGRES_DB=prefect \
+          -p 5432:5432 \
+          --health-cmd="pg_isready -U prefect -d prefect" \
+          --health-interval=10s \
+          --health-timeout=5s \
+          --health-retries=10 \
+          "$IMAGE"
+
+    - name: Wait for PostgreSQL to be ready
+      shell: bash
+      run: |
+        echo "Waiting for PostgreSQL to be ready..."
+        for i in $(seq 1 30); do
+          if docker exec postgres pg_isready -U prefect -d prefect > /dev/null 2>&1; then
+            echo "PostgreSQL is ready"
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "::error::PostgreSQL failed to become ready within 30s"
+        docker logs postgres
+        exit 1

@@ -6,6 +6,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/integration-tests.yaml
+      - .github/actions/start-postgres/**
       - "src/prefect/**/*.py"
       - pyproject.toml
       - ui/**
@@ -17,6 +18,7 @@ on:
       - main
     paths:
       - .github/workflows/integration-tests.yaml
+      - .github/actions/start-postgres/**
       - "**/*.py"
       - pyproject.toml
       - ui/**
@@ -28,21 +30,6 @@ jobs:
     name: Integration tests @${{ matrix.server-version.version }}
     timeout-minutes: 10
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: prefect
-          POSTGRES_PASSWORD: prefect
-          POSTGRES_DB: prefect
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U prefect -d prefect"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
 
     strategy:
       fail-fast: false
@@ -60,6 +47,9 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
           filter: blob:none
+
+      - name: Start postgres
+        uses: ./.github/actions/start-postgres
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v7
@@ -117,21 +107,6 @@ jobs:
     timeout-minutes: 10
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: prefect
-          POSTGRES_PASSWORD: prefect
-          POSTGRES_DB: prefect
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U prefect -d prefect"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=10
-
     steps:
       - uses: actions/checkout@v6
         with:
@@ -139,7 +114,9 @@ jobs:
           fetch-depth: 0
           filter: blob:none
 
-          
+      - name: Start postgres
+        uses: ./.github/actions/start-postgres
+
       - name: Create a temp dir to stage our build
         run: |
           echo "TMPDIR=$(mktemp -d)" >> $GITHUB_ENV
