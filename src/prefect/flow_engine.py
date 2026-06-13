@@ -616,11 +616,13 @@ class BaseFlowRunEngine(Generic[P, R]):
             yield flow_run_suspension_request
 
 
-def _make_subflow_task_key(flow: Flow[..., Any], parameters: dict[str, Any] | None) -> str:
+def _make_subflow_task_key(
+    flow: Flow[..., Any], parameters: dict[str, Any] | None
+) -> str:
     """Generate a stable task_key for tracking a subflow call.
 
     By default, all subflow calls that run the same flow share the same task_key,
-    which means their ``dynamic_key`` is determined by a call-order counter that
+    which means their `dynamic_key` is determined by a call-order counter that
     races under concurrency.  When the parent flow is retried, a re-executed
     subflow call can match the *wrong* completed virtual task run from the
     previous attempt and silently return another call's persisted result.
