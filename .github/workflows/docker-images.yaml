@@ -77,12 +77,32 @@ jobs:
         id: metadata-dev
         uses: docker/metadata-action@v6
         # generate dev tags on pre-releases or when manually triggered with a tag input
-        if: ${{ (github.event_name == 'release' && github.event.release.prerelease == true) || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '') }}
+        if: ${{ (github.event_name == 'release' && github.event.release.prerelease == true)
+              || (github.event_name == 'workflow_dispatch' && github.event.inputs.tag != '') }}
         with:
           images: ${{ matrix.image }}
           tags: |
             type=raw,value=${{ github.event.inputs.tag || github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
             type=sha,suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
+          flavor: |
+            latest=false
+
+      - name: Generate estargz tags for ${{ matrix.image }} (dev)
+        id: metadata-dev-estargz
+        if: |
+          ((github.event_name == 'release' &&
+            github.event.release.prerelease == true) ||
+           (github.event_name == 'workflow_dispatch' &&
+            github.event.inputs.tag != ''))
+          && matrix.image == 'prefecthq/prefect'
+          && matrix.python-version == '3.12'
+          && matrix.flavor == ''
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ matrix.image }}
+          tags: |
+            type=raw,value=${{ github.event.inputs.tag || github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}-estargz
+            type=sha,suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}-estargz
           flavor: |
             latest=false
 
@@ -100,7 +120,9 @@ jobs:
         id: metadata-prod
         uses: docker/metadata-action@v6
         # generate the production tags on release events or when manually triggered for 3-latest
-        if: ${{ github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_3_latest == 'true') }}
+        if: ${{ github.event_name == 'release'
+              || (github.event_name == 'workflow_dispatch'
+              && github.event.inputs.publish_3_latest == 'true') }}
         with:
           images: ${{ matrix.image }}
           # push `latest`, `X.Y` and `X` tags only when the release is not marked as prerelease
@@ -112,6 +134,27 @@ jobs:
             type=pep440,pattern={{major}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ github.event_name == 'release' && github.event.release.prerelease == false && github.ref_name == env.LATEST_TAG }}
             type=raw,value=3-latest${{ matrix.flavor }},enable=${{ (github.event_name == 'release' && github.event.release.prerelease == false && github.ref_name == env.LATEST_TAG && matrix.python-version == '3.12') || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_3_latest == 'true') }}
             type=raw,value=3-latest-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.publish_3_latest == 'true' }}
+          flavor: |
+            latest=false
+
+      - name: Generate estargz tags for ${{ matrix.image }} (prod)
+        id: metadata-prod-estargz
+        if: |
+          (github.event_name == 'release' ||
+            (github.event_name == 'workflow_dispatch' &&
+             github.event.inputs.publish_3_latest == 'true'))
+          && matrix.image == 'prefecthq/prefect'
+          && matrix.python-version == '3.12'
+          && matrix.flavor == ''
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ matrix.image }}
+          tags: |
+            type=pep440,pattern={{version}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}-estargz,enable=${{ github.event_name == 'release' }}
+            type=pep440,pattern={{major}}.{{minor}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}-estargz,enable=${{ github.event_name == 'release' && github.event.release.prerelease == false }}
+            type=pep440,pattern={{major}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}-estargz,enable=${{ github.event_name == 'release' && github.event.release.prerelease == false && github.ref_name == env.LATEST_TAG }}
+            type=raw,value=3-latest${{ matrix.flavor }}-estargz,enable=${{ (github.event_name == 'release' && github.event.release.prerelease == false && github.ref_name == env.LATEST_TAG && matrix.python-version == '3.12') || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish_3_latest == 'true') }}
+            type=raw,value=3-latest-python${{ matrix.python-version }}${{ matrix.flavor }}-estargz,enable=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.publish_3_latest == 'true' }}
           flavor: |
             latest=false
 
@@ -132,13 +175,54 @@ jobs:
             VITE_AMPLITUDE_API_KEY=${{ secrets.AMPLITUDE_API_KEY }}
             ${{ ( endsWith(matrix.flavor, 'conda') && 'BASE_IMAGE=prefect-conda' ) || '' }}
             ${{ ( endsWith(matrix.flavor, 'kubernetes') && 'PREFECT_EXTRAS=[redis,kubernetes]' ) || '' }}
-          tags: ${{ join(steps.metadata-dev.outputs.tags) }},${{ join(steps.metadata-prod.outputs.tags) }}
-          labels: ${{ steps.metadata-dev.outputs.labels }}
+          tags: |
+            ${{ steps.metadata-dev.outputs.tags }}
+            ${{ steps.metadata-prod.outputs.tags }}
+          labels: |
+            ${{ steps.metadata-dev.outputs.labels }}
+            ${{ steps.metadata-prod.outputs.labels }}
           push: true
           pull: true
           provenance: false
           cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.python-version }}${{ matrix.flavor }},ignore-error=true
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.python-version }}${{ matrix.flavor }},ignore-error=true
+
+      - name: Build and push eStargz image
+        if: |
+          matrix.image == 'prefecthq/prefect' &&
+          matrix.python-version == '3.12' &&
+          matrix.flavor == ''
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ (matrix.image == 'prefecthq/prefect-client') && 'client/Dockerfile' || 'Dockerfile' }}
+
+          platforms: linux/amd64,linux/arm64
+
+          build-args: |
+            PYTHON_VERSION=${{ matrix.python-version }}
+            NODE_VERSION=${{ steps.get_node_version.outputs.NODE_VERSION }}
+            VITE_AMPLITUDE_API_KEY=${{ secrets.AMPLITUDE_API_KEY }}
+            ${{ ( endsWith(matrix.flavor, 'conda') && 'BASE_IMAGE=prefect-conda' ) || '' }}
+            ${{ ( endsWith(matrix.flavor, 'kubernetes') && 'PREFECT_EXTRAS=[redis,kubernetes]' ) || '' }}
+
+          tags: |
+            ${{ steps.metadata-dev-estargz.outputs.tags }}
+            ${{ steps.metadata-prod-estargz.outputs.tags }}
+
+          labels: |
+            ${{ steps.metadata-dev-estargz.outputs.labels }}
+            ${{ steps.metadata-prod-estargz.outputs.labels }}
+
+          push: true
+          pull: true
+          provenance: false
+
+          outputs: type=registry,oci-mediatypes=true,compression=estargz
+
+          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.python-version }}${{ matrix.flavor }}-estargz,ignore-error=true
+
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.python-version }}${{ matrix.flavor }}-estargz,ignore-error=true
 
   trigger-integration-test-update:
     name: Trigger integration test worker image update
