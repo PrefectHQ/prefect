@@ -54,7 +54,6 @@ from prefect._flow_run_suspension import (
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.control_listener import Intent, configure_from_env, get_intent
 from prefect._internal.engine import get_hook_name, resolve_custom_flow_run_name
-from prefect.utilities.hashing import hash_objects
 from prefect._internal.metrics import RunMetrics
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
@@ -147,6 +146,7 @@ from prefect.utilities.engine import (
     propose_state_sync,
     resolve_to_final_result,
 )
+from prefect.utilities.hashing import hash_objects
 from prefect.utilities.processutils import sanitize_subprocess_env
 from prefect.utilities.timeout import timeout, timeout_async
 from prefect.utilities.urls import url_for
