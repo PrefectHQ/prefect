@@ -20,8 +20,6 @@ from prefect.server.schemas.states import (
     Submitting,
 )
 
-pytestmark = pytest.mark.clear_db
-
 
 class TestState:
     def test_state_takes_name_from_type(self):

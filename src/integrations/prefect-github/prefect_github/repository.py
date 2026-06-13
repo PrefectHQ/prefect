@@ -8,7 +8,6 @@ GitHub query_repository* tasks and the GitHub storage block.
 # is outdated, rerun scripts/generate.py.
 
 import io
-import re
 import shutil
 import subprocess
 from datetime import datetime
@@ -22,7 +21,7 @@ from sgqlc.operation import Operation
 
 from prefect import task
 from prefect._internal.compatibility.async_dispatch import async_dispatch
-from prefect._internal.urls import strip_auth_from_url
+from prefect._internal.urls import strip_auth_from_urls_in_text
 from prefect.filesystems import ReadableDeploymentStorage
 from prefect.utilities.processutils import run_process
 from prefect_github import GitHubCredentials
@@ -32,15 +31,6 @@ from prefect_github.utils import initialize_return_fields_defaults, strip_kwargs
 
 config_path = Path(__file__).parent.resolve() / "configs" / "query" / "repository.json"
 return_fields_defaults = initialize_return_fields_defaults(config_path)
-
-_URL_PATTERN = re.compile(r"https?://[^\s'\"<>]+")
-
-
-def _sanitize_git_error(message: str) -> str:
-    def _replace(match: re.Match[str]) -> str:
-        return strip_auth_from_url(match.group(0))
-
-    return _URL_PATTERN.sub(_replace, message)
 
 
 class GitHubRepository(ReadableDeploymentStorage):
@@ -76,7 +66,11 @@ class GitHubRepository(ReadableDeploymentStorage):
         All other repos should be the same as `self.repository`.
         """
         url_components = urlparse(self.repository_url)
-        if url_components.scheme == "https" and self.credentials is not None:
+        if (
+            url_components.scheme == "https"
+            and self.credentials is not None
+            and self.credentials.token is not None
+        ):
             token_value = self.credentials.token.get_secret_value()
             updated_components = url_components._replace(
                 netloc=f"{token_value}@{url_components.netloc}"
@@ -86,6 +80,11 @@ class GitHubRepository(ReadableDeploymentStorage):
             full_url = self.repository_url
 
         return full_url
+
+    def _git_error_extra_secrets(self) -> list[str]:
+        if self.credentials is None or self.credentials.token is None:
+            return []
+        return [self.credentials.token.get_secret_value()]
 
     @staticmethod
     def _get_paths(
@@ -138,7 +137,9 @@ class GitHubRepository(ReadableDeploymentStorage):
             process = await run_process(cmd, stream_output=(out_stream, err_stream))
             if process.returncode != 0:
                 err_stream.seek(0)
-                sanitized_error = _sanitize_git_error(err_stream.read())
+                sanitized_error = strip_auth_from_urls_in_text(
+                    err_stream.read(), extra_secrets=self._git_error_extra_secrets()
+                )
                 raise RuntimeError(f"Failed to pull from remote:\n {sanitized_error}")
 
             content_source, content_destination = self._get_paths(
@@ -178,7 +179,9 @@ class GitHubRepository(ReadableDeploymentStorage):
 
             result = subprocess.run(cmd, capture_output=True, text=True)
             if result.returncode != 0:
-                sanitized_error = _sanitize_git_error(result.stderr)
+                sanitized_error = strip_auth_from_urls_in_text(
+                    result.stderr, extra_secrets=self._git_error_extra_secrets()
+                )
                 raise RuntimeError(f"Failed to pull from remote:\n {sanitized_error}")
 
             content_source, content_destination = self._get_paths(

@@ -10,8 +10,6 @@ from hatch_build import (
     validate_packaged_ui_index_files,
 )
 
-pytestmark = pytest.mark.clear_db
-
 
 def test_validate_packaged_ui_index_files_passes_when_both_indexes_exist(
     tmp_path: pathlib.Path,

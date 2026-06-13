@@ -1,4 +1,5 @@
 import contextlib
+import errno
 import logging
 import pathlib
 import socket
@@ -1184,6 +1185,91 @@ def test_create_ui_app_handles_permission_error_on_static_files(
         "Failed to create" in call.args[0] for call in mock_logger.error.call_args_list
     )
     # The app should not have the static file mounts
+    route_names = [r.name for r in ui_app.routes if hasattr(r, "name")]
+    assert "ui_v1" not in route_names
+    assert "ui_v2" not in route_names
+
+
+def test_create_ui_app_handles_disk_space_error_on_static_files(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """
+    When the writable volume is too small for the UI bundle, the ENOSPC
+    OSError should be caught and surfaced as a clear disk-space error
+    instead of crashing the server.
+    """
+
+    static_dir = str(tmp_path / "ui-static")
+
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI")
+    v2_source = _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI")
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", v2_source)
+
+    enospc = OSError(errno.ENOSPC, "No space left on device", static_dir)
+    enospc.errno = errno.ENOSPC
+
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_UI_STATIC_DIRECTORY: static_dir,
+        }
+    ):
+        with (
+            patch(
+                "prefect.server.api.server.copy_directory",
+                side_effect=enospc,
+            ),
+            patch("prefect.server.api.server.logger") as mock_logger,
+        ):
+            ui_app = create_ui_app(ephemeral=False)
+
+    assert mock_logger.error.call_count >= 1
+    assert all(
+        "Not enough disk space" in call.args[0]
+        for call in mock_logger.error.call_args_list
+    )
+    route_names = [r.name for r in ui_app.routes if hasattr(r, "name")]
+    assert "ui_v1" not in route_names
+    assert "ui_v2" not in route_names
+
+
+def test_create_ui_app_handles_generic_os_error_on_static_files(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """
+    Generic OSError (not ENOSPC, not PermissionError) should still be
+    caught and logged instead of crashing the server.
+    """
+
+    static_dir = str(tmp_path / "ui-static")
+
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI")
+    v2_source = _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI")
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", v2_source)
+
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_UI_STATIC_DIRECTORY: static_dir,
+        }
+    ):
+        with (
+            patch(
+                "prefect.server.api.server.copy_directory",
+                side_effect=OSError(errno.EIO, "Input/output error"),
+            ),
+            patch("prefect.server.api.server.logger") as mock_logger,
+        ):
+            ui_app = create_ui_app(ephemeral=False)
+
+    assert mock_logger.error.call_count >= 1
+    assert all(
+        "Failed to create" in call.args[0] for call in mock_logger.error.call_args_list
+    )
     route_names = [r.name for r in ui_app.routes if hasattr(r, "name")]
     assert "ui_v1" not in route_names
     assert "ui_v2" not in route_names

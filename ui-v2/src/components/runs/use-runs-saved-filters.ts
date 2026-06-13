@@ -203,6 +203,7 @@ export function useRunsSavedFilters(): UseRunsSavedFiltersReturn {
 					...prev,
 					...urlParams,
 					page: 1, // Reset pagination when applying filter
+					"task-runs-page": 1,
 				}),
 				replace: true,
 			});
@@ -341,6 +342,7 @@ export function useApplyDefaultFilterOnMount(): void {
 				...prev,
 				...urlParams,
 				page: 1, // Reset pagination when applying default filter
+				"task-runs-page": 1,
 			}),
 			replace: true,
 		});

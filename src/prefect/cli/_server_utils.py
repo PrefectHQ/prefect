@@ -274,6 +274,9 @@ def _run_in_background(
     keep_alive_timeout: int,
     no_services: bool,
     workers: int,
+    *,
+    ws_ping_interval: float = 20.0,
+    ws_ping_timeout: float = 20.0,
 ) -> None:
     command = [
         sys.executable,
@@ -292,6 +295,8 @@ def _run_in_background(
         "--workers",
         str(workers),
     ]
+    command.extend(["--ws-ping-interval", str(ws_ping_interval)])
+    command.extend(["--ws-ping-timeout", str(ws_ping_timeout)])
     logger.debug("Opening server process with command: %s", shlex.join(command))
 
     env = {**os.environ, **server_settings, "PREFECT__SERVER_FINAL": "1"}
@@ -322,6 +327,9 @@ def _run_in_foreground(
     keep_alive_timeout: int,
     no_services: bool,
     workers: int,
+    *,
+    ws_ping_interval: float = 20.0,
+    ws_ping_timeout: float = 20.0,
 ) -> None:
     from prefect.server.api.server import create_app
 
@@ -336,6 +344,8 @@ def _run_in_foreground(
                     host=host,
                     port=port,
                     timeout_keep_alive=keep_alive_timeout,
+                    ws_ping_interval=ws_ping_interval,
+                    ws_ping_timeout=ws_ping_timeout,
                     log_level=server_settings.get(
                         "PREFECT_SERVER_LOGGING_LEVEL", "info"
                     ).lower(),
@@ -351,6 +361,8 @@ def _run_in_foreground(
                     host=host,
                     port=port,
                     timeout_keep_alive=keep_alive_timeout,
+                    ws_ping_interval=ws_ping_interval,
+                    ws_ping_timeout=ws_ping_timeout,
                     log_level=server_settings.get(
                         "PREFECT_SERVER_LOGGING_LEVEL", "info"
                     ).lower(),

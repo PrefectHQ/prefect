@@ -64,7 +64,7 @@ async def monitor_expired_leases(
     docket: Docket = CurrentDocket(),
     lease_storage: ConcurrencyLeaseStorage = Depends(get_concurrency_lease_storage),
     perpetual: Perpetual = Perpetual(
-        automatic=False,
+        automatic=True,
         every=timedelta(
             seconds=get_current_settings().server.services.repossessor.loop_seconds
         ),

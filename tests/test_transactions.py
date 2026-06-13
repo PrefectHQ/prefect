@@ -17,11 +17,13 @@ from prefect.locking.memory import MemoryLockManager
 from prefect.results import (
     ResultRecord,
     ResultStore,
+    _default_storages,
     aget_default_result_storage,
     get_default_result_storage,
 )
 from prefect.settings import (
     PREFECT_DEFAULT_RESULT_STORAGE_BLOCK,
+    PREFECT_LOCAL_STORAGE_PATH,
     PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
     temporary_settings,
 )
@@ -37,6 +39,16 @@ from prefect.transactions import (
     get_transaction,
     transaction,
 )
+
+
+@pytest.fixture(autouse=True)
+def isolate_default_result_storage(tmp_path: Path):
+    # Transaction tests use stable keys; isolate default storage so committed
+    # records do not leak between tests.
+    _default_storages.clear()
+    with temporary_settings({PREFECT_LOCAL_STORAGE_PATH: tmp_path / "storage"}):
+        yield
+    _default_storages.clear()
 
 
 def test_basic_init():
@@ -672,9 +684,13 @@ class TestWithResultStore:
             yield
 
     @pytest.fixture
-    async def result_store(self):
-        result_store = ResultStore(lock_manager=MemoryLockManager())
-        return result_store
+    async def result_store(self, tmp_path: Path):
+        storage = LocalFileSystem(basepath=str(tmp_path))
+        await storage._save(is_anonymous=True)
+        return ResultStore(
+            result_storage=storage,
+            lock_manager=MemoryLockManager(),
+        )
 
     class TestTransaction:
         def test_basic_transaction(self, result_store: ResultStore):

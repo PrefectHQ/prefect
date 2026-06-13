@@ -312,6 +312,23 @@ class TestAzureBlobStorageContainer:
 
         assert result == b"write_path_works"
 
+    async def test_blob_storage_write_path_overwrites_existing(
+        self, mock_blob_storage_credentials
+    ):
+        # Regression test for #19411: writing to an existing key (e.g. when a
+        # task runs with `refresh_cache=True`) must overwrite the blob instead
+        # of raising `ResourceExistsError`.
+        container = AzureBlobStorageContainer(
+            container_name="prefect",
+            credentials=mock_blob_storage_credentials,
+        )
+        await container.write_path("prefect-write-path.txt", b"original")
+        await container.write_path("prefect-write-path.txt", b"overwritten")
+
+        result = await container.read_path("prefect-write-path.txt")
+
+        assert result == b"overwritten"
+
     async def test_list_blobs(self, mock_blob_storage_credentials):
         blob_container = AzureBlobStorageContainer(
             container_name="container",

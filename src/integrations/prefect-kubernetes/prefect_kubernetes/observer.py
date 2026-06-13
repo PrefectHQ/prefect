@@ -51,6 +51,59 @@ _last_diagnosis_cache: TTLCache[str, InfrastructureDiagnosis] = TTLCache(
     maxsize=1000, ttl=60 * 5
 )
 
+
+def _parse_k8s_datetime(value: Any) -> DateTime | None:
+    if not isinstance(value, str):
+        return None
+
+    try:
+        return DateTime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _container_state_times(
+    status: kopf.Status,
+    state: str,
+    timestamp_key: str,
+    status_keys: tuple[str, ...] = ("containerStatuses",),
+) -> list[DateTime]:
+    timestamps: list[DateTime] = []
+    for status_key in status_keys:
+        for container_status in status.get(status_key, []) or []:
+            container_state = container_status.get("state") or {}
+            state_details = container_state.get(state) or {}
+            timestamp = _parse_k8s_datetime(state_details.get(timestamp_key))
+            if timestamp:
+                timestamps.append(timestamp)
+    return timestamps
+
+
+def _pod_phase_occurred(
+    phase: str, status: kopf.Status, k8s_created_time: DateTime | None
+) -> DateTime | None:
+    if phase == "Pending":
+        return k8s_created_time
+
+    if phase == "Running":
+        running_times = _container_state_times(status, "running", "startedAt")
+        if running_times:
+            return max(running_times)
+        return _parse_k8s_datetime(status.get("startTime"))
+
+    if phase in {"Succeeded", "Failed", "evicted"}:
+        terminated_times = _container_state_times(
+            status,
+            "terminated",
+            "finishedAt",
+            status_keys=("initContainerStatuses", "containerStatuses"),
+        )
+        if terminated_times:
+            return max(terminated_times)
+
+    return None
+
+
 settings = KubernetesSettings()
 
 events_client: EventsClient | None = None
@@ -250,12 +303,16 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                 resource["kubernetes.reason"] = reason
                 break
 
-    # Create the Prefect event, using the K8s event timestamp as the occurred time if available
+    k8s_occurred = _pod_phase_occurred(phase, status, k8s_created_time)
+
+    # Prefer Kubernetes lifecycle timestamps so replicated events preserve
+    # when the pod phase changed instead of when the observer processed it.
     prefect_event = Event(
         event=f"prefect.kubernetes.pod.{phase.lower()}",
         resource=Resource.model_validate(resource),
         id=event_id,
         related=_related_resources_from_labels(labels),
+        **({"occurred": k8s_occurred} if k8s_occurred else {}),
     )
 
     if (prev_event := _last_event_cache.get(uid)) is not None:

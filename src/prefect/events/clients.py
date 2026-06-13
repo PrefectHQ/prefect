@@ -31,7 +31,7 @@ from websockets.exceptions import (
 import prefect.types._datetime
 from prefect._internal.version_checking import check_server_version
 from prefect._internal.websockets import websocket_connect
-from prefect.events import Event
+from prefect.events.schemas.events import Event
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_API_KEY,

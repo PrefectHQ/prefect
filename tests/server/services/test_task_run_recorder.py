@@ -1621,6 +1621,52 @@ async def test_bulk_upserts_are_sorted_by_conflict_key(
         assert keys == sorted(keys)
 
 
+async def test_bulk_upserts_preserve_global_conflict_key_order_across_column_groups(
+    session: AsyncSession,
+    flow_run: FlowRun,
+):
+    """Rows with different insert column signatures still execute in global order.
+
+    Bulk inserts must split rows by column signature, but collecting all matching
+    signatures together can reorder already-sorted conflict keys and reintroduce
+    lock-order inversions across concurrent recorders.
+    """
+    captured_keys: list[tuple[UUID, str, str]] = []
+    original_values = Insert.values
+
+    def spy_values(self, *args, **kwargs):
+        if args and isinstance(args[0], list) and args[0]:
+            if isinstance(args[0][0], dict) and "task_key" in args[0][0]:
+                captured_keys.extend(
+                    (row["flow_run_id"], row["task_key"], row["dynamic_key"])
+                    for row in args[0]
+                )
+        return original_values(self, *args, **kwargs)
+
+    base_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
+    flow_run_id = str(flow_run.id)
+    events: list[ReceivedEvent] = []
+
+    for i in reversed(range(6)):
+        event = make_event_with_flow_run(
+            task_run_id=str(uuid4()),
+            flow_run_id=flow_run_id,
+            task_key=f"task-{i:02d}",
+            dynamic_key=f"dyn-{i:02d}",
+            state_ts=base_time,
+            state_type=StateType.RUNNING,
+        )
+        if i % 2 == 0:
+            event.payload["task_run"]["run_count"] = i + 1
+        events.append(event)
+
+    with patch.object(Insert, "values", spy_values):
+        await task_run_recorder.record_bulk_task_run_events(events)
+
+    assert [key[1] for key in captured_keys] == [f"task-{i:02d}" for i in range(6)]
+    assert captured_keys == sorted(captured_keys)
+
+
 async def test_bulk_upsert_retries_once_on_integrity_error(
     session: AsyncSession,
     flow_run: FlowRun,

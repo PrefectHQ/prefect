@@ -4,10 +4,12 @@ import base64
 import time
 from typing import Any, Dict, Optional
 
-from httpx import AsyncClient, Client
+from httpx import AsyncClient, Client, Headers
 from pydantic import Field, PrivateAttr, SecretStr, model_validator
 
 from prefect.blocks.core import Block
+
+_DATABRICKS_PARTNER_USER_AGENT = "prefect+prefect-databricks"
 
 
 class DatabricksCredentials(Block):
@@ -258,7 +260,14 @@ class DatabricksCredentials(Block):
         else:
             auth_token = self.token.get_secret_value()
 
-        client_kwargs = self.client_kwargs or {}
-        client_kwargs["headers"] = {"Authorization": f"Bearer {auth_token}"}
+        client_kwargs = dict(self.client_kwargs or {})
+        headers = Headers(client_kwargs.pop("headers", {}) or {})
+        user_agent = headers.get("User-Agent")
+        if not user_agent:
+            headers["User-Agent"] = _DATABRICKS_PARTNER_USER_AGENT
+        elif _DATABRICKS_PARTNER_USER_AGENT not in user_agent.split():
+            headers["User-Agent"] = f"{user_agent} {_DATABRICKS_PARTNER_USER_AGENT}"
+        headers["Authorization"] = f"Bearer {auth_token}"
+        client_kwargs["headers"] = headers
         client = AsyncClient(base_url=base_url, **client_kwargs)
         return client

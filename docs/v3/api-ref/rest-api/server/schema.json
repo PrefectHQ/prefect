@@ -10830,6 +10830,9 @@
                                     "$ref": "#/components/schemas/CancelFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
@@ -10887,6 +10890,9 @@
                                     "$ref": "#/components/schemas/CancelFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
@@ -10942,6 +10948,9 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/CancelFlowRun"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
                                 },
                                 {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
@@ -11084,6 +11093,9 @@
                                     "$ref": "#/components/schemas/CancelFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
@@ -11141,6 +11153,9 @@
                                     "$ref": "#/components/schemas/CancelFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
@@ -11196,6 +11211,9 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/CancelFlowRun"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
                                 },
                                 {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
@@ -11499,6 +11517,9 @@
                                     "$ref": "#/components/schemas/CancelFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
@@ -11556,6 +11577,9 @@
                                     "$ref": "#/components/schemas/CancelFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
@@ -11611,6 +11635,9 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/CancelFlowRun"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
                                 },
                                 {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
@@ -16090,6 +16117,19 @@
                     "updated"
                 ],
                 "title": "CsrfToken"
+            },
+            "DeleteFlowRun": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "const": "delete-flow-run",
+                        "title": "Type",
+                        "default": "delete-flow-run"
+                    }
+                },
+                "type": "object",
+                "title": "DeleteFlowRun",
+                "description": "Deletes a flow run associated with the trigger"
             },
             "DependencyResult": {
                 "properties": {
@@ -23473,6 +23513,15 @@
                             "PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE"
                         ]
                     },
+                    "auto_install_dependencies": {
+                        "type": "boolean",
+                        "title": "Auto Install Dependencies",
+                        "description": "Whether runners may install dependencies before executing flow runs. Enable this when deployments pull code that needs dependencies prepared at runtime.",
+                        "default": false,
+                        "supported_environment_variables": [
+                            "PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES"
+                        ]
+                    },
                     "server": {
                         "$ref": "#/components/schemas/RunnerServerSettings",
                         "supported_environment_variables": []
@@ -24151,6 +24200,24 @@
                             "PREFECT_SERVER_CORS_ALLOWED_HEADERS"
                         ]
                     },
+                    "websocket_ping_interval": {
+                        "type": "number",
+                        "title": "Websocket Ping Interval",
+                        "description": "WebSocket ping interval in seconds. Only applies when starting the server with `prefect server start`.",
+                        "default": 20.0,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_API_WEBSOCKET_PING_INTERVAL"
+                        ]
+                    },
+                    "websocket_ping_timeout": {
+                        "type": "number",
+                        "title": "Websocket Ping Timeout",
+                        "description": "WebSocket ping timeout in seconds. Only applies when starting the server with `prefect server start`.",
+                        "default": 20.0,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_API_WEBSOCKET_PING_TIMEOUT"
+                        ]
+                    },
                     "max_parameter_size": {
                         "type": "integer",
                         "minimum": 0.0,
@@ -24723,6 +24790,42 @@
                 "title": "ServerServicesCancellationCleanupSettings",
                 "description": "Settings for controlling the cancellation cleanup service"
             },
+            "ServerServicesCleanupReconcilerSettings": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean",
+                        "title": "Enabled",
+                        "description": "Whether or not to start the cleanup reconciler service in the server application.",
+                        "default": true,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_CLEANUP_RECONCILER_ENABLED"
+                        ]
+                    },
+                    "loop_seconds": {
+                        "type": "number",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Loop Seconds",
+                        "description": "The cleanup reconciler service will look for expired cleanup message leases this often. Defaults to `5`.",
+                        "default": 5,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_CLEANUP_RECONCILER_LOOP_SECONDS"
+                        ]
+                    },
+                    "batch_size": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Batch Size",
+                        "description": "The maximum number of expired cleanup message leases to process per service loop. Defaults to `100`.",
+                        "default": 100,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_CLEANUP_RECONCILER_BATCH_SIZE"
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "ServerServicesCleanupReconcilerSettings",
+                "description": "Settings for controlling the cleanup reconciler service."
+            },
             "ServerServicesDBVacuumSettings": {
                 "properties": {
                     "enabled": {
@@ -25180,6 +25283,11 @@
                         "$ref": "#/components/schemas/ServerServicesRepossessorSettings",
                         "supported_environment_variables": []
                     },
+                    "cleanup_reconciler": {
+                        "$ref": "#/components/schemas/ServerServicesCleanupReconcilerSettings",
+                        "description": "Settings for controlling the cleanup reconciler service",
+                        "supported_environment_variables": []
+                    },
                     "task_run_recorder": {
                         "$ref": "#/components/schemas/ServerServicesTaskRunRecorderSettings",
                         "supported_environment_variables": []
@@ -25429,6 +25537,11 @@
                         "$ref": "#/components/schemas/ServerUISettings",
                         "description": "Settings for controlling server UI behavior",
                         "supported_environment_variables": []
+                    },
+                    "worker_channel": {
+                        "$ref": "#/components/schemas/ServerWorkerChannelSettings",
+                        "description": "Settings for controlling server worker channel behavior",
+                        "supported_environment_variables": []
                     }
                 },
                 "type": "object",
@@ -25580,6 +25693,58 @@
                 },
                 "type": "object",
                 "title": "ServerUISettings"
+            },
+            "ServerWorkerChannelSettings": {
+                "properties": {
+                    "cleanup_queue_storage": {
+                        "type": "string",
+                        "title": "Cleanup Queue Storage",
+                        "description": "The module to use for storing worker cleanup delivery messages. The default in-memory backend stores messages, leases, wakeups, and dead-letter entries only in the current server process; use an external storage module for high availability or restart-safe cleanup delivery.",
+                        "default": "prefect.server.worker_communication.cleanup_queue.memory",
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE"
+                        ]
+                    },
+                    "cleanup_lease_seconds": {
+                        "type": "number",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Cleanup Lease Seconds",
+                        "description": "The default cleanup message reservation lease duration in seconds.",
+                        "default": 30.0,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_LEASE_SECONDS"
+                        ]
+                    },
+                    "cleanup_max_delivery_attempts": {
+                        "type": "integer",
+                        "minimum": 1.0,
+                        "title": "Cleanup Max Delivery Attempts",
+                        "description": "The maximum number of committed cleanup reservations before a message is moved to the dead-letter queue.",
+                        "default": 3,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_MAX_DELIVERY_ATTEMPTS"
+                        ]
+                    },
+                    "cleanup_completed_idempotency_retention_seconds": {
+                        "anyOf": [
+                            {
+                                "type": "number",
+                                "minimum": 0.0
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Cleanup Completed Idempotency Retention Seconds",
+                        "description": "How long completed cleanup idempotency records are retained after acknowledgement. None keeps them for the lifetime of the current server process. The in-memory backend does not survive restart; use external storage for high availability or restart-safe cleanup idempotency.",
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_COMPLETED_IDEMPOTENCY_RETENTION_SECONDS"
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "ServerWorkerChannelSettings",
+                "description": "Settings for server-side worker channel storage and delivery policy."
             },
             "SetStateStatus": {
                 "type": "string",

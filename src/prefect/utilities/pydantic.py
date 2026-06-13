@@ -333,7 +333,8 @@ def parse_obj_as(
     origin: Optional[Any] = get_origin(type_)
     if origin is list and isinstance(data, dict):
         values_dict: dict[Any, Any] = data
-        data = next(iter(values_dict.values()))
+        if values_dict:
+            data = next(iter(values_dict.values()))
 
     parser: Callable[[Any], T] = getattr(adapter, f"validate_{mode}")
 

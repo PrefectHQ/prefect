@@ -7,7 +7,9 @@ import {
 } from "@tanstack/react-router";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
+import { HttpResponse, http } from "msw";
 import { createContext, type ReactNode, useContext } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BlockDocument } from "@/api/block-documents";
@@ -37,10 +39,14 @@ const renderWithRouter = async (ui: ReactNode) => {
 		history: createMemoryHistory({ initialEntries: ["/"] }),
 	});
 
+	const Wrapper = createWrapper();
+
 	const result = render(
-		<TestChildrenContext.Provider value={ui}>
-			<RouterProvider router={router} />
-		</TestChildrenContext.Provider>,
+		<Wrapper>
+			<TestChildrenContext.Provider value={ui}>
+				<RouterProvider router={router} />
+			</TestChildrenContext.Provider>
+		</Wrapper>,
 	);
 
 	await waitFor(() => {
@@ -72,19 +78,28 @@ const createStorageBlockDocument = (
 		...overrides,
 	});
 
+const mockStorageBlockDocumentsAPI = (blockDocuments: Array<BlockDocument>) => {
+	server.use(
+		http.post(buildApiUrl("/block_documents/filter"), () => {
+			return HttpResponse.json(blockDocuments);
+		}),
+	);
+};
+
 describe("DefaultResultStorageCard", () => {
 	beforeEach(() => {
 		mockPointerEvents();
+		mockStorageBlockDocumentsAPI([]);
 	});
 
 	it("renders the configured default result storage block", async () => {
 		const blockDocument = createStorageBlockDocument();
+		mockStorageBlockDocumentsAPI([blockDocument]);
 
 		await renderWithRouter(
 			<DefaultResultStorageCard
 				defaultResultStorageBlockId={blockDocument.id}
 				defaultResultStorageBlock={blockDocument}
-				storageBlockDocuments={[blockDocument]}
 				onUpdateDefaultResultStorage={vi.fn()}
 				onClearDefaultResultStorage={vi.fn()}
 				isUpdatingDefaultResultStorage={false}
@@ -102,35 +117,11 @@ describe("DefaultResultStorageCard", () => {
 		).not.toBeInTheDocument();
 	});
 
-	it("keeps the configured block selected when it is outside the selectable block list", async () => {
-		const blockDocument = createStorageBlockDocument();
-
-		await renderWithRouter(
-			<DefaultResultStorageCard
-				defaultResultStorageBlockId={blockDocument.id}
-				defaultResultStorageBlock={blockDocument}
-				storageBlockDocuments={[]}
-				onUpdateDefaultResultStorage={vi.fn()}
-				onClearDefaultResultStorage={vi.fn()}
-				isUpdatingDefaultResultStorage={false}
-				isClearingDefaultResultStorage={false}
-				isLoadingDefaultResultStorageBlock={false}
-			/>,
-		);
-
-		expect(
-			screen.getByRole("combobox", {
-				name: /default result storage block/i,
-			}),
-		).toHaveTextContent("s3-results");
-	});
-
 	it("renders the unconfigured state", async () => {
 		await renderWithRouter(
 			<DefaultResultStorageCard
 				defaultResultStorageBlockId={undefined}
 				defaultResultStorageBlock={undefined}
-				storageBlockDocuments={[]}
 				onUpdateDefaultResultStorage={vi.fn()}
 				onClearDefaultResultStorage={vi.fn()}
 				isUpdatingDefaultResultStorage={false}
@@ -156,7 +147,6 @@ describe("DefaultResultStorageCard", () => {
 			<DefaultResultStorageCard
 				defaultResultStorageBlockId="block-1"
 				defaultResultStorageBlock={undefined}
-				storageBlockDocuments={[]}
 				onUpdateDefaultResultStorage={vi.fn()}
 				onClearDefaultResultStorage={vi.fn()}
 				isUpdatingDefaultResultStorage={false}
@@ -181,7 +171,6 @@ describe("DefaultResultStorageCard", () => {
 			<DefaultResultStorageCard
 				defaultResultStorageBlockId="block-1"
 				defaultResultStorageBlock={undefined}
-				storageBlockDocuments={[]}
 				onUpdateDefaultResultStorage={vi.fn()}
 				onClearDefaultResultStorage={vi.fn()}
 				isUpdatingDefaultResultStorage={false}
@@ -203,19 +192,18 @@ describe("DefaultResultStorageCard", () => {
 		expect(
 			screen.queryByRole("button", { name: /clear/i }),
 		).not.toBeInTheDocument();
-		expect(screen.getByText("Select storage block")).toBeVisible();
 	});
 
-	it("calls update when a storage block is selected", async () => {
+	it("calls update when a storage block is selected from the combobox", async () => {
 		const user = userEvent.setup();
 		const onUpdateDefaultResultStorage = vi.fn();
 		const blockDocument = createStorageBlockDocument();
+		mockStorageBlockDocumentsAPI([blockDocument]);
 
 		await renderWithRouter(
 			<DefaultResultStorageCard
 				defaultResultStorageBlockId={undefined}
 				defaultResultStorageBlock={undefined}
-				storageBlockDocuments={[blockDocument]}
 				onUpdateDefaultResultStorage={onUpdateDefaultResultStorage}
 				onClearDefaultResultStorage={vi.fn()}
 				isUpdatingDefaultResultStorage={false}
@@ -224,9 +212,22 @@ describe("DefaultResultStorageCard", () => {
 			/>,
 		);
 
-		await user.click(
-			screen.getByRole("combobox", { name: /default result storage block/i }),
+		await waitFor(() =>
+			expect(
+				screen.getByRole("button", {
+					name: /default result storage block/i,
+				}),
+			).toBeVisible(),
 		);
+
+		await user.click(
+			screen.getByRole("button", { name: /default result storage block/i }),
+		);
+
+		await waitFor(() =>
+			expect(screen.getByRole("option", { name: "s3-results" })).toBeVisible(),
+		);
+
 		await user.click(screen.getByRole("option", { name: "s3-results" }));
 
 		expect(onUpdateDefaultResultStorage).toHaveBeenCalledWith(blockDocument.id);
@@ -236,12 +237,12 @@ describe("DefaultResultStorageCard", () => {
 		const user = userEvent.setup();
 		const onClearDefaultResultStorage = vi.fn();
 		const blockDocument = createStorageBlockDocument();
+		mockStorageBlockDocumentsAPI([blockDocument]);
 
 		await renderWithRouter(
 			<DefaultResultStorageCard
 				defaultResultStorageBlockId={blockDocument.id}
 				defaultResultStorageBlock={blockDocument}
-				storageBlockDocuments={[blockDocument]}
 				onUpdateDefaultResultStorage={vi.fn()}
 				onClearDefaultResultStorage={onClearDefaultResultStorage}
 				isUpdatingDefaultResultStorage={false}
@@ -253,5 +254,44 @@ describe("DefaultResultStorageCard", () => {
 		await user.click(screen.getByRole("button", { name: /clear/i }));
 
 		expect(onClearDefaultResultStorage).toHaveBeenCalledOnce();
+	});
+
+	it("displays search input in the combobox dropdown", async () => {
+		const user = userEvent.setup();
+		const blockDocuments = [
+			createStorageBlockDocument({ id: "block-1", name: "s3-results" }),
+			createStorageBlockDocument({ id: "block-2", name: "gcs-results" }),
+		];
+		mockStorageBlockDocumentsAPI(blockDocuments);
+
+		await renderWithRouter(
+			<DefaultResultStorageCard
+				defaultResultStorageBlockId={undefined}
+				defaultResultStorageBlock={undefined}
+				onUpdateDefaultResultStorage={vi.fn()}
+				onClearDefaultResultStorage={vi.fn()}
+				isUpdatingDefaultResultStorage={false}
+				isClearingDefaultResultStorage={false}
+				isLoadingDefaultResultStorageBlock={false}
+			/>,
+		);
+
+		await waitFor(() =>
+			expect(
+				screen.getByRole("button", {
+					name: /default result storage block/i,
+				}),
+			).toBeVisible(),
+		);
+
+		await user.click(
+			screen.getByRole("button", { name: /default result storage block/i }),
+		);
+
+		expect(
+			screen.getByPlaceholderText("Search storage blocks..."),
+		).toBeVisible();
+		expect(screen.getByRole("option", { name: "s3-results" })).toBeVisible();
+		expect(screen.getByRole("option", { name: "gcs-results" })).toBeVisible();
 	});
 });

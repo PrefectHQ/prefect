@@ -84,6 +84,7 @@ class TestGitHubRepository:
                 err_stream.write(
                     "fatal: Authentication failed for "
                     "'https://XYZ@github.com/PrefectHQ/prefect.git/'"
+                    "\nremote: token XYZ rejected"
                 )
             return p()
 
@@ -99,6 +100,31 @@ class TestGitHubRepository:
         message = str(excinfo.value)
         assert "XYZ" not in message
         assert "https://github.com/PrefectHQ/prefect.git" in message
+
+    async def test_clone_error_with_credentials_but_no_token(self, monkeypatch):
+        """Ensure that a clone failure with GitHubCredentials(token=None) raises
+        the original sanitized error, not an AttributeError from
+        _git_error_extra_secrets.
+        """
+
+        class p:
+            returncode = 1
+
+        async def mock(cmd, stream_output=None, **kwargs):
+            if stream_output:
+                _, err_stream = stream_output
+                err_stream.write(
+                    "fatal: repository 'https://github.com/no/repo.git' not found"
+                )
+            return p()
+
+        monkeypatch.setattr(prefect_github.repository, "run_process", mock)
+        g = GitHubRepository(
+            repository_url="https://github.com/no/repo.git",
+            credentials=GitHubCredentials(),
+        )
+        with pytest.raises(RuntimeError, match="Failed to pull from remote"):
+            await g.get_directory()
 
     def setup_test_directory(
         self, tmp_src: str, sub_dir: str = "puppy"
