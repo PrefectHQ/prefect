@@ -54,6 +54,7 @@ from prefect._flow_run_suspension import (
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.control_listener import Intent, configure_from_env, get_intent
 from prefect._internal.engine import get_hook_name, resolve_custom_flow_run_name
+from prefect.utilities.hashing import hash_objects
 from prefect._internal.metrics import RunMetrics
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
@@ -615,6 +616,30 @@ class BaseFlowRunEngine(Generic[P, R]):
             yield flow_run_suspension_request
 
 
+def _make_subflow_task_key(flow: Flow[..., Any], parameters: dict[str, Any] | None) -> str:
+    """Generate a stable task_key for tracking a subflow call.
+
+    By default, all subflow calls that run the same flow share the same task_key,
+    which means their ``dynamic_key`` is determined by a call-order counter that
+    races under concurrency.  When the parent flow is retried, a re-executed
+    subflow call can match the *wrong* completed virtual task run from the
+    previous attempt and silently return another call's persisted result.
+
+    To make the task_key deterministic across retries, we append a short hash
+    derived from the subflow's input parameters.  Distinct subflow calls receive
+    distinct task_keys, each owning its own counter; the counter then starts
+    at 0 on every attempt, which is stable.
+    """
+    from prefect.tasks import _generate_task_key
+
+    base_key = _generate_task_key(flow.fn)
+    if parameters:
+        param_hash = hash_objects(parameters, raise_on_failure=False) or ""
+        if param_hash:
+            return f"{base_key}-{param_hash[:8]}"
+    return base_key
+
+
 @dataclass
 class FlowRunEngine(BaseFlowRunEngine[P, R]):
     _client: Optional[SyncPrefectClient] = None
@@ -972,6 +997,9 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             parent_task = Task(
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
+            # give each distinct subflow call a stable task_key so the
+            # dynamic_key counter does not race under concurrency (see #22259)
+            parent_task.task_key = _make_subflow_task_key(self.flow, self.parameters)
 
             parent_task_run = run_coro_as_sync(
                 parent_task.create_run(
@@ -1667,6 +1695,9 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             parent_task = Task(
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
+            # give each distinct subflow call a stable task_key so the
+            # dynamic_key counter does not race under concurrency (see #22259)
+            parent_task.task_key = _make_subflow_task_key(self.flow, self.parameters)
 
             parent_task_run = await parent_task.create_run(
                 flow_run_context=flow_run_ctx,
