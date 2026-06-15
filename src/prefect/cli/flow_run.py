@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import os
 import signal
+import sys
 import tempfile
 import threading
 import webbrowser
@@ -282,45 +283,95 @@ async def ls(
 
 @flow_run_app.command()
 @with_cli_exception_handling
-async def delete(id: UUID):
+async def delete(
+    ids: Annotated[
+        list[UUID],
+        cyclopts.Parameter(help="One or more flow run IDs."),
+    ],
+    *,
+    stdin: Annotated[
+        bool,
+        cyclopts.Parameter("--stdin", help="Read flow run IDs from stdin."),
+    ] = False,
+):
     """Delete a flow run by ID."""
     from prefect.cli._prompts import confirm
 
-    async with get_client() as client:
-        try:
-            if _cli.is_interactive() and not confirm(
-                f"Are you sure you want to delete flow run with id {id!r}?",
-                default=False,
-            ):
-                exit_with_error("Deletion aborted.")
-            await client.delete_flow_run(id)
-        except ObjectNotFound:
-            exit_with_error(f"Flow run '{id}' not found!")
+    flow_run_ids = list(ids)
 
-    exit_with_success(f"Successfully deleted flow run '{id}'.")
+    if stdin:
+        for line in sys.stdin:
+            line = line.strip()
+            if line:
+                flow_run_ids.append(UUID(line))
+
+    if not flow_run_ids:
+        exit_with_error("No flow run IDs provided.")
+
+    if _cli.is_interactive() and not confirm(
+        f"Are you sure you want to delete {len(flow_run_ids)} flow run(s)?",
+        default=False,
+):
+        exit_with_error("Deletion aborted.")
+
+    async with get_client() as client:
+        for flow_run_id in flow_run_ids:
+            try:
+                await client.delete_flow_run(flow_run_id)
+            except ObjectNotFound:
+                exit_with_error(f"Flow run '{flow_run_id}' not found!")
+
+    exit_with_success(
+        f"Successfully deleted {len(flow_run_ids)} flow run(s)."
+    )
 
 
 @flow_run_app.command()
 @with_cli_exception_handling
-async def cancel(id: UUID):
+async def cancel(
+    ids: Annotated[
+        list[UUID],
+        cyclopts.Parameter(help="One or more flow run IDs."),
+    ],
+    *,
+    stdin: Annotated[
+        bool,
+        cyclopts.Parameter("--stdin", help="Read flow run IDs from stdin."),
+    ] = False,
+):
     """Cancel a flow run by ID."""
+    flow_run_ids = list(ids)
+
+    if sys.stdin:
+        for line in sys.stdin:
+            line = line.strip()
+            if line:
+                flow_run_ids.append(UUID(line))
+
+    if not flow_run_ids:
+        exit_with_error("No flow run IDs provided.")
+
     async with get_client() as client:
         cancelling_state = State(type=StateType.CANCELLING)
-        try:
-            result = await client.set_flow_run_state(
-                flow_run_id=id, state=cancelling_state
-            )
-        except ObjectNotFound:
-            exit_with_error(f"Flow run '{id}' not found!")
 
-    if result.status == SetStateStatus.ABORT:
-        exit_with_error(
-            f"Flow run '{id}' was unable to be cancelled. Reason:"
-            f" '{result.details.reason}'"
-        )
+        for flow_run_id in flow_run_ids:
+            try:
+                result = await client.set_flow_run_state(
+                    flow_run_id=flow_run_id,
+                    state=cancelling_state,
+                )
+            except ObjectNotFound:
+                exit_with_error(f"Flow run '{flow_run_id}' not found!")
 
-    exit_with_success(f"Flow run '{id}' was successfully scheduled for cancellation.")
+            if result.status == SetStateStatus.ABORT:
+                exit_with_error(
+                    f"Flow run '{flow_run_id}' was unable to be cancelled. "
+                    f"Reason: '{result.details.reason}'"
+                )
 
+    exit_with_success(
+        f"{len(flow_run_ids)} flow run(s) were successfully scheduled for cancellation."
+    )
 
 @flow_run_app.command()
 @with_cli_exception_handling
