@@ -15,7 +15,7 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 | CancelFinalizer | _cancel_finalizer.py | Persist Cancelled state after kill; fall back to Crashed if state cannot be confirmed |
 | ControlChannel | _control_channel.py | Runner-side TCP loopback IPC for delivering cancel intent to child processes before kill |
 | HookRunner | _hook_runner.py | on_cancellation / on_crashed hook execution |
-| EventEmitter | _event_emitter.py | Event emission via EventsClient; degrades to NullEventsClient on WebSocket rejection |
+| EventEmitter | _event_emitter.py | Event emission via EventsClient; degrades to NullEventsClient on any WebSocket connection failure |
 | LimitManager | _limit_manager.py | Concurrency limiting |
 | DeploymentRegistry | _deployment_registry.py | Deployment/flow/storage/bundle maps |
 | ScheduledRunPoller | _scheduled_run_poller.py | Poll loop, run discovery, scheduling |
@@ -49,7 +49,7 @@ These will be removed once internal callers (notably ProcessWorker) are migrated
 
 ## EventEmitter WebSocket Degradation
 
-`EventEmitter.__aenter__` catches `websockets.exceptions.InvalidStatus` (HTTP 4xx rejections) and silently swaps the failed client for a `NullEventsClient`. This handles old clients (≤3.6.13) connecting to servers ≥3.6.14 with `PREFECT_SERVER_API_AUTH_STRING` configured — the server rejects the WebSocket handshake, but events are non-critical telemetry so the flow run must not crash. A `WARNING` is logged. If `__aenter__` raises, `__aexit__` is **not** called on the original client (it was never successfully entered); the replacement `NullEventsClient` is entered instead.
+`EventEmitter.__aenter__` catches connection failures and silently swaps the failed client for a `NullEventsClient` — events are non-critical telemetry (the runner emits only `prefect.runner.cancelled-flow-run`), so the flow run must not crash when the events WebSocket is unreachable. Two failure classes are caught (`_NONFATAL_CONNECTION_EXCEPTIONS`): permanent rejections (`websockets.exceptions.InvalidStatus`, i.e. HTTP 4xx — e.g. a client ≤3.6.13 connecting to a server ≥3.6.14 with `PREFECT_SERVER_API_AUTH_STRING` configured) and transient failures (`RETRYABLE_EXCEPTIONS` from `events/clients.py`: `ConnectionClosed`, `TimeoutError`, `OSError`) that outlive the events client's own reconnection attempts. A `WARNING` is logged. If `__aenter__` raises, `__aexit__` is **not** called on the original client (it was never successfully entered); the replacement `NullEventsClient` is entered instead.
 
 ## AsyncExitStack LIFO Ordering
 
