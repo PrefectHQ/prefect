@@ -15,17 +15,12 @@
     update_prefect_packages:
       runs-on: ubuntu-latest
       permissions:
-        # required to write to the repo
+        # required to push the dependency-bump branch
         contents: write
+        # required for `gh pr create`
+        pull-requests: write
       steps:
         - uses: actions/checkout@v6
-
-        - name: Generate prefect-ci-bot-public token
-          id: app_token
-          uses: actions/create-github-app-token@v3
-          with:
-            client-id: ${{ secrets.PREFECT_CI_BOT_PUBLIC_CLIENT_ID }}
-            private-key: ${{ secrets.PREFECT_CI_BOT_PUBLIC_PRIVATE_KEY }}
 
         - name: Configure Git
           run: |
@@ -79,5 +74,5 @@
           env:
             PACKAGE_NAME: ${{ inputs.package_name }}
             PACKAGE_VERSION: ${{ inputs.package_version }}
-            GITHUB_TOKEN: ${{ steps.app_token.outputs.token }}
+            GITHUB_TOKEN: ${{ github.token }}
   
