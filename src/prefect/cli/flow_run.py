@@ -321,7 +321,14 @@ async def delete(
             except ObjectNotFound:
                 exit_with_error(f"Flow run '{flow_run_id}' not found!")
 
-    exit_with_success(f"Successfully deleted {len(flow_run_ids)} flow run(s).")
+    if len(flow_run_ids) == 1:
+        exit_with_success(
+            f"Successfully deleted flow run '{flow_run_ids[0]}'."
+        )
+    else:
+        exit_with_success(
+            f"Successfully deleted {len(flow_run_ids)} flow run(s)."
+        )
 
 
 @flow_run_app.command()
@@ -367,9 +374,14 @@ async def cancel(
                     f"Reason: '{result.details.reason}'"
                 )
 
-    exit_with_success(
-        f"{len(flow_run_ids)} flow run(s) were successfully scheduled for cancellation."
-    )
+    if len(flow_run_ids) == 1:
+        exit_with_success(
+            f"Flow run '{flow_run_ids[0]}' was successfully scheduled for cancellation."
+        )
+    else:
+        exit_with_success(
+            f"{len(flow_run_ids)} flow run(s) were successfully scheduled for cancellation."
+        )
 
 
 @flow_run_app.command()
