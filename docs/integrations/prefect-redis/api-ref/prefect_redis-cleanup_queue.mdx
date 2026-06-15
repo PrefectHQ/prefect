@@ -1,0 +1,88 @@
+---
+title: cleanup_queue
+sidebarTitle: cleanup_queue
+---
+
+# `prefect_redis.cleanup_queue`
+
+## Classes
+
+### `RedisWorkerCleanupQueueSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/cleanup_queue.py#L62" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Settings for the Redis-backed worker cleanup queue.
+
+
+### `WorkerCleanupQueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/cleanup_queue.py#L131" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Redis-backed cleanup queue storage.
+
+
+**Methods:**
+
+#### `ack` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/cleanup_queue.py#L284" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+ack(self) -> CleanupQueueOperationResult
+```
+
+#### `enqueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/cleanup_queue.py#L150" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+enqueue(self) -> CleanupQueueMessage
+```
+
+#### `expire_leases` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/cleanup_queue.py#L331" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+expire_leases(self) -> CleanupQueueLeaseExpiryResult
+```
+
+#### `read_dead_letter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/cleanup_queue.py#L394" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_dead_letter(self) -> CleanupQueueDeadLetter | None
+```
+
+#### `read_message` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/cleanup_queue.py#L382" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_message(self) -> CleanupQueueMessage | None
+```
+
+#### `read_wakeup_sequence` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/cleanup_queue.py#L419" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_wakeup_sequence(self, work_pool_id: UUID) -> int
+```
+
+#### `release` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/cleanup_queue.py#L298" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+release(self) -> CleanupQueueOperationResult
+```
+
+#### `renew` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/cleanup_queue.py#L317" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+renew(self) -> CleanupQueueOperationResult
+```
+
+#### `reserve` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/cleanup_queue.py#L216" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reserve(self) -> CleanupQueueReservation | None
+```
+
+#### `wait_for_wakeup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/cleanup_queue.py#L423" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+wait_for_wakeup(self, work_pool_id: UUID) -> CleanupQueueWakeup | None
+```
+
+#### `wake_dispatchers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/cleanup_queue.py#L406" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+wake_dispatchers(self, work_pool_id: UUID) -> CleanupQueueWakeup
+```

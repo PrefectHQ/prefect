@@ -55,7 +55,7 @@ logger: logging.Logger = get_logger(__name__)
 async def schedule_vacuum_tasks(
     docket: Docket = CurrentDocket(),
     perpetual: Perpetual = Perpetual(
-        automatic=False,
+        automatic=True,
         every=timedelta(
             seconds=get_current_settings().server.services.db_vacuum.loop_seconds
         ),
@@ -89,7 +89,7 @@ async def schedule_vacuum_tasks(
 async def schedule_event_vacuum_tasks(
     docket: Docket = CurrentDocket(),
     perpetual: Perpetual = Perpetual(
-        automatic=False,
+        automatic=True,
         every=timedelta(
             seconds=get_current_settings().server.services.db_vacuum.loop_seconds
         ),

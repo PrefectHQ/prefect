@@ -215,7 +215,7 @@ class Runner:
                 def goodbye_flow(name):
                     print(f"goodbye {name}")
 
-                if __name__ == "__main__"
+                if __name__ == "__main__":
                     runner = Runner(name="my-runner")
 
                     # Will be runnable via the API
@@ -614,17 +614,17 @@ class Runner:
             def goodbye_flow(name):
                 print(f"goodbye {name}")
 
-            if __name__ == "__main__"
-                runner = Runner(name="my-runner")
+                if __name__ == "__main__":
+                    runner = Runner(name="my-runner")
 
-                # Will be runnable via the API
-                runner.add_flow(hello_flow)
+                    # Will be runnable via the API
+                    runner.add_flow(hello_flow)
 
-                # Run on a cron schedule
-                runner.add_flow(goodbye_flow, schedule={"cron": "0 * * * *"})
+                    # Run on a cron schedule
+                    runner.add_flow(goodbye_flow, schedule={"cron": "0 * * * *"})
 
-                asyncio.run(runner.start())
-            ```
+                    asyncio.run(runner.start())
+                ```
         """
         from prefect.runner.server import start_webserver
 
@@ -781,9 +781,9 @@ class Runner:
             # The process may be a multiprocessing.context.SpawnProcess, in which case it will have an `exitcode` attribute
             # but no `returncode` attribute
             if (
-                getattr(process, "returncode", None)
-                or getattr(process, "exitcode", None)
-            ) is None:
+                getattr(process, "returncode", None) is None
+                and getattr(process, "exitcode", None) is None
+            ):
                 await self._add_flow_run_process_map_entry(
                     flow_run.id, ProcessMapEntry(pid=process.pid, flow_run=flow_run)
                 )
@@ -1701,7 +1701,7 @@ class Runner:
             ):
                 return self._deployment_registry.get_flow(flow_run.deployment_id)
             return await load_flow_from_flow_run(
-                self._client, flow_run, storage_base_path=str(self._tmp_dir)
+                flow_run, storage_base_path=str(self._tmp_dir)
             )
 
         self._hook_runner = HookRunner(resolve_flow=_resolve_flow_for_hooks)

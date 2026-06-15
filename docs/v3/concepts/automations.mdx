@@ -47,26 +47,32 @@ notification for someone to take manual remediation steps. Or you could set both
 
 Actions specify what your automation does when its trigger criteria are met. Current action types include:
 
-| Action | Type |
-| ------ | ---- |
-| Cancel a flow run | `cancel-flow-run` |
-| Delete a flow run | `delete-flow-run` |
-| Change the state of a flow run | `change-flow-run-state` |
-| Suspend a flow run | `suspend-flow-run` |
-| Resume a flow run | `resume-flow-run` |
-| Run a deployment | `run-deployment` |
-| Pause a deployment schedule | `pause-deployment` |
-| Resume a deployment schedule | `resume-deployment` |
-| Pause a work pool | `pause-work-pool` |
-| Resume a work pool | `resume-work-pool` |
-| Pause a work queue | `pause-work-queue` |
-| Resume a work queue | `resume-work-queue` |
-| Pause an automation | `pause-automation` |
-| Resume an automation | `resume-automation` |
-| Send a [notification](#sending-notifications-with-automations) | `send-notification` |
-| Call a webhook | `call-webhook` |
+| Action | Type | Availability |
+| ------ | ---- | ------------ |
+| Cancel a flow run | `cancel-flow-run` | All |
+| Delete a flow run | `delete-flow-run` | All |
+| Change the state of a flow run | `change-flow-run-state` | All |
+| Suspend a flow run | `suspend-flow-run` | All |
+| Resume a flow run | `resume-flow-run` | All |
+| Run a deployment | `run-deployment` | All |
+| Pause a deployment schedule | `pause-deployment` | All |
+| Resume a deployment schedule | `resume-deployment` | All |
+| Pause a work pool | `pause-work-pool` | All |
+| Resume a work pool | `resume-work-pool` | All |
+| Pause a work queue | `pause-work-queue` | All |
+| Resume a work queue | `resume-work-queue` | All |
+| Pause an automation | `pause-automation` | All |
+| Resume an automation | `resume-automation` | All |
+| Send a [notification](#sending-notifications-with-automations) | `send-notification` | All |
+| Call a webhook | `call-webhook` | All |
+| Send an [email notification](#sending-notifications-with-automations) | `send-email-notification` | Prefect Cloud |
+| Declare an incident | `declare-incident` | Prefect Cloud |
 
 ![Configuring an action for an automation in Prefect Cloud.](/v3/img/ui/automations-action.png)
+
+<Note>
+The `send-email-notification` and `declare-incident` actions are only available in Prefect Cloud.
+</Note>
 
 
 ### Selected and inferred action targets
@@ -118,6 +124,11 @@ to send a message, including:
 ![Configuring notifications for an automation in Prefect Cloud.](/v3/img/ui/automations-notifications.png)
 
 For custom notification payloads, see the [custom notifications guide](/v3/how-to-guides/automations/custom-notifications).
+
+<Note>
+Prefect Cloud additionally provides a dedicated `send-email-notification` action that sends email directly to a
+list of addresses without configuring a notification block. This action is only available in Prefect Cloud.
+</Note>
 
 ## Templating with Jinja
 
@@ -204,6 +215,27 @@ Note that this example also illustrates the ability to use Jinja features such a
 templating notifications.
 
 For more on the common use case of passing an upstream flow run's parameters to the flow run invoked by the automation, see the [Passing parameters to a flow run](/v3/how-to-guides/automations/access-parameters-in-templates/) guide.
+
+### AI log summary
+
+<Note>The `flow_run_log_summary` variable is only available in Prefect Cloud.</Note>
+
+For automations triggered by a flow run event, the `flow_run_log_summary` variable renders an
+AI-generated, one-line summary of the run's logs (for example,
+`Failed due to a KeyError in the extract_data task`). This lets on-call recipients see what
+happened inline instead of clicking through to the UI.
+
+```
+Flow run {{ flow_run.name }} entered state {{ flow_run.state.name }}.
+
+{%- if flow_run_log_summary %}
+AI summary: {{ flow_run_log_summary }}
+{%- endif %}
+```
+
+The variable is opt-in and renders an empty string when the feature is disabled or a summary
+cannot be generated. For setup and behavior details, see the [AI log summaries
+guide](/v3/how-to-guides/ai/flow-run-log-summaries).
 
 ## Further reading
 

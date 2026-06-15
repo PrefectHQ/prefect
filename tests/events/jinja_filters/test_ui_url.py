@@ -19,8 +19,6 @@ from prefect.server.schemas.responses import FlowRunResponse
 from prefect.settings import PREFECT_UI_URL, temporary_settings
 from prefect.types._datetime import DateTime
 
-pytestmark = pytest.mark.clear_db
-
 template_environment = jinja2.Environment()
 template_environment.filters["ui_url"] = ui_url
 

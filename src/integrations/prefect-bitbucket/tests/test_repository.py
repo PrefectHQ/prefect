@@ -180,6 +180,36 @@ class TestBitBucketRepository:
         ]
         assert mock.await_args[0][0][: len(expected_cmd)] == expected_cmd
 
+    async def test_get_directory_redacts_token_in_clone_error(self, monkeypatch):
+        class p:
+            returncode = 1
+
+        async def mock(cmd, stream_output=None, **kwargs):
+            if stream_output:
+                _, err_stream = stream_output
+                err_stream.write(
+                    "fatal: Authentication failed for "
+                    "'https://dev:p@ss:word#1@bitbucket.org/PrefectHQ/prefect.git/'"
+                    "\nremote: token p@ss:word#1 rejected"
+                )
+            return p()
+
+        monkeypatch.setattr(prefect_bitbucket.repository, "run_process", mock)
+
+        b = BitBucketRepository(
+            repository="https://bitbucket.org/PrefectHQ/prefect.git",
+            bitbucket_credentials=BitBucketCredentials(
+                token="p@ss:word#1", username="dev"
+            ),
+        )
+
+        with pytest.raises(OSError) as exc_info:
+            await b.get_directory()
+
+        message = str(exc_info.value)
+        assert "dev:p@ss:word#1" not in message
+        assert "https://bitbucket.org/PrefectHQ/prefect.git/" in message
+
     async def test_ssh_fails_with_credential(self, monkeypatch):
         """Ensure that credentials cannot be passed in if the URL is not in the HTTPS
         format.

@@ -1,3 +1,5 @@
+from unittest import mock
+
 import pytest
 from httpx import AsyncClient
 
@@ -134,3 +136,34 @@ class TestUISchemasValidate:
             res["detail"]
             == "Invalid schema: Unable to validate schema with circular references."
         )
+
+    @pytest.mark.parametrize(
+        "ref",
+        [
+            "https://a.example.com/schema.json",
+            "http://b.example.com.namespace.svc/schema.json",
+            "http://169.254.169.254/latest/meta-data/",
+        ],
+    )
+    async def test_external_ref_does_not_fetch_remote_schema(
+        self,
+        ref: str,
+        client: AsyncClient,
+    ):
+        with mock.patch("urllib.request.urlopen") as urlopen:
+            urlopen.side_effect = AssertionError(
+                "validation attempted an outbound network request"
+            )
+            res = await client.post(
+                "/ui/schemas/validate",
+                json={
+                    "schema": {
+                        "title": "Parameters",
+                        "type": "object",
+                        "properties": {"param": {"$ref": ref}},
+                    },
+                    "values": {"param": 1},
+                },
+            )
+            urlopen.assert_not_called()
+        assert res.status_code == 422, res.text

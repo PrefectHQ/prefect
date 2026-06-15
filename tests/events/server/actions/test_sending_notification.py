@@ -207,6 +207,9 @@ async def test_success_event(
 ):
     action = notify_me.action
 
+    # Ignore lifecycle events emitted while creating the notification block fixtures
+    AssertingEventsClient.reset()
+
     with mock.patch.object(TestNotificationBlock, "notify"):
         await action.act(notify_me)
 

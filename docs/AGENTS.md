@@ -110,3 +110,8 @@ just lint     # Run Vale linter
 6. **Use absolute link paths** without file extensions (e.g., `/v3/concepts/flows`).
 7. **Check for existing snippets** in `snippets/` before duplicating content.
 8. **Start body content at `##`.** The frontmatter `title` renders as H1; do not add another H1 in the body.
+9. **Document and mark Cloud-only features.** Some features are only available in Prefect Cloud and have no open source equivalent (SSO, audit logs, incidents, SLAs, the `send-email-notification` automation action, etc.). These originate in the `nebula` repo, so they are documented by Prefect staff and agents rather than external contributors. Make sure they are documented here and marked so customers and downstream consumers (such as the Terraform provider and SDKs) can discover them. Conventions:
+   - **Where Cloud-only guides live.** Account, workspace, and user management guides live under `v3/how-to-guides/cloud/`. Prefer this location for new Cloud-only how-to content.
+   - **Mark the feature** when it appears on a page that also covers open source behavior (for example a shared concept page), so readers can tell the editions apart. Use one of:
+     - A Cloud badge on its own line, directly above the page or section it marks: `<span class="badge cloud"></span>`. It renders a standalone "Prefect Cloud" label and the span is intentionally empty; put a blank line before the following prose so it scopes the whole section rather than a single sentence.
+     - A `<Note>This action is only available in Prefect Cloud.</Note>` callout for inline cases (e.g. a single table row or variable).

@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, ClassVar, Optional
 from uuid import UUID
 
 from pydantic import ConfigDict, Field
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.sql.functions import coalesce
 
 import prefect.server.schemas as schemas
@@ -22,13 +23,11 @@ from prefect.utilities.importtools import lazy_import
 
 if TYPE_CHECKING:
     import sqlalchemy as sa
-    from sqlalchemy.dialects import postgresql
 
     from prefect.server.database import PrefectDBInterface
     from prefect.server.schemas.core import Log
 else:
     sa = lazy_import("sqlalchemy")
-    postgresql = lazy_import("sqlalchemy.dialects.postgresql")
 
 # TODO: Consider moving the `as_sql_filter` functions out of here since they are a
 #       database model level function and do not properly separate concerns when

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import functools
 import os
 import shutil
+import site
 import subprocess
 import sys
+import sysconfig
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable, Iterator
@@ -109,14 +112,83 @@ def _workspace_sys_path(workspace: PreparedWorkspace) -> list[str]:
     return entries
 
 
+@functools.lru_cache(maxsize=1)
+def _stdlib_prefixes() -> tuple[str, ...]:
+    """Resolved stdlib directory prefixes whose children should not land on PYTHONPATH."""
+    roots: set[str] = set()
+    paths = sysconfig.get_paths()
+    for key in ("stdlib", "platstdlib"):
+        val = paths.get(key)
+        if val:
+            roots.add(str(Path(val).resolve()))
+    return tuple(sorted(roots))
+
+
+@functools.lru_cache(maxsize=1)
+def _site_packages_dirs() -> tuple[str, ...]:
+    """Resolved site-packages directories that should always be kept."""
+    dirs: set[str] = set()
+    paths = sysconfig.get_paths()
+    for key in ("purelib", "platlib"):
+        val = paths.get(key)
+        if val:
+            dirs.add(str(Path(val).resolve()))
+    try:
+        for sp in site.getsitepackages():
+            dirs.add(str(Path(sp).resolve()))
+    except AttributeError:
+        pass
+    try:
+        usp = site.getusersitepackages()
+        if isinstance(usp, str):
+            dirs.add(str(Path(usp).resolve()))
+    except AttributeError:
+        pass
+    return tuple(sorted(dirs))
+
+
+def _is_stdlib_path(entry: str) -> bool:
+    """True when *entry* is a stdlib, lib-dynload, or stdlib zip path.
+
+    Site-packages directories that live under the stdlib tree are kept.
+    Only interpreter stdlib zip archives next to stdlib directories are filtered;
+    user archives like `/app/python_deps.zip` are preserved.
+    """
+    if not entry:
+        return False
+
+    resolved_path = Path(entry).resolve()
+    resolved = str(resolved_path)
+
+    for sp in _site_packages_dirs():
+        if resolved == sp or resolved.startswith(sp + os.sep):
+            return False
+
+    for root in _stdlib_prefixes():
+        if resolved == root or resolved.startswith(root + os.sep):
+            return True
+
+    interpreter_zip_name = f"python{sys.version_info.major}{sys.version_info.minor}.zip"
+    if resolved_path.name == interpreter_zip_name:
+        resolved_parent = str(resolved_path.parent)
+        stdlib_parents = {str(Path(r).parent) for r in _stdlib_prefixes()}
+        if resolved_parent in stdlib_parents:
+            return True
+
+    return False
+
+
 def workspace_environment(workspace: PreparedWorkspace) -> dict[str, str]:
     environment = dict(workspace.environment)
-    pythonpath_entries = _workspace_sys_path(workspace)
+    pythonpath_entries: list[str] = []
+    candidate_entries = _workspace_sys_path(workspace)
     existing_pythonpath = environment.get("PYTHONPATH")
     if existing_pythonpath:
-        for entry in existing_pythonpath.split(os.pathsep):
-            if entry and entry not in pythonpath_entries:
-                pythonpath_entries.append(entry)
+        candidate_entries.extend(existing_pythonpath.split(os.pathsep))
+
+    for entry in candidate_entries:
+        if entry and entry not in pythonpath_entries and not _is_stdlib_path(entry):
+            pythonpath_entries.append(entry)
 
     environment["PYTHONPATH"] = os.pathsep.join(pythonpath_entries)
     return environment
@@ -167,6 +239,9 @@ def _pyproject_declares_prefect_dependency(pyproject: Path) -> bool:
 
 
 def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
+    if not get_current_settings().runner.auto_install_dependencies:
+        return None
+
     project_root = workspace.project_root
     if project_root is None:
         return None
@@ -188,6 +263,7 @@ def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
         [
             uv_executable,
             "run",
+            "--no-default-groups",
             "--project",
             str(project_root),
             "-m",

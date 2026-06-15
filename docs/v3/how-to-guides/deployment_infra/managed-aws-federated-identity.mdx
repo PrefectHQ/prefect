@@ -11,7 +11,9 @@ This guide applies only to work pools of type [`prefect:managed`](/v3/how-to-gui
 
 ## Assume IAM Roles in Amazon Web Services
 
-<span class="badge cloud"></span> Prefect Cloud can assume an AWS IAM role on your behalf and inject short-lived AWS credentials into each flow run.
+<span class="badge cloud"></span>
+
+Prefect Cloud can assume an AWS IAM role on your behalf and inject short-lived AWS credentials into each flow run.
 This lets your runs access AWS services and pull code without storing static IAM access keys in Prefect Cloud.
 
 ### How it works

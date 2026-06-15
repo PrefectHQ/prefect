@@ -105,14 +105,20 @@ If a worker misses three heartbeats, it is considered offline. By default, a wor
 after it stopped sending heartbeats, but you can configure the threshold with the `PREFECT_WORKER_HEARTBEAT_SECONDS` setting.
 
 ### Worker logs
-<span class="badge cloud"></span> Workers send logs to the Prefect Cloud API if you're connected to Prefect Cloud.
+
+<span class="badge cloud"></span>
+
+Workers send logs to the Prefect Cloud API if you're connected to Prefect Cloud.
 
 - All worker logs are automatically sent to the Prefect Cloud API
 - Logs are accessible through both the Prefect Cloud UI and API
 - Each flow run will include a link to its associated worker's logs
 
 ### Worker details
-<span class="badge cloud"></span> The **Worker Details** page shows you three key areas of information:
+
+<span class="badge cloud"></span>
+
+The **Worker Details** page shows you three key areas of information:
 
 - Worker status
 - Installed Prefect version

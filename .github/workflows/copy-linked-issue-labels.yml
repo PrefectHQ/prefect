@@ -16,7 +16,19 @@ jobs:
             references
             reference
             to
+          # Exclude labels that describe the *referenced* issue rather than this
+          # PR, plus labels that labeler.yml derives from the PR's own files or
+          # base branch. Copying the latter from a linked issue is always wrong:
+          # whether a PR is a migration/docs/etc. change is determined by its own
+          # diff, not by what it references (e.g. "follow-up to #20699" should not
+          # inherit #20699's `migration` label).
           labels-to-exclude: |
             great writeup
             good first issue
+            migration
+            docs
+            plan
+            upstream dependency
+            ui-replatform
+            2.x
           repo-token: ${{ secrets.GITHUB_TOKEN }}

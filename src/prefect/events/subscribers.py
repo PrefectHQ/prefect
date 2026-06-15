@@ -13,9 +13,9 @@ from typing_extensions import Self
 
 from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.client.schemas.objects import TERMINAL_STATES, Log, StateType
-from prefect.events import Event
 from prefect.events.clients import get_events_subscriber
 from prefect.events.filters import EventAnyResourceFilter, EventFilter
+from prefect.events.schemas.events import Event
 from prefect.logging.clients import get_logs_subscriber
 
 if TYPE_CHECKING:

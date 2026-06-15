@@ -699,6 +699,8 @@ class ResultStore(BaseModel):
             except Exception:
                 return False
         else:
+            if self.result_storage is None:
+                self.result_storage = await aget_default_result_storage()
             try:
                 content = await call_explicitly_async_block_method(
                     self.result_storage, "read_path", (key,), {}
@@ -742,6 +744,8 @@ class ResultStore(BaseModel):
             except Exception:
                 return False
         else:
+            if self.result_storage is None:
+                self.result_storage = get_default_result_storage(_sync=True)
             try:
                 content = call_explicitly_sync_block_method(
                     self.result_storage, "read_path", (key,), {}
@@ -863,6 +867,7 @@ class ResultStore(BaseModel):
 
         if self.cache_result_in_memory:
             self.cache[resolved_key_path] = result_record
+        result_record.mark_persisted()
         return result_record
 
     def _read(self, key: str, holder: str) -> "ResultRecord[Any]":
@@ -932,6 +937,7 @@ class ResultStore(BaseModel):
 
         if self.cache_result_in_memory:
             self.cache[resolved_key_path] = result_record
+        result_record.mark_persisted()
         return result_record
 
     def read(
@@ -1118,6 +1124,7 @@ class ResultStore(BaseModel):
                 (result_record.metadata.storage_key,),
                 {"content": result_record.serialize()},
             )
+        result_record.mark_persisted()
         if self.cache_result_in_memory:
             self.cache[key] = result_record
 
@@ -1181,6 +1188,7 @@ class ResultStore(BaseModel):
                 (result_record.metadata.storage_key,),
                 {"content": result_record.serialize()},
             )
+        result_record.mark_persisted()
         if self.cache_result_in_memory:
             self.cache[key] = result_record
 

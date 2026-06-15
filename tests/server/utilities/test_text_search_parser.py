@@ -16,8 +16,6 @@ from prefect.server.utilities.text_search_parser import (
     parse_text_search_query,
 )
 
-pytestmark = pytest.mark.clear_db
-
 
 class TestBasicParsing:
     """Test basic query parsing functionality"""

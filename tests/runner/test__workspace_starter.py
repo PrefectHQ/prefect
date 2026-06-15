@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import sysconfig
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
@@ -20,6 +21,10 @@ from prefect.runner._workspace_starter import (
     load_flow_from_prepared_workspace,
     resolve_workspace_in_subprocess,
     workspace_environment,
+)
+from prefect.settings import (
+    PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES,
+    temporary_settings,
 )
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.processutils import command_from_string
@@ -79,13 +84,15 @@ def test_workspace_command_uses_uv_for_pyproject_workspace(
         fake_which,
     )
 
-    command = _workspace_command(workspace, explicit_command=None)
+    with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
+        command = _workspace_command(workspace, explicit_command=None)
 
     assert captured_paths == [workspace.environment["PATH"]]
     assert command is not None
     assert command_from_string(command) == [
         "/opt/bin/uv",
         "run",
+        "--no-default-groups",
         "--project",
         str(workspace.project_root),
         "-m",
@@ -103,7 +110,8 @@ def test_workspace_command_falls_back_without_pyproject(
         lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
     )
 
-    assert _workspace_command(workspace, explicit_command=None) is None
+    with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
+        assert _workspace_command(workspace, explicit_command=None) is None
 
 
 def test_workspace_command_falls_back_without_prefect_dependency(
@@ -119,7 +127,8 @@ def test_workspace_command_falls_back_without_prefect_dependency(
         lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
     )
 
-    assert _workspace_command(workspace, explicit_command=None) is None
+    with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
+        assert _workspace_command(workspace, explicit_command=None) is None
 
 
 def test_workspace_command_falls_back_without_uv(
@@ -136,6 +145,30 @@ def test_workspace_command_falls_back_without_uv(
     monkeypatch.setattr(
         "prefect.runner._workspace_starter.shutil.which",
         lambda executable, path=None: None,
+    )
+
+    with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
+        assert _workspace_command(workspace, explicit_command=None) is None
+
+
+def test_workspace_command_does_not_auto_install_dependencies_by_default(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    workspace = _prepared_workspace(tmp_path)
+    assert workspace.project_root is not None
+    (workspace.project_root / "pyproject.toml").write_text(
+        "[project]\n"
+        "name = 'test-project'\n"
+        "version = '0.1.0'\n"
+        "dependencies = ['prefect']\n"
+    )
+
+    def fail_if_checked(*args: object, **kwargs: object) -> None:
+        raise AssertionError("uv should not be checked unless auto-install is enabled")
+
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.shutil.which",
+        fail_if_checked,
     )
 
     assert _workspace_command(workspace, explicit_command=None) is None
@@ -300,7 +333,8 @@ async def test_workspace_resolving_starter_uses_uv_for_pyproject_workspace(
         workspace_root=tmp_path / "workspace-root",
         deployment_name="workspace-deployment",
     )
-    await starter.start(flow_run)
+    with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
+        await starter.start(flow_run)
 
     assert len(instances) == 1
     command = instances[0].kwargs["command"]
@@ -308,6 +342,7 @@ async def test_workspace_resolving_starter_uses_uv_for_pyproject_workspace(
     assert command_from_string(command) == [
         "/opt/bin/uv",
         "run",
+        "--no-default-groups",
         "--project",
         str(workspace.project_root),
         "-m",
@@ -359,3 +394,98 @@ async def test_load_flow_from_prepared_workspace_preserves_module_entrypoint(
 
     assert flow.name == "hello"
     assert sys.path == original_sys_path
+
+
+async def test_load_flow_from_prepared_workspace_preserves_stdlib_imports(
+    tmp_path: Path,
+) -> None:
+    workspace = _prepared_workspace(tmp_path)
+    workspace.sys_path = [sysconfig.get_paths()["stdlib"], *workspace.sys_path]
+    flow_file = workspace.working_directory / "flows.py"
+    flow_file.write_text(
+        "import mailbox\n"
+        "from prefect import flow\n\n"
+        "@flow\n"
+        "def hello():\n"
+        "    return mailbox.Mailbox\n"
+    )
+    parent_cwd = tmp_path / "parent-cwd"
+    parent_cwd.mkdir()
+    original_sys_path = list(sys.path)
+    original_mailbox = sys.modules.pop("mailbox", None)
+
+    try:
+        with tmpchdir(parent_cwd):
+            flow = await load_flow_from_prepared_workspace(workspace)
+            assert Path.cwd() == parent_cwd.resolve()
+    finally:
+        if original_mailbox is None:
+            sys.modules.pop("mailbox", None)
+        else:
+            sys.modules["mailbox"] = original_mailbox
+
+    assert flow.name == "hello"
+    assert sys.path == original_sys_path
+
+
+class TestWorkspaceEnvironmentPythonpathFiltering:
+    def test_excludes_stdlib_from_pythonpath(self, tmp_path: Path) -> None:
+        workspace = _prepared_workspace(tmp_path)
+        stdlib = sysconfig.get_paths()["stdlib"]
+        lib_dynload = os.path.join(stdlib, "lib-dynload")
+        stdlib_zip = (
+            Path(stdlib).parent
+            / f"python{sys.version_info.major}{sys.version_info.minor}.zip"
+        )
+        adjacent_user_zip = Path(stdlib).parent / "python_helpers.zip"
+        app_zip = tmp_path / "python_deps.zip"
+        site_packages = sysconfig.get_paths()["purelib"]
+
+        workspace.sys_path = [
+            "",
+            stdlib,
+            lib_dynload,
+            str(stdlib_zip),
+            site_packages,
+            str(adjacent_user_zip),
+            str(app_zip),
+            "/app",
+        ]
+
+        env = workspace_environment(workspace)
+        pythonpath_entries = env["PYTHONPATH"].split(os.pathsep)
+
+        resolved_stdlib = str(Path(stdlib).resolve())
+        resolved_dynload = str(Path(lib_dynload).resolve())
+        resolved_stdlib_zip = str(stdlib_zip.resolve())
+        assert resolved_stdlib not in pythonpath_entries
+        assert resolved_dynload not in pythonpath_entries
+        assert resolved_stdlib_zip not in pythonpath_entries
+
+        resolved_site = str(Path(site_packages).resolve())
+        assert resolved_site in pythonpath_entries
+        assert str(adjacent_user_zip) in pythonpath_entries
+        assert str(app_zip) in pythonpath_entries
+
+    def test_filters_stdlib_from_inherited_pythonpath(self, tmp_path: Path) -> None:
+        workspace = _prepared_workspace(tmp_path)
+        stdlib = sysconfig.get_paths()["stdlib"]
+        stdlib_zip = (
+            Path(stdlib).parent
+            / f"python{sys.version_info.major}{sys.version_info.minor}.zip"
+        )
+        app_zip = tmp_path / "python_deps.zip"
+        workspace.sys_path = ["/app"]
+        workspace.environment["PYTHONPATH"] = os.pathsep.join(
+            [stdlib, str(stdlib_zip), str(app_zip), "/extra"]
+        )
+
+        env = workspace_environment(workspace)
+        pythonpath_entries = env["PYTHONPATH"].split(os.pathsep)
+
+        resolved_stdlib = str(Path(stdlib).resolve())
+        resolved_stdlib_zip = str(stdlib_zip.resolve())
+        assert resolved_stdlib not in pythonpath_entries
+        assert resolved_stdlib_zip not in pythonpath_entries
+        assert str(app_zip) in pythonpath_entries
+        assert "/extra" in pythonpath_entries

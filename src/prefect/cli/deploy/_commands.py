@@ -64,7 +64,7 @@ async def init(
     recipe_paths = prefect.__module_path__ / "deployments" / "recipes"
 
     for field in fields:
-        key, value = field.split("=")
+        key, value = field.split("=", 1)
         inputs[key] = value
 
     from prefect.cli._prompts import prompt_select_from_table

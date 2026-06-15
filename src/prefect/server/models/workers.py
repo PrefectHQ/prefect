@@ -23,11 +23,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import prefect.server.schemas as schemas
 from prefect._internal.uuid7 import uuid7
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
+from prefect.server.events import clients
 from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models.events import (
+    work_pool_created_event,
+    work_pool_deleted_event,
     work_pool_status_event,
     work_pool_updated_event,  # Add this
+    work_queue_created_event,
+    work_queue_deleted_event,
 )
 from prefect.server.schemas.statuses import WorkQueueStatus
 from prefect.server.utilities.database import UUID as PrefectUUID
@@ -85,6 +90,8 @@ async def create_work_pool(
 
     pool.default_queue_id = default_queue.id  # type: ignore
     await session.flush()
+
+    await emit_work_pool_created_event(pool)
 
     return pool
 
@@ -436,10 +443,23 @@ async def delete_work_pool(
         bool: whether or not the WorkPool was deleted
     """
 
-    result = await session.execute(
-        delete(db.WorkPool).where(db.WorkPool.id == work_pool_id)
-    )
-    return result.rowcount > 0
+    work_pool = await session.get(db.WorkPool, work_pool_id)
+    if work_pool is None:
+        return False
+
+    queues = await read_work_queues(session=session, work_pool_id=work_pool_id)
+    async with clients.PrefectServerEventsClient() as events_client:
+        for queue in queues:
+            await events_client.emit(
+                await work_queue_deleted_event(
+                    session=session, work_queue=queue, occurred=now("UTC")
+                )
+            )
+
+    await emit_work_pool_deleted_event(work_pool)
+
+    await session.execute(delete(db.WorkPool).where(db.WorkPool.id == work_pool_id))
+    return True
 
 
 @db_injector
@@ -548,6 +568,14 @@ async def create_work_queue(
             work_pool_id=work_pool_id,
             new_priorities={model.id: work_queue.priority},
         )
+
+    async with clients.PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            await work_queue_created_event(
+                session=session, work_queue=model, occurred=now("UTC")
+            )
+        )
+
     return model
 
 
@@ -875,6 +903,13 @@ async def delete_work_queue(
     work_queue = await session.get(db.WorkQueue, work_queue_id)
     if work_queue is None:
         return False
+
+    async with clients.PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            await work_queue_deleted_event(
+                session=session, work_queue=work_queue, occurred=now("UTC")
+            )
+        )
 
     await session.delete(work_queue)
     try:
@@ -1324,6 +1359,22 @@ async def emit_work_pool_updated_event(
                 changed_fields=changed_fields,
                 occurred=now("UTC"),
             )
+        )
+
+
+async def emit_work_pool_created_event(work_pool: orm_models.WorkPool) -> None:
+    """Emit an event when a work pool is created."""
+    async with clients.PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            await work_pool_created_event(work_pool=work_pool, occurred=now("UTC"))
+        )
+
+
+async def emit_work_pool_deleted_event(work_pool: orm_models.WorkPool) -> None:
+    """Emit an event when a work pool is deleted."""
+    async with clients.PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            await work_pool_deleted_event(work_pool=work_pool, occurred=now("UTC"))
         )
 
 

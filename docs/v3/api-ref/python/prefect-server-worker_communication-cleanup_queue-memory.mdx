@@ -1,0 +1,88 @@
+---
+title: memory
+sidebarTitle: memory
+---
+
+# `prefect.server.worker_communication.cleanup_queue.memory`
+
+## Classes
+
+### `WorkerCleanupQueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/memory.py#L58" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Singleton in-memory cleanup queue storage for a single server process.
+
+
+**Methods:**
+
+#### `ack` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/memory.py#L232" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+ack(self) -> CleanupQueueOperationResult
+```
+
+#### `clear` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/memory.py#L86" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+clear(self) -> None
+```
+
+#### `enqueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/memory.py#L96" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+enqueue(self) -> CleanupQueueMessage
+```
+
+#### `expire_leases` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/memory.py#L385" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+expire_leases(self) -> CleanupQueueLeaseExpiryResult
+```
+
+#### `read_dead_letter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/memory.py#L415" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_dead_letter(self) -> CleanupQueueDeadLetter | None
+```
+
+#### `read_message` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/memory.py#L406" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_message(self) -> CleanupQueueMessage | None
+```
+
+#### `read_wakeup_sequence` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/memory.py#L438" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_wakeup_sequence(self, work_pool_id: UUID) -> int
+```
+
+#### `release` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/memory.py#L275" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+release(self) -> CleanupQueueOperationResult
+```
+
+#### `renew` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/memory.py#L337" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+renew(self) -> CleanupQueueOperationResult
+```
+
+#### `reserve` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/memory.py#L149" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reserve(self) -> CleanupQueueReservation | None
+```
+
+#### `wait_for_wakeup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/memory.py#L442" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+wait_for_wakeup(self, work_pool_id: UUID) -> CleanupQueueWakeup | None
+```
+
+#### `wake_dispatchers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/memory.py#L427" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+wake_dispatchers(self, work_pool_id: UUID) -> CleanupQueueWakeup
+```

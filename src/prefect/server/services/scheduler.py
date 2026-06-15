@@ -74,7 +74,12 @@ def _get_select_deployments_to_schedule_query(
             db.FlowRun.deployment_id == db.DeploymentSchedule.deployment_id,
             db.FlowRun.state_type == StateType.SCHEDULED,
             db.FlowRun.next_scheduled_start_time >= right_now,
-            db.FlowRun.auto_scheduled.is_(True),
+            # `== true` (not `.is_(True)`) so the predicate matches the
+            # `auto_scheduled = true` clause of the partial index
+            # `ix_flow_run__schedule_id_scheduler`.  PostgreSQL's predicate
+            # implication prover does not treat `IS true` as implying
+            # `= true`, so `.is_(True)` silently disqualifies the index.
+            db.FlowRun.auto_scheduled == sa.true(),
             schedule_id_match,
         )
         .correlate(db.DeploymentSchedule)
@@ -88,7 +93,7 @@ def _get_select_deployments_to_schedule_query(
             db.FlowRun.deployment_id == db.DeploymentSchedule.deployment_id,
             db.FlowRun.state_type == StateType.SCHEDULED,
             db.FlowRun.next_scheduled_start_time >= right_now,
-            db.FlowRun.auto_scheduled.is_(True),
+            db.FlowRun.auto_scheduled == sa.true(),
             schedule_id_match,
         )
         .correlate(db.DeploymentSchedule)
@@ -209,7 +214,7 @@ async def _collect_flow_runs(
 )
 async def schedule_deployments(
     perpetual: Perpetual = Perpetual(
-        automatic=False,
+        automatic=True,
         every=timedelta(
             seconds=get_current_settings().server.services.scheduler.loop_seconds
         ),
@@ -285,7 +290,7 @@ async def schedule_deployments(
 )
 async def schedule_recent_deployments(
     perpetual: Perpetual = Perpetual(
-        automatic=False,
+        automatic=True,
         every=timedelta(
             seconds=get_current_settings().server.services.scheduler.recent_deployments_loop_seconds
         ),

@@ -137,6 +137,7 @@ from prefect.settings import (
 )
 from prefect.types._datetime import now
 
+from prefect._internal.urls import strip_auth_from_url
 from prefect._internal.version_checking import (
     _api_version_check_key,
     _cache_api_version_check,
@@ -1132,7 +1133,9 @@ class PrefectClient(
         except Exception as e:
             if "Unauthorized" in str(e):
                 raise e
-            raise RuntimeError(f"Failed to reach API at {self.api_url}") from e
+            raise RuntimeError(
+                f"Failed to reach API at {strip_auth_from_url(str(self.api_url))}"
+            ) from e
 
         api_version = version.parse(api_version)
         client_version = version.parse(self.client_version())
@@ -1190,7 +1193,9 @@ class PrefectClient(
                 f"{PREFECT_API_DATABASE_CONNECTION_URL.value()}"
             )
         else:
-            self.logger.debug(f"Connecting to API at {self.api_url}")
+            self.logger.debug(
+                f"Connecting to API at {strip_auth_from_url(str(self.api_url))}"
+            )
 
         # Enter the httpx client's context
         await self._exit_stack.enter_async_context(self._client)
@@ -1519,7 +1524,9 @@ class SyncPrefectClient(
         except Exception as e:
             if "Unauthorized" in str(e):
                 raise e
-            raise RuntimeError(f"Failed to reach API at {self.api_url}") from e
+            raise RuntimeError(
+                f"Failed to reach API at {strip_auth_from_url(str(self.api_url))}"
+            ) from e
 
         api_version = version.parse(api_version)
         client_version = version.parse(self.client_version())
