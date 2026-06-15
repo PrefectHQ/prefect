@@ -173,7 +173,7 @@ def test_delete_multiple_flow_runs_succeeds(
         sync_prefect_client,
         scheduled_flow_run.id,
     )
-    
+
 
 def test_delete_multiple_flow_runs_fails_correctly(
     flow_run: FlowRun,
@@ -188,9 +188,7 @@ def test_delete_multiple_flow_runs_fails_correctly(
             missing_flow_run_id,
         ],
         user_input="y",
-        expected_output_contains=(
-            f"Flow run '{missing_flow_run_id}' not found!"
-        ),
+        expected_output_contains=(f"Flow run '{missing_flow_run_id}' not found!"),
         expected_code=1,
     )
 
@@ -618,9 +616,7 @@ class TestCancelFlowRun:
                 bad_id,
             ],
             expected_code=1,
-            expected_output_contains=(
-                f"Flow run '{bad_id}' not found!"
-            ),
+            expected_output_contains=(f"Flow run '{bad_id}' not found!"),
         )
 
 

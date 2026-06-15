@@ -311,7 +311,7 @@ async def delete(
     if _cli.is_interactive() and not confirm(
         f"Are you sure you want to delete {len(flow_run_ids)} flow run(s)?",
         default=False,
-):
+    ):
         exit_with_error("Deletion aborted.")
 
     async with get_client() as client:
@@ -321,9 +321,7 @@ async def delete(
             except ObjectNotFound:
                 exit_with_error(f"Flow run '{flow_run_id}' not found!")
 
-    exit_with_success(
-        f"Successfully deleted {len(flow_run_ids)} flow run(s)."
-    )
+    exit_with_success(f"Successfully deleted {len(flow_run_ids)} flow run(s).")
 
 
 @flow_run_app.command()
@@ -372,6 +370,7 @@ async def cancel(
     exit_with_success(
         f"{len(flow_run_ids)} flow run(s) were successfully scheduled for cancellation."
     )
+
 
 @flow_run_app.command()
 @with_cli_exception_handling
