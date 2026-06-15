@@ -9,16 +9,10 @@ jobs:
   nightly-release:
     runs-on: ubuntu-latest
     permissions:
+      # required for softprops/action-gh-release to create the tag + release
       contents: write
 
     steps:
-      - name: Generate prefect-ci-bot-public token
-        id: app_token
-        uses: actions/create-github-app-token@v3
-        with:
-          client-id: ${{ secrets.PREFECT_CI_BOT_PUBLIC_CLIENT_ID }}
-          private-key: ${{ secrets.PREFECT_CI_BOT_PUBLIC_PRIVATE_KEY }}
-
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
@@ -89,4 +83,4 @@ jobs:
           draft: false
           prerelease: true
           generate_release_notes: true
-          token: ${{ steps.app_token.outputs.token }}
+          token: ${{ github.token }}

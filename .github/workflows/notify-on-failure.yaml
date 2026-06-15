@@ -1,0 +1,46 @@
+---
+name: Notify on Failure
+
+"on":
+  workflow_run:
+    workflows:
+      - Docker images
+      - Nightly Development Release
+      - Create prefect-helm release
+    types: [completed]
+
+permissions:
+  # required to read from the GitHub Actions API
+  actions: read
+  # required to read the repo
+  contents: read
+
+jobs:
+  notify:
+    name: Notify on Failure
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    steps:
+      - name: Format date
+        run: |
+          formatted_date=$(date -d "${{ github.event.workflow_run.run_started_at }}" "+%b %d at %I:%M %p")
+          echo "FORMATTED_DATE=$formatted_date" >> "$GITHUB_ENV"
+
+      - name: Send Slack notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          # https://api.slack.com/reference/messaging/attachments
+          custom_payload: |
+            {
+              attachments: [{
+                pretext: ':x: Workflow triggered by ${{ github.actor }} failed',
+                title: '${{ github.event.workflow_run.display_title }} #${{github.event.workflow_run.run_number}}',
+                title_link: '${{ github.event.workflow_run.html_url }}',
+                footer: '${{ github.repository }} | ${{ env.FORMATTED_DATE }} UTC',
+                footer_icon: 'https://slack-imgs.com/?c=1&o1=wi32.he32.si&url=https%3A%2F%2Fslack.github.com%2Fstatic%2Fimg%2Ffavicon-neutral.png',
+                color: 'danger',
+              }]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_GHA_JOB_STATUS }}

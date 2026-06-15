@@ -19,6 +19,8 @@ jobs:
           private-key: ${{ secrets.PREFECT_CI_BOT_PUBLIC_PRIVATE_KEY }}
           owner: PrefectHQ
           repositories: prefect-helm
+          # Scope to the minimum needed for `gh workflow run`.
+          permission-actions: write
 
       - name: Create prefect-helm release
         run: |

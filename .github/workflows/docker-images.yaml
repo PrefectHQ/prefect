@@ -155,6 +155,8 @@ jobs:
           private-key: ${{ secrets.PREFECT_CI_BOT_BRIDGE_PRIVATE_KEY }}
           owner: PrefectHQ
           repositories: cluster-deployment
+          # Scope to the minimum needed for `gh workflow run`.
+          permission-actions: write
 
       - name: Dispatch to cluster-deployment
         env:
