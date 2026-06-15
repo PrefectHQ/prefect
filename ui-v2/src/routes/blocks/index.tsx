@@ -185,10 +185,11 @@ export const Route = createFileRoute("/blocks/")({
 			include_secrets: false,
 			sort: "NAME_ASC",
 		};
+		const effectiveLimit = deps.limit ?? 10;
 		const paginatedFilter: BlockDocumentsFilter = {
 			...baseFilter,
-			limit: deps.limit,
-			offset: ((deps.page ?? 1) - 1) * (deps.limit ?? 10),
+			limit: effectiveLimit,
+			offset: ((deps.page ?? 1) - 1) * effectiveLimit,
 		};
 		// Prefetch all queries without awaiting to avoid blocking render
 		void queryClient.prefetchQuery(buildListFilterBlockTypesQuery());
