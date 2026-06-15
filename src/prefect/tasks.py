@@ -883,19 +883,7 @@ class Task(Generic[P, R]):
         wait_for: Optional[OneOrManyFutureOrResult[Any]] = None,
         extra_task_inputs: Optional[dict[str, set[RunInput]]] = None,
         deferred: bool = False,
-        dynamic_key: Optional[str] = None,
     ) -> TaskRun:
-        """Create a task run for this task.
-
-        Args:
-            dynamic_key: Explicit dynamic key for the task run.  When provided,
-                bypasses the internal call-counter and uses this value directly
-                as the `dynamic_key` component of the task-run natural key
-                `(flow_run_id, task_key, dynamic_key)` that drives idempotent
-                creation.  Used by the flow engine to assign UUID keys to
-                subflow tracking task runs in concurrent contexts where
-                counter-based keys are unreliable.
-        """
         from prefect._internal.engine import dynamic_key_for_task_run
         from prefect.utilities.engine import collect_task_run_inputs_sync
 
@@ -912,7 +900,18 @@ class Task(Generic[P, R]):
             if not flow_run_context:
                 dynamic_key = f"{self.task_key}-{str(uuid4().hex)}"
                 task_run_name = self.name
-            elif dynamic_key is not None:
+            elif (
+                getattr(self, "_is_subflow_tracking_task", False)
+                and parent_task_run_context
+                and flow_run_context.flow_run
+                and parent_task_run_context.task_run.flow_run_id
+                == flow_run_context.flow_run.id
+            ):
+                # Subflows called from a task context need UUID keys because
+                # sibling call order is not a reliable identity across retries.
+                dynamic_key = dynamic_key_for_task_run(
+                    context=flow_run_context, task=self, stable=False
+                )
                 task_run_name = f"{self.name}-{dynamic_key}"
             else:
                 dynamic_key = dynamic_key_for_task_run(
