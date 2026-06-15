@@ -12,10 +12,17 @@ import sqlalchemy as sa
 
 from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database.configurations import (
+    AioSqliteConfiguration,
+    AsyncPostgresConfiguration,
+)
 from prefect.server.events.schemas.events import ReceivedEvent, Resource
 from prefect.server.events.storage.database import write_events
 from prefect.server.schemas.actions import LogCreate
+from prefect.server.services import db_vacuum
 from prefect.server.services.db_vacuum import (
+    _maintenance_database_config,
+    _maintenance_session,
     vacuum_events_with_retention_overrides,
     vacuum_old_events,
     vacuum_old_flow_runs,
@@ -707,19 +714,14 @@ class TestNoOp:
 
 class TestMaintenanceSession:
     """The maintenance session opts vacuum queries out of the API statement
-    timeout on Postgres (see PrefectHQ/prefect#XXXXX), where bulk deletes that
-    scan large tables would otherwise be killed by asyncpg's `command_timeout`.
+    timeout on Postgres, where bulk deletes that scan large tables would
+    otherwise be killed by asyncpg's `command_timeout`.
     """
 
     def setup_method(self) -> None:
-        from prefect.server.services import db_vacuum
-
         db_vacuum._MAINTENANCE_CONFIGS.clear()
 
     def test_postgres_config_disables_statement_timeout(self) -> None:
-        from prefect.server.database.configurations import AsyncPostgresConfiguration
-        from prefect.server.services.db_vacuum import _maintenance_database_config
-
         base = AsyncPostgresConfiguration(
             connection_url="postgresql+asyncpg://u:p@host/db", timeout=10.0
         )
@@ -734,9 +736,6 @@ class TestMaintenanceSession:
         assert config.sqlalchemy_max_overflow == 0
 
     def test_postgres_config_is_cached_per_url(self) -> None:
-        from prefect.server.database.configurations import AsyncPostgresConfiguration
-        from prefect.server.services.db_vacuum import _maintenance_database_config
-
         db = SimpleNamespace(
             database_config=AsyncPostgresConfiguration(
                 connection_url="postgresql+asyncpg://u:p@host/db"
@@ -749,9 +748,6 @@ class TestMaintenanceSession:
         assert first is second
 
     def test_non_postgres_returns_none(self) -> None:
-        from prefect.server.database.configurations import AioSqliteConfiguration
-        from prefect.server.services.db_vacuum import _maintenance_database_config
-
         db = SimpleNamespace(
             database_config=AioSqliteConfiguration(
                 connection_url="sqlite+aiosqlite:///:memory:"
@@ -764,7 +760,6 @@ class TestMaintenanceSession:
         """The maintenance session yields a working transactional session
         regardless of backend (falls back to the default on non-Postgres)."""
         db = provide_database_interface()
-        from prefect.server.services.db_vacuum import _maintenance_session
 
         async with _maintenance_session(db) as session:
             assert await session.execute(sa.select(sa.literal(1))) is not None
