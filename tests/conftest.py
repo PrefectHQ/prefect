@@ -585,12 +585,23 @@ def reset_sys_modules():
     # subsequent monkeypatch / import resolution doesn't find a stale module
     # object via getattr on the parent while sys.modules has no entry.
     #
-    # Preserve prefect.cli.* modules: cyclopts lazy loading caches resolved
-    # command Apps internally.  Removing the module from sys.modules creates
-    # a stale-reference split where cyclopts holds the old module's objects
-    # but monkeypatch patches a freshly re-imported copy.
+    # Preserve prefect.cli.* and cyclopts modules: cyclopts lazy loading caches
+    # resolved command Apps and type converters internally.  Removing a module
+    # from sys.modules creates a stale-reference split where cyclopts holds the
+    # old module's objects but monkeypatch / re-import resolution finds a freshly
+    # re-imported copy.  For cyclopts specifically, deleting its lazily-imported
+    # submodules (e.g. cyclopts._convert) breaks type-converter identity on the
+    # next in-process invocation, surfacing as spurious "unable to convert ...
+    # into str" CoercionErrors on every command after the first.
+    def _should_preserve(module: str) -> bool:
+        return (
+            module.startswith("prefect.cli.")
+            or module == "cyclopts"
+            or module.startswith("cyclopts.")
+        )
+
     for module in set(sys.modules.keys()):
-        if module not in original_modules and not module.startswith("prefect.cli."):
+        if module not in original_modules and not _should_preserve(module):
             parts = module.rsplit(".", 1)
             if len(parts) == 2:
                 parent = sys.modules.get(parts[0])

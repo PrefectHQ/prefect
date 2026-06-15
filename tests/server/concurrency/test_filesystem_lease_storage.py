@@ -12,8 +12,6 @@ from prefect.server.concurrency.lease_storage.filesystem import (
 )
 from prefect.types._concurrency import ConcurrencyLeaseHolder
 
-pytestmark = pytest.mark.clear_db
-
 
 class TestFilesystemConcurrencyLeaseStorage:
     @pytest.fixture

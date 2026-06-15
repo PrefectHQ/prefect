@@ -235,11 +235,16 @@ class WorkerChannelTransport:
 
         return None
 
+    _MAX_RECONNECT_EXPONENT = 32
+
     def reconnect_delay(self, attempt: int) -> float:
         if self._reconnect_base_seconds <= 0:
             return 0
+        exponent = max(attempt - 1, 0)
+        if exponent >= self._MAX_RECONNECT_EXPONENT:
+            return self._reconnect_max_seconds
         return min(
-            self._reconnect_base_seconds * 2 ** max(attempt - 1, 0),
+            self._reconnect_base_seconds * 2**exponent,
             self._reconnect_max_seconds,
         )
 

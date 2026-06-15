@@ -26,7 +26,7 @@ Mark a single flow run as late (docket task).
 ### `monitor_late_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/late_runs.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-monitor_late_runs(docket: Docket = CurrentDocket(), db: PrefectDBInterface = Depends(provide_database_interface), perpetual: Perpetual = Perpetual(automatic=False, every=timedelta(seconds=get_current_settings().server.services.late_runs.loop_seconds))) -> None
+monitor_late_runs(docket: Docket = CurrentDocket(), db: PrefectDBInterface = Depends(provide_database_interface), perpetual: Perpetual = Perpetual(automatic=True, every=timedelta(seconds=get_current_settings().server.services.late_runs.loop_seconds))) -> None
 ```
 
 

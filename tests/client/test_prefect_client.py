@@ -2656,6 +2656,61 @@ class TestAutomations:
 
             assert read_route.called
 
+    async def test_read_automations_default(
+        self, cloud_client, automation: AutomationCore
+    ):
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
+            created_automation = automation.model_dump(mode="json")
+            created_automation["id"] = str(uuid4())
+            read_route = router.post("/automations/filter").mock(
+                return_value=httpx.Response(200, json=[created_automation])
+            )
+
+            result = await cloud_client.read_automations()
+
+            assert read_route.called
+            body = json.loads(read_route.calls[0].request.content)
+            assert body["automations"] is None
+            assert body["sort"] is None
+            assert body["limit"] is None
+            assert body["offset"] == 0
+            assert len(result) == 1
+            assert result[0].id == UUID(created_automation["id"])
+
+    async def test_read_automations_with_filter(
+        self, cloud_client, automation: AutomationCore
+    ):
+        from prefect.events.filters import AutomationFilter, AutomationFilterName
+
+        with respx.mock(
+            base_url=PREFECT_CLOUD_API_URL.value(), using="httpx"
+        ) as router:
+            created_automation = automation.model_dump(mode="json")
+            created_automation["id"] = str(uuid4())
+            read_route = router.post("/automations/filter").mock(
+                return_value=httpx.Response(200, json=[created_automation])
+            )
+
+            automation_filter = AutomationFilter(
+                name=AutomationFilterName(any_=["test-automation"])
+            )
+            result = await cloud_client.read_automations(
+                automations=automation_filter,
+                sort="NAME_ASC",
+                limit=10,
+                offset=5,
+            )
+
+            assert read_route.called
+            body = json.loads(read_route.calls[0].request.content)
+            assert body["automations"] == automation_filter.model_dump(mode="json")
+            assert body["sort"] == "NAME_ASC"
+            assert body["limit"] == 10
+            assert body["offset"] == 5
+            assert len(result) == 1
+
     async def test_read_automations_by_name(
         self, cloud_client, automation: AutomationCore
     ):
@@ -3279,6 +3334,25 @@ class TestPrefectClientRaiseForAPIVersionMismatch:
 
         assert "Failed to reach API" in str(e.value)
 
+    async def test_raise_for_api_version_mismatch_redacts_credentials(
+        self, monkeypatch
+    ):
+        client = PrefectClient("http://marvin42:hunter2@example.com:4200/api")
+        monkeypatch.setattr(client, "server_type", ServerType.SERVER)
+
+        async def connect_error(*args, **kwargs):
+            raise httpx.ConnectError
+
+        monkeypatch.setattr(client, "api_version", connect_error)
+
+        with pytest.raises(RuntimeError, match="Failed to reach API") as exc_info:
+            await client.raise_for_api_version_mismatch()
+
+        message = str(exc_info.value)
+        assert "http://example.com:4200/api" in message
+        assert "marvin42" not in message
+        assert "hunter2" not in message
+
     async def test_raise_for_api_version_mismatch_against_cloud(
         self, prefect_client, monkeypatch
     ):
@@ -3439,6 +3513,23 @@ class TestSyncClientRaiseForAPIVersionMismatch:
             sync_prefect_client.raise_for_api_version_mismatch()
 
         assert "Failed to reach API" in str(e.value)
+
+    def test_raise_for_api_version_mismatch_redacts_credentials(self, monkeypatch):
+        client = SyncPrefectClient("http://marvin42:hunter2@example.com:4200/api")
+        monkeypatch.setattr(client, "server_type", ServerType.SERVER)
+
+        def connect_error(*args, **kwargs):
+            raise httpx.ConnectError
+
+        monkeypatch.setattr(client, "api_version", connect_error)
+
+        with pytest.raises(RuntimeError, match="Failed to reach API") as exc_info:
+            client.raise_for_api_version_mismatch()
+
+        message = str(exc_info.value)
+        assert "http://example.com:4200/api" in message
+        assert "marvin42" not in message
+        assert "hunter2" not in message
 
     def test_raise_for_api_version_mismatch_against_cloud(
         self, sync_prefect_client, monkeypatch

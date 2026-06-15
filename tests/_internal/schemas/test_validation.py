@@ -1,4 +1,6 @@
 import datetime
+from typing import Any
+from unittest import mock
 
 import dateutil.rrule
 import pytest
@@ -101,6 +103,46 @@ def test_validate_values_conform_to_schema_none_values_or_schema():
     validate_values_conform_to_schema(None, {"type": "string"})
     validate_values_conform_to_schema({"name": "John"}, None)
     validate_values_conform_to_schema(None, None)
+
+
+# Tests guarding against SSRF via remote $ref resolution
+
+
+EXTERNAL_REFS = [
+    "https://a.example.com/schema.json",
+    "http://b.example.com.namespace.svc/schema.json",
+    "http://169.254.169.254/latest/meta-data/",
+]
+
+
+@pytest.mark.parametrize("ref", EXTERNAL_REFS)
+def test_validate_values_external_ref_raises_value_error_without_network(ref: str):
+    schema: dict[str, Any] = {"type": "object", "properties": {"x": {"$ref": ref}}}
+    with mock.patch("urllib.request.urlopen") as urlopen:
+        urlopen.side_effect = AssertionError(
+            "validation attempted an outbound network request"
+        )
+        with pytest.raises(ValueError):
+            validate_values_conform_to_schema({"x": 1}, schema)
+        urlopen.assert_not_called()
+
+
+def test_validate_values_in_document_ref_still_validates():
+    schema: dict[str, Any] = {
+        "type": "object",
+        "properties": {"x": {"$ref": "#/$defs/PositiveInt"}},
+        "$defs": {"PositiveInt": {"type": "integer", "minimum": 0}},
+    }
+    with mock.patch("urllib.request.urlopen") as urlopen:
+        urlopen.side_effect = AssertionError(
+            "validation attempted an outbound network request"
+        )
+        # Passing instance validates cleanly
+        validate_values_conform_to_schema({"x": 5}, schema)
+        # Failing instance raises the controlled error
+        with pytest.raises(ValueError):
+            validate_values_conform_to_schema({"x": -1}, schema)
+        urlopen.assert_not_called()
 
 
 # Tests for normalize_rrule_string (#21362)

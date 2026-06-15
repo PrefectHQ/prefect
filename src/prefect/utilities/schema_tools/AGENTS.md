@@ -47,6 +47,7 @@ Handlers return `Placeholder` subclasses (e.g. `RemoveValue`, `InvalidJSON`, `In
 
 - **Don't use `jinja` kind and expect a typed value** — it always returns a string. Use `json` + `jinja` + `| tojson` for type preservation.
 - **Don't add server imports to this module** — it's used client-side too. `HydrationContext.build()` is an explicit exception (async, server-only); the rest of `hydration.py` must remain importable without a running server.
+- **Don't call `jsonschema.validate()` without `registry=non_fetching_registry()`.** The default behavior fetches remote `$ref` URLs over the network (SSRF). Always pass `registry=non_fetching_registry()` from `prefect._internal.schemas._registry`; external refs raise `referencing.exceptions.Unresolvable` without any network request, while in-document `#/$defs/…` refs still resolve normally.
 
 ## Pitfalls
 

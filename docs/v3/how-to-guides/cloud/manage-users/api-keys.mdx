@@ -27,13 +27,19 @@ Provide a name for the key and an expiration date.
 Copy the key to a secure location since an API key cannot be revealed again in the UI after it is generated.
 </Warning>
 
-## Log in to Prefect Cloud with an API Key
+## Log in to Prefect Cloud with an API key
+
+In an interactive terminal you can run `prefect cloud login` and paste the key when prompted.
+
+In non-interactive environments (CI, containers, startup scripts), supply both `--key` and `--workspace`:
 
 ```bash
-prefect cloud login -k '<my-api-key>'
+prefect cloud login --key '<my-api-key>' --workspace '<account-handle>/<workspace-handle>'
 ```
 
-Alternatively, if you don't have a CLI available - for example, if you are connecting to Prefect Cloud within a remote serverless environment - set the `PREFECT_API_KEY` environment variable.
+Omitting either flag in a non-interactive terminal causes the command to fail.
+
+Alternatively, if you don't have a CLI available — for example, if you are connecting to Prefect Cloud within a remote serverless environment — set the `PREFECT_API_KEY` environment variable.
 
 For more information see [Connect to Prefect Cloud](/v3/manage/cloud/connect-to-cloud).
 

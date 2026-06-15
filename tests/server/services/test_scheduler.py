@@ -928,3 +928,37 @@ class TestMultiScheduleDeployments:
                 "After deleting consumed runs, the scheduler should create new runs "
                 "for the frequent schedule."
             )
+
+
+class TestSchedulerQueryUsesPartialIndex:
+    """The per-schedule deployment-selection query relies on the partial index
+    `ix_flow_run__schedule_id_scheduler`, whose predicate is
+    `... AND auto_scheduled = true` (Postgres) / `... AND auto_scheduled = 1`
+    (SQLite).
+
+    The query's `auto_scheduled` filter must compile to the same equality form.
+    `.is_(True)` compiles to `auto_scheduled IS true` / `IS 1`, which neither
+    planner accepts as implying the index's `= true` / `= 1` predicate, so the
+    index is silently disqualified and the query falls back to a full scan.
+    """
+
+    @pytest.mark.parametrize(
+        "dialect, expected, forbidden",
+        [
+            ("postgresql", "auto_scheduled = true", "auto_scheduled IS true"),
+            ("sqlite", "auto_scheduled = 1", "auto_scheduled IS 1"),
+        ],
+    )
+    def test_auto_scheduled_predicate_matches_partial_index(
+        self, db: PrefectDBInterface, dialect: str, expected: str, forbidden: str
+    ):
+        query = _get_select_deployments_to_schedule_query(
+            db,
+            deployment_batch_size=100,
+            min_runs=3,
+            min_scheduled_time=datetime.timedelta(hours=1),
+        )
+        compiled = str(query.compile(dialect=sa.dialects.registry.load(dialect)()))
+
+        assert expected in compiled
+        assert forbidden not in compiled

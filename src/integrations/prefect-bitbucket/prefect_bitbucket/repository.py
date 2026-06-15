@@ -47,6 +47,7 @@ from pydantic import Field, model_validator
 from typing_extensions import Self
 
 from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.urls import strip_auth_from_urls_in_text
 from prefect.exceptions import InvalidRepositoryURLError
 from prefect.filesystems import ReadableDeploymentStorage
 from prefect.utilities.processutils import run_process
@@ -136,6 +137,22 @@ class BitBucketRepository(ReadableDeploymentStorage):
 
         return full_url
 
+    def _git_error_extra_secrets(self) -> list[str]:
+        if self.bitbucket_credentials is None or not self.bitbucket_credentials.token:
+            return []
+
+        token = self.bitbucket_credentials.token.get_secret_value()
+        username = self.bitbucket_credentials.username or "x-token-auth"
+        quoted_token = _quote_credential(token)
+        quoted_username = _quote_credential(username)
+
+        return [
+            token,
+            quoted_token,
+            f"{username}:{token}",
+            f"{quoted_username}:{quoted_token}",
+        ]
+
     @staticmethod
     def _get_paths(
         dst_dir: Union[str, None], src_dir: str, sub_directory: Optional[str]
@@ -188,7 +205,10 @@ class BitBucketRepository(ReadableDeploymentStorage):
             process = await run_process(cmd, stream_output=(out_stream, err_stream))
             if process.returncode != 0:
                 err_stream.seek(0)
-                raise OSError(f"Failed to pull from remote:\n {err_stream.read()}")
+                sanitized_error = strip_auth_from_urls_in_text(
+                    err_stream.read(), extra_secrets=self._git_error_extra_secrets()
+                )
+                raise OSError(f"Failed to pull from remote:\n {sanitized_error}")
 
             content_source, content_destination = self._get_paths(
                 dst_dir=local_path, src_dir=tmp_dir, sub_directory=from_path
@@ -221,7 +241,10 @@ class BitBucketRepository(ReadableDeploymentStorage):
 
             result = subprocess.run(cmd, capture_output=True, text=True)
             if result.returncode != 0:
-                raise OSError(f"Failed to pull from remote:\n {result.stderr}")
+                sanitized_error = strip_auth_from_urls_in_text(
+                    result.stderr, extra_secrets=self._git_error_extra_secrets()
+                )
+                raise OSError(f"Failed to pull from remote:\n {sanitized_error}")
 
             content_source, content_destination = self._get_paths(
                 dst_dir=local_path, src_dir=tmp_dir, sub_directory=from_path

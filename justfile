@@ -78,6 +78,7 @@ generate-openapi:
 generate-settings:
     uv run --isolated -p 3.10 --with 'pydantic>=2.9.0' ./scripts/generate_settings_schema.py
     uv run --isolated -p 3.10 --with 'pydantic>=2.9.0' ./scripts/generate_settings_ref.py
+    uv run --isolated -p 3.10 --with 'pydantic>=2.9.0' ./scripts/generate_settings_types.py
 
 # Generate prefect.yaml JSON schema for IDE support
 generate-prefect-yaml-schema:

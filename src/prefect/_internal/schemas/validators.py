@@ -21,7 +21,9 @@ from uuid import UUID
 from zoneinfo import ZoneInfo
 
 import jsonschema
+import referencing.exceptions
 
+from prefect._internal.schemas._registry import non_fetching_registry
 from prefect.types._datetime import DateTime, create_datetime_instance, get_timezones
 from prefect.utilities.collections import isiterable
 from prefect.utilities.filesystem import relative_path_to_current_platform
@@ -65,7 +67,9 @@ def validate_values_conform_to_schema(
 
     try:
         if schema is not None and values is not None:
-            jsonschema.validate(values, schema)
+            jsonschema.validate(values, schema, registry=non_fetching_registry())
+    except referencing.exceptions.Unresolvable as exc:
+        raise ValueError(f"Validation failed. Failure reason: {exc}") from exc
     except jsonschema.ValidationError as exc:
         if exc.json_path == "$":
             error_message = "Validation failed."

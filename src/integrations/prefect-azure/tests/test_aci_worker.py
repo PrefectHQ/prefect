@@ -15,6 +15,7 @@ from azure.mgmt.resource import ResourceManagementClient
 from prefect_azure import AzureContainerInstanceCredentials
 from prefect_azure.container_instance import ACRManagedIdentity
 from prefect_azure.workers.container_instance import (
+    CONTAINER_GROUP_GET_MAX_RETRIES,
     ENV_SECRETS,
     AzureContainerJobConfiguration,
     AzureContainerVariables,  # noqa
@@ -1378,3 +1379,155 @@ async def test_kill_infrastructure_invalid_pid_format(aci_credentials, worker_fl
                 configuration=job_configuration,
                 grace_seconds=30,
             )
+
+
+class TestGetContainerGroupRetries:
+    """Tests for transient HTTP error retry logic in _get_container_group."""
+
+    def _make_http_error(self, status_code: int) -> HttpResponseError:
+        mock_response = Mock()
+        mock_response.status_code = status_code
+        return HttpResponseError(response=mock_response)
+
+    def test_retries_on_transient_503_then_succeeds(self):
+        mock_client = MagicMock()
+        expected_group = Mock(name="container_group")
+        mock_client.container_groups.get.side_effect = [
+            self._make_http_error(503),
+            self._make_http_error(503),
+            expected_group,
+        ]
+
+        with mock.patch(
+            "prefect_azure.workers.container_instance.time.sleep"
+        ) as mock_sleep:
+            result = AzureContainerWorker._get_container_group(mock_client, "rg", "cg")
+
+        assert result is expected_group
+        assert mock_client.container_groups.get.call_count == 3
+        assert mock_sleep.call_count == 2
+
+    def test_raises_after_all_retries_exhausted(self):
+        mock_client = MagicMock()
+        errors = [
+            self._make_http_error(503)
+            for _ in range(CONTAINER_GROUP_GET_MAX_RETRIES + 1)
+        ]
+        mock_client.container_groups.get.side_effect = errors
+
+        with mock.patch("prefect_azure.workers.container_instance.time.sleep"):
+            with pytest.raises(HttpResponseError):
+                AzureContainerWorker._get_container_group(mock_client, "rg", "cg")
+
+        assert mock_client.container_groups.get.call_count == (
+            CONTAINER_GROUP_GET_MAX_RETRIES + 1
+        )
+
+    def test_does_not_retry_on_client_error(self):
+        mock_client = MagicMock()
+        mock_client.container_groups.get.side_effect = self._make_http_error(404)
+
+        with mock.patch(
+            "prefect_azure.workers.container_instance.time.sleep"
+        ) as mock_sleep:
+            with pytest.raises(HttpResponseError):
+                AzureContainerWorker._get_container_group(mock_client, "rg", "cg")
+
+        assert mock_client.container_groups.get.call_count == 1
+        mock_sleep.assert_not_called()
+
+    def test_uses_exponential_backoff(self):
+        mock_client = MagicMock()
+        errors = [
+            self._make_http_error(500) for _ in range(CONTAINER_GROUP_GET_MAX_RETRIES)
+        ]
+        expected_group = Mock(name="container_group")
+        mock_client.container_groups.get.side_effect = [*errors, expected_group]
+
+        with mock.patch(
+            "prefect_azure.workers.container_instance.time.sleep"
+        ) as mock_sleep:
+            result = AzureContainerWorker._get_container_group(mock_client, "rg", "cg")
+
+        assert result is expected_group
+        delays = [call.args[0] for call in mock_sleep.call_args_list]
+        # Expect exponential backoff: 1.0, 2.0, 4.0
+        assert delays == [1.0, 2.0, 4.0]
+
+    def test_retries_on_502_gateway_error(self):
+        mock_client = MagicMock()
+        expected_group = Mock(name="container_group")
+        mock_client.container_groups.get.side_effect = [
+            self._make_http_error(502),
+            expected_group,
+        ]
+
+        with mock.patch("prefect_azure.workers.container_instance.time.sleep"):
+            result = AzureContainerWorker._get_container_group(mock_client, "rg", "cg")
+
+        assert result is expected_group
+        assert mock_client.container_groups.get.call_count == 2
+
+    def test_does_not_retry_http_error_without_status_code(self):
+        mock_client = MagicMock()
+        mock_client.container_groups.get.side_effect = HttpResponseError(
+            message="Unknown error"
+        )
+
+        with mock.patch(
+            "prefect_azure.workers.container_instance.time.sleep"
+        ) as mock_sleep:
+            with pytest.raises(HttpResponseError):
+                AzureContainerWorker._get_container_group(mock_client, "rg", "cg")
+
+        assert mock_client.container_groups.get.call_count == 1
+        mock_sleep.assert_not_called()
+
+
+async def test_watch_task_retries_transient_errors(
+    mock_prefect_client,
+    worker_flow_run,
+    job_configuration,
+    mock_aci_client,
+    running_worker_container_group,
+    completed_worker_container_group,
+    monkeypatch,
+):
+    """
+    Test that _watch_task_and_get_exit_code completes successfully when
+    _get_container_group encounters transient 503 errors mid-polling.
+    """
+    mock_response = Mock()
+    mock_response.status_code = 503
+    transient_error = HttpResponseError(response=mock_response)
+
+    call_count = 0
+
+    def get_container_group(**kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise transient_error
+        elif call_count < 4:
+            return running_worker_container_group
+        else:
+            return completed_worker_container_group
+
+    mock_aci_client.container_groups.get.side_effect = get_container_group
+
+    async with AzureContainerWorker(work_pool_name="test_pool") as aci_worker:
+        monkeypatch.setattr(
+            aci_worker, "_provisioning_succeeded", Mock(return_value=True)
+        )
+        monkeypatch.setattr(
+            aci_worker,
+            "_wait_for_task_container_start",
+            Mock(return_value=running_worker_container_group),
+        )
+
+        job_configuration.task_watch_poll_interval = 0.02
+
+        result = await aci_worker.run(worker_flow_run, job_configuration)
+
+    assert isinstance(result, AzureContainerWorkerResult)
+    assert result.status_code == 0

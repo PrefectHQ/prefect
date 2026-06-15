@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 from uuid import uuid4
 
@@ -105,7 +106,7 @@ class TestWorkspaceResolverProcess:
         assert result.workspace.working_directory == local_project.resolve()
         assert result.workspace.project_root == local_project.resolve()
 
-    async def test_resolves_relative_local_storage_path_before_entering_workspace(
+    async def test_materializes_relative_local_deployment_path_into_workspace(
         self,
         prefect_client,
         tmp_path: Path,
@@ -146,6 +147,152 @@ class TestWorkspaceResolverProcess:
         assert (workspace_root / "flows" / "hello.py").read_text() == (
             "from prefect import flow\n\n@flow\ndef hello():\n    return 'relative'\n"
         )
+
+    async def test_pull_steps_without_directory_output_materialize_source_into_workspace(
+        self,
+        prefect_client,
+        tmp_path: Path,
+    ) -> None:
+        local_project = tmp_path / "setup-step-project"
+        flow_file = local_project / "flows" / "hello.py"
+        flow_file.parent.mkdir(parents=True, exist_ok=True)
+        flow_file.write_text(
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'setup'\n"
+        )
+        local_project.joinpath("pyproject.toml").write_text(
+            "[project]\nname = 'setup-step-project'\nversion = '0.1.0'\n"
+        )
+
+        flow_id = await prefect_client.create_flow_from_name("setup-step-hello")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="setup-step-deployment",
+            entrypoint="flows/hello.py:hello",
+            pull_steps=[
+                {
+                    "prefect.deployments.steps.run_shell_script": {
+                        "script": "echo setup complete",
+                        "stream_output": False,
+                    }
+                }
+            ],
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        workspace_root = tmp_path / "setup-step-workspace"
+        with tmpchdir(local_project):
+            process = _run_workspace_resolver(flow_run.id, workspace_root)
+            assert Path.cwd() == local_project.resolve()
+
+        result = _parse_result(process)
+
+        assert process.returncode == 0, process.stderr
+        assert result.status == "success"
+        assert result.workspace is not None
+        assert result.workspace.working_directory == workspace_root.resolve()
+        assert result.workspace.project_root == workspace_root.resolve()
+        assert (workspace_root / "flows" / "hello.py").read_text() == (
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'setup'\n"
+        )
+
+    async def test_pull_steps_without_directory_output_keep_workspace_when_entrypoint_created_there(
+        self,
+        prefect_client,
+        tmp_path: Path,
+    ) -> None:
+        workspace_writer = tmp_path / "write_workspace_flow.py"
+        workspace_writer.write_text(
+            "from pathlib import Path\n"
+            "Path('flows').mkdir(parents=True, exist_ok=True)\n"
+            "Path('flows/hello.py').write_text("
+            '"from prefect import flow\\n\\n'
+            "@flow\\ndef hello():\\n    return 'workspace'\\n\""
+            ")\n"
+            "Path('pyproject.toml').write_text("
+            "\"[project]\\nname = 'workspace-project'\\nversion = '0.1.0'\\n\""
+            ")\n"
+        )
+
+        flow_id = await prefect_client.create_flow_from_name("workspace-step-hello")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="workspace-step-deployment",
+            entrypoint="flows/hello.py:hello",
+            pull_steps=[
+                {
+                    "prefect.deployments.steps.run_shell_script": {
+                        "script": f"{sys.executable} {workspace_writer}",
+                        "stream_output": False,
+                    }
+                }
+            ],
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        caller_project = tmp_path / "caller-project"
+        caller_flow = caller_project / "flows" / "hello.py"
+        caller_flow.parent.mkdir(parents=True)
+        caller_flow.write_text(
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'caller'\n"
+        )
+
+        workspace_root = tmp_path / "workspace-step-workspace"
+        with tmpchdir(caller_project):
+            process = _run_workspace_resolver(flow_run.id, workspace_root)
+            assert Path.cwd() == caller_project.resolve()
+
+        result = _parse_result(process)
+
+        assert process.returncode == 0, process.stderr
+        assert result.status == "success"
+        assert result.workspace is not None
+        assert result.workspace.working_directory == workspace_root.resolve()
+        assert result.workspace.project_root == workspace_root.resolve()
+        assert (workspace_root / "flows" / "hello.py").read_text() == (
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'workspace'\n"
+        )
+
+    async def test_resolves_local_deployment_path_in_place_without_storage(
+        self,
+        prefect_client,
+        tmp_path: Path,
+    ) -> None:
+        local_project = tmp_path / "image-app"
+        flow_file = local_project / "flows" / "hello.py"
+        flow_file.parent.mkdir(parents=True, exist_ok=True)
+        flow_file.write_text(
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'image-local'\n"
+        )
+        local_project.joinpath(".prefectignore").write_text("flows/\n")
+        local_project.joinpath("pyproject.toml").write_text(
+            "[project]\nname = 'image-app'\nversion = '0.1.0'\n"
+        )
+
+        flow_id = await prefect_client.create_flow_from_name("image-local-hello")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="image-local-deployment",
+            entrypoint="flows/hello.py:hello",
+            path=str(local_project),
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        workspace_root = tmp_path / "image-local-workspace"
+        process = _run_workspace_resolver(flow_run.id, workspace_root)
+        result = _parse_result(process)
+
+        assert process.returncode == 0, process.stderr
+        assert result.status == "success"
+        assert result.workspace is not None
+        assert result.workspace.working_directory == local_project.resolve()
+        assert result.workspace.project_root == local_project.resolve()
+        assert not (workspace_root / "flows" / "hello.py").exists()
 
     async def test_resolves_storage_base_path_into_matching_workspace_directory(
         self,
@@ -304,7 +451,7 @@ class TestWorkspaceResolverProcess:
         assert result.workspace is not None
         assert result.workspace.working_directory == (workspace_root / "src").resolve()
 
-    async def test_ignores_empty_directory_output_from_custom_step(
+    async def test_empty_directory_output_does_not_override_workspace_fallback(
         self,
         prefect_client,
         tmp_path: Path,
