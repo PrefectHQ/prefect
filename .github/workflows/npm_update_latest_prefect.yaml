@@ -15,11 +15,13 @@
     update_prefect_packages:
       runs-on: ubuntu-latest
       permissions:
-        # required to write to the repo
+        # required to push the dependency-bump branch
         contents: write
+        # required for `gh pr create`
+        pull-requests: write
       steps:
         - uses: actions/checkout@v6
-  
+
         - name: Configure Git
           run: |
             git config user.name "$GITHUB_ACTOR"
@@ -72,5 +74,5 @@
           env:
             PACKAGE_NAME: ${{ inputs.package_name }}
             PACKAGE_VERSION: ${{ inputs.package_version }}
-            GITHUB_TOKEN: ${{ secrets.UI_COMPONENTS_CONTENTS_PRS_RW }}
+            GITHUB_TOKEN: ${{ github.token }}
   
