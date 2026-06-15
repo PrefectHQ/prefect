@@ -4,7 +4,7 @@ The CancellationCleanup service. Responsible for cancelling tasks and subflows t
 
 import datetime
 import logging
-from typing import Annotated, Any
+from typing import Annotated
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 import sqlalchemy as sa
@@ -202,36 +202,26 @@ async def handle_cancelling_timeout(
 ) -> CleanupQueueMessage | None:
     """Handle a scheduled CANCELLING timeout check for a single flow run."""
     settings = get_current_settings().server.services.cancellation_cleanup
-    cleanup_enqueue_parameters: dict[str, Any] | None = None
-    cleanup_state_id: UUID | None = None
 
     async with db.session_context(begin_transaction=True) as session:
         flow_run_result = await session.execute(
-            sa.select(
-                db.FlowRun,
-                db.WorkQueue.work_pool_id,
-                db.WorkPool.type,
-            )
-            .outerjoin(db.WorkQueue, db.FlowRun.work_queue_id == db.WorkQueue.id)
-            .outerjoin(db.WorkPool, db.WorkQueue.work_pool_id == db.WorkPool.id)
+            sa.select(db.FlowRun)
             .where(db.FlowRun.id == flow_run_id)
             .with_for_update(of=db.FlowRun)
         )
-        row = flow_run_result.first()
-        if row is None:
+        flow_run = flow_run_result.scalar_one_or_none()
+        if flow_run is None:
             logger.info(
                 "Flow run %s no longer exists, skipping CANCELLING timeout",
                 flow_run_id,
             )
             return None
 
-        flow_run, work_pool_id, work_pool_type = row
-        if (
+        timeout_cancelled_state_already_committed = (
             flow_run.state_type == states.StateType.CANCELLED
             and flow_run.state_id == timeout_cancelled_state_id
-        ):
-            cleanup_state_id = flow_run.state_id
-        else:
+        )
+        if not timeout_cancelled_state_already_committed:
             if flow_run.state_id != flow_run_state_id:
                 logger.info(
                     "Flow run %s is in a new state, skipping CANCELLING timeout",
@@ -297,12 +287,42 @@ async def handle_cancelling_timeout(
 
             if (
                 state_result.state is None
-                or state_result.state.id is None
+                or state_result.state.id != timeout_cancelled_state_id
                 or state_result.state.type != states.StateType.CANCELLED
             ):
                 return None
 
-            cleanup_state_id = state_result.state.id
+    async with db.session_context(begin_transaction=True) as session:
+        flow_run_result = await session.execute(
+            sa.select(
+                db.FlowRun,
+                db.WorkQueue.work_pool_id,
+                db.WorkPool.type,
+            )
+            .outerjoin(db.WorkQueue, db.FlowRun.work_queue_id == db.WorkQueue.id)
+            .outerjoin(db.WorkPool, db.WorkQueue.work_pool_id == db.WorkPool.id)
+            .where(db.FlowRun.id == flow_run_id)
+            .with_for_update(of=db.FlowRun)
+        )
+        row = flow_run_result.first()
+        if row is None:
+            logger.info(
+                "Flow run %s no longer exists, skipping CANCELLING timeout cleanup",
+                flow_run_id,
+            )
+            return None
+
+        flow_run, work_pool_id, work_pool_type = row
+        if (
+            flow_run.state_type != states.StateType.CANCELLED
+            or flow_run.state_id != timeout_cancelled_state_id
+        ):
+            logger.info(
+                "Flow run %s is no longer in the timeout Cancelled state, skipping "
+                "CANCELLING timeout cleanup",
+                flow_run.id,
+            )
+            return None
 
         if flow_run.work_queue_id is None or work_pool_id is None:
             logger.warning(
@@ -333,10 +353,11 @@ async def handle_cancelling_timeout(
                 NAMESPACE_URL,
                 "prefect:"
                 f"{CANCELLING_TIMEOUT_TEARDOWN}:"
-                f"{flow_run.id}:{cleanup_state_id}",
+                f"{flow_run.id}:{timeout_cancelled_state_id}",
             ),
             "idempotency_key": (
-                f"{CANCELLING_TIMEOUT_TEARDOWN}:{flow_run.id}:{cleanup_state_id}"
+                f"{CANCELLING_TIMEOUT_TEARDOWN}:"
+                f"{flow_run.id}:{timeout_cancelled_state_id}"
             ),
             "work_pool_id": work_pool_id,
             "work_queue_id": flow_run.work_queue_id,
@@ -347,10 +368,8 @@ async def handle_cancelling_timeout(
             },
         }
 
-    if cleanup_enqueue_parameters is None:
-        return None
+        message = await cleanup_queue.enqueue(**cleanup_enqueue_parameters)
 
-    message = await cleanup_queue.enqueue(**cleanup_enqueue_parameters)
     logger.info(
         "Enqueued CANCELLING timeout cleanup message: flow_run_id=%s message_id=%s",
         flow_run_id,
@@ -378,36 +397,59 @@ async def ensure_cancelling_timeout_checks(
 
     settings = get_current_settings().server.services.cancellation_cleanup
     batch_size = 200
-    cancelling_flow_query = (
-        sa.select(
-            db.FlowRun.id,
-            db.FlowRun.state_id,
-            db.FlowRun.state_timestamp,
-        )
-        .where(
+    last_state_timestamp: datetime.datetime | None = None
+    last_flow_run_id: UUID | None = None
+
+    while True:
+        query_conditions = [
             db.FlowRun.state_type == states.StateType.CANCELLING,
             db.FlowRun.state_id.is_not(None),
             db.FlowRun.state_timestamp.is_not(None),
-        )
-        .order_by(db.FlowRun.state_timestamp, db.FlowRun.id)
-        .limit(batch_size)
-    )
+        ]
+        if last_state_timestamp is not None and last_flow_run_id is not None:
+            query_conditions.append(
+                sa.or_(
+                    db.FlowRun.state_timestamp > last_state_timestamp,
+                    sa.and_(
+                        db.FlowRun.state_timestamp == last_state_timestamp,
+                        db.FlowRun.id > last_flow_run_id,
+                    ),
+                )
+            )
 
-    async with db.session_context() as session:
-        result = await session.execute(cancelling_flow_query)
-    cancelling_flow_runs = result.all()
-
-    for flow_run_id, flow_run_state_id, state_timestamp in cancelling_flow_runs:
-        await docket.add(
-            handle_cancelling_timeout,
-            key=cancelling_timeout_check_key(flow_run_id),
-            when=state_timestamp
-            + datetime.timedelta(seconds=settings.cancelling_timeout_seconds),
-        )(
-            flow_run_id=flow_run_id,
-            flow_run_state_id=flow_run_state_id,
-            timeout_cancelled_state_id=uuid7(),
+        cancelling_flow_query = (
+            sa.select(
+                db.FlowRun.id,
+                db.FlowRun.state_id,
+                db.FlowRun.state_timestamp,
+            )
+            .where(*query_conditions)
+            .order_by(db.FlowRun.state_timestamp, db.FlowRun.id)
+            .limit(batch_size)
         )
+
+        async with db.session_context() as session:
+            result = await session.execute(cancelling_flow_query)
+        cancelling_flow_runs = result.all()
+
+        if not cancelling_flow_runs:
+            break
+
+        for flow_run_id, flow_run_state_id, state_timestamp in cancelling_flow_runs:
+            await docket.add(
+                handle_cancelling_timeout,
+                key=cancelling_timeout_check_key(flow_run_id),
+                when=state_timestamp
+                + datetime.timedelta(seconds=settings.cancelling_timeout_seconds),
+            )(
+                flow_run_id=flow_run_id,
+                flow_run_state_id=flow_run_state_id,
+                timeout_cancelled_state_id=uuid7(),
+            )
+
+        last_flow_run_id, _, last_state_timestamp = cancelling_flow_runs[-1]
+        if len(cancelling_flow_runs) < batch_size:
+            break
 
 
 # Perpetual monitor for cancelled flow runs with child tasks (find and flood pattern)

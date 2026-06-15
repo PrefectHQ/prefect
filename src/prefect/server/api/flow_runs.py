@@ -74,6 +74,33 @@ def _get_request_docket(request: Request) -> Docket | None:
     return getattr(request.app.state, "docket", None)
 
 
+async def _schedule_cancelling_timeout_check_for_state(
+    *,
+    request: Request,
+    flow_run_id: UUID,
+    state: schemas.states.State | None,
+) -> None:
+    docket = _get_request_docket(request)
+    if docket is None:
+        return
+
+    try:
+        await schedule_cancelling_timeout_check_for_state(
+            docket=docket,
+            flow_run_id=flow_run_id,
+            state=state,
+        )
+    except Exception:
+        logger.exception(
+            "Failed to schedule CANCELLING timeout check; allowing accepted "
+            "state transition to proceed",
+            extra={
+                "flow_run_id": str(flow_run_id),
+                "flow_run_state_id": str(state.id) if state and state.id else None,
+            },
+        )
+
+
 @router.post("/")
 async def create_flow_run(
     flow_run: schemas.actions.FlowRunCreate,
@@ -144,12 +171,11 @@ async def create_flow_run(
             model, from_attributes=True
         )
 
-    if docket := _get_request_docket(request):
-        await schedule_cancelling_timeout_check_for_state(
-            docket=docket,
-            flow_run_id=flow_run_id,
-            state=timeout_check_state,
-        )
+    await _schedule_cancelling_timeout_check_for_state(
+        request=request,
+        flow_run_id=flow_run_id,
+        state=timeout_check_state,
+    )
     if created:
         response.status_code = status.HTTP_201_CREATED
 
@@ -782,12 +808,11 @@ async def bulk_set_flow_run_state(
                 continue
 
         if state_to_schedule is not None:
-            if docket := _get_request_docket(request):
-                await schedule_cancelling_timeout_check_for_state(
-                    docket=docket,
-                    flow_run_id=flow_run.id,
-                    state=state_to_schedule,
-                )
+            await _schedule_cancelling_timeout_check_for_state(
+                request=request,
+                flow_run_id=flow_run.id,
+                state=state_to_schedule,
+            )
 
     return FlowRunBulkSetStateResponse(results=results)
 
@@ -838,12 +863,11 @@ async def set_flow_run_state(
         )
 
     if orchestration_result.status == schemas.responses.SetStateStatus.ACCEPT:
-        if docket := _get_request_docket(request):
-            await schedule_cancelling_timeout_check_for_state(
-                docket=docket,
-                flow_run_id=flow_run_id,
-                state=orchestration_result.state,
-            )
+        await _schedule_cancelling_timeout_check_for_state(
+            request=request,
+            flow_run_id=flow_run_id,
+            state=orchestration_result.state,
+        )
 
     # set the 201 if a new state was created
     if orchestration_result.state and orchestration_result.state.timestamp >= right_now:

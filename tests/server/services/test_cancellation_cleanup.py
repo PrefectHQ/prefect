@@ -290,6 +290,43 @@ async def test_ensure_cancelling_timeout_checks_schedules_existing_cancelling_ru
     assert cancelling_timeout_check_key(flow_run.id) in task_keys
 
 
+async def test_ensure_cancelling_timeout_checks_pages_past_first_batch(
+    session: AsyncSession,
+    flow: Flow,
+    work_pool: Any,
+):
+    state_timestamp = now("UTC") - Duration(seconds=30)
+    flow_run_ids = []
+    async with session.begin():
+        for _ in range(201):
+            flow_run = await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=schemas.core.FlowRun(
+                    flow_id=flow.id,
+                    state=states.Cancelling(timestamp=state_timestamp),
+                    infrastructure_pid="infra-pid-1",
+                    work_queue_id=work_pool.default_queue_id,
+                ),
+            )
+            flow_run_ids.append(flow_run.id)
+
+    async with Docket(name=f"test-{uuid4()}", url="memory://") as docket:
+        with temporary_settings(
+            {
+                PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_ENABLED: True,
+                PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_CANCELLING_TIMEOUT_SECONDS: 60,
+            }
+        ):
+            await ensure_cancelling_timeout_checks(
+                docket=docket, db=provide_database_interface()
+            )
+        snapshot = await docket.snapshot()
+
+    task_keys = [task.key for task in snapshot.future]
+    task_keys.extend(task.key for task in snapshot.running)
+    assert cancelling_timeout_check_key(max(flow_run_ids)) in task_keys
+
+
 async def test_handle_cancelling_timeout_cancels_and_enqueues_cleanup(
     cleanup_queue: WorkerCleanupQueue,
     cancelling_flow_run_maker: Callable[..., Awaitable[Any]],
@@ -404,6 +441,51 @@ async def test_handle_cancelling_timeout_does_not_trust_matching_user_message(
 
     assert message is None
     assert await cleanup_queue.reserve(work_pool_id=work_pool.id) is None
+
+
+async def test_handle_cancelling_timeout_skips_cleanup_when_timeout_state_is_overwritten(
+    cleanup_queue: WorkerCleanupQueue,
+    cancelling_flow_run_maker: Callable[..., Awaitable[Any]],
+    monkeypatch: pytest.MonkeyPatch,
+    session: AsyncSession,
+    work_pool: Any,
+):
+    flow_run = await cancelling_flow_run_maker(infrastructure_pid="infra-pid-1")
+    original_state_id = flow_run.state_id
+    assert original_state_id is not None
+    original_set_flow_run_state = models.flow_runs.set_flow_run_state
+
+    async def set_timeout_then_stale_final_state(**kwargs: Any):
+        result = await original_set_flow_run_state(**kwargs)
+        await original_set_flow_run_state(
+            session=kwargs["session"],
+            flow_run_id=kwargs["flow_run_id"],
+            state=states.Completed(),
+            force=True,
+        )
+        return result
+
+    monkeypatch.setattr(
+        models.flow_runs,
+        "set_flow_run_state",
+        set_timeout_then_stale_final_state,
+    )
+
+    with temporary_settings(
+        {PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_CANCELLING_TIMEOUT_SECONDS: 60}
+    ):
+        message, timeout_state_id = await _handle_cancelling_timeout_for_run(
+            flow_run,
+            cleanup_queue,
+            flow_run_state_id=original_state_id,
+        )
+
+    assert message is None
+    assert await cleanup_queue.reserve(work_pool_id=work_pool.id) is None
+    await session.refresh(flow_run)
+    assert flow_run.state is not None
+    assert flow_run.state.type == states.StateType.COMPLETED
+    assert flow_run.state_id != timeout_state_id
 
 
 async def test_handle_cancelling_timeout_skips_unroutable_runs(

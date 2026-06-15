@@ -119,10 +119,6 @@ SUPPORTED_SETTINGS = {
         "test_value": True,
         "legacy": True,
     },
-    "PREFECT_API_SERVICES_CANCELLATION_CLEANUP_CANCELLING_TIMEOUT_SECONDS": {
-        "test_value": 60.0,
-        "legacy": True,
-    },
     "PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS": {
         "test_value": 10.0,
         "legacy": True,
