@@ -322,13 +322,9 @@ async def delete(
                 exit_with_error(f"Flow run '{flow_run_id}' not found!")
 
     if len(flow_run_ids) == 1:
-        exit_with_success(
-            f"Successfully deleted flow run '{flow_run_ids[0]}'."
-        )
+        exit_with_success(f"Successfully deleted flow run '{flow_run_ids[0]}'.")
     else:
-        exit_with_success(
-            f"Successfully deleted {len(flow_run_ids)} flow run(s)."
-        )
+        exit_with_success(f"Successfully deleted {len(flow_run_ids)} flow run(s).")
 
 
 @flow_run_app.command()
