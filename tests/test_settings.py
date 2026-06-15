@@ -3008,6 +3008,26 @@ def test_prefect_custom_sources_satisfy_pydantic_warning_check() -> None:
     assert not caught
 
 
+class TestServerDocketUrl:
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "memory://",
+            "redis://redis-host:6379/0",
+            "rediss://redis-host:6379/0",
+            "redis+sentinel://sentinel-a:26379,sentinel-b:26379/mymaster/0",
+            "rediss+sentinel://sentinel-a:26379/mymaster",
+        ],
+    )
+    def test_docket_url_accepts_supported_schemes(self, url: str):
+        # The URL is parsed by Docket, not prefect, so the setting must accept
+        # every documented scheme unchanged — in particular the redis+sentinel://
+        # schemes that pydocket>=0.22.0 resolves through Sentinel (see
+        # docs/v3/advanced/self-hosted.mdx).
+        settings = Settings(server={"docket": {"url": url}})
+        assert settings.server.docket.url == url
+
+
 class TestWorkerDebugMode:
     def test_worker_debug_mode_defaults_to_false(self):
         settings = Settings()

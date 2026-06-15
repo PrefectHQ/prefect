@@ -1691,7 +1691,7 @@ The name of the Docket instance.
 `PREFECT_SERVER_DOCKET_NAME`
 
 ### `url`
-The URL of the Redis server to use for Docket.
+The URL of the Redis server to use for Docket. Supports the memory:// (single-server only), redis://, rediss://, redis+sentinel:// and rediss+sentinel:// schemes; the Sentinel schemes discover the current master through the listed Sentinel daemons and follow failover automatically (requires pydocket>=0.22.0).
 
 **Type**: `string`
 

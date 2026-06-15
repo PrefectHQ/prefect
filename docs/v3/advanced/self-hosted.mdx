@@ -189,6 +189,14 @@ For Redis instances that require SSL/TLS:
 export PREFECT_SERVER_DOCKET_URL="rediss://redis-host:6379/0"
 ```
 
+For a Redis deployment fronted by [Redis Sentinel](https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/), use the `redis+sentinel://` scheme with a comma-separated list of Sentinel daemons and the master group name. Docket discovers the current master through Sentinel and follows failover automatically:
+
+```bash
+export PREFECT_SERVER_DOCKET_URL="redis+sentinel://sentinel-a:26379,sentinel-b:26379,sentinel-c:26379/mymaster/0"
+```
+
+Use the `rediss+sentinel://` scheme for SSL/TLS. This requires `pydocket>=0.22.0`.
+
 <Note>
 The Docket URL can use the same Redis instance as the messaging configuration above, but you may use a different database number (e.g., `/1` instead of `/0`) to keep the data separate.
 </Note>
