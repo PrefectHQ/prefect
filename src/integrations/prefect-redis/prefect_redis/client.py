@@ -108,7 +108,7 @@ _client_cache: dict[CacheKey, RedisClient] = {}
 
 def is_cluster_url(url: str) -> bool:
     """Return True if the URL uses the Redis Cluster scheme."""
-    return urlparse(url).scheme in {"redis+cluster", "rediss+cluster"}
+    return url.partition("://")[0] in {"redis+cluster", "rediss+cluster"}
 
 
 def normalize_cluster_url(url: str) -> str:

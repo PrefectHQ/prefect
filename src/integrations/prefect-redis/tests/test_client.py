@@ -48,6 +48,7 @@ def test_cluster_url_detection():
     assert is_cluster_url("rediss+cluster://redis.example.com:6379")
     assert not is_cluster_url("redis://redis.example.com:6379")
     assert not is_cluster_url("rediss://redis.example.com:6379")
+    assert not is_cluster_url("redis://host,[::1]:6379")
 
 
 @pytest.mark.parametrize(
