@@ -10,6 +10,7 @@ import base64
 import contextlib
 import gc
 import hmac
+import importlib.metadata
 import logging
 import mimetypes
 import os
@@ -28,7 +29,6 @@ from typing import Any, AsyncGenerator, Awaitable, Callable, Optional
 
 import anyio
 import asyncpg
-import fastapi.routing
 import httpx
 import sqlalchemy as sa
 import sqlalchemy.exc
@@ -42,6 +42,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from packaging.version import Version
 from starlette.exceptions import HTTPException
 from typing_extensions import Self
 
@@ -76,9 +77,9 @@ logfire: Any | None = configure_logfire()
 
 # FastAPI < 0.137 copies routes when including a router; 0.137+ keeps a
 # reference to the original via _IncludedRouter.
-_FASTAPI_COPIES_ROUTES_ON_INCLUDE: bool = not hasattr(
-    fastapi.routing, "_IncludedRouter"
-)
+_FASTAPI_COPIES_ROUTES_ON_INCLUDE: bool = Version(
+    importlib.metadata.version("fastapi")
+) < Version("0.137.0")
 
 TITLE = "Prefect Server"
 API_TITLE = "Prefect REST API"
