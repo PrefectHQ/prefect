@@ -241,7 +241,7 @@ async def test_pending_downstream_task_is_included_in_graph(
 
     child_node = nodes_by_id[pending_child.id]
 
-    assert parent_task.id in child_node.parent_ids
+    assert parent_task.id in [parent.id for parent in child_node.parents]
     assert child_node.state_type == StateType.PENDING
 
 

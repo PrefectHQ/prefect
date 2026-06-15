@@ -670,6 +670,14 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                     TaskRun.state_type.in_(schemas.states.TERMINAL_STATES),
                     TaskRun.expected_start_time,
                 ),
+                (
+                    sa.and_(
+                        TaskRun.start_time.is_(None),
+                        TaskRun.end_time.is_(None),
+                        TaskRun.expected_start_time.is_not(None),
+                    ),
+                    TaskRun.expected_start_time,
+                ),
                 else_=sa.null(),
             ),
         )
@@ -800,6 +808,10 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                     sa.and_(
                         graph.c.state_type.in_(schemas.states.TERMINAL_STATES),
                         graph.c.end_time >= param_since,
+                    ),
+                    sa.and_(
+                        graph.c.end_time.is_(None),
+                        graph.c.state_type.not_in(schemas.states.TERMINAL_STATES),
                     ),
                 )
             )
@@ -1024,6 +1036,14 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                     TaskRun.state_type.in_(schemas.states.TERMINAL_STATES),
                     TaskRun.expected_start_time,
                 ),
+                (
+                    sa.and_(
+                        TaskRun.start_time.is_(None),
+                        TaskRun.end_time.is_(None),
+                        TaskRun.expected_start_time.is_not(None),
+                    ),
+                    TaskRun.expected_start_time,
+                ),
                 else_=sa.null(),
             ),
         )
@@ -1146,6 +1166,10 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                     sa.and_(
                         graph.c.state_type.in_(schemas.states.TERMINAL_STATES),
                         graph.c.end_time >= param_since,
+                    ),
+                    sa.and_(
+                        graph.c.end_time.is_(None),
+                        graph.c.state_type.not_in(schemas.states.TERMINAL_STATES),
                     ),
                 )
             )
