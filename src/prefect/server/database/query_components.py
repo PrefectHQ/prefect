@@ -683,7 +683,6 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
             .join(Flow, isouter=True, onclause=Flow.id == FlowRun.flow_id)
             .where(
                 TaskRun.flow_run_id == param_flow_run_id,
-                TaskRun.state_type != StateType.PENDING,
                 sa.func.coalesce(
                     FlowRun.start_time,
                     FlowRun.expected_start_time,
@@ -1001,7 +1000,6 @@ class AioSqliteQueryComponents(BaseQueryComponents):
             .join(Flow, isouter=True, onclause=Flow.id == FlowRun.flow_id)
             .where(
                 TaskRun.flow_run_id == param_flow_run_id,
-                TaskRun.state_type != StateType.PENDING,
                 sa.func.coalesce(
                     FlowRun.start_time,
                     FlowRun.expected_start_time,
