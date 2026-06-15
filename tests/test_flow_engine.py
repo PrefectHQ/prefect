@@ -23,6 +23,7 @@ from prefect._flow_run_suspension import (
     FlowRunSuspensionRequest,
     mark_flow_run_suspension_requested,
 )
+from prefect.cache_policies import INPUTS
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas.filters import FlowFilter, FlowFilterName, FlowRunFilter
 from prefect.client.schemas.objects import StateType
@@ -1632,6 +1633,133 @@ class TestLoadSubflowRun:
         assert result.id == child_run.id
         assert engine._return_value is not NotSet, (
             "_return_value should be set for final parent task runs"
+        )
+
+
+class TestSubflowDynamicKeyRace:
+    """Regression tests for concurrent subflow calls adopting the wrong
+    persisted result on parent flow retry (OSS-8038 / #22259).
+
+    When subflows are called from within submitted tasks, the tracking
+    task run now uses UUID dynamic keys so that on retry, a re-executed
+    subflow call cannot match a different subflow's completed task run.
+    """
+
+    async def test_concurrent_subflow_retry_returns_correct_result(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        """Regression test for #22259: on attempt 2 of a parent flow,
+        an uncached wrapper task re-executes and calls its child subflow.
+        Without the fix, the child's tracking task run adopts a sibling's
+        completed tracking task run (due to positional dynamic_key
+        collision) and silently returns the wrong persisted result.
+
+        Shape:
+        - Attempt 1: chunk-1, chunk-2, chunk-3 complete; chunk-0 fails
+          *before* calling child, so siblings occupy counter keys first.
+        - Attempt 2: chunk-1..3 are served from INPUTS cache; chunk-0
+          re-executes and must create/run its own child flow run.
+        - Assert the final result for chunk-0 is correct and that the
+          child flow actually executed for chunk-0 on the second attempt.
+        """
+        # per-test nonce avoids cache pollution across test runs
+        nonce = uuid.uuid4().hex[:8]
+        child_executions: list[str] = []
+        attempt = 0
+
+        @flow(persist_result=True)
+        def child(chunk: str, nonce: str) -> str:
+            child_executions.append(chunk)
+            return f"result-for-{chunk}"
+
+        @task(persist_result=True, cache_policy=INPUTS)
+        def run_chunk(chunk: str, nonce: str) -> str:
+            # On attempt 1, chunk-0 fails before calling child so it
+            # never caches.  Siblings complete and their subflows occupy
+            # counter-based tracking task keys.
+            if chunk == "chunk-0" and attempt == 1:
+                raise ValueError(f"{chunk} fails on first attempt")
+            return child(chunk, nonce)
+
+        @flow(retries=1, persist_result=True)
+        def parent():
+            nonlocal attempt
+            attempt += 1
+
+            # Submit chunk-1..3 first so their subflows complete and
+            # occupy counter-based tracking task keys on attempt 1,
+            # then submit chunk-0 which will fail.
+            order = ["chunk-1", "chunk-2", "chunk-3", "chunk-0"]
+            futures = {name: run_chunk.submit(name, nonce) for name in order}
+            return {name: f.result() for name, f in futures.items()}
+
+        final = parent()
+
+        assert attempt == 2
+        # chunk-0 must have its own correct result, not an adopted sibling's
+        for name in ["chunk-0", "chunk-1", "chunk-2", "chunk-3"]:
+            assert final[name] == f"result-for-{name}", (
+                f"{name} got wrong result: {final[name]}"
+            )
+        # The child flow must have actually executed for chunk-0
+        assert "chunk-0" in child_executions, (
+            "child flow never executed for chunk-0 on retry"
+        )
+
+    async def test_async_subflow_from_task_uses_uuid_dynamic_key(
+        self, prefect_client: PrefectClient
+    ):
+        """Async path: subflow tracking task runs called from within a
+        task context get UUID dynamic keys (mirrors sync behaviour)."""
+        child_flow_run_ids: list[UUID] = []
+
+        @flow
+        async def child(x: int) -> int:
+            child_flow_run_ids.append(FlowRunContext.get().flow_run.id)
+            return x
+
+        @task
+        async def run_child(x: int) -> int:
+            return await child(x)
+
+        @flow
+        async def parent():
+            return await run_child(1)
+
+        await parent()
+
+        assert len(child_flow_run_ids) == 1
+        child_run = await prefect_client.read_flow_run(child_flow_run_ids[0])
+        assert child_run.parent_task_run_id is not None
+        task_run = await prefect_client.read_task_run(child_run.parent_task_run_id)
+        assert len(task_run.dynamic_key) > 8, (
+            f"Expected UUID dynamic key, got: {task_run.dynamic_key}"
+        )
+
+    async def test_direct_subflow_keeps_stable_key_for_retry_optimisation(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        """Direct subflow calls (no task context) keep stable sequential
+        keys so the retry optimisation (reuse completed subflow result)
+        still works."""
+        child_flow_run_ids: list[UUID] = []
+
+        @flow
+        def child() -> str:
+            child_flow_run_ids.append(FlowRunContext.get().flow_run.id)
+            return "hello"
+
+        @flow
+        def parent():
+            child()
+
+        parent()
+
+        child_run = sync_prefect_client.read_flow_run(child_flow_run_ids[0])
+        assert child_run.parent_task_run_id is not None
+        task_run = sync_prefect_client.read_task_run(child_run.parent_task_run_id)
+        assert task_run.dynamic_key == "0", (
+            f"Expected stable key '0', got: {task_run.dynamic_key}"
         )
 
 

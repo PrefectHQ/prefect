@@ -53,7 +53,11 @@ from prefect._flow_run_suspension import (
 )
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.control_listener import Intent, configure_from_env, get_intent
-from prefect._internal.engine import get_hook_name, resolve_custom_flow_run_name
+from prefect._internal.engine import (
+    dynamic_key_for_task_run,
+    get_hook_name,
+    resolve_custom_flow_run_name,
+)
 from prefect._internal.metrics import RunMetrics
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
@@ -71,6 +75,7 @@ from prefect.context import (
     SettingsContext,
     SyncClientContext,
     TagsContext,
+    TaskRunContext,
     _deployment_id,
     _deployment_parameters,
     get_settings_context,
@@ -973,11 +978,21 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
 
+            # In a task context, sibling call order is nondeterministic so a
+            # counter-based dynamic_key would let a retried subflow adopt the
+            # wrong sibling's completed tracking task run.  Use a UUID instead.
+            dynamic_key: str | None = None
+            if TaskRunContext.get() is not None:
+                dynamic_key = dynamic_key_for_task_run(
+                    context=flow_run_ctx, task=parent_task, stable=False
+                )
+
             parent_task_run = run_coro_as_sync(
                 parent_task.create_run(
                     flow_run_context=flow_run_ctx,
                     parameters=self.parameters,
                     wait_for=self.wait_for,
+                    dynamic_key=dynamic_key,
                 )
             )
 
@@ -1668,10 +1683,20 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
 
+            # In a task context, sibling call order is nondeterministic so a
+            # counter-based dynamic_key would let a retried subflow adopt the
+            # wrong sibling's completed tracking task run.  Use a UUID instead.
+            dynamic_key: str | None = None
+            if TaskRunContext.get() is not None:
+                dynamic_key = dynamic_key_for_task_run(
+                    context=flow_run_ctx, task=parent_task, stable=False
+                )
+
             parent_task_run = await parent_task.create_run(
                 flow_run_context=flow_run_ctx,
                 parameters=self.parameters,
                 wait_for=self.wait_for,
+                dynamic_key=dynamic_key,
             )
 
             # check if there is already a flow run for this subflow
