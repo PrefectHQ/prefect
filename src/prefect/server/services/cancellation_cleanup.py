@@ -72,7 +72,7 @@ async def schedule_cancelling_timeout_check(
     )
 
 
-async def schedule_cancelling_timeout_check_for_state(
+async def maybe_schedule_cancelling_timeout_check_for_state(
     *,
     docket: Docket,
     flow_run_id: UUID,
@@ -184,7 +184,7 @@ async def cancel_subflow_run(
         )
 
     if state_result.status == responses.SetStateStatus.ACCEPT:
-        await schedule_cancelling_timeout_check_for_state(
+        await maybe_schedule_cancelling_timeout_check_for_state(
             docket=docket,
             flow_run_id=subflow_run_id,
             state=state_result.state,

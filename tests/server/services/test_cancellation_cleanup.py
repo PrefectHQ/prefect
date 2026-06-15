@@ -22,8 +22,8 @@ from prefect.server.services.cancellation_cleanup import (
     cancelling_timeout_check_key,
     ensure_cancelling_timeout_checks,
     handle_cancelling_timeout,
+    maybe_schedule_cancelling_timeout_check_for_state,
     schedule_cancelling_timeout_check,
-    schedule_cancelling_timeout_check_for_state,
 )
 from prefect.server.worker_communication.cleanup_queue.memory import WorkerCleanupQueue
 from prefect.settings import (
@@ -239,7 +239,7 @@ async def test_schedule_cancelling_timeout_check_replaces_per_run_task():
                 PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_CANCELLING_TIMEOUT_SECONDS: 60,
             }
         ):
-            await schedule_cancelling_timeout_check_for_state(
+            await maybe_schedule_cancelling_timeout_check_for_state(
                 docket=docket,
                 flow_run_id=flow_run_id,
                 state=states.Cancelling(

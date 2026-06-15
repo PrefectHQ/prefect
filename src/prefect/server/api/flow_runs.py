@@ -55,7 +55,7 @@ from prefect.server.schemas.responses import (
     OrchestrationResult,
 )
 from prefect.server.services.cancellation_cleanup import (
-    schedule_cancelling_timeout_check_for_state,
+    maybe_schedule_cancelling_timeout_check_for_state,
 )
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
@@ -74,7 +74,7 @@ def _get_request_docket(request: Request) -> Docket | None:
     return getattr(request.app.state, "docket", None)
 
 
-async def _schedule_cancelling_timeout_check_for_state(
+async def _maybe_schedule_cancelling_timeout_check_for_state(
     *,
     request: Request,
     flow_run_id: UUID,
@@ -85,7 +85,7 @@ async def _schedule_cancelling_timeout_check_for_state(
         return
 
     try:
-        await schedule_cancelling_timeout_check_for_state(
+        await maybe_schedule_cancelling_timeout_check_for_state(
             docket=docket,
             flow_run_id=flow_run_id,
             state=state,
@@ -171,7 +171,7 @@ async def create_flow_run(
             model, from_attributes=True
         )
 
-    await _schedule_cancelling_timeout_check_for_state(
+    await _maybe_schedule_cancelling_timeout_check_for_state(
         request=request,
         flow_run_id=flow_run_id,
         state=timeout_check_state,
@@ -808,7 +808,7 @@ async def bulk_set_flow_run_state(
                 continue
 
         if state_to_schedule is not None:
-            await _schedule_cancelling_timeout_check_for_state(
+            await _maybe_schedule_cancelling_timeout_check_for_state(
                 request=request,
                 flow_run_id=flow_run.id,
                 state=state_to_schedule,
@@ -863,7 +863,7 @@ async def set_flow_run_state(
         )
 
     if orchestration_result.status == schemas.responses.SetStateStatus.ACCEPT:
-        await _schedule_cancelling_timeout_check_for_state(
+        await _maybe_schedule_cancelling_timeout_check_for_state(
             request=request,
             flow_run_id=flow_run_id,
             state=orchestration_result.state,

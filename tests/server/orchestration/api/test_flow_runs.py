@@ -1881,7 +1881,7 @@ class TestSetFlowRunState:
             raise RuntimeError("docket unavailable")
 
         monkeypatch.setattr(
-            "prefect.server.api.flow_runs.schedule_cancelling_timeout_check_for_state",
+            "prefect.server.api.flow_runs.maybe_schedule_cancelling_timeout_check_for_state",
             fail_schedule_cancelling_timeout_check,
         )
 
