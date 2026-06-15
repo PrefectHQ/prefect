@@ -620,6 +620,15 @@ class BaseFlowRunEngine(Generic[P, R]):
             yield flow_run_suspension_request
 
 
+def _is_subflow_call_from_current_task_context(flow_run_ctx: FlowRunContext) -> bool:
+    task_run_ctx = TaskRunContext.get()
+    return bool(
+        task_run_ctx
+        and flow_run_ctx.flow_run
+        and task_run_ctx.task_run.flow_run_id == flow_run_ctx.flow_run.id
+    )
+
+
 @dataclass
 class FlowRunEngine(BaseFlowRunEngine[P, R]):
     _client: Optional[SyncPrefectClient] = None
@@ -982,7 +991,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             # counter-based dynamic_key would let a retried subflow adopt the
             # wrong sibling's completed tracking task run.  Use a UUID instead.
             dynamic_key: str | None = None
-            if TaskRunContext.get() is not None:
+            if _is_subflow_call_from_current_task_context(flow_run_ctx):
                 dynamic_key = dynamic_key_for_task_run(
                     context=flow_run_ctx, task=parent_task, stable=False
                 )
@@ -1687,7 +1696,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             # counter-based dynamic_key would let a retried subflow adopt the
             # wrong sibling's completed tracking task run.  Use a UUID instead.
             dynamic_key: str | None = None
-            if TaskRunContext.get() is not None:
+            if _is_subflow_call_from_current_task_context(flow_run_ctx):
                 dynamic_key = dynamic_key_for_task_run(
                     context=flow_run_ctx, task=parent_task, stable=False
                 )

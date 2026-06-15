@@ -1762,6 +1762,47 @@ class TestSubflowDynamicKeyRace:
             f"Expected stable key '0', got: {task_run.dynamic_key}"
         )
 
+    async def test_nested_direct_subflow_from_task_keeps_stable_key(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        """A direct nested subflow should keep stable tracking identity even
+        when its parent flow was called from a task context."""
+        grandchild_flow_run_ids: list[UUID] = []
+        child_attempt = 0
+
+        @flow(persist_result=True)
+        def grandchild() -> str:
+            grandchild_flow_run_ids.append(FlowRunContext.get().flow_run.id)
+            return "hello"
+
+        @flow(retries=1, persist_result=True)
+        def child() -> str:
+            nonlocal child_attempt
+            child_attempt += 1
+            result = grandchild()
+            if child_attempt == 1:
+                raise ValueError("child fails after grandchild")
+            return result
+
+        @task
+        def run_child() -> str:
+            return child()
+
+        @flow
+        def parent() -> str:
+            return run_child()
+
+        assert parent() == "hello"
+
+        assert child_attempt == 2
+        assert len(set(grandchild_flow_run_ids)) == 1
+        grandchild_run = sync_prefect_client.read_flow_run(grandchild_flow_run_ids[0])
+        assert grandchild_run.parent_task_run_id is not None
+        task_run = sync_prefect_client.read_task_run(grandchild_run.parent_task_run_id)
+        assert task_run.dynamic_key == "0", (
+            f"Expected stable key '0', got: {task_run.dynamic_key}"
+        )
+
 
 class TestFlowCrashDetection:
     @pytest.mark.parametrize("interrupt_type", [KeyboardInterrupt, SystemExit])
