@@ -214,20 +214,18 @@ async def flat_tasks(
     ]
     session.add_all(task_runs)
 
-    # mix in a PENDING task to show that it is excluded
+    # mix in a task with no usable start time to show that it is excluded
     session.add(
         db.TaskRun(
             id=uuid4(),
             flow_run_id=flow_run.id,
-            name="task-pending",
-            task_key="task-pending",
-            dynamic_key="task-pending",
+            name="task-no-start-time",
+            task_key="task-no-start-time",
+            dynamic_key="task-no-start-time",
             state_type=StateType.PENDING,
             state_name="Irrelevant",
-            expected_start_time=base_time
-            + datetime.timedelta(seconds=3)
-            - datetime.timedelta(microseconds=1),
-            start_time=base_time + datetime.timedelta(seconds=3),
+            expected_start_time=None,
+            start_time=None,
             end_time=base_time + datetime.timedelta(minutes=1, seconds=3),
         )
     )
@@ -476,6 +474,89 @@ async def test_reading_graph_for_flow_run_with_nested_tasks(
     ]
 
 
+async def test_reading_graph_includes_pending_downstream_task_with_failed_upstream(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    flow_run,  # db.FlowRun,
+    base_time: DateTime,
+):
+    upstream_task_run = db.TaskRun(
+        id=uuid4(),
+        flow_run_id=flow_run.id,
+        name="upstream",
+        task_key="upstream",
+        dynamic_key="upstream",
+        state_type=StateType.FAILED,
+        state_name="Failed",
+        expected_start_time=base_time + datetime.timedelta(seconds=1),
+        start_time=base_time + datetime.timedelta(seconds=1),
+        end_time=base_time + datetime.timedelta(minutes=1, seconds=1),
+        task_inputs={},
+    )
+    downstream_task_run = db.TaskRun(
+        id=uuid4(),
+        flow_run_id=flow_run.id,
+        name="downstream",
+        task_key="downstream",
+        dynamic_key="downstream",
+        state_type=StateType.PENDING,
+        state_name="NotReady",
+        expected_start_time=base_time + datetime.timedelta(seconds=2),
+        start_time=None,
+        end_time=None,
+        task_inputs={
+            "x": [
+                {"id": upstream_task_run.id, "input_type": "task_run"},
+            ],
+        },
+    )
+    session.add_all([upstream_task_run, downstream_task_run])
+    await session.commit()
+
+    graph = await read_flow_run_graph(
+        session=session,
+        flow_run_id=flow_run.id,
+    )
+
+    assert graph.start_time == flow_run.start_time
+    assert graph.end_time == flow_run.end_time
+    assert graph.root_node_ids == [upstream_task_run.id]
+    assert graph.nodes == [
+        (
+            upstream_task_run.id,
+            Node(
+                kind="task-run",
+                id=upstream_task_run.id,
+                label="upstream",
+                state_type=StateType.FAILED,
+                start_time=upstream_task_run.start_time,
+                end_time=upstream_task_run.end_time,
+                parents=[],
+                children=[Edge(id=downstream_task_run.id)],
+                encapsulating=[],
+                artifacts=[],
+            ),
+        ),
+        (
+            downstream_task_run.id,
+            Node(
+                kind="task-run",
+                id=downstream_task_run.id,
+                label="downstream",
+                state_type=StateType.PENDING,
+                start_time=downstream_task_run.expected_start_time,
+                end_time=None,
+                parents=[Edge(id=upstream_task_run.id)],
+                children=[],
+                encapsulating=[],
+                artifacts=[],
+            ),
+        ),
+    ]
+
+    assert_graph_is_connected(graph)
+
+
 @pytest.fixture
 async def nested_tasks_including_parent_with_multiple_params(
     db: PrefectDBInterface,
@@ -621,20 +702,18 @@ async def linked_tasks(
 
     session.add_all(task_runs)
 
-    # mix in a PENDING task to show that it is excluded
+    # mix in a task with no usable start time to show that it is excluded
     session.add(
         db.TaskRun(
             id=uuid4(),
             flow_run_id=flow_run.id,
-            name="task-pending",
-            task_key="task-pending",
-            dynamic_key="task-pending",
+            name="task-no-start-time",
+            task_key="task-no-start-time",
+            dynamic_key="task-no-start-time",
             state_type=StateType.PENDING,
             state_name="Irrelevant",
-            expected_start_time=base_time
-            + datetime.timedelta(seconds=3)
-            - datetime.timedelta(microseconds=1),
-            start_time=base_time + datetime.timedelta(seconds=3),
+            expected_start_time=None,
+            start_time=None,
             end_time=base_time + datetime.timedelta(minutes=1, seconds=3),
         )
     )
