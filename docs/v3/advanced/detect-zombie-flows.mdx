@@ -29,8 +29,9 @@ Prefect 3.6.22 and later ship with `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` set to 18
 
 ### Enable flow run heartbeat events
 
-You will need to ensure you're running Prefect version 3.1.8 or greater and set `PREFECT_FLOWS_HEARTBEAT_FREQUENCY`
-to an integer greater than 30 to emit flow run heartbeat events.
+Prefect 3.6.22 and later emit flow run heartbeats by default (`PREFECT_FLOWS_HEARTBEAT_FREQUENCY` defaults to 180 seconds), so no extra configuration is needed on modern clients.
+
+If you are running an older client (3.1.8–3.6.21), set `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` to an integer greater than or equal to 30 to enable heartbeat emission.
 
 
 ### Create the automation manually
@@ -79,6 +80,10 @@ in `expect` ensures the automation works correctly even when flows return custom
 (for example, `Completed(name="SuccessfullyProcessed")`), since flow run event names are based on the state's
 name rather than its type.
 
+<Note>
+The `within=timedelta(seconds=90)` window in the example above is calibrated for heartbeats arriving every 30 seconds (three missed heartbeats × 30 s = 90 s). Current clients default `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` to 180 seconds, so if you keep that default you should increase `within` accordingly — for example, `within=timedelta(seconds=540)` to tolerate three missed 180-second heartbeats.
+</Note>
+
 
 ### Custom state names
 
@@ -111,8 +116,12 @@ zombie detection for that flow run.
 
 ### Adjusting behavior with settings
 
-If `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` is set to `30`, the automation will trigger only after 3 heartbeats have been missed.
-You can adjust `within` in the trigger definition and `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` to change how quickly the automation
-will fire after the server stops receiving flow run heartbeats.
+The `within` window and `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` together control how quickly the automation fires after a flow run stops responding. A good rule of thumb is to set `within` to at least three times the heartbeat frequency so transient delays don't cause false positives.
+
+For example:
+- `PREFECT_FLOWS_HEARTBEAT_FREQUENCY=30` with `within=timedelta(seconds=90)` — detects zombie flows within 90 seconds (as shown in the example above).
+- `PREFECT_FLOWS_HEARTBEAT_FREQUENCY=180` (the current default) with `within=timedelta(seconds=540)` — detects zombie flows within 9 minutes.
+
+`PREFECT_FLOWS_HEARTBEAT_FREQUENCY` must be greater than or equal to 30.
 
 You can also add additional actions to your automation to send a notification when zombie runs are detected.
