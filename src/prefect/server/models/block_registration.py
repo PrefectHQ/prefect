@@ -147,7 +147,7 @@ async def _register_registry_blocks(session: AsyncSession) -> None:
 
     block_registry = get_registry_for_type(Block) or {}
 
-    for block_class in block_registry.values():
+    for block_class in list(block_registry.values()):
         # each block schema gets its own transaction
         async with session.begin():
             try:
