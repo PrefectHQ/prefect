@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/empty-state";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
+import { usePageSizePreference } from "@/hooks/use-page-size-preference";
 
 /**
  * Schema for validating URL search parameters for the variables page.
@@ -37,7 +38,7 @@ import { RouteErrorState } from "@/components/ui/route-error-state";
  */
 const searchParams = z.object({
 	page: z.number().int().positive().optional().default(1).catch(1),
-	limit: z.number().int().positive().optional().default(10).catch(10),
+	limit: z.number().int().positive().optional().catch(undefined),
 	sort: z
 		.enum(["NAME_ASC", "NAME_DESC", "CREATED_DESC", "UPDATED_DESC"])
 		.optional()
@@ -246,15 +247,30 @@ const usePagination = () => {
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
 
+	const onInitializePageSize = useCallback(
+		(pageSize: number) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({ ...prev, limit: pageSize }),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	const effectivePageSize = usePageSizePreference(
+		search.limit,
+		onInitializePageSize,
+	);
+
 	// React Table uses 0-based pagination, so we need to subtract 1 from the page number
 	const pageIndex = (search.page ?? 1) - 1;
-	const pageSize = search.limit ?? 10;
 	const pagination: PaginationState = useMemo(
 		() => ({
 			pageIndex,
-			pageSize,
+			pageSize: effectivePageSize,
 		}),
-		[pageIndex, pageSize],
+		[pageIndex, effectivePageSize],
 	);
 
 	const onPaginationChange = useCallback(

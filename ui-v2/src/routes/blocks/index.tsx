@@ -23,13 +23,14 @@ import { categorizeError } from "@/api/error-utils";
 import { BlocksPage } from "@/components/blocks/blocks-page";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
+import { usePageSizePreference } from "@/hooks/use-page-size-preference";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 const searchParams = z.object({
 	blockName: z.string().optional(),
 	blockTypes: z.array(z.string()).optional(),
 	page: z.number().int().positive().optional().default(1).catch(1),
-	limit: z.number().int().positive().optional().default(10).catch(10),
+	limit: z.number().int().positive().optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/blocks/")({
@@ -184,10 +185,11 @@ export const Route = createFileRoute("/blocks/")({
 			include_secrets: false,
 			sort: "NAME_ASC",
 		};
+		const effectiveLimit = deps.limit ?? 10;
 		const paginatedFilter: BlockDocumentsFilter = {
 			...baseFilter,
-			limit: deps.limit,
-			offset: ((deps.page ?? 1) - 1) * (deps.limit ?? 10),
+			limit: effectiveLimit,
+			offset: ((deps.page ?? 1) - 1) * effectiveLimit,
 		};
 		// Prefetch all queries without awaiting to avoid blocking render
 		void queryClient.prefetchQuery(buildListFilterBlockTypesQuery());
@@ -272,15 +274,30 @@ function usePagination() {
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
 
+	const onInitializePageSize = useCallback(
+		(pageSize: number) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({ ...prev, limit: pageSize }),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	const effectivePageSize = usePageSizePreference(
+		search.limit,
+		onInitializePageSize,
+	);
+
 	// React Table uses 0-based pagination, so we need to subtract 1 from the page number
 	const pageIndex = (search.page ?? 1) - 1;
-	const pageSize = search.limit ?? 10;
 	const pagination: PaginationState = useMemo(
 		() => ({
 			pageIndex,
-			pageSize,
+			pageSize: effectivePageSize,
 		}),
-		[pageIndex, pageSize],
+		[pageIndex, effectivePageSize],
 	);
 
 	const onPaginationChange = useCallback(
