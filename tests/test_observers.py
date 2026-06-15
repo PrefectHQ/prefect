@@ -710,6 +710,45 @@ class TestFlowRunSuspendingObserver:
         assert observer._polling_task is None
         critical_service_loop.assert_not_called()
 
+    async def test_silent_websocket_falls_back_to_polling(self):
+        """When the websocket delivers no events within polling_interval,
+        the consumer exits and the observer switches to polling mode."""
+        callback = MagicMock()
+        observer = FlowRunSuspendingObserver(
+            on_suspended=callback, polling_interval=0.2
+        )
+
+        class SilentSubscriber:
+            """Mimics a websocket that connects but never delivers events."""
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                await asyncio.Event().wait()
+
+        with patch(
+            "prefect._internal.observers.get_events_subscriber",
+            return_value=SilentSubscriber(),
+        ):
+            async with observer:
+                # The consumer should time out and the done-callback should
+                # start the polling task.
+                for _ in range(20):
+                    await asyncio.sleep(0.1)
+                    if observer._polling_task is not None:
+                        break
+
+                assert observer._polling_task is not None, (
+                    "Polling task was not started after websocket timeout"
+                )
+
     def test_observe_flow_run_suspension_waits_for_initial_check(self, monkeypatch):
         flow_run_id = uuid.uuid4()
         suspension_request = FlowRunSuspensionRequest()
