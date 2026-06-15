@@ -69,6 +69,10 @@ loaderDeps: ({ search }) => {
 
 Forgetting this causes every pagination click to re-run the loader, which collapses open accordions and other ephemeral UI state.
 
+## Pagination with Persisted Page Size
+
+Routes that persist page size across navigation use `usePageSizePreference`. The `limit` search param must use `.optional().catch(undefined)` — **not** `.default(10)` — so the hook can detect first-visit and restore from localStorage. Adding `.default(10)` silently breaks persistence: the hook receives a value and never calls `onInitialize`.
+
 ## Best Practices
 
 - Explicitly mark promises as ignored with the `void` operator when prefetching
