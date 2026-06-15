@@ -516,6 +516,7 @@ async def test_reading_graph_includes_pending_downstream_task_with_failed_upstre
     graph = await read_flow_run_graph(
         session=session,
         flow_run_id=flow_run.id,
+        since=base_time + datetime.timedelta(minutes=1),
     )
 
     assert graph.start_time == flow_run.start_time
