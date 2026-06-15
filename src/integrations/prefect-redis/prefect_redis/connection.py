@@ -22,10 +22,19 @@ Single-node URLs accept `tls_insecure` and `tls_ca_file` query parameters; the
 Sentinel schemes additionally accept `sentinel_username`, `sentinel_password`,
 `sentinel_ssl`, `sentinel_tls_insecure` and `sentinel_tls_ca_file` to configure
 the connections to the Sentinel daemons separately from the data nodes.
+
+The `redis+sentinel://` grammar and the Sentinel data-node TCP keepalive defaults
+(`SENTINEL_SOCKET_KEEPALIVE_OPTIONS`) deliberately mirror docket's `_redis_sentinel`
+module (https://github.com/chrisguidry/docket/pull/431). prefect connects to the
+same Sentinel topologies as docket and needs sync clients as well, so it keeps its
+own parser/builder rather than importing docket's currently-private async-only
+helpers; matching the convention keeps the two convergent and makes adopting
+docket's helpers a drop-in change if they are promoted to a public API.
 """
 
 from __future__ import annotations
 
+import socket
 from dataclasses import dataclass, field
 from typing import Any, Union
 from urllib.parse import SplitResult, parse_qs, unquote, urlsplit, urlunsplit
@@ -49,6 +58,35 @@ _DEFAULT_PORT = 6379
 # Sentinel daemons listen on 26379 by default, so sentinel members without an
 # explicit port assume that rather than the data-node port.
 _DEFAULT_SENTINEL_PORT = 26379
+
+# Tight TCP keepalive probes for the data-node (master) connections in Sentinel
+# mode. A master that dies *silently* — a network partition or frozen host that
+# never sends a FIN/RST — would otherwise leave a blocking read (e.g. the
+# messaging client's XREADGROUP, which runs with no socket read timeout) waiting
+# on the OS-default keepalive (~2 hours on Linux) while Sentinel completes
+# failover in seconds. Pinning these probes means a dead peer is noticed in
+# roughly TCP_KEEPIDLE + TCP_KEEPCNT * TCP_KEEPINTVL seconds. The probes only
+# fire on an otherwise-idle socket and a healthy peer answers them, so they don't
+# disturb a legitimately long blocking read. These match redis-py 8.0's own
+# defaults; pinning them keeps behaviour identical on the older redis-py releases
+# that default to no keepalive. This mirrors docket's `_redis_sentinel` module so
+# the two stay convergent (see the module docstring).
+_SENTINEL_KEEPALIVE_TIMERS: tuple[tuple[str, int], ...] = (
+    ("TCP_KEEPIDLE", 30),
+    ("TCP_KEEPINTVL", 5),
+    ("TCP_KEEPCNT", 3),
+)
+SENTINEL_SOCKET_KEEPALIVE_OPTIONS: dict[int, int] = {
+    int(getattr(socket, name)): value
+    for name, value in _SENTINEL_KEEPALIVE_TIMERS
+    if hasattr(socket, name)
+}
+# Applied to the data-node connections as defaults; URL query options and caller
+# kwargs override them, just as a socket_keepalive in a standalone URL would win.
+_SENTINEL_DATA_NODE_DEFAULTS: dict[str, Any] = {
+    "socket_keepalive": True,
+    "socket_keepalive_options": SENTINEL_SOCKET_KEEPALIVE_OPTIONS,
+}
 
 
 class RedisUrlError(ValueError):
@@ -319,17 +357,24 @@ def build_redis_client(
     """
     if config.is_sentinel:
         assert config.service_name is not None  # guaranteed by parse_redis_url
+        # Tight TCP keepalive is applied to the data-node (master) connections so
+        # a silently-dead master is noticed promptly while Sentinel fails over
+        # (see SENTINEL_SOCKET_KEEPALIVE_OPTIONS). Defaults go first so URL options
+        # win, and `extra` (passed through master_for) overrides both. Keepalive is
+        # deliberately not applied to the Sentinel daemon connections, which only
+        # carry short discovery polls.
+        data_node_kwargs = {**_SENTINEL_DATA_NODE_DEFAULTS, **config.connection_kwargs}
         if asynchronous:
             async_sentinel = AsyncSentinel(
                 list(config.sentinels),
                 sentinel_kwargs=dict(config.sentinel_kwargs),
-                **config.connection_kwargs,
+                **data_node_kwargs,
             )
             return async_sentinel.master_for(config.service_name, db=config.db, **extra)
         sync_sentinel = SyncSentinel(
             list(config.sentinels),
             sentinel_kwargs=dict(config.sentinel_kwargs),
-            **config.connection_kwargs,
+            **data_node_kwargs,
         )
         return sync_sentinel.master_for(config.service_name, db=config.db, **extra)
 

@@ -4,6 +4,7 @@ import pytest
 import redis
 import redis.asyncio
 from prefect_redis.connection import (
+    SENTINEL_SOCKET_KEEPALIVE_OPTIONS,
     RedisConnectionConfig,
     RedisUrlError,
     build_redis_client,
@@ -349,3 +350,72 @@ def test_build_client_passes_extra_kwargs_to_data_connection() -> None:
 def test_redis_client_from_url_helper() -> None:
     client = redis_client_from_url("redis://cache:6379/0", asynchronous=True)
     assert isinstance(client, redis.asyncio.Redis)
+
+
+# ---------------------------------------------------------------------------
+# Sentinel data-node TCP keepalive (mirrors docket's _redis_sentinel defaults)
+# ---------------------------------------------------------------------------
+
+
+def test_keepalive_options_match_expected_timers() -> None:
+    # 30s idle, 5s interval, 3 probes — names guarded for platforms that lack
+    # them, so the dict holds only the constants this OS actually defines.
+    assert SENTINEL_SOCKET_KEEPALIVE_OPTIONS
+    assert all(
+        isinstance(option, int) and isinstance(value, int)
+        for option, value in SENTINEL_SOCKET_KEEPALIVE_OPTIONS.items()
+    )
+
+
+# redis-py 8 already defaults socket_keepalive to True, while the redis 6/7
+# releases prefect also supports default to no keepalive. So the version-stable
+# signal that our pinned timers were applied is the explicit options dict, not
+# the bool: only the Sentinel data-node connections carry our exact options.
+
+
+@pytest.mark.parametrize("asynchronous", [False, True])
+def test_sentinel_data_node_gets_keepalive_defaults(asynchronous: bool) -> None:
+    client = build_redis_client(
+        parse_redis_url("redis+sentinel://s1:26379,s2:26379/mymaster/1"),
+        asynchronous=asynchronous,
+    )
+    conn = client.connection_pool.connection_kwargs
+    assert conn["socket_keepalive"] is True
+    assert conn["socket_keepalive_options"] == SENTINEL_SOCKET_KEEPALIVE_OPTIONS
+
+
+@pytest.mark.parametrize("asynchronous", [False, True])
+def test_sentinel_daemon_connections_have_no_pinned_keepalive(
+    asynchronous: bool,
+) -> None:
+    # Keepalive is pinned only on the long-lived data-node connections, not on
+    # the short discovery polls to the Sentinel daemons.
+    client = build_redis_client(
+        parse_redis_url("redis+sentinel://s1:26379/mymaster"),
+        asynchronous=asynchronous,
+    )
+    sentinel_manager = client.connection_pool.sentinel_manager
+    for sentinel in sentinel_manager.sentinels:
+        conn = sentinel.connection_pool.connection_kwargs
+        assert conn.get("socket_keepalive_options") != SENTINEL_SOCKET_KEEPALIVE_OPTIONS
+
+
+@pytest.mark.parametrize("asynchronous", [False, True])
+def test_single_node_has_no_pinned_keepalive(asynchronous: bool) -> None:
+    client = build_redis_client(
+        parse_redis_url("redis://cache:6379/0"), asynchronous=asynchronous
+    )
+    conn = client.connection_pool.connection_kwargs
+    assert conn.get("socket_keepalive_options") != SENTINEL_SOCKET_KEEPALIVE_OPTIONS
+
+
+@pytest.mark.parametrize("asynchronous", [False, True])
+def test_caller_kwargs_override_keepalive_defaults(asynchronous: bool) -> None:
+    # The pinned defaults go in first, so a caller (or URL) can still turn
+    # keepalive off; this overrides the True our builder would otherwise set.
+    client = build_redis_client(
+        parse_redis_url("redis+sentinel://s1:26379/mymaster"),
+        asynchronous=asynchronous,
+        socket_keepalive=False,
+    )
+    assert client.connection_pool.connection_kwargs["socket_keepalive"] is False
