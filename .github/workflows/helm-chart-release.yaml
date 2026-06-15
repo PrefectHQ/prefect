@@ -11,10 +11,19 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/3.')
     runs-on: ubuntu-latest
     steps:
+      - name: Generate prefect-ci-bot-public token
+        id: app_token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.PREFECT_CI_BOT_PUBLIC_CLIENT_ID }}
+          private-key: ${{ secrets.PREFECT_CI_BOT_PUBLIC_PRIVATE_KEY }}
+          owner: PrefectHQ
+          repositories: prefect-helm
+
       - name: Create prefect-helm release
         run: |
           gh workflow run helm-release.yaml \
             --repo PrefectHQ/prefect-helm \
             --ref main
         env:
-          GH_TOKEN: ${{ secrets.PREFECT_HELM_ACTIONS_RW }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
