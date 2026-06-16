@@ -38,8 +38,17 @@ def _reset_after_fork_in_child():
 
     This handler is called by os.register_at_fork() in the child process after fork().
     """
+    global _global_loop, _run_sync_loop
+
     for instance in list(_active_instances):
         instance.reset_for_fork()
+
+    # Clear global references so get_global_loop() / get_run_sync_loop() create
+    # fresh instances.  After fork the old EventLoopThread objects have a stale
+    # Thread whose is_alive() still returns True (the dead thread's tstate lock
+    # is held), so the "is the thread alive?" guard in the getters never fires.
+    _global_loop = None
+    _run_sync_loop = None
 
 
 # Register fork handler if supported (POSIX systems)
