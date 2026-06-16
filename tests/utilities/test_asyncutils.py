@@ -415,6 +415,27 @@ async def test_gather_task_group_create_task_delegates_when_supported():
     assert completed
 
 
+async def test_gather_task_group_cancel_delegates_cancel_scope_when_supported():
+    completed = False
+
+    async def wait_forever():
+        nonlocal completed
+        try:
+            await anyio.sleep_forever()
+        finally:
+            completed = True
+
+    async with create_gather_task_group() as tg:
+        if not hasattr(tg, "cancel"):
+            pytest.skip("AnyIO task group does not support cancel")
+
+        tg.start_soon(wait_forever)
+        await anyio.sleep(0)
+        tg.cancel()
+
+    assert completed
+
+
 async def test_lazy_semaphore_initialization():
     initial_value = 5
     lazy_semaphore = LazySemaphore(lambda: initial_value)

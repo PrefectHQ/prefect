@@ -474,6 +474,10 @@ class GatherTaskGroup(anyio.abc.TaskGroup):
         # The concrete task group implementation to use
         self._task_group: anyio.abc.TaskGroup = task_group
 
+    @property
+    def cancel_scope(self) -> Any:
+        return self._task_group.cancel_scope
+
     async def _run_and_store(
         self,
         key: UUID,
