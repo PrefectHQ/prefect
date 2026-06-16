@@ -1,13 +1,20 @@
 """Tests for the perpetual services registry and scheduling."""
 
+from datetime import timedelta
+from unittest.mock import AsyncMock, patch
+
 import pytest
-from docket import Perpetual
+from docket import Docket, Perpetual
 from docket.dependencies import get_single_dependency_parameter_of_type
 
 from prefect.server.services.perpetual_services import (
     _PERPETUAL_SERVICES,
+    PerpetualServiceConfig,
+    PerpetualServiceRecovery,
+    _replace_perpetual_service,
     get_enabled_perpetual_services,
     get_perpetual_services,
+    register_and_schedule_perpetual_services,
 )
 
 pytestmark = pytest.mark.clear_db
@@ -243,3 +250,105 @@ def test_all_perpetual_services_use_automatic_true():
             f"{config.function.__name__} uses automatic=False; "
             "all perpetual services must use automatic=True for Redis recovery"
         )
+
+
+class TestPerpetualServiceRecovery:
+    """Tests for Redis disruption recovery via docket.replace()."""
+
+    @staticmethod
+    def _make_task_and_config() -> PerpetualServiceConfig:
+        """Create a minimal perpetual task function and config for testing."""
+
+        async def fake_service(
+            perpetual: Perpetual = Perpetual(
+                automatic=True, every=timedelta(seconds=10)
+            ),
+        ) -> None:
+            pass
+
+        return PerpetualServiceConfig(
+            function=fake_service,
+            enabled_getter=lambda: True,
+        )
+
+    async def test_replace_perpetual_service_calls_docket_replace(self) -> None:
+        """_replace_perpetual_service must use docket.replace (not add)."""
+        config = self._make_task_and_config()
+        mock_scheduler = AsyncMock()
+        mock_docket = AsyncMock(spec=Docket)
+        mock_docket.replace.return_value = mock_scheduler
+
+        await _replace_perpetual_service(mock_docket, config)
+
+        mock_docket.replace.assert_called_once()
+        call_args = mock_docket.replace.call_args
+        assert call_args[0][0] is config.function
+        assert call_args[0][2] == config.function.__name__
+        mock_scheduler.assert_awaited_once()
+
+    async def test_register_and_schedule_uses_replace(self) -> None:
+        """register_and_schedule_perpetual_services must use replace, not add."""
+        with patch(
+            "prefect.server.services.perpetual_services._replace_perpetual_service",
+            new_callable=AsyncMock,
+        ) as mock_replace:
+            mock_docket = AsyncMock(spec=Docket)
+            await register_and_schedule_perpetual_services(mock_docket)
+
+            # At least one enabled service should have been replace-scheduled
+            assert mock_replace.await_count > 0
+
+    async def test_recovery_dependency_reschedules_on_lifecycle_entry(self) -> None:
+        """PerpetualServiceRecovery.worker_lifecycle must force-reschedule
+        services when the worker loop starts (i.e. on reconnection)."""
+        config = self._make_task_and_config()
+        recovery = PerpetualServiceRecovery([config])
+
+        mock_scheduler = AsyncMock()
+        mock_docket = AsyncMock(spec=Docket)
+        mock_docket.replace.return_value = mock_scheduler
+
+        # Simulate the worker lifecycle entering
+        async with recovery._recovery_context(mock_docket):
+            pass
+
+        mock_docket.replace.assert_called_once()
+        call_args = mock_docket.replace.call_args
+        assert call_args[0][0] is config.function
+        assert call_args[0][2] == config.function.__name__
+        mock_scheduler.assert_awaited_once()
+
+    async def test_recovery_dependency_skips_services_without_perpetual(self) -> None:
+        """Services without a Perpetual dependency are skipped gracefully."""
+
+        async def no_perpetual_service() -> None:
+            pass
+
+        config = PerpetualServiceConfig(
+            function=no_perpetual_service,
+            enabled_getter=lambda: True,
+        )
+        recovery = PerpetualServiceRecovery([config])
+
+        mock_docket = AsyncMock(spec=Docket)
+
+        async with recovery._recovery_context(mock_docket):
+            pass
+
+        mock_docket.replace.assert_not_called()
+
+    def test_recovery_dependency_has_worker_lifecycle(self) -> None:
+        """PerpetualServiceRecovery must expose worker_lifecycle for docket."""
+        assert hasattr(PerpetualServiceRecovery, "worker_lifecycle")
+
+    async def test_worker_lifecycle_finds_instance_in_dependencies(self) -> None:
+        """worker_lifecycle classmethod finds the instance via worker.dependencies."""
+        config = self._make_task_and_config()
+        recovery = PerpetualServiceRecovery([config])
+
+        mock_worker = AsyncMock()
+        mock_worker.dependencies = {"__worker_dep_0__": recovery}
+        mock_docket = AsyncMock(spec=Docket)
+
+        cm = PerpetualServiceRecovery.worker_lifecycle(mock_docket, mock_worker)
+        assert cm is not None
