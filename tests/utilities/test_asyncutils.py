@@ -398,6 +398,23 @@ async def test_gather_task_group_get_result_bad_uuid():
         tg.get_result(uuid.uuid4())
 
 
+async def test_gather_task_group_create_task_delegates_when_supported():
+    async with create_gather_task_group() as tg:
+        if not hasattr(tg._task_group, "create_task"):
+            pytest.skip("AnyIO task group does not support create_task")
+
+        completed = False
+
+        async def foo():
+            nonlocal completed
+            completed = True
+
+        handle = tg.create_task(foo(), name="test-gather-task-group-create-task")
+        await handle.wait()
+
+    assert completed
+
+
 async def test_lazy_semaphore_initialization():
     initial_value = 5
     lazy_semaphore = LazySemaphore(lambda: initial_value)
