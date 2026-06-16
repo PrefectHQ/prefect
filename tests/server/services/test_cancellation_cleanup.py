@@ -652,6 +652,12 @@ async def test_handle_cancelling_timeout_retries_after_enqueue_failure(
                 timeout_cancelled_state_id=timeout_state_id,
             )
 
+        await session.refresh(flow_run)
+        assert flow_run.state is not None
+        assert flow_run.state.type == states.StateType.CANCELLING
+        assert flow_run.state_id == original_state_id
+        assert await cleanup_queue.reserve(work_pool_id=work_pool.id) is None
+
         message, _ = await _handle_cancelling_timeout_for_run(
             flow_run,
             cleanup_queue,

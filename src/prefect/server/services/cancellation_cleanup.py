@@ -205,18 +205,25 @@ async def handle_cancelling_timeout(
 
     async with db.session_context(begin_transaction=True) as session:
         flow_run_result = await session.execute(
-            sa.select(db.FlowRun)
+            sa.select(
+                db.FlowRun,
+                db.WorkQueue.work_pool_id,
+                db.WorkPool.type,
+            )
+            .outerjoin(db.WorkQueue, db.FlowRun.work_queue_id == db.WorkQueue.id)
+            .outerjoin(db.WorkPool, db.WorkQueue.work_pool_id == db.WorkPool.id)
             .where(db.FlowRun.id == flow_run_id)
             .with_for_update(of=db.FlowRun)
         )
-        flow_run = flow_run_result.scalar_one_or_none()
-        if flow_run is None:
+        row = flow_run_result.first()
+        if row is None:
             logger.info(
                 "Flow run %s no longer exists, skipping CANCELLING timeout",
                 flow_run_id,
             )
             return None
 
+        flow_run, work_pool_id, work_pool_type = row
         timeout_cancelled_state_already_committed = (
             flow_run.state_type == states.StateType.CANCELLED
             and flow_run.state_id == timeout_cancelled_state_id
@@ -292,27 +299,6 @@ async def handle_cancelling_timeout(
             ):
                 return None
 
-    async with db.session_context(begin_transaction=True) as session:
-        flow_run_result = await session.execute(
-            sa.select(
-                db.FlowRun,
-                db.WorkQueue.work_pool_id,
-                db.WorkPool.type,
-            )
-            .outerjoin(db.WorkQueue, db.FlowRun.work_queue_id == db.WorkQueue.id)
-            .outerjoin(db.WorkPool, db.WorkQueue.work_pool_id == db.WorkPool.id)
-            .where(db.FlowRun.id == flow_run_id)
-            .with_for_update(of=db.FlowRun)
-        )
-        row = flow_run_result.first()
-        if row is None:
-            logger.info(
-                "Flow run %s no longer exists, skipping CANCELLING timeout cleanup",
-                flow_run_id,
-            )
-            return None
-
-        flow_run, work_pool_id, work_pool_type = row
         if (
             flow_run.state_type != states.StateType.CANCELLED
             or flow_run.state_id != timeout_cancelled_state_id
