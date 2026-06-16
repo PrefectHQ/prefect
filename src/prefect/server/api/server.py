@@ -843,6 +843,22 @@ def _memoize_block_auto_registration(
     return wrapper
 
 
+def _log_worker_channel_config() -> None:
+    """Log worker channel queue backend and key configuration at startup."""
+    wc_settings = prefect.settings.get_current_settings().server.worker_channel
+    logger.info(
+        "Worker channel configuration: "
+        "cleanup_queue_storage=%s "
+        "cleanup_lease_seconds=%s "
+        "cleanup_max_delivery_attempts=%s "
+        "cleanup_completed_idempotency_retention_seconds=%s",
+        wc_settings.cleanup_queue_storage,
+        wc_settings.cleanup_lease_seconds,
+        wc_settings.cleanup_max_delivery_attempts,
+        wc_settings.cleanup_completed_idempotency_retention_seconds,
+    )
+
+
 def create_app(
     settings: Optional[prefect.settings.Settings] = None,
     ephemeral: bool = False,
@@ -911,6 +927,8 @@ def create_app(
 
         await run_migrations()
         await add_block_types()
+
+        _log_worker_channel_config()
 
         Services: type[Service] | None = (
             RunInWebservers
