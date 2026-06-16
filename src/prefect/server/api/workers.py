@@ -410,7 +410,7 @@ async def _build_worker_ready_frame(
     ]
 
     if rejected:
-        logger.info(
+        logger.debug(
             "Worker channel capabilities rejected: "
             "work_pool=%s worker_name=%s rejected=%s",
             work_pool_name,
@@ -1163,7 +1163,7 @@ async def worker_channel_connect(
             await connection.run(ready, consumer_kwargs)
 
     except WorkerChannelSetupError as exc:
-        logger.info(
+        logger.debug(
             "Worker channel setup failed: work_pool=%s reason=%s detail=%s",
             work_pool_name,
             exc.close_reason.value,
@@ -1175,7 +1175,7 @@ async def worker_channel_connect(
             ).inc()
         await worker_channel_utils.close_worker_channel(websocket, exc.close_reason)
     except HTTPException as exc:
-        logger.info(
+        logger.debug(
             "Worker channel setup failed HTTP validation: work_pool=%s detail=%s",
             work_pool_name,
             exc.detail,

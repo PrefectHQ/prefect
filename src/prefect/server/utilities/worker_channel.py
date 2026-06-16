@@ -167,7 +167,7 @@ class WorkerChannelConnection:
     async def run(
         self, ready: WorkerReadyFrame, consumer_kwargs: Mapping[str, Any]
     ) -> None:
-        logger.info(
+        logger.debug(
             "Worker channel connection opened: "
             "work_pool=%s worker_name=%s cleanup_enabled=%s",
             self.work_pool_name,
@@ -185,7 +185,7 @@ class WorkerChannelConnection:
 
             await self._run(ready, consumer_kwargs)
         finally:
-            logger.info(
+            logger.debug(
                 "Worker channel connection closed: work_pool=%s worker_name=%s",
                 self.work_pool_name,
                 self.worker_name,
@@ -238,7 +238,7 @@ class WorkerChannelConnection:
             return
 
         self._closed.set()
-        logger.info(
+        logger.debug(
             "Worker channel closing: work_pool=%s worker_name=%s reason=%s",
             self.work_pool_name,
             self.worker_name,

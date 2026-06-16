@@ -223,7 +223,7 @@ class TestWorkerChannelConfigDiagnostics:
     def test_log_worker_channel_config(self, caplog: pytest.LogCaptureFixture) -> None:
         from prefect.server.api.server import _log_worker_channel_config
 
-        with caplog.at_level(logging.INFO):
+        with caplog.at_level(logging.DEBUG):
             _log_worker_channel_config()
 
         assert any(

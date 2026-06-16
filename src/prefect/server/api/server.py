@@ -846,7 +846,7 @@ def _memoize_block_auto_registration(
 def _log_worker_channel_config() -> None:
     """Log worker channel queue backend and key configuration at startup."""
     wc_settings = prefect.settings.get_current_settings().server.worker_channel
-    logger.info(
+    logger.debug(
         "Worker channel configuration: "
         "cleanup_queue_storage=%s "
         "cleanup_lease_seconds=%s "
