@@ -6,6 +6,7 @@ from typing import Annotated, Any, Callable, Optional, TypeVar, Union
 from uuid import UUID, uuid4
 
 import jsonschema
+import referencing.exceptions
 from pydantic import (
     AfterValidator,
     BaseModel,
@@ -18,6 +19,7 @@ from pydantic import (
 import prefect.client.schemas.objects as objects
 from prefect._internal.result_records import ResultRecordMetadata
 from prefect._internal.schema import ParameterSchema
+from prefect._internal.schemas._registry import non_fetching_registry
 from prefect._internal.schemas.bases import ActionBaseModel
 from prefect._internal.schemas.validators import (
     convert_to_strings,
@@ -324,7 +326,14 @@ class DeploymentCreate(ActionBaseModel):
                     if "default" in v and k in required:
                         required.remove(k)
 
-            jsonschema.validate(self.job_variables, variables_schema)
+            try:
+                jsonschema.validate(
+                    self.job_variables,
+                    variables_schema,
+                    registry=non_fetching_registry(),
+                )
+            except referencing.exceptions.Unresolvable as exc:
+                raise jsonschema.ValidationError(str(exc)) from exc
 
 
 class DeploymentUpdate(ActionBaseModel):
@@ -403,7 +412,14 @@ class DeploymentUpdate(ActionBaseModel):
                         required.remove(k)
 
         if variables_schema is not None:
-            jsonschema.validate(self.job_variables, variables_schema)
+            try:
+                jsonschema.validate(
+                    self.job_variables,
+                    variables_schema,
+                    registry=non_fetching_registry(),
+                )
+            except referencing.exceptions.Unresolvable as exc:
+                raise jsonschema.ValidationError(str(exc)) from exc
 
 
 class DeploymentBranch(ActionBaseModel):

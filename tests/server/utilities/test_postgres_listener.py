@@ -225,11 +225,12 @@ class TestGetPgNotifyConnection:
                 assert conn == mock_conn
                 mock_connect.assert_called_once()
                 dsn = mock_connect.call_args.args[0]
-                # The DSN should contain the query params for asyncpg to parse,
-                # with the original values preserved (no URL-encoding of slashes).
-                assert "host=/tmp/.SOSHUB" in dsn
-                assert "port=25432" in dsn
+                # asyncpg should resolve the DSN to the UNIX socket path. The
+                # host value may be percent-encoded in the DSN, but asyncpg
+                # decodes it back to the original socket path.
                 assert dsn.startswith("postgresql:///")
+                addrs, _ = _parse_asyncpg_dsn(dsn)
+                assert addrs == ["/tmp/.SOSHUB/.s.PGSQL.25432"]
 
     async def test_unix_domain_socket_url_without_port(self):
         """Test that UNIX domain socket URLs without port still work."""
@@ -247,9 +248,11 @@ class TestGetPgNotifyConnection:
                 assert conn == mock_conn
                 mock_connect.assert_called_once()
                 dsn = mock_connect.call_args.args[0]
-                # Original path is preserved without URL-encoding
-                assert "host=/var/run/postgresql" in dsn
-                assert "port" not in dsn
+                # asyncpg should resolve the DSN to the UNIX socket path (with
+                # the default port), decoding any percent-encoding in the host.
+                assert dsn.startswith("postgresql:///")
+                addrs, _ = _parse_asyncpg_dsn(dsn)
+                assert addrs == ["/var/run/postgresql/.s.PGSQL.5432"]
 
     async def test_standard_tcp_url_still_works(self):
         """Test that standard TCP URLs with host in authority section still work."""
@@ -269,6 +272,31 @@ class TestGetPgNotifyConnection:
                 dsn = mock_connect.call_args.args[0]
                 assert "user:pass@myhost:5433/mydb" in dsn
                 assert dsn.startswith("postgresql://")
+
+    async def test_password_with_url_special_characters(self):
+        """Passwords containing URL-special characters like # ? < are
+        properly percent-encoded so asyncpg's DSN parser doesn't
+        misinterpret them as URL delimiters."""
+        with temporary_settings(
+            {
+                PREFECT_API_DATABASE_CONNECTION_URL: "postgresql+asyncpg://admin:p#ass?<word@myhost:5432/mydb"
+            }
+        ):
+            with mock.patch("asyncpg.connect", new_callable=AsyncMock) as mock_connect:
+                mock_conn = MagicMock()
+                mock_connect.return_value = mock_conn
+
+                conn = await get_pg_notify_connection()
+
+                assert conn == mock_conn
+                mock_connect.assert_called_once()
+                dsn = mock_connect.call_args.args[0]
+                assert dsn.startswith("postgresql://")
+                assert "%23" in dsn
+                assert "%3F" in dsn
+                addrs, params = _parse_asyncpg_dsn(dsn)
+                assert addrs == [("myhost", 5432)]
+                assert params.password == "p#ass?<word"
 
     async def test_preserves_kerberos_query_params(self):
         """Test that Kerberos-related query params (e.g. krbsrvname) are preserved
@@ -351,11 +379,9 @@ class TestGetPgNotifyConnection:
                 # The dialect should be stripped
                 assert dsn.startswith("postgresql://")
                 assert "+asyncpg" not in dsn
-                # asyncpg/libpq expects multihost query params as comma-separated
-                # lists, not repeated keys.
-                assert "host=HostA:5432,HostB:5432,HostC:5432" in dsn
+                # Repeated host= keys are collapsed so asyncpg parses all hosts
+                # (it keeps only the last value for duplicate keys otherwise).
                 assert dsn.count("host=") == 1
-                assert "%3A" not in dsn
                 addrs, _ = _parse_asyncpg_dsn(dsn)
                 assert addrs == [
                     ("HostA", 5432),
@@ -383,23 +409,23 @@ class TestGetPgNotifyConnection:
                 mock_connect.assert_called_once()
                 dsn = mock_connect.call_args.args[0]
                 assert dsn.startswith("postgresql://")
-                # Repeated multihost params are collapsed into asyncpg's
-                # supported comma-separated form.
-                assert "host=HostA:5432,HostB:5432,HostC:5432" in dsn
+                # Repeated host= keys are collapsed so asyncpg parses all hosts.
                 assert dsn.count("host=") == 1
-                # Additional connection params preserved
-                assert "gsslib=gssapi" in dsn
-                assert "krbsrvname=postgresql" in dsn
-                assert "sslmode=require" in dsn
+                # ssl is renamed to sslmode so asyncpg treats it as a connection
+                # param rather than a server setting.
                 assert "ssl=require" not in dsn
-                assert "target_session_attrs=primary" in dsn
                 addrs, params = _parse_asyncpg_dsn(dsn)
                 assert addrs == [
                     ("HostA", 5432),
                     ("HostB", 5432),
                     ("HostC", 5432),
                 ]
+                # All extra params are parsed by asyncpg, not leaked into
+                # server_settings.
                 assert params.target_session_attrs.value == "primary"
+                assert params.krbsrvname == "postgresql"
+                assert params.gsslib == "gssapi"
+                assert params.ssl is not None
                 assert params.server_settings is None
 
     async def test_ssl_query_param_renamed_to_sslmode(self):
@@ -441,15 +467,15 @@ class TestGetPgNotifyConnection:
                 assert conn == mock_conn
                 mock_connect.assert_called_once()
                 dsn = mock_connect.call_args.args[0]
-                assert "sslmode=require" in dsn
                 assert "ssl=require" not in dsn
-                assert "host=HostA:5432,HostB:5432" in dsn
                 assert dsn.count("host=") == 1
-                assert "%3A" not in dsn
-                assert "gsslib=gssapi" in dsn
-                assert "krbsrvname=postgresql" in dsn
                 addrs, params = _parse_asyncpg_dsn(dsn)
                 assert addrs == [("HostA", 5432), ("HostB", 5432)]
+                # ssl renamed to sslmode and kerberos params parsed by asyncpg,
+                # not leaked into server_settings.
+                assert params.ssl is not None
+                assert params.krbsrvname == "postgresql"
+                assert params.gsslib == "gssapi"
                 assert params.server_settings is None
 
     async def test_ssl_stripped_when_sslmode_already_present(self):
@@ -490,9 +516,13 @@ class TestGetPgNotifyConnection:
                 mock_connect.assert_called_once()
                 dsn = mock_connect.call_args.args[0]
                 assert dsn.startswith("postgresql:///")
-                assert "sslmode=require" in dsn
                 assert "ssl=require" not in dsn
-                assert "host=/var/run/postgresql" in dsn
+                # ssl renamed to sslmode (parsed as a connection param) and the
+                # UNIX socket host resolved correctly.
+                addrs, params = _parse_asyncpg_dsn(dsn)
+                assert addrs == ["/var/run/postgresql/.s.PGSQL.5432"]
+                assert params.ssl is not None
+                assert params.server_settings is None
 
     async def test_sslmode_query_param_not_modified(self):
         """Test that an existing sslmode query parameter is left untouched."""
