@@ -983,7 +983,7 @@ async def test_image_pull_policy_if_possible_fail_if_local_image_is_not_found(
     # no pull, because registry is not available
     mock_docker_client.api.pull.assert_not_called()
     # still we search for a local image
-    mock_docker_client.images.get.assert_called_once_with()
+    mock_docker_client.images.get.assert_called_once()
 
 
 async def test_image_pull_policy_if_not_present_pulls_image_if_not_present(
@@ -1040,6 +1040,7 @@ async def test_pull_image_raises_on_stream_error(
         {"error": "write /var/lib/docker/...: no space left on device"},
     ]
 
+    default_docker_worker_job_configuration.image_pull_policy = "Always"
     default_docker_worker_job_configuration.image = "prefect:latest"
     default_docker_worker_job_configuration.prepare_for_flow_run(flow_run=flow_run)
     with pytest.raises(RuntimeError, match="no space left on device"):
