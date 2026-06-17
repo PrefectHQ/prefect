@@ -1786,6 +1786,35 @@ class TestEnsureOnlyScheduledFlowMarkedLate:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
 
+    @pytest.mark.parametrize(
+        "intended_transition",
+        [
+            (StateType.SCHEDULED, StateType.SCHEDULED),
+        ],
+        ids=transition_names,
+    )
+    async def test_reject_marking_already_late_flow_as_late(
+        self,
+        session,
+        run_type,
+        initialize_orchestration,
+        intended_transition,
+    ):
+        ctx = await initialize_orchestration(
+            session,
+            run_type,
+            *intended_transition,
+            initial_state_name="Late",
+            proposed_state_name="Late",
+        )
+
+        state_protection = EnsureOnlyScheduledFlowsMarkedLate(ctx, *intended_transition)
+
+        async with state_protection as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+
 
 @pytest.mark.parametrize("run_type", ["flow"])
 class TestPreventPendingTransitions:
