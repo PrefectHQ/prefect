@@ -262,8 +262,12 @@ def _is_like_match_expression(
     """Translate a match expression to a SQL LIKE expression."""
     is_negated = match_expression.startswith("!")
 
-    translation = str.maketrans({"*": "%", "?": "_", "%": "\\%", "_": "\\_"})
-    expression = column.like(match_expression.removeprefix("!").translate(translation))
+    translation = str.maketrans(
+        {"*": "%", "?": "_", "\\": "\\\\", "%": "\\%", "_": "\\_"}
+    )
+    expression = column.like(
+        match_expression.removeprefix("!").translate(translation), escape="\\"
+    )
 
     return ~expression if is_negated else expression
 

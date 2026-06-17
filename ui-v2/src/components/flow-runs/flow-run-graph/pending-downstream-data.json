@@ -1,0 +1,60 @@
+{
+	"start_time": "2024-06-01T12:00:00.000000+00:00",
+	"end_time": "2024-06-01T12:00:04.000000+00:00",
+	"root_node_ids": ["upstream-task-run"],
+	"states": [
+		{
+			"id": "flow-state-running",
+			"timestamp": "2024-06-01T12:00:00.000000+00:00",
+			"type": "RUNNING",
+			"name": "Running"
+		},
+		{
+			"id": "flow-state-failed",
+			"timestamp": "2024-06-01T12:00:04.000000+00:00",
+			"type": "FAILED",
+			"name": "Failed"
+		}
+	],
+	"artifacts": [],
+	"nodes": [
+		[
+			"upstream-task-run",
+			{
+				"kind": "task-run",
+				"id": "upstream-task-run",
+				"label": "upstream_task",
+				"state_name": "Failed",
+				"state_type": "FAILED",
+				"start_time": "2024-06-01T12:00:00.500000+00:00",
+				"end_time": "2024-06-01T12:00:02.500000+00:00",
+				"parents": [],
+				"artifacts": [],
+				"children": [
+					{
+						"id": "pending-downstream-task-run"
+					}
+				]
+			}
+		],
+		[
+			"pending-downstream-task-run",
+			{
+				"kind": "task-run",
+				"id": "pending-downstream-task-run",
+				"label": "downstream_task",
+				"state_name": "NotReady",
+				"state_type": "PENDING",
+				"start_time": "2024-06-01T12:00:03.000000+00:00",
+				"end_time": null,
+				"parents": [
+					{
+						"id": "upstream-task-run"
+					}
+				],
+				"artifacts": [],
+				"children": []
+			}
+		]
+	]
+}

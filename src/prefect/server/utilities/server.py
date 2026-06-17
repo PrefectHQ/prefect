@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Any, Callable, get_type_hints
 from fastapi import APIRouter, Request, Response, status
 from fastapi.routing import APIRoute
 from starlette.routing import BaseRoute
-from starlette.routing import Route as StarletteRoute
 
 
 def method_paths_from_routes(routes: Sequence[BaseRoute]) -> set[str]:
@@ -20,9 +19,21 @@ def method_paths_from_routes(routes: Sequence[BaseRoute]) -> set[str]:
     """
     method_paths: set[str] = set()
     for route in routes:
-        if isinstance(route, (APIRoute, StarletteRoute)):
-            for method in route.methods or ():
-                method_paths.add(f"{method} {route.path}")
+        effective_route_contexts = getattr(route, "effective_route_contexts", None)
+        route_candidates = (
+            effective_route_contexts()
+            if callable(effective_route_contexts)
+            else (route,)
+        )
+
+        for route_candidate in route_candidates:
+            path = getattr(route_candidate, "path", None)
+            methods = getattr(route_candidate, "methods", None)
+            if path is None or methods is None:
+                continue
+
+            for method in methods:
+                method_paths.add(f"{method} {path}")
 
     return method_paths
 

@@ -294,7 +294,8 @@ def inspect(
         if not current_profile:
             exit_with_error("No active profile set - please provide a name to inspect.")
         name = current_profile.name
-        print(f"No name provided, defaulting to {name!r}")
+        if output is None:
+            print(f"No name provided, defaulting to {name!r}")
     if name not in profiles:
         exit_with_error(f"Profile {name!r} not found.")
 
