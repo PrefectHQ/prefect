@@ -968,9 +968,7 @@ async def test_image_pull_policy_if_possible_fail_if_local_image_is_not_found(
     default_docker_worker_job_configuration.image = "prefect"
     default_docker_worker_job_configuration.registry_credentials = credentials
     default_docker_worker_job_configuration.prepare_for_flow_run(flow_run=flow_run)
-    with pytest.raises(
-        RuntimeError, match="Docker operation completely failed for"
-    ):
+    with pytest.raises(RuntimeError, match="Docker operation completely failed for"):
         async with DockerWorker(work_pool_name="test") as worker:
             await worker.run(
                 flow_run=flow_run, configuration=default_docker_worker_job_configuration
