@@ -446,6 +446,32 @@ describe("trigger-utils", () => {
 				expect(isFlowRunStateTrigger(trigger)).toBe(true);
 			});
 
+			it("should return true with deployment matchRelated", () => {
+				const trigger = createFlowRunStateTrigger({
+					match_related: {
+						"prefect.resource.role": "deployment",
+						"prefect.resource.id": "prefect.deployment.123",
+					},
+				});
+				expect(isFlowRunStateTrigger(trigger)).toBe(true);
+			});
+
+			it("should return true with mixed flow and deployment matchRelated", () => {
+				const trigger = createFlowRunStateTrigger({
+					match_related: [
+						{
+							"prefect.resource.role": "flow",
+							"prefect.resource.id": "prefect.flow.123",
+						},
+						{
+							"prefect.resource.role": "deployment",
+							"prefect.resource.id": "prefect.deployment.456",
+						},
+					],
+				});
+				expect(isFlowRunStateTrigger(trigger)).toBe(true);
+			});
+
 			it("should return false when match does not start with prefect.flow-run", () => {
 				const trigger = createFlowRunStateTrigger({
 					match: { "prefect.resource.id": "prefect.deployment.*" },
