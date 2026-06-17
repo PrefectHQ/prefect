@@ -816,12 +816,23 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                     try:
                         docker_client.images.get(configuration.image)
                     except docker.errors.ImageNotFound as exc_image_not_found:
-                        # this fail, results from different exceptions
+                        # this fail results from different exceptions
+                        """
+                        # if we use one day python >=3.11
                         docker_errors = [exc, exc_image_not_found]
                         raise ExceptionGroup(
                             f"Docker image {configuration.image!r} could neither be pulled online nor found locally.",
                             docker_errors,
                         )
+                        """
+                        error_message = (
+                            f"Docker operation completely failed for {configuration.image!r}:\n"
+                            f"-> [1. Login/Pull Error]: {exc}\n\n"
+                            f"-> [2. Local Error]: {exc_image_not_found}\n\n"
+                            f"-> NOTE: Because ImagePullPolicy was set to '{ImagePullPolicy.IF_POSSIBLE}', "
+                            f"a local fallback was attempted after the pull failed, but the image could not be found locally either."
+                        )
+                        raise RuntimeError(error_message) from exc_image_not_found
 
         try:
             self._logger.info(
