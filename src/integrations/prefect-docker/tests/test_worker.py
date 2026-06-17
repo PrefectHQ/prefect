@@ -960,13 +960,17 @@ async def test_image_pull_policy_if_possible_fail_if_local_image_is_not_found(
     mock_docker_client.login.side_effect = APIError(
         "Server not reachable or image does not exist"
     )
-    mock_docker_client.images.get.side_effect = docker.errors.ImageNotFound("Image not found locally")
+    mock_docker_client.images.get.side_effect = docker.errors.ImageNotFound(
+        "Image not found locally"
+    )
 
     default_docker_worker_job_configuration.image_pull_policy = "IfPossible"
     default_docker_worker_job_configuration.image = "prefect"
     default_docker_worker_job_configuration.registry_credentials = credentials
     default_docker_worker_job_configuration.prepare_for_flow_run(flow_run=flow_run)
-    with pytest.raises(RuntimeError, match="could neither be pulled online nor found locally"):
+    with pytest.raises(
+        RuntimeError, match="could neither be pulled online nor found locally"
+    ):
         async with DockerWorker(work_pool_name="test") as worker:
             await worker.run(
                 flow_run=flow_run, configuration=default_docker_worker_job_configuration

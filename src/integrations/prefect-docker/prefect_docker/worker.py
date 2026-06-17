@@ -820,7 +820,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                         docker_errors = [exc, exc_image_not_found]
                         raise ExceptionGroup(
                             f"Docker image {configuration.image!r} could neither be pulled online nor found locally.",
-                            docker_errors
+                            docker_errors,
                         )
 
         try:
