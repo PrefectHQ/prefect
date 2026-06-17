@@ -981,7 +981,7 @@ async def test_image_pull_policy_if_possible_fail_if_local_image_is_not_found(
         reauth=True,
     )
     # no pull, because registry is not available
-    mock_docker_client.api.pull.assert_called_once_with()
+    mock_docker_client.api.pull.assert_not_called()
     # still we search for a local image
     mock_docker_client.images.get.assert_called_once_with()
 
