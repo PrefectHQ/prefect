@@ -697,6 +697,38 @@ def test_inspect_profile_with_json_output():
     )  # Settings are serialized as strings
 
 
+def test_inspect_active_profile_with_json_output():
+    """Regression: `profile inspect --output json` without a name must emit
+    valid JSON (no human-readable fallback line before the payload)."""
+    save_profiles(
+        ProfilesCollection(
+            profiles=[
+                Profile(
+                    name="active-json-test",
+                    settings={
+                        PREFECT_API_URL: "https://active.prefect.cloud/api",
+                        PREFECT_DEBUG_MODE: True,
+                    },
+                )
+            ],
+            active="active-json-test",
+        )
+    )
+
+    with use_profile("active-json-test"):
+        result = invoke_and_assert(
+            ["profile", "inspect", "--output", "json"],
+            expected_code=0,
+        )
+
+    output_data = json.loads(result.stdout.strip())
+
+    assert output_data == {
+        "PREFECT_API_URL": "https://active.prefect.cloud/api",
+        "PREFECT_DEBUG_MODE": "True",
+    }
+
+
 class TestProfilesPopulateDefaults:
     def test_populate_defaults(self, temporary_profiles_path: Path):
         default_profiles = _read_profiles_from(DEFAULT_PROFILES_PATH)
