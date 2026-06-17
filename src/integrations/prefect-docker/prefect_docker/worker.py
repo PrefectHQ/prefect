@@ -102,7 +102,7 @@ class ImagePullPolicy(enum.Enum):
     IF_NOT_PRESENT = "IfNotPresent"
     ALWAYS = "Always"
     # tries to pull the image, but if not possible it still continues
-    ALWAYS_IF_POSSIBLE = "AlwaysIfPossible"
+    IF_POSSIBLE = "IfPossible"
     NEVER = "Never"
 
 
@@ -154,7 +154,7 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
         " images from.",
     )
     image_pull_policy: Optional[
-        Literal["IfNotPresent", "Always", "AlwaysIfPossible", "Never"]
+        Literal["IfNotPresent", "Always", "IfPossible", "Never"]
     ] = Field(
         default=None,
         description="The image pull policy to use when pulling images.",
@@ -395,12 +395,12 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
            a tag other than "latest", use ImagePullPolicy.if_not_present.
 
         This logic matches the behavior of Kubernetes.
-        See:https://kubernetes.io/docs/concepts/containers/images/#imagepullpolicy-defaulting
+        See: https://kubernetes.io/docs/concepts/containers/images/#imagepullpolicy-defaulting
         """
         if not self.image_pull_policy:
             _, tag = parse_image_tag(self.image)
             if tag == "latest" or not tag:
-                return ImagePullPolicy.ALWAYS
+                return ImagePullPolicy.IF_POSSIBLE
             return ImagePullPolicy.IF_NOT_PRESENT
         return ImagePullPolicy(self.image_pull_policy)
 
@@ -805,12 +805,23 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                 self._pull_image(docker_client, configuration)
             except Exception as exc:
                 image_pull_policy = configuration._determine_image_pull_policy()
-                if image_pull_policy is not ImagePullPolicy.ALWAYS_IF_POSSIBLE:
+                if image_pull_policy is not ImagePullPolicy.IF_POSSIBLE:
                     raise exc
                 else:
-                    self._logger.info(
-                        f"Pulling for {configuration.image!r} failed. But because ImagePullPolicy is set to '{ImagePullPolicy.ALWAYS_IF_POSSIBLE}' we still continue. Maybe we have an local one."
+                    self._logger.warning(
+                        f"We could not pull the image {configuration.image!r}. But because ImagePullPolicy is set to '{ImagePullPolicy.IF_POSSIBLE}' we still continue. Maybe we have an local one."
+                        f"\nPulling failed with:\n{exc}"
                     )
+                    # if pull policy is if_possible, we check if a local image exists. If yes this will be used, otherwise it will raise a detailed exception
+                    try:
+                        docker_client.images.get(configuration.image)
+                    except docker.errors.ImageNotFound as exc_image_not_found:
+                        # this fail, results from different exceptions
+                        docker_errors = [exc, exc_image_not_found]
+                        raise ExceptionGroup(
+                            f"Docker image {configuration.image!r} could neither be pulled online nor found locally.",
+                            docker_errors
+                        )
 
         try:
             self._logger.info(
@@ -937,7 +948,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
 
         if image_pull_policy in (
             ImagePullPolicy.ALWAYS,
-            ImagePullPolicy.ALWAYS_IF_POSSIBLE,
+            ImagePullPolicy.IF_POSSIBLE,
         ):
             return True
         elif image_pull_policy is ImagePullPolicy.NEVER:
