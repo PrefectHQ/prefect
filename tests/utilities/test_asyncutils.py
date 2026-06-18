@@ -399,10 +399,11 @@ async def test_gather_task_group_get_result_bad_uuid():
 
 
 async def test_gather_task_group_create_task_delegates_when_supported():
-    async with create_gather_task_group() as tg:
-        if not hasattr(tg._task_group, "create_task"):
-            pytest.skip("AnyIO task group does not support create_task")
+    tg = create_gather_task_group()
+    if not hasattr(tg._task_group, "create_task"):
+        pytest.skip("AnyIO task group does not support create_task")
 
+    async with tg:
         completed = False
 
         async def foo():
@@ -416,6 +417,10 @@ async def test_gather_task_group_create_task_delegates_when_supported():
 
 
 async def test_gather_task_group_cancel_delegates_cancel_scope_when_supported():
+    tg = create_gather_task_group()
+    if not hasattr(tg, "cancel"):
+        pytest.skip("AnyIO task group does not support cancel")
+
     completed = False
 
     async def wait_forever():
@@ -425,10 +430,7 @@ async def test_gather_task_group_cancel_delegates_cancel_scope_when_supported():
         finally:
             completed = True
 
-    async with create_gather_task_group() as tg:
-        if not hasattr(tg, "cancel"):
-            pytest.skip("AnyIO task group does not support cancel")
-
+    async with tg:
         tg.start_soon(wait_forever)
         await anyio.sleep(0)
         tg.cancel()
