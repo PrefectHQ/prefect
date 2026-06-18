@@ -655,27 +655,44 @@ async def _trim_stream_to_lowest_delivered_id(stream_name: str) -> None:
     # Find the lowest last-delivered-id across all active groups
     group_ids = []
     for group in groups:
-        if group["last-delivered-id"] == "0-0":
+        last_delivered_id = group.get("last-delivered-id")
+        if isinstance(last_delivered_id, bytes):
+            last_delivered_id = last_delivered_id.decode()
+            
+        group_name = group.get("name")
+        if isinstance(group_name, bytes):
+            group_name = group_name.decode()
+
+        if last_delivered_id == "0-0":
             # Skip groups that haven't consumed anything
             continue
 
         # Check if this group has any active (non-idle) consumers
         try:
-            consumers = await redis_client.xinfo_consumers(stream_name, group["name"])
+            try:
+                if hasattr(redis_client, "xinfo_consumers"):
+                    consumers = await redis_client.xinfo_consumers(stream_name, group_name)
+                else:
+                    from redis.asyncio import Redis
+                    consumers = await Redis.xinfo_consumers(redis_client, stream_name, group_name)
+            except (AttributeError, NotImplementedError):
+                from redis.asyncio import Redis
+                consumers = await Redis.xinfo_consumers(redis_client, stream_name, group_name)
+                
             if consumers and all(
-                consumer["idle"] > idle_threshold_ms for consumer in consumers
+                int(consumer.get("idle", 0)) > idle_threshold_ms for consumer in consumers
             ):
                 # All consumers in this group are idle beyond threshold
                 logger.debug(
-                    f"Skipping idle consumer group '{group['name']}' "
+                    f"Skipping idle consumer group '{group_name}' "
                     f"(all {len(consumers)} consumers idle > {idle_threshold_ms}ms)"
                 )
                 continue
         except Exception as e:
             # If we can't check consumer idle times, include the group to be safe
-            logger.debug(f"Unable to check consumers for group '{group['name']}': {e}")
+            logger.debug(f"Unable to check consumers for group '{group_name}': {e}")
 
-        group_ids.append(group["last-delivered-id"])
+        group_ids.append(last_delivered_id)
 
     if not group_ids:
         logger.debug(f"No active consumer groups found for stream {stream_name}")
@@ -709,6 +726,8 @@ async def _cleanup_empty_consumer_groups(stream_name: str) -> None:
         stream_name: The name of the Redis stream to clean up groups for
     """
     redis_client: Redis = get_async_redis_client()
+    settings = RedisMessagingConsumerSettings()
+    idle_threshold_ms = int(settings.trim_idle_threshold.total_seconds() * 1000)
 
     try:
         groups = await redis_client.xinfo_groups(stream_name)
@@ -718,16 +737,39 @@ async def _cleanup_empty_consumer_groups(stream_name: str) -> None:
 
     for group in groups:
         try:
-            # Skip groups that haven't consumed anything yet - they may be newly
-            # created and waiting for consumers to be added
-            if group["last-delivered-id"] == "0-0":
+            group_name = group.get("name")
+            if isinstance(group_name, bytes):
+                group_name = group_name.decode()
+                
+            last_delivered_id = group.get("last-delivered-id")
+            if isinstance(last_delivered_id, bytes):
+                last_delivered_id = last_delivered_id.decode()
+
+            if last_delivered_id == "0-0" and not group_name.startswith("ephemeral"):
                 continue
 
-            consumers = await redis_client.xinfo_consumers(stream_name, group["name"])
-            if not consumers and group["name"].startswith("ephemeral"):
-                # No consumers in this group and it has consumed messages - it's abandoned
-                logger.debug(f"Deleting empty consumer group '{group['name']}'")
-                await redis_client.xgroup_destroy(stream_name, group["name"])
+            try:
+                if hasattr(redis_client, "xinfo_consumers"):
+                    consumers = await redis_client.xinfo_consumers(stream_name, group_name)
+                else:
+                    from redis.asyncio import Redis
+                    consumers = await Redis.xinfo_consumers(redis_client, stream_name, group_name)
+            except (AttributeError, NotImplementedError):
+                from redis.asyncio import Redis
+                consumers = await Redis.xinfo_consumers(redis_client, stream_name, group_name)
+
+            if not consumers:
+                if last_delivered_id == "0-0":
+                    continue
+                if group_name.startswith("ephemeral"):
+                    logger.debug(f"Deleting empty consumer group '{group_name}'")
+                    await redis_client.xgroup_destroy(stream_name, group_name)
+            else:
+                if group_name.startswith("ephemeral"):
+                    all_idle = all(int(c.get("idle", 0)) > idle_threshold_ms for c in consumers)
+                    if all_idle:
+                        logger.debug(f"Deleting stale consumer group '{group_name}'")
+                        await redis_client.xgroup_destroy(stream_name, group_name)
         except Exception as e:
             # If we can't check or delete, just continue
-            logger.debug(f"Unable to cleanup group '{group['name']}': {e}")
+            logger.debug(f"Unable to cleanup group '{group.get('name')}': {e}")

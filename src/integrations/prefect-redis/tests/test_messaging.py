@@ -39,6 +39,15 @@ from prefect.settings import (
     temporary_settings,
 )
 
+@pytest.fixture(autouse=True)
+async def skip_if_no_xautoclaim(redis: Redis, monkeypatch):
+    info = await redis.info()
+    if info.get("redis_version", "0") < "6.2.0":
+        original_xautoclaim = getattr(Redis, "xautoclaim", None)
+        async def skip_xautoclaim(*args, **kwargs):
+            pytest.skip("XAUTOCLAIM requires Redis >= 6.2.0")
+        if original_xautoclaim:
+            monkeypatch.setattr(Redis, "xautoclaim", skip_xautoclaim)
 
 def pytest_generate_tests(metafunc: pytest.Metafunc):
     if "broker_module_name" in metafunc.fixturenames:
@@ -107,6 +116,18 @@ def deduplicating_publisher(broker: str, cache: Cache) -> Publisher:
     return create_publisher("message-tests", cache, deduplicate_by="my-message-id")
 
 
+@pytest.fixture
+async def skip_if_old_redis(redis: Redis) -> None:
+    info = await redis.info()
+    version_str = info.get("redis_version", "0")
+    try:
+        version = tuple(int(x) for x in version_str.split(".")[:3])
+    except ValueError:
+        version = (0, 0, 0)
+    if version < (6, 2, 0):
+        pytest.skip("XAUTOCLAIM requires Redis >= 6.2.0")
+
+
 async def drain_one(consumer: Consumer) -> Optional[Message]:
     """Utility function to drain one message from a consumer."""
     captured_messages: list[Message] = []
@@ -149,7 +170,7 @@ async def test_publishing_and_consuming_a_single_message(
 
 
 async def test_stopping_consumer_without_acking(
-    publisher: Publisher, consumer: Consumer
+    publisher: Publisher, consumer: Consumer, skip_if_old_redis: None
 ) -> None:
     """Test that messages remain in queue when not acknowledged."""
     captured_messages: list[Message] = []
@@ -186,7 +207,7 @@ async def test_stopping_consumer_without_acking(
 
 
 async def test_erroring_handler_does_not_ack(
-    publisher: Publisher, consumer: Consumer
+    publisher: Publisher, consumer: Consumer, skip_if_old_redis: None
 ) -> None:
     """Test that failed message processing doesn't acknowledge the message."""
     captured_messages: list[Message] = []
@@ -250,6 +271,7 @@ async def test_repeatedly_failed_message_is_moved_to_dead_letter_queue(
     redis: Redis,
     deduplicating_publisher: Publisher,
     consumer: Consumer,
+    skip_if_old_redis: None,
 ):
     """Test that messages are moved to DLQ after repeated failures."""
     captured_messages: list[Message] = []
@@ -345,7 +367,7 @@ async def test_verify_ephemeral_cleanup(redis: Redis, broker: str):
 
 @pytest.mark.parametrize("batch_size", [1, 5])
 async def test_publisher_respects_batch_size(
-    publisher: Publisher, consumer: Consumer, batch_size: int
+    publisher: Publisher, consumer: Consumer, batch_size: int, skip_if_old_redis: None
 ):
     """Test that publisher respects the configured batch size."""
     messages = [(f"message-{i}".encode(), {"id": str(i)}) for i in range(10)]
@@ -374,7 +396,7 @@ async def test_publisher_respects_batch_size(
 
 
 async def test_trimming_streams(
-    redis: Redis, publisher: Publisher, consumer_a: Consumer, consumer_b: Consumer
+    redis: Redis, publisher: Publisher, consumer_a: Consumer, consumer_b: Consumer, skip_if_old_redis: None
 ) -> None:
     """Test that streams are trimmed after messages are processed."""
     # Given the consumers an aggressive trimming frequency for the tests
@@ -518,7 +540,7 @@ async def test_trimming_with_no_delivered_messages(redis: Redis):
 
 
 async def test_trimming_skips_idle_consumer_groups(
-    redis: Redis, monkeypatch: pytest.MonkeyPatch
+    redis: Redis, monkeypatch: pytest.MonkeyPatch, skip_if_old_redis: None
 ):
     """Test that stream trimming skips consumer groups with all consumers idle beyond threshold."""
 
@@ -688,7 +710,7 @@ async def test_cleanup_preserves_newly_created_empty_groups(redis: Redis):
 
 
 async def test_consumer_recovers_from_redis_connection_error(
-    broker: str, publisher: Publisher
+    broker: str, publisher: Publisher, skip_if_old_redis: None
 ):
     """Test that consumer reconnects after Redis connection error (issue #19080)."""
     captured_messages: list[Message] = []
@@ -752,7 +774,7 @@ async def test_clear_cached_clients():
 
 
 async def test_consumer_handles_orphan_pending_entries(
-    redis: Redis, broker: str, publisher: Publisher
+    redis: Redis, broker: str, publisher: Publisher, skip_if_old_redis: None
 ):
     """Test that orphan pending entries (None messages from XAUTOCLAIM) are
     handled gracefully: acknowledged and skipped without crashing the consumer."""
@@ -796,7 +818,7 @@ async def test_consumer_handles_orphan_pending_entries(
 
 
 async def test_batch_ack_excludes_failed_messages(
-    redis: Redis, broker: str, publisher: Publisher
+    redis: Redis, broker: str, publisher: Publisher, skip_if_old_redis: None
 ):
     """Test that when multiple messages are read in a single batch, only
     successfully handled messages are acknowledged. Failed messages should
