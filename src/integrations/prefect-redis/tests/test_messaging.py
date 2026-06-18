@@ -407,6 +407,42 @@ async def test_ephemeral_subscription_does_not_skip_messages_received_during_han
     assert [message.data for message in captured_messages] == ["first", "second"]
 
 
+async def test_ephemeral_subscription_trims_stream_without_consumer_groups(
+    redis: Redis, broker: str, publisher: Publisher
+):
+    """Ephemeral XREAD consumers should still periodically trim their stream."""
+    captured_messages: list[Message] = []
+
+    async with publisher as p:
+        for i in range(5):
+            await p.publish_data(b"old", {"message": f"old-{i}"})
+
+    assert await redis.xlen("message-tests") == 5
+
+    async def handler(message: Message):
+        captured_messages.append(message)
+        if len(captured_messages) == 2:
+            raise StopConsumer(ack=True)
+
+    async with ephemeral_subscription("message-tests") as consumer_kwargs:
+        consumer = create_consumer(**consumer_kwargs, trim_every=timedelta(seconds=0))
+        consumer_task = asyncio.create_task(consumer.run(handler))
+
+        try:
+            async with publisher as p:
+                await p.publish_data(b"new", {"message": "new-1"})
+                await p.publish_data(b"new", {"message": "new-2"})
+        finally:
+            await consumer_task
+
+    assert [message.attributes["message"] for message in captured_messages] == [
+        "new-1",
+        "new-2",
+    ]
+    assert await redis.xinfo_groups("message-tests") == []
+    assert await redis.xlen("message-tests") < 7
+
+
 @pytest.mark.parametrize("batch_size", [1, 5])
 async def test_publisher_respects_batch_size(
     publisher: Publisher, consumer: Consumer, batch_size: int

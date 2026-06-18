@@ -376,6 +376,7 @@ class Consumer(_Consumer):
             )
 
             if not stream_entries:
+                await self._trim_stream_if_necessary(last_id)
                 continue
 
             for _, messages in stream_entries:
@@ -394,6 +395,7 @@ class Consumer(_Consumer):
                             _noop_ack,
                         )
                     except StopConsumer:
+                        await self._trim_stream_if_necessary(last_id)
                         return
                     except Exception:
                         logger.exception(
@@ -401,6 +403,8 @@ class Consumer(_Consumer):
                             message_id,
                             self.name,
                         )
+
+            await self._trim_stream_if_necessary(last_id)
 
     async def process_pending_messages(
         self,
@@ -630,13 +634,17 @@ class Consumer(_Consumer):
         # Add to a Redis set for easy retrieval
         await redis_client.sadd(self.subscription.dlq_key, message_id)
 
-    async def _trim_stream_if_necessary(self) -> None:
+    async def _trim_stream_if_necessary(
+        self, latest_delivered_id: Optional[str] = None
+    ) -> None:
         now = time.monotonic()
         if self._last_trimmed is None:
             self._last_trimmed = now
 
         if now - self._last_trimmed > self.trim_every.total_seconds():
-            await _trim_stream_to_lowest_delivered_id(self.stream)
+            await _trim_stream_to_lowest_delivered_id(
+                self.stream, latest_delivered_id=latest_delivered_id
+            )
             await _cleanup_empty_consumer_groups(self.stream)
             self._last_trimmed = now
 
@@ -685,14 +693,16 @@ async def break_topic():
         yield
 
 
-async def _trim_stream_to_lowest_delivered_id(stream_name: str) -> None:
+async def _trim_stream_to_lowest_delivered_id(
+    stream_name: str, latest_delivered_id: Optional[str] = None
+) -> None:
     """
-    Trims a Redis stream by removing all messages that have been delivered to and
-    acknowledged by all consumer groups.
+    Trims a Redis stream by removing messages that have been delivered to all
+    active consumers.
 
     This function finds the lowest last-delivered-id across all consumer groups and
-    trims the stream up to that point, as we know all consumers have processed those
-    messages.
+    any non-consumer-group reader, then trims the stream up to that point, as we
+    know all consumers have processed those messages.
 
     Consumer groups with all consumers idle beyond the configured threshold are
     excluded from the trimming calculation to prevent inactive groups from blocking
@@ -700,19 +710,25 @@ async def _trim_stream_to_lowest_delivered_id(stream_name: str) -> None:
 
     Args:
         stream_name: The name of the Redis stream to trim
+        latest_delivered_id: The latest ID delivered to a non-consumer-group reader.
     """
     redis_client: Redis = get_async_redis_client()
     settings = RedisMessagingConsumerSettings()
     idle_threshold_ms = int(settings.trim_idle_threshold.total_seconds() * 1000)
 
+    delivered_ids = []
+    if latest_delivered_id and latest_delivered_id != "0-0":
+        delivered_ids.append(latest_delivered_id)
+
     # Get information about all consumer groups for this stream
     groups = await redis_client.xinfo_groups(stream_name)
     if not groups:
         logger.debug(f"No consumer groups found for stream {stream_name}")
-        return
+        if not delivered_ids:
+            return
 
     # Find the lowest last-delivered-id across all active groups
-    group_ids = []
+    group_ids = delivered_ids
     for group in groups:
         if group["last-delivered-id"] == "0-0":
             # Skip groups that haven't consumed anything
