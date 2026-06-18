@@ -530,7 +530,7 @@ async def _run_multi_deploy(
         display_name = escape(str(resolved_name))
         console.print(Panel(f"Deploying {display_name}", style="blue"))
         validated_configs.append(deploy_config)
-    
+
     if not validated_configs:
         return
 

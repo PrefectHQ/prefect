@@ -365,7 +365,6 @@ async def deploy(
             ),
         ),
     ] = 1,
-    
     prefect_file: Annotated[
         Path,
         cyclopts.Parameter(
@@ -402,11 +401,9 @@ async def deploy(
 
     if job_variables is None:
         job_variables = list()
-    
+        
     if deploy_concurrency < 1:
-        raise ValueError(
-            "--deploy-concurrency must be greater than or equal to 1."
-        )
+        raise ValueError("--deploy-concurrency must be greater than or equal to 1.")
 
     concurrency_limit_config = (
         None
