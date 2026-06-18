@@ -10042,6 +10042,12 @@ export interface components {
              * @default 20
              */
             loop_seconds: number;
+            /**
+             * Cancelling Timeout Seconds
+             * @description The cancellation cleanup service will enqueue worker cleanup for flow runs that remain in CANCELLING longer than this many seconds. Defaults to `300`.
+             * @default 300
+             */
+            cancelling_timeout_seconds: number;
         };
         /**
          * ServerServicesCleanupReconcilerSettings
