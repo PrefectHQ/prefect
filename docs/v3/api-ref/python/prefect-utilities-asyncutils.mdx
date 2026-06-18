@@ -213,7 +213,7 @@ asyncio does not provided _any_ other way to clean up a resource when the event
 loop is about to close.
 
 
-### `create_gather_task_group` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils/__init__.py#L525" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_gather_task_group` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils/__init__.py#L543" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_gather_task_group() -> GatherTaskGroup
@@ -223,7 +223,7 @@ create_gather_task_group() -> GatherTaskGroup
 Create a new task group that gathers results
 
 
-### `gather` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils/__init__.py#L533" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `gather` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils/__init__.py#L551" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 gather(*calls: Callable[[], Coroutine[Any, Any, T]]) -> list[T]
@@ -259,13 +259,25 @@ This class should be instantiated with `create_gather_task_group`.
 
 **Methods:**
 
-#### `get_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils/__init__.py#L504" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `cancel_scope` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils/__init__.py#L478" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+cancel_scope(self) -> Any
+```
+
+#### `create_task` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils/__init__.py#L501" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+create_task(self, coro: Coroutine[Any, Any, T]) -> Any
+```
+
+#### `get_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils/__init__.py#L522" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_result(self, key: UUID) -> Any
 ```
 
-#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils/__init__.py#L497" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils/__init__.py#L515" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 start(self, func: object, *args: object) -> NoReturn
@@ -275,10 +287,10 @@ Since `start` returns the result of `task_status.started()` but here we must
 return the key instead, we just won't support this method for now.
 
 
-#### `start_soon` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils/__init__.py#L485" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `start_soon` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils/__init__.py#L489" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 start_soon(self, func: Callable[[Unpack[PosArgsT]], Awaitable[Any]], *args: Unpack[PosArgsT]) -> UUID
 ```
 
-### `LazySemaphore` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils/__init__.py#L547" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `LazySemaphore` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/asyncutils/__init__.py#L565" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
