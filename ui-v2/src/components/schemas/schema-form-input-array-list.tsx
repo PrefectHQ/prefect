@@ -195,7 +195,7 @@ export function SchemaFormInputArrayList({
 
 			{canAddMore && (
 				<div className="flex justify-end">
-					<Button size="sm" variant="outline" onClick={addItem}>
+					<Button type="button" size="sm" variant="outline" onClick={addItem}>
 						Add item
 					</Button>
 				</div>
