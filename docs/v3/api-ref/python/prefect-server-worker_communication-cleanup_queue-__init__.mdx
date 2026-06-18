@@ -7,7 +7,7 @@ sidebarTitle: __init__
 
 ## Functions
 
-### `record_cleanup_queue_dead_letter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L278" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `record_cleanup_queue_dead_letter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L284" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 record_cleanup_queue_dead_letter(dead_letter: CleanupQueueDeadLetter) -> None
@@ -17,7 +17,7 @@ record_cleanup_queue_dead_letter(dead_letter: CleanupQueueDeadLetter) -> None
 Record observability signals for a cleanup message DLQ transition.
 
 
-### `record_cleanup_queue_lease_expiry_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L307" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `record_cleanup_queue_lease_expiry_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L313" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 record_cleanup_queue_lease_expiry_result(result: CleanupQueueLeaseExpiryResult) -> None
@@ -27,7 +27,17 @@ record_cleanup_queue_lease_expiry_result(result: CleanupQueueLeaseExpiryResult) 
 Record aggregate lease-expiry transition metrics.
 
 
-### `get_worker_cleanup_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L326" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `record_cleanup_queue_operation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L332" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+record_cleanup_queue_operation(operation: str) -> None
+```
+
+
+Record observability signals for a cleanup queue operation.
+
+
+### `get_worker_cleanup_queue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L357" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_worker_cleanup_queue() -> WorkerCleanupQueue
@@ -39,7 +49,7 @@ Return a cleanup queue instance from the configured storage module.
 
 ## Classes
 
-### `CleanupQueueMessage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L42" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CleanupQueueMessage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L48" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
@@ -61,31 +71,9 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `CleanupQueueReservation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L57" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CleanupQueueReservation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L63" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `CleanupQueueDeadLetter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L63" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-**Methods:**
-
-#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-model_validate_list(cls, obj: Any) -> list[Self]
-```
-
-#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-reset_fields(self: Self) -> Self
-```
-
-Reset the fields of the model that are in the `_reset_fields` set.
-
-**Returns:**
-- A new instance of the model with the reset fields.
-
-
-### `CleanupQueueOperationResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L75" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CleanupQueueDeadLetter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
@@ -107,7 +95,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `CleanupQueueLeaseExpiryResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L86" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CleanupQueueOperationResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L81" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
@@ -129,7 +117,7 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `CleanupQueueWakeup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L93" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CleanupQueueLeaseExpiryResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L92" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
@@ -151,7 +139,29 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-### `WorkerCleanupQueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `CleanupQueueWakeup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L99" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+**Methods:**
+
+#### `model_validate_list` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L56" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+model_validate_list(cls, obj: Any) -> list[Self]
+```
+
+#### `reset_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/_internal/schemas/bases.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+reset_fields(self: Self) -> Self
+```
+
+Reset the fields of the model that are in the `_reset_fields` set.
+
+**Returns:**
+- A new instance of the model with the reset fields.
+
+
+### `WorkerCleanupQueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L106" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Interface for cleanup delivery queue storage.
@@ -165,7 +175,7 @@ idempotency retention semantics.
 
 **Methods:**
 
-#### `ack` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L151" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `ack` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L157" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ack(self) -> CleanupQueueOperationResult
@@ -179,7 +189,7 @@ Implementations should retain completed idempotency state according to
 their configured retention policy.
 
 
-#### `enqueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L111" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `enqueue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L117" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 enqueue(self) -> CleanupQueueMessage
@@ -193,7 +203,7 @@ for repeated enqueue attempts instead of creating duplicates. The
 optional `work_queue_id` is advisory targeting metadata.
 
 
-#### `expire_leases` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L201" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `expire_leases` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L207" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 expire_leases(self) -> CleanupQueueLeaseExpiryResult
@@ -206,7 +216,7 @@ dead-letter queue according to retry policy. Implementations may scope
 the sweep to a work pool when `work_pool_id` is provided.
 
 
-#### `read_dead_letter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L230" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_dead_letter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L236" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_dead_letter(self) -> CleanupQueueDeadLetter | None
@@ -218,7 +228,7 @@ This is an inspection helper for terminal cleanup failures. It must not
 return a dead-letter entry from a different work pool.
 
 
-#### `read_message` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L216" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_message` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_message(self) -> CleanupQueueMessage | None
@@ -230,7 +240,7 @@ This is an inspection helper for messages that have not been acked or
 dead-lettered. It must not return a message from a different work pool.
 
 
-#### `read_wakeup_sequence` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L253" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_wakeup_sequence` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L259" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_wakeup_sequence(self, work_pool_id: UUID) -> int
@@ -242,7 +252,7 @@ Callers use this value as the `after` cursor when waiting for future
 wakeups.
 
 
-#### `release` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L168" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `release` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L174" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 release(self) -> CleanupQueueOperationResult
@@ -255,7 +265,7 @@ token atomically, then either make the message eligible for redelivery or
 move it to the dead-letter queue when retry policy is exhausted.
 
 
-#### `renew` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L185" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `renew` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L191" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 renew(self) -> CleanupQueueOperationResult
@@ -268,7 +278,7 @@ token atomically. Renewing a reservation should not increment delivery
 count because no new delivery has been committed.
 
 
-#### `reserve` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L132" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reserve` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L138" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reserve(self) -> CleanupQueueReservation | None
@@ -283,7 +293,7 @@ treated as an advisory preference, with pool-wide fallback controlled by
 `allow_fallback_to_any_queue`.
 
 
-#### `wait_for_wakeup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L262" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `wait_for_wakeup` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L268" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wait_for_wakeup(self, work_pool_id: UUID) -> CleanupQueueWakeup | None
@@ -295,7 +305,7 @@ Returns the next wakeup when one is observed, or `None` when `timeout`
 elapses before a newer wakeup is available.
 
 
-#### `wake_dispatchers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L244" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `wake_dispatchers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/worker_communication/cleanup_queue/__init__.py#L250" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wake_dispatchers(self, work_pool_id: UUID) -> CleanupQueueWakeup
