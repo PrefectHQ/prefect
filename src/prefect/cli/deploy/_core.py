@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import inspect
 import os
 from copy import deepcopy
@@ -486,16 +487,15 @@ async def _run_single_deploy(
 async def _run_multi_deploy(
     deploy_configs: list[dict[str, Any]],
     actions: dict[str, Any],
-    names: Optional[list[str]] = None,
     deploy_all: bool = False,
     prefect_file: Path = Path("prefect.yaml"),
+    concurrency: int = 1,
     *,
     console: "Console",
     is_interactive: Callable[[], bool],
 ):
     deploy_configs = deepcopy(deploy_configs) if deploy_configs else []
     actions = deepcopy(actions) if actions else {}
-    names = names or []
 
     if deploy_all:
         console.print(
@@ -503,6 +503,7 @@ async def _run_multi_deploy(
         )
     else:
         console.print("Deploying flows with selected deployment configurations...")
+    validated_configs = []
     for deploy_config in deploy_configs:
         if deploy_config.get("name") is None:
             if not is_interactive():
@@ -528,10 +529,23 @@ async def _run_multi_deploy(
         # Escape Rich markup to prevent brackets from being interpreted as style tags
         display_name = escape(str(resolved_name))
         console.print(Panel(f"Deploying {display_name}", style="blue"))
-        await _run_single_deploy(
-            deploy_config,
-            actions,
-            prefect_file=prefect_file,
-            console=console,
-            is_interactive=is_interactive,
-        )
+        validated_configs.append(deploy_config)
+    
+    if not validated_configs:
+        return
+
+    semaphore = asyncio.Semaphore(max(concurrency, 1))
+
+    async def deploy_with_limit(config: dict[str, Any]) -> None:
+        async with semaphore:
+            await _run_single_deploy(
+                config,
+                actions,
+                prefect_file=prefect_file,
+                console=console,
+                is_interactive=is_interactive,
+            )
+
+    await asyncio.gather(
+        *(deploy_with_limit(config) for config in validated_configs),
+    )

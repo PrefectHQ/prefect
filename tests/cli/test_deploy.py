@@ -10,7 +10,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 from unittest import mock
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
 import pytest
@@ -6999,3 +6999,85 @@ class TestDeployAllEnvVarTemplateDisplay:
             "An important name/-test-flow"
         )
         assert deployment.name == "-test-flow"
+
+class TestRunMultiDeploy:
+
+    async def test_run_multi_deploy_propagates_exception(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        from prefect.cli.deploy import _core
+
+        async def fake_single_deploy(*args, **kwargs):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(
+            _core,
+            "_run_single_deploy",
+            fake_single_deploy,
+        )
+
+        with pytest.raises(RuntimeError, match="boom"):
+            await _core._run_multi_deploy(
+                deploy_configs=[
+                    {"name": "one"},
+                ],
+                actions={},
+                console=MagicMock(),
+                is_interactive=lambda: False,
+            )
+
+    async def test_run_multi_deploy_returns_when_no_valid_configs(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        from prefect.cli.deploy import _core
+
+        single = AsyncMock()
+
+        monkeypatch.setattr(
+            _core,
+            "_run_single_deploy",
+            single,
+        )
+
+        console = MagicMock()
+
+        await _core._run_multi_deploy(
+            deploy_configs=[
+                {},   # unnamed deployment
+            ],
+            actions={},
+            console=console,
+            is_interactive=lambda: False,
+        )
+
+        single.assert_not_called()
+
+    async def test_run_multi_deploy_allows_zero_concurrency(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        from prefect.cli.deploy import _core
+
+        called = False
+
+        async def fake_single_deploy(*args, **kwargs):
+            nonlocal called
+            called = True
+
+        monkeypatch.setattr(
+            _core,
+            "_run_single_deploy",
+            fake_single_deploy,
+        )
+
+        await _core._run_multi_deploy(
+            deploy_configs=[{"name": "one"}],
+            actions={},
+            concurrency=0,
+            console=MagicMock(),
+            is_interactive=lambda: False,
+        )
+
+        assert called
