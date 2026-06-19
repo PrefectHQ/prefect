@@ -19,7 +19,6 @@ from typing_extensions import Self, TypeAlias
 
 from prefect.client.base import PrefectHttpxAsyncClient
 from prefect.logging import get_logger
-from prefect.server.api.clients import _SharedClientMixin
 from prefect.server.events import messaging
 from prefect.server.events.schemas.events import (
     Event,
@@ -242,8 +241,8 @@ class PrefectServerEventsClient(EventsClient):
         return received_event
 
 
-class PrefectServerEventsAPIClient(_SharedClientMixin):
-    # Process-shared client cache; see `_SharedClientMixin` for the rationale.
+class PrefectServerEventsAPIClient:
+    _http_client: PrefectHttpxAsyncClient
 
     def __init__(self, additional_headers: dict[str, str] = {}):
         from prefect.server.api.clients import _apply_scoped_headers

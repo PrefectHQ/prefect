@@ -277,22 +277,6 @@ async def restore_loop_after_each_test():
     asyncio.set_event_loop(loop)
 
 
-@pytest.fixture(autouse=True)
-async def reset_shared_server_clients():
-    """
-    The server-side `OrchestrationClient` / `PrefectServerEventsAPIClient` keep a
-    process-level cache of one open client per settings (see
-    `prefect.server.api.clients._SharedClientMixin`). Close and discard them
-    after each test so a client built under `temporary_settings()`, or on a
-    per-test event loop, is never handed back to a later test.
-    """
-    from prefect.server.api.clients import BaseClient
-
-    yield
-
-    await BaseClient._reset_shared()
-
-
 @pytest.fixture(scope="session")
 def tests_dir() -> pathlib.Path:
     return pathlib.Path(__file__).parent
