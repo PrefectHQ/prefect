@@ -409,6 +409,15 @@ async def _build_worker_ready_frame(
         if capability not in accepted_set
     ]
 
+    if rejected:
+        logger.debug(
+            "Worker channel capabilities rejected: "
+            "work_pool=%s worker_name=%s rejected=%s",
+            work_pool_name,
+            hello.payload.worker_name,
+            rejected,
+        )
+
     return (
         WorkerReadyFrame(
             type="worker.ready.v1",
@@ -1154,17 +1163,41 @@ async def worker_channel_connect(
             await connection.run(ready, consumer_kwargs)
 
     except WorkerChannelSetupError as exc:
-        logger.info("Worker channel setup failed: %s", exc.detail)
+        logger.debug(
+            "Worker channel setup failed: work_pool=%s reason=%s detail=%s",
+            work_pool_name,
+            exc.close_reason.value,
+            exc.detail,
+        )
+        if worker_channel_utils.WORKER_CHANNEL_CONNECTIONS is not None:
+            worker_channel_utils.WORKER_CHANNEL_CONNECTIONS.labels(
+                event="setup_failed"
+            ).inc()
         await worker_channel_utils.close_worker_channel(websocket, exc.close_reason)
     except HTTPException as exc:
-        logger.info("Worker channel setup failed HTTP validation: %s", exc.detail)
+        logger.debug(
+            "Worker channel setup failed HTTP validation: work_pool=%s detail=%s",
+            work_pool_name,
+            exc.detail,
+        )
+        if worker_channel_utils.WORKER_CHANNEL_CONNECTIONS is not None:
+            worker_channel_utils.WORKER_CHANNEL_CONNECTIONS.labels(
+                event="setup_failed"
+            ).inc()
         await worker_channel_utils.close_worker_channel(
             websocket, WorkerChannelCloseReason.PROTOCOL_ERROR
         )
     except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
         return
     except Exception:
-        logger.exception("Worker channel setup failed due to a transient server error")
+        logger.exception(
+            "Worker channel setup failed due to a transient server error: work_pool=%s",
+            work_pool_name,
+        )
+        if worker_channel_utils.WORKER_CHANNEL_CONNECTIONS is not None:
+            worker_channel_utils.WORKER_CHANNEL_CONNECTIONS.labels(
+                event="setup_failed"
+            ).inc()
         await worker_channel_utils.close_worker_channel(
             websocket, WorkerChannelCloseReason.TRANSIENT_SERVER_ERROR
         )

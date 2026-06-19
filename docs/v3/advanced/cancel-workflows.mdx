@@ -68,6 +68,12 @@ Another worker may attempt cancellation.
 - If the worker runs into an unexpected error during cancellation, the flow run may or may not be cancelled 
 depending on where the error occurred. The worker will try again to cancel the flow run. Another worker may attempt cancellation.
 
+<Note>
+If a flow run remains in `CANCELLING` for longer than the cancelling timeout (default: 300 seconds), the server automatically transitions it to `CANCELLED`.
+This acts as a safety net when a worker is unavailable or fails to complete the cancellation process.
+To adjust the timeout, set `PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_CANCELLING_TIMEOUT_SECONDS` to the desired number of seconds.
+</Note>
+
 ## Cancel through the CLI
 
 From the command line in your execution environment, you can cancel a flow run by using the 

@@ -45,6 +45,7 @@ try:
     from prefect.server.worker_communication.cleanup_queue import (
         record_cleanup_queue_dead_letter,
         record_cleanup_queue_lease_expiry_result,
+        record_cleanup_queue_operation,
     )
 except ImportError:  # pragma: no cover - compatibility with older Prefect cores
 
@@ -55,6 +56,16 @@ except ImportError:  # pragma: no cover - compatibility with older Prefect cores
 
     def record_cleanup_queue_lease_expiry_result(
         result: CleanupQueueLeaseExpiryResult,
+    ) -> None:
+        pass
+
+    def record_cleanup_queue_operation(
+        operation: str,
+        *,
+        status: str,
+        work_pool_id: "UUID",
+        message_id: "UUID | None" = None,
+        cleanup_kind: "str | None" = None,
     ) -> None:
         pass
 
@@ -194,6 +205,13 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                     )
                     if existing is not None:
                         await self._wake_dispatchers_if_visible(existing)
+                        record_cleanup_queue_operation(
+                            "enqueue",
+                            status="duplicate",
+                            work_pool_id=work_pool_id,
+                            message_id=message_id,
+                            cleanup_kind=str(kind),
+                        )
                         return existing
                     if retry_enqueue:
                         continue
@@ -207,6 +225,13 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                     await pipe.execute()
                     message = self._message_from_mapping(message_fields)
                     await self._notify_local_dispatchers()
+                    record_cleanup_queue_operation(
+                        "enqueue",
+                        status="accepted",
+                        work_pool_id=work_pool_id,
+                        message_id=message_id,
+                        cleanup_kind=str(kind),
+                    )
                     return message
                 except WatchError:
                     continue
@@ -569,6 +594,13 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                     await pipe.execute()
 
                     message = self._message_from_mapping(updated_fields)
+                    record_cleanup_queue_operation(
+                        "reserve",
+                        status="accepted",
+                        work_pool_id=work_pool_id,
+                        message_id=UUID(message_id),
+                        cleanup_kind=updated_fields.get("kind"),
+                    )
                     return CleanupQueueReservation(
                         **message.model_dump(),
                         reservation_token=reservation_token,
@@ -613,6 +645,12 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         reservation_token=reservation_token,
                     )
                     if isinstance(state, CleanupQueueOperationResult):
+                        record_cleanup_queue_operation(
+                            operation,
+                            status=state.status,
+                            work_pool_id=work_pool_id,
+                            message_id=message_id,
+                        )
                         return state
                     message_fields, reservation_fields = state
 
@@ -657,6 +695,13 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         self._stage_wakeup(pipe=pipe, work_pool_id=work_pool_id)
                         await pipe.execute()
                         await self._notify_local_dispatchers()
+                        record_cleanup_queue_operation(
+                            operation,
+                            status="expired",
+                            work_pool_id=work_pool_id,
+                            message_id=message_id,
+                            cleanup_kind=message_fields.get("kind"),
+                        )
                         return self._operation_result(
                             operation=operation,
                             message_id=message_id,
@@ -674,6 +719,13 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                             retention=policy.completed_idempotency_retention,
                         )
                         await pipe.execute()
+                        record_cleanup_queue_operation(
+                            "ack",
+                            status="accepted",
+                            work_pool_id=work_pool_id,
+                            message_id=message_id,
+                            cleanup_kind=message_fields.get("kind"),
+                        )
                         return self._operation_result(
                             operation=operation,
                             message_id=message_id,
@@ -718,6 +770,13 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         self._stage_wakeup(pipe=pipe, work_pool_id=work_pool_id)
                         await pipe.execute()
                         await self._notify_local_dispatchers()
+                        record_cleanup_queue_operation(
+                            "release",
+                            status="accepted",
+                            work_pool_id=work_pool_id,
+                            message_id=message_id,
+                            cleanup_kind=message_fields.get("kind"),
+                        )
                         return self._operation_result(
                             operation=operation,
                             message_id=message_id,
@@ -738,6 +797,13 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                             lease_expires_at=lease_expires_at,
                         )
                         await pipe.execute()
+                        record_cleanup_queue_operation(
+                            "renew",
+                            status="accepted",
+                            work_pool_id=work_pool_id,
+                            message_id=message_id,
+                            cleanup_kind=message_fields.get("kind"),
+                        )
                         return self._operation_result(
                             operation=operation,
                             message_id=message_id,

@@ -2,6 +2,54 @@
 title: 3.7
 ---
 
+## 3.7.5 - No run left `CANCELLING`
+
+*Released on June 18, 2026*
+
+**Enhancements ➕➕**
+
+* Add cancelling timeout cleanup producer by [@desertaxle](https://github.com/desertaxle) in [#22238](https://github.com/PrefectHQ/prefect/pull/22238)
+* Add backend observability for worker channel and cleanup queue by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22310](https://github.com/PrefectHQ/prefect/pull/22310)
+
+**Bug Fixes 🐞**
+
+* Fix pending task runs in flow run graph by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22287](https://github.com/PrefectHQ/prefect/pull/22287)
+* Add index on `event_resources(occurred)` for vacuum performance by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22250](https://github.com/PrefectHQ/prefect/pull/22250)
+* Fix FastAPI 0.137 compatibility — skip route deletion when router is referenced by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22277](https://github.com/PrefectHQ/prefect/pull/22277)
+* Degrade events WebSocket on transient connection failures by [@yukiyan](https://github.com/yukiyan) in [#22241](https://github.com/PrefectHQ/prefect/pull/22241)
+* Declare `ESCAPE` character in `LIKE` expressions for SQLite compatibility by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22264](https://github.com/PrefectHQ/prefect/pull/22264)
+* Snapshot block registry before iterating in auto-registration by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22297](https://github.com/PrefectHQ/prefect/pull/22297)
+* Avoid subflow tracking key collisions by [@zzstoatzz](https://github.com/zzstoatzz) in [#22286](https://github.com/PrefectHQ/prefect/pull/22286)
+* Preserve IANA timezone names in `RRuleSchedule.from_rrule()` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22232](https://github.com/PrefectHQ/prefect/pull/22232)
+* Handle `RecursionError` in `Flow.serialize_parameters` by [@chuqCTC](https://github.com/chuqCTC) in [#22245](https://github.com/PrefectHQ/prefect/pull/22245)
+* Prevent SSRF via remote `$ref` in JSON schema validation by [@chrisguidry](https://github.com/chrisguidry) in [#22252](https://github.com/PrefectHQ/prefect/pull/22252)
+* URL-encode credentials in asyncpg `LISTEN`/`NOTIFY` DSN by [@chuqCTC](https://github.com/chuqCTC) in [#22089](https://github.com/PrefectHQ/prefect/pull/22089)
+* Fix `profile inspect --output json` emitting invalid JSON for active profile by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22317](https://github.com/PrefectHQ/prefect/pull/22317)
+
+**Development & Tidiness 🧹**
+
+* Add "context deadline exceeded" to transient Docker build error patterns by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22266](https://github.com/PrefectHQ/prefect/pull/22266)
+* Use `retry_asserts` for flaky automation notification test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22246](https://github.com/PrefectHQ/prefect/pull/22246)
+* Fix stale `EventLoopThread` globals after fork causing subprocess deadlocks by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22308](https://github.com/PrefectHQ/prefect/pull/22308)
+* Run `db_vacuum` maintenance queries without the API statement timeout by [@zzstoatzz](https://github.com/zzstoatzz) in [#22291](https://github.com/PrefectHQ/prefect/pull/22291)
+* Support AnyIO 4.14 task group interface by [@zzstoatzz](https://github.com/zzstoatzz) in [#22309](https://github.com/PrefectHQ/prefect/pull/22309)
+* Bump runtime uv image pins to 0.11.21 by [@jakekaplan](https://github.com/jakekaplan) in [#22265](https://github.com/PrefectHQ/prefect/pull/22265)
+* Migrate CI workflows to `prefect-ci-bot` trust-tier Apps by [@jamiezieziula](https://github.com/jamiezieziula) in [#22288](https://github.com/PrefectHQ/prefect/pull/22288)
+
+**Documentation 📓**
+
+* Document Cloud-only features and fix the Cloud badge by [@mitchnielsen](https://github.com/mitchnielsen) in [#22229](https://github.com/PrefectHQ/prefect/pull/22229)
+* Add user-facing versioning and compatibility page by [@mitchnielsen](https://github.com/mitchnielsen) in [#22228](https://github.com/PrefectHQ/prefect/pull/22228)
+* Document programmatic flow run cancellation by [@zzstoatzz](https://github.com/zzstoatzz) in [#22243](https://github.com/PrefectHQ/prefect/pull/22243)
+* Fix deployment name format in schedule creation guide by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22284](https://github.com/PrefectHQ/prefect/pull/22284)
+* Align zombie-flow detection guide with current heartbeat defaults by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22285](https://github.com/PrefectHQ/prefect/pull/22285)
+* Document lifecycle events for automations, concurrency, artifacts, work pools/queues by [@github-actions](https://github.com/github-actions)[bot] in [#22230](https://github.com/PrefectHQ/prefect/pull/22230)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.7.4...3.7.5
+
+
+---
+
 ## 3.7.4 - From cradle to grave
 
 *Released on June 05, 2026*

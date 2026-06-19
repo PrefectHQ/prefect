@@ -249,6 +249,10 @@ class WorkerCleanupConnectionRegistry:
                 cleanup_queue=cleanup_queue,
             )
         )
+        logger.debug(
+            "Worker channel cleanup dispatcher started: work_pool_id=%s",
+            work_pool_id,
+        )
         event.set()
 
     @staticmethod
@@ -285,6 +289,11 @@ class WorkerCleanupConnectionRegistry:
                             self._exiting_dispatch_tasks_by_work_pool_id[
                                 work_pool_id
                             ] = current_task
+                        logger.debug(
+                            "Worker channel cleanup dispatcher exiting: "
+                            "work_pool_id=%s reason=no_connections",
+                            work_pool_id,
+                        )
                         return
 
                 try:
