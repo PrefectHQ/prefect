@@ -10,6 +10,7 @@ import base64
 import contextlib
 import gc
 import hmac
+import importlib.metadata
 import logging
 import mimetypes
 import os
@@ -41,6 +42,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from packaging.version import Version
 from starlette.exceptions import HTTPException
 from typing_extensions import Self
 
@@ -72,6 +74,12 @@ from prefect.settings import (
 from prefect.utilities.hashing import hash_objects
 
 logfire: Any | None = configure_logfire()
+
+# FastAPI < 0.137 copies routes when including a router; 0.137+ keeps a
+# reference to the original via _IncludedRouter.
+_FASTAPI_COPIES_ROUTES_ON_INCLUDE: bool = Version(
+    importlib.metadata.version("fastapi")
+) < Version("0.137.0")
 
 TITLE = "Prefect Server"
 API_TITLE = "Prefect REST API"
@@ -491,21 +499,16 @@ def create_api_app(
 
     for router in API_ROUTERS:
         api_app.include_router(router, dependencies=dependencies)
-        if final:
-            # Important note about how FastAPI works:
+        if final and _FASTAPI_COPIES_ROUTES_ON_INCLUDE:
+            # When including a router, older versions of FastAPI (< 0.137) copy
+            # the routes and build entirely new Pydantic models.  Since Prefect
+            # does not reuse routers, we can delete the originals to reclaim
+            # ~50-55 MB of memory.
             #
-            # When including a router, FastAPI copies the routes and builds entirely new
-            # Pydantic models to represent the request bodies of the routes in the
-            # router.  This is because the dependencies may change if the same router is
-            # included multiple times, but it also means that we are holding onto an
-            # entire set of Pydantic models on the original routers for the duration of
-            # the server process that will never be used.
-            #
-            # Because Prefect does not reuse routers, we are free to clean up the routes
-            # because we know they won't be used again.  Thus, if we have the hint that
-            # this is the final instance we will create in this process, we can clean up
-            # the routes on the original source routers to conserve memory (~50-55MB as
-            # of introducing this change).
+            # FastAPI 0.137+ wraps included routers in an _IncludedRouter that
+            # references the original router for request matching, so the
+            # originals must be kept.  The duplication no longer occurs in this
+            # case either, so the optimisation is unnecessary.
             del router.routes
 
     if final:
@@ -840,6 +843,22 @@ def _memoize_block_auto_registration(
     return wrapper
 
 
+def _log_worker_channel_config() -> None:
+    """Log worker channel queue backend and key configuration at startup."""
+    wc_settings = prefect.settings.get_current_settings().server.worker_channel
+    logger.debug(
+        "Worker channel configuration: "
+        "cleanup_queue_storage=%s "
+        "cleanup_lease_seconds=%s "
+        "cleanup_max_delivery_attempts=%s "
+        "cleanup_completed_idempotency_retention_seconds=%s",
+        wc_settings.cleanup_queue_storage,
+        wc_settings.cleanup_lease_seconds,
+        wc_settings.cleanup_max_delivery_attempts,
+        wc_settings.cleanup_completed_idempotency_retention_seconds,
+    )
+
+
 def create_app(
     settings: Optional[prefect.settings.Settings] = None,
     ephemeral: bool = False,
@@ -908,6 +927,8 @@ def create_app(
 
         await run_migrations()
         await add_block_types()
+
+        _log_worker_channel_config()
 
         Services: type[Service] | None = (
             RunInWebservers

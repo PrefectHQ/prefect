@@ -1,14 +1,57 @@
 ---
 title: Work pool and work queue events
-description: Events emitted when work pools and work queues change status or are updated.
-keywords: ["readiness", "capacity", "paused", "infrastructure"]
+description: Events emitted when work pools and work queues are created, deleted, change status, or are updated.
+keywords: ["readiness", "capacity", "paused", "infrastructure", "lifecycle"]
 ---
 
-Work pool and work queue events track readiness status transitions and field
-updates. These events are emitted server-side. For more on work pools, see
-[Work pools](/v3/concepts/work-pools).
+Work pool and work queue events track creation, deletion, readiness status
+transitions, and field updates. These events are emitted server-side. For more
+on work pools, see [Work pools](/v3/concepts/work-pools).
 
 ## Work pool events
+
+### `prefect.work-pool.created`
+
+Emitted when a new work pool is created.
+
+#### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.work-pool.{uuid}` |
+| `prefect.resource.name` | Work pool name |
+| `prefect.work-pool.type` | Work pool type (for example, `kubernetes`, `process`, `docker`) |
+
+#### Related resources
+
+| Resource ID pattern | Role | When present |
+|---------------------|------|--------------|
+| `prefect.work-queue.{uuid}` | `default-queue` | When the work pool's default queue is created |
+| `prefect.block-document.{uuid}` | `result-storage` | When a default result storage block is configured |
+
+#### Payload
+
+This event has no payload.
+
+### `prefect.work-pool.deleted`
+
+Emitted when a work pool is deleted.
+
+#### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.work-pool.{uuid}` |
+| `prefect.resource.name` | Work pool name |
+| `prefect.work-pool.type` | Work pool type |
+
+#### Related resources
+
+Same as [`prefect.work-pool.created`](#prefectwork-poolcreated).
+
+#### Payload
+
+This event has no payload.
 
 ### `prefect.work-pool.{status}`
 
@@ -63,6 +106,46 @@ This event has no related resources.
 | `updates` | object | Map of field name to `{"from": <old>, "to": <new>}` |
 
 ## Work queue events
+
+### `prefect.work-queue.created`
+
+Emitted when a new work queue is created.
+
+#### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.work-queue.{uuid}` |
+| `prefect.resource.name` | Work queue name |
+
+#### Related resources
+
+| Resource ID pattern | Role | When present |
+|---------------------|------|--------------|
+| `prefect.work-pool.{uuid}` | `work-pool` | When the work queue belongs to a work pool (includes `prefect.work-pool.type` label) |
+
+#### Payload
+
+This event has no payload.
+
+### `prefect.work-queue.deleted`
+
+Emitted when a work queue is deleted.
+
+#### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.work-queue.{uuid}` |
+| `prefect.resource.name` | Work queue name |
+
+#### Related resources
+
+Same as [`prefect.work-queue.created`](#prefectwork-queuecreated).
+
+#### Payload
+
+This event has no payload.
 
 ### `prefect.work-queue.{status}`
 

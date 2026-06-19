@@ -191,6 +191,9 @@ class TestUpdateWorkQueue:
         assert work_queue.is_paused is False
         assert work_queue.concurrency_limit is None
 
+        # Only count events from the update below, not work-queue creation
+        AssertingEventsClient.reset()
+
         new_data = WorkQueueUpdate(is_paused=True, concurrency_limit=3).model_dump(
             mode="json", exclude_unset=True
         )
@@ -302,6 +305,9 @@ class TestUpdateWorkQueue:
     ):
         assert paused_work_queue.status == "PAUSED"
 
+        # Only count events from the update below, not work-queue creation
+        AssertingEventsClient.reset()
+
         new_data = schemas.actions.WorkQueueUpdate(
             is_paused=True, concurrency_limit=3
         ).model_dump(mode="json", exclude_unset=True)
@@ -346,6 +352,9 @@ class TestUpdateWorkQueue:
         ready_work_queue,
     ):
         assert ready_work_queue.status == "READY"
+
+        # Only count events from the update below, not work-queue creation
+        AssertingEventsClient.reset()
 
         new_data = schemas.actions.WorkQueueUpdate(
             is_paused=False, concurrency_limit=3

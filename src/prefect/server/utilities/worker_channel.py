@@ -16,6 +16,12 @@ from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect._internal.uuid7 import uuid7
 from prefect.client.schemas.worker_channel import (
     WORKER_CHANNEL_CLOSE_POLICIES,
+    CleanupAckFrame,
+    CleanupKind,
+    CleanupMessageFrame,
+    CleanupOperationResultFrame,
+    CleanupReleaseFrame,
+    CleanupRenewFrame,
     WorkerChannelCloseReason,
     WorkerHeartbeatFrame,
     WorkerReadyFrame,
@@ -28,12 +34,63 @@ from prefect.logging import get_logger
 from prefect.server.database import PrefectDBInterface
 from prefect.server.models.workers import emit_work_pool_status_event
 from prefect.server.utilities import messaging, subscriptions
+from prefect.server.utilities.worker_channel_cleanup import (
+    WORKER_CLEANUP_CONNECTION_REGISTRY,
+    WorkerCleanupConnectionRegistry,
+    WorkerCleanupInFlight,
+)
+from prefect.server.worker_communication.cleanup_queue import (
+    CleanupQueueOperation,
+    CleanupQueueOperationResult,
+    CleanupQueueReservation,
+    WorkerCleanupQueue,
+)
 from prefect.types._datetime import now
+
+try:
+    from prometheus_client import Counter as _Counter
+except ImportError:  # pragma: no cover
+    _Counter = None  # type: ignore[assignment,misc]
 
 if TYPE_CHECKING:
     from prefect.server.database.orm_models import WorkPool as ORMWorkPool
 
 logger: logging.Logger = get_logger("prefect.server.utilities.worker_channel")
+
+# ---------------------------------------------------------------------------
+# Prometheus metrics
+# ---------------------------------------------------------------------------
+if _Counter is not None:
+    WORKER_CHANNEL_CONNECTIONS = _Counter(
+        "prefect_worker_channel_connections_total",
+        "Worker channel connection lifecycle events.",
+        ["event"],
+    )
+    WORKER_CHANNEL_CLOSE_REASONS = _Counter(
+        "prefect_worker_channel_close_reasons_total",
+        "Worker channel close reasons.",
+        ["reason"],
+    )
+    WORKER_CHANNEL_SNAPSHOTS = _Counter(
+        "prefect_worker_channel_snapshots_total",
+        "Worker channel snapshot events.",
+        ["event"],
+    )
+    WORKER_CHANNEL_HEARTBEAT_FAILURES = _Counter(
+        "prefect_worker_channel_heartbeat_failures_total",
+        "Worker channel heartbeat persistence failures.",
+    )
+    WORKER_CHANNEL_CLEANUP_DELIVERIES = _Counter(
+        "prefect_worker_channel_cleanup_deliveries_total",
+        "Worker channel cleanup message delivery outcomes.",
+        ["status"],
+    )
+else:
+    WORKER_CHANNEL_CONNECTIONS = None
+    WORKER_CHANNEL_CLOSE_REASONS = None
+    WORKER_CHANNEL_SNAPSHOTS = None
+    WORKER_CHANNEL_HEARTBEAT_FAILURES = None
+    WORKER_CHANNEL_CLEANUP_DELIVERIES = None
 
 WORKER_CHANNEL_SNAPSHOT_TOPIC = "work-pool-worker-channel-snapshots"
 _WORKER_CHANNEL_SNAPSHOT_BUFFER_SIZE = 1
@@ -72,6 +129,13 @@ class WorkerChannelConnection:
         work_pool_id: UUID,
         consumer_id: UUID,
         worker_name: str,
+        cleanup_queue: WorkerCleanupQueue | None = None,
+        cleanup_kinds: tuple[CleanupKind, ...] = (),
+        cleanup_work_queue_ids: tuple[UUID, ...] = (),
+        max_cleanup_concurrency: int = 0,
+        cleanup_registry: WorkerCleanupConnectionRegistry = (
+            WORKER_CLEANUP_CONNECTION_REGISTRY
+        ),
     ) -> None:
         self.websocket = websocket
         self.db = db
@@ -85,8 +149,51 @@ class WorkerChannelConnection:
         )
         self._send_lock = asyncio.Lock()
         self._closed = asyncio.Event()
+        self._ready_sent = asyncio.Event()
+        self._cleanup_queue = cleanup_queue
+        self._cleanup_kinds = cleanup_kinds
+        self._cleanup_work_queue_ids = cleanup_work_queue_ids
+        self._max_cleanup_concurrency = max_cleanup_concurrency
+        self._cleanup_registry = cleanup_registry
+
+    @property
+    def cleanup_enabled(self) -> bool:
+        return (
+            self._cleanup_queue is not None
+            and self._cleanup_kinds
+            and self._max_cleanup_concurrency > 0
+        )
 
     async def run(
+        self, ready: WorkerReadyFrame, consumer_kwargs: Mapping[str, Any]
+    ) -> None:
+        logger.debug(
+            "Worker channel connection opened: "
+            "work_pool=%s worker_name=%s cleanup_enabled=%s",
+            self.work_pool_name,
+            self.worker_name,
+            self.cleanup_enabled,
+        )
+        if WORKER_CHANNEL_CONNECTIONS is not None:
+            WORKER_CHANNEL_CONNECTIONS.labels(event="opened").inc()
+
+        try:
+            if self.cleanup_enabled:
+                async with self._cleanup_registry.register(self):
+                    await self._run(ready, consumer_kwargs)
+                return
+
+            await self._run(ready, consumer_kwargs)
+        finally:
+            logger.debug(
+                "Worker channel connection closed: work_pool=%s worker_name=%s",
+                self.work_pool_name,
+                self.worker_name,
+            )
+            if WORKER_CHANNEL_CONNECTIONS is not None:
+                WORKER_CHANNEL_CONNECTIONS.labels(event="closed").inc()
+
+    async def _run(
         self, ready: WorkerReadyFrame, consumer_kwargs: Mapping[str, Any]
     ) -> None:
         send_task = asyncio.create_task(self._send_loop(ready))
@@ -131,6 +238,15 @@ class WorkerChannelConnection:
             return
 
         self._closed.set()
+        logger.debug(
+            "Worker channel closing: work_pool=%s worker_name=%s reason=%s",
+            self.work_pool_name,
+            self.worker_name,
+            close_reason.value,
+        )
+        if WORKER_CHANNEL_CLOSE_REASONS is not None:
+            WORKER_CHANNEL_CLOSE_REASONS.labels(reason=close_reason.value).inc()
+
         async with self._send_lock:
             await close_worker_channel(self.websocket, close_reason)
 
@@ -150,8 +266,135 @@ class WorkerChannelConnection:
             except asyncio.QueueFull:
                 try:
                     self._snapshot_queue.get_nowait()
+                    logger.debug(
+                        "Worker channel snapshot backpressure drop: "
+                        "work_pool=%s reason=%s",
+                        self.work_pool_name,
+                        invalidation.reason,
+                    )
+                    if WORKER_CHANNEL_SNAPSHOTS is not None:
+                        WORKER_CHANNEL_SNAPSHOTS.labels(
+                            event="backpressure_dropped"
+                        ).inc()
                 except asyncio.QueueEmpty:
                     continue
+
+    async def has_cleanup_capacity(self) -> bool:
+        if (
+            not self.cleanup_enabled
+            or self._closed.is_set()
+            or not self._ready_sent.is_set()
+        ):
+            return False
+
+        return await self._cleanup_registry.has_cleanup_capacity(
+            self, self._max_cleanup_concurrency
+        )
+
+    async def dispatch_one_cleanup_message(
+        self,
+        *,
+        cleanup_queue: WorkerCleanupQueue,
+        allow_fallback_to_any_queue: bool,
+    ) -> bool:
+        if not await self.has_cleanup_capacity():
+            return False
+
+        preferred_work_queue_ids: tuple[UUID, ...] | None
+        if allow_fallback_to_any_queue:
+            preferred_work_queue_ids = None
+        else:
+            if not self._cleanup_work_queue_ids:
+                return False
+            preferred_work_queue_ids = self._cleanup_work_queue_ids
+
+        reservation = await cleanup_queue.reserve(
+            work_pool_id=self.work_pool_id,
+            cleanup_kinds=self._cleanup_kinds,
+            preferred_work_queue_ids=preferred_work_queue_ids,
+            allow_fallback_to_any_queue=allow_fallback_to_any_queue,
+        )
+        if reservation is None:
+            return False
+
+        if self._closed.is_set() or not self._ready_sent.is_set():
+            should_release = True
+        else:
+            should_release = not await self._cleanup_registry.track_cleanup_reservation(
+                self,
+                WorkerCleanupInFlight(
+                    message_id=reservation.message_id,
+                    reservation_token=reservation.reservation_token,
+                    lease_expires_at=reservation.lease_expires_at,
+                ),
+                self._max_cleanup_concurrency,
+            )
+
+        if should_release:
+            logger.debug(
+                "Worker channel cleanup delivery released before send: "
+                "work_pool=%s message_id=%s reason=connection_unavailable",
+                self.work_pool_name,
+                reservation.message_id,
+            )
+            if WORKER_CHANNEL_CLEANUP_DELIVERIES is not None:
+                WORKER_CHANNEL_CLEANUP_DELIVERIES.labels(status="released").inc()
+            await cleanup_queue.release(
+                work_pool_id=self.work_pool_id,
+                message_id=reservation.message_id,
+                reservation_token=reservation.reservation_token,
+                reason="connection_unavailable",
+            )
+            return False
+
+        try:
+            await self._send_frame(_build_cleanup_message_frame(reservation))
+        except asyncio.CancelledError:
+            if WORKER_CHANNEL_CLEANUP_DELIVERIES is not None:
+                WORKER_CHANNEL_CLEANUP_DELIVERIES.labels(status="failed").inc()
+            await self._release_cleanup_delivery_failure(
+                cleanup_queue=cleanup_queue,
+                reservation=reservation,
+            )
+            raise
+        except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
+            self._closed.set()
+            if WORKER_CHANNEL_CLEANUP_DELIVERIES is not None:
+                WORKER_CHANNEL_CLEANUP_DELIVERIES.labels(status="failed").inc()
+            await self._release_cleanup_delivery_failure(
+                cleanup_queue=cleanup_queue,
+                reservation=reservation,
+            )
+            return False
+        except Exception:
+            logger.exception(
+                "Worker channel cleanup message delivery failed: "
+                "work_pool=%s message_id=%s cleanup_kind=%s",
+                self.work_pool_name,
+                reservation.message_id,
+                reservation.kind,
+            )
+            if WORKER_CHANNEL_CLEANUP_DELIVERIES is not None:
+                WORKER_CHANNEL_CLEANUP_DELIVERIES.labels(status="failed").inc()
+            await self._release_cleanup_delivery_failure(
+                cleanup_queue=cleanup_queue,
+                reservation=reservation,
+            )
+            await self.close(WorkerChannelCloseReason.TRANSIENT_SERVER_ERROR)
+            return False
+
+        logger.debug(
+            "Worker channel cleanup message delivered: "
+            "work_pool=%s message_id=%s cleanup_kind=%s "
+            "delivery_count=%s",
+            self.work_pool_name,
+            reservation.message_id,
+            reservation.kind,
+            reservation.delivery_count,
+        )
+        if WORKER_CHANNEL_CLEANUP_DELIVERIES is not None:
+            WORKER_CHANNEL_CLEANUP_DELIVERIES.labels(status="delivered").inc()
+        return True
 
     async def _fanout_loop(self, consumer_kwargs: Mapping[str, Any]) -> None:
         if "subscription" in consumer_kwargs:
@@ -166,6 +409,10 @@ class WorkerChannelConnection:
 
     async def _send_loop(self, ready: WorkerReadyFrame) -> None:
         await self._send_frame(ready)
+        self._ready_sent.set()
+        if self.cleanup_enabled and self._cleanup_queue is not None:
+            await self._dispatch_cleanup_available(self._cleanup_queue)
+            self._cleanup_registry.wake_dispatcher(self.work_pool_id)
 
         while not self._closed.is_set():
             invalidation = await self._snapshot_queue.get()
@@ -181,12 +428,175 @@ class WorkerChannelConnection:
                 return
 
             await self._send_frame(frame)
+            logger.debug(
+                "Worker channel snapshot sent: work_pool=%s sequence=%s reason=%s",
+                self.work_pool_name,
+                frame.payload.snapshot_sequence,
+                invalidation.reason,
+            )
+            if WORKER_CHANNEL_SNAPSHOTS is not None:
+                WORKER_CHANNEL_SNAPSHOTS.labels(event="sent").inc()
 
     async def _send_frame(
-        self, frame: WorkerReadyFrame | WorkPoolSnapshotFrame
+        self,
+        frame: (
+            WorkerReadyFrame
+            | WorkPoolSnapshotFrame
+            | CleanupMessageFrame
+            | CleanupOperationResultFrame
+        ),
     ) -> None:
         async with self._send_lock:
             await self.websocket.send_json(frame.model_dump(mode="json"))
+
+    async def _release_cleanup_delivery_failure(
+        self,
+        *,
+        cleanup_queue: WorkerCleanupQueue,
+        reservation: CleanupQueueReservation,
+    ) -> None:
+        await self._forget_cleanup_reservation(
+            message_id=reservation.message_id,
+            reservation_token=reservation.reservation_token,
+        )
+        await cleanup_queue.release(
+            work_pool_id=self.work_pool_id,
+            message_id=reservation.message_id,
+            reservation_token=reservation.reservation_token,
+            reason="delivery_failed",
+        )
+
+    async def _handle_cleanup_operation(
+        self,
+        frame: CleanupAckFrame | CleanupReleaseFrame | CleanupRenewFrame,
+    ) -> None:
+        operation = _cleanup_operation_from_frame(frame)
+        if not self.cleanup_enabled or self._cleanup_queue is None:
+            await self._send_frame(
+                _build_cleanup_operation_result_frame(
+                    request_frame_id=frame.id,
+                    result=CleanupQueueOperationResult(
+                        message_id=frame.payload.message_id,
+                        operation=operation,
+                        status="unauthorized",
+                        reason="cleanup_delivery_not_accepted",
+                    ),
+                )
+            )
+            return
+
+        cleanup_queue = self._cleanup_queue
+        try:
+            if isinstance(frame, CleanupAckFrame):
+                result = await cleanup_queue.ack(
+                    work_pool_id=self.work_pool_id,
+                    message_id=frame.payload.message_id,
+                    reservation_token=frame.payload.reservation_token,
+                )
+            elif isinstance(frame, CleanupReleaseFrame):
+                result = await cleanup_queue.release(
+                    work_pool_id=self.work_pool_id,
+                    message_id=frame.payload.message_id,
+                    reservation_token=frame.payload.reservation_token,
+                    reason=frame.payload.reason,
+                )
+            else:
+                result = await cleanup_queue.renew(
+                    work_pool_id=self.work_pool_id,
+                    message_id=frame.payload.message_id,
+                    reservation_token=frame.payload.reservation_token,
+                )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception(
+                "Worker cleanup queue operation failed: "
+                "work_pool=%s operation=%s message_id=%s",
+                self.work_pool_name,
+                operation,
+                frame.payload.message_id,
+            )
+            result = CleanupQueueOperationResult(
+                message_id=frame.payload.message_id,
+                operation=operation,
+                status="error",
+                reason="cleanup_queue_operation_failed",
+            )
+
+        synced_before_send = result.operation == "renew" and result.status == "accepted"
+        if synced_before_send:
+            await self._sync_cleanup_operation_result(
+                reservation_token=frame.payload.reservation_token,
+                result=result,
+            )
+
+        send_succeeded = False
+        try:
+            await self._send_frame(
+                _build_cleanup_operation_result_frame(
+                    request_frame_id=frame.id,
+                    result=result,
+                )
+            )
+            send_succeeded = True
+        except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
+            self._closed.set()
+            raise
+        finally:
+            if not synced_before_send:
+                freed_capacity = await self._sync_cleanup_operation_result(
+                    reservation_token=frame.payload.reservation_token,
+                    result=result,
+                )
+                if send_succeeded and freed_capacity:
+                    await self._dispatch_cleanup_available(cleanup_queue)
+
+    async def _dispatch_cleanup_available(
+        self,
+        cleanup_queue: WorkerCleanupQueue,
+    ) -> None:
+        try:
+            await self._cleanup_registry.dispatch_available(
+                work_pool_id=self.work_pool_id,
+                cleanup_queue=cleanup_queue,
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Worker channel cleanup dispatch failed")
+            self._cleanup_registry.wake_dispatcher(self.work_pool_id)
+
+    async def _sync_cleanup_operation_result(
+        self,
+        *,
+        reservation_token: str,
+        result: CleanupQueueOperationResult,
+    ) -> bool:
+        if result.status == "error":
+            return False
+
+        if result.operation == "renew" and result.status == "accepted":
+            if result.lease_expires_at is not None:
+                await self._cleanup_registry.update_cleanup_lease(
+                    self,
+                    reservation_token=reservation_token,
+                    lease_expires_at=result.lease_expires_at,
+                )
+            return False
+
+        return await self._forget_cleanup_reservation(
+            message_id=result.message_id,
+            reservation_token=reservation_token,
+        )
+
+    async def _forget_cleanup_reservation(
+        self, *, message_id: UUID, reservation_token: str
+    ) -> bool:
+        return await self._cleanup_registry.forget_cleanup_reservation(
+            self,
+            message_id=message_id,
+            reservation_token=reservation_token,
+        )
 
     async def _coalesce_snapshot_invalidations(
         self,
@@ -194,10 +604,23 @@ class WorkerChannelConnection:
     ) -> WorkerChannelSnapshotInvalidation:
         await asyncio.sleep(_WORKER_CHANNEL_SNAPSHOT_COALESCE_SECONDS)
 
+        coalesced_count = 0
         while True:
             try:
                 invalidation = self._snapshot_queue.get_nowait()
+                coalesced_count += 1
             except asyncio.QueueEmpty:
+                if coalesced_count > 0:
+                    logger.debug(
+                        "Worker channel snapshots coalesced: "
+                        "work_pool=%s coalesced_count=%s",
+                        self.work_pool_name,
+                        coalesced_count,
+                    )
+                    if WORKER_CHANNEL_SNAPSHOTS is not None:
+                        WORKER_CHANNEL_SNAPSHOTS.labels(event="coalesced").inc(
+                            coalesced_count
+                        )
                 return invalidation
 
     async def _build_snapshot_frame(
@@ -243,28 +666,46 @@ class WorkerChannelConnection:
                 await self.close(WorkerChannelCloseReason.PROTOCOL_ERROR)
                 return
 
-            if not isinstance(frame, WorkerHeartbeatFrame):
-                await self.close(WorkerChannelCloseReason.PROTOCOL_ERROR)
-                return
+            if isinstance(frame, WorkerHeartbeatFrame):
+                if (
+                    frame.payload.consumer_id != self.consumer_id
+                    or frame.payload.worker_name != self.worker_name
+                ):
+                    await self.close(WorkerChannelCloseReason.PROTOCOL_ERROR)
+                    return
 
-            if (
-                frame.payload.consumer_id != self.consumer_id
-                or frame.payload.worker_name != self.worker_name
-            ):
-                await self.close(WorkerChannelCloseReason.PROTOCOL_ERROR)
-                return
-
-            try:
-                async with self.db.session_context(begin_transaction=True) as session:
-                    await _persist_worker_channel_heartbeat(
-                        session=session,
-                        work_pool_name=self.work_pool_name,
-                        frame=frame,
+                try:
+                    async with self.db.session_context(
+                        begin_transaction=True
+                    ) as session:
+                        await _persist_worker_channel_heartbeat(
+                            session=session,
+                            work_pool_name=self.work_pool_name,
+                            frame=frame,
+                        )
+                except Exception:
+                    logger.exception(
+                        "Worker channel heartbeat persistence failed: "
+                        "work_pool=%s worker_name=%s",
+                        self.work_pool_name,
+                        self.worker_name,
                     )
-            except Exception:
-                logger.exception("Worker channel heartbeat persistence failed")
-                await self.close(WorkerChannelCloseReason.HEARTBEAT_PERSISTENCE_FAILED)
-                return
+                    if WORKER_CHANNEL_HEARTBEAT_FAILURES is not None:
+                        WORKER_CHANNEL_HEARTBEAT_FAILURES.inc()
+                    await self.close(
+                        WorkerChannelCloseReason.HEARTBEAT_PERSISTENCE_FAILED
+                    )
+                    return
+                continue
+
+            if isinstance(
+                frame, (CleanupAckFrame, CleanupReleaseFrame, CleanupRenewFrame)
+            ):
+                await self._handle_cleanup_operation(frame)
+                continue
+
+            await self.close(WorkerChannelCloseReason.PROTOCOL_ERROR)
+            return
 
 
 async def close_worker_channel(
@@ -291,6 +732,57 @@ async def build_worker_channel_work_pool_snapshot(
         )
 
     return WorkPoolSnapshot.model_validate(work_pool_response.model_dump(mode="json"))
+
+
+def _build_cleanup_message_frame(
+    reservation: CleanupQueueReservation,
+) -> CleanupMessageFrame:
+    return CleanupMessageFrame(
+        type="cleanup.message.v1",
+        id=uuid7(),
+        sent_at=now("UTC"),
+        payload={
+            "message_id": reservation.message_id,
+            "kind": reservation.kind,
+            "reservation_token": reservation.reservation_token,
+            "lease_expires_at": reservation.lease_expires_at,
+            "delivery_count": reservation.delivery_count,
+            "work_queue_id": reservation.work_queue_id,
+            "target": reservation.target,
+            "data": reservation.data,
+        },
+    )
+
+
+def _build_cleanup_operation_result_frame(
+    *,
+    request_frame_id: UUID,
+    result: CleanupQueueOperationResult,
+) -> CleanupOperationResultFrame:
+    return CleanupOperationResultFrame(
+        type="cleanup.operation_result.v1",
+        id=uuid7(),
+        sent_at=now("UTC"),
+        payload={
+            "request_frame_id": request_frame_id,
+            "message_id": result.message_id,
+            "operation": result.operation,
+            "status": result.status,
+            "lease_expires_at": result.lease_expires_at,
+            "reason": result.reason,
+            "detail": None,
+        },
+    )
+
+
+def _cleanup_operation_from_frame(
+    frame: CleanupAckFrame | CleanupReleaseFrame | CleanupRenewFrame,
+) -> CleanupQueueOperation:
+    if isinstance(frame, CleanupAckFrame):
+        return "ack"
+    if isinstance(frame, CleanupReleaseFrame):
+        return "release"
+    return "renew"
 
 
 async def _persist_worker_channel_heartbeat(

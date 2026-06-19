@@ -1986,6 +1986,57 @@ The cancellation cleanup service will look for non-terminal tasks and subflows t
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS`, `PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS`
 
+### `cancelling_timeout_seconds`
+The cancellation cleanup service will enqueue worker cleanup for flow runs that remain in CANCELLING longer than this many seconds. Defaults to `300`.
+
+**Type**: `number`
+
+**Default**: `300`
+
+**TOML dotted key path**: `server.services.cancellation_cleanup.cancelling_timeout_seconds`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_CANCELLING_TIMEOUT_SECONDS`
+
+---
+## ServerServicesCleanupReconcilerSettings
+Settings for controlling the cleanup reconciler service.
+### `enabled`
+Whether or not to start the cleanup reconciler service in the server application.
+
+**Type**: `boolean`
+
+**Default**: `True`
+
+**TOML dotted key path**: `server.services.cleanup_reconciler.enabled`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_CLEANUP_RECONCILER_ENABLED`
+
+### `loop_seconds`
+The cleanup reconciler service will look for expired cleanup message leases this often. Defaults to `5`.
+
+**Type**: `number`
+
+**Default**: `5`
+
+**TOML dotted key path**: `server.services.cleanup_reconciler.loop_seconds`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_CLEANUP_RECONCILER_LOOP_SECONDS`
+
+### `batch_size`
+The maximum number of expired cleanup message leases to process per service loop. Defaults to `100`.
+
+**Type**: `integer`
+
+**Default**: `100`
+
+**TOML dotted key path**: `server.services.cleanup_reconciler.batch_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_CLEANUP_RECONCILER_BATCH_SIZE`
+
 ---
 ## ServerServicesDBVacuumSettings
 Settings for controlling the database vacuum service
@@ -2532,6 +2583,13 @@ Settings for controlling server services
 **Type**: [ServerServicesRepossessorSettings](#serverservicesrepossessorsettings)
 
 **TOML dotted key path**: `server.services.repossessor`
+
+### `cleanup_reconciler`
+Settings for controlling the cleanup reconciler service
+
+**Type**: [ServerServicesCleanupReconcilerSettings](#serverservicescleanupreconcilersettings)
+
+**TOML dotted key path**: `server.services.cleanup_reconciler`
 
 ### `task_run_recorder`
 

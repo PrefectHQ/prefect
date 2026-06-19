@@ -12,7 +12,25 @@ The CancellationCleanup service. Responsible for cancelling tasks and subflows t
 
 ## Functions
 
-### `cancel_child_task_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L24" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `cancelling_timeout_check_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L53" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+cancelling_timeout_check_key(flow_run_id: UUID) -> str
+```
+
+### `schedule_cancelling_timeout_check` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L57" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+schedule_cancelling_timeout_check() -> None
+```
+
+### `maybe_schedule_cancelling_timeout_check_for_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L75" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+maybe_schedule_cancelling_timeout_check_for_state() -> None
+```
+
+### `cancel_child_task_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L101" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 cancel_child_task_runs(flow_run_id: Annotated[UUID, Logged]) -> None
@@ -22,7 +40,7 @@ cancel_child_task_runs(flow_run_id: Annotated[UUID, Logged]) -> None
 Cancel child task runs of a cancelled flow run (docket task).
 
 
-### `cancel_subflow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L55" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `cancel_subflow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L132" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 cancel_subflow_run(subflow_run_id: Annotated[UUID, Logged]) -> None
@@ -32,20 +50,40 @@ cancel_subflow_run(subflow_run_id: Annotated[UUID, Logged]) -> None
 Cancel a subflow run whose parent flow run was cancelled (docket task).
 
 
-### `monitor_cancelled_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `handle_cancelling_timeout` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L194" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-monitor_cancelled_flow_runs(docket: Docket = CurrentDocket(), db: PrefectDBInterface = Depends(provide_database_interface), perpetual: Perpetual = Perpetual(automatic=False, every=datetime.timedelta(seconds=get_current_settings().server.services.cancellation_cleanup.loop_seconds))) -> None
+handle_cancelling_timeout(flow_run_id: Annotated[UUID, Logged], flow_run_state_id: Annotated[UUID, Logged], timeout_cancelled_state_id: Annotated[UUID, Logged]) -> CleanupQueueMessage | None
+```
+
+
+Handle a scheduled CANCELLING timeout check for a single flow run.
+
+
+### `ensure_cancelling_timeout_checks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L372" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+ensure_cancelling_timeout_checks(docket: Docket = CurrentDocket(), db: PrefectDBInterface = Depends(provide_database_interface), perpetual: Perpetual = Perpetual(automatic=True, every=datetime.timedelta(seconds=get_current_settings().server.services.cancellation_cleanup.loop_seconds))) -> None
+```
+
+
+Seed Docket timeout checks for flow runs already in CANCELLING.
+
+
+### `monitor_cancelled_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L447" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+monitor_cancelled_flow_runs(docket: Docket = CurrentDocket(), db: PrefectDBInterface = Depends(provide_database_interface), perpetual: Perpetual = Perpetual(automatic=True, every=datetime.timedelta(seconds=get_current_settings().server.services.cancellation_cleanup.loop_seconds))) -> None
 ```
 
 
 Monitor for cancelled flow runs and schedule child task cancellation.
 
 
-### `monitor_subflow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L147" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `monitor_subflow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/cancellation_cleanup.py#L485" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-monitor_subflow_runs(docket: Docket = CurrentDocket(), db: PrefectDBInterface = Depends(provide_database_interface), perpetual: Perpetual = Perpetual(automatic=False, every=datetime.timedelta(seconds=get_current_settings().server.services.cancellation_cleanup.loop_seconds))) -> None
+monitor_subflow_runs(docket: Docket = CurrentDocket(), db: PrefectDBInterface = Depends(provide_database_interface), perpetual: Perpetual = Perpetual(automatic=True, every=datetime.timedelta(seconds=get_current_settings().server.services.cancellation_cleanup.loop_seconds))) -> None
 ```
 
 

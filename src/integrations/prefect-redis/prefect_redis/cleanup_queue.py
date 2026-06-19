@@ -41,6 +41,34 @@ _LeaseExpiryActionResult = (
 )
 _CurrentReservationState = tuple[dict[str, str], dict[str, str]]
 
+try:
+    from prefect.server.worker_communication.cleanup_queue import (
+        record_cleanup_queue_dead_letter,
+        record_cleanup_queue_lease_expiry_result,
+        record_cleanup_queue_operation,
+    )
+except ImportError:  # pragma: no cover - compatibility with older Prefect cores
+
+    def record_cleanup_queue_dead_letter(
+        dead_letter: CleanupQueueDeadLetter, *, source: str
+    ) -> None:
+        pass
+
+    def record_cleanup_queue_lease_expiry_result(
+        result: CleanupQueueLeaseExpiryResult,
+    ) -> None:
+        pass
+
+    def record_cleanup_queue_operation(
+        operation: str,
+        *,
+        status: str,
+        work_pool_id: "UUID",
+        message_id: "UUID | None" = None,
+        cleanup_kind: "str | None" = None,
+    ) -> None:
+        pass
+
 
 class RedisWorkerCleanupQueueSettings(PrefectBaseSettings):
     """
@@ -117,6 +145,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
     """
 
     _DEFAULT_EXPIRE_LEASE_LIMIT = 100
+    _LEGACY_EXPIRE_POOL_SCAN_BATCH_SIZE = 25
     _VISIBLE_SCAN_BATCH_SIZE = 100
 
     def __init__(
@@ -176,6 +205,13 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                     )
                     if existing is not None:
                         await self._wake_dispatchers_if_visible(existing)
+                        record_cleanup_queue_operation(
+                            "enqueue",
+                            status="duplicate",
+                            work_pool_id=work_pool_id,
+                            message_id=message_id,
+                            cleanup_kind=str(kind),
+                        )
                         return existing
                     if retry_enqueue:
                         continue
@@ -189,6 +225,13 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                     await pipe.execute()
                     message = self._message_from_mapping(message_fields)
                     await self._notify_local_dispatchers()
+                    record_cleanup_queue_operation(
+                        "enqueue",
+                        status="accepted",
+                        work_pool_id=work_pool_id,
+                        message_id=message_id,
+                        cleanup_kind=str(kind),
+                    )
                     return message
                 except WatchError:
                     continue
@@ -319,9 +362,6 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         if limit < 1:
             raise ValueError("limit must be at least 1")
 
-        work_pool_ids = (
-            [str(work_pool_id)] if work_pool_id else await self._work_pools()
-        )
         current_time = now("UTC")
         current_ms = _score_ms(current_time)
         policy = self._policy()
@@ -329,45 +369,40 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         redelivered: list[CleanupQueueMessage] = []
         dead_lettered: list[CleanupQueueDeadLetter] = []
 
-        for current_work_pool_id in work_pool_ids:
+        for current_work_pool_id, message_id in await self._expired_lease_candidates(
+            current_ms=current_ms,
+            limit=remaining,
+            work_pool_id=work_pool_id,
+        ):
             if remaining <= 0:
                 break
 
-            expired_message_ids = await self._client().zrangebyscore(
-                self._reserved_key(current_work_pool_id),
-                "-inf",
-                current_ms,
-                start=0,
-                num=remaining,
+            outcome = await self._expire_lease_candidate(
+                work_pool_id=current_work_pool_id,
+                message_id=message_id,
+                current_time=current_time,
+                current_ms=current_ms,
+                policy=policy,
             )
-            for raw_message_id in expired_message_ids:
-                if remaining <= 0:
-                    break
+            if outcome is None:
+                continue
 
-                outcome = await self._expire_lease_candidate(
-                    work_pool_id=current_work_pool_id,
-                    message_id=_decode_redis_value(raw_message_id),
-                    current_time=current_time,
-                    current_ms=current_ms,
-                    policy=policy,
-                )
-                if outcome is None:
-                    continue
-
-                status, payload = outcome
-                remaining -= 1
-                if status == "redelivered":
-                    redelivered.append(payload)
-                else:
-                    dead_lettered.append(payload)
+            status, payload = outcome
+            remaining -= 1
+            if status == "redelivered":
+                redelivered.append(payload)
+            else:
+                dead_lettered.append(payload)
 
         if redelivered:
             await self._notify_local_dispatchers()
-
-        return CleanupQueueLeaseExpiryResult(
+        result = CleanupQueueLeaseExpiryResult(
             redelivered=redelivered,
             dead_lettered=dead_lettered,
         )
+        record_cleanup_queue_lease_expiry_result(result)
+
+        return result
 
     async def read_message(
         self, *, work_pool_id: UUID, message_id: UUID
@@ -394,7 +429,10 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         return dead_letter if dead_letter.message.work_pool_id == work_pool_id else None
 
     async def wake_dispatchers(self, work_pool_id: UUID) -> CleanupQueueWakeup:
-        sequence = await self._client().incr(self._wakeup_key(work_pool_id))
+        async with self._client().pipeline(transaction=True) as pipe:
+            pipe.incr(self._wakeup_key(work_pool_id))
+            pipe.publish(self._wakeup_channel(work_pool_id), "1")
+            sequence, _ = await pipe.execute()
         wakeup = CleanupQueueWakeup(work_pool_id=work_pool_id, sequence=sequence)
         await self._notify_local_dispatchers()
         return wakeup
@@ -420,24 +458,38 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
             else asyncio.get_running_loop().time() + max(timeout, 0.0)
         )
 
-        while True:
-            sequence = await self.read_wakeup_sequence(work_pool_id)
-            if sequence > after:
-                return CleanupQueueWakeup(work_pool_id=work_pool_id, sequence=sequence)
+        wakeup_channel = self._wakeup_channel(work_pool_id)
+        pubsub = self._client().pubsub()
+        subscribed = False
+        try:
+            await pubsub.subscribe(wakeup_channel)
+            subscribed = True
 
-            if deadline is None:
-                wait_timeout = 1.0
-            else:
-                remaining = deadline - asyncio.get_running_loop().time()
-                if remaining <= 0:
-                    return None
-                wait_timeout = min(remaining, 1.0)
+            while True:
+                sequence = await self.read_wakeup_sequence(work_pool_id)
+                if sequence > after:
+                    return CleanupQueueWakeup(
+                        work_pool_id=work_pool_id, sequence=sequence
+                    )
 
+                if deadline is None:
+                    wait_timeout = 1.0
+                else:
+                    remaining = deadline - asyncio.get_running_loop().time()
+                    if remaining <= 0:
+                        return None
+                    wait_timeout = min(remaining, 1.0)
+
+                await pubsub.get_message(
+                    ignore_subscribe_messages=True,
+                    timeout=wait_timeout,
+                )
+        finally:
             try:
-                async with self._condition:
-                    await asyncio.wait_for(self._condition.wait(), timeout=wait_timeout)
-            except (TimeoutError, asyncio.TimeoutError):
-                continue
+                if subscribed:
+                    await pubsub.unsubscribe(wakeup_channel)
+            finally:
+                await pubsub.aclose()
 
     async def _reserve_candidate(
         self,
@@ -499,7 +551,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                     delivery_count = int(message_fields["delivery_count"])
                     if delivery_count >= policy.max_delivery_attempts:
                         pipe.multi()
-                        self._stage_dead_letter(
+                        dead_letter = self._stage_dead_letter(
                             pipe=pipe,
                             keys=keys,
                             message_fields=message_fields,
@@ -508,6 +560,9 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                             reason="max_delivery_attempts_reached",
                         )
                         await pipe.execute()
+                        record_cleanup_queue_dead_letter(
+                            dead_letter, source="redis_cleanup_queue.reserve"
+                        )
                         return None
 
                     updated_fields = {
@@ -528,9 +583,24 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                     )
                     pipe.zrem(keys.visible, message_id)
                     pipe.zadd(keys.reserved, {message_id: lease_expires_ms})
+                    pipe.zadd(
+                        self._reserved_index_key(),
+                        {
+                            self._reserved_index_member(
+                                work_pool_id=work_pool_id, message_id=message_id
+                            ): lease_expires_ms
+                        },
+                    )
                     await pipe.execute()
 
                     message = self._message_from_mapping(updated_fields)
+                    record_cleanup_queue_operation(
+                        "reserve",
+                        status="accepted",
+                        work_pool_id=work_pool_id,
+                        message_id=UUID(message_id),
+                        cleanup_kind=updated_fields.get("kind"),
+                    )
                     return CleanupQueueReservation(
                         **message.model_dump(),
                         reservation_token=reservation_token,
@@ -575,6 +645,12 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         reservation_token=reservation_token,
                     )
                     if isinstance(state, CleanupQueueOperationResult):
+                        record_cleanup_queue_operation(
+                            operation,
+                            status=state.status,
+                            work_pool_id=work_pool_id,
+                            message_id=message_id,
+                        )
                         return state
                     message_fields, reservation_fields = state
 
@@ -597,6 +673,10 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                                 reason="max_delivery_attempts_reached",
                             )
                             await pipe.execute()
+                            record_cleanup_queue_dead_letter(
+                                dead_letter,
+                                source=f"redis_cleanup_queue.{operation}",
+                            )
                             return self._operation_result(
                                 operation=operation,
                                 message_id=message_id,
@@ -615,6 +695,13 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         self._stage_wakeup(pipe=pipe, work_pool_id=work_pool_id)
                         await pipe.execute()
                         await self._notify_local_dispatchers()
+                        record_cleanup_queue_operation(
+                            operation,
+                            status="expired",
+                            work_pool_id=work_pool_id,
+                            message_id=message_id,
+                            cleanup_kind=message_fields.get("kind"),
+                        )
                         return self._operation_result(
                             operation=operation,
                             message_id=message_id,
@@ -632,6 +719,13 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                             retention=policy.completed_idempotency_retention,
                         )
                         await pipe.execute()
+                        record_cleanup_queue_operation(
+                            "ack",
+                            status="accepted",
+                            work_pool_id=work_pool_id,
+                            message_id=message_id,
+                            cleanup_kind=message_fields.get("kind"),
+                        )
                         return self._operation_result(
                             operation=operation,
                             message_id=message_id,
@@ -654,6 +748,10 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                                 release_reason=release_reason,
                             )
                             await pipe.execute()
+                            record_cleanup_queue_dead_letter(
+                                dead_letter,
+                                source="redis_cleanup_queue.release",
+                            )
                             return self._operation_result(
                                 operation=operation,
                                 message_id=message_id,
@@ -672,6 +770,13 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         self._stage_wakeup(pipe=pipe, work_pool_id=work_pool_id)
                         await pipe.execute()
                         await self._notify_local_dispatchers()
+                        record_cleanup_queue_operation(
+                            "release",
+                            status="accepted",
+                            work_pool_id=work_pool_id,
+                            message_id=message_id,
+                            cleanup_kind=message_fields.get("kind"),
+                        )
                         return self._operation_result(
                             operation=operation,
                             message_id=message_id,
@@ -692,6 +797,13 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                             lease_expires_at=lease_expires_at,
                         )
                         await pipe.execute()
+                        record_cleanup_queue_operation(
+                            "renew",
+                            status="accepted",
+                            work_pool_id=work_pool_id,
+                            message_id=message_id,
+                            cleanup_kind=message_fields.get("kind"),
+                        )
                         return self._operation_result(
                             operation=operation,
                             message_id=message_id,
@@ -765,6 +877,9 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         keys = self._scoped_message_keys(
             work_pool_id=work_pool_id, message_id=message_id
         )
+        reserved_index_member = self._reserved_index_member(
+            work_pool_id=work_pool_id, message_id=message_id
+        )
 
         for _ in range(_MAX_TRANSACTION_ATTEMPTS):
             async with self._client().pipeline(transaction=True) as pipe:
@@ -773,8 +888,19 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         keys.visible, keys.reserved, keys.message, keys.reservation
                     )
                     reserved_score = await pipe.zscore(keys.reserved, message_id)
-                    if reserved_score is None or reserved_score > current_ms:
-                        await pipe.reset()
+                    if reserved_score is None:
+                        pipe.multi()
+                        pipe.zrem(self._reserved_index_key(), reserved_index_member)
+                        await pipe.execute()
+                        return None
+
+                    if reserved_score > current_ms:
+                        pipe.multi()
+                        pipe.zadd(
+                            self._reserved_index_key(),
+                            {reserved_index_member: reserved_score},
+                        )
+                        await pipe.execute()
                         return None
 
                     message_fields = _string_mapping(await pipe.hgetall(keys.message))
@@ -786,6 +912,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         pipe.multi()
                         pipe.delete(keys.reservation)
                         pipe.zrem(keys.reserved, message_id)
+                        pipe.zrem(self._reserved_index_key(), reserved_index_member)
                         await pipe.execute()
                         return None
 
@@ -795,6 +922,10 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                     if reservation_lease_ms > current_ms:
                         pipe.multi()
                         pipe.zadd(keys.reserved, {message_id: reservation_lease_ms})
+                        pipe.zadd(
+                            self._reserved_index_key(),
+                            {reserved_index_member: reservation_lease_ms},
+                        )
                         await pipe.execute()
                         return None
 
@@ -812,6 +943,9 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                             reason="max_delivery_attempts_reached",
                         )
                         await pipe.execute()
+                        record_cleanup_queue_dead_letter(
+                            dead_letter, source="redis_cleanup_queue.expire_leases"
+                        )
                         return "dead_lettered", dead_letter
 
                     message = self._stage_redelivery(
@@ -937,6 +1071,12 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         pipe.delete(keys.reservation)
         pipe.zrem(keys.visible, message_id)
         pipe.zrem(keys.reserved, message_id)
+        pipe.zrem(
+            self._reserved_index_key(),
+            self._reserved_index_member(
+                work_pool_id=work_pool_id, message_id=message_id
+            ),
+        )
 
         if retention is not None:
             retention_ms = int(retention.total_seconds() * 1000)
@@ -962,6 +1102,12 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         }
         pipe.delete(keys.reservation)
         pipe.zrem(keys.reserved, message_id)
+        pipe.zrem(
+            self._reserved_index_key(),
+            self._reserved_index_member(
+                work_pool_id=message_fields["work_pool_id"], message_id=message_id
+            ),
+        )
         pipe.hset(keys.message, mapping=updated_fields)
         pipe.zadd(keys.visible, {message_id: current_ms})
         return self._message_from_mapping(updated_fields)
@@ -970,6 +1116,7 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         # Transitions that make work visible must stage this in the same Redis
         # transaction so other server processes observe the wakeup with the work.
         pipe.incr(self._wakeup_key(work_pool_id))
+        pipe.publish(self._wakeup_channel(work_pool_id), "1")
 
     def _stage_renew(
         self,
@@ -999,6 +1146,14 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
             },
         )
         pipe.zadd(keys.reserved, {message_id: lease_expires_ms})
+        pipe.zadd(
+            self._reserved_index_key(),
+            {
+                self._reserved_index_member(
+                    work_pool_id=message_fields["work_pool_id"], message_id=message_id
+                ): lease_expires_ms
+            },
+        )
 
     def _stage_dead_letter(
         self,
@@ -1026,6 +1181,12 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
         pipe.delete(keys.reservation)
         pipe.zrem(keys.visible, message_id)
         pipe.zrem(keys.reserved, message_id)
+        pipe.zrem(
+            self._reserved_index_key(),
+            self._reserved_index_member(
+                work_pool_id=message_fields["work_pool_id"], message_id=message_id
+            ),
+        )
         return self._dead_letter_from_mapping(dead_fields)
 
     def _client(self) -> "Redis":
@@ -1071,6 +1232,91 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
             for work_pool_id in await self._client().smembers(self._pools_key())
         ]
 
+    async def _expired_lease_candidates(
+        self,
+        *,
+        current_ms: int,
+        limit: int,
+        work_pool_id: UUID | None,
+    ) -> list[tuple[str, str]]:
+        if work_pool_id is not None:
+            return [
+                (str(work_pool_id), _decode_redis_value(raw_message_id))
+                for raw_message_id in await self._client().zrangebyscore(
+                    self._reserved_key(work_pool_id),
+                    "-inf",
+                    current_ms,
+                    start=0,
+                    num=limit,
+                )
+            ]
+
+        candidates = [
+            self._split_reserved_index_member(raw_member)
+            for raw_member in await self._client().zrangebyscore(
+                self._reserved_index_key(),
+                "-inf",
+                current_ms,
+                start=0,
+                num=limit,
+            )
+        ]
+        if len(candidates) >= limit:
+            return candidates
+
+        candidates.extend(
+            await self._legacy_expired_lease_candidates(
+                current_ms=current_ms,
+                limit=limit - len(candidates),
+            )
+        )
+        return candidates
+
+    async def _legacy_expired_lease_candidates(
+        self,
+        *,
+        current_ms: int,
+        limit: int,
+    ) -> list[tuple[str, str]]:
+        if limit <= 0:
+            return []
+
+        cursor_key = self._legacy_expiry_cursor_key()
+        cursor_value = await self._client().get(cursor_key)
+        cursor = (
+            int(_decode_redis_value(cursor_value)) if cursor_value is not None else 0
+        )
+
+        # Redis cleanup queues written before the global reserved index only have
+        # per-pool reserved sets. Advance a persisted cursor in bounded pages so
+        # upgraded servers can drain those leases without full-pool sweeps.
+        cursor, raw_work_pool_ids = await self._client().sscan(
+            self._pools_key(),
+            cursor=cursor,
+            count=self._LEGACY_EXPIRE_POOL_SCAN_BATCH_SIZE,
+        )
+        await self._client().set(cursor_key, cursor)
+
+        candidates: list[tuple[str, str]] = []
+        for raw_work_pool_id in raw_work_pool_ids:
+            if len(candidates) >= limit:
+                break
+
+            work_pool_id = _decode_redis_value(raw_work_pool_id)
+            expired_message_ids = await self._client().zrangebyscore(
+                self._reserved_key(work_pool_id),
+                "-inf",
+                current_ms,
+                start=0,
+                num=limit - len(candidates),
+            )
+            candidates.extend(
+                (work_pool_id, _decode_redis_value(raw_message_id))
+                for raw_message_id in expired_message_ids
+            )
+
+        return candidates
+
     def _scoped_message_keys(
         self, *, work_pool_id: UUID | str, message_id: UUID | str
     ) -> _ScopedMessageKeys:
@@ -1104,8 +1350,28 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
     def _reserved_key(self, work_pool_id: UUID | str) -> str:
         return f"{self._prefix()}:pool:{work_pool_id}:reserved"
 
+    def _reserved_index_key(self) -> str:
+        return f"{self._prefix()}:reserved"
+
+    def _legacy_expiry_cursor_key(self) -> str:
+        return f"{self._prefix()}:reserved:legacy-scan-cursor"
+
+    @staticmethod
+    def _reserved_index_member(
+        *, work_pool_id: UUID | str, message_id: UUID | str
+    ) -> str:
+        return f"{work_pool_id}:{message_id}"
+
+    @staticmethod
+    def _split_reserved_index_member(member: Any) -> tuple[str, str]:
+        work_pool_id, message_id = _decode_redis_value(member).split(":", 1)
+        return work_pool_id, message_id
+
     def _wakeup_key(self, work_pool_id: UUID | str) -> str:
         return f"{self._prefix()}:wakeup:{work_pool_id}"
+
+    def _wakeup_channel(self, work_pool_id: UUID | str) -> str:
+        return f"{self._prefix()}:wakeup-channel:{work_pool_id}"
 
     def _pools_key(self) -> str:
         return f"{self._prefix()}:pools"

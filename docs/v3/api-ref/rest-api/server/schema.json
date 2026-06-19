@@ -24784,11 +24784,57 @@
                             "PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS",
                             "PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS"
                         ]
+                    },
+                    "cancelling_timeout_seconds": {
+                        "type": "number",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Cancelling Timeout Seconds",
+                        "description": "The cancellation cleanup service will enqueue worker cleanup for flow runs that remain in CANCELLING longer than this many seconds. Defaults to `300`.",
+                        "default": 300,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_CANCELLING_TIMEOUT_SECONDS"
+                        ]
                     }
                 },
                 "type": "object",
                 "title": "ServerServicesCancellationCleanupSettings",
                 "description": "Settings for controlling the cancellation cleanup service"
+            },
+            "ServerServicesCleanupReconcilerSettings": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean",
+                        "title": "Enabled",
+                        "description": "Whether or not to start the cleanup reconciler service in the server application.",
+                        "default": true,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_CLEANUP_RECONCILER_ENABLED"
+                        ]
+                    },
+                    "loop_seconds": {
+                        "type": "number",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Loop Seconds",
+                        "description": "The cleanup reconciler service will look for expired cleanup message leases this often. Defaults to `5`.",
+                        "default": 5,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_CLEANUP_RECONCILER_LOOP_SECONDS"
+                        ]
+                    },
+                    "batch_size": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Batch Size",
+                        "description": "The maximum number of expired cleanup message leases to process per service loop. Defaults to `100`.",
+                        "default": 100,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_CLEANUP_RECONCILER_BATCH_SIZE"
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "ServerServicesCleanupReconcilerSettings",
+                "description": "Settings for controlling the cleanup reconciler service."
             },
             "ServerServicesDBVacuumSettings": {
                 "properties": {
@@ -25247,6 +25293,11 @@
                         "$ref": "#/components/schemas/ServerServicesRepossessorSettings",
                         "supported_environment_variables": []
                     },
+                    "cleanup_reconciler": {
+                        "$ref": "#/components/schemas/ServerServicesCleanupReconcilerSettings",
+                        "description": "Settings for controlling the cleanup reconciler service",
+                        "supported_environment_variables": []
+                    },
                     "task_run_recorder": {
                         "$ref": "#/components/schemas/ServerServicesTaskRunRecorderSettings",
                         "supported_environment_variables": []
@@ -25658,7 +25709,7 @@
                     "cleanup_queue_storage": {
                         "type": "string",
                         "title": "Cleanup Queue Storage",
-                        "description": "The module to use for storing worker cleanup delivery messages. The default in-memory backend stores messages, leases, wakeups, and dead-letter entries only in the current server process; use a Redis-backed storage module for high availability or restart-safe cleanup delivery.",
+                        "description": "The module to use for storing worker cleanup delivery messages. The default in-memory backend stores messages, leases, wakeups, and dead-letter entries only in the current server process; use an external storage module for high availability or restart-safe cleanup delivery.",
                         "default": "prefect.server.worker_communication.cleanup_queue.memory",
                         "supported_environment_variables": [
                             "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE"
@@ -25695,7 +25746,7 @@
                             }
                         ],
                         "title": "Cleanup Completed Idempotency Retention Seconds",
-                        "description": "How long completed cleanup idempotency records are retained after acknowledgement. None keeps them for the lifetime of the current server process. The in-memory backend does not survive restart; use Redis for high availability or restart-safe cleanup idempotency.",
+                        "description": "How long completed cleanup idempotency records are retained after acknowledgement. None keeps them for the lifetime of the current server process. The in-memory backend does not survive restart; use external storage for high availability or restart-safe cleanup idempotency.",
                         "supported_environment_variables": [
                             "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_COMPLETED_IDEMPOTENCY_RETENTION_SECONDS"
                         ]

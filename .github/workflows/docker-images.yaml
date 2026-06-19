@@ -147,9 +147,20 @@ jobs:
     # Only trigger on release events (nightly prereleases and official releases)
     if: github.event_name == 'release'
     steps:
+      - name: Generate prefect-ci-bot-bridge token
+        id: app_token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.PREFECT_CI_BOT_BRIDGE_CLIENT_ID }}
+          private-key: ${{ secrets.PREFECT_CI_BOT_BRIDGE_PRIVATE_KEY }}
+          owner: PrefectHQ
+          repositories: cluster-deployment
+          # Scope to the minimum needed for `gh workflow run`.
+          permission-actions: write
+
       - name: Dispatch to cluster-deployment
         env:
-          GH_TOKEN: ${{ secrets.CLUSTER_DEPLOYMENT_ACTIONS_RW }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
         run: |
           gh workflow run update-integration-test-image.yaml \
             -R PrefectHQ/cluster-deployment \

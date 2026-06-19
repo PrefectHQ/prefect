@@ -10,6 +10,7 @@ from prefect.server.utilities.server import APIRouter
 from prefect.utilities.schema_tools.hydration import HydrationContext, hydrate
 from prefect.utilities.schema_tools.validation import (
     CircularSchemaRefError,
+    ValidationError,
     build_error_obj,
     is_valid_schema,
     preprocess_schema,
@@ -59,6 +60,11 @@ async def validate_obj(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Invalid schema: Unable to validate schema with circular references.",
+        )
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid schema: {exc}",
         )
     error_obj = build_error_obj(errors)
 

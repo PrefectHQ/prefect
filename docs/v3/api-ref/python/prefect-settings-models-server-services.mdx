@@ -39,7 +39,7 @@ Convert the settings object to a dictionary of environment variables.
 Settings for controlling the cancellation cleanup service
 
 
-### `ServerServicesDBVacuumSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L81" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ServerServicesDBVacuumSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L87" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Settings for controlling the database vacuum service
@@ -47,7 +47,7 @@ Settings for controlling the database vacuum service
 
 **Methods:**
 
-#### `enabled_vacuum_types` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L99" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `enabled_vacuum_types` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L105" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 enabled_vacuum_types(self) -> set[str]
@@ -61,61 +61,67 @@ Handles legacy boolean values:
 * `None`  → `set()`
 
 
-### `ServerServicesEventPersisterSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L147" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ServerServicesEventPersisterSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Settings for controlling the event persister service
 
 
-### `ServerServicesEventLoggerSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L212" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ServerServicesEventLoggerSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L218" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Settings for controlling the event logger service
 
 
-### `ServerServicesForemanSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L232" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ServerServicesForemanSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L238" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Settings for controlling the foreman service
 
 
-### `ServerServicesLateRunsSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L313" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ServerServicesLateRunsSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L319" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Settings for controlling the late runs service
 
 
-### `ServerServicesSchedulerSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L357" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ServerServicesSchedulerSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L363" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Settings for controlling the scheduler service
 
 
-### `ServerServicesPauseExpirationsSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L489" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ServerServicesPauseExpirationsSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L495" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Settings for controlling the pause expiration service
 
 
-### `ServerServicesRepossessorSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L525" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ServerServicesRepossessorSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L531" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Settings for controlling the repossessor service
 
 
-### `ServerServicesTaskRunRecorderSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L545" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ServerServicesCleanupReconcilerSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L551" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Settings for controlling the cleanup reconciler service.
+
+
+### `ServerServicesTaskRunRecorderSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L578" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Settings for controlling the task run recorder service
 
 
-### `ServerServicesTriggersSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L583" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ServerServicesTriggersSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L616" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Settings for controlling the triggers service
 
 
-### `ServerServicesSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L635" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ServerServicesSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/settings/models/server/services.py#L668" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Settings for controlling server services

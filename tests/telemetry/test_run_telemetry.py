@@ -26,7 +26,10 @@ if TYPE_CHECKING:
 def traceparent_from_span(span: "ReadableSpan") -> str:
     span_context = span.get_span_context()
     assert span_context is not None
-    return f"00-{span_context.trace_id:032x}-{span_context.span_id:016x}-01"
+    return (
+        f"00-{span_context.trace_id:032x}-{span_context.span_id:016x}-"
+        f"{int(span_context.trace_flags):02x}"
+    )
 
 
 def find_span_by_run_name(*spans: "ReadableSpan", run_name: str) -> "ReadableSpan":

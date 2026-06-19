@@ -28,7 +28,12 @@ export async function nodeBarFactory() {
 		const { background = "#fff" } = styles.node(node);
 		const { nodeHeight: height, nodeRadius: radius } = styles;
 		const selected = isSelected({ kind: node.kind, id: node.id });
-		const width = getTotalWidth(node, radius);
+		const width = getNodeBarWidth(
+			node,
+			radius,
+			getHorizontalColumnSize(),
+			layout.isTemporal() || layout.isLeftAligned(),
+		);
 
 		const capRight = node.state_type !== "RUNNING" || settings.isDependency();
 
@@ -46,24 +51,39 @@ export async function nodeBarFactory() {
 		return bar;
 	}
 
-	function getTotalWidth(node: RunGraphNode, borderRadius: number): number {
-		const columnSize = getHorizontalColumnSize();
-
-		if (layout.isTemporal() || layout.isLeftAligned()) {
-			const right = node.start_time;
-			const left = node.end_time ?? new Date();
-			const seconds =
-				differenceInMilliseconds(left, right) / millisecondsInSecond;
-			const width = seconds * columnSize;
-
-			return Math.max(width, borderRadius * 2);
-		}
-
-		return columnSize;
-	}
-
 	return {
 		element: container,
 		render,
 	};
+}
+
+export function getNodeBarWidth(
+	node: RunGraphNode,
+	borderRadius: number,
+	columnSize: number,
+	isDurationLayout: boolean,
+	now = new Date(),
+): number {
+	if (isDurationLayout) {
+		if (isPendingPlaceholderNode(node)) {
+			return borderRadius * 2;
+		}
+
+		const seconds =
+			differenceInMilliseconds(node.end_time ?? now, node.start_time) /
+			millisecondsInSecond;
+		const width = seconds * columnSize;
+
+		return Math.max(width, borderRadius * 2);
+	}
+
+	return columnSize;
+}
+
+export function isPendingPlaceholderNode(node: RunGraphNode): boolean {
+	return (
+		node.kind === "task-run" &&
+		node.state_type === "PENDING" &&
+		node.end_time === null
+	);
 }

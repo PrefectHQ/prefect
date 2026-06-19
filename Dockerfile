@@ -24,7 +24,7 @@ ARG EXTRA_PIP_PACKAGES=""
 FROM prefecthq/prefect-sqlite:${SQLITE_VERSION} AS sqlite-builder
 
 # Build the V1 UI distributable.
-FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-bullseye-slim AS ui-builder
+FROM --platform=$BUILDPLATFORM node:${NODE_VERSION}-bookworm-slim AS ui-builder
 
 WORKDIR /opt/ui
 
@@ -45,7 +45,7 @@ COPY ./ui .
 RUN npm run build
 
 # Build the V2 UI distributable.
-FROM --platform=$BUILDPLATFORM node:${NODE_V2_VERSION}-bullseye-slim AS ui-v2-builder
+FROM --platform=$BUILDPLATFORM node:${NODE_V2_VERSION}-bookworm-slim AS ui-v2-builder
 
 # Optional Amplitude API key for analytics (build still works without it)
 ARG VITE_AMPLITUDE_API_KEY=""
@@ -87,7 +87,7 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
     (echo "ERROR: git version must be >= 1:2.47.3" && exit 1)
 
 # Install UV from official image - pin to specific version for build caching
-COPY --from=ghcr.io/astral-sh/uv:0.6.17 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.11.21 /uv /bin/uv
 
 # Copy the repository in; requires full git history for versions to generate correctly
 COPY . ./
@@ -128,7 +128,6 @@ ARG SQLITE_VERSION
 ENV LC_ALL=C.UTF-8
 ENV LANG=C.UTF-8
 
-ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 ENV UV_SYSTEM_PYTHON=1
 
@@ -180,7 +179,7 @@ COPY --from=sqlite-builder /usr/local/lib/pkgconfig/sqlite3.pc /usr/local/lib/pk
 RUN ldconfig
 
 # Install UV from official image - pin to specific version for build caching
-COPY --from=ghcr.io/astral-sh/uv:0.6.17 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.11.21 /uv /bin/uv
 
 # Install prefect from the sdist
 COPY --from=python-builder /opt/prefect/dist ./dist
@@ -188,7 +187,7 @@ COPY --from=python-builder /opt/prefect/dist ./dist
 # Extras to include during installation
 ARG PREFECT_EXTRAS=[redis,client,otel]
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install "./dist/prefect.tar.gz${PREFECT_EXTRAS:-""}" && \
+    UV_COMPILE_BYTECODE=1 uv pip install "./dist/prefect.tar.gz${PREFECT_EXTRAS:-""}" && \
     rm -rf dist/
 
 # Remove setuptools
@@ -197,7 +196,7 @@ RUN uv pip uninstall setuptools
 # Install any extra packages
 ARG EXTRA_PIP_PACKAGES
 RUN --mount=type=cache,target=/root/.cache/uv \
-    [ -z "${EXTRA_PIP_PACKAGES:-""}" ] || uv pip install "${EXTRA_PIP_PACKAGES}"
+    [ -z "${EXTRA_PIP_PACKAGES:-""}" ] || UV_COMPILE_BYTECODE=1 uv pip install "${EXTRA_PIP_PACKAGES}"
 
 # Smoke test
 RUN prefect version

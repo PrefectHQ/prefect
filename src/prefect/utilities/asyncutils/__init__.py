@@ -8,7 +8,7 @@ import threading
 import warnings
 from collections.abc import AsyncGenerator, Awaitable, Coroutine
 from contextlib import AbstractAsyncContextManager, asynccontextmanager
-from contextvars import ContextVar
+from contextvars import Context, ContextVar
 from functools import partial, wraps
 from logging import Logger
 from typing import TYPE_CHECKING, Any, Callable, NoReturn, Optional, Union, overload
@@ -474,6 +474,10 @@ class GatherTaskGroup(anyio.abc.TaskGroup):
         # The concrete task group implementation to use
         self._task_group: anyio.abc.TaskGroup = task_group
 
+    @property
+    def cancel_scope(self) -> Any:
+        return self._task_group.cancel_scope
+
     async def _run_and_store(
         self,
         key: UUID,
@@ -493,6 +497,20 @@ class GatherTaskGroup(anyio.abc.TaskGroup):
         self._results[key] = GatherIncomplete
         self._task_group.start_soon(self._run_and_store, key, func, *args, name=name)
         return key
+
+    def create_task(
+        self,
+        coro: Coroutine[Any, Any, T],
+        *,
+        name: object = None,
+        context: Context | None = None,
+    ) -> Any:
+        create_task = getattr(self._task_group, "create_task", None)
+        if create_task is None:
+            coro.close()
+            raise RuntimeError("`create_task` requires AnyIO 4.14.0 or newer.")
+
+        return create_task(coro, name=name, context=context)
 
     async def start(self, func: object, *args: object, name: object = None) -> NoReturn:
         """

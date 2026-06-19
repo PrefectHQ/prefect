@@ -115,6 +115,7 @@ def test_event_vacuum_runs_in_ephemeral_mode():
 def test_cancellation_cleanup_services_registered():
     """Test that cancellation cleanup perpetual services are registered."""
     service_names = [config.function.__name__ for config in _PERPETUAL_SERVICES]
+    assert "ensure_cancelling_timeout_checks" in service_names
     assert "monitor_cancelled_flow_runs" in service_names
     assert "monitor_subflow_runs" in service_names
 
@@ -135,6 +136,12 @@ def test_repossessor_service_registered():
     """Test that repossessor perpetual service is registered."""
     service_names = [config.function.__name__ for config in _PERPETUAL_SERVICES]
     assert "monitor_expired_leases" in service_names
+
+
+def test_cleanup_reconciler_service_registered():
+    """Test that cleanup reconciler perpetual service is registered."""
+    service_names = [config.function.__name__ for config in _PERPETUAL_SERVICES]
+    assert "reconcile_cleanup_delivery" in service_names
 
 
 def test_foreman_service_registered():

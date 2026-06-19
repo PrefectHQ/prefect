@@ -17,7 +17,7 @@ This service schedules flow runs from deployments with active schedules.
 ### `schedule_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L215" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-schedule_deployments(perpetual: Perpetual = Perpetual(automatic=False, every=timedelta(seconds=get_current_settings().server.services.scheduler.loop_seconds))) -> None
+schedule_deployments(perpetual: Perpetual = Perpetual(automatic=True, every=timedelta(seconds=get_current_settings().server.services.scheduler.loop_seconds))) -> None
 ```
 
 
@@ -32,7 +32,7 @@ Schedule flow runs by:
 ### `schedule_recent_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/services/scheduler.py#L291" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-schedule_recent_deployments(perpetual: Perpetual = Perpetual(automatic=False, every=timedelta(seconds=get_current_settings().server.services.scheduler.recent_deployments_loop_seconds))) -> None
+schedule_recent_deployments(perpetual: Perpetual = Perpetual(automatic=True, every=timedelta(seconds=get_current_settings().server.services.scheduler.recent_deployments_loop_seconds))) -> None
 ```
 
 
