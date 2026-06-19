@@ -7,9 +7,10 @@ from __future__ import annotations
 
 import abc
 import asyncio
+import contextvars
 import copy
 from base64 import b64encode
-from contextlib import asynccontextmanager
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import (
     TYPE_CHECKING,
@@ -20,7 +21,6 @@ from typing import (
     ClassVar,
     Coroutine,
     Dict,
-    Generic,
     List,
     Literal,
     MutableMapping,
@@ -355,42 +355,46 @@ class EmitEventAction(Action):
         """Create an event from the TriggeredAction"""
 
 
-_SharedClient = TypeVar("_SharedClient")
+_ScopedClient = TypeVar("_ScopedClient")
+
+# The actions consumer (`consumer()` below) opens one OrchestrationClient and one
+# PrefectServerEventsAPIClient for its lifetime and publishes them here, so every
+# action it runs reuses them instead of paying the create_app()/setup_logging()
+# construction cost per action. When no consumer is active — e.g. an action
+# invoked directly in a test — the accessors below fall back to a short-lived
+# client.
+_consumer_orchestration_client: contextvars.ContextVar[
+    Optional["OrchestrationClient"]
+] = contextvars.ContextVar("_consumer_orchestration_client", default=None)
+_consumer_events_api_client: contextvars.ContextVar[
+    Optional["PrefectServerEventsAPIClient"]
+] = contextvars.ContextVar("_consumer_events_api_client", default=None)
 
 
-class _AutomationScopedClient(Generic[_SharedClient]):
+@asynccontextmanager
+async def _scoped_client(
+    shared: Optional[_ScopedClient],
+    build: Callable[[], AbstractAsyncContextManager[_ScopedClient]],
+    headers: Dict[str, str],
+) -> AsyncGenerator[_ScopedClient, None]:
     """
-    Async context manager returned by `ExternalDataAction.orchestration_client`
-    and `events_api_client`. It acquires the process-shared client, then enters
-    a `scoped_headers()` block that pushes automation-specific headers into the
-    contextvar consumed by the httpx request hook; on exit the headers are
-    popped. The shared client itself is never closed — it lives for the process
-    lifetime.
+    Yield a client with the per-action automation `headers` scoped to this block.
+
+    When the actions consumer is running it has already opened a long-lived
+    client (passed as `shared`), which is reused as-is. Otherwise a short-lived
+    client is built and closed when the block exits. Either way the headers are
+    pushed through the `scoped_headers()` contextvar (consumed by the client's
+    httpx request hook) so concurrent actions never clobber each other's headers
+    on a shared client.
     """
+    from prefect.server.api.clients import scoped_headers
 
-    def __init__(
-        self,
-        factory: Callable[[], Awaitable[_SharedClient]],
-        headers: Dict[str, str],
-    ):
-        self._factory = factory
-        self._headers = headers
-        self._scope: Any = None
-
-    async def __aenter__(self) -> _SharedClient:
-        from prefect.server.api.clients import scoped_headers
-
-        # Acquire the client first; `shared()` issues no requests, so the headers
-        # are not needed yet. Entering the scope only after a successful acquire
-        # means a failure in the factory cannot leak a contextvar token.
-        client = await self._factory()
-        self._scope = scoped_headers(self._headers)
-        await self._scope.__aenter__()
-        return client
-
-    async def __aexit__(self, *exc: Any) -> None:
-        if self._scope is not None:
-            await self._scope.__aexit__(*exc)
+    if shared is not None:
+        async with scoped_headers(headers):
+            yield shared
+    else:
+        async with build() as client, scoped_headers(headers):
+            yield client
 
 
 class ExternalDataAction(Action):
@@ -410,19 +414,21 @@ class ExternalDataAction(Action):
 
     async def orchestration_client(
         self, triggered_action: "TriggeredAction"
-    ) -> "_AutomationScopedClient[OrchestrationClient]":
+    ) -> AbstractAsyncContextManager["OrchestrationClient"]:
         from prefect.server.api.clients import OrchestrationClient
 
-        return _AutomationScopedClient(
-            OrchestrationClient.shared,
+        return _scoped_client(
+            _consumer_orchestration_client.get(),
+            OrchestrationClient,
             self._automation_request_headers(triggered_action),
         )
 
     async def events_api_client(
         self, triggered_action: "TriggeredAction"
-    ) -> "_AutomationScopedClient[PrefectServerEventsAPIClient]":
-        return _AutomationScopedClient(
-            PrefectServerEventsAPIClient.shared,
+    ) -> AbstractAsyncContextManager[PrefectServerEventsAPIClient]:
+        return _scoped_client(
+            _consumer_events_api_client.get(),
+            PrefectServerEventsAPIClient,
             self._automation_request_headers(triggered_action),
         )
 
@@ -1899,33 +1905,56 @@ async def action_has_already_happened(id: UUID) -> bool:
 
 @asynccontextmanager
 async def consumer() -> AsyncGenerator[MessageHandler, None]:
+    from prefect.server.api.clients import OrchestrationClient
     from prefect.server.events.schemas.automations import TriggeredAction
 
-    async def message_handler(message: Message):
-        if not message.data:
-            return
+    # Open one orchestration client and one events API client for the lifetime of
+    # the consumer; every action reuses them (via the contextvars read in
+    # `ExternalDataAction.orchestration_client` / `events_api_client`) instead of
+    # constructing a fresh client per action. They are closed when the consumer
+    # shuts down.
+    async with (
+        OrchestrationClient() as orchestration_client,
+        PrefectServerEventsAPIClient() as events_api_client,
+    ):
 
-        triggered_action = TriggeredAction.model_validate_json(message.data)
-        action = triggered_action.action
+        async def message_handler(message: Message):
+            if not message.data:
+                return
 
-        if await action_has_already_happened(triggered_action.id):
-            logger.info(
-                "Action %s has already been executed, skipping",
-                triggered_action.id,
+            triggered_action = TriggeredAction.model_validate_json(message.data)
+            action = triggered_action.action
+
+            if await action_has_already_happened(triggered_action.id):
+                logger.info(
+                    "Action %s has already been executed, skipping",
+                    triggered_action.id,
+                )
+                return
+
+            # Publish the consumer's shared clients for the duration of this
+            # action. Setting and resetting within the same coroutine keeps the
+            # contextvar tokens in a single context, which `ContextVar.reset`
+            # requires (the surrounding `async with` may be entered and exited on
+            # different tasks, e.g. by an async fixture).
+            orchestration_token = _consumer_orchestration_client.set(
+                orchestration_client
             )
-            return
+            events_token = _consumer_events_api_client.set(events_api_client)
+            try:
+                await action.act(triggered_action)
+            except ActionFailed as e:
+                # ActionFailed errors are expected errors and will not be retried
+                await action.fail(triggered_action, e.reason)
+            else:
+                await action.succeed(triggered_action)
+                await record_action_happening(triggered_action.id)
+            finally:
+                _consumer_events_api_client.reset(events_token)
+                _consumer_orchestration_client.reset(orchestration_token)
 
-        try:
-            await action.act(triggered_action)
-        except ActionFailed as e:
-            # ActionFailed errors are expected errors and will not be retried
-            await action.fail(triggered_action, e.reason)
-        else:
-            await action.succeed(triggered_action)
-            await record_action_happening(triggered_action.id)
-
-    logger.info("Starting action message handler")
-    yield message_handler
+        logger.info("Starting action message handler")
+        yield message_handler
 
 
 async def _load_block_from_block_document(
