@@ -398,6 +398,46 @@ async def test_gather_task_group_get_result_bad_uuid():
         tg.get_result(uuid.uuid4())
 
 
+async def test_gather_task_group_create_task_delegates_when_supported():
+    tg = create_gather_task_group()
+    if not hasattr(tg._task_group, "create_task"):
+        pytest.skip("AnyIO task group does not support create_task")
+
+    async with tg:
+        completed = False
+
+        async def foo():
+            nonlocal completed
+            completed = True
+
+        handle = tg.create_task(foo(), name="test-gather-task-group-create-task")
+        await handle.wait()
+
+    assert completed
+
+
+async def test_gather_task_group_cancel_delegates_cancel_scope_when_supported():
+    tg = create_gather_task_group()
+    if not hasattr(tg, "cancel"):
+        pytest.skip("AnyIO task group does not support cancel")
+
+    completed = False
+
+    async def wait_forever():
+        nonlocal completed
+        try:
+            await anyio.sleep_forever()
+        finally:
+            completed = True
+
+    async with tg:
+        tg.start_soon(wait_forever)
+        await anyio.sleep(0)
+        tg.cancel()
+
+    assert completed
+
+
 async def test_lazy_semaphore_initialization():
     initial_value = 5
     lazy_semaphore = LazySemaphore(lambda: initial_value)
