@@ -191,9 +191,7 @@ class ToggleFailingReserveCleanupQueue(MemoryWorkerCleanupQueue):
 def cleanup_queue(
     monkeypatch: pytest.MonkeyPatch,
 ) -> Iterator[InstrumentedMemoryCleanupQueue]:
-    with temporary_settings(
-        {PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_LEASE_SECONDS: 0.05}
-    ):
+    with temporary_settings({PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_LEASE_SECONDS: 30}):
         queue = InstrumentedMemoryCleanupQueue()
         monkeypatch.setattr(workers_api, "get_worker_cleanup_queue", lambda: queue)
         monkeypatch.setattr(

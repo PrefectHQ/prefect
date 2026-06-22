@@ -457,23 +457,32 @@ class TestWorkerChannelCleanupDispatcher:
         work_pool,
         cleanup_queue: InstrumentedMemoryCleanupQueue,
     ):
-        message = await enqueue_cleanup_message(
-            cleanup_queue, work_pool_id=work_pool.id
-        )
+        # Use a short lease so the test can observe expiry without waiting
+        # for the fixture's default 30s lease to elapse.
+        with temporary_settings(
+            {PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_LEASE_SECONDS: 0.05}
+        ):
+            message = await enqueue_cleanup_message(
+                cleanup_queue, work_pool_id=work_pool.id
+            )
 
-        with _connect_worker_channel(test_client, work_pool.name) as websocket:
-            _authenticate_worker_channel(websocket)
-            websocket.send_json(_cleanup_worker_hello_frame())
-            WorkerReadyFrame.model_validate(websocket.receive_json())
-            first_cleanup = CleanupMessageFrame.model_validate(websocket.receive_json())
+            with _connect_worker_channel(test_client, work_pool.name) as websocket:
+                _authenticate_worker_channel(websocket)
+                websocket.send_json(_cleanup_worker_hello_frame())
+                WorkerReadyFrame.model_validate(websocket.receive_json())
+                first_cleanup = CleanupMessageFrame.model_validate(
+                    websocket.receive_json()
+                )
 
-        await asyncio.sleep(0.08)
+            await asyncio.sleep(0.08)
 
-        with _connect_worker_channel(test_client, work_pool.name) as websocket:
-            _authenticate_worker_channel(websocket)
-            websocket.send_json(_cleanup_worker_hello_frame())
-            WorkerReadyFrame.model_validate(websocket.receive_json())
-            redelivery = CleanupMessageFrame.model_validate(websocket.receive_json())
+            with _connect_worker_channel(test_client, work_pool.name) as websocket:
+                _authenticate_worker_channel(websocket)
+                websocket.send_json(_cleanup_worker_hello_frame())
+                WorkerReadyFrame.model_validate(websocket.receive_json())
+                redelivery = CleanupMessageFrame.model_validate(
+                    websocket.receive_json()
+                )
 
         assert first_cleanup.payload.message_id == message.message_id
         assert redelivery.payload.message_id == message.message_id
