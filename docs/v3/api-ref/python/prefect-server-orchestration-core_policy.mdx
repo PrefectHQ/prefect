@@ -551,7 +551,7 @@ before_transition(self, initial_state: states.State[Any] | None, proposed_state:
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]) -> None
 ```
 
-### `EnforceDeploymentConcurrencyOnLate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1798" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `EnforceDeploymentConcurrencyOnLate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1803" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Enforce the CANCEL_NEW deployment concurrency strategy when marking runs late.
@@ -567,13 +567,13 @@ because they go late would accumulate in a Late state instead of being cancelled
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1813" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1818" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]) -> None
 ```
 
-### `PreventRunningTasksFromStoppedFlows` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1861" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PreventRunningTasksFromStoppedFlows` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1866" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Prevents running tasks from stopped flows.
@@ -584,13 +584,13 @@ flow's tasks cannot be run unless the flow is also running.
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1872" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1877" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy]) -> None
 ```
 
-### `EnforceCancellingToCancelledTransition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1908" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `EnforceCancellingToCancelledTransition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1913" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Rejects transitions from Cancelling to any terminal state except for Cancelled.
@@ -598,13 +598,13 @@ Rejects transitions from Cancelling to any terminal state except for Cancelled.
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1916" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1921" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.TaskRun, core.TaskRunPolicy]) -> None
 ```
 
-### `BypassCancellingFlowRunsWithNoInfra` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1932" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BypassCancellingFlowRunsWithNoInfra` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1937" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Rejects transitions from Scheduled to Cancelling, and instead sets the state to Cancelled,
@@ -621,13 +621,13 @@ Runs that are `AwaitingRetry` are a `Scheduled` state that may have associated i
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1948" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1953" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]) -> None
 ```
 
-### `PreserveDeploymentConcurrencyLeaseId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1976" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PreserveDeploymentConcurrencyLeaseId` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1981" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Preserves the deployment concurrency lease ID across state transitions.
@@ -641,13 +641,13 @@ and the proposed state does not.
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1987" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L1992" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]) -> None
 ```
 
-### `PreventDuplicateTransitions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L2004" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PreventDuplicateTransitions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L2009" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Prevent duplicate transitions from being made right after one another.
@@ -665,7 +665,7 @@ the following case:
 
 **Methods:**
 
-#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L2022" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `before_transition` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/orchestration/core_policy.py#L2027" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 before_transition(self, initial_state: states.State[Any] | None, proposed_state: states.State[Any] | None, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]) -> None
