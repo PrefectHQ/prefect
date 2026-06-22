@@ -354,7 +354,25 @@ class FlowRunSuspendingObserver:
             raise RuntimeError(
                 "Events subscriber not initialized. Please use `async with` to initialize the observer."
             )
-        async for event in self._events_subscriber:
+        # Use a per-recv timeout so that a silent websocket (connected but
+        # not delivering events) is detected and the observer falls back to
+        # polling.
+        while True:
+            try:
+                event = await asyncio.wait_for(
+                    self._events_subscriber.__anext__(),
+                    timeout=self.polling_interval,
+                )
+            except StopAsyncIteration:
+                return
+            except TimeoutError:
+                self.logger.info(
+                    "No suspension events received over websocket within"
+                    " %ss; switching to polling.",
+                    self.polling_interval,
+                )
+                return
+
             try:
                 flow_run_id = uuid.UUID(
                     event.resource["prefect.resource.id"].replace(
@@ -376,12 +394,14 @@ class FlowRunSuspendingObserver:
 
         if exc := task.exception():
             self.logger.warning(
-                "The FlowRunSuspendingObserver websocket failed with an exception. Switching to polling mode.",
+                "The FlowRunSuspendingObserver websocket failed with an exception."
+                " Switching to polling mode.",
                 exc_info=exc,
             )
         else:
-            self.logger.warning(
-                "The FlowRunSuspendingObserver websocket closed. Switching to polling mode.",
+            self.logger.debug(
+                "The FlowRunSuspendingObserver websocket consumer exited."
+                " Switching to polling mode.",
             )
 
         self._polling_task = asyncio.create_task(
@@ -394,6 +414,8 @@ class FlowRunSuspendingObserver:
         self._polling_task.add_done_callback(self._handle_polling_task_done)
 
     def _handle_polling_task_done(self, task: asyncio.Task[None]):
+        if task.cancelled():
+            return
         if task.exception():
             self.logger.error(
                 "Suspension polling task failed. Execution will continue, but external flow run suspension will fail.",

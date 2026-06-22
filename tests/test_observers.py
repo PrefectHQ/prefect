@@ -656,6 +656,39 @@ class TestFlowRunSuspendingObserver:
 
             callback.assert_called_once_with(flow_run_id, suspended_state)
 
+    async def test_consume_events_times_out_and_switches_to_polling(self):
+        callback = MagicMock()
+        observer = FlowRunSuspendingObserver(
+            on_suspended=callback, polling_interval=0.2
+        )
+
+        async def block_forever():
+            await asyncio.Event().wait()
+
+        async with observer:
+            with patch.object(
+                observer, "_consume_events", wraps=observer._consume_events
+            ):
+                observer._events_subscriber = AsyncMock()
+                observer._events_subscriber.__anext__ = AsyncMock(
+                    side_effect=block_forever
+                )
+
+                if observer._consumer_task:
+                    observer._consumer_task.cancel()
+                    with suppress(asyncio.CancelledError):
+                        await observer._consumer_task
+
+                observer._consumer_task = asyncio.create_task(
+                    observer._consume_events()
+                )
+                observer._consumer_task.add_done_callback(observer._start_polling_task)
+
+                # Consumer should time out and exit within polling_interval
+                await asyncio.sleep(0.5)
+                assert observer._consumer_task.done()
+                assert observer._polling_task is not None
+
     async def test_clean_event_consumer_completion_starts_polling(self):
         callback = MagicMock()
         observer = FlowRunSuspendingObserver(on_suspended=callback)
