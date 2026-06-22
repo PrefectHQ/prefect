@@ -388,9 +388,7 @@ than 25\. The default value is 25\. If a request specifies a
 limit of 0, the service instead uses the maximum limit.
 - `run_type`: 
 The type of runs to return. For a description of run types, see
-[Run](https\://docs.databricks.com/dev-
-tools/api/latest/jobs.html
-operation/JobsRunsGet).
+[Run](https\://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsGet).
 - `expand_tasks`: 
 Whether to include task and cluster details in the response.
 - `start_time_from`: 
@@ -407,7 +405,7 @@ _start_time_from_ to filter by a time range.
 - (`List["models.Run"]`) and `has_more` (`bool`).
 
 
-### `jobs_runs_repair` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/jobs.py#L864" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `jobs_runs_repair` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/jobs.py#L862" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 jobs_runs_repair(databricks_credentials: 'DatabricksCredentials', run_id: Optional[int] = None, rerun_tasks: Optional[List[str]] = None, latest_repair_id: Optional[int] = None, rerun_all_failed_tasks: bool = False, jar_params: Optional[List[str]] = None, notebook_params: Optional[Dict] = None, python_params: Optional[List[str]] = None, spark_submit_params: Optional[List[str]] = None, python_named_params: Optional[Dict] = None, pipeline_params: Optional[str] = None, sql_params: Optional[Dict] = None, dbt_commands: Optional[List] = None, job_parameters: Optional[Dict] = None) -> Dict[str, Any]
@@ -464,7 +462,7 @@ A map of job-level parameter overrides for the run.
 - (`int`).
 
 
-### `jobs_runs_submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/jobs.py#L974" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `jobs_runs_submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/jobs.py#L972" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 jobs_runs_submit(databricks_credentials: 'DatabricksCredentials', tasks: Optional[List['models.RunSubmitTaskSettings']] = None, run_name: Optional[str] = None, webhook_notifications: 'models.WebhookNotifications' = None, git_source: 'models.GitSource' = None, timeout_seconds: Optional[int] = None, idempotency_token: Optional[str] = None, access_control_list: Optional[List['models.AccessControlRequest']] = None) -> Dict[str, Any]
@@ -506,7 +504,7 @@ A list of permissions (`AccessControlRequest`) to set on the run.
 - (`int`).
 
 
-### `jobs_update` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/jobs.py#L1057" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `jobs_update` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-databricks/prefect_databricks/jobs.py#L1055" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 jobs_update(databricks_credentials: 'DatabricksCredentials', job_id: Optional[int] = None, new_settings: 'models.JobSettings' = None, fields_to_remove: Optional[List[str]] = None) -> Dict[str, Any]

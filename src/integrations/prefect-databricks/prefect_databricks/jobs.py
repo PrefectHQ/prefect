@@ -803,9 +803,7 @@ async def jobs_runs_list(
             limit of 0, the service instead uses the maximum limit.
         run_type:
             The type of runs to return. For a description of run types, see
-            [Run](https://docs.databricks.com/dev-
-            tools/api/latest/jobs.html
-            operation/JobsRunsGet).
+            [Run](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsGet).
         expand_tasks:
             Whether to include task and cluster details in the response.
         start_time_from:

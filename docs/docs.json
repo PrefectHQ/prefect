@@ -1821,6 +1821,334 @@
   },
   "redirects": [
     {
+      "destination": "/integrations/prefect-aws/index",
+      "source": "/integrations/prefect-aws/api-ref/prefect_aws-bundles-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-aws/index",
+      "source": "/integrations/prefect-aws/api-ref/prefect_aws-deployments-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-aws/index",
+      "source": "/integrations/prefect-aws/api-ref/prefect_aws-experimental-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-aws/index",
+      "source": "/integrations/prefect-aws/api-ref/prefect_aws-experimental-bundles-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-aws/index",
+      "source": "/integrations/prefect-aws/api-ref/prefect_aws-experimental-bundles-execute"
+    },
+    {
+      "destination": "/integrations/prefect-aws/index",
+      "source": "/integrations/prefect-aws/api-ref/prefect_aws-experimental-bundles-upload"
+    },
+    {
+      "destination": "/integrations/prefect-aws/index",
+      "source": "/integrations/prefect-aws/api-ref/prefect_aws-experimental-decorators"
+    },
+    {
+      "destination": "/integrations/prefect-aws/index",
+      "source": "/integrations/prefect-aws/api-ref/prefect_aws-workers-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-azure/index",
+      "source": "/integrations/prefect-azure/api-ref/prefect_azure-bundles-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-azure/index",
+      "source": "/integrations/prefect-azure/api-ref/prefect_azure-deployments-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-azure/index",
+      "source": "/integrations/prefect-azure/api-ref/prefect_azure-experimental-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-azure/index",
+      "source": "/integrations/prefect-azure/api-ref/prefect_azure-experimental-bundles-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-azure/index",
+      "source": "/integrations/prefect-azure/api-ref/prefect_azure-experimental-bundles-execute"
+    },
+    {
+      "destination": "/integrations/prefect-azure/index",
+      "source": "/integrations/prefect-azure/api-ref/prefect_azure-experimental-bundles-upload"
+    },
+    {
+      "destination": "/integrations/prefect-azure/index",
+      "source": "/integrations/prefect-azure/api-ref/prefect_azure-experimental-decorators"
+    },
+    {
+      "destination": "/integrations/prefect-databricks/index",
+      "source": "/integrations/prefect-databricks/api-ref/prefect_databricks-models-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-databricks/index",
+      "source": "/integrations/prefect-databricks/api-ref/prefect_databricks-models-jobs"
+    },
+    {
+      "destination": "/integrations/prefect-dbt/index",
+      "source": "/integrations/prefect-dbt/api-ref/prefect_dbt-cli-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-dbt/index",
+      "source": "/integrations/prefect-dbt/api-ref/prefect_dbt-cli-configs-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-dbt/index",
+      "source": "/integrations/prefect-dbt/api-ref/prefect_dbt-cloud-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-dbt/index",
+      "source": "/integrations/prefect-dbt/api-ref/prefect_dbt-core-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-docker/index",
+      "source": "/integrations/prefect-docker/api-ref/prefect_docker-deployments-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-docker/index",
+      "source": "/integrations/prefect-docker/api-ref/prefect_docker-experimental-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-docker/index",
+      "source": "/integrations/prefect-docker/api-ref/prefect_docker-experimental-decorators"
+    },
+    {
+      "destination": "/integrations/prefect-gcp/index",
+      "source": "/integrations/prefect-gcp/api-ref/prefect_gcp-bundles-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-gcp/index",
+      "source": "/integrations/prefect-gcp/api-ref/prefect_gcp-deployments-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-gcp/index",
+      "source": "/integrations/prefect-gcp/api-ref/prefect_gcp-experimental-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-gcp/index",
+      "source": "/integrations/prefect-gcp/api-ref/prefect_gcp-experimental-bundles-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-gcp/index",
+      "source": "/integrations/prefect-gcp/api-ref/prefect_gcp-experimental-bundles-execute"
+    },
+    {
+      "destination": "/integrations/prefect-gcp/index",
+      "source": "/integrations/prefect-gcp/api-ref/prefect_gcp-experimental-bundles-upload"
+    },
+    {
+      "destination": "/integrations/prefect-gcp/index",
+      "source": "/integrations/prefect-gcp/api-ref/prefect_gcp-experimental-decorators"
+    },
+    {
+      "destination": "/integrations/prefect-gcp/index",
+      "source": "/integrations/prefect-gcp/api-ref/prefect_gcp-models-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-gcp/index",
+      "source": "/integrations/prefect-gcp/api-ref/prefect_gcp-workers-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-github/index",
+      "source": "/integrations/prefect-github/api-ref/prefect_github-schemas-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-kubernetes/index",
+      "source": "/integrations/prefect-kubernetes/api-ref/prefect_kubernetes-experimental-__init__"
+    },
+    {
+      "destination": "/integrations/prefect-kubernetes/index",
+      "source": "/integrations/prefect-kubernetes/api-ref/prefect_kubernetes-experimental-decorators"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-assets-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-blocks-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-blocks-fields"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-cli-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-client-constants"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-client-orchestration-routes"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-client-schemas-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-client-types-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-client-types-flexible_schedule_list"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-concurrency-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-concurrency-v1-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-deployments-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-deployments-deployments"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-deployments-steps-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-docker-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-events-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-events-schemas-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-input-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-locking-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-logging-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-main"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-runner-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-server-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-server-api-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-server-database-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-server-events-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-server-events-models-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-server-events-schemas-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-server-events-services-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-server-logs-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-server-models-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-server-orchestration-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-server-schemas-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-server-services-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-server-utilities-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-server-utilities-schemas-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-settings-constants"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-settings-models-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-settings-models-server-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-telemetry-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-testing-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-testing-standard_test_suites"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-utilities-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-utilities-schema_tools-__init__"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-utilities-slugify"
+    },
+    {
+      "destination": "/v3/api-ref/index",
+      "source": "/v3/api-ref/python/prefect-workers-__init__"
+    },
+    {
       "destination": "/v3/advanced/plugins",
       "source": "/v3/advanced/experimental-plugins"
     },
