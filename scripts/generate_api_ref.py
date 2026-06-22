@@ -12,7 +12,7 @@ def main() -> None:
         "uvx",
         "--with-editable",
         ".",
-        "mdxify@latest",
+        "mdxify>=0.2.42",
         "--all",
         "--root-module",
         "prefect",
