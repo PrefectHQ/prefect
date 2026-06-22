@@ -40,7 +40,7 @@ api-ref-all:
     uvx --with-editable . \
         --python 3.12 \
         --isolated \
-        'mdxify>=0.2.42' \
+        'mdxify>=0.2.45' \
         --all \
         --root-module prefect \
         --output-dir docs/v3/api-ref/python \
@@ -54,7 +54,7 @@ api-ref-all:
 api-ref *MODULES:
     uvx --with-editable . \
         --refresh-package mdxify \
-        'mdxify>=0.2.42' \
+        'mdxify>=0.2.45' \
         {{MODULES}} \
         --root-module prefect \
         --output-dir docs/v3/api-ref/python \

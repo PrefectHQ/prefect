@@ -13,7 +13,7 @@ GitHub query_repository* tasks and the GitHub storage block.
 
 ## Functions
 
-### `query_repository` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L197" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L200" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -35,7 +35,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L238" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L241" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_ref(owner: str, name: str, qualified_name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -60,7 +60,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_refs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L290" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_refs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L293" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_refs(owner: str, name: str, ref_prefix: str, github_credentials: GitHubCredentials, follow_renames: bool = True, query: Optional[str] = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, direction: graphql_schema.OrderDirection = None, order_by: graphql_schema.RefOrder = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -93,7 +93,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_owner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L364" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_owner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L367" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_owner(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -115,7 +115,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_forks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L408" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_forks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L411" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_forks(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, privacy: graphql_schema.RepositoryPrivacy = None, order_by: graphql_schema.RepositoryOrder = None, affiliations: Iterable[graphql_schema.RepositoryAffiliation] = None, owner_affiliations: Iterable[graphql_schema.RepositoryAffiliation] = ('OWNER', 'COLLABORATOR'), is_locked: Optional[bool] = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -156,7 +156,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_issue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L495" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_issue` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L498" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_issue(owner: str, name: str, number: int, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -179,7 +179,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_label` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L545" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_label` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L548" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_label(owner: str, name: str, label_name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -202,7 +202,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_issues` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L595" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_issues` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L598" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_issues(owner: str, name: str, labels: Iterable[str], states: Iterable[graphql_schema.IssueState], github_credentials: GitHubCredentials, follow_renames: bool = True, order_by: graphql_schema.IssueOrder = None, filter_by: graphql_schema.IssueFilters = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -236,7 +236,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_labels` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L670" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_labels` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L673" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_labels(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, order_by: graphql_schema.LabelOrder = {'field': 'CREATED_AT', 'direction': 'ASC'}, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, query: Optional[str] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -267,7 +267,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L738" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_object` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L741" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_object(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, oid: Optional[datetime] = None, expression: Optional[str] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -291,7 +291,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_project` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L791" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_project` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L794" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_project(owner: str, name: str, number: int, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -314,7 +314,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_release` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L841" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_release` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L844" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_release(owner: str, name: str, tag_name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -337,7 +337,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_projects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L891" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_projects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L894" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_projects(owner: str, name: str, states: Iterable[graphql_schema.ProjectState], github_credentials: GitHubCredentials, follow_renames: bool = True, order_by: graphql_schema.ProjectOrder = None, search: Optional[str] = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -370,7 +370,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_packages` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L963" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_packages` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L966" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_packages(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, names: Optional[Iterable[str]] = None, repository_id: Optional[str] = None, package_type: graphql_schema.PackageType = None, order_by: graphql_schema.PackageOrder = {'field': 'CREATED_AT', 'direction': 'DESC'}, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -402,7 +402,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_releases` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1039" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_releases` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1042" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_releases(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, order_by: graphql_schema.ReleaseOrder = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -431,7 +431,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_watchers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1103" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_watchers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1106" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_watchers(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -459,7 +459,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_languages` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1164" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_languages` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1167" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_languages(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, order_by: graphql_schema.LanguageOrder = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -488,7 +488,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_milestone` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1228" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_milestone` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1231" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_milestone(owner: str, name: str, number: int, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -511,7 +511,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_project_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1278" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_project_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1281" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_project_v2(owner: str, name: str, number: int, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -534,7 +534,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_stargazers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1328" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_stargazers` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1331" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_stargazers(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, order_by: graphql_schema.StarOrder = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -563,7 +563,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_deploy_keys` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1392" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_deploy_keys` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1395" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_deploy_keys(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -591,7 +591,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_discussion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1453" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_discussion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1456" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_discussion(owner: str, name: str, number: int, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -614,7 +614,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_milestones` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1503" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_milestones` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1506" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_milestones(owner: str, name: str, states: Iterable[graphql_schema.MilestoneState], github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, order_by: graphql_schema.MilestoneOrder = None, query: Optional[str] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -645,7 +645,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_projects_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1573" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_projects_v2` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1576" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_projects_v2(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, query: Optional[str] = None, order_by: graphql_schema.ProjectV2Order = {'field': 'NUMBER', 'direction': 'DESC'}, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -675,7 +675,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_submodules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1640" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_submodules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1643" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_submodules(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -704,7 +704,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_license_info` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1702" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_license_info` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1705" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_license_info(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -726,7 +726,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1746" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_deployments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1749" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_deployments(owner: str, name: str, environments: Iterable[str], github_credentials: GitHubCredentials, follow_renames: bool = True, order_by: graphql_schema.DeploymentOrder = {'field': 'CREATED_AT', 'direction': 'ASC'}, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -757,7 +757,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_discussions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1817" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_discussions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1820" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_discussions(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, category_id: Optional[str] = None, order_by: graphql_schema.DiscussionOrder = {'field': 'UPDATED_AT', 'direction': 'DESC'}, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -789,7 +789,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_environment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1889" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_environment` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1892" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_environment(owner: str, name: str, environment_name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -812,7 +812,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_project_next` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1939" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_project_next` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1942" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_project_next(owner: str, name: str, number: int, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -836,7 +836,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_pull_request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1990" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_pull_request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L1993" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_pull_request(owner: str, name: str, number: int, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -859,7 +859,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_contact_links` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2040" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_contact_links` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2043" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_contact_links(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -881,7 +881,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_environments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2084" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_environments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2087" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_environments(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -909,7 +909,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_funding_links` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2145" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_funding_links` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2148" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_funding_links(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -931,7 +931,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_pinned_issues` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2189" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_pinned_issues` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2192" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_pinned_issues(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -959,7 +959,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_projects_next` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2250" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_projects_next` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2253" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_projects_next(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, query: Optional[str] = None, sort_by: graphql_schema.ProjectNextOrderField = 'TITLE', return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -989,7 +989,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_pull_requests` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2317" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_pull_requests` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2320" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_pull_requests(owner: str, name: str, states: Iterable[graphql_schema.PullRequestState], labels: Iterable[str], github_credentials: GitHubCredentials, follow_renames: bool = True, head_ref_name: Optional[str] = None, base_ref_name: Optional[str] = None, order_by: graphql_schema.IssueOrder = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -1026,7 +1026,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_code_of_conduct` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2397" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_code_of_conduct` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2400" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_code_of_conduct(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -1048,7 +1048,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_collaborators` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2441" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_collaborators` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2444" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_collaborators(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, affiliation: graphql_schema.CollaboratorAffiliation = None, query: Optional[str] = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -1079,7 +1079,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_latest_release` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2509" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_latest_release` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2512" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_latest_release(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -1101,7 +1101,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_recent_projects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2553" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_recent_projects` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2556" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_recent_projects(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -1129,7 +1129,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_commit_comments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2614" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_commit_comments` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2617" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_commit_comments(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -1157,7 +1157,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_issue_templates` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2675" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_issue_templates` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2678" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_issue_templates(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -1179,7 +1179,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_assignable_users` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2719" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_assignable_users` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2722" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_assignable_users(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, query: Optional[str] = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -1208,7 +1208,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_primary_language` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2783" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_primary_language` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2786" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_primary_language(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -1230,7 +1230,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_default_branch_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2827" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_default_branch_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2830" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_default_branch_ref(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -1252,7 +1252,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_mentionable_users` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2871" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_mentionable_users` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2874" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_mentionable_users(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, query: Optional[str] = None, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -1281,7 +1281,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_repository_topics` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2935" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_repository_topics` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2938" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_repository_topics(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -1309,7 +1309,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_pinned_discussions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2996" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_pinned_discussions` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L2999" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_pinned_discussions(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -1337,7 +1337,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_discussion_category` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L3057" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_discussion_category` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L3060" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_discussion_category(owner: str, name: str, slug: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -1361,7 +1361,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_interaction_ability` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L3108" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_interaction_ability` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L3111" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_interaction_ability(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -1383,7 +1383,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_issue_or_pull_request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L3152" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_issue_or_pull_request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L3155" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_issue_or_pull_request(owner: str, name: str, number: int, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -1406,7 +1406,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_vulnerability_alerts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L3202" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_vulnerability_alerts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L3205" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_vulnerability_alerts(owner: str, name: str, states: Iterable[graphql_schema.RepositoryVulnerabilityAlertState], dependency_scopes: Iterable[graphql_schema.RepositoryVulnerabilityAlertDependencyScope], github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -1438,7 +1438,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_discussion_categories` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L3273" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_discussion_categories` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L3276" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_discussion_categories(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, filter_by_assignable: bool = False, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -1469,7 +1469,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_pull_request_templates` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L3339" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_pull_request_templates` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L3342" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_pull_request_templates(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -1491,7 +1491,7 @@ fields listed in configs/query/*.json.
 - A dict of the returned fields.
 
 
-### `query_repository_branch_protection_rules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L3383" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `query_repository_branch_protection_rules` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L3386" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 query_repository_branch_protection_rules(owner: str, name: str, github_credentials: GitHubCredentials, follow_renames: bool = True, after: Optional[str] = None, before: Optional[str] = None, first: Optional[int] = None, last: Optional[int] = None, return_fields: Optional[Iterable[str]] = None) -> Dict[str, Any]
@@ -1523,7 +1523,7 @@ fields listed in configs/query/*.json.
 
 ## Classes
 
-### `GitHubRepository` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `GitHubRepository` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L36" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Interact with files stored on GitHub repositories.
@@ -1531,7 +1531,7 @@ Interact with files stored on GitHub repositories.
 
 **Methods:**
 
-#### `aget_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aget_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L109" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aget_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
@@ -1547,7 +1547,7 @@ repository that will be copied to the provided local path.
 - `local_path`: A local path to clone to; defaults to present working directory.
 
 
-#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L156" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-github/prefect_github/repository.py#L157" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
