@@ -366,7 +366,6 @@
                       {
                         "group": "prefect_aws.bundles",
                         "pages": [
-                          "integrations/prefect-aws/api-ref/prefect_aws-bundles-__init__",
                           "integrations/prefect-aws/api-ref/prefect_aws-bundles-execute",
                           "integrations/prefect-aws/api-ref/prefect_aws-bundles-upload"
                         ]
@@ -374,23 +373,7 @@
                       {
                         "group": "prefect_aws.deployments",
                         "pages": [
-                          "integrations/prefect-aws/api-ref/prefect_aws-deployments-__init__",
                           "integrations/prefect-aws/api-ref/prefect_aws-deployments-steps"
-                        ]
-                      },
-                      {
-                        "group": "prefect_aws.experimental",
-                        "pages": [
-                          "integrations/prefect-aws/api-ref/prefect_aws-experimental-__init__",
-                          {
-                            "group": "bundles",
-                            "pages": [
-                              "integrations/prefect-aws/api-ref/prefect_aws-experimental-bundles-__init__",
-                              "integrations/prefect-aws/api-ref/prefect_aws-experimental-bundles-execute",
-                              "integrations/prefect-aws/api-ref/prefect_aws-experimental-bundles-upload"
-                            ]
-                          },
-                          "integrations/prefect-aws/api-ref/prefect_aws-experimental-decorators"
                         ]
                       },
                       {
@@ -403,7 +386,6 @@
                       {
                         "group": "prefect_aws.workers",
                         "pages": [
-                          "integrations/prefect-aws/api-ref/prefect_aws-workers-__init__",
                           "integrations/prefect-aws/api-ref/prefect_aws-workers-ecs_worker"
                         ]
                       }
@@ -436,7 +418,6 @@
                       {
                         "group": "prefect_azure.bundles",
                         "pages": [
-                          "integrations/prefect-azure/api-ref/prefect_azure-bundles-__init__",
                           "integrations/prefect-azure/api-ref/prefect_azure-bundles-execute",
                           "integrations/prefect-azure/api-ref/prefect_azure-bundles-upload"
                         ]
@@ -444,23 +425,7 @@
                       {
                         "group": "prefect_azure.deployments",
                         "pages": [
-                          "integrations/prefect-azure/api-ref/prefect_azure-deployments-__init__",
                           "integrations/prefect-azure/api-ref/prefect_azure-deployments-steps"
-                        ]
-                      },
-                      {
-                        "group": "prefect_azure.experimental",
-                        "pages": [
-                          "integrations/prefect-azure/api-ref/prefect_azure-experimental-__init__",
-                          {
-                            "group": "bundles",
-                            "pages": [
-                              "integrations/prefect-azure/api-ref/prefect_azure-experimental-bundles-__init__",
-                              "integrations/prefect-azure/api-ref/prefect_azure-experimental-bundles-execute",
-                              "integrations/prefect-azure/api-ref/prefect_azure-experimental-bundles-upload"
-                            ]
-                          },
-                          "integrations/prefect-azure/api-ref/prefect_azure-experimental-decorators"
                         ]
                       },
                       {
@@ -515,14 +480,7 @@
                       "integrations/prefect-databricks/api-ref/prefect_databricks-credentials",
                       "integrations/prefect-databricks/api-ref/prefect_databricks-flows",
                       "integrations/prefect-databricks/api-ref/prefect_databricks-jobs",
-                      "integrations/prefect-databricks/api-ref/prefect_databricks-rest",
-                      {
-                        "group": "prefect_databricks.models",
-                        "pages": [
-                          "integrations/prefect-databricks/api-ref/prefect_databricks-models-__init__",
-                          "integrations/prefect-databricks/api-ref/prefect_databricks-models-jobs"
-                        ]
-                      }
+                      "integrations/prefect-databricks/api-ref/prefect_databricks-rest"
                     ]
                   }
                 ]
@@ -544,12 +502,10 @@
                       {
                         "group": "prefect_dbt.cli",
                         "pages": [
-                          "integrations/prefect-dbt/api-ref/prefect_dbt-cli-__init__",
                           "integrations/prefect-dbt/api-ref/prefect_dbt-cli-commands",
                           {
                             "group": "configs",
                             "pages": [
-                              "integrations/prefect-dbt/api-ref/prefect_dbt-cli-configs-__init__",
                               "integrations/prefect-dbt/api-ref/prefect_dbt-cli-configs-base",
                               "integrations/prefect-dbt/api-ref/prefect_dbt-cli-configs-bigquery",
                               "integrations/prefect-dbt/api-ref/prefect_dbt-cli-configs-postgres",
@@ -562,7 +518,6 @@
                       {
                         "group": "prefect_dbt.cloud",
                         "pages": [
-                          "integrations/prefect-dbt/api-ref/prefect_dbt-cloud-__init__",
                           "integrations/prefect-dbt/api-ref/prefect_dbt-cloud-clients",
                           "integrations/prefect-dbt/api-ref/prefect_dbt-cloud-credentials",
                           "integrations/prefect-dbt/api-ref/prefect_dbt-cloud-exceptions",
@@ -575,7 +530,6 @@
                       {
                         "group": "prefect_dbt.core",
                         "pages": [
-                          "integrations/prefect-dbt/api-ref/prefect_dbt-core-__init__",
                           "integrations/prefect-dbt/api-ref/prefect_dbt-core-runner",
                           "integrations/prefect-dbt/api-ref/prefect_dbt-core-settings"
                         ]
@@ -602,15 +556,7 @@
                       {
                         "group": "prefect_docker.deployments",
                         "pages": [
-                          "integrations/prefect-docker/api-ref/prefect_docker-deployments-__init__",
                           "integrations/prefect-docker/api-ref/prefect_docker-deployments-steps"
-                        ]
-                      },
-                      {
-                        "group": "prefect_docker.experimental",
-                        "pages": [
-                          "integrations/prefect-docker/api-ref/prefect_docker-experimental-__init__",
-                          "integrations/prefect-docker/api-ref/prefect_docker-experimental-decorators"
                         ]
                       }
                     ]
@@ -643,25 +589,21 @@
                       "integrations/prefect-gcp/api-ref/prefect_gcp-bigquery",
                       "integrations/prefect-gcp/api-ref/prefect_gcp-cloud_storage",
                       "integrations/prefect-gcp/api-ref/prefect_gcp-credentials",
+                      "integrations/prefect-gcp/api-ref/prefect_gcp-decorators",
                       "integrations/prefect-gcp/api-ref/prefect_gcp-secret_manager",
+                      "integrations/prefect-gcp/api-ref/prefect_gcp-settings",
                       "integrations/prefect-gcp/api-ref/prefect_gcp-utilities",
+                      {
+                        "group": "prefect_gcp.bundles",
+                        "pages": [
+                          "integrations/prefect-gcp/api-ref/prefect_gcp-bundles-execute",
+                          "integrations/prefect-gcp/api-ref/prefect_gcp-bundles-upload"
+                        ]
+                      },
                       {
                         "group": "prefect_gcp.deployments",
                         "pages": [
                           "integrations/prefect-gcp/api-ref/prefect_gcp-deployments-steps"
-                        ]
-                      },
-                      {
-                        "group": "prefect_gcp.experimental",
-                        "pages": [
-                          {
-                            "group": "bundles",
-                            "pages": [
-                              "integrations/prefect-gcp/api-ref/prefect_gcp-experimental-bundles-execute",
-                              "integrations/prefect-gcp/api-ref/prefect_gcp-experimental-bundles-upload"
-                            ]
-                          },
-                          "integrations/prefect-gcp/api-ref/prefect_gcp-experimental-decorators"
                         ]
                       },
                       {
@@ -703,7 +645,6 @@
                       {
                         "group": "prefect_github.schemas",
                         "pages": [
-                          "integrations/prefect-github/api-ref/prefect_github-schemas-__init__",
                           "integrations/prefect-github/api-ref/prefect_github-schemas-graphql_schema"
                         ]
                       }
@@ -746,14 +687,7 @@
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-services",
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-settings",
                       "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-utilities",
-                      "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-worker",
-                      {
-                        "group": "prefect_kubernetes.experimental",
-                        "pages": [
-                          "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-experimental-__init__",
-                          "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-experimental-decorators"
-                        ]
-                      }
+                      "integrations/prefect-kubernetes/api-ref/prefect_kubernetes-worker"
                     ]
                   }
                 ]
