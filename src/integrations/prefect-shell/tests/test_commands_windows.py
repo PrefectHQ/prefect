@@ -257,6 +257,33 @@ class TestShellOperation:
         op = ShellOperation(commands=["Get-Location"], working_dir=Path.home())
         assert os.fspath(Path.home()) in (await self.execute(op, method))
 
+    @pytest.mark.parametrize("method", ["run", "trigger"])
+    async def test_custom_powershell_with_arguments_is_preserved(
+        self, monkeypatch, method
+    ):
+        open_process_mock = AsyncMock(name="open_process")
+        stdout_mock = AsyncMock(name="stdout_mock")
+        stdout_mock.receive.side_effect = lambda: b"received"
+        open_process_mock.return_value.__aenter__.return_value = AsyncMock(
+            stdout=stdout_mock
+        )
+        open_process_mock.return_value.returncode = 0
+        monkeypatch.setattr("anyio.open_process", open_process_mock)
+        monkeypatch.setattr("prefect_shell.commands.TextReceiveStream", AsyncIter)
+
+        await self.execute(
+            ShellOperation(
+                commands=["echo 'hey'"],
+                extension=".ps1",
+                shell="powershell.exe -executionpolicy bypass",
+            ),
+            method,
+        )
+
+        command = open_process_mock.call_args_list[0][0][0]
+        assert command[0:3] == ["powershell.exe", "-executionpolicy", "bypass"]
+        assert command[3].endswith(".ps1")
+
     async def test_context_manager(self):
         async with ShellOperation(commands=["echo 'testing'"]) as op:
             proc = await op.trigger()

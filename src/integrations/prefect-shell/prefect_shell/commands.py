@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import shlex
 import signal
 import subprocess
 import sys
@@ -12,6 +13,7 @@ import tempfile
 import threading
 from contextlib import AsyncExitStack, ExitStack, contextmanager
 from contextvars import copy_context
+from pathlib import PureWindowsPath
 from typing import IO, Any, Generator, Optional, Union
 
 import anyio
@@ -26,6 +28,20 @@ from prefect.logging import get_run_logger
 from prefect.utilities.processutils import open_process
 
 _SHELL_TERMINATE_GRACE_SECONDS = 5.0
+
+
+def _split_shell_command(shell: str) -> list[str]:
+    return shlex.split(shell.lower(), posix=sys.platform != "win32") or [shell.lower()]
+
+
+def _shell_command(shell: str, temp_file_name: str) -> list[str]:
+    return [*_split_shell_command(shell), temp_file_name]
+
+
+def _is_powershell(shell: str) -> bool:
+    command = _split_shell_command(shell)[0]
+    executable = PureWindowsPath(command).name
+    return executable in {"powershell", "powershell.exe", "pwsh", "pwsh.exe"}
 
 
 def _process_isolation_kwargs() -> dict[str, Any]:
@@ -483,12 +499,12 @@ class ShellOperation(JobBlock[list[str]]):
             else:
                 shell = self.shell.lower()
 
-            if shell == "powershell":
+            if _is_powershell(shell):
                 # if powershell, set exit code to that of command
                 temp_file.write("\r\nExit $LastExitCode".encode())
             temp_file.close()
 
-            trigger_command = [shell, temp_file.name]
+            trigger_command = _shell_command(shell, temp_file.name)
             yield trigger_command
         finally:
             if temp_file is not None and os.path.exists(temp_file.name):
