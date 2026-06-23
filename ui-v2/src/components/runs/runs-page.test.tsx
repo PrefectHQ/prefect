@@ -3,8 +3,17 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import type { FlowRunsPaginateFilter } from "@/api/flow-runs";
 import { router } from "@/router";
+
+beforeAll(() => {
+	Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+		value: vi.fn(),
+		configurable: true,
+		writable: true,
+	});
+});
 
 const renderRunsPage = async () => {
 	const user = userEvent.setup();
@@ -280,7 +289,8 @@ describe("Runs page", () => {
 				expect(currentSearch["task-runs-page"]).toBe(3);
 			});
 
-			const tagsInput = screen.getByPlaceholderText("All tags");
+			await user.click(screen.getByRole("button", { name: /flow run tags/i }));
+			const tagsInput = screen.getByPlaceholderText("Search or enter new tag");
 			await user.type(tagsInput, "tag-1{enter}");
 
 			await waitFor(() => {
@@ -291,6 +301,63 @@ describe("Runs page", () => {
 				expect(currentSearch.tags).toBe("tag-1");
 				expect(currentSearch.page).toBe(1);
 				expect(currentSearch["task-runs-page"]).toBe(1);
+			});
+		});
+
+		it("should apply selected tags to the flow runs filter request", async () => {
+			const user = userEvent.setup();
+			const paginateRequests: FlowRunsPaginateFilter[] = [];
+
+			server.use(
+				http.post(buildApiUrl("/flow_runs/count"), () => {
+					return HttpResponse.json(1);
+				}),
+				http.post(buildApiUrl("/flow_runs/paginate"), async ({ request }) => {
+					const body = (await request.json()) as FlowRunsPaginateFilter;
+					paginateRequests.push(body);
+					return HttpResponse.json({
+						results: [
+							{
+								id: "1",
+								name: "test-flow-run-1",
+								flow_id: "flow-1",
+								state: { type: "COMPLETED", name: "Completed" },
+								tags: ["project_id:123"],
+							},
+						],
+						count: 1,
+						pages: 1,
+						page: 1,
+						limit: 10,
+					});
+				}),
+				http.post(buildApiUrl("/flows/filter"), () => {
+					return HttpResponse.json([
+						{ id: "flow-1", name: "Test Flow", tags: [] },
+					]);
+				}),
+				http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
+					return HttpResponse.json({ "1": 0 });
+				}),
+			);
+
+			await renderRunsPage();
+
+			await user.click(screen.getByRole("button", { name: /flow run tags/i }));
+			await user.type(
+				screen.getByPlaceholderText("Search or enter new tag"),
+				"project_id:123{enter}",
+			);
+
+			await waitFor(() => {
+				const requestWithTags = paginateRequests.find(
+					(request) =>
+						request.flow_runs?.tags?.any_?.includes("project_id:123"),
+				);
+				expect(requestWithTags?.flow_runs?.tags).toEqual({
+					operator: "and_",
+					any_: ["project_id:123"],
+				});
 			});
 		});
 	});
