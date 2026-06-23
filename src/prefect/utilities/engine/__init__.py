@@ -478,7 +478,9 @@ async def resolve_inputs(
         ):
             return state.data
 
-        return result_by_state.get(state)
+        resolved = result_by_state.get(state)
+        _raise_on_run_schema_unless_opaque(resolved, context)
+        return resolved
 
     resolved_parameters: dict[str, Any] = {}
     for parameter, value in parameters.items():
@@ -492,7 +494,7 @@ async def resolve_inputs(
                 remove_annotations=True,
                 context={},
             )
-        except UpstreamTaskError:
+        except (UpstreamTaskError, PrefectException):
             raise
         except Exception as exc:
             raise PrefectException(
@@ -1029,6 +1031,11 @@ def resolve_to_final_result(expr: Any, context: dict[str, Any]) -> Any:
         return state.data
 
     result: Any = state.result(raise_on_failure=False, _sync=True)  # pyright: ignore[reportCallIssue] _sync messes up type inference and can be removed once async_dispatch is removed
+
+    # Check the resolved result: if a task returned a FlowRun/TaskRun, the
+    # caller (visit_collection) would recurse into its Pydantic fields and
+    # misinterpret the embedded .state as an upstream dependency.
+    _raise_on_run_schema_unless_opaque(result, context)
 
     if state.state_details.traceparent:
         parameter_context = propagate.extract(

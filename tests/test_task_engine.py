@@ -3926,3 +3926,51 @@ class TestRunSchemaObjectAsTaskArgument:
             return downstream(value=future)
 
         assert my_flow() == 43
+
+    def test_flow_run_returned_from_upstream_via_state_raises_clear_error(self):
+        from prefect.client.schemas.objects import FlowRun
+        from prefect.context import FlowRunContext
+        from prefect.exceptions import PrefectException
+
+        @task
+        def get_flow_run() -> FlowRun:
+            return FlowRunContext.get().flow_run
+
+        @task
+        def use_flow_run(fr: FlowRun) -> str:
+            return str(fr.id)
+
+        @flow
+        def my_flow() -> str:
+            state = get_flow_run(return_state=True)
+            return use_flow_run(fr=state)
+
+        with pytest.raises(
+            PrefectException,
+            match=r"Passing a `FlowRun` object as a task argument is not supported",
+        ):
+            my_flow()
+
+    def test_flow_run_returned_from_upstream_via_future_raises_clear_error(self):
+        from prefect.client.schemas.objects import FlowRun
+        from prefect.context import FlowRunContext
+        from prefect.exceptions import PrefectException
+
+        @task
+        def get_flow_run() -> FlowRun:
+            return FlowRunContext.get().flow_run
+
+        @task
+        def use_flow_run(fr: FlowRun) -> str:
+            return str(fr.id)
+
+        @flow
+        def my_flow() -> str:
+            future = get_flow_run.submit()
+            return use_flow_run(fr=future)
+
+        with pytest.raises(
+            PrefectException,
+            match=r"Passing a `FlowRun` object as a task argument is not supported",
+        ):
+            my_flow()
