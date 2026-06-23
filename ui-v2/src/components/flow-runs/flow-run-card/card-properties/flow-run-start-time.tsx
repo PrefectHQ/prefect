@@ -22,7 +22,7 @@ export const FlowRunStartTime = ({ flowRun }: FlowRunStartTimeProps) => {
 			text = `${formatDate(start_time, "dateTimeNumeric")} ${getDelta(estimated_start_time_delta)}`;
 			tooltipText = new Date(start_time).toString();
 		} else if (expected_start_time) {
-			text = `Scheduled for ${formatDate(expected_start_time, "dateTimeNumeric")} ${getDelta(estimated_start_time_delta)}`;
+			text = `${formatDate(expected_start_time, "dateTimeNumeric")} ${getDelta(estimated_start_time_delta)}`;
 			tooltipText = new Date(expected_start_time).toString();
 		}
 		return { text, tooltipText };

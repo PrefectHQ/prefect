@@ -133,7 +133,7 @@ describe("TaskRunsListItem", () => {
 			});
 			await renderWithProviders(<TaskRunsListItem taskRun={taskRun} />);
 
-			expect(screen.getByText(/Scheduled for/)).toBeVisible();
+			expect(screen.getByText(/2024\/01\/01/)).toBeVisible();
 		});
 
 		it("renders 'No start time' when neither start_time nor expected_start_time is available", async () => {
