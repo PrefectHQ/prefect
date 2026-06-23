@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import json
 import os
 from copy import deepcopy
 from pathlib import Path
@@ -489,7 +490,6 @@ async def _run_multi_deploy(
     actions: dict[str, Any],
     deploy_all: bool = False,
     prefect_file: Path = Path("prefect.yaml"),
-    concurrency: int = 1,
     *,
     console: "Console",
     is_interactive: Callable[[], bool],
@@ -534,10 +534,18 @@ async def _run_multi_deploy(
     if not validated_configs:
         return
 
-    semaphore = asyncio.Semaphore(max(concurrency, 1))
+    dependency_locks: dict[str, asyncio.Lock] = {}
 
-    async def deploy_with_limit(config: dict[str, Any]) -> None:
-        async with semaphore:
+    async def deploy_with_dependencies(config: dict[str, Any]) -> None:
+        dependency_keys = _get_deployment_create_dependency_keys(config, actions)
+        locks = [
+            dependency_locks.setdefault(key, asyncio.Lock()) for key in dependency_keys
+        ]
+        acquired_locks: list[asyncio.Lock] = []
+        try:
+            for lock in locks:
+                await lock.acquire()
+                acquired_locks.append(lock)
             await _run_single_deploy(
                 config,
                 actions,
@@ -545,7 +553,34 @@ async def _run_multi_deploy(
                 console=console,
                 is_interactive=is_interactive,
             )
+        finally:
+            for lock in reversed(acquired_locks):
+                lock.release()
 
     await asyncio.gather(
-        *(deploy_with_limit(config) for config in validated_configs),
+        *(deploy_with_dependencies(config) for config in validated_configs),
     )
+
+
+def _get_deployment_create_dependency_keys(
+    deploy_config: dict[str, Any], actions: dict[str, Any]
+) -> list[str]:
+    """
+    Return stable keys for create-time actions that cannot safely overlap.
+
+    Build and push actions can have side effects such as writing a Docker image
+    tag or uploading code. Deployments that share one of these effective action
+    definitions are serialized while deployments without shared actions run
+    concurrently.
+    """
+    dependency_keys: set[str] = set()
+    for action_name in ("build", "push"):
+        steps = deploy_config.get(action_name, actions.get(action_name)) or []
+        if isinstance(steps, dict):
+            steps = [steps]
+        for step in steps:
+            dependency_keys.add(
+                f"{action_name}:"
+                f"{json.dumps(step, sort_keys=True, default=str, separators=(',', ':'))}"
+            )
+    return sorted(dependency_keys)

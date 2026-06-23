@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import io
 import json
 import shutil
@@ -7054,17 +7055,20 @@ class TestRunMultiDeploy:
 
         single.assert_not_called()
 
-    async def test_run_multi_deploy_allows_zero_concurrency(
+    async def test_run_multi_deploy_runs_independent_deployments_concurrently(
         self,
         monkeypatch: pytest.MonkeyPatch,
     ):
         from prefect.cli.deploy import _core
 
-        called = False
+        started: list[str] = []
+        release = asyncio.Event()
 
-        async def fake_single_deploy(*args, **kwargs):
-            nonlocal called
-            called = True
+        async def fake_single_deploy(config, *args, **kwargs):
+            started.append(config["name"])
+            if len(started) == 2:
+                release.set()
+            await release.wait()
 
         monkeypatch.setattr(
             _core,
@@ -7073,11 +7077,47 @@ class TestRunMultiDeploy:
         )
 
         await _core._run_multi_deploy(
-            deploy_configs=[{"name": "one"}],
+            deploy_configs=[
+                {"name": "one", "build": [{"step": {"image": "one"}}]},
+                {"name": "two", "build": [{"step": {"image": "two"}}]},
+            ],
             actions={},
-            concurrency=0,
             console=MagicMock(),
             is_interactive=lambda: False,
         )
 
-        assert called
+        assert started == ["one", "two"]
+
+    async def test_run_multi_deploy_serializes_shared_create_dependencies(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        from prefect.cli.deploy import _core
+
+        active = 0
+        max_active = 0
+
+        async def fake_single_deploy(*args, **kwargs):
+            nonlocal active, max_active
+            active += 1
+            max_active = max(max_active, active)
+            await asyncio.sleep(0)
+            active -= 1
+
+        monkeypatch.setattr(
+            _core,
+            "_run_single_deploy",
+            fake_single_deploy,
+        )
+
+        await _core._run_multi_deploy(
+            deploy_configs=[
+                {"name": "one"},
+                {"name": "two"},
+            ],
+            actions={"push": [{"step": {"image": "shared"}}]},
+            console=MagicMock(),
+            is_interactive=lambda: False,
+        )
+
+        assert max_active == 1

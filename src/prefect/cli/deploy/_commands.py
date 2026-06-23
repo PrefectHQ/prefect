@@ -355,16 +355,6 @@ async def deploy(
             ),
         ),
     ] = False,
-    deploy_concurrency: Annotated[
-        int,
-        cyclopts.Parameter(
-            "--deploy-concurrency",
-            help=(
-                "Maximum number of deployments to create concurrently "
-                "when deploying multiple deployments."
-            ),
-        ),
-    ] = 1,
     prefect_file: Annotated[
         Path,
         cyclopts.Parameter(
@@ -401,9 +391,6 @@ async def deploy(
 
     if job_variables is None:
         job_variables = list()
-
-    if deploy_concurrency < 1:
-        raise ValueError("--deploy-concurrency must be greater than or equal to 1.")
 
     concurrency_limit_config = (
         None
@@ -483,7 +470,6 @@ async def deploy(
                 prefect_file=prefect_file,
                 console=_cli.console,
                 is_interactive=_cli.is_interactive,
-                concurrency=deploy_concurrency,
             )
         else:
             deploy_config = deploy_configs[0] if deploy_configs else {}
