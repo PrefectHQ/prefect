@@ -1633,10 +1633,10 @@ class Task(Generic[P, R]):
 
         if deferred:
             parameters_list = expand_mapping_parameters(self.fn, parameters)
-            futures = [
+            futures = PrefectFutureList(
                 self.apply_async(kwargs=parameters, wait_for=wait_for)
                 for parameters in parameters_list
-            ]
+            )
         elif task_runner := getattr(flow_run_context, "task_runner", None):
             assert isinstance(task_runner, TaskRunner)
             futures = task_runner.map(self, parameters, wait_for)
