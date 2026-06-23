@@ -44,7 +44,7 @@ from prefect.exceptions import (
     ReservedArgumentError,
 )
 from prefect.filesystems import LocalFileSystem
-from prefect.futures import PrefectDistributedFuture, PrefectFuture
+from prefect.futures import PrefectDistributedFuture, PrefectFuture, PrefectFutureList
 from prefect.locking.filesystem import FileSystemLockManager
 from prefect.locking.memory import MemoryLockManager
 from prefect.logging import get_run_logger
@@ -4672,6 +4672,7 @@ class TestTaskMap:
         mapped_args = [1, 2, 3]
 
         futures = test_task.map(x=mapped_args, wait_for=[mock_future], deferred=True)
+        assert isinstance(futures, PrefectFutureList)
         assert all(isinstance(future, PrefectDistributedFuture) for future in futures)
         for future, parameter_value in zip(futures, mapped_args):
             assert await get_background_task_run_parameters(
@@ -4698,6 +4699,7 @@ class TestTaskMap:
             futures = test_task.map(
                 x=mapped_args, wait_for=[mock_future], deferred=True
             )
+            assert isinstance(futures, PrefectFutureList)
             for future, parameter_value in zip(futures, mapped_args):
                 saved_data = await get_background_task_run_parameters(
                     test_task, future.state.state_details.task_parameters_id
