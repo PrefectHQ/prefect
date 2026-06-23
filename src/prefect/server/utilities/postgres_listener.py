@@ -101,24 +101,22 @@ async def get_pg_notify_connection() -> Connection | None:
         _logger.error(f"Invalid PREFECT_API_DATABASE_CONNECTION_URL: {e}")
         return None
 
-    if db_url.drivername.split("+")[0] not in ("postgresql", "postgres"):
+    # Strip the SQLAlchemy dialect suffix (e.g. postgresql+asyncpg -> postgresql)
+    base_driver = db_url.drivername.split("+")[0]
+    if base_driver not in ("postgresql", "postgres"):
         _logger.debug(
             "Cannot create Postgres LISTEN connection: PREFECT_API_DATABASE_CONNECTION_URL "
             f"is not a PostgreSQL connection URL (driver: {db_url.drivername})."
         )
         return None
 
-    # Construct a DSN for asyncpg by stripping the SQLAlchemy dialect suffix
-    # (e.g. +asyncpg) via simple string replacement on the scheme portion. This
-    # preserves the original URL structure exactly, including UNIX socket paths
-    # (triple-slash URLs like postgresql:///db). We intentionally avoid
-    # SQLAlchemy's render_as_string() here because it URL-encodes query param
-    # values (e.g. ':' -> '%3A'), which breaks asyncpg's parsing of multihost
-    # host:port pairs.
-    original_scheme = urlsplit(db_url_str).scheme  # e.g. "postgresql+asyncpg"
-    base_scheme = original_scheme.split("+")[0]  # e.g. "postgresql"
-    dsn_string = base_scheme + db_url_str[len(original_scheme) :]
-    dsn_string = _normalize_asyncpg_dsn_query_params(dsn_string)
+    # render_as_string(hide_password=False) percent-encodes credentials so that
+    # URL-special characters (e.g. # ? <) in the password don't break asyncpg's
+    # DSN parser. _normalize_asyncpg_dsn_query_params then collapses repeated
+    # multihost host= params into the comma-separated form asyncpg expects.
+    dsn_string = _normalize_asyncpg_dsn_query_params(
+        db_url.set(drivername=base_driver).render_as_string(hide_password=False)
+    )
 
     connect_args: dict[str, Any] = {}
 

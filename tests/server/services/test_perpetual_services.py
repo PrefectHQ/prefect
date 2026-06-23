@@ -115,6 +115,7 @@ def test_event_vacuum_runs_in_ephemeral_mode():
 def test_cancellation_cleanup_services_registered():
     """Test that cancellation cleanup perpetual services are registered."""
     service_names = [config.function.__name__ for config in _PERPETUAL_SERVICES]
+    assert "ensure_cancelling_timeout_checks" in service_names
     assert "monitor_cancelled_flow_runs" in service_names
     assert "monitor_subflow_runs" in service_names
 

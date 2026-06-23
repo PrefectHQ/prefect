@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Callable
 from cachetools import TTLCache
 from websockets.exceptions import InvalidStatus as _WsInvalidStatus
 
-from prefect.events.clients import NullEventsClient
+from prefect.events.clients import RETRYABLE_EXCEPTIONS, NullEventsClient
 from prefect.events.related import tags_as_related_resources
 from prefect.events.schemas.events import Event, RelatedResource, Resource
 from prefect.logging import get_logger
@@ -18,12 +18,19 @@ if TYPE_CHECKING:
     from prefect.client.schemas.responses import DeploymentResponse
     from prefect.events.clients import EventsClient
 
-# Exceptions that indicate a permanent connection failure (e.g. auth rejected).
-# On these, EventEmitter degrades gracefully to NullEventsClient rather than
-# crashing the flow run.  This preserves backwards-compatibility with clients
-# running against a server that has PREFECT_SERVER_API_AUTH_STRING configured
-# (server >=3.6.14) where the WS handshake is rejected with HTTP 401/403.
-_NONFATAL_CONNECTION_EXCEPTIONS: tuple[type[Exception], ...] = (_WsInvalidStatus,)
+# Connection failures that must not crash the flow run.  The events WebSocket
+# carries non-critical telemetry, so a failure to connect degrades to
+# NullEventsClient rather than taking the flow run down with it.
+# - _WsInvalidStatus: the server rejected the handshake (HTTP 401/403), e.g. a
+#   client <=3.6.13 connecting to a server >=3.6.14 that has
+#   PREFECT_SERVER_API_AUTH_STRING configured.  A permanent failure.
+# - RETRYABLE_EXCEPTIONS: transient failures (handshake timeout, dropped
+#   connection, network errors) that the events client already retries; once
+#   those retries are exhausted the error must still not be fatal here.
+_NONFATAL_CONNECTION_EXCEPTIONS: tuple[type[Exception], ...] = (
+    _WsInvalidStatus,
+    *RETRYABLE_EXCEPTIONS,
+)
 
 
 def _default_get_events_client() -> "EventsClient":
@@ -60,17 +67,18 @@ class EventEmitter:
         try:
             await self._events_client.__aenter__()
         except _NONFATAL_CONNECTION_EXCEPTIONS as exc:
-            # The events WebSocket was rejected by the server (e.g. HTTP 401/403).
-            # This happens when an old client (<=3.6.13) connects to a server
-            # >=3.6.14 that has PREFECT_SERVER_API_AUTH_STRING configured: the
-            # server now requires the "prefect" subprotocol + auth handshake, but
-            # old clients omit it.  Events are non-critical telemetry, so we
-            # degrade gracefully instead of crashing the flow run.
+            # The events WebSocket could not be established -- either rejected by
+            # the server (HTTP 401/403, e.g. a client <=3.6.13 connecting to a
+            # server >=3.6.14 with PREFECT_SERVER_API_AUTH_STRING configured) or a
+            # transient connection failure that outlived the events client's own
+            # retries.  Events are non-critical telemetry, so degrade gracefully
+            # instead of crashing the flow run.
             self._logger.warning(
                 "Unable to connect to the events WebSocket (%s). "
-                "Event data will not be emitted for this runner. "
-                "Upgrade the Prefect client to >=3.6.14 to restore event support "
-                "when the server has authentication configured.",
+                "Event data will not be emitted for this runner; the flow run "
+                "will continue. Upgrade the Prefect client to >=3.6.14 to "
+                "restore event support if the server has authentication "
+                "configured.",
                 exc,
             )
             # __aenter__ failed, so __aexit__ must NOT be called on the original

@@ -20,8 +20,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
+      has-packages: ${{ steps.set-matrix.outputs.has-packages }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -45,12 +46,24 @@ jobs:
           python scripts/generate_integration_package_tests_matrix.py "$COMMIT_RANGE" > matrix.json
           cat matrix.json
           echo "matrix=$(cat matrix.json)" >> $GITHUB_OUTPUT
+          HAS_PACKAGES=$(python -c 'import json; print(str(bool(json.load(open("matrix.json"))["include"])).lower())')
+          echo "has-packages=$HAS_PACKAGES" >> $GITHUB_OUTPUT
+
+  no-integration-package-tests:
+    name: No integration package tests required
+    needs: prepare-matrix
+    if: needs.prepare-matrix.outputs.has-packages != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip integration package tests
+        run: echo "No integration packages changed; skipping integration package tests."
 
   run-tests:
     timeout-minutes: 20
 
     name: "Run Tests for ${{ matrix.package }} on Python ${{ matrix.python-version }}${{ matrix.dependency-override && format(' ({0})', matrix.dependency-override) || '' }}"
     needs: prepare-matrix
+    if: needs.prepare-matrix.outputs.has-packages == 'true'
     runs-on: ubuntu-latest
     strategy:
       matrix: ${{fromJson(needs.prepare-matrix.outputs.matrix)}}
@@ -59,7 +72,7 @@ jobs:
       - name: Display current test matrix
         run: echo '${{ toJSON(matrix) }}'
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -146,7 +159,7 @@ jobs:
         python-version: ["3.10", "3.11", "3.12", "3.13"]
       fail-fast: false
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 

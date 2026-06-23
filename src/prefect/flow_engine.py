@@ -972,6 +972,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             parent_task = Task(
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
+            setattr(parent_task, "_is_subflow_tracking_task", True)
 
             parent_task_run = run_coro_as_sync(
                 parent_task.create_run(
@@ -1667,6 +1668,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             parent_task = Task(
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
+            setattr(parent_task, "_is_subflow_tracking_task", True)
 
             parent_task_run = await parent_task.create_run(
                 flow_run_context=flow_run_ctx,

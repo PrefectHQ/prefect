@@ -25,9 +25,15 @@ class DatabricksCredentials(Block):
         databricks_instance:
             Databricks instance used in formatting the endpoint URL.
         token: The token to authenticate with Databricks (for PAT authentication).
-        client_id: The service principal client ID (for OAuth authentication).
-        client_secret: The service principal client secret (for OAuth authentication).
-        tenant_id: The tenant ID for Azure Databricks (optional, for OAuth authentication).
+        client_id:
+            The service principal client ID for OAuth authentication. If provided,
+            `client_secret` must also be provided.
+        client_secret:
+            The service principal client secret for OAuth authentication. If provided,
+            `client_id` must also be provided.
+        tenant_id:
+            The tenant ID for Azure Databricks. Optional, only needed for Azure
+            Databricks service principal authentication.
         client_kwargs: Additional keyword arguments to pass to AsyncClient.
 
     Examples:
@@ -217,7 +223,7 @@ class DatabricksCredentials(Block):
         Returns:
             A Databricks REST AsyncClient.
 
-        Example:
+        Examples:
             Gets a Databricks REST AsyncClient using PAT authentication.
             ```python
             from prefect import flow
