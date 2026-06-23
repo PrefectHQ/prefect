@@ -26,7 +26,7 @@ prefect worker start --pool "my-pool" --with-healthcheck
 ```
 
 This starts both the worker and a lightweight HTTP health server that exposes a `/health` endpoint. 
-When enabled, the worker exposes an HTTP endpoint at:
+When enabled, the worker binds to `0.0.0.0:8080` by default (all interfaces). From the same machine, you can reach it at:
 
 ```
 http://localhost:8080/health
@@ -52,7 +52,7 @@ prefect worker start --pool "my-pool" --with-healthcheck
 A worker is considered unhealthy if it hasn't polled for flow runs within a specific timeframe defined by its configured polling interval. The health check algorithm works as follows:
 
 If a worker hasn't made a successful poll within the time window of `PREFECT_WORKER_QUERY_SECONDS * 30` seconds, it is considered unhealthy 
-and its health endpoint will return 503 (Service Unavailable). With default settings, a worker is unhealthy if it hasn't polled in 450 seconds (7.5 minutes). 
+and its health endpoint will return 503 (Service Unavailable). With default settings, a worker is unhealthy if it hasn't polled in 300 seconds (5 minutes).
 
 This generous threshold accounts for temporary network issues, API unavailability, or brief worker pauses without triggering false alarms.
 
@@ -140,9 +140,9 @@ For more information see [Docker Compose's reference guide](https://docs.docker.
 Relevant settings for worker health and polling behavior:
 
 - `PREFECT_WORKER_HEARTBEAT_SECONDS`: How often workers send heartbeats to the API (default: 30)
-- `PREFECT_WORKER_QUERY_SECONDS`: How often workers poll for new flow runs (default: 15)  
+- `PREFECT_WORKER_QUERY_SECONDS`: How often workers poll for new flow runs (default: 10)
 - `PREFECT_WORKER_PREFETCH_SECONDS`: How far in advance to submit flow runs (default: 10)
-- `PREFECT_WORKER_WEBSERVER_HOST`: Health server host (default: 127.0.0.1)
+- `PREFECT_WORKER_WEBSERVER_HOST`: Health server host (default: 0.0.0.0)
 - `PREFECT_WORKER_WEBSERVER_PORT`: Health server port (default: 8080)
 
 ## Further Reading
