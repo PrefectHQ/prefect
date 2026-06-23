@@ -123,7 +123,7 @@ async def create(
             id - {result.id}
             concurrency limit - {limit}
         Start a worker to pick up flow runs from the work queue:
-            prefect worker start -q '{result.name} -p {pool}'
+            prefect worker start -q '{result.name}' -p '{pool}'
 
         Inspect the work queue:
             prefect work-queue inspect '{result.name}'
