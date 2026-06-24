@@ -52,6 +52,7 @@ import prefect.settings
 from prefect._internal.compatibility.starlette import status
 from prefect._internal.observability import configure_logfire
 from prefect.client.constants import SERVER_API_VERSION
+from prefect.locking._filelock import FileLock
 from prefect.logging import get_logger
 from prefect.server.api._ui_static import UIBundle, UIVersion, log_ui_static_copy_error
 from prefect.server.api.background_workers import background_worker
@@ -739,8 +740,20 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
                 continue
 
             if not reference_file_matches_cache_key(bundle):
+                lock_path = os.path.join(
+                    os.path.dirname(bundle.static_dir),
+                    f".{bundle.version}_ui_static.lock",
+                )
+                lock = FileLock(lock_path, timeout=90)
                 try:
-                    create_ui_static_subpath(bundle)
+                    lock.acquire()
+                    try:
+                        # Re-check after acquiring the lock; another worker
+                        # may have completed the copy while we waited.
+                        if not reference_file_matches_cache_key(bundle):
+                            create_ui_static_subpath(bundle)
+                    finally:
+                        lock.release()
                 except OSError as exc:
                     log_ui_static_copy_error(bundle, exc, logger)
                     continue
