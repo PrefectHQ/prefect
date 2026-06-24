@@ -7,12 +7,14 @@ from prefect_redis.client import (
     _client_cache,
     async_redis_from_settings,
     close_all_cached_connections,
+    cluster_key_prefix,
     get_async_redis_client,
     is_cluster_url,
     normalize_cluster_url,
+    redis_key,
 )
 from redis.asyncio import Redis
-from redis.asyncio.cluster import RedisCluster
+from redis.cluster import key_slot
 
 
 def test_redis_settings_defaults(isolated_redis_db_number: int):
@@ -70,6 +72,52 @@ def test_cluster_url_detection():
 )
 def test_normalize_cluster_url(url: str, expected: str):
     assert normalize_cluster_url(url) == expected
+
+
+def test_cluster_key_prefix_hash_tags_cluster_urls():
+    assert (
+        cluster_key_prefix(
+            "prefect:events", url="redis+cluster://redis.example.com:6379"
+        )
+        == "{prefect:events}"
+    )
+    assert (
+        cluster_key_prefix(
+            "prefect:events", url="rediss+cluster://redis.example.com:6379"
+        )
+        == "{prefect:events}"
+    )
+    assert (
+        cluster_key_prefix("prefect:events", url="redis://redis.example.com:6379")
+        == "prefect:events"
+    )
+
+
+def test_redis_key_uses_cluster_aware_prefix():
+    assert (
+        redis_key(
+            "prefect:events",
+            "stream",
+            url="redis+cluster://redis.example.com:6379",
+        )
+        == "{prefect:events}:stream"
+    )
+    assert (
+        redis_key("prefect:events", "stream", url="redis://redis.example.com:6379")
+        == "prefect:events:stream"
+    )
+
+
+def test_cluster_keys_share_hash_slot():
+    keys = [
+        redis_key(
+            "prefect:events",
+            suffix,
+            url="redis+cluster://redis.example.com:6379",
+        )
+        for suffix in ["stream", "dlq", "dedupe:abc"]
+    ]
+    assert len({key_slot(key.encode()) for key in keys}) == 1
 
 
 def test_redis_settings_url_warns_on_conflicting_fields():
@@ -130,17 +178,11 @@ async def test_get_async_redis_client_with_url():
     await client.aclose()
 
 
-async def test_get_async_redis_client_with_cluster_url():
-    """Cluster URLs create RedisCluster clients after URL normalization."""
+async def test_get_async_redis_client_with_cluster_url_raises():
+    """Cluster URLs are detected but not enabled until key work is complete."""
     _client_cache.clear()
-    client = get_async_redis_client(url="redis+cluster://clusterhost:7000")
-    assert isinstance(client, RedisCluster)
-    assert client.nodes_manager.startup_nodes["clusterhost:7000"].host == "clusterhost"
-    assert client.nodes_manager.startup_nodes["clusterhost:7000"].port == 7000
-    assert client.get_connection_kwargs()["decode_responses"] is True
-    assert client.get_connection_kwargs()["protocol"] == 2
-    await client.aclose()
-    _client_cache.clear()
+    with pytest.raises(NotImplementedError, match="Redis Cluster URLs"):
+        get_async_redis_client(url="redis+cluster://clusterhost:7000")
 
 
 async def test_get_async_redis_client_url_with_credentials():
@@ -215,19 +257,12 @@ async def test_async_redis_from_settings_with_url():
     await client.aclose()
 
 
-async def test_async_redis_from_settings_with_cluster_url():
-    """Settings URL can create a RedisCluster client."""
+async def test_async_redis_from_settings_with_cluster_url_raises():
+    """Settings URL cluster support is detection-only for now."""
     _client_cache.clear()
     settings = RedisMessagingSettings(url="rediss+cluster://fromurl:6385")
-    client = async_redis_from_settings(settings)
-    assert isinstance(client, RedisCluster)
-    assert client.nodes_manager.startup_nodes["fromurl:6385"].host == "fromurl"
-    assert client.nodes_manager.startup_nodes["fromurl:6385"].port == 6385
-    connection_kwargs = client.get_connection_kwargs()
-    assert connection_kwargs["decode_responses"] is True
-    assert connection_kwargs["protocol"] == 2
-    await client.aclose()
-    _client_cache.clear()
+    with pytest.raises(NotImplementedError, match="Redis Cluster URLs"):
+        async_redis_from_settings(settings)
 
 
 def test_redis_settings_connection_defaults():
