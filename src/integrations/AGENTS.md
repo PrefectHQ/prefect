@@ -61,6 +61,8 @@ Integrations that need runtime-configurable behavior use `PrefectBaseSettings` s
 
 **Exception: `prefect-redis`** defines settings within each module (not in a `settings.py`) and uses `("redis", <subsystem>)` namespaces — e.g., `("redis", "messaging")` → `PREFECT_REDIS_MESSAGING_*`, `("redis", "worker_cleanup_queue")` → `PREFECT_REDIS_WORKER_CLEANUP_QUEUE_*`. Do not expect `PREFECT_INTEGRATIONS_REDIS_*` env vars there.
 
+**Redis Cluster key invariant (prefect-redis):** When adding Redis-backed features, construct keys with `redis_key(prefix, suffix, url=url)` from `prefect_redis.client`. It applies hash-tagging (`{prefix}:suffix`) to keep all related keys in the same hash slot under Redis Cluster. Bare `f"{prefix}:{suffix}"` strings bypass this and will break in cluster mode.
+
 Unlike core `prefect.settings`, integration settings are not wired into the root `Settings` hierarchy. Access them by instantiating the class directly: `settings = MyIntegrationSettings()`. Tests override values via `mock.patch.dict("os.environ", {...})`.
 
 ## Related
