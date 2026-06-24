@@ -115,19 +115,23 @@ function FlowRunStateTriggerFieldsStory({
 	within?: number;
 }) {
 	const buildMatchRelated = () => {
-		const resourceIds: string[] = [
-			...selectedFlowIds.map((id) => `prefect.flow.${id}`),
-			...selectedTags.map((tag) => `prefect.tag.${tag}`),
-		];
-
-		if (resourceIds.length === 0) {
-			return undefined;
+		if (selectedFlowIds.length > 0) {
+			return {
+				"prefect.resource.role": "flow",
+				"prefect.resource.id": selectedFlowIds.map(
+					(id) => `prefect.flow.${id}`,
+				),
+			};
 		}
 
-		return {
-			"prefect.resource.role": "flow",
-			"prefect.resource.id": resourceIds,
-		};
+		if (selectedTags.length > 0) {
+			return selectedTags.map((tag) => ({
+				"prefect.resource.role": "tag",
+				"prefect.resource.id": `prefect.tag.${tag}`,
+			}));
+		}
+
+		return undefined;
 	};
 
 	const form = useForm({

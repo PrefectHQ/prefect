@@ -139,7 +139,9 @@ export const EventTriggerSchema = z.object({
 	within: z.number().min(0).default(0),
 	// Match conditions
 	match: ResourceSpecificationSchema.optional(),
-	match_related: ResourceSpecificationSchema.optional(),
+	match_related: z
+		.union([ResourceSpecificationSchema, z.array(ResourceSpecificationSchema)])
+		.optional(),
 	for_each: z.array(z.string()).optional(),
 	after: z.array(z.string()).optional(),
 	expect: z.array(z.string()).optional(),

@@ -9,7 +9,8 @@ import { AutomationWizardSchema } from "@/components/automations/automations-wiz
 import { Form } from "@/components/ui/form";
 import { FlowRunStateTriggerFields } from "./flow-run-state-trigger-fields";
 
-type MatchRelated = Record<string, string | string[]> | undefined;
+type MatchRelatedObject = Record<string, string | string[]>;
+type MatchRelated = MatchRelatedObject | MatchRelatedObject[] | undefined;
 
 const FlowRunStateTriggerFieldsContainer = ({
 	defaultPosture = "Reactive" as const,
@@ -151,16 +152,19 @@ describe("FlowRunStateTriggerFields", () => {
 		expect(screen.queryByPlaceholderText("All tags")).not.toBeInTheDocument();
 	});
 
-	it("displays selected tags from match_related", () => {
+	it("displays selected tags from array match_related (AND logic)", () => {
 		render(
 			<FlowRunStateTriggerFieldsContainer
-				defaultMatchRelated={{
-					"prefect.resource.role": "flow",
-					"prefect.resource.id": [
-						"prefect.tag.production",
-						"prefect.tag.critical",
-					],
-				}}
+				defaultMatchRelated={[
+					{
+						"prefect.resource.role": "tag",
+						"prefect.resource.id": "prefect.tag.production",
+					},
+					{
+						"prefect.resource.role": "tag",
+						"prefect.resource.id": "prefect.tag.critical",
+					},
+				]}
 			/>,
 			{
 				wrapper: createWrapper(),
