@@ -1,5 +1,4 @@
 import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
-import { Button } from "@/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
@@ -20,7 +19,7 @@ type FlowRunParametersProps = { flowRun: FlowRunCardData };
 
 export const FlowRunParameters = ({ flowRun }: FlowRunParametersProps) => {
 	return (
-		<div className="flex items-center">
+		<div className="flex items-center gap-2">
 			<Icon id="SlidersVertical" className="size-4" />
 			<ParametersDialog flowRun={flowRun} />
 		</div>
@@ -35,11 +34,20 @@ const ParametersDialog = ({ flowRun }: FlowRunParametersProps) => {
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<span tabIndex={numParameters < 1 ? 0 : -1} className="inline-flex">
-						<DialogTrigger asChild>
-							<Button variant="link" size="sm" disabled={numParameters < 1}>
+						{numParameters > 0 ? (
+							<DialogTrigger asChild>
+								<button
+									type="button"
+									className="text-xs underline-offset-4 hover:underline text-foreground"
+								>
+									{numParameters} {pluralize(numParameters, "Parameter")}
+								</button>
+							</DialogTrigger>
+						) : (
+							<span className="text-xs text-muted-foreground">
 								{numParameters} {pluralize(numParameters, "Parameter")}
-							</Button>
-						</DialogTrigger>
+							</span>
+						)}
 					</span>
 				</TooltipTrigger>
 				{numParameters < 1 && (
