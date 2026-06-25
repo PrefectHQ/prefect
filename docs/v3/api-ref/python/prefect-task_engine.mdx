@@ -7,31 +7,31 @@ sidebarTitle: task_engine
 
 ## Functions
 
-### `run_task_sync` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1654" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `run_task_sync` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1657" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_task_sync(task: 'Task[P, R]', task_run_id: Optional[UUID] = None, task_run: Optional[TaskRun] = None, parameters: Optional[dict[str, Any]] = None, wait_for: Optional['OneOrManyFutureOrResult[Any]'] = None, return_type: Literal['state', 'result'] = 'result', dependencies: Optional[dict[str, set[RunInput]]] = None, context: Optional[dict[str, Any]] = None) -> Union[R, State, None]
 ```
 
-### `run_task_async` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1686" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `run_task_async` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1689" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_task_async(task: 'Task[P, R]', task_run_id: Optional[UUID] = None, task_run: Optional[TaskRun] = None, parameters: Optional[dict[str, Any]] = None, wait_for: Optional['OneOrManyFutureOrResult[Any]'] = None, return_type: Literal['state', 'result'] = 'result', dependencies: Optional[dict[str, set[RunInput]]] = None, context: Optional[dict[str, Any]] = None) -> Union[R, State, None]
 ```
 
-### `run_generator_task_sync` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1718" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `run_generator_task_sync` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1721" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_generator_task_sync(task: 'Task[P, R]', task_run_id: Optional[UUID] = None, task_run: Optional[TaskRun] = None, parameters: Optional[dict[str, Any]] = None, wait_for: Optional['OneOrManyFutureOrResult[Any]'] = None, return_type: Literal['state', 'result'] = 'result', dependencies: Optional[dict[str, set[RunInput]]] = None, context: Optional[dict[str, Any]] = None) -> Generator[R, None, None]
 ```
 
-### `run_generator_task_async` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1779" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `run_generator_task_async` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1782" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_generator_task_async(task: 'Task[P, R]', task_run_id: Optional[UUID] = None, task_run: Optional[TaskRun] = None, parameters: Optional[dict[str, Any]] = None, wait_for: Optional['OneOrManyFutureOrResult[Any]'] = None, return_type: Literal['state', 'result'] = 'result', dependencies: Optional[dict[str, set[RunInput]]] = None, context: Optional[dict[str, Any]] = None) -> AsyncGenerator[R, None]
 ```
 
-### `run_task` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1867" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `run_task` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1870" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_task(task: 'Task[P, Union[R, Coroutine[Any, Any, R]]]', task_run_id: Optional[UUID] = None, task_run: Optional[TaskRun] = None, parameters: Optional[dict[str, Any]] = None, wait_for: Optional['OneOrManyFutureOrResult[Any]'] = None, return_type: Literal['state', 'result'] = 'result', dependencies: Optional[dict[str, set[RunInput]]] = None, context: Optional[dict[str, Any]] = None) -> Union[R, State, None, Coroutine[Any, Any, Union[R, State, None]]]
@@ -75,7 +75,7 @@ Raised when a task run exceeds its timeout.
 compute_transaction_key(self) -> Optional[str]
 ```
 
-#### `handle_rollback` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L412" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `handle_rollback` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L415" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 handle_rollback(self, txn: Transaction) -> None
@@ -87,7 +87,7 @@ handle_rollback(self, txn: Transaction) -> None
 is_cancelled(self) -> bool
 ```
 
-#### `is_running` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L368" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_running` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L371" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_running(self) -> bool
@@ -96,13 +96,13 @@ is_running(self) -> bool
 Whether or not the engine is currently running a task.
 
 
-#### `log_finished_message` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L374" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `log_finished_message` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L377" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 log_finished_message(self) -> None
 ```
 
-#### `record_terminal_state_timing` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L361" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `record_terminal_state_timing` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L364" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 record_terminal_state_timing(self, state: State) -> None
@@ -114,29 +114,29 @@ record_terminal_state_timing(self, state: State) -> None
 state(self) -> State
 ```
 
-### `SyncTaskRunEngine` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L429" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SyncTaskRunEngine` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L432" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `asset_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L795" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `asset_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L798" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 asset_context(self)
 ```
 
-#### `begin_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L513" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `begin_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L516" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 begin_run(self) -> None
 ```
 
-#### `call_hooks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L476" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `call_hooks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L479" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 call_hooks(self, state: Optional[State] = None) -> None
 ```
 
-#### `call_task_fn` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1024" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `call_task_fn` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1027" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 call_task_fn(self, transaction: Transaction) -> Union[ResultRecord[Any], None, Coroutine[Any, Any, R], R]
@@ -146,31 +146,31 @@ Convenience method to call the task function. Returns a coroutine if the
 task is async.
 
 
-#### `can_retry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L439" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `can_retry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L442" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 can_retry(self, exc_or_state: Exception | State[R]) -> bool
 ```
 
-#### `client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L434" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L437" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 client(self) -> SyncPrefectClient
 ```
 
-#### `handle_crash` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L742" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `handle_crash` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L745" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 handle_crash(self, exc: BaseException) -> None
 ```
 
-#### `handle_exception` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L712" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `handle_exception` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L715" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 handle_exception(self, exc: Exception) -> None
 ```
 
-#### `handle_retry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L657" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `handle_retry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L660" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 handle_retry(self, exc_or_state: Exception | State[R]) -> bool
@@ -183,19 +183,19 @@ Handle any task run retries.
 - If the task has no retries left, or the retry condition is not met, return False.
 
 
-#### `handle_success` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L619" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `handle_success` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L622" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 handle_success(self, result: R, transaction: Transaction) -> Union[ResultRecord[R], None, Coroutine[Any, Any, R], R]
 ```
 
-#### `handle_timeout` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L727" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `handle_timeout` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L730" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 handle_timeout(self, exc: TimeoutError) -> None
 ```
 
-#### `initialize_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L813" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `initialize_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L816" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 initialize_run(self, task_run_id: Optional[UUID] = None, dependencies: Optional[dict[str, set[RunInput]]] = None) -> Generator[Self, Any, Any]
@@ -204,43 +204,43 @@ initialize_run(self, task_run_id: Optional[UUID] = None, dependencies: Optional[
 Enters a client context and creates a task run if needed.
 
 
-#### `result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L604" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L607" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 result(self, raise_on_failure: bool = True) -> 'Union[R, State, None]'
 ```
 
-#### `run_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L988" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L991" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_context(self)
 ```
 
-#### `set_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L553" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L556" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_state(self, state: State[R], force: bool = False) -> State[R]
 ```
 
-#### `setup_run_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L752" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `setup_run_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L755" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 setup_run_context(self, client: Optional[SyncPrefectClient] = None)
 ```
 
-#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L917" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L920" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 start(self, task_run_id: Optional[UUID] = None, dependencies: Optional[dict[str, set[RunInput]]] = None) -> Generator[None, None, None]
 ```
 
-#### `transaction_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L961" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `transaction_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L964" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 transaction_context(self) -> Generator[Transaction, None, None]
 ```
 
-#### `wait_until_ready` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L894" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `wait_until_ready` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L897" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wait_until_ready(self) -> None
@@ -249,29 +249,29 @@ wait_until_ready(self) -> None
 Sync version: Waits until the scheduled time (if its the future), then enters Running.
 
 
-### `AsyncTaskRunEngine` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1041" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `AsyncTaskRunEngine` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1044" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `asset_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1425" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `asset_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1428" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 asset_context(self)
 ```
 
-#### `begin_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1124" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `begin_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1127" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 begin_run(self) -> None
 ```
 
-#### `call_hooks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1087" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `call_hooks` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1090" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 call_hooks(self, state: Optional[State] = None) -> None
 ```
 
-#### `call_task_fn` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1638" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `call_task_fn` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1641" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 call_task_fn(self, transaction: AsyncTransaction) -> Union[ResultRecord[Any], None, Coroutine[Any, Any, R], R]
@@ -281,31 +281,31 @@ Convenience method to call the task function. Returns a coroutine if the
 task is async.
 
 
-#### `can_retry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1051" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `can_retry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1054" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 can_retry(self, exc_or_state: Exception | State[R]) -> bool
 ```
 
-#### `client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1046" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1049" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 client(self) -> PrefectClient
 ```
 
-#### `handle_crash` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1371" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `handle_crash` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1374" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 handle_crash(self, exc: BaseException) -> None
 ```
 
-#### `handle_exception` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1339" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `handle_exception` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1342" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 handle_exception(self, exc: Exception) -> None
 ```
 
-#### `handle_retry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1283" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `handle_retry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1286" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 handle_retry(self, exc_or_state: Exception | State[R]) -> bool
@@ -318,19 +318,19 @@ Handle any task run retries.
 - If the task has no retries left, or the retry condition is not met, return False.
 
 
-#### `handle_success` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1246" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `handle_success` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 handle_success(self, result: R, transaction: AsyncTransaction) -> Union[ResultRecord[R], None, Coroutine[Any, Any, R], R]
 ```
 
-#### `handle_timeout` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1354" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `handle_timeout` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1357" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 handle_timeout(self, exc: TimeoutError) -> None
 ```
 
-#### `initialize_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1443" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `initialize_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1446" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 initialize_run(self, task_run_id: Optional[UUID] = None, dependencies: Optional[dict[str, set[RunInput]]] = None) -> AsyncGenerator[Self, Any]
@@ -339,43 +339,43 @@ initialize_run(self, task_run_id: Optional[UUID] = None, dependencies: Optional[
 Enters a client context and creates a task run if needed.
 
 
-#### `result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1231" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1234" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 result(self, raise_on_failure: bool = True) -> 'Union[R, State, None]'
 ```
 
-#### `run_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1618" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1621" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run_context(self)
 ```
 
-#### `set_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1178" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1181" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_state(self, state: State, force: bool = False) -> State
 ```
 
-#### `setup_run_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1382" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `setup_run_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1385" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 setup_run_context(self, client: Optional[PrefectClient] = None)
 ```
 
-#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1546" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1549" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 start(self, task_run_id: Optional[UUID] = None, dependencies: Optional[dict[str, set[RunInput]]] = None) -> AsyncGenerator[None, None]
 ```
 
-#### `transaction_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1592" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `transaction_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1595" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 transaction_context(self) -> AsyncGenerator[AsyncTransaction, None]
 ```
 
-#### `wait_until_ready` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1523" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `wait_until_ready` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/task_engine.py#L1526" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 wait_until_ready(self) -> None
