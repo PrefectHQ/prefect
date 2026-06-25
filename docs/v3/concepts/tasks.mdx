@@ -320,6 +320,41 @@ def my_flow():
 my_flow()
 ```
 
+#### Passing `FlowRun` and `TaskRun` objects
+
+Passing a `FlowRun` or `TaskRun` object directly as a task argument raises a `PrefectException`. Prefect traverses task arguments to find upstream `State` and `PrefectFuture` dependencies, and both `FlowRun` and `TaskRun` contain a `.state` attribute that Prefect would mistakenly treat as an upstream task dependency.
+
+To work around this, either pass only the individual fields you need or wrap the object with `opaque()`:
+
+{/* pmd-metadata: notest */}
+```python
+from prefect import flow, task
+from prefect.client.schemas.objects import FlowRun
+from prefect.utilities.annotations import opaque
+
+
+@task
+def use_run_id(run_id: str):
+    print(f"run_id={run_id}")
+
+
+@task
+def use_flow_run(flow_run: FlowRun):
+    print(f"run_id={flow_run.id}")
+
+
+@flow
+def my_flow(flow_run: FlowRun):
+    # Pass individual fields to avoid the error
+    use_run_id(flow_run.id)
+
+    # Or wrap with opaque() to skip dependency traversal
+    use_flow_run(opaque(flow_run))
+
+
+my_flow(...)
+```
+
 ## Task composition within flows
 
 Tasks are typically organized into [flows](/v3/concepts/flows#organize-flows-with-subflows-and-tasks) to create comprehensive workflows.
