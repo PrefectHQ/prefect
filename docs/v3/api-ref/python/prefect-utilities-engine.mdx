@@ -7,7 +7,7 @@ sidebarTitle: engine
 
 ## Functions
 
-### `is_prefect_sigterm_handler_installed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L74" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `is_prefect_sigterm_handler_installed` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L102" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_prefect_sigterm_handler_installed() -> bool
@@ -17,7 +17,7 @@ is_prefect_sigterm_handler_installed() -> bool
 Return whether Prefect's SIGTERM bridge is currently installed.
 
 
-### `can_ack_control_intent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L84" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `can_ack_control_intent` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L112" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 can_ack_control_intent() -> bool
@@ -33,7 +33,7 @@ child only needs to verify that Prefect still owns the live bridge before
 advertising readiness with `b"a"`.
 
 
-### `commit_control_intent_and_ack` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L100" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `commit_control_intent_and_ack` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L128" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 commit_control_intent_and_ack(commit_intent: Callable[[], None], clear_intent: Callable[[], None], send_ack: Callable[[], None], trigger_cancel: Callable[[], None] | None = None) -> bool
@@ -48,7 +48,7 @@ handler. Otherwise, teardown can restore the original handler after the
 child decides it is safe to ack but before the runner observes `b"a"`.
 
 
-### `collect_task_run_inputs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L139" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `collect_task_run_inputs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L167" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 collect_task_run_inputs(expr: Any, max_depth: int = -1) -> set[Union[TaskRunResult, FlowRunResult]]
@@ -68,7 +68,7 @@ Examples:
     ```
 
 
-### `collect_task_run_inputs_sync` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L190" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `collect_task_run_inputs_sync` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L218" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 collect_task_run_inputs_sync(expr: Any, future_cls: Any = PrefectFuture, max_depth: int = -1) -> set[Union[TaskRunResult, FlowRunResult]]
@@ -88,7 +88,7 @@ task_inputs = {
 ```
 
 
-### `capture_sigterm` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L245" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `capture_sigterm` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L273" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 capture_sigterm() -> Generator[None, Any, None]
@@ -119,7 +119,7 @@ child can acknowledge control intent and treat the later SIGTERM as an
 intentional cancellation.
 
 
-### `resolve_inputs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L356" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `resolve_inputs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L384" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resolve_inputs(parameters: dict[str, Any], return_data: bool = True, max_depth: int = -1) -> dict[str, Any]
@@ -136,7 +136,7 @@ data.
 - `UpstreamTaskError`: If any of the upstream states are not `COMPLETED`
 
 
-### `propose_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L480" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `propose_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L514" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 propose_state(client: 'PrefectClient', state: State[Any], flow_run_id: UUID, force: bool = False) -> State[Any]
@@ -169,7 +169,7 @@ error will be raised.
 the Prefect API
 
 
-### `propose_state_sync` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L578" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `propose_state_sync` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L612" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 propose_state_sync(client: 'SyncPrefectClient', state: State[Any], flow_run_id: UUID, force: bool = False) -> State[Any]
@@ -203,7 +203,7 @@ error will be raised.
 the Prefect API
 
 
-### `get_state_for_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L672" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_state_for_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L706" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_state_for_result(obj: Any) -> Optional[tuple[State, RunType]]
@@ -229,7 +229,7 @@ today's behavior for those types — including the latent stale-id
 bug — and isolates the limitation to a single named code path.
 
 
-### `link_state_to_flow_run_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L715" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `link_state_to_flow_run_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L749" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 link_state_to_flow_run_result(state: State, result: Any) -> None
@@ -239,7 +239,7 @@ link_state_to_flow_run_result(state: State, result: Any) -> None
 Creates a link between a state and flow run result
 
 
-### `link_state_to_task_run_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L720" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `link_state_to_task_run_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L754" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 link_state_to_task_run_result(state: State, result: Any) -> None
@@ -249,7 +249,7 @@ link_state_to_task_run_result(state: State, result: Any) -> None
 Creates a link between a state and task run result
 
 
-### `link_state_to_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L725" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `link_state_to_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L759" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 link_state_to_result(state: State, result: Any, run_type: RunType) -> None
@@ -290,25 +290,25 @@ We do not set an attribute, e.g. `__prefect_state__`, on the result because:
 - We cannot set this attribute on Python built-ins.
 
 
-### `should_log_prints` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L815" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `should_log_prints` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L849" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 should_log_prints(flow_or_task: Union['Flow[..., Any]', 'Task[..., Any]']) -> bool
 ```
 
-### `check_api_reachable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L827" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `check_api_reachable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L861" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 check_api_reachable(client: 'PrefectClient', fail_message: str) -> None
 ```
 
-### `emit_task_run_state_change_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L845" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `emit_task_run_state_change_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L879" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 emit_task_run_state_change_event(task_run: TaskRun, initial_state: Optional[State[Any]], validated_state: State[Any], follows: Optional[Event] = None) -> Optional[Event]
 ```
 
-### `resolve_to_final_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L943" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `resolve_to_final_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L977" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resolve_to_final_result(expr: Any, context: dict[str, Any]) -> Any
@@ -319,7 +319,7 @@ Resolve any `PrefectFuture`, or `State` types nested in parameters into
 data. Designed to be use with `visit_collection`.
 
 
-### `resolve_inputs_sync` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L1021" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `resolve_inputs_sync` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/utilities/engine/__init__.py#L1062" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resolve_inputs_sync(parameters: dict[str, Any], return_data: bool = True, max_depth: int = -1) -> dict[str, Any]
