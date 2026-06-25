@@ -50,9 +50,9 @@ def _build_load_job_config(
 ) -> "LoadJobConfig":
     """Normalize a job-config dict and return a LoadJobConfig.
 
-    Handles conversion of nested option dicts (e.g. ``parquet_options``)
+    Handles conversion of nested option dicts (e.g. `parquet_options`)
     into their corresponding google-cloud-bigquery objects so that
-    ``LoadJobConfig(**job_config)`` does not raise.
+    `LoadJobConfig(**job_config)` does not raise.
     """
     job_config = dict(job_config) if job_config else {}
     if "autodetect" not in job_config:
