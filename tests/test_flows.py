@@ -5539,6 +5539,53 @@ class TestLoadFlowFromFlowRun:
             "my.module.pretend_flow", use_placeholder_flow=True
         )
 
+    async def test_load_flow_from_module_entrypoint_runs_pull_steps(
+        self, prefect_client: "PrefectClient", monkeypatch
+    ):
+        """Module-path entrypoints must run pull steps before importing the flow.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/18138
+        """
+
+        @flow
+        def pretend_flow():
+            pass
+
+        load_flow_from_entrypoint = mock.MagicMock(return_value=pretend_flow)
+        monkeypatch.setattr(
+            "prefect.flows.load_flow_from_entrypoint",
+            load_flow_from_entrypoint,
+        )
+
+        run_steps = mock.AsyncMock(return_value={})
+        monkeypatch.setattr(
+            "prefect.deployments.steps.core.run_steps",
+            run_steps,
+        )
+
+        flow_id = await prefect_client.create_flow_from_name(pretend_flow.__name__)
+
+        deployment_id = await prefect_client.create_deployment(
+            name="My Module Deployment",
+            entrypoint="my.module.pretend_flow",
+            flow_id=flow_id,
+            pull_steps=[
+                {"prefect.deployments.steps.set_working_directory": {"directory": "."}}
+            ],
+        )
+
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        result = await load_flow_from_flow_run(flow_run)
+
+        assert result == pretend_flow
+        run_steps.assert_awaited_once()
+        load_flow_from_entrypoint.assert_called_once_with(
+            "my.module.pretend_flow", use_placeholder_flow=True
+        )
+
     async def test_load_flow_from_non_flow_func(
         self, prefect_client: "PrefectClient", monkeypatch
     ):
