@@ -242,6 +242,59 @@ The resulting form looks like this:
 
 ![custom form layout](/v3/img/tutorials/parameters/5.png)
 
+### Requiring fields based on other fields
+
+Some forms need constraints that depend on multiple fields. For example, you may
+want to require `discount_reason` and `approver` whenever a user provides a
+`coupon_code`.
+
+The Prefect UI cannot run arbitrary Python validators, such as a Pydantic
+`model_validator`, before submitting a flow run. However, if you can express the
+constraint in the generated JSON schema, Prefect can validate it before the run
+is submitted.
+
+Use `json_schema_extra` on a `BaseModel` subclass to add a JSON Schema
+`dependencies` rule:
+
+{/* pmd-metadata: notest */}
+```python
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class EmailContent(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "$schema": "http://json-schema.org/draft-04/schema#",
+            "dependencies": {
+                "coupon_code": {
+                    "required": ["discount_reason", "approver"],
+                    "properties": {
+                        "discount_reason": {"type": "string", "minLength": 1},
+                        "approver": {"type": "string", "minLength": 1},
+                    },
+                }
+            },
+        }
+    )
+
+    subject: str = Field(max_length=30)
+    body: str
+    coupon_code: str | None = None
+    discount_reason: str | None = None
+    approver: str | None = None
+```
+
+With this schema, a run submitted with `coupon_code` but without
+`discount_reason` or `approver` fails parameter validation before flow run
+infrastructure starts. A run without `coupon_code` can still omit those fields.
+
+<Note>
+JSON Schema `dependencies` checks whether a property is present. The schema above
+uses a schema dependency, rather than only `"coupon_code": ["discount_reason",
+"approver"]`, so `discount_reason` and `approver` must also be non-empty strings
+when `coupon_code` is present.
+</Note>
+
 
 
 ## Using callable and class parameters
