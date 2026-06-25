@@ -52,7 +52,7 @@ jobs:
           --health-retries=10
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up uv and Python 3.12
         uses: astral-sh/setup-uv@v7
@@ -119,7 +119,7 @@ jobs:
     timeout-minutes: 30
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Set up uv and Python 3.12
         uses: astral-sh/setup-uv@v7

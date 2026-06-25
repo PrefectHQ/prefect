@@ -28,11 +28,15 @@ Environment variables work using standard Windows conventions and can be set usi
 
 ```powershell
 # Set for current session
-$env:PREFECT_API_DATABASE_TIMEOUT = "600"
+$env:PREFECT_SERVER_DATABASE_TIMEOUT = "600"
 
 # Set permanently for user
-[System.Environment]::SetEnvironmentVariable("PREFECT_API_DATABASE_TIMEOUT", "600", "User")
+[System.Environment]::SetEnvironmentVariable("PREFECT_SERVER_DATABASE_TIMEOUT", "600", "User")
 ```
+
+<Note>
+The `PREFECT_API_DATABASE_*` environment variable names (for example, `PREFECT_API_DATABASE_TIMEOUT`) are still accepted as legacy aliases, but the canonical names use the `PREFECT_SERVER_DATABASE_` prefix.
+</Note>
 
 Shell tasks automatically use PowerShell on Windows, providing access to the full Windows command ecosystem:
 
@@ -52,7 +56,7 @@ def windows_flow():
 By default, Prefect uses SQLite stored at `%USERPROFILE%\.prefect\prefect.db` with no additional configuration needed. For production deployments, you can configure PostgreSQL using standard connection strings:
 
 ```powershell
-prefect config set PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://postgres:password@localhost:5432/prefect"
+prefect config set PREFECT_SERVER_DATABASE_CONNECTION_URL="postgresql+asyncpg://postgres:password@localhost:5432/prefect"
 ```
 
 Prefect workers on Windows support both process execution and Docker containers. Process workers run flows directly as Windows processes. Docker workers can leverage Windows containers for isolated execution environments:

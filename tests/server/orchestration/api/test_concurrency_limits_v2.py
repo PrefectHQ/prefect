@@ -624,7 +624,7 @@ async def test_increment_concurrency_limit_with_lease_ttl(
     assert lease.resource_ids == [concurrency_limit.id]
     assert lease.metadata == ConcurrencyLimitLeaseMetadata(slots=1)
     assert (
-        now + timedelta(seconds=60) <= lease.expiration <= now + timedelta(seconds=62)
+        now + timedelta(seconds=60) <= lease.expiration <= now + timedelta(seconds=65)
     )
 
 

@@ -34,7 +34,7 @@ jobs:
       cache-key: ${{ steps.cache-key.outputs.key }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Generate cache key
         id: cache-key
@@ -48,7 +48,7 @@ jobs:
 
       - name: Cache node_modules
         id: cache-node-modules
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ui-v2/node_modules
           key: ${{ steps.cache-key.outputs.key }}
@@ -64,7 +64,7 @@ jobs:
     needs: setup
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v6
         with:
@@ -72,7 +72,7 @@ jobs:
 
       - name: Restore node_modules cache
         id: cache-node-modules
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ui-v2/node_modules
           key: ${{ needs.setup.outputs.cache-key }}
@@ -101,7 +101,7 @@ jobs:
     needs: setup
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v6
         with:
@@ -109,7 +109,7 @@ jobs:
 
       - name: Restore node_modules cache
         id: cache-node-modules
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ui-v2/node_modules
           key: ${{ needs.setup.outputs.cache-key }}
@@ -133,7 +133,7 @@ jobs:
         shard: [1, 2, 3, 4]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v6
         with:
@@ -141,7 +141,7 @@ jobs:
 
       - name: Restore node_modules cache
         id: cache-node-modules
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ui-v2/node_modules
           key: ${{ needs.setup.outputs.cache-key }}

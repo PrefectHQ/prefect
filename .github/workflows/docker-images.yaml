@@ -67,7 +67,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN_RW }}
 
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           filter: blob:none
@@ -177,7 +177,7 @@ jobs:
       PREFECT_AWS_VERSION: ${{ steps.get_version.outputs.PREFECT_AWS_VERSION }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-tags: true
 
@@ -207,7 +207,7 @@ jobs:
       PREFECT_AZURE_VERSION: ${{ steps.get_version.outputs.PREFECT_AZURE_VERSION }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-tags: true
 
@@ -237,7 +237,7 @@ jobs:
       PREFECT_GCP_VERSION: ${{ steps.get_version.outputs.PREFECT_GCP_VERSION }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-tags: true
 

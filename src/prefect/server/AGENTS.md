@@ -59,7 +59,11 @@ alembic_revision("description")      # Create a new migration
 
 - **`force=True` routes through `MinimalFlowPolicy`, not a true bypass.** `MinimalFlowPolicy` is intentionally lightweight but still includes guards — notably `PreventResultDataLoss`, which rejects COMPLETED→COMPLETED transitions that would discard persisted result data. Do not assume `force=True` skips all orchestration rules.
 
+- **CANCELLING state transitions must call `maybe_schedule_cancelling_timeout_check_for_state()`.** Any new API path that accepts a CANCELLING transition should call this after `SetStateStatus.ACCEPT`; failures are intentionally non-fatal — log and swallow, do not raise. `cancel_subflow_run` deliberately skips subflows already in CANCELLING to preserve their existing timeout deadline — this guard has no inline comment but removing it resets the deadline. The `ensure_cancelling_timeout_checks` perpetual service re-seeds missed checks on server restart.
+
 - **`record_bulk_task_run_events` batches must be sorted by conflict key before upserting.** In `services/task_run_recorder.py`, task runs are sorted by conflict key — natural key `(flow_run_id, task_key, dynamic_key)` when available, otherwise `("id", task_run_id)` — before batching into upsert groups. This enforces deterministic row-level lock acquisition order across concurrent recorder instances; removing or reordering the sort causes deadlocks. Events that collide on either `id` or natural key are coalesced via union-find to a single canonical ID — the input `TaskRun.id` and `state.state_details.task_run_id` are mutated in-place to that canonical value. Any refactor that re-batches or re-merges must re-sort by conflict key. The function retries once internally on `IntegrityError` to handle TOCTOU races between concurrent recorders, then re-raises on a second failure — callers must catch `IntegrityError` or re-queue the batch.
+
+- **`docket.add()` in monitor loops must pass a per-entity `key=` to prevent duplicate enqueues.** Without it, repeated iterations over the same pending entity enqueue duplicate tasks — causing duplicate state transitions. Format: `"<service-name>:<entity-id>"`, e.g., `"mark-flow-run-late:{run.id}"` in `services/late_runs.py`.
 
 ## UI Serving Architecture
 
