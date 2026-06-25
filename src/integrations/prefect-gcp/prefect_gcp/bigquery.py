@@ -29,6 +29,7 @@ try:
     )
     from google.cloud.bigquery.dbapi.connection import Connection
     from google.cloud.bigquery.dbapi.cursor import Cursor
+    from google.cloud.bigquery.format_options import ParquetOptions
     from google.cloud.bigquery.table import Row
     from google.cloud.exceptions import NotFound
 except ModuleNotFoundError:
@@ -41,6 +42,30 @@ def _result_sync(func, *args, **kwargs):
     """
     result = func(*args, **kwargs).result()
     return result
+
+
+def _build_load_job_config(
+    job_config: Optional[dict],
+    schema: Optional[List["SchemaField"]] = None,
+) -> "LoadJobConfig":
+    """Normalize a job-config dict and return a LoadJobConfig.
+
+    Handles conversion of nested option dicts (e.g. ``parquet_options``)
+    into their corresponding google-cloud-bigquery objects so that
+    ``LoadJobConfig(**job_config)`` does not raise.
+    """
+    job_config = dict(job_config) if job_config else {}
+    if "autodetect" not in job_config:
+        job_config["autodetect"] = True
+
+    parquet_options = job_config.get("parquet_options")
+    if isinstance(parquet_options, dict):
+        job_config["parquet_options"] = ParquetOptions.from_api_repr(parquet_options)
+
+    config = LoadJobConfig(**job_config)
+    if schema:
+        config.schema = schema
+    return config
 
 
 @task
@@ -670,12 +695,7 @@ async def abigquery_load_cloud_storage(
     client = gcp_credentials.get_bigquery_client(project=project, location=location)
     table_ref = client.dataset(dataset).table(table)
 
-    job_config = job_config or {}
-    if "autodetect" not in job_config:
-        job_config["autodetect"] = True
-    job_config = LoadJobConfig(**job_config)
-    if schema:
-        job_config.schema = schema
+    load_job_config = _build_load_job_config(job_config, schema=schema)
 
     result = None
     try:
@@ -684,7 +704,7 @@ async def abigquery_load_cloud_storage(
             client.load_table_from_uri,
             uri,
             table_ref,
-            job_config=job_config,
+            job_config=load_job_config,
         )
         result = await to_thread.run_sync(partial_load)
     except Exception as exception:
@@ -759,12 +779,7 @@ def bigquery_load_cloud_storage(
     client = gcp_credentials.get_bigquery_client(project=project, location=location)
     table_ref = client.dataset(dataset).table(table)
 
-    job_config = job_config or {}
-    if "autodetect" not in job_config:
-        job_config["autodetect"] = True
-    job_config = LoadJobConfig(**job_config)
-    if schema:
-        job_config.schema = schema
+    load_job_config = _build_load_job_config(job_config, schema=schema)
 
     result = None
     try:
@@ -772,7 +787,7 @@ def bigquery_load_cloud_storage(
             client.load_table_from_uri,
             uri,
             table_ref,
-            job_config=job_config,
+            job_config=load_job_config,
         )
     except Exception as exception:
         logger.exception(exception)
@@ -859,14 +874,7 @@ async def abigquery_load_file(
     client = gcp_credentials.get_bigquery_client(project=project)
     table_ref = client.dataset(dataset).table(table)
 
-    job_config = job_config or {}
-    if "autodetect" not in job_config:
-        job_config["autodetect"] = True
-        # TODO: test if autodetect is needed when schema is passed
-    job_config = LoadJobConfig(**job_config)
-    if schema:
-        # TODO: test if schema can be passed directly in job_config
-        job_config.schema = schema
+    load_job_config = _build_load_job_config(job_config, schema=schema)
 
     try:
         with open(path, "rb") as file_obj:
@@ -878,7 +886,7 @@ async def abigquery_load_file(
                 rewind=rewind,
                 size=size,
                 location=location,
-                job_config=job_config,
+                job_config=load_job_config,
             )
             result = await to_thread.run_sync(partial_load)
     except IOError:
@@ -964,12 +972,7 @@ def bigquery_load_file(
     client = gcp_credentials.get_bigquery_client(project=project)
     table_ref = client.dataset(dataset).table(table)
 
-    job_config = job_config or {}
-    if "autodetect" not in job_config:
-        job_config["autodetect"] = True
-    job_config = LoadJobConfig(**job_config)
-    if schema:
-        job_config.schema = schema
+    load_job_config = _build_load_job_config(job_config, schema=schema)
 
     with open(path, "rb") as file_obj:
         result = _result_sync(
@@ -979,7 +982,7 @@ def bigquery_load_file(
             rewind=rewind,
             size=size,
             location=location,
-            job_config=job_config,
+            job_config=load_job_config,
         )
 
     if result is not None:
