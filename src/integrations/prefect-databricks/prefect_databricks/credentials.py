@@ -8,8 +8,14 @@ from httpx import AsyncClient, Client, Headers
 from pydantic import Field, PrivateAttr, SecretStr, model_validator
 
 from prefect.blocks.core import Block
+from prefect_databricks._version import __version__
 
-_DATABRICKS_PARTNER_USER_AGENT = "prefect+prefect-databricks"
+# Databricks partner telemetry attribution. The format
+# `<isv-name_product-name>/<product-version>` (underscore between company and
+# product) is required so Databricks can attribute API usage to Prefect across
+# all connectors and languages.
+# See https://databrickslabs.github.io/partner-architecture/isv-partners/telemetry-attribution
+_DATABRICKS_PARTNER_USER_AGENT = f"Prefect_PrefectDatabricks/{__version__}"
 
 
 class DatabricksCredentials(Block):
