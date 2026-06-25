@@ -29,18 +29,12 @@ vi.mock("./hooks/use-work-pool-queue-menu", () => ({
 		],
 		showDeleteDialog: false,
 		setShowDeleteDialog: vi.fn(),
-		showEditDialog: false,
-		setShowEditDialog: vi.fn(),
 		triggerIcon: vi.fn(),
 	})),
 }));
 
 vi.mock("./components/delete-work-pool-queue-dialog", () => ({
 	DeleteWorkPoolQueueDialog: vi.fn(() => <div>Delete Dialog</div>),
-}));
-
-vi.mock("@/components/work-pools/work-pool-queue-create-dialog", () => ({
-	WorkPoolQueueCreateOrEditDialog: vi.fn(() => <div>Edit Dialog</div>),
 }));
 
 describe("WorkPoolQueueMenu", () => {
@@ -70,14 +64,6 @@ describe("WorkPoolQueueMenu", () => {
 		render(<WorkPoolQueueMenu queue={queue} />);
 
 		expect(screen.getByText("Delete Dialog")).toBeInTheDocument();
-	});
-
-	it("renders edit dialog", () => {
-		const queue = createFakeWorkPoolQueue({ name: "test-queue" });
-
-		render(<WorkPoolQueueMenu queue={queue} />);
-
-		expect(screen.getByText("Edit Dialog")).toBeInTheDocument();
 	});
 
 	it("applies custom className", () => {

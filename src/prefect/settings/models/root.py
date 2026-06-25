@@ -1,4 +1,6 @@
+import inspect
 import warnings
+from functools import cache
 from pathlib import Path
 from typing import (
     TYPE_CHECKING,
@@ -11,7 +13,7 @@ from typing import (
 )
 from urllib.parse import urlparse
 
-from pydantic import BeforeValidator, Field, SecretStr, model_validator
+from pydantic import AliasChoices, BeforeValidator, Field, SecretStr, model_validator
 from pydantic_settings import SettingsConfigDict
 from typing_extensions import Self
 
@@ -37,13 +39,56 @@ from .experiments import ExperimentsSettings
 from .flows import FlowsSettings
 from .internal import InternalSettings
 from .logging import LoggingSettings
+from .plugins import PluginsSettings
 from .results import ResultsSettings
 from .runner import RunnerSettings
 from .server import ServerSettings
 from .telemetry import TelemetrySettings
 
 if TYPE_CHECKING:
+    from prefect.settings._types import SettingAccessor
     from prefect.settings.legacy import Setting
+
+
+@cache
+def _get_settings_accessors(
+    settings: type[PrefectBaseSettings], accessor_prefix: Optional[str] = None
+) -> dict[str, str]:
+    settings_accessors: dict[str, str] = {}
+    for field_name, field in settings.model_fields.items():
+        accessor = (
+            field_name if accessor_prefix is None else f"{accessor_prefix}.{field_name}"
+        )
+        if inspect.isclass(field.annotation) and issubclass(
+            field.annotation, PrefectBaseSettings
+        ):
+            settings_accessors.update(
+                _get_settings_accessors(field.annotation, accessor)
+            )
+        else:
+            settings_accessors[accessor] = accessor
+            if field.validation_alias and isinstance(
+                field.validation_alias, AliasChoices
+            ):
+                for alias in field.validation_alias.choices:
+                    if isinstance(alias, str):
+                        settings_accessors[alias.upper()] = accessor
+            else:
+                settings_accessors[
+                    f"{settings.model_config.get('env_prefix')}{field_name.upper()}"
+                ] = accessor
+
+    return settings_accessors
+
+
+def _get_setting_accessor(setting: "Setting | str") -> str:
+    if not isinstance(setting, str):
+        return setting.accessor
+
+    try:
+        return _get_settings_accessors(Settings)[setting]
+    except KeyError:
+        raise ValueError(f"Unknown setting: {setting!r}") from None
 
 
 class Settings(PrefectBaseSettings):
@@ -124,6 +169,11 @@ class Settings(PrefectBaseSettings):
         description="Settings for controlling logging behavior",
     )
 
+    plugins: PluginsSettings = Field(
+        default_factory=PluginsSettings,
+        description="Settings for the plugin system.",
+    )
+
     results: ResultsSettings = Field(
         default_factory=ResultsSettings,
         description="Settings for controlling result storage behavior",
@@ -195,6 +245,32 @@ class Settings(PrefectBaseSettings):
 
     ###########################################################################
 
+    @model_validator(mode="before")
+    @classmethod
+    def _hoist_legacy_experiments_plugins(cls, data: Any) -> Any:
+        """
+        Pull a legacy `experiments.plugins` payload up to the canonical
+        `plugins` key so `Settings(experiments={"plugins": {...}})` keeps
+        working. Canonical-location values win when both are provided.
+        """
+        if not isinstance(data, dict):
+            return data
+        experiments = data.get("experiments")
+        if not isinstance(experiments, dict):
+            return data
+        legacy = experiments.pop("plugins", None)
+        if legacy is None:
+            return data
+        canonical = data.get("plugins")
+        if isinstance(canonical, dict) and isinstance(legacy, dict):
+            merged = {**legacy, **canonical}  # canonical overrides legacy
+            data["plugins"] = merged
+        elif canonical is None:
+            data["plugins"] = legacy
+        # If canonical is set to a non-dict (e.g. a PluginsSettings instance),
+        # leave it alone — that user-supplied value is already explicit.
+        return data
+
     @model_validator(mode="after")
     def post_hoc_settings(self) -> Self:
         """Handle remaining complex default assignments that aren't yet migrated to dependent settings.
@@ -220,6 +296,32 @@ class Settings(PrefectBaseSettings):
             self.internal.logging_level = "DEBUG"
             self.logging.__pydantic_fields_set__.remove("level")
             self.internal.__pydantic_fields_set__.remove("logging_level")
+
+        # Hoist any legacy `plugins=...` payload that was passed through
+        # the typed `ExperimentsSettings` constructor (we couldn't catch
+        # those in the root before-validator because they had already
+        # been validated into an instance). Canonical-location overrides
+        # already on `self.plugins` win; legacy fills in the rest.
+        legacy = self.experiments._legacy_plugins_payload
+        if legacy is not None:
+            if isinstance(legacy, PluginsSettings):
+                legacy_dump = legacy.model_dump(exclude_unset=True)
+            elif isinstance(legacy, dict):
+                legacy_dump = legacy
+            else:
+                legacy_dump = {}
+            if legacy_dump:
+                canonical_set = self.plugins.model_fields_set
+                merged = {**legacy_dump}
+                for key in canonical_set:
+                    merged[key] = getattr(self.plugins, key)
+                self.plugins = PluginsSettings(**merged)
+            self.experiments._legacy_plugins_payload = None
+
+        # Bind the deprecated `experiments.plugins` accessor to this root's
+        # `plugins` instance so programmatic overrides on this Settings are
+        # reflected through the legacy path.
+        self.experiments._plugins_root = self.plugins
 
         # Set default database connection URL if not provided
         if self.server.database.connection_url is None:
@@ -278,9 +380,9 @@ class Settings(PrefectBaseSettings):
 
     def copy_with_update(
         self: Self,
-        updates: Optional[Mapping["Setting", Any]] = None,
-        set_defaults: Optional[Mapping["Setting", Any]] = None,
-        restore_defaults: Optional[Iterable["Setting"]] = None,
+        updates: Optional[Mapping["Setting | SettingAccessor", Any]] = None,
+        set_defaults: Optional[Mapping["Setting | SettingAccessor", Any]] = None,
+        restore_defaults: Optional[Iterable["Setting | SettingAccessor"]] = None,
     ) -> Self:
         """
         Create a new Settings object with validation.
@@ -300,7 +402,8 @@ class Settings(PrefectBaseSettings):
         # defaults, all settings sources will be ignored.
         restore_defaults_obj: dict[str, Any] = {}
         for r in restore_defaults or []:
-            path = r.accessor.split(".")
+            accessor = _get_setting_accessor(r)
+            path = accessor.split(".")
             model = self
             model_cls = model.__class__
             model_fields = model_cls.model_fields
@@ -308,11 +411,11 @@ class Settings(PrefectBaseSettings):
                 model_field = model_fields[key]
                 model_cls = model_field.annotation
                 if model_cls is None:
-                    raise ValueError(f"Invalid setting path: {r.accessor}")
+                    raise ValueError(f"Invalid setting path: {accessor}")
                 model_fields = model_cls.model_fields
 
             model_field = model_fields[path[-1]]
-            assert model_field is not None, f"Invalid setting path: {r.accessor}"
+            assert model_field is not None, f"Invalid setting path: {accessor}"
             if hasattr(model_field, "default"):
                 default = model_field.default
             elif (
@@ -320,10 +423,10 @@ class Settings(PrefectBaseSettings):
             ):
                 default = model_field.default_factory()
             else:
-                raise ValueError(f"No default value for setting: {r.accessor}")
+                raise ValueError(f"No default value for setting: {accessor}")
             set_in_dict(
                 restore_defaults_obj,
-                r.accessor,
+                accessor,
                 default,
             )
         updates = updates or {}
@@ -331,11 +434,11 @@ class Settings(PrefectBaseSettings):
 
         set_defaults_obj: dict[str, Any] = {}
         for setting, value in set_defaults.items():
-            set_in_dict(set_defaults_obj, setting.accessor, value)
+            set_in_dict(set_defaults_obj, _get_setting_accessor(setting), value)
 
         updates_obj: dict[str, Any] = {}
         for setting, value in updates.items():
-            set_in_dict(updates_obj, setting.accessor, value)
+            set_in_dict(updates_obj, _get_setting_accessor(setting), value)
 
         new_settings = self.__class__.model_validate(
             deep_merge_dicts(

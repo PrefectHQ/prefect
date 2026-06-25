@@ -1,14 +1,21 @@
 import { Link } from "@tanstack/react-router";
 import { useMemo } from "react";
-import type { Artifact } from "@/api/artifacts";
+import type { Artifact, ArtifactCollection } from "@/api/artifacts";
 import { LazyMarkdown } from "@/components/ui/lazy-markdown";
 import { cn } from "@/utils";
 import { formatDate } from "@/utils/date";
 import { Card, CardContent, CardHeader } from "../ui/card";
 
 export type ArtifactsCardProps = {
-	artifact: Artifact;
+	artifact: Artifact | ArtifactCollection;
 	compact?: boolean;
+};
+
+const getArtifactId = (artifact: Artifact | ArtifactCollection): string => {
+	if ("latest_id" in artifact) {
+		return artifact.latest_id;
+	}
+	return artifact.id ?? "";
 };
 
 export const ArtifactCard = ({
@@ -18,8 +25,21 @@ export const ArtifactCard = ({
 	const createdAtDate = useMemo(() => {
 		return formatDate(new Date(artifact.created ?? ""), "dateTime");
 	}, [artifact.created]);
+
+	const hasKey = Boolean(artifact.key);
+
+	const linkProps = hasKey
+		? ({
+				to: "/artifacts/key/$key",
+				params: { key: artifact.key as string },
+			} as const)
+		: ({
+				to: "/artifacts/artifact/$id",
+				params: { id: getArtifactId(artifact) },
+			} as const);
+
 	return (
-		<Link to="/artifacts/key/$key" params={{ key: artifact.key ?? "" }}>
+		<Link {...linkProps}>
 			<Card className="hover:shadow-lg hover:border-primary">
 				<CardHeader>
 					<p className="text-sm font-bold text-muted-foreground">

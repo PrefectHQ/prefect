@@ -7,18 +7,20 @@ import csv
 import datetime
 import io
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
+from urllib.parse import quote
 from uuid import UUID
 
 import orjson
 import sqlalchemy as sa
 from docket import Depends as DocketDepends
-from docket import Retry
+from docket import Docket, Retry
 from fastapi import (
     Body,
     Depends,
     HTTPException,
     Path,
     Query,
+    Request,
     Response,
 )
 from fastapi.encoders import jsonable_encoder
@@ -52,6 +54,9 @@ from prefect.server.schemas.responses import (
     FlowRunPaginationResponse,
     OrchestrationResult,
 )
+from prefect.server.services.cancellation_cleanup import (
+    maybe_schedule_cancelling_timeout_check_for_state,
+)
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
 from prefect.types._datetime import earliest_possible_datetime, now
@@ -65,9 +70,41 @@ logger: "logging.Logger" = get_logger("server.api")
 router: PrefectRouter = PrefectRouter(prefix="/flow_runs", tags=["Flow Runs"])
 
 
+def _get_request_docket(request: Request) -> Docket | None:
+    return getattr(request.app.state, "docket", None)
+
+
+async def _maybe_schedule_cancelling_timeout_check_for_state(
+    *,
+    request: Request,
+    flow_run_id: UUID,
+    state: schemas.states.State | None,
+) -> None:
+    docket = _get_request_docket(request)
+    if docket is None:
+        return
+
+    try:
+        await maybe_schedule_cancelling_timeout_check_for_state(
+            docket=docket,
+            flow_run_id=flow_run_id,
+            state=state,
+        )
+    except Exception:
+        logger.exception(
+            "Failed to schedule CANCELLING timeout check; allowing accepted "
+            "state transition to proceed",
+            extra={
+                "flow_run_id": str(flow_run_id),
+                "flow_run_state_id": str(state.id) if state and state.id else None,
+            },
+        )
+
+
 @router.post("/")
 async def create_flow_run(
     flow_run: schemas.actions.FlowRunCreate,
+    request: Request,
     db: PrefectDBInterface = Depends(provide_database_interface),
     response: Response = None,  # type: ignore
     created_by: Optional[schemas.core.CreatedBy] = Depends(dependencies.get_created_by),
@@ -123,12 +160,26 @@ async def create_flow_run(
             flow_run=flow_run_object,
             orchestration_parameters=orchestration_parameters,
         )
-        if model.created >= right_now:
-            response.status_code = status.HTTP_201_CREATED
-
-        return schemas.responses.FlowRunResponse.model_validate(
+        created = model.created >= right_now
+        timeout_check_state = (
+            schemas.states.State.from_orm_without_result(model.state)
+            if created and model.state
+            else None
+        )
+        flow_run_id = model.id
+        flow_run_response = schemas.responses.FlowRunResponse.model_validate(
             model, from_attributes=True
         )
+
+    await _maybe_schedule_cancelling_timeout_check_for_state(
+        request=request,
+        flow_run_id=flow_run_id,
+        state=timeout_check_state,
+    )
+    if created:
+        response.status_code = status.HTTP_201_CREATED
+
+    return flow_run_response
 
 
 @router.patch("/{id:uuid}", status_code=status.HTTP_204_NO_CONTENT)
@@ -668,6 +719,7 @@ async def bulk_delete_flow_runs(
 
 @router.post("/bulk_set_state")
 async def bulk_set_flow_run_state(
+    request: Request,
     flow_runs: Optional[schemas.filters.FlowRunFilter] = Body(
         None, description="Filter criteria for flow runs to update"
     ),
@@ -717,6 +769,7 @@ async def bulk_set_flow_run_state(
 
     # Process flow runs sequentially to avoid session conflicts
     for flow_run in db_flow_runs:
+        state_to_schedule: schemas.states.State | None = None
         async with db.session_context(
             begin_transaction=True, with_for_update=True
         ) as session:
@@ -738,6 +791,11 @@ async def bulk_set_flow_run_state(
                         details=orchestration_result.details,
                     )
                 )
+                if (
+                    orchestration_result.status
+                    == schemas.responses.SetStateStatus.ACCEPT
+                ):
+                    state_to_schedule = orchestration_result.state
             except Exception as e:
                 results.append(
                     FlowRunOrchestrationResult(
@@ -747,6 +805,14 @@ async def bulk_set_flow_run_state(
                         details=schemas.responses.StateAbortDetails(reason=str(e)),
                     )
                 )
+                continue
+
+        if state_to_schedule is not None:
+            await _maybe_schedule_cancelling_timeout_check_for_state(
+                request=request,
+                flow_run_id=flow_run.id,
+                state=state_to_schedule,
+            )
 
     return FlowRunBulkSetStateResponse(results=results)
 
@@ -754,6 +820,7 @@ async def bulk_set_flow_run_state(
 @router.post("/{id:uuid}/set_state")
 async def set_flow_run_state(
     response: Response,
+    request: Request,
     flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
     state: schemas.actions.StateCreate = Body(..., description="The intended state."),
     force: bool = Body(
@@ -793,6 +860,13 @@ async def set_flow_run_state(
             flow_policy=flow_policy,
             orchestration_parameters=orchestration_parameters,
             client_version=client_version,
+        )
+
+    if orchestration_result.status == schemas.responses.SetStateStatus.ACCEPT:
+        await _maybe_schedule_cancelling_timeout_check_for_state(
+            request=request,
+            flow_run_id=flow_run_id,
+            state=orchestration_result.state,
         )
 
     # set the 201 if a new state was created
@@ -999,16 +1073,25 @@ async def download_logs(
         if not flow_run:
             raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Flow run not found")
 
-        async def generate():
-            data = io.StringIO()
-            csv_writer = csv.writer(data)
-            csv_writer.writerow(
-                ["timestamp", "level", "flow_run_id", "task_run_id", "message"]
-            )
+        filename = quote(f"{flow_run.name}-logs.csv", safe="")
 
-            offset = 0
-            limit = FLOW_RUN_LOGS_DOWNLOAD_PAGE_LIMIT
+    async def generate():
 
+        data = io.StringIO()
+        csv_writer = csv.writer(data)
+
+        csv_writer.writerow(
+            ["timestamp", "level", "flow_run_id", "task_run_id", "message"]
+        )
+        data.seek(0)
+        yield data.read()
+        data.seek(0)
+        data.truncate(0)
+
+        offset = 0
+        limit = FLOW_RUN_LOGS_DOWNLOAD_PAGE_LIMIT
+
+        async with db.session_context() as session:
             while True:
                 results = await models.logs.read_logs(
                     session=session,
@@ -1040,13 +1123,15 @@ async def download_logs(
                     data.seek(0)
                     data.truncate(0)
 
-        return StreamingResponse(
-            generate(),
-            media_type="text/csv",
-            headers={
-                "Content-Disposition": f"attachment; filename={flow_run.name}-logs.csv"
-            },
-        )
+    return StreamingResponse(
+        generate(),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": (
+                f"attachment; filename=\"flow-run-logs.csv\"; filename*=UTF-8''{filename}"
+            )
+        },
+    )
 
 
 @router.patch("/{id:uuid}/labels", status_code=status.HTTP_204_NO_CONTENT)

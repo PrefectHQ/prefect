@@ -8,7 +8,7 @@ from uuid import uuid4
 import pytest
 
 import prefect
-from prefect._versioning import GitVersionInfo
+from prefect._internal.versioning import GitVersionInfo
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.objects import VersionInfo

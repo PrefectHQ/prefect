@@ -9,6 +9,8 @@ from prefect.settings import PREFECT_HOME
 from prefect.settings.context import temporary_settings
 from prefect.testing.cli import invoke_and_assert
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture(autouse=True)
 def enable_all_services():

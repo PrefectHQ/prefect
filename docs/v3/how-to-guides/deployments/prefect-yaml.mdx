@@ -65,7 +65,6 @@ deployments:
   version: null
   tags: []
   description: null
-  schedule: null
 
   # flow-specific fields
   entrypoint: null
@@ -519,7 +518,10 @@ fields within `prefect.yaml` and `prefect deploy` will populate them with each c
 brackets and in `"{{ field_name }}"` format
 - **blocks**: you can reference [Prefect blocks](/v3/concepts/blocks) with the
 `{{ prefect.blocks.block_type.block_slug }}` syntax. It is highly recommended that you use block references for any sensitive
-information (such as a GitHub access token or any credentials) to avoid hardcoding these values in plaintext
+information (such as a GitHub access token or any credentials) to avoid hardcoding these values in plaintext.
+Block references can also be embedded inline within a larger string value, for example:
+`"{{ prefect.blocks.secret.my-registry }}/my-image"`. The resolved block value is coerced to a string;
+non-scalar values such as dicts and lists cannot be used for inline substitution
 - **variables**: you can reference [Prefect variables](/v3/concepts/variables) with the
 `{{ prefect.variables.variable_name }}` syntax. Use variables to reference non-sensitive, reusable pieces of information
 such as a default image name or a default work pool name.
@@ -552,7 +554,6 @@ deployments:
   - "{{ $my_deployment_tag }}"
   - "{{ prefect.variables.some_common_tag }}"
   description: null
-  schedule: null
   concurrency_limit: null
 
   # flow-specific fields
@@ -729,7 +730,7 @@ definitions:
                 image: "{{ build-image.image }}"
     schedules:
         every_ten_minutes: &every_10_minutes
-            interval: 600
+            - interval: 600
     actions:
         docker_build: &docker_build
             - prefect_docker.deployments.steps.build_docker_image: &docker_build_config
@@ -749,7 +750,7 @@ definitions:
 deployments:
   - name: deployment-1
     entrypoint: flows/hello.py:my_flow
-    schedule: *every_10_minutes
+    schedules: *every_10_minutes
     parameters:
         number: 42,
         message: Don't panic!
@@ -768,17 +769,17 @@ deployments:
 
   - name: deployment-3
     entrypoint: flows/hello.py:yet_another_flow
-    schedule: *every_10_minutes
+    schedules: *every_10_minutes
     work_pool:
         name: my-process-work-pool
         work_queue_name: primary-queue
 
 ```
 
-In the above example, YAML aliases reuse work pool, schedule, and build configuration across multiple deployments:
+In the above example, YAML aliases reuse work pool, schedules, and build configuration across multiple deployments:
 
 - `deployment-1` and `deployment-2` use the same work pool configuration
-- `deployment-1` and `deployment-3` use the same schedule
+- `deployment-1` and `deployment-3` use the same schedules
 - `deployment-1` and `deployment-2` use the same build deployment action, but `deployment-2` overrides the `dockerfile` field to use a custom Dockerfile
 
 ## Deployment declaration reference
@@ -793,7 +794,7 @@ These are fields you can add to each deployment declaration.
 | `version`                                  | An optional version for the deployment.                                                                                                                                                                                                                                                  |
 | `tags`                                     | A list of strings to assign to the deployment as tags.                                                                                                                                                                                                                                   |
 | <span class="no-wrap">`description`</span> | An optional description for the deployment.                                                                                                                                                                                                                                              |
-| `schedule`                                 | An optional [schedule](/v3/how-to-guides/deployments/create-schedules) to assign to the deployment. Fields for this section are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                                      |
+| `schedules`                                | An optional list of [schedules](/v3/how-to-guides/deployments/create-schedules) to assign to the deployment. Fields for each schedule are documented in the [Schedule Fields](#schedule-fields) section.                                                                                                                      |
 | `concurrency_limit`                        | An optional [deployment concurrency limit](/v3/concepts/deployments#concurrency-limiting). Set to an integer for a simple limit, or use the [Concurrency Limit Fields](#concurrency-limit-fields) for additional options like collision strategy and grace period.                                                                                                                      |
 | `triggers`                                  | An optional array of [triggers](/v3/how-to-guides/automations/creating-deployment-triggers) to assign to the deployment |
 | `entrypoint`                               | Required reference to the flow function to deploy. Supports two formats: a file path with function name separated by a colon (for example, `path/to/file.py:flow_function_name`), or a Python module path (for example, `my_module.my_flow.my_func`). File paths are relative to the root directory of your development folder. Module paths must be importable in the execution environment. |
@@ -803,7 +804,7 @@ These are fields you can add to each deployment declaration.
 
 ### Schedule fields
 
-These are fields you can add to a deployment declaration's `schedule` section.
+These are fields you can add to each entry in a deployment declaration's `schedules` list.
 
 | Property                                   | Description                                                                                                                                                                                                            |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -813,6 +814,22 @@ These are fields you can add to a deployment declaration's `schedule` section.
 | `cron`                                     | A valid cron string. Cannot use in conjunction with `interval` or `rrule`.                                                                                                                                         |
 | `day_or`                                   | Boolean indicating how croniter handles day and day_of_week entries. Must use with `cron`. Defaults to `True`.                                                                                                     |
 | `rrule`                                    | String representation of an RRule schedule. See the [`rrulestr` examples](https://dateutil.readthedocs.io/en/stable/rrule.html#rrulestr-examples) for syntax. Cannot used them in conjunction with `interval` or `cron`. |
+
+<Note>
+**Removing schedules from a deployment**
+
+Removing the `schedules` key from your `prefect.yaml` file, or setting `schedules: null` or `schedules: []`, does **not** remove existing schedules from a deployment when you run `prefect deploy`. Prefect treats the absence of schedule configuration as "no change" rather than "delete all schedules."
+
+To explicitly remove schedules from an existing deployment, use the CLI:
+
+```bash
+# Remove all schedules from a deployment
+prefect deployment schedule clear <flow-name>/<deployment-name> -y
+
+# Remove a specific schedule by ID
+prefect deployment schedule delete <flow-name>/<deployment-name> <schedule-id> -y
+```
+</Note>
 
 ### Concurrency limit fields
 

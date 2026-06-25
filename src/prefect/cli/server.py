@@ -133,6 +133,8 @@ def start(
         PREFECT_SERVER_API_HOST,
         PREFECT_SERVER_API_KEEPALIVE_TIMEOUT,
         PREFECT_SERVER_API_PORT,
+        PREFECT_SERVER_API_WEBSOCKET_PING_INTERVAL,
+        PREFECT_SERVER_API_WEBSOCKET_PING_TIMEOUT,
         PREFECT_SERVER_LOGGING_LEVEL,
         PREFECT_UI_ENABLED,
     )
@@ -146,6 +148,9 @@ def start(
         keep_alive_timeout = PREFECT_SERVER_API_KEEPALIVE_TIMEOUT.value()
     if log_level is None:
         log_level = PREFECT_SERVER_LOGGING_LEVEL.value()
+
+    ws_ping_interval = PREFECT_SERVER_API_WEBSOCKET_PING_INTERVAL.value()
+    ws_ping_timeout = PREFECT_SERVER_API_WEBSOCKET_PING_TIMEOUT.value()
     if analytics is None:
         analytics = PREFECT_SERVER_ANALYTICS_ENABLED.value()
     if scheduler is None:
@@ -229,6 +234,8 @@ def start(
             keep_alive_timeout,
             no_services,
             workers,
+            ws_ping_interval=ws_ping_interval,
+            ws_ping_timeout=ws_ping_timeout,
         )
     else:
         _run_in_foreground(
@@ -239,6 +246,8 @@ def start(
             keep_alive_timeout,
             no_services,
             workers,
+            ws_ping_interval=ws_ping_interval,
+            ws_ping_timeout=ws_ping_timeout,
         )
 
 

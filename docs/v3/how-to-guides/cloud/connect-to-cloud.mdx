@@ -52,6 +52,17 @@ Authenticated with Prefect Cloud! Using workspace 'prefect/terry-prefect-workspa
 
 You can authenticate by manually pasting an [API key](/v3/how-to-guides/cloud/manage-users/api-keys) or through a browser-based approval that auto-generates an API key with a 30-day expiration.
 
+### Non-interactive login (CI, containers, and startup scripts)
+
+In non-interactive environments such as CI pipelines, Docker containers, or startup scripts, the
+interactive prompts above are unavailable. You must supply both `--key` and `--workspace` explicitly:
+
+```bash
+prefect cloud login --key "<API-KEY>" --workspace "prefect/my-workspace"
+```
+
+Omitting either flag in a non-interactive terminal causes the command to fail.
+
 ### Change workspaces
 
 To change which workspace to sync with, use the `prefect cloud workspace set`
@@ -70,6 +81,12 @@ You may also use the `prefect cloud login` command with the `--workspace` or `-w
 
 ```bash
 prefect cloud login --workspace "prefect/my-workspace"
+```
+
+In non-interactive environments, include `--key` as well:
+
+```bash
+prefect cloud login --key "<API-KEY>" --workspace "prefect/my-workspace"
 ```
 
 ## Manually configure Prefect API settings

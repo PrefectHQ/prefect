@@ -9,7 +9,7 @@ from conftest import (
     _make_mock_settings,
     write_manifest,
 )
-from dbt.artifacts.resources.types import NodeType
+from dbt.node_types import NodeType
 from prefect_dbt.core._executor import DbtExecutor, ExecutionResult
 from prefect_dbt.core._manifest import ManifestParser
 from prefect_dbt.core._orchestrator import (
@@ -21,6 +21,11 @@ from prefect_dbt.core._orchestrator import (
 
 from prefect import flow
 from prefect.task_runners import ThreadPoolTaskRunner
+
+_HAS_UNIT_TEST = hasattr(NodeType, "Unit")
+_skip_without_unit_tests = pytest.mark.skipif(
+    not _HAS_UNIT_TEST, reason="dbt-core < 1.8 does not support unit tests"
+)
 
 # -- Manifest data with tests -----------------------------------------------
 
@@ -353,6 +358,7 @@ class TestImmediatePerNode:
                 "fail_nodes": {"test.test.not_null_root_id"},
                 "error": RuntimeError("test failed"),
             },
+            raise_on_failure=False,
         )
 
         @flow
@@ -412,6 +418,7 @@ class TestImmediatePerNode:
                 "fail_nodes": {"test.test.not_null_root_id"},
                 "error": RuntimeError("test failed"),
             },
+            raise_on_failure=False,
         )
 
         @flow
@@ -514,6 +521,7 @@ class TestImmediatePerNode:
                 "fail_nodes": {"test.test.not_null_root_id"},
                 "error": RuntimeError("test failed"),
             },
+            raise_on_failure=False,
         )
 
         @flow
@@ -536,6 +544,7 @@ class TestImmediatePerNode:
                 "fail_nodes": {"model.test.m1"},
                 "error": RuntimeError("model failed"),
             },
+            raise_on_failure=False,
         )
 
         @flow
@@ -661,6 +670,7 @@ class TestImmediatePerWave:
             manifest_path=manifest,
             executor=executor,
             test_strategy=TestStrategy.IMMEDIATE,
+            raise_on_failure=False,
         )
         results = orch.run_build()
 
@@ -726,6 +736,7 @@ class TestImmediatePerWave:
             manifest_path=manifest,
             executor=executor,
             test_strategy=TestStrategy.IMMEDIATE,
+            raise_on_failure=False,
         )
         results = orch.run_build()
 
@@ -1187,6 +1198,7 @@ class TestManifestParserTestNodes:
         parser = ManifestParser(manifest)
         assert parser.get_test_nodes() == {}
 
+    @_skip_without_unit_tests
     def test_get_test_nodes_includes_unit_tests(self, tmp_path):
         """get_test_nodes() returns NodeType.Unit nodes alongside NodeType.Test."""
         manifest = write_manifest(tmp_path, MIXED_TEST_TYPES)
@@ -1198,6 +1210,7 @@ class TestManifestParserTestNodes:
         assert test_nodes["test.test.not_null_m1_id"].resource_type == NodeType.Test
         assert test_nodes["unit_test.test.ut_m1"].resource_type == NodeType.Unit
 
+    @_skip_without_unit_tests
     def test_get_test_nodes_unit_test_only(self, tmp_path):
         """get_test_nodes() works when manifest has only unit_test nodes."""
         manifest = write_manifest(tmp_path, SINGLE_MODEL_WITH_UNIT_TEST)
@@ -1207,6 +1220,7 @@ class TestManifestParserTestNodes:
         assert set(test_nodes.keys()) == {"unit_test.test.ut_m1"}
         assert test_nodes["unit_test.test.ut_m1"].resource_type == NodeType.Unit
 
+    @_skip_without_unit_tests
     def test_filter_test_nodes_includes_unit_tests(self, tmp_path):
         """filter_test_nodes() keeps unit_test nodes when parents are executable."""
         manifest = write_manifest(tmp_path, MIXED_TEST_TYPES)
@@ -1224,6 +1238,9 @@ class TestManifestParserTestNodes:
 # =============================================================================
 
 
+@pytest.mark.skipif(
+    not _HAS_UNIT_TEST, reason="dbt-core < 1.8 does not support unit tests"
+)
 class TestUnitTestNodes:
     """Tests for dbt unit_test (NodeType.Unit) support."""
 

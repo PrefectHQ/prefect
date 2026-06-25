@@ -5,13 +5,17 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import prefect.bundles as bundles_module
+from prefect.bundles import create_bundle_for_flow_run
+from prefect.flows import flow
+
 
 class TestSerializedBundleFilesKey:
     """Tests for SerializedBundle files_key field."""
 
     def test_serialized_bundle_accepts_files_key_none(self):
         """SerializedBundle should accept files_key=None for bundles without files."""
-        from prefect._experimental.bundles import SerializedBundle
+        from prefect.bundles import SerializedBundle
 
         bundle: SerializedBundle = {
             "function": "serialized_function_data",
@@ -26,7 +30,7 @@ class TestSerializedBundleFilesKey:
 
     def test_serialized_bundle_accepts_files_key_string(self):
         """SerializedBundle should accept files_key with a storage key path."""
-        from prefect._experimental.bundles import SerializedBundle
+        from prefect.bundles import SerializedBundle
 
         bundle: SerializedBundle = {
             "function": "serialized_function_data",
@@ -40,7 +44,7 @@ class TestSerializedBundleFilesKey:
 
     def test_serialized_bundle_without_files_key_is_valid(self):
         """Existing bundles without files_key field should remain valid (backward compat)."""
-        from prefect._experimental.bundles import SerializedBundle
+        from prefect.bundles import SerializedBundle
 
         # This should be valid - no files_key field at all
         bundle: SerializedBundle = {
@@ -56,7 +60,7 @@ class TestSerializedBundleFilesKey:
 
     def test_serialized_bundle_files_key_full_storage_path(self):
         """files_key should store full storage key path like 'files/abc123.zip'."""
-        from prefect._experimental.bundles import SerializedBundle
+        from prefect.bundles import SerializedBundle
 
         # Full SHA256-based storage key
         full_key = (
@@ -80,8 +84,8 @@ class TestCreateBundleForFlowRunFilesKey:
 
     def test_create_bundle_returns_bundle_with_files_key(self, monkeypatch):
         """create_bundle_for_flow_run should return BundleCreationResult with bundle containing files_key."""
-        import prefect._experimental.bundles as bundles_module
-        from prefect._experimental.bundles import create_bundle_for_flow_run
+        import prefect.bundles as bundles_module
+        from prefect.bundles import create_bundle_for_flow_run
         from prefect.flows import flow
 
         # Mock subprocess to avoid actual uv pip freeze
@@ -113,8 +117,8 @@ class TestCreateBundleForFlowRunFilesKey:
 
     def test_create_bundle_files_key_defaults_to_none(self, monkeypatch):
         """create_bundle_for_flow_run should default files_key to None."""
-        import prefect._experimental.bundles as bundles_module
-        from prefect._experimental.bundles import create_bundle_for_flow_run
+        import prefect.bundles as bundles_module
+        from prefect.bundles import create_bundle_for_flow_run
         from prefect.flows import flow
 
         monkeypatch.setattr(
@@ -134,6 +138,114 @@ class TestCreateBundleForFlowRunFilesKey:
 
         assert result["bundle"].get("files_key") is None
         assert result["zip_path"] is None
+
+
+class TestCreateBundleForFlowRunLauncher:
+    """Tests for create_bundle_for_flow_run launcher-aware behavior."""
+
+    def test_create_bundle_skips_uv_freeze_when_execution_launcher_set(
+        self, monkeypatch
+    ):
+        """When the flow has an execution launcher override, `uv pip freeze` should not be called."""
+
+        def fake_check_output(*args, **kwargs):
+            raise AssertionError(
+                "uv pip freeze should not be called when an execution launcher is set"
+            )
+
+        monkeypatch.setattr(
+            bundles_module.subprocess, "check_output", fake_check_output
+        )
+
+        @flow
+        def my_flow():
+            return "hello"
+
+        my_flow.launcher = {"upload": ["python"], "execution": ["python"]}
+
+        mock_flow_run = MagicMock()
+        mock_flow_run.model_dump.return_value = {"id": "test-id"}
+
+        result = create_bundle_for_flow_run(my_flow, mock_flow_run)
+
+        assert result["bundle"]["dependencies"] == ""
+
+    def test_create_bundle_survives_missing_uv_when_execution_launcher_set(
+        self, monkeypatch
+    ):
+        """Bundle creation should succeed when `uv` is unavailable if an execution launcher is set."""
+
+        def raising_check_output(*args, **kwargs):
+            raise PermissionError(13, "Permission denied", "uv")
+
+        monkeypatch.setattr(
+            bundles_module.subprocess, "check_output", raising_check_output
+        )
+
+        @flow
+        def my_flow():
+            return "hello"
+
+        my_flow.launcher = ["python"]
+
+        mock_flow_run = MagicMock()
+        mock_flow_run.model_dump.return_value = {"id": "test-id"}
+
+        result = create_bundle_for_flow_run(my_flow, mock_flow_run)
+
+        assert result["bundle"]["dependencies"] == ""
+
+    def test_create_bundle_runs_uv_freeze_for_upload_only_launcher(self, monkeypatch):
+        """Upload-only launcher overrides still run `uv run` at execution, so freeze must still run."""
+        calls: list[list[str]] = []
+
+        def fake_check_output(cmd, *args, **kwargs):
+            calls.append(list(cmd) if isinstance(cmd, (list, tuple)) else [cmd])
+            return b"prefect>=3.0.0\n"
+
+        monkeypatch.setattr(
+            bundles_module.subprocess, "check_output", fake_check_output
+        )
+
+        @flow
+        def my_flow():
+            return "hello"
+
+        my_flow.launcher = {"upload": ["python"]}
+
+        mock_flow_run = MagicMock()
+        mock_flow_run.model_dump.return_value = {"id": "test-id"}
+
+        result = create_bundle_for_flow_run(my_flow, mock_flow_run)
+
+        assert len(calls) == 1
+        assert "freeze" in calls[0]
+        assert result["bundle"]["dependencies"] == "prefect>=3.0.0"
+
+    def test_create_bundle_runs_uv_freeze_without_launcher(self, monkeypatch):
+        """Without a launcher, the current `uv pip freeze` behavior is preserved."""
+        calls: list[list[str]] = []
+
+        def fake_check_output(cmd, *args, **kwargs):
+            calls.append(list(cmd) if isinstance(cmd, (list, tuple)) else [cmd])
+            return b"prefect>=3.0.0\n"
+
+        monkeypatch.setattr(
+            bundles_module.subprocess, "check_output", fake_check_output
+        )
+
+        @flow
+        def my_flow():
+            return "hello"
+
+        mock_flow_run = MagicMock()
+        mock_flow_run.model_dump.return_value = {"id": "test-id"}
+
+        result = create_bundle_for_flow_run(my_flow, mock_flow_run)
+
+        assert len(calls) == 1
+        assert "freeze" in calls[0]
+        assert result["bundle"]["dependencies"] == "prefect>=3.0.0"
 
 
 class TestCreateBundleForFlowRunIncludeFiles:
@@ -165,8 +277,8 @@ def my_flow():
         self, project_with_files: Path, monkeypatch
     ) -> None:
         """files_key is populated when flow has include_files."""
-        import prefect._experimental.bundles as bundles_module
-        from prefect._experimental.bundles import create_bundle_for_flow_run
+        import prefect.bundles as bundles_module
+        from prefect.bundles import create_bundle_for_flow_run
         from prefect.flows import Flow
 
         # Mock subprocess to avoid actual uv pip freeze
@@ -187,9 +299,7 @@ def my_flow():
         # Mock inspect.getfile to return our flow file path
         flow_file = project_with_files / "my_flow.py"
 
-        with patch(
-            "prefect._experimental.bundles.inspect.getfile", return_value=str(flow_file)
-        ):
+        with patch("prefect.bundles.inspect.getfile", return_value=str(flow_file)):
             flow_run = MagicMock()
             flow_run.model_dump.return_value = {"id": "test-123"}
 
@@ -214,8 +324,8 @@ def my_flow():
 
     def test_files_key_none_when_no_include_files(self, monkeypatch) -> None:
         """files_key is None when flow has no include_files."""
-        import prefect._experimental.bundles as bundles_module
-        from prefect._experimental.bundles import create_bundle_for_flow_run
+        import prefect.bundles as bundles_module
+        from prefect.bundles import create_bundle_for_flow_run
         from prefect.flows import Flow
 
         monkeypatch.setattr(
@@ -242,8 +352,8 @@ def my_flow():
 
     def test_files_key_none_when_include_files_empty(self, monkeypatch) -> None:
         """files_key is None when include_files is empty list."""
-        import prefect._experimental.bundles as bundles_module
-        from prefect._experimental.bundles import create_bundle_for_flow_run
+        import prefect.bundles as bundles_module
+        from prefect.bundles import create_bundle_for_flow_run
         from prefect.flows import Flow
 
         monkeypatch.setattr(

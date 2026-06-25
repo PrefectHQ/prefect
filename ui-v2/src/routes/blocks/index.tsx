@@ -4,11 +4,18 @@ import { createFileRoute } from "@tanstack/react-router";
 import type { PaginationState } from "@tanstack/react-table";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
+import { toast } from "sonner";
 import { z } from "zod";
+import {
+	buildGetDefaultResultStorageQuery,
+	useClearDefaultResultStorage,
+	useUpdateDefaultResultStorage,
+} from "@/api/admin";
 import {
 	type BlockDocumentsFilter,
 	buildCountAllBlockDocumentsQuery,
 	buildCountFilterBlockDocumentsQuery,
+	buildGetBlockDocumentQuery,
 	buildListFilterBlockDocumentsQuery,
 } from "@/api/block-documents";
 import { buildListFilterBlockTypesQuery } from "@/api/block-types";
@@ -16,13 +23,14 @@ import { categorizeError } from "@/api/error-utils";
 import { BlocksPage } from "@/components/blocks/blocks-page";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
+import { usePageSizePreference } from "@/hooks/use-page-size-preference";
 import { usePageTitle } from "@/hooks/use-page-title";
 
 const searchParams = z.object({
 	blockName: z.string().optional(),
 	blockTypes: z.array(z.string()).optional(),
 	page: z.number().int().positive().optional().default(1).catch(1),
-	limit: z.number().int().positive().optional().default(10).catch(10),
+	limit: z.number().int().positive().optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/blocks/")({
@@ -37,6 +45,11 @@ export const Route = createFileRoute("/blocks/")({
 		const { data: allBlockDocumentsCount } = useSuspenseQuery(
 			buildCountAllBlockDocumentsQuery(),
 		);
+		const { data: defaultResultStorage } = useSuspenseQuery(
+			buildGetDefaultResultStorageQuery(),
+		);
+		const defaultResultStorageBlockId =
+			defaultResultStorage.default_result_storage_block_id ?? undefined;
 
 		const blockDocumentsFilter = useMemo(
 			() => ({
@@ -56,7 +69,6 @@ export const Route = createFileRoute("/blocks/")({
 			}),
 			[search, blockTypeSlugs],
 		);
-
 		const { data: blockDocuments } = useQuery(
 			buildListFilterBlockDocumentsQuery({
 				...blockDocumentsFilter,
@@ -68,6 +80,21 @@ export const Route = createFileRoute("/blocks/")({
 		const { data: filteredBlockDocumentsCount } = useQuery(
 			buildCountFilterBlockDocumentsQuery(blockDocumentsFilter),
 		);
+		const {
+			data: defaultResultStorageBlock,
+			isLoading: isLoadingDefaultResultStorageBlock,
+		} = useQuery({
+			...buildGetBlockDocumentQuery(defaultResultStorageBlockId ?? ""),
+			enabled: Boolean(defaultResultStorageBlockId),
+		});
+		const {
+			updateDefaultResultStorage,
+			isPending: isUpdatingDefaultResultStorage,
+		} = useUpdateDefaultResultStorage();
+		const {
+			clearDefaultResultStorage,
+			isPending: isClearingDefaultResultStorage,
+		} = useClearDefaultResultStorage();
 
 		const handleRemoveBlockType = (id: string) => {
 			const newValue = blockTypeSlugs.filter((blockId) => blockId !== id);
@@ -95,6 +122,27 @@ export const Route = createFileRoute("/blocks/")({
 				replace: true,
 			});
 		}, [navigate]);
+		const handleUpdateDefaultResultStorage = useCallback(
+			(blockDocumentId: string) => {
+				if (blockDocumentId === defaultResultStorageBlockId) {
+					return;
+				}
+				updateDefaultResultStorage(
+					{ default_result_storage_block_id: blockDocumentId },
+					{
+						onSuccess: () => toast.success("Default result storage updated"),
+						onError: (error) => toast.error(error.message),
+					},
+				);
+			},
+			[defaultResultStorageBlockId, updateDefaultResultStorage],
+		);
+		const handleClearDefaultResultStorage = useCallback(() => {
+			clearDefaultResultStorage(undefined, {
+				onSuccess: () => toast.success("Default result storage cleared"),
+				onError: (error) => toast.error(error.message),
+			});
+		}, [clearDefaultResultStorage]);
 
 		return (
 			<BlocksPage
@@ -109,6 +157,13 @@ export const Route = createFileRoute("/blocks/")({
 				pagination={pagination}
 				onPaginationChange={onPaginationChange}
 				onClearFilters={onClearFilters}
+				defaultResultStorageBlockId={defaultResultStorageBlockId}
+				defaultResultStorageBlock={defaultResultStorageBlock}
+				onUpdateDefaultResultStorage={handleUpdateDefaultResultStorage}
+				onClearDefaultResultStorage={handleClearDefaultResultStorage}
+				isUpdatingDefaultResultStorage={isUpdatingDefaultResultStorage}
+				isClearingDefaultResultStorage={isClearingDefaultResultStorage}
+				isLoadingDefaultResultStorageBlock={isLoadingDefaultResultStorageBlock}
 			/>
 		);
 	},
@@ -119,36 +174,33 @@ export const Route = createFileRoute("/blocks/")({
 		limit,
 	}),
 	loader: ({ deps, context: { queryClient } }) => {
-		// ----- Critical data
 		const baseFilter: BlockDocumentsFilter = {
 			block_types: { slug: { any_: deps.blockTypes } },
 			block_documents: {
 				is_anonymous: { eq_: false },
-				operator: "or_",
+				operator: "and_",
 				name: { like_: deps.blockName },
 			},
 			offset: 0,
 			include_secrets: false,
 			sort: "NAME_ASC",
 		};
+		const effectiveLimit = deps.limit ?? 10;
 		const paginatedFilter: BlockDocumentsFilter = {
 			...baseFilter,
-			limit: deps.limit,
-			offset: deps.page,
+			limit: effectiveLimit,
+			offset: ((deps.page ?? 1) - 1) * effectiveLimit,
 		};
-		return Promise.all([
-			queryClient.ensureQueryData(buildListFilterBlockTypesQuery()),
-			// All count query
-			queryClient.ensureQueryData(buildCountAllBlockDocumentsQuery()),
-			// Filtered block documents (paginated)
-			queryClient.ensureQueryData(
-				buildListFilterBlockDocumentsQuery(paginatedFilter),
-			),
-			// Filtered count query (without pagination for total filtered count)
-			queryClient.ensureQueryData(
-				buildCountFilterBlockDocumentsQuery(baseFilter),
-			),
-		]);
+		// Prefetch all queries without awaiting to avoid blocking render
+		void queryClient.prefetchQuery(buildListFilterBlockTypesQuery());
+		void queryClient.prefetchQuery(buildCountAllBlockDocumentsQuery());
+		void queryClient.prefetchQuery(buildGetDefaultResultStorageQuery());
+		void queryClient.prefetchQuery(
+			buildListFilterBlockDocumentsQuery(paginatedFilter),
+		);
+		void queryClient.prefetchQuery(
+			buildCountFilterBlockDocumentsQuery(baseFilter),
+		);
 	},
 	errorComponent: function BlocksErrorComponent({
 		error,
@@ -185,6 +237,7 @@ function useSearch() {
 				search: (prev) => ({
 					...prev,
 					blockName: value,
+					page: 1,
 				}),
 				replace: true,
 			});
@@ -206,6 +259,7 @@ function useFilterByBlockTypes() {
 				search: (prev) => ({
 					...prev,
 					blockTypes: value,
+					page: 1,
 				}),
 				replace: true,
 			});
@@ -220,15 +274,30 @@ function usePagination() {
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
 
+	const onInitializePageSize = useCallback(
+		(pageSize: number) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({ ...prev, limit: pageSize }),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	const effectivePageSize = usePageSizePreference(
+		search.limit,
+		onInitializePageSize,
+	);
+
 	// React Table uses 0-based pagination, so we need to subtract 1 from the page number
 	const pageIndex = (search.page ?? 1) - 1;
-	const pageSize = search.limit ?? 10;
 	const pagination: PaginationState = useMemo(
 		() => ({
 			pageIndex,
-			pageSize,
+			pageSize: effectivePageSize,
 		}),
-		[pageIndex, pageSize],
+		[pageIndex, effectivePageSize],
 	);
 
 	const onPaginationChange = useCallback(

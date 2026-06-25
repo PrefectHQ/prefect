@@ -1,0 +1,43 @@
+---
+title: result_storage
+sidebarTitle: result_storage
+---
+
+# `prefect.cli.result_storage`
+
+
+
+Manage default result storage.
+
+
+## Functions
+
+### `result_storage_inspect` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/result_storage.py#L92" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+result_storage_inspect()
+```
+
+
+Inspect the configured default result storage.
+
+
+### `result_storage_set` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/result_storage.py#L144" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+result_storage_set(block: Annotated[str | None, cyclopts.Parameter(help='A block slug in the form <BLOCK_TYPE_SLUG>/<BLOCK_NAME>.')] = None)
+```
+
+
+Set the default result storage block.
+
+
+### `result_storage_clear` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/result_storage.py#L167" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+result_storage_clear()
+```
+
+
+Clear the configured default result storage.
+

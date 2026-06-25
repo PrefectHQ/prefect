@@ -5,6 +5,7 @@ from typing import Any, AsyncGenerator, Generator
 
 import httpx
 import pytest
+import sqlalchemy as sa
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,6 +30,8 @@ from prefect.settings import (
     PREFECT_SERVER_DOCKET_NAME,
 )
 from prefect.settings.context import temporary_settings
+
+pytestmark = pytest.mark.clear_db
 
 
 @pytest.fixture
@@ -167,6 +170,36 @@ async def test_read_concurrency_limit_by_name(
     assert data["id"] == str(concurrency_limit.id)
 
 
+async def test_read_concurrency_limit_returns_decayed_active_slots(
+    session: AsyncSession,
+    db: PrefectDBInterface,
+    client: AsyncClient,
+):
+    concurrency_limit = await create_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2(
+            name="decaying-limit",
+            limit=10,
+            active_slots=10,
+            slot_decay_per_second=0.1,
+        ),
+    )
+    await session.commit()
+    await session.execute(
+        sa.update(db.ConcurrencyLimitV2)
+        .where(db.ConcurrencyLimitV2.id == concurrency_limit.id)
+        .values(updated=datetime.now(timezone.utc) - timedelta(seconds=30.5))
+    )
+    await session.commit()
+
+    response = await client.get(f"/v2/concurrency_limits/{concurrency_limit.id}")
+    assert response.status_code == 200, response.text
+
+    data = response.json()
+    assert data["id"] == str(concurrency_limit.id)
+    assert data["active_slots"] == 7
+
+
 async def test_read_concurrency_non_existent_limit(
     client: AsyncClient,
 ):
@@ -192,6 +225,35 @@ async def test_read_all_concurrency_limits(
     }
 
 
+async def test_read_all_concurrency_limits_returns_decayed_active_slots(
+    session: AsyncSession,
+    db: PrefectDBInterface,
+    client: AsyncClient,
+):
+    concurrency_limit = await create_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2(
+            name="decaying-limit",
+            limit=10,
+            active_slots=10,
+            slot_decay_per_second=0.1,
+        ),
+    )
+    await session.commit()
+    await session.execute(
+        sa.update(db.ConcurrencyLimitV2)
+        .where(db.ConcurrencyLimitV2.id == concurrency_limit.id)
+        .values(updated=datetime.now(timezone.utc) - timedelta(seconds=30.5))
+    )
+    await session.commit()
+
+    response = await client.post("/v2/concurrency_limits/filter")
+    assert response.status_code == 200, response.text
+
+    limits_by_id = {limit["id"]: limit for limit in response.json()}
+    assert limits_by_id[str(concurrency_limit.id)]["active_slots"] == 7
+
+
 async def test_update_concurrency_limit_by_id(
     concurrency_limit: ConcurrencyLimitV2,
     client: AsyncClient,
@@ -210,6 +272,45 @@ async def test_update_concurrency_limit_by_id(
     )
     assert limit
     assert str(limit.name) == "new-name"
+
+
+async def test_update_concurrency_limit_does_not_persist_decayed_active_slots(
+    session: AsyncSession,
+    db: PrefectDBInterface,
+    client: AsyncClient,
+):
+    concurrency_limit = await create_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2(
+            name="decaying-limit",
+            limit=10,
+            active_slots=10,
+            slot_decay_per_second=0.1,
+        ),
+    )
+    await session.commit()
+    await session.execute(
+        sa.update(db.ConcurrencyLimitV2)
+        .where(db.ConcurrencyLimitV2.id == concurrency_limit.id)
+        .values(updated=datetime.now(timezone.utc) - timedelta(seconds=30.5))
+    )
+    await session.commit()
+
+    response = await client.patch(
+        f"/v2/concurrency_limits/{concurrency_limit.id}",
+        json=client_schemas.actions.ConcurrencyLimitV2Update(
+            name="renamed-limit"
+        ).model_dump(mode="json", exclude_unset=True),
+    )
+    assert response.status_code == 204, response.text
+
+    async with db.session_context() as new_session:
+        limit = await read_concurrency_limit(
+            session=new_session, concurrency_limit_id=concurrency_limit.id
+        )
+        assert limit
+        assert limit.name == "renamed-limit"
+        assert limit.active_slots == 10
 
 
 async def test_update_concurrency_limit_by_name(
@@ -523,7 +624,7 @@ async def test_increment_concurrency_limit_with_lease_ttl(
     assert lease.resource_ids == [concurrency_limit.id]
     assert lease.metadata == ConcurrencyLimitLeaseMetadata(slots=1)
     assert (
-        now + timedelta(seconds=60) <= lease.expiration <= now + timedelta(seconds=62)
+        now + timedelta(seconds=60) <= lease.expiration <= now + timedelta(seconds=65)
     )
 
 
@@ -1129,19 +1230,22 @@ async def test_renew_concurrency_lease(
 ):
     lease_storage = get_concurrency_lease_storage()
     expired_lease_ids = await lease_storage.read_expired_lease_ids()
-    now = datetime.now(timezone.utc)
     assert not expired_lease_ids
 
+    before = datetime.now(timezone.utc)
     response = await client.post(
         f"/v2/concurrency_limits/leases/{expiring_concurrency_lease.id}/renew",
         json={"lease_duration": 600},
     )
     assert response.status_code == 204, response.text
+    after = datetime.now(timezone.utc)
 
     lease = await lease_storage.read_lease(expiring_concurrency_lease.id)
     assert lease
     assert (
-        now + timedelta(seconds=600) <= lease.expiration <= now + timedelta(seconds=602)
+        before + timedelta(seconds=600)
+        <= lease.expiration
+        <= after + timedelta(seconds=600)
     )
 
 

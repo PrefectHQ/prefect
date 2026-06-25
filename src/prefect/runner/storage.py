@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
+import warnings
 from copy import deepcopy
 from pathlib import Path
 from typing import (
@@ -12,7 +14,7 @@ from typing import (
     Union,
     runtime_checkable,
 )
-from urllib.parse import urlparse, urlsplit, urlunparse
+from urllib.parse import quote, unquote, urlparse, urlsplit, urlunparse
 from uuid import uuid4
 
 import fsspec  # pyright: ignore[reportMissingTypeStubs]
@@ -20,10 +22,11 @@ from anyio import run_process
 from pydantic import SecretStr
 
 from prefect._internal.concurrency.api import create_call, from_async
-from prefect._internal.urls import strip_auth_from_url
+from prefect._internal.urls import strip_auth_from_url, strip_auth_from_urls_in_text
 from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.blocks.system import Secret
 from prefect.filesystems import ReadableDeploymentStorage, WritableDeploymentStorage
+from prefect.locking._filelock import FileLock
 from prefect.logging.loggers import get_logger
 from prefect.utilities.collections import visit_collection
 
@@ -175,6 +178,26 @@ class GitRepository:
             raise ValueError(
                 "Cannot provide both a branch and a commit SHA. Please provide only one."
             )
+
+        if commit_sha and not re.match(r"^[0-9a-fA-F]{4,64}$", commit_sha):
+            raise ValueError(
+                f"Invalid commit SHA: {commit_sha!r}."
+                " Expected a hexadecimal Git commit SHA (4–64 characters)."
+                " If you are trying to specify a branch or tag name,"
+                " use the 'branch' parameter instead."
+            )
+
+        if directories:
+            for d in directories:
+                if d.startswith("--"):
+                    warnings.warn(
+                        f"Directory {d!r} starts with '--' and will be"
+                        " interpreted as a path by git sparse-checkout."
+                        " If this is not intentional, remove it from the"
+                        " directories list.",
+                        UserWarning,
+                        stacklevel=2,
+                    )
 
         self._url = url
         self._branch = branch
@@ -329,6 +352,22 @@ class GitRepository:
     async def pull_code(self) -> None:
         """
         Pulls the contents of the configured repository to the local filesystem.
+
+        Uses a file-based lock to prevent race conditions when multiple
+        concurrent flow runs pull the same repository.
+        """
+        lock_path = self.destination.parent / (self.destination.name + ".lock")
+        file_lock = FileLock(lock_path)
+        await file_lock.aacquire()
+        try:
+            await self._pull_code_locked()
+        finally:
+            file_lock.release()
+
+    async def _pull_code_locked(self) -> None:
+        """
+        Internal method that performs the actual pull_code logic while
+        the file lock is held.
         """
         self._logger.debug(
             "Pulling contents from repository '%s' to '%s'...",
@@ -357,7 +396,7 @@ class GitRepository:
             # Sparsely checkout the repository if directories are specified and the repo is not in sparse-checkout mode already
             if self._directories and not await self.is_sparsely_checked_out():
                 await run_process(
-                    ["git", "sparse-checkout", "set", *self._directories],
+                    ["git", "sparse-checkout", "set", "--", *self._directories],
                     cwd=self.destination,
                 )
 
@@ -460,6 +499,21 @@ class GitRepository:
                 else exc
             )
             safe_url = strip_auth_from_url(self._url)
+            sanitized_stderr = strip_auth_from_urls_in_text(
+                _decode_stderr(exc),
+                extra_secrets=_url_auth_secrets(self._url, repository_url),
+            )
+            # Surface the raw git error at DEBUG so users can opt in via log
+            # level when the hint patterns don't match. The exception chain is
+            # suppressed above when credentials are present, so DEBUG is the
+            # only way to see the actual git output in that case.
+            if sanitized_stderr:
+                self._logger.debug(
+                    "git clone failed (exit %d) for %r: %s",
+                    exc.returncode,
+                    safe_url,
+                    sanitized_stderr.strip(),
+                )
             error_message = (
                 f"Failed to clone repository {safe_url!r} with exit code"
                 f" {exc.returncode}."
@@ -467,6 +521,14 @@ class GitRepository:
             hint = _get_git_clone_error_hint(exc)
             if hint:
                 error_message += f" {hint}"
+            elif sanitized_stderr:
+                # No pattern matched -- surface the actual git error so the
+                # user doesn't have to enable DEBUG to know what went wrong.
+                snippet = sanitized_stderr.strip().splitlines()
+                # Keep the last few lines; git's final 'fatal:' line is usually
+                # the actionable one.
+                tail = " | ".join(snippet[-3:])
+                error_message += f" git stderr: {tail}"
             raise RuntimeError(error_message) from exc_chain
 
         if self._commit_sha:
@@ -486,7 +548,7 @@ class GitRepository:
         if self._directories:
             self._logger.debug("Will add %s", self._directories)
             await run_process(
-                ["git", "sparse-checkout", "set", *self._directories],
+                ["git", "sparse-checkout", "set", "--", *self._directories],
                 cwd=self.destination,
             )
 
@@ -789,7 +851,13 @@ class BlockStorageAdapter:
         return self._storage_base_path / self._name
 
     async def pull_code(self) -> None:
-        if not self.destination.exists():
+        if self.destination.exists():
+            for child in self.destination.iterdir():
+                if child.is_dir() and not child.is_symlink():
+                    shutil.rmtree(child)
+                else:
+                    child.unlink()
+        else:
             self.destination.mkdir(parents=True, exist_ok=True)
         await self._block.get_directory(local_path=str(self.destination))
 
@@ -940,15 +1008,34 @@ _GIT_CLONE_ERROR_HINTS: list[tuple[str, str]] = [
 ]
 
 
+def _decode_stderr(exc: subprocess.CalledProcessError) -> str:
+    """Decode a CalledProcessError's stderr to text, tolerating bytes/None."""
+    if not exc.stderr:
+        return ""
+    if isinstance(exc.stderr, bytes):
+        return exc.stderr.decode("utf-8", errors="replace")
+    return str(exc.stderr)
+
+
+def _url_auth_secrets(*urls: str) -> list[str]:
+    """Extract userinfo values from URLs so echoed auth can be redacted."""
+    secrets: list[str] = []
+    seen: set[str] = set()
+    for url in urls:
+        parsed = urlparse(url)
+        for value in (parsed.username, parsed.password):
+            if not value:
+                continue
+            for secret in (value, unquote(value)):
+                if secret and secret not in seen:
+                    secrets.append(secret)
+                    seen.add(secret)
+    return secrets
+
+
 def _get_git_clone_error_hint(exc: subprocess.CalledProcessError) -> str | None:
     """Extract a resolution hint from a git clone CalledProcessError's stderr."""
-    stderr = ""
-    if exc.stderr:
-        stderr = (
-            exc.stderr.decode("utf-8", errors="replace")
-            if isinstance(exc.stderr, bytes)
-            else str(exc.stderr)
-        )
+    stderr = _decode_stderr(exc)
     for pattern, hint in _GIT_CLONE_ERROR_HINTS:
         if pattern.lower() in stderr.lower():
             return hint
@@ -1034,7 +1121,7 @@ def _format_token_from_credentials(
         )
 
     if username:
-        return f"{username}:{user_provided_token}"
+        return f"{quote(username, safe='')}:{quote(user_provided_token, safe='')}"
 
     # Netloc-based provider detection for dict credentials (e.g., from YAML block references).
     # When credentials come from deployment YAML like:
@@ -1047,23 +1134,27 @@ def _format_token_from_credentials(
                 "Please provide a `username` and a `password` or `token` in your"
                 " BitBucketCredentials block to clone a repo from BitBucket Server."
             )
-        return user_provided_token
+        parts = user_provided_token.split(":", 1)
+        return f"{quote(parts[0], safe='')}:{quote(parts[1], safe='')}"
 
     elif "bitbucket" in netloc:
-        if (
-            user_provided_token.startswith("x-token-auth:")
-            or ":" in user_provided_token
-        ):
-            return user_provided_token
-        return f"x-token-auth:{user_provided_token}"
+        if user_provided_token.startswith("x-token-auth:"):
+            token_part = user_provided_token[len("x-token-auth:") :]
+            return f"x-token-auth:{quote(token_part, safe='')}"
+        elif ":" in user_provided_token:
+            parts = user_provided_token.split(":", 1)
+            return f"{quote(parts[0], safe='')}:{quote(parts[1], safe='')}"
+        return f"x-token-auth:{quote(user_provided_token, safe='')}"
 
     elif "gitlab" in netloc:
         if user_provided_token.startswith("oauth2:"):
-            return user_provided_token
+            token_part = user_provided_token[len("oauth2:") :]
+            return f"oauth2:{quote(token_part, safe='')}"
         # Deploy tokens contain ":" (username:token format) and should not get oauth2: prefix
         if ":" in user_provided_token:
-            return user_provided_token
-        return f"oauth2:{user_provided_token}"
+            parts = user_provided_token.split(":", 1)
+            return f"{quote(parts[0], safe='')}:{quote(parts[1], safe='')}"
+        return f"oauth2:{quote(user_provided_token, safe='')}"
 
     # GitHub and other providers: plain token
-    return user_provided_token
+    return quote(user_provided_token, safe="")

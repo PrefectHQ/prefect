@@ -1,0 +1,157 @@
+---
+title: Worker and runner events
+description: Events emitted by workers and runners during flow run execution.
+keywords: ["lifecycle", "submitted", "cancelled", "infrastructure"]
+---
+
+Worker events track the lifecycle of worker processes and the flow runs they
+execute. Runner events cover flow run cancellation by locally-served deployments.
+For more on workers, see [Workers](/v3/concepts/workers).
+
+## Worker events
+
+### `prefect.worker.started`
+
+Emitted when a worker process starts polling for work.
+
+#### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.worker.{type}.{name-slug}` |
+| `prefect.resource.name` | Worker name |
+| `prefect.version` | Prefect SDK version |
+| `prefect.worker-type` | Worker type (for example, `kubernetes`, `process`, `docker`) |
+
+#### Related resources
+
+| Resource ID pattern | Role | When present |
+|---------------------|------|--------------|
+| `prefect.work-pool.{uuid}` | `work-pool` | When the worker is attached to a work pool |
+
+#### Payload
+
+This event has no payload.
+
+### `prefect.worker.stopped`
+
+Emitted when a worker process shuts down. Uses the `follows` field to link back
+to the corresponding `started` event.
+
+#### Resource
+
+Same as [`prefect.worker.started`](#prefectworkerstarted).
+
+#### Related resources
+
+Same as [`prefect.worker.started`](#prefectworkerstarted).
+
+#### Payload
+
+This event has no payload.
+
+### `prefect.worker.submitted-flow-run`
+
+Emitted when a worker submits a flow run for execution on infrastructure.
+
+#### Resource
+
+Same as [`prefect.worker.started`](#prefectworkerstarted).
+
+#### Related resources
+
+| Resource ID pattern | Role | When present |
+|---------------------|------|--------------|
+| `prefect.flow-run.{uuid}` | `flow-run` | Always |
+| `prefect.flow.{uuid}` | `flow` | Always |
+| `prefect.deployment.{uuid}` | `deployment` | When triggered by a deployment |
+| `prefect.work-pool.{uuid}` | `work-pool` | When attached to a work pool |
+| `prefect.tag.{tag}` | `tag` | One entry per tag |
+
+#### Payload
+
+This event has no payload.
+
+### `prefect.worker.executed-flow-run`
+
+Emitted when a worker finishes executing a flow run (regardless of outcome). Uses
+the `follows` field to link back to the corresponding `submitted-flow-run` event.
+
+#### Resource
+
+Same as [`prefect.worker.started`](#prefectworkerstarted).
+
+#### Related resources
+
+Same as [`prefect.worker.submitted-flow-run`](#prefectworkersubmitted-flow-run),
+with additional labels on the `flow-run` related resource:
+
+| Additional label | Description |
+|-----------------|-------------|
+| `prefect.infrastructure.identifier` | Infrastructure-specific identifier for the execution (for example, process PID) |
+| `prefect.infrastructure.status-code` | Exit status code of the infrastructure process |
+
+#### Payload
+
+This event has no payload.
+
+<Expandable title="Example: worker executed a flow run">
+
+```json
+{
+  "occurred": "2026-03-31T18:35:00.000000Z",
+  "event": "prefect.worker.executed-flow-run",
+  "resource": {
+    "prefect.resource.id": "prefect.worker.kubernetes.my-k8s-worker",
+    "prefect.resource.name": "my-k8s-worker",
+    "prefect.version": "3.6.0",
+    "prefect.worker-type": "kubernetes"
+  },
+  "related": [
+    {
+      "prefect.resource.id": "prefect.flow-run.e3755d32-cec5-42ca-9bcd-af236e308ba6",
+      "prefect.resource.name": "crimson-fox",
+      "prefect.resource.role": "flow-run",
+      "prefect.infrastructure.identifier": "my-job-abc123",
+      "prefect.infrastructure.status-code": "0"
+    },
+    {
+      "prefect.resource.id": "prefect.work-pool.c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "prefect.resource.name": "my-k8s-pool",
+      "prefect.resource.role": "work-pool"
+    }
+  ],
+  "id": "d4e5f6a7-b890-1234-5678-9012abcdef34",
+  "follows": "c3d4e5f6-a7b8-9012-cdef-123456789012"
+}
+```
+
+</Expandable>
+
+## Runner events
+
+### `prefect.runner.cancelled-flow-run`
+
+Emitted when a runner cancels a flow run that was being served locally via
+`flow.serve()` or the `Runner` API.
+
+#### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.runner.{name-slug}` |
+| `prefect.resource.name` | Runner name |
+| `prefect.version` | Prefect SDK version |
+
+#### Related resources
+
+| Resource ID pattern | Role | When present |
+|---------------------|------|--------------|
+| `prefect.deployment.{uuid}` | `deployment` | When the flow run was triggered by a deployment |
+| `prefect.flow.{uuid}` | `flow` | When the flow is known |
+| `prefect.flow-run.{uuid}` | `flow-run` | Always |
+| `prefect.tag.{tag}` | `tag` | One entry per tag from the flow run and deployment |
+
+#### Payload
+
+This event has no payload.

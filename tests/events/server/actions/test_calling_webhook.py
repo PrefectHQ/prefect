@@ -39,6 +39,8 @@ from prefect.server.schemas.core import Deployment, Flow, FlowRun, WorkQueue
 from prefect.types import DateTime
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 async def snap_a_pic(
@@ -357,6 +359,9 @@ async def test_success_event(
     webhook_call = AsyncMock()
     webhook_call.return_value = Response(status_code=200, text="🦊")
     monkeypatch.setattr("prefect.blocks.webhook.Webhook.call", webhook_call)
+
+    # Ignore lifecycle events emitted while creating the webhook block fixtures
+    AssertingEventsClient.reset()
 
     await action.act(call_webhook)
     await action.succeed(call_webhook)

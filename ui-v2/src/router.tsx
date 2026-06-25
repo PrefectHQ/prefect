@@ -1,6 +1,10 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
 import type { AuthState } from "@/auth";
+import {
+	normalizeBasePath,
+	resolveVisibleUiBasePath,
+} from "@/utils/ui-version";
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen";
 
@@ -11,8 +15,33 @@ export interface RouterContext {
 	auth: AuthState;
 }
 
+export function resolveRouterBasePath(args?: {
+	appBasePath?: string | null;
+	pathname?: string;
+}): string {
+	const appBasePath = normalizeBasePath(
+		args?.appBasePath ?? import.meta.env.BASE_URL,
+	);
+	const pathname =
+		args?.pathname ??
+		(typeof window === "undefined" ? undefined : window.location.pathname);
+
+	if (!pathname) {
+		return appBasePath;
+	}
+
+	return resolveVisibleUiBasePath({
+		configuredBasePath: appBasePath,
+		currentBasePath: appBasePath,
+		location: {
+			pathname,
+		},
+	});
+}
+
 export const router = createRouter({
 	routeTree,
+	basepath: resolveRouterBasePath(),
 	context: {
 		queryClient: queryClient,
 		auth: undefined as unknown as AuthState, // Will be provided by App

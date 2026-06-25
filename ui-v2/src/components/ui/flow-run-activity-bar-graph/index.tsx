@@ -247,7 +247,7 @@ export const FlowRunActivityBarChart = ({
 		<ChartContainer
 			config={{
 				inactivity: {
-					color: "hsl(210 40% 45%)",
+					color: "var(--muted-foreground)",
 				},
 			}}
 			className={cn("relative", className, isTooltipActive && "z-20")}
@@ -293,7 +293,7 @@ FlowRunActivityBarChart.displayName = "FlowRunActivityBarChart";
 type FlowRunTooltipProps = Partial<TooltipContentProps<number, string>>;
 
 const FlowRunTooltip = ({ payload, active }: FlowRunTooltipProps) => {
-	if (!active || !payload || !payload.length) {
+	if (!active || !payload?.length) {
 		return null;
 	}
 	const firstPayloadItem = payload[0] as { payload?: unknown } | undefined;
@@ -306,7 +306,7 @@ const FlowRunTooltip = ({ payload, active }: FlowRunTooltipProps) => {
 		return null;
 	}
 	const flowRun = nestedPayload.flowRun as EnrichedFlowRun;
-	if (!flowRun || !flowRun.id) {
+	if (!flowRun?.id) {
 		return null;
 	}
 

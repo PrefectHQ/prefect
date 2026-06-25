@@ -21,6 +21,7 @@ import { capitalize } from "@/utils";
 
 const ACTION_TYPE_TO_STRING = {
 	"cancel-flow-run": "Cancel flow run",
+	"delete-flow-run": "Delete flow run",
 	"suspend-flow-run": "Suspend flow run",
 	"resume-flow-run": "Resume a flow run",
 	"change-flow-run-state": "Change state of a flow run",
@@ -83,6 +84,7 @@ const ActionDetailsType = ({
 	switch (action.type) {
 		// Non-inferrable Actions
 		case "cancel-flow-run":
+		case "delete-flow-run":
 		case "suspend-flow-run":
 		case "resume-flow-run":
 		case "do-nothing":

@@ -16,6 +16,7 @@ import {
 	type VariablesFilter,
 } from "@/api/variables";
 import { Button } from "@/components/ui/button";
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
 import {
 	EmptyState,
 	EmptyStateActions,
@@ -28,10 +29,12 @@ import { RouteErrorState } from "@/components/ui/route-error-state";
 import { VariablesDataTable } from "@/components/variables/data-table";
 import { VariablesEmptyState } from "@/components/variables/empty-state";
 import { VariablesPageHeader } from "@/components/variables/header";
+import { useDeleteVariableConfirmationDialog } from "@/components/variables/use-delete-variable-confirmation-dialog";
 import {
 	useVariableDialog,
 	VariableDialog,
 } from "@/components/variables/variable-dialog";
+import { usePageSizePreference } from "@/hooks/use-page-size-preference";
 
 /**
  * Schema for validating URL search parameters for the variables page.
@@ -43,7 +46,7 @@ import {
  */
 const searchParams = z.object({
 	offset: z.number().int().nonnegative().optional().default(0).catch(0),
-	limit: z.number().int().positive().optional().default(10).catch(10),
+	limit: z.number().int().positive().optional().catch(undefined),
 	sort: z
 		.enum(["CREATED_DESC", "UPDATED_DESC", "NAME_ASC", "NAME_DESC"])
 		.optional()
@@ -101,6 +104,8 @@ export const Route = createFileRoute("/variables/")({
 		const [columnFilters, onColumnFiltersChange] = useVariableColumnFilters();
 		const [sorting, onSortingChange] = useVariableSorting();
 		const [variableDialogState, onVariableAddOrEdit] = useVariableDialog();
+		const [deleteDialogState, onVariableDelete] =
+			useDeleteVariableConfirmationDialog();
 
 		const [{ data: variables }, { data: filteredCount }, { data: totalCount }] =
 			useSuspenseQueries({
@@ -130,6 +135,7 @@ export const Route = createFileRoute("/variables/")({
 			<div className="flex flex-col gap-4">
 				<VariablesPageHeader onAddVariableClick={onVariableAddOrEdit} />
 				<VariableDialog {...variableDialogState} />
+				<DeleteConfirmationDialog {...deleteDialogState} />
 				{!hasVariables ? (
 					<VariablesEmptyState onAddVariableClick={onVariableAddOrEdit} />
 				) : (filteredCount ?? 0) === 0 ? (
@@ -145,6 +151,7 @@ export const Route = createFileRoute("/variables/")({
 						sorting={sorting}
 						onSortingChange={onSortingChange}
 						onVariableEdit={onVariableAddOrEdit}
+						onVariableDelete={onVariableDelete}
 					/>
 				)}
 			</div>
@@ -199,14 +206,31 @@ const usePagination = () => {
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
 
-	const pageIndex = search.offset ? Math.ceil(search.offset / search.limit) : 0;
-	const pageSize = search.limit ?? 10;
+	const onInitializePageSize = useCallback(
+		(pageSize: number) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({ ...prev, limit: pageSize }),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	const effectivePageSize = usePageSizePreference(
+		search.limit,
+		onInitializePageSize,
+	);
+
+	const pageIndex = search.offset
+		? Math.ceil(search.offset / effectivePageSize)
+		: 0;
 	const pagination: PaginationState = useMemo(
 		() => ({
 			pageIndex,
-			pageSize,
+			pageSize: effectivePageSize,
 		}),
-		[pageIndex, pageSize],
+		[pageIndex, effectivePageSize],
 	);
 
 	const onPaginationChange = useCallback(

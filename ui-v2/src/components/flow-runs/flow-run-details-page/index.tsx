@@ -5,8 +5,8 @@ import { toast } from "sonner";
 import { queryKeyFactory as artifactsQueryKeyFactory } from "@/api/artifacts";
 import {
 	buildGetFlowRunDetailsQuery,
-	type FlowRun,
 	queryKeyFactory as flowRunsQueryKeyFactory,
+	isPendingLikeState,
 	useDeleteFlowRun,
 } from "@/api/flow-runs";
 import { queryKeyFactory as logsQueryKeyFactory } from "@/api/logs";
@@ -57,7 +57,7 @@ export const FlowRunDetailsPage = ({
 	});
 	const { deleteFlowRun } = useDeleteFlowRun();
 	const { navigate } = useRouter();
-	const isPending = flowRun.state_type === "PENDING";
+	const isPending = isPendingLikeState(flowRun.state_type, flowRun.state_name);
 
 	// Set favicon based on flow run state
 	useStateFavicon(flowRun?.state_type);
@@ -130,7 +130,7 @@ export const FlowRunDetailsPage = ({
 				<TabsLayout
 					currentTab={tab}
 					onTabChange={onTabChange}
-					flowRun={flowRun}
+					isPending={isPending}
 					logsContent={
 						<ErrorBoundary
 							fallback={
@@ -267,7 +267,7 @@ export const FlowRunDetailsPage = ({
 const TabsLayout = ({
 	currentTab,
 	onTabChange,
-	flowRun,
+	isPending,
 	logsContent,
 	taskRunsContent,
 	subflowRunsContent,
@@ -278,7 +278,7 @@ const TabsLayout = ({
 }: {
 	currentTab: FlowRunDetailsTabOptions;
 	onTabChange: (tab: FlowRunDetailsTabOptions) => void;
-	flowRun: FlowRun;
+	isPending: boolean;
 	logsContent: React.ReactNode;
 	taskRunsContent: React.ReactNode;
 	subflowRunsContent: React.ReactNode;
@@ -295,13 +295,11 @@ const TabsLayout = ({
 			<TabsList>
 				<TabsTrigger value="Details">Details</TabsTrigger>
 				<TabsTrigger value="Logs">Logs</TabsTrigger>
-				{flowRun.state_type !== "PENDING" && (
-					<TabsTrigger value="TaskRuns">Task Runs</TabsTrigger>
-				)}
-				{flowRun.state_type !== "PENDING" && (
+				{!isPending && <TabsTrigger value="TaskRuns">Task Runs</TabsTrigger>}
+				{!isPending && (
 					<TabsTrigger value="SubflowRuns">Subflow Runs</TabsTrigger>
 				)}
-				<TabsTrigger value="Artifacts">Artifacts</TabsTrigger>
+				{!isPending && <TabsTrigger value="Artifacts">Artifacts</TabsTrigger>}
 				<TabsTrigger value="Parameters">Parameters</TabsTrigger>
 				<TabsTrigger value="JobVariables">Job Variables</TabsTrigger>
 			</TabsList>

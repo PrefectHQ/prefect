@@ -1,0 +1,166 @@
+---
+title: Concurrency events
+description: Events emitted when concurrency limits are created, updated, deleted, and when slots are acquired and released.
+keywords: ["slots", "acquired", "released", "rate limiting", "lifecycle", "CRUD"]
+---
+
+Concurrency events cover two categories: CRUD lifecycle events emitted when
+concurrency limits are created, updated, or deleted, and slot events emitted
+when concurrency slots are acquired and released. For more on concurrency
+limits, see [Global concurrency limits](/v3/concepts/global-concurrency-limits).
+
+## Concurrency limit lifecycle events
+
+### `prefect.concurrency-limit.created`
+
+Emitted when a new concurrency limit is created.
+
+#### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.concurrency-limit.{uuid}` |
+| `prefect.resource.name` | Concurrency limit name |
+
+#### Related resources
+
+This event has no related resources.
+
+#### Payload
+
+For global (v2) concurrency limits:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Concurrency limit name |
+| `limit` | integer | Maximum number of concurrent slots |
+| `active` | boolean | Whether the limit is currently active |
+| `slot_decay_per_second` | float | Rate at which slots are released over time |
+
+For tag-based (v1) concurrency limits:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `tag` | string | Tag this limit applies to |
+| `concurrency_limit` | integer | Maximum number of concurrent runs |
+
+### `prefect.concurrency-limit.updated`
+
+Emitted when a concurrency limit's configuration is changed.
+
+#### Resource
+
+Same as [`prefect.concurrency-limit.created`](#prefectconcurrency-limitcreated).
+
+#### Related resources
+
+This event has no related resources.
+
+#### Payload
+
+Same as [`prefect.concurrency-limit.created`](#prefectconcurrency-limitcreated).
+
+### `prefect.concurrency-limit.deleted`
+
+Emitted when a concurrency limit is deleted.
+
+#### Resource
+
+Same as [`prefect.concurrency-limit.created`](#prefectconcurrency-limitcreated).
+
+#### Related resources
+
+This event has no related resources.
+
+#### Payload
+
+Same as [`prefect.concurrency-limit.created`](#prefectconcurrency-limitcreated).
+
+## Slot events
+
+### `prefect.concurrency-limit.acquired`
+
+Emitted when concurrency slots are acquired for a named limit.
+
+#### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.concurrency-limit.{uuid}` |
+| `prefect.resource.name` | Concurrency limit name |
+| `slots-acquired` | Number of slots acquired in this request |
+| `limit` | Maximum number of slots for this limit |
+
+#### Related resources
+
+| Resource ID pattern | Role | When present |
+|---------------------|------|--------------|
+| `prefect.concurrency-limit.{uuid}` | `concurrency-limit` | One entry per other limit in the same acquisition batch (when acquiring multiple limits at once) |
+
+#### Payload
+
+This event has no payload.
+
+### `prefect.concurrency-limit.released`
+
+Emitted when concurrency slots are released for a named limit. Uses the `follows`
+field to link back to the corresponding `acquired` event.
+
+#### Resource
+
+Same as [`prefect.concurrency-limit.acquired`](#prefectconcurrency-limitacquired).
+
+#### Related resources
+
+Same as [`prefect.concurrency-limit.acquired`](#prefectconcurrency-limitacquired).
+
+#### Payload
+
+This event has no payload.
+
+## Legacy v1 concurrency events
+
+<Note>
+These events are emitted by the legacy tag-based concurrency limit system. For
+new concurrency limits, use global concurrency limits which emit the events
+documented above.
+</Note>
+
+### `prefect.concurrency-limit.v1.acquired`
+
+Emitted when a legacy tag-based concurrency slot is acquired.
+
+#### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.concurrency-limit.v1.{uuid}` |
+| `prefect.resource.name` | Tag name |
+| `limit` | Maximum number of slots |
+| `task_run_id` | ID of the task run acquiring the slot |
+
+#### Related resources
+
+| Resource ID pattern | Role | When present |
+|---------------------|------|--------------|
+| `prefect.concurrency-limit.v1.{uuid}` | `concurrency-limit` | One entry per other limit in the same acquisition batch |
+
+#### Payload
+
+This event has no payload.
+
+### `prefect.concurrency-limit.v1.released`
+
+Emitted when a legacy tag-based concurrency slot is released.
+
+#### Resource
+
+Same as [`prefect.concurrency-limit.v1.acquired`](#prefectconcurrency-limitv1acquired).
+
+#### Related resources
+
+Same as [`prefect.concurrency-limit.v1.acquired`](#prefectconcurrency-limitv1acquired).
+
+#### Payload
+
+This event has no payload.

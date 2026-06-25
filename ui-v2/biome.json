@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.4.8/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.5.0/schema.json",
 	"vcs": {
 		"enabled": true,
 		"clientKind": "git",
@@ -12,9 +12,13 @@
 			"**",
 			"!**/node_modules",
 			"!**/dist",
+			"!**/playwright-report",
+			"!**/test-results",
 			"!**/src/api/prefect.ts",
 			"!**/src/routeTree.gen.ts",
 			"!**/src/graphs",
+			"!**/public/**/*.svg",
+			"!**/.storybook/**/*.svg",
 			"!**/package.json",
 			"!**/package-lock.json"
 		]
@@ -27,7 +31,7 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"recommended": true,
+			"preset": "recommended",
 			"correctness": {
 				"noUnusedVariables": "error",
 				"noUnusedImports": "error",

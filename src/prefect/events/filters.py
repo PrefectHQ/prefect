@@ -32,12 +32,34 @@ class AutomationFilterName(PrefectBaseModel):
     )
 
 
+class AutomationFilterTags(PrefectBaseModel):
+    """Filter by `Automation.tags`."""
+
+    all_: Optional[list[str]] = Field(
+        default=None,
+        examples=[["tag-1", "tag-2"]],
+        description="A list of tags. Automations will be returned only if their tags are a superset of the list",
+    )
+    any_: Optional[list[str]] = Field(
+        default=None,
+        examples=[["tag-1", "tag-2"]],
+        description="A list of tags. Automations will be returned if their tags contain any of the tags in the list",
+    )
+    is_null_: Optional[bool] = Field(
+        default=None,
+        description="If true, only include automations without tags",
+    )
+
+
 class AutomationFilter(PrefectBaseModel):
     name: Optional[AutomationFilterName] = Field(
         default=None, description="Filter criteria for `Automation.name`"
     )
     created: Optional[AutomationFilterCreated] = Field(
         default=None, description="Filter criteria for `Automation.created`"
+    )
+    tags: Optional[AutomationFilterTags] = Field(
+        default=None, description="Filter criteria for `Automation.tags`"
     )
 
 

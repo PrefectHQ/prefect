@@ -20,7 +20,7 @@ export function BlockTypeCard({ blockType }: BlockTypeCardProps) {
 			</div>
 
 			{blockType.description && (
-				<div className="prose max-w-none h-32 overflow-y-auto text-sm">
+				<div className="prose dark:prose-invert max-w-none h-32 overflow-y-auto text-sm">
 					<LazyMarkdown>{blockType.description}</LazyMarkdown>
 				</div>
 			)}

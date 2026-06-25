@@ -73,8 +73,11 @@ test.describe("Runs Page - Task Runs Tab", () => {
 
 		await expect(page).toHaveURL(/\/runs\/task-run\//, { timeout: 10000 });
 
-		await expect(page.getByText(taskRunName)).toBeVisible({
-			timeout: 10000,
-		});
+		// Scope to the breadcrumb — the task run name also appears in the
+		// Logs tab as log entry metadata once logs load, which causes a
+		// strict mode violation with an unscoped getByText.
+		await expect(
+			page.getByLabel("breadcrumb").getByText(taskRunName, { exact: true }),
+		).toBeVisible({ timeout: 10000 });
 	});
 });

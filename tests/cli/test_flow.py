@@ -11,6 +11,8 @@ from prefect.runner import Runner
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
+pytestmark = pytest.mark.clear_db
+
 
 @flow(retries=2)
 def hello():
@@ -131,7 +133,8 @@ class TestFlowServe:
 
         deployment = await prefect_client.read_deployment_by_name(name="hello/test")
         assert len(deployment.schedules) == 1
-        assert deployment.schedules[0].schedule.rrule == "FREQ=MINUTELY;COUNT=5"
+        # `DeploymentScheduleCreate` injects an explicit DTSTART (#21362).
+        assert deployment.schedules[0].schedule.rrule.endswith("FREQ=MINUTELY;COUNT=5")
 
     async def test_flow_serve_cli_accepts_limit(
         self,

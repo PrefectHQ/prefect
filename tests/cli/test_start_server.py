@@ -8,6 +8,7 @@ import tempfile
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Callable
+from unittest.mock import MagicMock
 
 import anyio
 import httpx
@@ -37,6 +38,8 @@ from prefect.testing.cli import invoke_and_assert
 from prefect.testing.fixtures import is_port_in_use
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.processutils import open_process
+
+pytestmark = pytest.mark.clear_db
 
 POLL_INTERVAL = 0.5
 STARTUP_TIMEOUT = 30
@@ -698,6 +701,144 @@ class TestAnalyticsEnvVar:
         assert mock_foreground.called
         server_settings = mock_foreground.call_args[0][1]
         assert server_settings["PREFECT_SERVER_ANALYTICS_ENABLED"] == "False"
+
+
+class TestWebsocketPingSettings:
+    def test_default_values(self, monkeypatch: pytest.MonkeyPatch):
+        mock_fg = MagicMock()
+        monkeypatch.setattr("prefect.cli._server_utils._run_in_foreground", mock_fg)
+        monkeypatch.setattr("prefect.cli._server_utils.prestart_check", MagicMock())
+        monkeypatch.setattr("prefect.cli._app.is_interactive", lambda: False)
+
+        invoke_and_assert(command=["server", "start"], expected_code=0)
+
+        kwargs = mock_fg.call_args.kwargs
+        assert kwargs["ws_ping_interval"] == 20.0
+        assert kwargs["ws_ping_timeout"] == 20.0
+
+    def test_custom_values(self, monkeypatch: pytest.MonkeyPatch):
+        mock_fg = MagicMock()
+        monkeypatch.setattr("prefect.cli._server_utils._run_in_foreground", mock_fg)
+        monkeypatch.setattr("prefect.cli._server_utils.prestart_check", MagicMock())
+        monkeypatch.setattr("prefect.cli._app.is_interactive", lambda: False)
+
+        with temporary_settings(
+            {
+                "server.api.websocket_ping_interval": 60.0,
+                "server.api.websocket_ping_timeout": 45.0,
+            }
+        ):
+            invoke_and_assert(command=["server", "start"], expected_code=0)
+
+        kwargs = mock_fg.call_args.kwargs
+        assert kwargs["ws_ping_interval"] == 60.0
+        assert kwargs["ws_ping_timeout"] == 45.0
+
+    def test_foreground_passes_defaults_to_uvicorn(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        mock_uvicorn_run = MagicMock()
+        monkeypatch.setattr("prefect.cli._server_utils.uvicorn.run", mock_uvicorn_run)
+
+        from prefect.cli._server_utils import _run_in_foreground
+
+        console = MagicMock()
+        _run_in_foreground(
+            console,
+            {"PREFECT_SERVER_LOGGING_LEVEL": "info"},
+            "127.0.0.1",
+            4200,
+            5,
+            False,
+            1,
+        )
+
+        kwargs = mock_uvicorn_run.call_args.kwargs
+        assert kwargs["ws_ping_interval"] == 20.0
+        assert kwargs["ws_ping_timeout"] == 20.0
+
+    def test_foreground_passes_custom_values_to_uvicorn(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        mock_uvicorn_run = MagicMock()
+        monkeypatch.setattr("prefect.cli._server_utils.uvicorn.run", mock_uvicorn_run)
+
+        from prefect.cli._server_utils import _run_in_foreground
+
+        console = MagicMock()
+        _run_in_foreground(
+            console,
+            {"PREFECT_SERVER_LOGGING_LEVEL": "info"},
+            "127.0.0.1",
+            4200,
+            5,
+            False,
+            1,
+            ws_ping_interval=60.0,
+            ws_ping_timeout=45.0,
+        )
+
+        kwargs = mock_uvicorn_run.call_args.kwargs
+        assert kwargs["ws_ping_interval"] == 60.0
+        assert kwargs["ws_ping_timeout"] == 45.0
+
+    def test_background_includes_default_ws_ping_args(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        mock_popen = MagicMock()
+        monkeypatch.setattr("prefect.cli._server_utils.subprocess.Popen", mock_popen)
+
+        from prefect.cli._server_utils import _run_in_background
+
+        console = MagicMock()
+        pid_file = tmp_path / "server.pid"
+        _run_in_background(
+            console,
+            pid_file,
+            {},
+            "127.0.0.1",
+            4200,
+            5,
+            False,
+            1,
+        )
+
+        command = mock_popen.call_args[0][0]
+        assert "--ws-ping-interval" in command
+        assert "--ws-ping-timeout" in command
+        idx_interval = command.index("--ws-ping-interval")
+        idx_timeout = command.index("--ws-ping-timeout")
+        assert command[idx_interval + 1] == "20.0"
+        assert command[idx_timeout + 1] == "20.0"
+
+    def test_background_includes_custom_ws_ping_args(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        mock_popen = MagicMock()
+        monkeypatch.setattr("prefect.cli._server_utils.subprocess.Popen", mock_popen)
+
+        from prefect.cli._server_utils import _run_in_background
+
+        console = MagicMock()
+        pid_file = tmp_path / "server.pid"
+        _run_in_background(
+            console,
+            pid_file,
+            {},
+            "127.0.0.1",
+            4200,
+            5,
+            False,
+            1,
+            ws_ping_interval=60.0,
+            ws_ping_timeout=45.0,
+        )
+
+        command = mock_popen.call_args[0][0]
+        idx_interval = command.index("--ws-ping-interval")
+        idx_timeout = command.index("--ws-ping-timeout")
+        assert command[idx_interval + 1] == "60.0"
+        assert command[idx_timeout + 1] == "45.0"
 
 
 class TestFormatHostForUrl:

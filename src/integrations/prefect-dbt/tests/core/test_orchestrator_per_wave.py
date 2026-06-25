@@ -12,6 +12,7 @@ from conftest import (
 )
 from prefect_dbt.core._executor import DbtExecutor, ExecutionResult
 from prefect_dbt.core._orchestrator import (
+    DbtBuildFailed,
     ExecutionMode,
     PrefectDbtOrchestrator,
     _emit_log_messages,
@@ -302,6 +303,147 @@ class TestRunBuildBasic:
         assert "model.test.m1" in invocation["args"]
 
 
+class TestRunBuildHooks:
+    def test_on_run_start_does_not_accept_select_filter(self, tmp_path):
+        manifest = write_manifest(tmp_path, {"nodes": {}, "sources": {}})
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+        on_run_start = getattr(orch, "on_run_start")
+
+        with pytest.raises(TypeError, match="unexpected keyword argument 'select'"):
+            on_run_start(select="tag:marts")
+
+    def test_run_build_emits_run_hooks(self, tmp_path):
+        data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                }
+            },
+            "sources": {},
+        }
+        manifest = write_manifest(tmp_path, data)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+        seen: list[tuple[str, str | None]] = []
+
+        @orch.on_run_start
+        def before_run(ctx):
+            seen.append((ctx.event, None))
+
+        @orch.on_run_end
+        def after_run(ctx):
+            seen.append((ctx.event, ctx.status))
+
+        orch.run_build()
+
+        assert seen == [("run_start", None), ("run_end", "success")]
+
+    def test_run_build_emits_post_model_hook(self, tmp_path):
+        data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                }
+            },
+            "sources": {},
+        }
+        manifest = write_manifest(tmp_path, data)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+        seen: list[tuple[str | None, str | None]] = []
+
+        @orch.post_model
+        def after_model(ctx):
+            seen.append((ctx.node_id, ctx.status))
+
+        orch.run_build()
+
+        assert seen == [("model.test.m1", "success")]
+
+    def test_run_build_post_model_hook_respects_select_filter(self, tmp_path):
+        data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                },
+                "model.test.m2": {
+                    "name": "m2",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                },
+            },
+            "sources": {},
+        }
+        manifest = write_manifest(tmp_path, data)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+        seen: list[str] = []
+
+        @orch.post_model(select="tag:critical")
+        def after_model(ctx):
+            if ctx.node_id is not None:
+                seen.append(ctx.node_id)
+
+        with patch.object(
+            orch,
+            "_build_dbt_hook_selection_cache",
+            return_value={"tag:critical": {"model.test.m2"}},
+        ):
+            orch.run_build()
+
+        assert seen == ["model.test.m2"]
+
+    def test_run_build_hook_failures_do_not_fail_build(self, tmp_path):
+        data = {
+            "nodes": {
+                "model.test.m1": {
+                    "name": "m1",
+                    "resource_type": "model",
+                    "depends_on": {"nodes": []},
+                    "config": {"materialized": "table"},
+                }
+            },
+            "sources": {},
+        }
+        manifest = write_manifest(tmp_path, data)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=_make_mock_executor(),
+        )
+
+        @orch.post_model
+        def broken_hook(ctx):
+            raise RuntimeError("boom")
+
+        result = orch.run_build()
+
+        assert result["model.test.m1"]["status"] == "success"
+
+
 # =============================================================================
 # TestRunBuildFailure
 # =============================================================================
@@ -326,6 +468,7 @@ class TestRunBuildFailure:
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=executor,
+            raise_on_failure=False,
         )
 
         result = orch.run_build()
@@ -343,6 +486,7 @@ class TestRunBuildFailure:
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=executor,
+            raise_on_failure=False,
         )
 
         result = orch.run_build()
@@ -382,6 +526,7 @@ class TestRunBuildFailure:
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=executor,
+            raise_on_failure=False,
         )
 
         result = orch.run_build()
@@ -400,6 +545,7 @@ class TestRunBuildFailure:
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=executor,
+            raise_on_failure=False,
         )
 
         orch.run_build()
@@ -425,6 +571,7 @@ class TestRunBuildFailure:
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=executor,
+            raise_on_failure=False,
         )
 
         result = orch.run_build()
@@ -457,6 +604,7 @@ class TestRunBuildFailure:
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=executor,
+            raise_on_failure=False,
         )
 
         result = orch.run_build()
@@ -498,6 +646,7 @@ class TestRunBuildFailure:
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=executor,
+            raise_on_failure=False,
         )
 
         result = orch.run_build()
@@ -541,6 +690,7 @@ class TestRunBuildFailure:
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=executor,
+            raise_on_failure=False,
         )
 
         result = orch.run_build()
@@ -564,6 +714,7 @@ class TestRunBuildFailure:
             settings=_make_mock_settings(),
             manifest_path=manifest,
             executor=executor,
+            raise_on_failure=False,
         )
 
         result = orch.run_build()
@@ -578,6 +729,62 @@ class TestRunBuildFailure:
         assert result["model.test.b"]["reason"] == "upstream failure"
         assert "model.test.a" in result["model.test.b"]["failed_upstream"]
         assert result["model.test.c"]["status"] == "skipped"
+
+
+class TestRunBuildRaiseOnFailure:
+    def test_default_raises_on_node_error(self, tmp_path, linear_manifest_data):
+        """By default a failing dbt node raises DbtBuildFailed."""
+        manifest = write_manifest(tmp_path, linear_manifest_data)
+        executor = _make_mock_executor(success=False, error=RuntimeError("boom"))
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+        )
+
+        with pytest.raises(DbtBuildFailed) as exc_info:
+            orch.run_build()
+
+        err = exc_info.value
+        assert "model.test.a" in err.failed_node_ids
+        assert set(err.skipped_node_ids) == {"model.test.b", "model.test.c"}
+        assert err.results["model.test.a"]["status"] == "error"
+        assert err.results["model.test.b"]["status"] == "skipped"
+        assert "1 node(s)" in str(err)
+        assert "model.test.a" in str(err)
+
+    def test_raise_on_failure_false_returns_results(
+        self, tmp_path, linear_manifest_data
+    ):
+        """raise_on_failure=False preserves the legacy partial-failure dict."""
+        manifest = write_manifest(tmp_path, linear_manifest_data)
+        executor = _make_mock_executor(success=False, error=RuntimeError("boom"))
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+            raise_on_failure=False,
+        )
+
+        result = orch.run_build()
+
+        assert result["model.test.a"]["status"] == "error"
+        assert result["model.test.b"]["status"] == "skipped"
+        assert result["model.test.c"]["status"] == "skipped"
+
+    def test_success_does_not_raise(self, tmp_path, linear_manifest_data):
+        """A clean run still returns the results dict when raise_on_failure=True."""
+        manifest = write_manifest(tmp_path, linear_manifest_data)
+        executor = _make_mock_executor(success=True)
+        orch = PrefectDbtOrchestrator(
+            settings=_make_mock_settings(),
+            manifest_path=manifest,
+            executor=executor,
+        )
+
+        result = orch.run_build()
+
+        assert all(r["status"] == "success" for r in result.values())
 
 
 # =============================================================================
@@ -683,6 +890,7 @@ class TestRunBuildWithSelectors:
             exclude=None,
             target_path=tmp_path,
             target=None,
+            log_level_file="info",
         )
 
     @patch("prefect_dbt.core._orchestrator.resolve_selection")
@@ -710,6 +918,7 @@ class TestRunBuildWithSelectors:
             exclude="model.test.leaf",
             target_path=tmp_path,
             target=None,
+            log_level_file="info",
         )
 
     @patch("prefect_dbt.core._orchestrator.resolve_selection")

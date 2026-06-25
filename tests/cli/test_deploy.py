@@ -63,6 +63,8 @@ from prefect.types._datetime import parse_datetime
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.filesystem import tmpchdir
 
+pytestmark = pytest.mark.clear_db
+
 if TYPE_CHECKING:
     from prefect.server.schemas.core import BlockDocument
 
@@ -86,6 +88,37 @@ def interactive_console(monkeypatch: pytest.MonkeyPatch):
         return sys.stdin.read(1)
 
     monkeypatch.setattr("readchar._posix_read.readchar", readchar)
+
+
+def test_deploy_init_field_value_can_contain_equals(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    captured_inputs: dict[str, Any] = {}
+
+    def initialize_project(
+        name: str | None = None,
+        recipe: str | None = None,
+        inputs: dict[str, Any] | None = None,
+    ) -> list[str]:
+        captured_inputs.update(inputs or {})
+        return ["prefect.yaml"]
+
+    monkeypatch.setattr("prefect.deployments.initialize_project", initialize_project)
+
+    invoke_and_assert(
+        [
+            "deploy",
+            "init",
+            "--recipe",
+            "local",
+            "--field",
+            "api_key=aGVsbG8gd29ybGQ=",
+        ],
+        temp_dir=str(tmp_path),
+        expected_code=0,
+    )
+
+    assert captured_inputs == {"api_key": "aGVsbG8gd29ybGQ="}
 
 
 @pytest.fixture
@@ -1168,7 +1201,11 @@ class TestProjectDeploy:
                 expected_code=0,
                 user_input=(
                     # Decline pulling from remote storage
-                    "n" + readchar.key.ENTER
+                    "n"
+                    + readchar.key.ENTER
+                    # decline saving to the (existing) prefect.yaml
+                    + "n"
+                    + readchar.key.ENTER
                 ),
                 expected_output_contains=[
                     "prefect deployment run 'An important name/test-name'"
@@ -2751,11 +2788,10 @@ class TestSchedules:
             else:
                 raise AssertionError("Unknown schedule type received")
 
-        assert schedule_config == {
-            "interval": timedelta(seconds=42),
-            "cron": "* * * * *",
-            "rrule": "FREQ=HOURLY",
-        }
+        assert schedule_config["interval"] == timedelta(seconds=42)
+        assert schedule_config["cron"] == "* * * * *"
+        # `DeploymentScheduleCreate` injects an explicit DTSTART (#21362).
+        assert schedule_config["rrule"].endswith("FREQ=HOURLY")
 
     @pytest.mark.usefixtures("project_dir")
     async def test_can_provide_multiple_schedules_via_yaml(
@@ -2800,11 +2836,10 @@ class TestSchedules:
             else:
                 raise AssertionError("Unknown schedule type received")
 
-        assert schedule_config == {
-            "interval": timedelta(seconds=42),
-            "cron": "* * * * *",
-            "rrule": "FREQ=HOURLY",
-        }
+        assert schedule_config["interval"] == timedelta(seconds=42)
+        assert schedule_config["cron"] == "* * * * *"
+        # `DeploymentScheduleCreate` injects an explicit DTSTART (#21362).
+        assert schedule_config["rrule"].endswith("FREQ=HOURLY")
 
     @pytest.mark.usefixtures("project_dir")
     async def test_yaml_with_schedule_and_schedules_raises_error(
@@ -5118,8 +5153,21 @@ class TestSaveUserInputs:
         assert config["deployments"][0]["work_pool"]["name"] == "inflatable"
 
     def test_save_user_inputs_existing_prefect_file(self):
+        """
+        Regression test: an existing `prefect.yaml` that does not already declare
+        the deployment being created should still prompt to save it.
+
+        Previously `prefect deploy` only offered to save when no `prefect.yaml`
+        existed at all (#17519), which meant users with an `init`-scaffolded file
+        could never persist a new deployment via the interactive wizard.
+        """
         prefect_file = Path("prefect.yaml")
         assert prefect_file.exists()
+
+        # the init-scaffolded file has a single placeholder deployment with a
+        # null name/entrypoint, which never matches a real deployment
+        with prefect_file.open(mode="r") as f:
+            assert len(yaml.safe_load(f)["deployments"]) == 1
 
         invoke_and_assert(
             command="deploy flows/hello.py:my_flow",
@@ -5139,15 +5187,69 @@ class TestSaveUserInputs:
                 # decline schedule
                 + "n"
                 + readchar.key.ENTER
+                # accept saving the new deployment to the existing file
+                + "y"
+                + readchar.key.ENTER
             ),
             expected_code=0,
-            expected_output_contains="View Deployment in UI",
+            expected_output_contains=[
+                (
+                    "Would you like to save configuration for this deployment for"
+                    " faster deployments in the future?"
+                ),
+                "Deployment configuration saved to prefect.yaml",
+            ],
         )
 
         with prefect_file.open(mode="r") as f:
             config = yaml.safe_load(f)
 
+        # the new deployment is appended alongside the placeholder entry
+        assert len(config["deployments"]) == 2
+        new_deployment = config["deployments"][-1]
+        assert new_deployment["name"] == "default"
+        assert new_deployment["entrypoint"] == "flows/hello.py:my_flow"
+        assert new_deployment["work_pool"]["name"] == "inflatable"
+
+    def test_does_not_prompt_save_when_deployment_already_in_prefect_file(
+        self, work_pool: WorkPool
+    ):
+        """
+        Faithful reproduction of #17409 (the report that motivated #17519): a
+        deployment already fully declared in `prefect.yaml` must not prompt to
+        save again when re-deployed by name.
+        """
+        prefect_file = Path("prefect.yaml")
+        with prefect_file.open(mode="r") as f:
+            contents = yaml.safe_load(f)
+
+        # fully declare the deployment so `deploy -n` needs no interactive input
+        contents["deployments"] = [
+            {
+                "name": "already-saved",
+                "entrypoint": "flows/hello.py:my_flow",
+                "schedules": [],
+                "work_pool": {"name": work_pool.name},
+            }
+        ]
+        with prefect_file.open(mode="w") as f:
+            yaml.safe_dump(contents, f)
+
+        invoke_and_assert(
+            command="deploy -n already-saved",
+            expected_code=0,
+            expected_output_contains="View Deployment in UI",
+            expected_output_does_not_contain=(
+                "Would you like to save configuration for this deployment"
+            ),
+        )
+
+        with prefect_file.open(mode="r") as f:
+            config = yaml.safe_load(f)
+
+        # no new entry was appended; the existing one is untouched
         assert len(config["deployments"]) == 1
+        assert config["deployments"][0]["name"] == "already-saved"
 
 
 @pytest.mark.usefixtures("project_dir", "interactive_console", "work_pool")
@@ -5915,7 +6017,11 @@ class TestDeployDockerBuildSteps:
             ),
             user_input=(
                 # Reject build custom docker image
-                "n" + readchar.key.ENTER
+                "n"
+                + readchar.key.ENTER
+                # decline saving to the (existing) prefect.yaml
+                + "n"
+                + readchar.key.ENTER
             ),
             expected_output_contains=[
                 "Would you like to build a custom Docker image",
@@ -5935,7 +6041,11 @@ class TestDeployDockerBuildSteps:
             ),
             user_input=(
                 # Reject build custom docker image
-                "n" + readchar.key.ENTER
+                "n"
+                + readchar.key.ENTER
+                # decline saving to the (existing) prefect.yaml
+                + "n"
+                + readchar.key.ENTER
             ),
             expected_output_contains=["Would you like to build a custom Docker image"],
         )
@@ -5990,6 +6100,9 @@ class TestDeployDockerBuildSteps:
                 +
                 # Reject push to registry
                 "n"
+                + readchar.key.ENTER
+                # decline saving to the (existing) prefect.yaml
+                + "n"
                 + readchar.key.ENTER
             ),
             expected_output_contains=[
@@ -6215,6 +6328,9 @@ class TestDeployDockerBuildSteps:
                 # Decline remote storage
                 + "n"
                 + readchar.key.ENTER
+                # decline saving to the (existing) prefect.yaml
+                + "n"
+                + readchar.key.ENTER
             ),
             expected_output_contains=[
                 "Would you like to build a custom Docker image",
@@ -6418,6 +6534,9 @@ class TestDeployDockerPushSteps:
                 # Reject push to registry
                 + "n"
                 + readchar.key.ENTER
+                # decline saving to the (existing) prefect.yaml
+                + "n"
+                + readchar.key.ENTER
             ),
             expected_output_contains=[
                 "Would you like to build a custom Docker image",
@@ -6464,6 +6583,9 @@ class TestDeployDockerPushSteps:
                 + "https://hub.docker.com"
                 + readchar.key.ENTER
                 # Reject private registry
+                + "n"
+                + readchar.key.ENTER
+                # decline saving to the (existing) prefect.yaml
                 + "n"
                 + readchar.key.ENTER
             ),

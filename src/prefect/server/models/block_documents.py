@@ -14,14 +14,47 @@ from sqlalchemy.sql import Select
 import prefect.server.models as models
 from prefect.server import schemas
 from prefect.server.database import PrefectDBInterface, db_injector, orm_models
+from prefect.server.events import clients
+from prefect.server.events.schemas import lifecycle
 from prefect.server.schemas.actions import BlockDocumentReferenceCreate
 from prefect.server.schemas.core import BlockDocument
 from prefect.server.schemas.filters import BlockSchemaFilter
 from prefect.server.utilities.database import UUID as UUIDTypeDecorator
+from prefect.types._datetime import now
 from prefect.utilities.collections import dict_to_flatdict, flatdict_to_dict
 from prefect.utilities.names import obfuscate
 
 T = TypeVar("T", bound=tuple)
+
+
+async def emit_block_document_created_event(block_document: BlockDocument) -> None:
+    """Emit an event when a (non-anonymous) block document is created."""
+    if block_document.is_anonymous:
+        return
+    async with clients.PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            lifecycle.block_document_created_event(block_document, now("UTC"))
+        )
+
+
+async def emit_block_document_updated_event(block_document: BlockDocument) -> None:
+    """Emit an event when a (non-anonymous) block document is updated."""
+    if block_document.is_anonymous:
+        return
+    async with clients.PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            lifecycle.block_document_updated_event(block_document, now("UTC"))
+        )
+
+
+async def emit_block_document_deleted_event(block_document: BlockDocument) -> None:
+    """Emit an event when a (non-anonymous) block document is deleted."""
+    if block_document.is_anonymous:
+        return
+    async with clients.PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            lifecycle.block_document_deleted_event(block_document, now("UTC"))
+        )
 
 
 @db_injector
@@ -81,6 +114,8 @@ async def create_block_document(
         include_secrets=False,
     )
     assert new_block_document
+
+    await emit_block_document_created_event(new_block_document)
 
     return new_block_document
 
@@ -152,6 +187,9 @@ async def read_block_document_by_id(
     return block_documents[0] if block_documents else None
 
 
+_BLOCK_DOCUMENT_REFERENCE_MAX_DEPTH = 50
+
+
 async def _construct_full_block_document(
     db: PrefectDBInterface,
     session: AsyncSession,
@@ -160,7 +198,14 @@ async def _construct_full_block_document(
     ],
     parent_block_document: Optional[BlockDocument] = None,
     include_secrets: bool = False,
+    _depth: int = 0,
+    _max_depth: int = _BLOCK_DOCUMENT_REFERENCE_MAX_DEPTH,
 ) -> Optional[BlockDocument]:
+    if _depth > _max_depth:
+        raise ValueError(
+            "Block document reference graph exceeds max depth "
+            f"{_max_depth}; refusing to recurse further."
+        )
     if len(block_documents_with_references) == 0:
         return None
     if parent_block_document is None:
@@ -193,6 +238,8 @@ async def _construct_full_block_document(
                 block_documents_with_references,
                 parent_block_document=copy(block_document),
                 include_secrets=include_secrets,
+                _depth=_depth + 1,
+                _max_depth=_max_depth,
             )
             assert full_child_block_document
             parent_block_document.data[name] = full_child_block_document.data
@@ -468,9 +515,24 @@ async def delete_block_document(
     session: AsyncSession,
     block_document_id: UUID,
 ) -> bool:
+    block_document = await read_block_document_by_id(
+        session=session,
+        block_document_id=block_document_id,
+        include_secrets=False,
+    )
+    if block_document is None:
+        return False
+
+    await emit_block_document_deleted_event(block_document)
+
     query = sa.delete(db.BlockDocument).where(db.BlockDocument.id == block_document_id)
-    result = await session.execute(query)
-    return result.rowcount > 0
+    await session.execute(query)
+
+    await models.storage_defaults.clear_server_default_result_storage_for_block(
+        session=session,
+        block_document_id=block_document_id,
+    )
+    return True
 
 
 @db_injector
@@ -609,6 +671,15 @@ async def update_block_document(
                     session, block_document_reference_id=block_document_reference.id
                 )
 
+    await session.flush()
+    updated_block_document = await read_block_document_by_id(
+        session=session,
+        block_document_id=block_document_id,
+        include_secrets=False,
+    )
+    if updated_block_document is not None:
+        await emit_block_document_updated_event(updated_block_document)
+
     return True
 
 
@@ -630,11 +701,65 @@ def _find_block_document_reference(
 
 
 @db_injector
+async def _block_document_reference_would_form_cycle(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    parent_block_document_id: UUID,
+    reference_block_document_id: UUID,
+) -> bool:
+    """Return True if adding a reference edge (parent → reference) would
+    introduce a cycle into the block_document_reference graph.
+
+    A self-reference (parent == reference) is treated as a cycle. For
+    multi-hop cases, walk forward from `reference_block_document_id` along
+    its existing reference edges and report a cycle if `parent_block_document_id`
+    is reachable.
+    """
+    if parent_block_document_id == reference_block_document_id:
+        return True
+
+    visited: set[UUID] = set()
+    stack: list[UUID] = [reference_block_document_id]
+
+    while stack:
+        current = stack.pop()
+        if current in visited:
+            continue
+        visited.add(current)
+
+        if current == parent_block_document_id:
+            return True
+
+        result = await session.execute(
+            sa.select(db.BlockDocumentReference.reference_block_document_id).where(
+                db.BlockDocumentReference.parent_block_document_id == current
+            )
+        )
+        for child_id in result.scalars().all():
+            if child_id not in visited:
+                stack.append(child_id)
+
+    return False
+
+
+@db_injector
 async def create_block_document_reference(
     db: PrefectDBInterface,
     session: AsyncSession,
     block_document_reference: schemas.actions.BlockDocumentReferenceCreate,
 ) -> Union[orm_models.BlockDocumentReference, None]:
+    if await _block_document_reference_would_form_cycle(
+        session=session,
+        parent_block_document_id=block_document_reference.parent_block_document_id,
+        reference_block_document_id=block_document_reference.reference_block_document_id,
+    ):
+        raise ValueError(
+            "Cannot create block document reference: it would introduce a "
+            "cycle into the block_document_reference graph "
+            f"(parent={block_document_reference.parent_block_document_id}, "
+            f"reference={block_document_reference.reference_block_document_id})."
+        )
+
     insert_stmt = db.queries.insert(db.BlockDocumentReference).values(
         **block_document_reference.model_dump_for_orm(
             exclude_unset=True, exclude={"created", "updated"}

@@ -32,13 +32,13 @@ export const TaskRunConcurrencyLimitsResetDialog = ({
 		resetTaskRunConcurrencyLimitTag(tag, {
 			onSuccess: () => {
 				toast.success("Concurrency limit reset");
+				onReset();
 			},
 			onError: (error) => {
 				const message =
 					error.message || "Unknown error while resetting concurrency limit.";
-				console.error(message);
+				toast.error(message);
 			},
-			onSettled: onReset,
 		});
 	};
 

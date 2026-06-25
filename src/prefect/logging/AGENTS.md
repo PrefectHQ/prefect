@@ -19,6 +19,7 @@ Public API (exported from `__init__.py`):
 Internal factories (not exported, but used by engines/workers):
 - `flow_run_logger()` / `task_run_logger()` — direct logger factories with run metadata
 - `get_worker_logger()` — adds `backend_id` if available (Cloud only)
+- `ensure_logging_setup()` — idempotent guard: calls `setup_logging()` only if `PROCESS_LOGGING_CONFIG` is not yet set. Use this (not `setup_logging()` directly) in remote execution environments (Dask/Ray workers, `hydrated_context`) where the normal SDK import path may not have triggered logging configuration.
 
 **APILogHandler drops logs without a `flow_run_id`.** Logs emitted outside a run context raise `MissingContextError`, which is caught and converted to a warning or silently dropped depending on `PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW`.
 
@@ -47,6 +48,7 @@ Key invariants:
 
 ## Non-Obvious Behaviors
 
+- **`flow_run_logger` populates `deployment_name` from env, not the API.** The `deployment_name` extra field is read from `PREFECT__DEPLOYMENT_NAME` (injected by runners/starters when launching child processes). It is `None` for non-deployment runs and for child flows that have a `parent_task_run_id`. Override via `flow_run_logger(..., deployment_name=...)`. This means `%(deployment_name)s` works in flow-run format strings without an API call — but only when the runner correctly set the env var.
 - **Subflow-in-task disambiguation:** `print_as_log()` compares `flow_run_id` between flow and task contexts when both are active — if they differ, the flow context wins (lines 340–352 in `loggers.py`).
 - **`PrefectFormatter` changes format string by logger name** — only `"prefect.flow_runs"` and `"prefect.task_runs"` get the run-specific format; all others use the default. This name check is hardcoded in `formatters.py` and must match `logging.yml`.
 - **Configuration is incremental after first load** — `setup_logging()` sets `PROCESS_LOGGING_CONFIG` on first call; subsequent calls default to `incremental=True` to avoid resetting user-added handlers.

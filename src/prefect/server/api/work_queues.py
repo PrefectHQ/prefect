@@ -78,6 +78,15 @@ async def update_work_queue(
     Updates an existing work queue.
     """
     async with db.session_context(begin_transaction=True) as session:
+        existing_work_queue = await models.work_queues.read_work_queue(
+            session=session, work_queue_id=work_queue_id
+        )
+        if existing_work_queue is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Work Queue {work_queue_id} not found",
+            )
+
         result = await models.work_queues.update_work_queue(
             session=session,
             work_queue_id=work_queue_id,
@@ -86,7 +95,8 @@ async def update_work_queue(
         )
     if not result:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=f"Work Queue {id} not found"
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Work Queue {work_queue_id} not found",
         )
 
 
@@ -239,6 +249,13 @@ async def delete_work_queue(
     Delete a work queue by id.
     """
     async with db.session_context(begin_transaction=True) as session:
+        existing_work_queue = await models.work_queues.read_work_queue(
+            session=session, work_queue_id=work_queue_id
+        )
+        if existing_work_queue is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="work queue not found"
+            )
         result = await models.work_queues.delete_work_queue(
             session=session, work_queue_id=work_queue_id
         )

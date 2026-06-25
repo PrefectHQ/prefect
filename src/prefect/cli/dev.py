@@ -84,35 +84,77 @@ def build_docs(schema_path: Optional[str] = None):
 
 @dev_app.command(name="build-ui")
 @with_cli_exception_handling
-def build_ui(no_install: bool = False):
+def build_ui(
+    no_install: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--no-install",
+            negative="",
+            help="Skip installing npm dependencies before building.",
+        ),
+    ] = False,
+    include_v2: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--include-v2",
+            negative="",
+            help="Also build the React UI v2 bundle into the Prefect package.",
+        ),
+    ] = False,
+):
     """Installs dependencies and builds UI locally. Requires npm."""
     import prefect as _prefect
     from prefect.utilities.filesystem import tmpchdir
 
     _exit_with_error_if_not_editable_install()
-    with tmpchdir(_prefect.__development_base_path__ / "ui"):
-        if not no_install:
-            _cli.console.print("Installing npm packages...")
-            try:
-                subprocess.check_output(["npm", "ci"], shell=sys.platform == "win32")
-            except Exception:
-                _cli.console.print(
-                    "npm call failed - try running `nvm use` first.", style="red"
-                )
-                raise
-            _cli.console.print("Building for distribution...")
+
+    def build_ui_bundle(
+        *,
+        label: str,
+        source_dir: str,
+        dist_dir: str,
+        target_dir: str,
+    ) -> None:
+        with tmpchdir(_prefect.__development_base_path__ / source_dir):
+            if not no_install:
+                _cli.console.print(f"Installing {label} npm packages...")
+                try:
+                    subprocess.check_output(
+                        ["npm", "ci"], shell=sys.platform == "win32"
+                    )
+                except Exception:
+                    _cli.console.print(
+                        "npm call failed - try running `nvm use` first.", style="red"
+                    )
+                    raise
+            _cli.console.print(f"Building {label} for distribution...")
             env = os.environ.copy()
             subprocess.check_output(
                 ["npm", "run", "build"], env=env, shell=sys.platform == "win32"
             )
 
-    with tmpchdir(_prefect.__development_base_path__):
-        if os.path.exists(_prefect.__ui_static_path__):
-            _cli.console.print("Removing existing build files...")
-            shutil.rmtree(_prefect.__ui_static_path__)
+        with tmpchdir(_prefect.__development_base_path__):
+            if os.path.exists(target_dir):
+                _cli.console.print(f"Removing existing {label} build files...")
+                shutil.rmtree(target_dir)
 
-        _cli.console.print("Copying build into src...")
-        shutil.copytree("ui/dist", _prefect.__ui_static_path__)
+            _cli.console.print(f"Copying {label} build into src...")
+            shutil.copytree(dist_dir, target_dir)
+
+    build_ui_bundle(
+        label="UI",
+        source_dir="ui",
+        dist_dir="ui/dist",
+        target_dir=str(_prefect.__ui_static_path__),
+    )
+
+    if include_v2:
+        build_ui_bundle(
+            label="UI v2",
+            source_dir="ui-v2",
+            dist_dir="ui-v2/dist",
+            target_dir=str(_prefect.__ui_v2_static_path__),
+        )
 
     _cli.console.print("Complete!")
 

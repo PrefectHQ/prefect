@@ -18,6 +18,7 @@ All settings are rooted in the `Settings` class in `models/root.py`, which compo
 | `flows` | `models/flows.py` | Flow behavior defaults |
 | `internal` | `models/internal.py` | Internal machinery |
 | `logging` | `models/logging.py` | Logging config (levels, API log shipping) |
+| `plugins` | `models/plugins.py` | Plugin system config (`PREFECT_PLUGINS_*`); graduated from `experiments.plugins` |
 | `results` | `models/results.py` | Result storage |
 | `runner` | `models/runner.py` | Runner/serve behavior |
 | `server` | `models/server/` | Server-side config (database, services, events, API, UI) — subdirectory with its own nested models |
@@ -103,6 +104,12 @@ SUPPORTED_SETTINGS = {
 }
 ```
 
+Also regenerate `_types.py` after adding any setting (it is auto-generated — do not edit by hand):
+
+```bash
+uv run python scripts/generate_settings_types.py
+```
+
 ## Accessing Settings
 
 ```python
@@ -111,3 +118,5 @@ from prefect.settings.context import get_current_settings
 settings = get_current_settings()
 value = settings.server.services.my_service.my_setting
 ```
+
+`temporary_settings()` accepts both legacy `Setting` objects and dotted-path string keys (e.g., `"server.api.host"`) or uppercase env var names (e.g., `"PREFECT_SERVER_API_HOST"`). Prefer string keys in new tests to avoid importing legacy `Setting` objects.

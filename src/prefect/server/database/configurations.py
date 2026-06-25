@@ -26,13 +26,13 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.pool import ConnectionPoolEntry
 from typing_extensions import TypeAlias
 
-from prefect._experimental.plugins import (
-    HookSpec,
+from prefect._internal.observability import configure_logfire
+from prefect._internal.plugins.manager import (
     build_manager,
     call_async_hook,
     load_entry_point_plugins,
 )
-from prefect._internal.observability import configure_logfire
+from prefect.plugins import HookSpec
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_TIMEOUT,
     PREFECT_API_DATABASE_ECHO,
@@ -244,8 +244,17 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             if self.timeout is not None:
                 connect_args["command_timeout"] = self.timeout
 
-            if self.connection_timeout is not None:
-                connect_args["timeout"] = self.connection_timeout
+            # In test mode, use a higher connection timeout to handle the heavy
+            # load of parallel test execution (pytest-xdist). Establishing a new
+            # asyncpg connection can occasionally take longer than the 5s default
+            # under CI load, which surfaces as a TimeoutError during fixture
+            # setup. Keep the configured value if the user has already raised it.
+            connection_timeout = self.connection_timeout
+            if PREFECT_TESTING_UNIT_TEST_MODE.value() is True:
+                connection_timeout = max(connection_timeout or 0.0, 30.0)
+
+            if connection_timeout is not None:
+                connect_args["timeout"] = connection_timeout
 
             if self.statement_cache_size is not None:
                 connect_args["statement_cache_size"] = self.statement_cache_size
@@ -287,12 +296,12 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 connect_args["ssl"] = pg_ctx
 
             # Initialize plugin manager
-            if get_current_settings().experiments.plugins.enabled:
+            if get_current_settings().plugins.enabled:
                 pm = build_manager(HookSpec)
                 load_entry_point_plugins(
                     pm,
-                    allow=get_current_settings().experiments.plugins.allow,
-                    deny=get_current_settings().experiments.plugins.deny,
+                    allow=get_current_settings().plugins.allow,
+                    deny=get_current_settings().plugins.deny,
                     logger=logging.getLogger("prefect.plugins"),
                 )
 

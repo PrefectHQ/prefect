@@ -71,7 +71,10 @@ export const queryKeyFactory = {
  */
 export const buildListFlowsQuery = (
 	filter: FlowsFilter = { offset: 0, sort: "CREATED_DESC" },
-	{ enabled = true }: { enabled?: boolean } = {},
+	{
+		enabled = true,
+		refetchInterval = 30_000,
+	}: { enabled?: boolean; refetchInterval?: number } = {},
 ) =>
 	queryOptions({
 		queryKey: queryKeyFactory.list(filter),
@@ -84,6 +87,7 @@ export const buildListFlowsQuery = (
 		staleTime: 1000,
 		placeholderData: keepPreviousData,
 		enabled,
+		refetchInterval,
 	});
 
 /**
@@ -206,7 +210,7 @@ export const buildDeploymentsCountByFlowQuery = (
 					body: { flow_ids: flowIds },
 				},
 			);
-			return (result.data ?? {}) as Record<string, number>;
+			return result.data ?? {};
 		},
 		staleTime: 1000,
 		placeholderData: keepPreviousData,
@@ -243,7 +247,7 @@ export const buildNextRunsByFlowQuery = (
 					body: { flow_ids: flowIds },
 				},
 			);
-			return (result.data ?? {}) as Record<string, SimpleNextFlowRun | null>;
+			return result.data ?? {};
 		},
 		staleTime: 1000,
 		placeholderData: keepPreviousData,

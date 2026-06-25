@@ -5,16 +5,24 @@ from __future__ import annotations
 import datetime
 import uuid
 from datetime import timedelta
+from types import SimpleNamespace
 
 import pytest
 import sqlalchemy as sa
 
 from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database.configurations import (
+    AioSqliteConfiguration,
+    AsyncPostgresConfiguration,
+)
 from prefect.server.events.schemas.events import ReceivedEvent, Resource
 from prefect.server.events.storage.database import write_events
 from prefect.server.schemas.actions import LogCreate
+from prefect.server.services import db_vacuum
 from prefect.server.services.db_vacuum import (
+    _maintenance_database_config,
+    _maintenance_session,
     vacuum_events_with_retention_overrides,
     vacuum_old_events,
     vacuum_old_flow_runs,
@@ -24,6 +32,8 @@ from prefect.server.services.db_vacuum import (
 )
 from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
+
+pytestmark = pytest.mark.clear_db
 
 
 @pytest.fixture(autouse=True)
@@ -700,3 +710,56 @@ class TestNoOp:
         await vacuum_old_flow_runs(db=db)
         await vacuum_events_with_retention_overrides(db=db)
         await vacuum_old_events(db=db)
+
+
+class TestMaintenanceSession:
+    """The maintenance session opts vacuum queries out of the API statement
+    timeout on Postgres, where bulk deletes that scan large tables would
+    otherwise be killed by asyncpg's `command_timeout`.
+    """
+
+    def setup_method(self) -> None:
+        db_vacuum._MAINTENANCE_CONFIGS.clear()
+
+    def test_postgres_config_disables_statement_timeout(self) -> None:
+        base = AsyncPostgresConfiguration(
+            connection_url="postgresql+asyncpg://u:p@host/db", timeout=10.0
+        )
+        db = SimpleNamespace(database_config=base)
+
+        config = _maintenance_database_config(db)
+
+        assert config is not None
+        assert config is not base
+        assert config.timeout is None
+        assert config.sqlalchemy_pool_size == 1
+        assert config.sqlalchemy_max_overflow == 0
+
+    def test_postgres_config_is_cached_per_url(self) -> None:
+        db = SimpleNamespace(
+            database_config=AsyncPostgresConfiguration(
+                connection_url="postgresql+asyncpg://u:p@host/db"
+            )
+        )
+
+        first = _maintenance_database_config(db)
+        second = _maintenance_database_config(db)
+
+        assert first is second
+
+    def test_non_postgres_returns_none(self) -> None:
+        db = SimpleNamespace(
+            database_config=AioSqliteConfiguration(
+                connection_url="sqlite+aiosqlite:///:memory:"
+            )
+        )
+
+        assert _maintenance_database_config(db) is None
+
+    async def test_maintenance_session_is_usable(self):
+        """The maintenance session yields a working transactional session
+        regardless of backend (falls back to the default on non-Postgres)."""
+        db = provide_database_interface()
+
+        async with _maintenance_session(db) as session:
+            assert await session.execute(sa.select(sa.literal(1))) is not None

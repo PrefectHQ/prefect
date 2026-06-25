@@ -3,6 +3,7 @@ Generic tests for `State.result`
 """
 
 import time
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -16,7 +17,7 @@ from prefect.results import (
     ResultStore,
 )
 from prefect.serializers import JSONSerializer
-from prefect.states import State, StateType
+from prefect.states import State, StateType, to_state_create
 
 
 @pytest.mark.parametrize(
@@ -79,6 +80,52 @@ async def a_real_result(store: ResultStore) -> ResultRecord[str]:
 @pytest.fixture
 def completed_state(a_real_result: ResultRecord[str]) -> State[str]:
     return State(type=StateType.COMPLETED, data=a_real_result.metadata)
+
+
+def test_to_state_create_drops_unpersisted_result_record_without_run_context(
+    tmp_path: Path,
+) -> None:
+    store = ResultStore(
+        result_storage=LocalFileSystem(basepath=tmp_path),
+        serializer=JSONSerializer(),
+    )
+    record = store.create_result_record({"answer": 42}, key="flow-result")
+    state = State(type=StateType.COMPLETED, data=record)
+
+    assert record.is_persisted is False
+    assert to_state_create(state).data is None
+
+
+def test_to_state_create_preserves_persisted_result_record_without_run_context(
+    tmp_path: Path,
+) -> None:
+    store = ResultStore(
+        result_storage=LocalFileSystem(basepath=tmp_path),
+        serializer=JSONSerializer(),
+    )
+    record = store.create_result_record({"answer": 42}, key="flow-result")
+
+    store.persist_result_record(record)
+
+    state = State(type=StateType.COMPLETED, data=record)
+    assert record.is_persisted is True
+    assert to_state_create(state).data == record.metadata
+
+
+async def test_to_state_create_preserves_async_persisted_result_record_without_run_context(
+    tmp_path: Path,
+) -> None:
+    store = ResultStore(
+        result_storage=LocalFileSystem(basepath=tmp_path),
+        serializer=JSONSerializer(),
+    )
+    record = store.create_result_record({"answer": 42}, key="flow-result")
+
+    await store.apersist_result_record(record)
+
+    state = State(type=StateType.COMPLETED, data=record)
+    assert record.is_persisted is True
+    assert to_state_create(state).data == record.metadata
 
 
 async def test_graceful_retries_are_finite_while_retrieving_missing_results(

@@ -1,13 +1,17 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import datetime
 import logging
 import multiprocessing
 import multiprocessing.context
 import os
+import signal
+import sys
 import threading
 import time
+from collections.abc import Mapping
 from contextlib import (
     AsyncExitStack,
     ExitStack,
@@ -34,12 +38,23 @@ from typing import (
 )
 from uuid import UUID
 
+import anyio
 from anyio import CancelScope
 from opentelemetry import propagate, trace
 from typing_extensions import ParamSpec
 
 from prefect import Task, __version__
+from prefect._flow_run_suspension import (
+    FlowRunSuspensionRequest,
+    is_suspended_flow_run_state,
+    observe_flow_run_suspension,
+    raise_if_flow_run_suspension_requested,
+    register_flow_run_suspension_request,
+)
 from prefect._internal.compatibility.deprecated import deprecated_callable
+from prefect._internal.control_listener import Intent, configure_from_env, get_intent
+from prefect._internal.engine import get_hook_name, resolve_custom_flow_run_name
+from prefect._internal.metrics import RunMetrics
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
@@ -62,7 +77,7 @@ from prefect.context import (
     hydrated_context,
     serialize_context,
 )
-from prefect.engine import handle_engine_signals
+from prefect.engine import _drive_run_flow_result, handle_engine_signals
 from prefect.events.related import RelatedResource, tags_as_related_resources
 from prefect.events.utilities import emit_event
 from prefect.exceptions import (
@@ -88,6 +103,8 @@ from prefect.logging.loggers import (
 )
 from prefect.results import (
     ResultStore,
+    _aget_default_persist_result,
+    _get_default_persist_result,
     get_result_store,
     should_persist_result,
 )
@@ -95,6 +112,8 @@ from prefect.settings import PREFECT_DEBUG_MODE
 from prefect.settings.context import get_current_settings
 from prefect.settings.models.root import Settings
 from prefect.states import (
+    Cancelled,
+    Cancelling,
     Failed,
     Pending,
     Running,
@@ -110,10 +129,10 @@ from prefect.telemetry.run_telemetry import (
     RunTelemetry,
 )
 from prefect.types import KeyValueLabels
-from prefect.utilities._engine import get_hook_name, resolve_custom_flow_run_name
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import (
+    _run_serialized_call,
     call_with_parameters,
     cloudpickle_wrapped_call,
     get_call_parameters,
@@ -127,6 +146,7 @@ from prefect.utilities.engine import (
     propose_state_sync,
     resolve_to_final_result,
 )
+from prefect.utilities.processutils import sanitize_subprocess_env
 from prefect.utilities.timeout import timeout, timeout_async
 from prefect.utilities.urls import url_for
 
@@ -134,6 +154,75 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 MINIMUM_HEARTBEAT_INTERVAL = 30
+_engine_logger = get_logger("engine")
+_CONTROL_CHANNEL_ENV_KEYS = frozenset(
+    {"PREFECT__CONTROL_PORT", "PREFECT__CONTROL_TOKEN"}
+)
+
+
+def _run_serialized_call_with_control_bootstrap(
+    payload: bytes,
+    startup_env: dict[str, str] | None = None,
+) -> bytes:
+    """Consume control-channel bootstrap env before deserializing payload."""
+    if startup_env:
+        os.environ.update(startup_env)
+
+    configure_from_env()
+    return _run_serialized_call(payload)
+
+
+def _runtime_subprocess_env(
+    env: Mapping[str, str | None] | None,
+) -> dict[str, str]:
+    """Remove one-shot control-channel bootstrap vars from runtime child env."""
+    sanitized_env = sanitize_subprocess_env(env)
+    return {
+        key: value
+        for key, value in sanitized_env.items()
+        if key not in _CONTROL_CHANNEL_ENV_KEYS
+    }
+
+
+def _termination_intent() -> Intent | None:
+    """Return the runner-delivered control intent for an in-flight
+    `TerminationSignal`, if any.
+
+    The single source of truth is the control listener's intent flag,
+    which the runner sets via the loopback channel before sending the kill.
+    Reading at exception-handling time (rather than via a ContextVar set
+    during the signal handler) avoids token-reset races and works uniformly
+    for the outermost flow run as well as nested subflows running in the
+    same process.
+
+    Today the only non-None value returned is `"cancel"`. A follow-up PR
+    will add `"suspend"` by extending
+    `Intent` in `prefect._internal.control_listener`; the engine's
+    `except TerminationSignal` dispatch below will gain a matching branch.
+    """
+    return get_intent()
+
+
+def _should_bubble_raw_sigterm_for_reschedule() -> bool:
+    """Return whether raw SIGTERM should bypass crash handling.
+
+    `prefect flow-run execute` supports a reschedule mode where the parent
+    process proposes `AwaitingRetry` and then sends a plain SIGTERM to the
+    child. That path does not use the control channel, so the child must not
+    reinterpret the resulting `TerminationSignal` as a crash.
+    """
+    return (
+        os.environ.get("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "").lower()
+        == "reschedule"
+    )
+
+
+def _is_async_runtime_cancellation(exc: BaseException) -> bool:
+    """Return whether an async exception represents runtime task cancellation."""
+    try:
+        return isinstance(exc, anyio.get_cancelled_exc_class())
+    except RuntimeError:
+        return False
 
 
 class FlowRunTimeoutError(TimeoutError):
@@ -146,15 +235,18 @@ def load_flow_run(flow_run_id: UUID) -> FlowRun:
     return flow_run
 
 
+def _load_flow_from_runtime_entrypoint(entrypoint: str) -> Flow[..., Any]:
+    try:
+        return load_flow_from_entrypoint(entrypoint, use_placeholder_flow=False)
+    except MissingFlowError:
+        return load_function_and_convert_to_flow(entrypoint)
+
+
 def load_flow(flow_run: FlowRun) -> Flow[..., Any]:
     entrypoint = os.environ.get("PREFECT__FLOW_ENTRYPOINT")
 
     if entrypoint:
-        # we should not accept a placeholder flow at runtime
-        try:
-            flow = load_flow_from_entrypoint(entrypoint, use_placeholder_flow=False)
-        except MissingFlowError:
-            flow = load_function_and_convert_to_flow(entrypoint)
+        flow = _load_flow_from_runtime_entrypoint(entrypoint)
     else:
         flow = run_coro_as_sync(
             load_flow_from_flow_run(flow_run, use_placeholder_flow=False)
@@ -166,6 +258,51 @@ def load_flow_and_flow_run(flow_run_id: UUID) -> tuple[FlowRun, Flow[..., Any]]:
     flow_run = load_flow_run(flow_run_id)
     flow = load_flow(flow_run)
     return flow_run, flow
+
+
+def _run_flow_from_runtime_entrypoint(flow_run_id: UUID, entrypoint: str) -> None:
+    configure_from_env()
+
+    with handle_engine_signals(flow_run_id):
+        flow_run = load_flow_run(flow_run_id=flow_run_id)
+        run_logger = flow_run_logger(flow_run=flow_run)
+
+        try:
+            flow = _load_flow_from_runtime_entrypoint(entrypoint)
+        except Exception:
+            run_logger.error(
+                "Unexpected exception encountered when trying to load flow",
+                exc_info=True,
+            )
+            raise
+
+        with RunMetrics(flow_run, flow):
+            run_result = run_flow(flow, flow_run=flow_run, error_logger=run_logger)
+            _drive_run_flow_result(flow, run_result)
+
+
+def _main(argv: list[str] | None = None) -> int:
+    args = sys.argv[1:] if argv is None else argv
+    if len(args) != 1:
+        _engine_logger.error(
+            "Invalid flow entrypoint. Expected one argument; received: %s", args
+        )
+        return 1
+
+    flow_run_id_value = os.environ.get("PREFECT__FLOW_RUN_ID")
+    try:
+        flow_run_id = UUID(flow_run_id_value) if flow_run_id_value else None
+    except ValueError:
+        flow_run_id = None
+
+    if flow_run_id is None:
+        _engine_logger.error(
+            "Invalid flow run id. Expected PREFECT__FLOW_RUN_ID to contain a UUID."
+        )
+        return 1
+
+    _run_flow_from_runtime_entrypoint(flow_run_id, args[0])
+    return 0
 
 
 @contextmanager
@@ -219,7 +356,19 @@ def _send_heartbeats(
                     return
                 time.sleep(1)
 
-    thread = threading.Thread(target=heartbeat_loop, daemon=True)
+    # Copy the current context so the heartbeat thread sees the same
+    # `SettingsContext` (and therefore the same `PREFECT_API_URL`) as the
+    # calling thread. Without this, `threading.Thread` starts with an empty
+    # context and `SettingsContext.get()` falls back to the process-wide
+    # `GLOBAL_SETTINGS_CONTEXT`, which is initialized at import time and can
+    # have a stale `api.url=None`. That caused `EventsWorker.instance()` from
+    # the heartbeat path to spawn an ephemeral `SubprocessASGIServer` during
+    # flow teardown, racing with interpreter shutdown and aborting the
+    # process.
+    heartbeat_ctx = contextvars.copy_context()
+    thread = threading.Thread(
+        target=heartbeat_ctx.run, args=(heartbeat_loop,), daemon=True
+    )
     thread.start()
     engine.logger.debug("Started flow run heartbeat context")
 
@@ -272,7 +421,11 @@ class BaseFlowRunEngine(Generic[P, R]):
     _is_started: bool = False
     short_circuit: bool = False
     _flow_run_name_set: bool = False
+    _started_with_in_process_parent_flow_run_context: bool = False
     _telemetry: RunTelemetry = field(default_factory=RunTelemetry)
+    _flow_run_suspension_request: FlowRunSuspensionRequest = field(
+        default_factory=FlowRunSuspensionRequest
+    )
 
     def __post_init__(self) -> None:
         if self.flow is None and self.flow_run_id is None:
@@ -411,6 +564,56 @@ class BaseFlowRunEngine(Generic[P, R]):
                         f"Tried to set traceparent {carrier[TRACEPARENT_KEY]} for flow run, but None was found"
                     )
 
+    def _engine_owns_cancellation_and_crash_handling(self) -> bool:
+        """Return whether this engine owns cancel/crash handling.
+
+        Runner-managed subprocesses set `PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS=false`
+        and execute those hooks plus terminal cancellation state proposals
+        externally after the child exits. Same-process nested subflows are
+        the exception: no external runner fires their hooks or owns their
+        cancellation state, so the engine must ignore the env suppression
+        only when it started inside a non-detached parent `FlowRunContext`.
+        Top-level non-runner flows also fall through to engine ownership
+        because the env defaults to enabled.
+        """
+
+        return self._started_with_in_process_parent_flow_run_context or (
+            os.environ.get(
+                "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true"
+            ).lower()
+            == "true"
+        )
+
+    def _get_flow_run_suspension_request(self) -> FlowRunSuspensionRequest:
+        parent_flow_run_context = FlowRunContext.get()
+        if parent_flow_run_context:
+            return parent_flow_run_context.flow_run_suspension_request
+        return self._flow_run_suspension_request
+
+    @contextmanager
+    def setup_flow_run_suspension_request(
+        self,
+    ) -> Generator[FlowRunSuspensionRequest, None, None]:
+        if not self.flow_run:
+            raise ValueError("Flow run not set")
+
+        flow_run_suspension_request = self._get_flow_run_suspension_request()
+        with ExitStack() as stack:
+            stack.enter_context(
+                register_flow_run_suspension_request(
+                    self.flow_run.id, flow_run_suspension_request
+                )
+            )
+            if self.flow_run.deployment_id:
+                stack.enter_context(
+                    observe_flow_run_suspension(
+                        self.flow_run.id, flow_run_suspension_request
+                    )
+                )
+
+            flow_run_suspension_request.raise_if_requested()
+            yield flow_run_suspension_request
+
 
 @dataclass
 class FlowRunEngine(BaseFlowRunEngine[P, R]):
@@ -495,6 +698,33 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 )
                 self.short_circuit = True
 
+        if (
+            not self.short_circuit
+            and not self._flow_run_name_set
+            and self.flow.flow_run_name
+        ):
+            if self.flow_run is None:
+                raise ValueError("Flow run not set")
+
+            with FlowRunContext(
+                flow=self.flow,
+                flow_run=self.flow_run,
+                parameters=self.parameters,
+                client=self.client,
+                task_runner=self.flow.task_runner,
+                result_store=get_result_store().update_for_flow(self.flow, _sync=True),
+            ):
+                flow_run_name = resolve_custom_flow_run_name(
+                    flow=self.flow, parameters=self.parameters or {}
+                )
+            self.client.set_flow_run_name(
+                flow_run_id=self.flow_run.id, name=flow_run_name
+            )
+            self.flow_run.name = flow_run_name
+            self._flow_run_name_set = True
+            self._telemetry.update_run_name(name=flow_run_name)
+
+        self._get_flow_run_suspension_request().raise_if_requested()
         new_state = Running()
         state = self.set_state(new_state)
         while state.is_pending():
@@ -547,6 +777,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         return _result
 
     def handle_success(self, result: R) -> R:
+        raise_if_flow_run_suspension_requested()
         result_store = getattr(FlowRunContext.get(), "result_store", None)
         if result_store is None:
             raise ValueError("Result store is not set")
@@ -558,6 +789,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 write_result=should_persist_result(),
             )
         )
+        raise_if_flow_run_suspension_requested()
         self.set_state(terminal_state)
         self._return_value = resolved_result
 
@@ -580,6 +812,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         msg: Optional[str] = None,
         result_store: Optional[ResultStore] = None,
     ) -> State:
+        self._get_flow_run_suspension_request().raise_if_requested()
         context = FlowRunContext.get()
         terminal_state = cast(
             State,
@@ -592,6 +825,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 )
             ),
         )
+        self._get_flow_run_suspension_request().raise_if_requested()
         state = self.set_state(terminal_state)
         if self.state.is_scheduled():
             self.logger.info(
@@ -600,6 +834,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     f" state {terminal_state.name!r} and will attempt to run again..."
                 ),
             )
+            self._get_flow_run_suspension_request().raise_if_requested()
             state = self.set_state(Running())
         self._raised = exc
         self._telemetry.record_exception(exc)
@@ -615,6 +850,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         else:
             message = f"Flow run failed due to timeout: {exc!r}"
         self.logger.error(message)
+        self._get_flow_run_suspension_request().raise_if_requested()
         state = Failed(
             data=exc,
             message=message,
@@ -626,6 +862,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 f"Received non-final state {self.state.name!r} when proposing final"
                 f" state {state.name!r} and will attempt to run again..."
             )
+            self._get_flow_run_suspension_request().raise_if_requested()
             self.set_state(Running())
             return
         self._raised = exc
@@ -641,6 +878,27 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         self._telemetry.record_exception(exc)
         self._telemetry.end_span_on_failure(state.message if state else None)
 
+    def handle_cancellation(self, exc: BaseException) -> None:
+        """Force this run through Cancelling -> Cancelled.
+
+        Used when `capture_sigterm` has determined (via the cancellation
+        listener) that the SIGTERM was the runner asking for cancellation,
+        not an unrelated termination. Transitioning through Cancelling first
+        The same ownership rule also governs `on_cancellation` / `on_crashed`
+        hooks: if the engine owns cancellation/crash handling, it must
+        drive the `Cancelling -> Cancelled` transitions locally; if an
+        external runner owns them, the child should avoid duplicating
+        state history.
+        """
+        msg = "Flow run was cancelled."
+        self.logger.info(msg)
+        if self._engine_owns_cancellation_and_crash_handling():
+            self.set_state(Cancelling(message=msg), force=True)
+            self.set_state(Cancelled(message=msg), force=True)
+        self._raised = exc
+        self._telemetry.record_exception(exc)
+        self._telemetry.end_span_on_failure(msg)
+
     def load_subflow_run(
         self,
         parent_task_run: TaskRun,
@@ -651,10 +909,15 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         This method attempts to load an existing flow run for a subflow task
         run, if appropriate.
 
-        If the parent task run is in a final but not COMPLETED state, and not
-        being rerun, then we attempt to load an existing flow run instead of
-        creating a new one. This will prevent the engine from running the
-        subflow again.
+        If the parent task run is in a final state, we return the existing
+        subflow run to avoid re-execution (unless the parent is being rerun
+        and the subflow did not complete, in which case a fresh run is
+        desired).
+
+        If the parent task run is in a non-final state (e.g. still Running
+        after a process restart), we also look for an existing subflow run
+        to reattach to, preventing duplicate subflow runs from being created
+        under the same parent task run.
 
         If no existing flow run is found, or if the subflow should be rerun,
         then no flow run is returned.
@@ -668,27 +931,32 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             else False
         )
 
-        # if the parent task run is in a final but not completed state, and
-        # not rerunning, then retrieve the most recent flow run instead of
-        # creating a new one. This effectively loads a cached flow run for
-        # situations where we are confident the flow should not be run
-        # again.
         assert isinstance(parent_task_run.state, State)
-        if parent_task_run.state.is_final() and not (
-            rerunning and not parent_task_run.state.is_completed()
+
+        # If the user explicitly triggered a re-run and the subflow did not
+        # complete, allow a fresh subflow to be created.
+        if (
+            parent_task_run.state.is_final()
+            and rerunning
+            and not parent_task_run.state.is_completed()
         ):
-            # return the most recent flow run, if it exists
-            flow_runs = client.read_flow_runs(
-                flow_run_filter=FlowRunFilter(
-                    parent_task_run_id={"any_": [parent_task_run.id]}
-                ),
-                sort=FlowRunSort.EXPECTED_START_TIME_ASC,
-                limit=1,
-            )
-            if flow_runs:
-                loaded_flow_run = flow_runs[-1]
+            return None
+
+        # Look for an existing subflow run attached to this parent task run.
+        flow_runs = client.read_flow_runs(
+            flow_run_filter=FlowRunFilter(
+                parent_task_run_id={"any_": [parent_task_run.id]}
+            ),
+            sort=FlowRunSort.EXPECTED_START_TIME_DESC,
+            limit=1,
+        )
+        if flow_runs:
+            loaded_flow_run = flow_runs[0]
+            # When the parent task run is final the subflow has already
+            # finished; cache the result so the engine skips re-execution.
+            if parent_task_run.state.is_final():
                 self._return_value = loaded_flow_run.state
-                return loaded_flow_run
+            return loaded_flow_run
 
     def create_flow_run(self, client: SyncPrefectClient) -> FlowRun:
         flow_run_ctx = FlowRunContext.get()
@@ -698,10 +966,13 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
         # this is a subflow run
         if flow_run_ctx:
+            raise_if_flow_run_suspension_requested()
+
             # add a task to a parent flow run that represents the execution of a subflow run
             parent_task = Task(
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
+            setattr(parent_task, "_is_subflow_tracking_task", True)
 
             parent_task_run = run_coro_as_sync(
                 parent_task.create_run(
@@ -734,11 +1005,8 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         if not flow_run:
             raise ValueError("Flow run is not set")
 
-        enable_cancellation_and_crashed_hooks = (
-            os.environ.get(
-                "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true"
-            ).lower()
-            == "true"
+        engine_owns_cancellation_and_crash_handling = (
+            self._engine_owns_cancellation_and_crash_handling()
         )
 
         if state.is_failed() and flow.on_failure_hooks:
@@ -746,13 +1014,13 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         elif state.is_completed() and flow.on_completion_hooks:
             hooks = flow.on_completion_hooks
         elif (
-            enable_cancellation_and_crashed_hooks
+            engine_owns_cancellation_and_crash_handling
             and state.is_cancelling()
             and flow.on_cancellation_hooks
         ):
             hooks = flow.on_cancellation_hooks
         elif (
-            enable_cancellation_and_crashed_hooks
+            engine_owns_cancellation_and_crash_handling
             and state.is_crashed()
             and flow.on_crashed_hooks
         ):
@@ -794,6 +1062,9 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
         self.flow_run = client.read_flow_run(self.flow_run.id)
         log_prints = should_log_prints(self.flow)
+        flow_run_suspension_request = self._get_flow_run_suspension_request()
+        if (state := self.flow_run.state) and is_suspended_flow_run_state(state):
+            flow_run_suspension_request.mark_requested(state)
 
         with ExitStack() as stack:
             # TODO: Explore closing task runner before completing the flow to
@@ -802,6 +1073,12 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             if log_prints:
                 stack.enter_context(patch_print())
             task_runner = stack.enter_context(self.flow.task_runner.duplicate())
+            result_store = get_result_store().update_for_flow(self.flow, _sync=True)
+            persist_result = (
+                self.flow.persist_result
+                if self.flow.persist_result is not None
+                else _get_default_persist_result()
+            )
             stack.enter_context(
                 FlowRunContext(
                     flow=self.flow,
@@ -809,13 +1086,10 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     flow_run=self.flow_run,
                     parameters=self.parameters,
                     client=client,
-                    result_store=get_result_store().update_for_flow(
-                        self.flow, _sync=True
-                    ),
+                    result_store=result_store,
                     task_runner=task_runner,
-                    persist_result=self.flow.persist_result
-                    if self.flow.persist_result is not None
-                    else should_persist_result(),
+                    persist_result=persist_result,
+                    flow_run_suspension_request=flow_run_suspension_request,
                 )
             )
             # Set deployment context vars only if this is the top-level deployment run
@@ -882,6 +1156,11 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         Enters a client context and creates a flow run if needed.
         """
         with hydrated_context(self.context):
+            parent_flow_run_context = FlowRunContext.get()
+            self._started_with_in_process_parent_flow_run_context = (
+                parent_flow_run_context is not None
+                and not parent_flow_run_context.detached
+            )
             with SyncClientContext.get_or_create() as client_ctx:
                 self._client = client_ctx.client
                 self._is_started = True
@@ -915,7 +1194,26 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
                 except TerminationSignal as exc:
                     self.cancel_all_tasks()
-                    self.handle_crash(exc)
+                    intent = _termination_intent()
+                    if intent == "cancel":
+                        self.handle_cancellation(exc)
+                    elif intent is None:
+                        if _should_bubble_raw_sigterm_for_reschedule():
+                            raise
+                        self.handle_crash(exc)
+                    else:
+                        # Defensive: an unknown intent means the control
+                        # listener was extended (e.g. "suspend" in a
+                        # follow-up PR) without extending this dispatch.
+                        # Treat as crash so the flow run still reaches a
+                        # terminal state rather than silently hanging.
+                        self.logger.error(
+                            "Unhandled termination intent %r; treating as"
+                            " crash. A follow-up PR needs to add a matching"
+                            " dispatch branch.",
+                            intent,
+                        )
+                        self.handle_crash(exc)
                     raise
                 except Exception:
                     # regular exceptions are caught and re-raised to the user
@@ -967,15 +1265,17 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                 if self._telemetry.span
                 else nullcontext()
             ):
-                self.begin_run()
+                with self.setup_flow_run_suspension_request():
+                    self.begin_run()
 
-                yield
+                    yield
 
     @contextmanager
     def run_context(self):
         timeout_context = timeout_async if self.flow.isasync else timeout
         # reenter the run context to ensure it is up to date for every run
         with self.setup_run_context():
+            raise_if_flow_run_suspension_requested()
             try:
                 with timeout_context(
                     seconds=self.flow.timeout_seconds,
@@ -1099,6 +1399,33 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 )
                 self.short_circuit = True
 
+        if (
+            not self.short_circuit
+            and not self._flow_run_name_set
+            and self.flow.flow_run_name
+        ):
+            if self.flow_run is None:
+                raise ValueError("Flow run not set")
+
+            with FlowRunContext(
+                flow=self.flow,
+                flow_run=self.flow_run,
+                parameters=self.parameters,
+                client=self.client,
+                task_runner=self.flow.task_runner,
+                result_store=get_result_store().update_for_flow(self.flow, _sync=True),
+            ):
+                flow_run_name = resolve_custom_flow_run_name(
+                    flow=self.flow, parameters=self.parameters or {}
+                )
+            await self.client.set_flow_run_name(
+                flow_run_id=self.flow_run.id, name=flow_run_name
+            )
+            self.flow_run.name = flow_run_name
+            self._flow_run_name_set = True
+            self._telemetry.update_run_name(name=flow_run_name)
+
+        self._get_flow_run_suspension_request().raise_if_requested()
         new_state = Running()
         state = await self.set_state(new_state)
         while state.is_pending():
@@ -1150,6 +1477,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         return await self.state.aresult(raise_on_failure=raise_on_failure)  # type: ignore
 
     async def handle_success(self, result: R) -> R:
+        raise_if_flow_run_suspension_requested()
         result_store = getattr(FlowRunContext.get(), "result_store", None)
         if result_store is None:
             raise ValueError("Result store is not set")
@@ -1159,6 +1487,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             result_store=result_store,
             write_result=should_persist_result(),
         )
+        raise_if_flow_run_suspension_requested()
         await self.set_state(terminal_state)
         self._return_value = resolved_result
 
@@ -1180,6 +1509,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         msg: Optional[str] = None,
         result_store: Optional[ResultStore] = None,
     ) -> State:
+        self._get_flow_run_suspension_request().raise_if_requested()
         context = FlowRunContext.get()
         terminal_state = cast(
             State,
@@ -1190,6 +1520,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 write_result=True,
             ),
         )
+        self._get_flow_run_suspension_request().raise_if_requested()
         state = await self.set_state(terminal_state)
         if self.state.is_scheduled():
             self.logger.info(
@@ -1198,6 +1529,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     f" state {terminal_state.name!r} and will attempt to run again..."
                 ),
             )
+            self._get_flow_run_suspension_request().raise_if_requested()
             state = await self.set_state(Running())
         self._raised = exc
         self._telemetry.record_exception(exc)
@@ -1213,6 +1545,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         else:
             message = f"Flow run failed due to timeout: {exc!r}"
         self.logger.error(message)
+        self._get_flow_run_suspension_request().raise_if_requested()
         state = Failed(
             data=exc,
             message=message,
@@ -1224,6 +1557,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 f"Received non-final state {self.state.name!r} when proposing final"
                 f" state {state.name!r} and will attempt to run again..."
             )
+            self._get_flow_run_suspension_request().raise_if_requested()
             await self.set_state(Running())
             return
         self._raised = exc
@@ -1244,6 +1578,23 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             self._telemetry.record_exception(exc)
             self._telemetry.end_span_on_failure(state.message)
 
+    async def handle_cancellation(self, exc: BaseException) -> None:
+        """Force this run through Cancelling -> Cancelled.
+
+        Async counterpart to `FlowRunEngine.handle_cancellation`. Shielded
+        from asyncio cancellation so engine-owned transitions always reach
+        the server.
+        """
+        with CancelScope(shield=True):
+            msg = "Flow run was cancelled."
+            self.logger.info(msg)
+            if self._engine_owns_cancellation_and_crash_handling():
+                await self.set_state(Cancelling(message=msg), force=True)
+                await self.set_state(Cancelled(message=msg), force=True)
+            self._raised = exc
+            self._telemetry.record_exception(exc)
+            self._telemetry.end_span_on_failure(msg)
+
     async def load_subflow_run(
         self,
         parent_task_run: TaskRun,
@@ -1254,10 +1605,15 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         This method attempts to load an existing flow run for a subflow task
         run, if appropriate.
 
-        If the parent task run is in a final but not COMPLETED state, and not
-        being rerun, then we attempt to load an existing flow run instead of
-        creating a new one. This will prevent the engine from running the
-        subflow again.
+        If the parent task run is in a final state, we return the existing
+        subflow run to avoid re-execution (unless the parent is being rerun
+        and the subflow did not complete, in which case a fresh run is
+        desired).
+
+        If the parent task run is in a non-final state (e.g. still Running
+        after a process restart), we also look for an existing subflow run
+        to reattach to, preventing duplicate subflow runs from being created
+        under the same parent task run.
 
         If no existing flow run is found, or if the subflow should be rerun,
         then no flow run is returned.
@@ -1271,27 +1627,32 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             else False
         )
 
-        # if the parent task run is in a final but not completed state, and
-        # not rerunning, then retrieve the most recent flow run instead of
-        # creating a new one. This effectively loads a cached flow run for
-        # situations where we are confident the flow should not be run
-        # again.
         assert isinstance(parent_task_run.state, State)
-        if parent_task_run.state.is_final() and not (
-            rerunning and not parent_task_run.state.is_completed()
+
+        # If the user explicitly triggered a re-run and the subflow did not
+        # complete, allow a fresh subflow to be created.
+        if (
+            parent_task_run.state.is_final()
+            and rerunning
+            and not parent_task_run.state.is_completed()
         ):
-            # return the most recent flow run, if it exists
-            flow_runs = await client.read_flow_runs(
-                flow_run_filter=FlowRunFilter(
-                    parent_task_run_id={"any_": [parent_task_run.id]}
-                ),
-                sort=FlowRunSort.EXPECTED_START_TIME_ASC,
-                limit=1,
-            )
-            if flow_runs:
-                loaded_flow_run = flow_runs[-1]
+            return None
+
+        # Look for an existing subflow run attached to this parent task run.
+        flow_runs = await client.read_flow_runs(
+            flow_run_filter=FlowRunFilter(
+                parent_task_run_id={"any_": [parent_task_run.id]}
+            ),
+            sort=FlowRunSort.EXPECTED_START_TIME_DESC,
+            limit=1,
+        )
+        if flow_runs:
+            loaded_flow_run = flow_runs[0]
+            # When the parent task run is final the subflow has already
+            # finished; cache the result so the engine skips re-execution.
+            if parent_task_run.state.is_final():
                 self._return_value = loaded_flow_run.state
-                return loaded_flow_run
+            return loaded_flow_run
 
     async def create_flow_run(self, client: PrefectClient) -> FlowRun:
         flow_run_ctx = FlowRunContext.get()
@@ -1301,10 +1662,13 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
 
         # this is a subflow run
         if flow_run_ctx:
+            raise_if_flow_run_suspension_requested()
+
             # add a task to a parent flow run that represents the execution of a subflow run
             parent_task = Task(
                 name=self.flow.name, fn=self.flow.fn, version=self.flow.version
             )
+            setattr(parent_task, "_is_subflow_tracking_task", True)
 
             parent_task_run = await parent_task.create_run(
                 flow_run_context=flow_run_ctx,
@@ -1335,11 +1699,8 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         if not flow_run:
             raise ValueError("Flow run is not set")
 
-        enable_cancellation_and_crashed_hooks = (
-            os.environ.get(
-                "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "true"
-            ).lower()
-            == "true"
+        engine_owns_cancellation_and_crash_handling = (
+            self._engine_owns_cancellation_and_crash_handling()
         )
 
         if state.is_failed() and flow.on_failure_hooks:
@@ -1347,13 +1708,13 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         elif state.is_completed() and flow.on_completion_hooks:
             hooks = flow.on_completion_hooks
         elif (
-            enable_cancellation_and_crashed_hooks
+            engine_owns_cancellation_and_crash_handling
             and state.is_cancelling()
             and flow.on_cancellation_hooks
         ):
             hooks = flow.on_cancellation_hooks
         elif (
-            enable_cancellation_and_crashed_hooks
+            engine_owns_cancellation_and_crash_handling
             and state.is_crashed()
             and flow.on_crashed_hooks
         ):
@@ -1395,6 +1756,9 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
 
         self.flow_run = await client.read_flow_run(self.flow_run.id)
         log_prints = should_log_prints(self.flow)
+        flow_run_suspension_request = self._get_flow_run_suspension_request()
+        if (state := self.flow_run.state) and is_suspended_flow_run_state(state):
+            flow_run_suspension_request.mark_requested(state)
 
         async with AsyncExitStack() as stack:
             # TODO: Explore closing task runner before completing the flow to
@@ -1403,6 +1767,12 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             if log_prints:
                 stack.enter_context(patch_print())
             task_runner = stack.enter_context(self.flow.task_runner.duplicate())
+            result_store = get_result_store().update_for_flow(self.flow, _sync=True)
+            persist_result = (
+                self.flow.persist_result
+                if self.flow.persist_result is not None
+                else await _aget_default_persist_result()
+            )
             stack.enter_context(
                 FlowRunContext(
                     flow=self.flow,
@@ -1410,13 +1780,10 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     flow_run=self.flow_run,
                     parameters=self.parameters,
                     client=client,
-                    result_store=get_result_store().update_for_flow(
-                        self.flow, _sync=True
-                    ),
+                    result_store=result_store,
                     task_runner=task_runner,
-                    persist_result=self.flow.persist_result
-                    if self.flow.persist_result is not None
-                    else should_persist_result(),
+                    persist_result=persist_result,
+                    flow_run_suspension_request=flow_run_suspension_request,
                 )
             )
             # Set deployment context vars only if this is the top-level deployment run
@@ -1481,6 +1848,11 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         Enters a client context and creates a flow run if needed.
         """
         with hydrated_context(self.context):
+            parent_flow_run_context = FlowRunContext.get()
+            self._started_with_in_process_parent_flow_run_context = (
+                parent_flow_run_context is not None
+                and not parent_flow_run_context.detached
+            )
             async with AsyncClientContext.get_or_create() as client_ctx:
                 self._client = client_ctx.client
                 self._is_started = True
@@ -1520,7 +1892,22 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
 
                 except TerminationSignal as exc:
                     self.cancel_all_tasks()
-                    await self.handle_crash(exc)
+                    intent = _termination_intent()
+                    if intent == "cancel":
+                        await self.handle_cancellation(exc)
+                    elif intent is None:
+                        if _should_bubble_raw_sigterm_for_reschedule():
+                            raise
+                        await self.handle_crash(exc)
+                    else:
+                        # Defensive: see sync engine's dispatch for why.
+                        self.logger.error(
+                            "Unhandled termination intent %r; treating as"
+                            " crash. A follow-up PR needs to add a matching"
+                            " dispatch branch.",
+                            intent,
+                        )
+                        await self.handle_crash(exc)
                     raise
                 except Exception:
                     # regular exceptions are caught and re-raised to the user
@@ -1535,6 +1922,20 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     # Do not capture generator exits as crashes
                     raise
                 except BaseException as exc:
+                    if (
+                        _is_async_runtime_cancellation(exc)
+                        and _termination_intent() == "cancel"
+                    ):
+                        if self.flow_run.state and not self.flow_run.state.is_final():
+                            await self.handle_cancellation(exc)
+                            raise TerminationSignal(signal.SIGTERM) from exc
+                        else:
+                            self.logger.debug(
+                                "Async cancellation was raised after user code"
+                                " finished executing",
+                                exc_info=exc,
+                            )
+                            raise
                     # We don't want to crash a flow run if the user code finished executing
                     if self.flow_run.state and not self.flow_run.state.is_final():
                         # BaseExceptions are caught and handled as crashes
@@ -1574,15 +1975,17 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                 if self._telemetry.span
                 else nullcontext()
             ):
-                await self.begin_run()
+                with self.setup_flow_run_suspension_request():
+                    await self.begin_run()
 
-                yield
+                    yield
 
     @asynccontextmanager
     async def run_context(self):
         timeout_context = timeout_async if self.flow.isasync else timeout
         # reenter the run context to ensure it is up to date for every run
         async with self.setup_run_context():
+            raise_if_flow_run_suspension_requested()
             try:
                 with timeout_context(
                     seconds=self.flow.timeout_seconds,
@@ -1796,13 +2199,18 @@ def run_flow(
                 "Engine execution exited with unexpected exception", exc_info=True
             )
         raise
-    except BaseException:
+    except BaseException as exc:
         # This top-level wrapper can fail before setup_run_context() installs
         # the flow-run-scoped logger onto the engine.  This branch
         # intentionally preserves per-run error logging for interrupts such
         # as KeyboardInterrupt and SystemExit that would otherwise bypass
-        # the Exception handler above.
-        if error_logger:
+        # the Exception handler above. Runner-delivered control intents
+        # (cancel today; suspend in a follow-up) already have dedicated
+        # engine handling, so logging them again here is just noisy.
+        is_control_termination = isinstance(exc, TerminationSignal) and (
+            _termination_intent() is not None
+        )
+        if error_logger and not is_control_termination:
             error_logger.error(
                 "Engine execution interrupted by base exception", exc_info=True
             )
@@ -1833,7 +2241,7 @@ def run_flow_in_subprocess(
     parameters: dict[str, Any] | None = None,
     wait_for: Iterable[PrefectFuture[Any]] | None = None,
     context: dict[str, Any] | None = None,
-    env: dict[str, str] | None = None,
+    env: dict[str, str | None] | None = None,
 ) -> multiprocessing.context.SpawnProcess:
     """
     Run a flow in a subprocess.
@@ -1860,13 +2268,16 @@ def run_flow_in_subprocess(
     @wraps(run_flow)
     def run_flow_with_env(
         *args: Any,
-        env: dict[str, str] | None = None,
+        env: dict[str, str | None] | None = None,
+        remove_env: set[str] | None = None,
         **kwargs: Any,
     ):
         """
         Wrapper function to update environment variables and settings before running the flow.
         """
-        os.environ.update(env or {})
+        for key in remove_env or ():
+            os.environ.pop(key, None)
+        os.environ.update(_runtime_subprocess_env(env))
         settings_context = get_settings_context()
         # Create a new settings context with a new settings object to pick up the updated
         # environment variables
@@ -1884,24 +2295,41 @@ def run_flow_in_subprocess(
     ctx = multiprocessing.get_context("spawn")
 
     context = context or serialize_context()
+    merged_env: dict[str, str | None] = (
+        get_current_settings().to_environment_variables(exclude_unset=True)
+        | os.environ
+        | {
+            # TODO: make this a thing we can pass into the engine
+            "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
+        }
+        | (env or {})
+    )
+    sanitized_merged_env = sanitize_subprocess_env(merged_env)
+    runtime_env = _runtime_subprocess_env(sanitized_merged_env)
+    startup_env = {
+        key: value
+        for key, value in sanitized_merged_env.items()
+        if key in _CONTROL_CHANNEL_ENV_KEYS
+    }
+    wrapped_call = cloudpickle_wrapped_call(
+        run_flow_with_env,
+        env=runtime_env,
+        remove_env={key for key, value in merged_env.items() if value is None},
+        flow=flow,
+        flow_run=flow_run,
+        parameters=parameters,
+        wait_for=wait_for,
+        context=context,
+    )
 
     process = ctx.Process(
-        target=cloudpickle_wrapped_call(
-            run_flow_with_env,
-            env=get_current_settings().to_environment_variables(exclude_unset=True)
-            | os.environ
-            | {
-                # TODO: make this a thing we can pass into the engine
-                "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS": "false",
-            }
-            | (env or {}),
-            flow=flow,
-            flow_run=flow_run,
-            parameters=parameters,
-            wait_for=wait_for,
-            context=context,
-        ),
+        target=_run_serialized_call_with_control_bootstrap,
+        args=(cast(bytes, wrapped_call.args[0]), startup_env),
     )
     process.start()
 
     return process
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())

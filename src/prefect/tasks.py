@@ -41,6 +41,7 @@ from typing_extensions import (
 )
 
 import prefect.states
+from prefect._flow_run_suspension import raise_if_flow_run_suspension_requested
 from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.uuid7 import uuid7
 from prefect.assets import Asset
@@ -245,6 +246,8 @@ def _infer_parent_task_runs(
     # there is an active flow run context because dependencies are only
     # tracked within the same flow run.
     if flow_run_context:
+        from prefect.utilities.engine import get_state_for_result
+
         for v in parameters.values():
             upstream_state = None
 
@@ -253,7 +256,9 @@ def _infer_parent_task_runs(
             elif isinstance(v, PrefectFuture):
                 upstream_state = v.state
             else:
-                res = flow_run_context.run_results.get(id(v))
+                # Route through the central lookup so identity
+                # verification (#20558) is applied to every read site.
+                res = get_state_for_result(v)
                 if res:
                     upstream_state, _ = res
 
@@ -879,7 +884,7 @@ class Task(Generic[P, R]):
         extra_task_inputs: Optional[dict[str, set[RunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
-        from prefect.utilities._engine import dynamic_key_for_task_run
+        from prefect._internal.engine import dynamic_key_for_task_run
         from prefect.utilities.engine import collect_task_run_inputs_sync
 
         if flow_run_context is None:
@@ -895,6 +900,19 @@ class Task(Generic[P, R]):
             if not flow_run_context:
                 dynamic_key = f"{self.task_key}-{str(uuid4().hex)}"
                 task_run_name = self.name
+            elif (
+                getattr(self, "_is_subflow_tracking_task", False)
+                and parent_task_run_context
+                and flow_run_context.flow_run
+                and parent_task_run_context.task_run.flow_run_id
+                == flow_run_context.flow_run.id
+            ):
+                # Subflows called from a task context need UUID keys because
+                # sibling call order is not a reliable identity across retries.
+                dynamic_key = dynamic_key_for_task_run(
+                    context=flow_run_context, task=self, stable=False
+                )
+                task_run_name = f"{self.name}-{dynamic_key}"
             else:
                 dynamic_key = dynamic_key_for_task_run(
                     context=flow_run_context, task=self
@@ -982,7 +1000,7 @@ class Task(Generic[P, R]):
         extra_task_inputs: Optional[dict[str, set[RunInput]]] = None,
         deferred: bool = False,
     ) -> TaskRun:
-        from prefect.utilities._engine import dynamic_key_for_task_run
+        from prefect._internal.engine import dynamic_key_for_task_run
         from prefect.utilities.engine import (
             collect_task_run_inputs_sync,
         )
@@ -1387,6 +1405,8 @@ class Task(Generic[P, R]):
                 "`task.submit()` is not currently supported by `flow.visualize()`"
             )
 
+        raise_if_flow_run_suspension_requested()
+
         task_runner = flow_run_context.task_runner
         future = task_runner.submit(self, parameters, wait_for)
         if return_state:
@@ -1609,12 +1629,14 @@ class Task(Generic[P, R]):
                 "`task.map()` is not currently supported by `flow.visualize()`"
             )
 
+        raise_if_flow_run_suspension_requested()
+
         if deferred:
             parameters_list = expand_mapping_parameters(self.fn, parameters)
-            futures = [
+            futures = PrefectFutureList(
                 self.apply_async(kwargs=parameters, wait_for=wait_for)
                 for parameters in parameters_list
-            ]
+            )
         elif task_runner := getattr(flow_run_context, "task_runner", None):
             assert isinstance(task_runner, TaskRunner)
             futures = task_runner.map(self, parameters, wait_for)
@@ -1724,6 +1746,8 @@ class Task(Generic[P, R]):
 
         # Convert the call args/kwargs to a parameter dict
         parameters = get_call_parameters(self.fn, args, kwargs)
+
+        raise_if_flow_run_suspension_requested()
 
         task_run: TaskRun = run_coro_as_sync(
             self.create_run(

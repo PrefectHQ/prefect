@@ -16,11 +16,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * Schema for validating URL search parameters for the events page.
- * Uses existing parameter names (resource, event) for compatibility with API infrastructure.
+ * Uses `events` (plural) to match the V1 URL param for backward compatibility.
  */
 const searchParams = z.object({
 	resource: z.array(z.string()).optional(),
-	event: z.array(z.string()).optional(),
+	events: z.array(z.string()).optional(),
 	rangeType: z.enum(["span", "range"]).optional().default("span"),
 	seconds: z.number().optional().default(-86400),
 	start: z.string().optional(),

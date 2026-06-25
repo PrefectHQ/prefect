@@ -32,9 +32,12 @@ from prefect.server.database import (
     orm_models,
     provide_database_interface,
 )
+from prefect.server.events import clients
 from prefect.server.events.clients import PrefectServerEventsClient
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.models.events import (
+    work_queue_created_event,
+    work_queue_deleted_event,
     work_queue_status_event,
     work_queue_updated_event,
 )
@@ -132,6 +135,8 @@ async def create_work_queue(
             work_pool_id=data["work_pool_id"],
             new_priorities={model.id: work_queue.priority},
         )
+
+    await emit_work_queue_created_event(session=session, work_queue=model)
 
     return model
 
@@ -476,11 +481,14 @@ async def delete_work_queue(
     Returns:
         bool: whether or not the WorkQueue was deleted
     """
-    result = await session.execute(
-        delete(db.WorkQueue).where(db.WorkQueue.id == work_queue_id)
-    )
+    work_queue = await session.get(db.WorkQueue, work_queue_id)
+    if work_queue is None:
+        return False
 
-    return result.rowcount > 0
+    await emit_work_queue_deleted_event(session=session, work_queue=work_queue)
+
+    await session.execute(delete(db.WorkQueue).where(db.WorkQueue.id == work_queue_id))
+    return True
 
 
 @db_injector
@@ -818,6 +826,36 @@ async def emit_work_queue_updated_event(
                 session=session,
                 work_queue=work_queue,
                 changed_fields=changed_fields,
+                occurred=now("UTC"),
+            )
+        )
+
+
+async def emit_work_queue_created_event(
+    session: AsyncSession,
+    work_queue: orm_models.WorkQueue,
+) -> None:
+    """Emit an event when a work queue is created."""
+    async with clients.PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            await work_queue_created_event(
+                session=session,
+                work_queue=work_queue,
+                occurred=now("UTC"),
+            )
+        )
+
+
+async def emit_work_queue_deleted_event(
+    session: AsyncSession,
+    work_queue: orm_models.WorkQueue,
+) -> None:
+    """Emit an event when a work queue is deleted."""
+    async with clients.PrefectServerEventsClient() as events_client:
+        await events_client.emit(
+            await work_queue_deleted_event(
+                session=session,
+                work_queue=work_queue,
                 occurred=now("UTC"),
             )
         )

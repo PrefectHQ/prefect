@@ -2,6 +2,50 @@
 title: prefect-redis
 ---
 
+## 0.2.12
+
+_Released on June 05, 2026_
+
+**Features**
+
+- Add cleanup reconciler for worker channel delivery [#22205](https://github.com/PrefectHQ/prefect/pull/22205) by [@desertaxle](https://github.com/desertaxle)
+- Add Redis cleanup queue backend [#22109](https://github.com/PrefectHQ/prefect/pull/22109) by [@desertaxle](https://github.com/desertaxle)
+
+**Bug Fixes 🐞**
+
+- Add redis-py 8 compatible connection defaults [#22189](https://github.com/PrefectHQ/prefect/pull/22189) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+
+**Maintenance**
+
+- Bump `prefect` lower bound to `>=3.7.4`
+
+---
+
+## 0.2.11
+
+_Released on April 24, 2026_
+
+**Enhancements ➕➕**
+
+- Batch-acknowledge Redis stream messages to reduce round-trips [#21622](https://github.com/PrefectHQ/prefect/pull/21622) by [@chuqCTC](https://github.com/chuqCTC)
+
+---
+
+## 0.2.10
+
+_Released on April 03, 2026_
+
+**Features**
+
+- Add `url` field to `RedisMessagingSettings` for single-URL Redis connection configuration via `PREFECT_REDIS_MESSAGING_URL` [#21210](https://github.com/PrefectHQ/prefect/pull/21210) by [@solidnerd](https://github.com/solidnerd)
+
+**Bug Fixes 🐞**
+
+- Log exception before sending message to DLQ in Redis messaging [#21142](https://github.com/PrefectHQ/prefect/pull/21142) by [@HemantDhaker12](https://github.com/HemantDhaker12)
+- Move DLQ exception log to `_send_to_dlq` with clearer message [#21144](https://github.com/PrefectHQ/prefect/pull/21144) by [@desertaxle](https://github.com/desertaxle)
+
+---
+
 ## 0.2.9
 
 _Released on March 16, 2026_

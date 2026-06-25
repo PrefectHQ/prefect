@@ -2,21 +2,42 @@
 title: How to detect and respond to zombie flows
 sidebarTitle: Detect Zombie Flows
 description: Learn how to detect and respond to zombie flows.
-keywords: ["zombie", "stale flow", "stuck run", "detection", "cleanup", "automation"]
+keywords: ["zombie", "unresponsive", "stale flow", "stuck run", "detection", "cleanup", "automation"]
 ---
 
 Sudden infrastructure failures (like machine crashes or container evictions) can cause flow runs to become unresponsive and appear stuck in a `Running` state.
 
-To mitigate this, flow runs triggered by deployments can emit heartbeats to drive Automations that detect and respond to these "zombie" flow runs, ensuring they are marked as `Crashed` if they stop reporting heartbeats.
+To mitigate this, flow runs triggered by deployments can emit heartbeats to drive Automations that detect and respond to these "zombie" flow runs, ensuring they are marked as `Crashed` if they stop reporting heartbeats. Prefect Cloud provides a managed automation for this (**Unresponsive run detection**); self-hosted users (or anyone wanting custom behavior) can create the automation manually.
+
+
+### Enable the managed automation (Prefect Cloud)
+
+<Note>This managed automation is only available in Prefect Cloud.</Note>
+
+Prefect Cloud refers to this capability as **Unresponsive run detection**: a built-in automation that automatically marks flow runs as `Crashed` when they stop responding. To enable it:
+
+1. In the upper left, click on the current workspace and select **Settings**.
+2. Under **Account Settings → Controls**, ensure **Managed automations** is enabled. This is an account-wide switch and only needs to be done once.
+3. Under **Workspace Settings → Managed Automations**, enable **Unresponsive run detection** for this workspace.
+
+By default, the automation marks a run as `Crashed` if it does not receive a heartbeat for 9 minutes, which tolerates three missed heartbeats at the default `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` of 180 seconds (3 minutes).
+
+<Note>
+Prefect 3.6.22 and later ship with `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` set to 180 seconds out of the box, so no extra configuration is needed. Earlier clients default to `None` (no heartbeats); if your deployments run on a client older than 3.6.22, set `PREFECT_FLOWS_HEARTBEAT_FREQUENCY=180` on the workers that run them so the managed automation has heartbeats to consume.
+</Note>
 
 
 ### Enable flow run heartbeat events
 
-You will need to ensure you're running Prefect version 3.1.8 or greater and set `PREFECT_FLOWS_HEARTBEAT_FREQUENCY`
-to an integer greater than 30 to emit flow run heartbeat events.
+Prefect 3.6.22 and later emit flow run heartbeats by default (`PREFECT_FLOWS_HEARTBEAT_FREQUENCY` defaults to 180 seconds), so no extra configuration is needed on modern clients.
+
+If you are running an older client (3.1.8–3.6.21), set `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` to an integer greater than or equal to 30 to enable heartbeat emission.
 
 
-### Create the automation
+### Create the automation manually
+
+Follow this path if you're running self-hosted Prefect, or if you're on Prefect Cloud and want custom behavior (different thresholds, additional actions, notifications, etc.).
+
 To create an automation that marks zombie flow runs as crashed, run this script:
 ```python
 from datetime import timedelta
@@ -33,11 +54,7 @@ my_automation = Automation(
     trigger=EventTrigger(
         after={"prefect.flow-run.heartbeat"},
         expect={
-            "prefect.flow-run.heartbeat",
-            "prefect.flow-run.Completed",
-            "prefect.flow-run.Failed",
-            "prefect.flow-run.Cancelled",
-            "prefect.flow-run.Crashed",
+            "prefect.flow-run.*",
         },
         match=ResourceSpecification({"prefect.resource.id": ["prefect.flow-run.*"]}),
         for_each={"prefect.resource.id"},
@@ -57,14 +74,54 @@ if __name__ == "__main__":
     my_automation.create()
 ```
 
-The trigger definition says that `after` each heartbeat event for a flow run we `expect` to see another heartbeat event or a
-terminal state event for that same flow run `within` 90 seconds of a heartbeat event.
+The trigger definition says that `after` each heartbeat event for a flow run we `expect` to see any flow run event
+(heartbeat or state change) for that same flow run `within` 90 seconds. Using the `prefect.flow-run.*` wildcard
+in `expect` ensures the automation works correctly even when flows return custom-named states
+(for example, `Completed(name="SuccessfullyProcessed")`), since flow run event names are based on the state's
+name rather than its type.
+
+<Note>
+The `within=timedelta(seconds=90)` window in the example above is calibrated for heartbeats arriving every 30 seconds (three missed heartbeats × 30 s = 90 s). Current clients default `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` to 180 seconds, so if you keep that default you should increase `within` accordingly — for example, `within=timedelta(seconds=540)` to tolerate three missed 180-second heartbeats.
+</Note>
+
+
+### Custom state names
+
+Flow run event names are based on the state's name, not its type. If your flows return states with
+custom names (for example, `return Completed(name="SuccessfullyProcessed")`), the emitted event will be
+`prefect.flow-run.SuccessfullyProcessed` rather than `prefect.flow-run.Completed`.
+
+The wildcard `prefect.flow-run.*` in the example above handles this automatically. If you need
+finer-grained control over which events disarm the trigger, you can explicitly list your custom
+state names in the `expect` set instead:
+
+{/* pmd-metadata: notest */}
+```python
+expect={
+    "prefect.flow-run.heartbeat",
+    "prefect.flow-run.Completed",
+    "prefect.flow-run.Failed",
+    "prefect.flow-run.Cancelled",
+    "prefect.flow-run.Crashed",
+    "prefect.flow-run.SuccessfullyProcessed",  # your custom state name
+},
+```
+
+<Note>
+When using explicit state names, you must include every custom state name your flows may return.
+A missing name means the automation won't recognize that terminal state, causing a false-positive
+zombie detection for that flow run.
+</Note>
 
 
 ### Adjusting behavior with settings
 
-If `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` is set to `30`, the automation will trigger only after 3 heartbeats have been missed.
-You can adjust `within` in the trigger definition and `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` to change how quickly the automation
-will fire after the server stops receiving flow run heartbeats.
+The `within` window and `PREFECT_FLOWS_HEARTBEAT_FREQUENCY` together control how quickly the automation fires after a flow run stops responding. A good rule of thumb is to set `within` to at least three times the heartbeat frequency so transient delays don't cause false positives.
+
+For example:
+- `PREFECT_FLOWS_HEARTBEAT_FREQUENCY=30` with `within=timedelta(seconds=90)` — detects zombie flows within 90 seconds (as shown in the example above).
+- `PREFECT_FLOWS_HEARTBEAT_FREQUENCY=180` (the current default) with `within=timedelta(seconds=540)` — detects zombie flows within 9 minutes.
+
+`PREFECT_FLOWS_HEARTBEAT_FREQUENCY` must be greater than or equal to 30.
 
 You can also add additional actions to your automation to send a notification when zombie runs are detected.

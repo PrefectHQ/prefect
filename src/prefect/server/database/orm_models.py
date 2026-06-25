@@ -1092,6 +1092,13 @@ class BlockDocumentReference(Base):
         sa.ForeignKey("block_document.id", ondelete="cascade"),
     )
 
+    __table_args__: Any = (
+        sa.CheckConstraint(
+            "parent_block_document_id != reference_block_document_id",
+            name="ck_block_document_reference__no_self_reference",
+        ),
+    )
+
 
 class Configuration(Base):
     key: Mapped[str] = mapped_column(index=True)
@@ -1456,6 +1463,10 @@ class EventResource(Base):
         sa.Index(
             "ix_event_resources__resource_id__occurred",
             "resource_id",
+            "occurred",
+        ),
+        sa.Index(
+            "ix_event_resources__occurred",
             "occurred",
         ),
     )

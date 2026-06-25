@@ -45,6 +45,8 @@ from prefect.server.schemas.states import (
 from prefect.states import Cancelled, to_state_create
 from prefect.types._datetime import DateTime, now
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture(autouse=True)
 def cleared_resource_data_cache():
@@ -173,6 +175,9 @@ async def test_flow_run_state_change_events_capture_order_on_short_gaps(
     start_of_test: DateTime,
     orchestration_parameters: Dict[str, Any],
 ):
+    # Ignore lifecycle events emitted while creating the flow/flow-run fixtures
+    AssertingEventsClient.reset()
+
     # send the pending state through orchestration so it is written to the DB
     pending_state: State = State(
         type=StateType.PENDING,
@@ -605,6 +610,9 @@ async def test_does_nothing_for_task_transitions(
         session=session,
     )
 
+    # Ignore lifecycle events emitted while creating the run's fixtures
+    AssertingEventsClient.reset()
+
     async with InstrumentFlowRunStateTransitions(context, *transition):
         await context.validate_proposed_state()
     await session.commit()
@@ -695,6 +703,9 @@ async def test_does_nothing_for_aborted_transitions(
         UglyRule,
     ]
 
+    # Ignore lifecycle events emitted while creating the run's fixtures
+    AssertingEventsClient.reset()
+
     async with AsyncExitStack() as stack:
         for rule in ugly_policy:
             context = await stack.enter_async_context(rule(context, *transition))
@@ -736,6 +747,9 @@ async def test_does_nothing_for_delayed_transitions(
         InstrumentFlowRunStateTransitions,
         ProcrastinatingRule,
     ]
+
+    # Ignore lifecycle events emitted while creating the run's fixtures
+    AssertingEventsClient.reset()
 
     async with AsyncExitStack() as stack:
         for rule in Procrastinating_policy:

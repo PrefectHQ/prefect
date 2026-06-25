@@ -97,15 +97,3 @@ def get_triggers_causal_ordering() -> CausalOrdering:
         )
 
     return causal_ordering_module.CausalOrdering(scope="triggers")
-
-
-def get_task_run_recorder_causal_ordering() -> CausalOrdering:
-    import_path = get_current_settings().server.events.causal_ordering
-    causal_ordering_module = importlib.import_module(import_path)
-
-    if not isinstance(causal_ordering_module, CausalOrderingModule):
-        raise ValueError(
-            f"Module at {import_path} does not export a CausalOrdering class. Please check your server.events.causal_ordering setting."
-        )
-
-    return causal_ordering_module.CausalOrdering(scope="task-run-recorder")

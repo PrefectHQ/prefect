@@ -17,7 +17,7 @@ type EventsTooltipProps = {
 };
 
 const EventsTooltipContent = ({ active, payload }: EventsTooltipProps) => {
-	if (!active || !payload || !payload.length) return null;
+	if (!active || !payload?.length) return null;
 
 	const firstPayloadItem = payload[0];
 	const point = firstPayloadItem?.payload;
@@ -60,7 +60,7 @@ export type EventsLineChartRef = {
 const chartConfig = {
 	count: {
 		label: "Events",
-		color: "hsl(262.1 83.3% 57.8%)",
+		color: "var(--event)",
 	},
 };
 

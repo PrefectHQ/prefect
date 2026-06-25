@@ -158,7 +158,14 @@ def app() -> None:
 
         print(prefect.__version__)
         raise SystemExit(0)
-    _app.meta(_normalize_top_level_flags(args))
+
+    from pydantic_settings.exceptions import SettingsError
+
+    try:
+        _app.meta(_normalize_top_level_flags(args))
+    except SettingsError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1)
 
 
 # =============================================================================
@@ -270,6 +277,11 @@ _app.command(
     "prefect.cli.experimental:experimental_app",
     name="experimental",
     help="Access experimental features (subject to change).",
+)
+_app.command(
+    "prefect.cli.plugins:plugins_app",
+    name="plugins",
+    help="Plugin system diagnostics.",
 )
 _app.command(
     "prefect.cli.automation:automation_app",

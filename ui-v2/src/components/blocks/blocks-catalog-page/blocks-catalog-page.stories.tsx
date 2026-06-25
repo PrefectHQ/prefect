@@ -8,9 +8,22 @@ const meta = {
 	title: "Components/Blocks/BlocksCatalogPage",
 	component: BlocksCatalogPage,
 	decorators: [toastDecorator, routerDecorator],
-	args: { blockTypes: BLOCK_TYPES, search: "", onSearch: fn() },
+	args: {
+		blockTypes: BLOCK_TYPES,
+		search: "",
+		onSearch: fn(),
+		onClearFilters: fn(),
+	},
 } satisfies Meta<typeof BlocksCatalogPage>;
 
 export default meta;
 
 export const story: StoryObj = { name: "BlocksCatalogPage" };
+
+export const EmptySearchResults: StoryObj = {
+	name: "Empty Search Results",
+	args: {
+		blockTypes: [],
+		search: "nonexistent",
+	},
+};

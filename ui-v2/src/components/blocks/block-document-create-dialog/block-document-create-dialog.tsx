@@ -4,7 +4,10 @@ import { Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { useCreateBlockDocument } from "@/api/block-documents";
+import {
+	useBlockDocumentNameCheck,
+	useCreateBlockDocument,
+} from "@/api/block-documents";
 import { buildListFilterBlockSchemasQuery } from "@/api/block-schemas";
 import { buildGetBlockTypeQuery } from "@/api/block-types";
 import {
@@ -38,7 +41,7 @@ type BlockDocumentCreateDialogProps = {
 	onCreated: (blockDocumentId: string) => void;
 };
 
-const BLOCK_NAME_REGEX = /^[a-zA-Z0-9-]+$/;
+const BLOCK_NAME_REGEX = /^[a-z0-9-]+$/;
 
 const BlockNameFormSchema = z.object({
 	blockName: z.string().regex(BLOCK_NAME_REGEX, {
@@ -124,6 +127,7 @@ const BlockDocumentCreateDialogContent = ({
 
 	return (
 		<BlockDocumentCreateForm
+			blockTypeSlug={blockTypeSlug}
 			blockTypeId={blockType.id}
 			blockSchemaId={blockSchema.id}
 			blockSchemaFields={blockSchema.fields as unknown as PrefectSchemaObject}
@@ -134,6 +138,7 @@ const BlockDocumentCreateDialogContent = ({
 };
 
 type BlockDocumentCreateFormProps = {
+	blockTypeSlug: string;
 	blockTypeId: string;
 	blockSchemaId: string;
 	blockSchemaFields: PrefectSchemaObject;
@@ -142,6 +147,7 @@ type BlockDocumentCreateFormProps = {
 };
 
 const BlockDocumentCreateForm = ({
+	blockTypeSlug,
 	blockTypeId,
 	blockSchemaId,
 	blockSchemaFields,
@@ -155,6 +161,12 @@ const BlockDocumentCreateForm = ({
 		resolver: zodResolver(BlockNameFormSchema),
 		defaultValues: DEFAULT_VALUES,
 	});
+
+	const blockName = form.watch("blockName");
+	const { isNameTaken, isChecking } = useBlockDocumentNameCheck(
+		blockTypeSlug,
+		blockName,
+	);
 
 	const onSave = async (zodFormValues: BlockNameFormSchema) => {
 		try {
@@ -205,6 +217,11 @@ const BlockDocumentCreateForm = ({
 							<FormControl>
 								<Input {...field} value={field.value} />
 							</FormControl>
+							{isNameTaken && (
+								<p className="text-sm font-medium text-destructive">
+									A block with this name already exists for this block type
+								</p>
+							)}
 							<FormMessage />
 						</FormItem>
 					)}
@@ -226,7 +243,11 @@ const BlockDocumentCreateForm = ({
 					>
 						Cancel
 					</Button>
-					<Button loading={isPending} type="submit">
+					<Button
+						loading={isPending}
+						type="submit"
+						disabled={isNameTaken || isChecking}
+					>
 						Create
 					</Button>
 				</DialogFooter>

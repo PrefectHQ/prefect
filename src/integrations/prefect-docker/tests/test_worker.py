@@ -1534,6 +1534,34 @@ class TestSubmitAdhocRunWithFlowRunParameter:
             final_flow_runs = await client.read_flow_runs()
             assert len(final_flow_runs) > initial_count
 
+    async def test_submit_adhoc_run_passes_worker_id_for_attribution(
+        self, mock_docker_client, work_pool, test_flow
+    ):
+        """_submit_adhoc_run should pass worker_id to prepare_for_flow_run for attribution."""
+        async with DockerWorker(work_pool_name=work_pool.name) as worker:
+            worker.backend_id = uuid.uuid4()
+
+            original_prepare = DockerWorkerJobConfiguration.prepare_for_flow_run
+            prepare_calls: list[dict] = []
+
+            def tracking_prepare(self, flow_run, **kwargs):
+                prepare_calls.append(kwargs)
+                return original_prepare(self, flow_run, **kwargs)
+
+            with patch.object(
+                DockerWorkerJobConfiguration,
+                "prepare_for_flow_run",
+                tracking_prepare,
+            ):
+                await worker._submit_adhoc_run(
+                    flow=test_flow,
+                    parameters={},
+                )
+
+        assert len(prepare_calls) == 1
+        assert prepare_calls[0]["worker_id"] == worker.backend_id
+        assert prepare_calls[0]["worker_name"] == worker.name
+
 
 class TestDockerWorkerKillInfrastructure:
     """Tests for DockerWorker.kill_infrastructure method."""

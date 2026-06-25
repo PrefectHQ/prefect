@@ -15,9 +15,9 @@ from typing import Any, Dict, List, Optional
 import yaml
 from ruamel.yaml import YAML
 
+from prefect._internal.git import get_git_branch, get_git_remote_origin_url
 from prefect.client.schemas.objects import ConcurrencyLimitStrategy
 from prefect.client.schemas.schedules import IntervalSchedule
-from prefect.utilities._git import get_git_branch, get_git_remote_origin_url
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.filesystem import create_default_ignore_file
 from prefect.utilities.templating import apply_values
@@ -276,6 +276,33 @@ def _interval_schedule_to_dict(schedule: IntervalSchedule) -> dict[str, Any]:
     schedule_config["anchor_date"] = schedule_config["anchor_date"].isoformat()
 
     return schedule_config
+
+
+def _deployment_already_saved_to_prefect_file(
+    deployment: dict[str, Any],
+    prefect_file: Path = Path("prefect.yaml"),
+) -> bool:
+    """
+    Return True if `prefect.yaml` already contains a deployment entry matching the
+    given deployment's name and entrypoint.
+
+    Used to decide whether the interactive `prefect deploy` flow should offer to
+    persist a newly-created deployment: a deployment that is already declared in
+    the file does not need to be saved again, but a brand-new one (even when the
+    file otherwise exists) should still be offered up for saving.
+    """
+    if not prefect_file.exists():
+        return False
+
+    with prefect_file.open(mode="r") as f:
+        contents = yaml.safe_load(f) or {}
+
+    for existing in contents.get("deployments") or []:
+        if existing.get("name") == deployment.get("name") and existing.get(
+            "entrypoint"
+        ) == deployment.get("entrypoint"):
+            return True
+    return False
 
 
 def _save_deployment_to_prefect_file(

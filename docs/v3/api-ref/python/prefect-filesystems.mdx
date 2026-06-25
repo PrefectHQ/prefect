@@ -11,7 +11,7 @@ sidebarTitle: filesystems
 
 **Methods:**
 
-#### `adelete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1893" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `adelete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1911" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 adelete(cls, name: str, client: Optional['PrefectClient'] = None) -> None
@@ -25,7 +25,7 @@ Asynchronously deletes the block document with the specified name.
 default client will be injected.
 
 
-#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1057" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1075" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aload(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
@@ -107,7 +107,7 @@ loaded_block.save("my-custom-message", overwrite=True)
 ```
 
 
-#### `aload_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1244" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aload_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1262" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aload_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
@@ -151,13 +151,13 @@ default client will be injected.
 - block document with the specified name.
 
 
-#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1442" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1460" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 annotation_refers_to_block_class(annotation: Any) -> bool
 ```
 
-#### `aregister_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1455" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aregister_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1473" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aregister_type_and_schema(cls, client: Optional['PrefectClient'] = None) -> None
@@ -172,7 +172,7 @@ Prefect API. A new client will be created and used if one is not
 provided.
 
 
-#### `asave` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1842" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `asave` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1860" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 asave(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None) -> UUID
@@ -198,7 +198,7 @@ default client will be injected.
 block_initialization(self) -> None
 ```
 
-#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1914" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1932" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete(cls, name: str, client: Optional['PrefectClient'] = None) -> None
@@ -243,7 +243,7 @@ get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]
 Retrieve the block class implementation given a schema.
 
 
-#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1934" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1952" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_placeholder(self) -> str
@@ -300,13 +300,13 @@ Returns the description for the current block. Attempts to parse
 description from class docstring if an override is not defined.
 
 
-#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1438" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1456" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_block_class(block: Any) -> TypeGuard[type['Block']]
 ```
 
-#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1146" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1164" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
@@ -388,7 +388,7 @@ loaded_block.save("my-custom-message", overwrite=True)
 ```
 
 
-#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1311" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1329" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
@@ -435,13 +435,13 @@ synchronous context.
 - block document with the specified name.
 
 
-#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2063" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2081" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_dump(self) -> dict[str, Any]
 ```
 
-#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2005" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2023" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions/{model}', schema_generator: type[GenerateJsonSchema] = GenerateJsonSchema, mode: Literal['validation', 'serialization'] = 'validation') -> dict[str, Any]
@@ -450,7 +450,7 @@ model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions
 TODO\: stop overriding this method - use GenerateSchema in ConfigDict instead?
 
 
-#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2038" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2056" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_validate(cls: type[Self], obj: dict[str, Any] | Any) -> Self
@@ -462,7 +462,7 @@ model_validate(cls: type[Self], obj: dict[str, Any] | Any) -> Self
 read_path(self, path: str) -> bytes
 ```
 
-#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1554" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1572" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 register_type_and_schema(cls, client: Optional['PrefectClient'] = None) -> None
@@ -479,7 +479,7 @@ Prefect API. A new client will be created and used if one is not
 provided. This is ignored when called from a synchronous context.
 
 
-#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1866" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1884" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 save(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None) -> UUID
@@ -523,7 +523,7 @@ between different Block subclasses when validating Union types of Blocks.
 
 **Methods:**
 
-#### `adelete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1893" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `adelete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1911" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 adelete(cls, name: str, client: Optional['PrefectClient'] = None) -> None
@@ -537,7 +537,7 @@ Asynchronously deletes the block document with the specified name.
 default client will be injected.
 
 
-#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1057" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1075" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aload(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
@@ -619,7 +619,7 @@ loaded_block.save("my-custom-message", overwrite=True)
 ```
 
 
-#### `aload_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1244" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aload_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1262" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aload_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
@@ -663,13 +663,13 @@ default client will be injected.
 - block document with the specified name.
 
 
-#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1442" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1460" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 annotation_refers_to_block_class(annotation: Any) -> bool
 ```
 
-#### `aregister_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1455" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aregister_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1473" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aregister_type_and_schema(cls, client: Optional['PrefectClient'] = None) -> None
@@ -684,7 +684,7 @@ Prefect API. A new client will be created and used if one is not
 provided.
 
 
-#### `asave` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1842" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `asave` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1860" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 asave(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None) -> UUID
@@ -710,7 +710,7 @@ default client will be injected.
 block_initialization(self) -> None
 ```
 
-#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1914" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1932" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete(cls, name: str, client: Optional['PrefectClient'] = None) -> None
@@ -755,7 +755,7 @@ get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]
 Retrieve the block class implementation given a schema.
 
 
-#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1934" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1952" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_placeholder(self) -> str
@@ -812,13 +812,13 @@ Returns the description for the current block. Attempts to parse
 description from class docstring if an override is not defined.
 
 
-#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1438" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1456" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_block_class(block: Any) -> TypeGuard[type['Block']]
 ```
 
-#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1146" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1164" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
@@ -900,7 +900,7 @@ loaded_block.save("my-custom-message", overwrite=True)
 ```
 
 
-#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1311" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1329" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
@@ -947,13 +947,13 @@ synchronous context.
 - block document with the specified name.
 
 
-#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2063" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2081" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_dump(self) -> dict[str, Any]
 ```
 
-#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2005" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2023" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions/{model}', schema_generator: type[GenerateJsonSchema] = GenerateJsonSchema, mode: Literal['validation', 'serialization'] = 'validation') -> dict[str, Any]
@@ -962,7 +962,7 @@ model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions
 TODO\: stop overriding this method - use GenerateSchema in ConfigDict instead?
 
 
-#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2038" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2056" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_validate(cls: type[Self], obj: dict[str, Any] | Any) -> Self
@@ -974,7 +974,7 @@ model_validate(cls: type[Self], obj: dict[str, Any] | Any) -> Self
 read_path(self, path: str) -> bytes
 ```
 
-#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1554" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1572" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 register_type_and_schema(cls, client: Optional['PrefectClient'] = None) -> None
@@ -991,7 +991,7 @@ Prefect API. A new client will be created and used if one is not
 provided. This is ignored when called from a synchronous context.
 
 
-#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1866" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1884" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 save(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None) -> UUID
@@ -1041,7 +1041,7 @@ write_path(self, path: str, content: bytes) -> None
 
 **Methods:**
 
-#### `adelete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1893" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `adelete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1911" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 adelete(cls, name: str, client: Optional['PrefectClient'] = None) -> None
@@ -1055,7 +1055,7 @@ Asynchronously deletes the block document with the specified name.
 default client will be injected.
 
 
-#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1057" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1075" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aload(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
@@ -1137,7 +1137,7 @@ loaded_block.save("my-custom-message", overwrite=True)
 ```
 
 
-#### `aload_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1244" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aload_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1262" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aload_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
@@ -1181,13 +1181,13 @@ default client will be injected.
 - block document with the specified name.
 
 
-#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1442" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1460" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 annotation_refers_to_block_class(annotation: Any) -> bool
 ```
 
-#### `aregister_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1455" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aregister_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1473" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aregister_type_and_schema(cls, client: Optional['PrefectClient'] = None) -> None
@@ -1202,7 +1202,7 @@ Prefect API. A new client will be created and used if one is not
 provided.
 
 
-#### `asave` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1842" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `asave` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1860" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 asave(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None) -> UUID
@@ -1228,7 +1228,7 @@ default client will be injected.
 block_initialization(self) -> None
 ```
 
-#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1914" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1932" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete(cls, name: str, client: Optional['PrefectClient'] = None) -> None
@@ -1273,7 +1273,7 @@ get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]
 Retrieve the block class implementation given a schema.
 
 
-#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1934" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1952" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_placeholder(self) -> str
@@ -1336,13 +1336,13 @@ description from class docstring if an override is not defined.
 get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
 ```
 
-#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1438" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1456" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_block_class(block: Any) -> TypeGuard[type['Block']]
 ```
 
-#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1146" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1164" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
@@ -1424,7 +1424,7 @@ loaded_block.save("my-custom-message", overwrite=True)
 ```
 
 
-#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1311" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1329" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
@@ -1471,13 +1471,13 @@ synchronous context.
 - block document with the specified name.
 
 
-#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2063" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2081" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_dump(self) -> dict[str, Any]
 ```
 
-#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2005" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2023" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions/{model}', schema_generator: type[GenerateJsonSchema] = GenerateJsonSchema, mode: Literal['validation', 'serialization'] = 'validation') -> dict[str, Any]
@@ -1486,13 +1486,13 @@ model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions
 TODO\: stop overriding this method - use GenerateSchema in ConfigDict instead?
 
 
-#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2038" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2056" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_validate(cls: type[Self], obj: dict[str, Any] | Any) -> Self
 ```
 
-#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1554" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1572" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 register_type_and_schema(cls, client: Optional['PrefectClient'] = None) -> None
@@ -1509,7 +1509,7 @@ Prefect API. A new client will be created and used if one is not
 provided. This is ignored when called from a synchronous context.
 
 
-#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1866" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1884" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 save(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None) -> UUID
@@ -1553,7 +1553,7 @@ between different Block subclasses when validating Union types of Blocks.
 
 **Methods:**
 
-#### `adelete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1893" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `adelete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1911" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 adelete(cls, name: str, client: Optional['PrefectClient'] = None) -> None
@@ -1567,7 +1567,7 @@ Asynchronously deletes the block document with the specified name.
 default client will be injected.
 
 
-#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1057" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aload` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1075" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aload(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
@@ -1649,7 +1649,7 @@ loaded_block.save("my-custom-message", overwrite=True)
 ```
 
 
-#### `aload_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1244" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aload_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1262" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aload_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
@@ -1693,13 +1693,13 @@ default client will be injected.
 - block document with the specified name.
 
 
-#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1442" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `annotation_refers_to_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1460" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 annotation_refers_to_block_class(annotation: Any) -> bool
 ```
 
-#### `aregister_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1455" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aregister_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1473" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aregister_type_and_schema(cls, client: Optional['PrefectClient'] = None) -> None
@@ -1714,7 +1714,7 @@ Prefect API. A new client will be created and used if one is not
 provided.
 
 
-#### `asave` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1842" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `asave` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1860" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 asave(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None) -> UUID
@@ -1740,7 +1740,7 @@ default client will be injected.
 block_initialization(self) -> None
 ```
 
-#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1914" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1932" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete(cls, name: str, client: Optional['PrefectClient'] = None) -> None
@@ -1785,7 +1785,7 @@ get_block_class_from_schema(cls: type[Self], schema: BlockSchema) -> type[Self]
 Retrieve the block class implementation given a schema.
 
 
-#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1934" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_block_placeholder` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1952" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_block_placeholder(self) -> str
@@ -1848,13 +1848,13 @@ description from class docstring if an override is not defined.
 get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
 ```
 
-#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1438" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_block_class` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1456" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_block_class(block: Any) -> TypeGuard[type['Block']]
 ```
 
-#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1146" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1164" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load(cls, name: str, validate: bool = True, client: Optional['PrefectClient'] = None) -> 'Self'
@@ -1936,7 +1936,7 @@ loaded_block.save("my-custom-message", overwrite=True)
 ```
 
 
-#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1311" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `load_from_ref` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1329" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 load_from_ref(cls, ref: Union[str, UUID, dict[str, Any]], validate: bool = True, client: 'PrefectClient | None' = None) -> Self
@@ -1983,13 +1983,13 @@ synchronous context.
 - block document with the specified name.
 
 
-#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2063" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_dump` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2081" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_dump(self) -> dict[str, Any]
 ```
 
-#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2005" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2023" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions/{model}', schema_generator: type[GenerateJsonSchema] = GenerateJsonSchema, mode: Literal['validation', 'serialization'] = 'validation') -> dict[str, Any]
@@ -1998,7 +1998,7 @@ model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions
 TODO\: stop overriding this method - use GenerateSchema in ConfigDict instead?
 
 
-#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2038" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_validate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L2056" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_validate(cls: type[Self], obj: dict[str, Any] | Any) -> Self
@@ -2010,7 +2010,7 @@ model_validate(cls: type[Self], obj: dict[str, Any] | Any) -> Self
 put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> None
 ```
 
-#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1554" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `register_type_and_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1572" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 register_type_and_schema(cls, client: Optional['PrefectClient'] = None) -> None
@@ -2027,7 +2027,7 @@ Prefect API. A new client will be created and used if one is not
 provided. This is ignored when called from a synchronous context.
 
 
-#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1866" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `save` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/blocks/core.py#L1884" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 save(self, name: Optional[str] = None, overwrite: bool = False, client: Optional['PrefectClient'] = None) -> UUID
@@ -2075,7 +2075,7 @@ Store data as a file on a local file system.
 
 **Methods:**
 
-#### `aget_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L130" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aget_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L128" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aget_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
@@ -2086,7 +2086,7 @@ Copies a directory from one place to another on the local filesystem.
 Defaults to copying the entire contents of the block's basepath to the current working directory.
 
 
-#### `aput_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L227" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aput_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L225" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aput_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> None
@@ -2098,13 +2098,13 @@ Defaults to copying the entire contents of the current working directory to the 
 An `ignore_file` path may be provided that can include gitignore style expressions for filepaths to ignore.
 
 
-#### `aread_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L305" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aread_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L303" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aread_path(self, path: str) -> bytes
 ```
 
-#### `awrite_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L338" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `awrite_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L336" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 awrite_path(self, path: str, content: bytes) -> str
@@ -2116,7 +2116,7 @@ awrite_path(self, path: str, content: bytes) -> str
 cast_pathlib(cls, value: str | Path | None) -> str | None
 ```
 
-#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L167" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L165" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
@@ -2133,7 +2133,7 @@ Defaults to copying the entire contents of the block's basepath to the current w
 get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
 ```
 
-#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L262" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L260" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> None
@@ -2151,7 +2151,7 @@ An `ignore_file` path may be provided that can include gitignore style expressio
 put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> None
 ```
 
-#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L322" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L320" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_path(self, path: str) -> bytes
@@ -2163,7 +2163,7 @@ read_path(self, path: str) -> bytes
 read_path(self, path: str) -> bytes
 ```
 
-#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L354" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L352" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 write_path(self, path: str, content: bytes) -> str
@@ -2175,7 +2175,7 @@ write_path(self, path: str, content: bytes) -> str
 write_path(self, path: str, content: bytes) -> None
 ```
 
-### `RemoteFileSystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L370" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RemoteFileSystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L368" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Store data as a file on a remote file system.
@@ -2186,7 +2186,7 @@ using a protocol. For example, "s3://my-bucket/my-folder/" will use S3.
 
 **Methods:**
 
-#### `aget_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L431" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aget_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L429" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aget_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
@@ -2197,7 +2197,7 @@ Downloads a directory from a given remote path to a local directory.
 Defaults to downloading the entire contents of the block's basepath to the current working directory.
 
 
-#### `aput_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L478" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aput_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L476" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aput_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None, overwrite: bool = True) -> int
@@ -2208,31 +2208,31 @@ Uploads a directory from a given local path to a remote directory.
 Defaults to uploading the entire contents of the current working directory to the block's basepath.
 
 
-#### `aread_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L587" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aread_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L585" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aread_path(self, path: str) -> bytes
 ```
 
-#### `awrite_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L604" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `awrite_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L602" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 awrite_path(self, path: str, content: bytes) -> str
 ```
 
-#### `check_basepath` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L406" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `check_basepath` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L404" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 check_basepath(cls, value: str) -> str
 ```
 
-#### `filesystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L634" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `filesystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L632" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 filesystem(self) -> fsspec.AbstractFileSystem
 ```
 
-#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L456" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L454" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
@@ -2249,7 +2249,7 @@ Defaults to downloading the entire contents of the block's basepath to the curre
 get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
 ```
 
-#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L534" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L532" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None, overwrite: bool = True) -> int
@@ -2266,7 +2266,7 @@ Defaults to uploading the entire contents of the current working directory to th
 put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> None
 ```
 
-#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L596" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L594" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_path(self, path: str) -> bytes
@@ -2278,7 +2278,7 @@ read_path(self, path: str) -> bytes
 read_path(self, path: str) -> bytes
 ```
 
-#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L619" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L617" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 write_path(self, path: str, content: bytes) -> str
@@ -2290,7 +2290,7 @@ write_path(self, path: str, content: bytes) -> str
 write_path(self, path: str, content: bytes) -> None
 ```
 
-### `SMB` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L652" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SMB` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L650" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Store data as a file on a SMB share.
@@ -2298,7 +2298,7 @@ Store data as a file on a SMB share.
 
 **Methods:**
 
-#### `aget_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L714" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aget_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L712" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aget_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> bytes
@@ -2308,7 +2308,7 @@ Downloads a directory from a given remote path to a local directory.
 Defaults to downloading the entire contents of the block's basepath to the current working directory.
 
 
-#### `aput_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L735" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aput_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L733" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aput_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> int
@@ -2318,31 +2318,31 @@ Uploads a directory from a given local path to a remote directory.
 Defaults to uploading the entire contents of the current working directory to the block's basepath.
 
 
-#### `aread_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L770" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aread_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L768" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aread_path(self, path: str) -> bytes
 ```
 
-#### `awrite_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L777" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `awrite_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L775" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 awrite_path(self, path: str, content: bytes) -> str
 ```
 
-#### `basepath` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L694" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `basepath` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L692" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 basepath(self) -> str
 ```
 
-#### `filesystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L698" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `filesystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L696" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 filesystem(self) -> RemoteFileSystem
 ```
 
-#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L726" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L724" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> bytes
@@ -2358,7 +2358,7 @@ Defaults to downloading the entire contents of the block's basepath to the curre
 get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
 ```
 
-#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L753" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L751" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> int
@@ -2374,7 +2374,7 @@ Defaults to uploading the entire contents of the current working directory to th
 put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> None
 ```
 
-#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L774" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L772" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_path(self, path: str) -> bytes
@@ -2386,7 +2386,7 @@ read_path(self, path: str) -> bytes
 read_path(self, path: str) -> bytes
 ```
 
-#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L781" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L779" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 write_path(self, path: str, content: bytes) -> str
@@ -2398,7 +2398,7 @@ write_path(self, path: str, content: bytes) -> str
 write_path(self, path: str, content: bytes) -> None
 ```
 
-### `NullFileSystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L785" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `NullFileSystem` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L783" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A file system that does not store any data.
@@ -2406,25 +2406,25 @@ A file system that does not store any data.
 
 **Methods:**
 
-#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L796" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L794" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_directory(self, from_path: Optional[str] = None, local_path: Optional[str] = None) -> None
 ```
 
-#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L801" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `put_directory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L799" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 put_directory(self, local_path: Optional[str] = None, to_path: Optional[str] = None, ignore_file: Optional[str] = None) -> None
 ```
 
-#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L790" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L788" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_path(self, path: str) -> None
 ```
 
-#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L793" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/filesystems.py#L791" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 write_path(self, path: str, content: bytes) -> None

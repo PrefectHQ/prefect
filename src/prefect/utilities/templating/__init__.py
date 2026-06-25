@@ -1,0 +1,547 @@
+import enum
+import os
+import re
+from copy import deepcopy
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Literal,
+    NamedTuple,
+    Optional,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
+
+import prefect.exceptions
+from prefect.client.utilities import inject_client
+from prefect.logging.loggers import get_logger
+from prefect.utilities.annotations import NotSet
+from prefect.utilities.collections import get_from_dict
+
+if TYPE_CHECKING:
+    import logging
+
+    from prefect.client.orchestration import PrefectClient
+    from prefect.client.schemas.objects import BlockDocument
+
+
+T = TypeVar("T", str, int, float, bool, dict[Any, Any], list[Any], None)
+
+PLACEHOLDER_CAPTURE_REGEX = re.compile(r"({{\s*([\w\.\-\[\]$]+)\s*}})")
+BLOCK_DOCUMENT_PLACEHOLDER_PREFIX = "prefect.blocks."
+VARIABLE_PLACEHOLDER_PREFIX = "prefect.variables."
+ENV_VAR_PLACEHOLDER_PREFIX = "$"
+
+
+logger: "logging.Logger" = get_logger("utilities.templating")
+
+
+class PlaceholderType(enum.Enum):
+    STANDARD = "standard"
+    BLOCK_DOCUMENT = "block_document"
+    VARIABLE = "variable"
+    ENV_VAR = "env_var"
+
+
+class Placeholder(NamedTuple):
+    full_match: str
+    name: str
+    type: PlaceholderType
+
+
+def determine_placeholder_type(name: str) -> PlaceholderType:
+    """
+    Determines the type of a placeholder based on its name.
+
+    Args:
+        name: The name of the placeholder
+
+    Returns:
+        The type of the placeholder
+    """
+    if name.startswith(BLOCK_DOCUMENT_PLACEHOLDER_PREFIX):
+        return PlaceholderType.BLOCK_DOCUMENT
+    elif name.startswith(VARIABLE_PLACEHOLDER_PREFIX):
+        return PlaceholderType.VARIABLE
+    elif name.startswith(ENV_VAR_PLACEHOLDER_PREFIX):
+        return PlaceholderType.ENV_VAR
+    else:
+        return PlaceholderType.STANDARD
+
+
+def find_placeholders(template: T) -> set[Placeholder]:
+    """
+    Finds all placeholders in a template.
+
+    Args:
+        template: template to discover placeholders in
+
+    Returns:
+        A set of all placeholders in the template
+    """
+    seed: set[Placeholder] = set()
+    if isinstance(template, (int, float, bool)):
+        return seed
+    if isinstance(template, str):
+        result = PLACEHOLDER_CAPTURE_REGEX.findall(template)
+        return {
+            Placeholder(full_match, name, determine_placeholder_type(name))
+            for full_match, name in result
+        }
+    elif isinstance(template, dict):
+        return seed.union(*[find_placeholders(value) for value in template.values()])
+    elif isinstance(template, list):
+        return seed.union(*[find_placeholders(item) for item in template])
+    else:
+        raise ValueError(f"Unexpected type: {type(template)}")
+
+
+@overload
+def apply_values(
+    template: T,
+    values: dict[str, Any],
+    remove_notset: Literal[True] = True,
+    warn_on_notset: bool = False,
+    skip_prefixes: Optional[list[str]] = None,
+) -> T: ...
+
+
+@overload
+def apply_values(
+    template: T,
+    values: dict[str, Any],
+    remove_notset: Literal[False] = False,
+    warn_on_notset: bool = False,
+    skip_prefixes: Optional[list[str]] = None,
+) -> Union[T, type[NotSet]]: ...
+
+
+@overload
+def apply_values(
+    template: T,
+    values: dict[str, Any],
+    remove_notset: bool = False,
+    warn_on_notset: bool = False,
+    skip_prefixes: Optional[list[str]] = None,
+) -> Union[T, type[NotSet]]: ...
+
+
+def apply_values(
+    template: T,
+    values: dict[str, Any],
+    remove_notset: bool = True,
+    warn_on_notset: bool = False,
+    skip_prefixes: Optional[list[str]] = None,
+) -> Union[T, type[NotSet]]:
+    """
+    Replaces placeholders in a template with values from a supplied dictionary.
+
+    Will recursively replace placeholders in dictionaries and lists.
+
+    If a value has no placeholders, it will be returned unchanged.
+
+    If a template contains only a single placeholder, the placeholder will be
+    fully replaced with the value.
+
+    If a template contains text before or after a placeholder or there are
+    multiple placeholders, the placeholders will be replaced with the
+    corresponding variable values.
+
+    If a template contains a placeholder that is not in `values`, NotSet will
+    be returned to signify that no placeholder replacement occurred. If
+    `template` is a dictionary that contains a key with a value of NotSet,
+    the key will be removed in the return value unless `remove_notset` is set to False.
+
+    Args:
+        template: template to discover and replace values in
+        values: The values to apply to placeholders in the template
+        remove_notset: If True, remove keys with an unset value
+        warn_on_notset: If True, warn when a placeholder is not found in `values`
+        skip_prefixes: If provided, placeholders whose names start with any of
+            these prefixes will be left untouched in the template.
+
+    Returns:
+        The template with the values applied
+    """
+    if template in (NotSet, None) or isinstance(template, (int, float)):
+        return template
+    if isinstance(template, str):
+        placeholders = find_placeholders(template)
+        if not placeholders:
+            # If there are no values, we can just use the template
+            return template
+
+        # Filter out placeholders that match skip_prefixes
+        if skip_prefixes:
+            placeholders = {
+                p
+                for p in placeholders
+                if not any(p.name.startswith(prefix) for prefix in skip_prefixes)
+            }
+            if not placeholders:
+                return template
+
+        if (
+            len(placeholders) == 1
+            and list(placeholders)[0].full_match == template
+            and list(placeholders)[0].type is PlaceholderType.STANDARD
+        ):
+            # If there is only one variable with no surrounding text,
+            # we can replace it. If there is no variable value, we
+            # return NotSet to indicate that the value should not be included.
+            value = get_from_dict(values, list(placeholders)[0].name, NotSet)
+            if value is NotSet and warn_on_notset:
+                logger.warning(
+                    f"Value for placeholder {list(placeholders)[0].name!r} not found in provided values. Please ensure that "
+                    "the placeholder is spelled correctly and that the corresponding value is provided.",
+                )
+            return value
+        else:
+            for full_match, name, placeholder_type in placeholders:
+                if placeholder_type is PlaceholderType.STANDARD:
+                    value = get_from_dict(values, name, NotSet)
+                elif placeholder_type is PlaceholderType.ENV_VAR:
+                    name = name.lstrip(ENV_VAR_PLACEHOLDER_PREFIX)
+                    value = os.environ.get(name, NotSet)
+                else:
+                    continue
+
+                if value is NotSet:
+                    if warn_on_notset:
+                        logger.warning(
+                            f"Value for placeholder {full_match!r} not found in provided values. Please ensure that "
+                            "the placeholder is spelled correctly and that the corresponding value is provided.",
+                        )
+                    if remove_notset:
+                        template = template.replace(full_match, "")
+                else:
+                    template = template.replace(full_match, str(value))
+
+            return template
+    elif isinstance(template, dict):
+        updated_template: dict[str, Any] = {}
+        for key, value in template.items():
+            updated_value = apply_values(
+                value,
+                values,
+                remove_notset=remove_notset,
+                warn_on_notset=warn_on_notset,
+                skip_prefixes=skip_prefixes,
+            )
+            if updated_value is not NotSet:
+                updated_template[key] = updated_value
+            elif not remove_notset:
+                updated_template[key] = value
+
+        return cast(T, updated_template)
+    elif isinstance(template, list):
+        updated_list: list[Any] = []
+        for value in template:
+            updated_value = apply_values(
+                value,
+                values,
+                remove_notset=remove_notset,
+                warn_on_notset=warn_on_notset,
+                skip_prefixes=skip_prefixes,
+            )
+            if updated_value is not NotSet:
+                updated_list.append(updated_value)
+        return cast(T, updated_list)
+    else:
+        raise ValueError(f"Unexpected template type {type(template).__name__!r}")
+
+
+@inject_client
+async def resolve_block_document_references(
+    template: T,
+    client: Optional["PrefectClient"] = None,
+    value_transformer: Optional[Callable[[str, Any], Any]] = None,
+) -> Union[T, dict[str, Any]]:
+    """
+    Resolve block document references in a template by replacing each reference with
+    its value or the return value of the transformer function if provided.
+
+    Recursively searches for block document references in dictionaries and lists.
+
+    Identifies block document references by the as dictionary with the following
+    structure:
+    ```
+    {
+        "$ref": {
+            "block_document_id": <block_document_id>
+        }
+    }
+    ```
+    where `<block_document_id>` is the ID of the block document to resolve.
+
+    Once the block document is retrieved from the API, the data of the block document
+    is used to replace the reference.
+
+    Accessing Values:
+    -----------------
+    To access different values in a block document, use dot notation combined with the block document's prefix, slug, and block name.
+
+    For a block document with the structure:
+    ```json
+    {
+        "value": {
+            "key": {
+                "nested-key": "nested-value"
+            },
+            "list": [
+                {"list-key": "list-value"},
+                1,
+                2
+            ]
+        }
+    }
+    ```
+    examples of value resolution are as follows:
+
+    1. Accessing a nested dictionary:
+       Format: `prefect.blocks.<block_type_slug>.<block_document_name>.value.key`
+       Example: Returns `{"nested-key": "nested-value"}`
+
+    2. Accessing a specific nested value:
+       Format: `prefect.blocks.<block_type_slug>.<block_document_name>.value.key.nested-key`
+       Example: Returns `"nested-value"`
+
+    3. Accessing a list element's key-value:
+       Format: `prefect.blocks.<block_type_slug>.<block_document_name>.value.list[0].list-key`
+       Example: Returns `"list-value"`
+
+    Default Resolution for System Blocks:
+    -------------------------------------
+    For system blocks, which only contain a `value` attribute, this attribute is resolved by default.
+
+    Inline Substitution:
+    -------------------
+    Block placeholders can be used either as an entire string value (e.g.,
+    `"{{ prefect.blocks.secret.my-token }}"`) or embedded within other text
+    (e.g., `"{{ prefect.blocks.secret.my-registry }}/my-image"`).
+
+    When embedded in other text, the resolved block value is coerced to a string and
+    substituted in place. If a placeholder resolves to a non-scalar value (e.g., a
+    `dict` or `list`), a `ValueError` is raised because there is no unambiguous
+    inline string representation.
+
+    Args:
+        template: The template to resolve block documents in
+        value_transformer: A function that takes the block placeholder and the block value and returns replacement text for the template
+
+    Returns:
+        The template with block documents resolved
+    """
+    if TYPE_CHECKING:
+        # The @inject_client decorator takes care of providing the client, but
+        # the function signature must mark it as optional to callers.
+        assert client is not None
+
+    block_documents_by_id: dict[Any, "BlockDocument"] = {}
+    block_documents_by_name: dict[tuple[str, str], "BlockDocument"] = {}
+
+    async def _read_block_document_by_name(
+        block_type_slug: str, block_document_name: str
+    ) -> "BlockDocument":
+        cache_key = (block_type_slug, block_document_name)
+        if cache_key not in block_documents_by_name:
+            try:
+                block_document = await client.read_block_document_by_name(
+                    name=block_document_name, block_type_slug=block_type_slug
+                )
+            except prefect.exceptions.ObjectNotFound as exc:
+                raise prefect.exceptions.ObjectNotFound(
+                    http_exc=exc.http_exc,
+                    help_message=(
+                        f"Block not found: '{block_document_name}' of type '{block_type_slug}'. "
+                        f"This block was referenced in your deployment or work pool configuration but no longer exists. "
+                        f"It may have been deleted. Please check your configuration or create a new block."
+                    ),
+                ) from exc
+            block_documents_by_name[cache_key] = block_document
+
+        return block_documents_by_name[cache_key]
+
+    async def _read_block_document_by_id(block_document_id: Any) -> "BlockDocument":
+        if block_document_id not in block_documents_by_id:
+            try:
+                block_document = await client.read_block_document(block_document_id)
+            except prefect.exceptions.ObjectNotFound as exc:
+                raise prefect.exceptions.ObjectNotFound(
+                    http_exc=exc.http_exc,
+                    help_message=(
+                        f"Block not found: ID '{block_document_id}'. "
+                        f"This block was referenced in your deployment or work pool configuration but no longer exists. "
+                        f"It may have been deleted. Please check your configuration or create a new block."
+                    ),
+                ) from exc
+            block_documents_by_id[block_document_id] = block_document
+
+        return block_documents_by_id[block_document_id]
+
+    async def _resolve_single_placeholder(placeholder: Placeholder, tmpl: T) -> Any:
+        parts = placeholder.name.replace(BLOCK_DOCUMENT_PLACEHOLDER_PREFIX, "").split(
+            ".", 2
+        )
+        if len(parts) < 2:
+            raise ValueError(
+                f"Invalid block placeholder format: '{placeholder.name}'. "
+                "Expected format: prefect.blocks.<block-type-slug>.<block-document-name>"
+            )
+        block_type_slug, block_document_name, *value_keypath = parts
+
+        block_document = await _read_block_document_by_name(
+            block_type_slug, block_document_name
+        )
+
+        data = block_document.data
+        value: Any = data
+
+        if len(data) == 1 and "value" in data:
+            # only resolve the value if the keypath is not already pointing to "value"
+            if not (value_keypath and value_keypath[0].startswith("value")):
+                data = value = value["value"]
+
+        if value_keypath:
+            from_dict: Any = get_from_dict(data, value_keypath[0], default=NotSet)
+            if from_dict is NotSet:
+                raise ValueError(
+                    f"Invalid template: {tmpl!r}. Could not resolve the"
+                    " keypath in the block document data."
+                )
+            value = from_dict
+
+        value = deepcopy(value)
+
+        if value_transformer:
+            value = value_transformer(placeholder.full_match, value)
+
+        return value
+
+    async def _resolve(tmpl: T) -> Union[T, dict[str, Any]]:
+        if isinstance(tmpl, dict):
+            block_document_id = tmpl.get("$ref", {}).get("block_document_id")
+            if block_document_id:
+                block_document = await _read_block_document_by_id(block_document_id)
+                return deepcopy(block_document.data)
+            updated_template: dict[str, Any] = {}
+            for key, value in tmpl.items():
+                updated_template[key] = await _resolve(value)
+            return updated_template
+        elif isinstance(tmpl, list):
+            return [await _resolve(item) for item in tmpl]
+        elif isinstance(tmpl, str):
+            placeholders = find_placeholders(tmpl)
+            has_block_document_placeholder = any(
+                placeholder.type is PlaceholderType.BLOCK_DOCUMENT
+                for placeholder in placeholders
+            )
+            if not (placeholders and has_block_document_placeholder):
+                return tmpl
+            elif (
+                len(placeholders) == 1
+                and list(placeholders)[0].full_match == tmpl
+                and list(placeholders)[0].type is PlaceholderType.BLOCK_DOCUMENT
+            ):
+                [placeholder] = placeholders
+                return await _resolve_single_placeholder(placeholder, tmpl)
+            else:
+                # Inline substitution: replace each block placeholder with its resolved value.
+                # Any non-block placeholders are left intact for later resolution.
+                result = tmpl
+                for placeholder in placeholders:
+                    if placeholder.type is not PlaceholderType.BLOCK_DOCUMENT:
+                        continue
+                    value = await _resolve_single_placeholder(placeholder, tmpl)
+                    if isinstance(value, (dict, list)):
+                        raise ValueError(
+                            f"Invalid template: {tmpl!r}. Block placeholder"
+                            f" {placeholder.full_match!r} resolved to a {type(value).__name__},"
+                            " which cannot be used for inline string substitution."
+                            " Resolve a scalar attribute instead (e.g., '.value' or '.url')."
+                        )
+                    result = result.replace(placeholder.full_match, str(value))
+
+                return cast(T, result)
+
+        return tmpl
+
+    return await _resolve(template)
+
+
+@inject_client
+async def resolve_variables(template: T, client: Optional["PrefectClient"] = None) -> T:
+    """
+    Resolve variables in a template by replacing each variable placeholder with the
+    value of the variable.
+
+    Recursively searches for variable placeholders in dictionaries and lists.
+
+    Strips variable placeholders if the variable is not found.
+
+    Args:
+        template: The template to resolve variables in
+
+    Returns:
+        The template with variables resolved
+    """
+    if TYPE_CHECKING:
+        # The @inject_client decorator takes care of providing the client, but
+        # the function signature must mark it as optional to callers.
+        assert client is not None
+
+    _SENTINEL = object()
+    _MISSING = object()
+    cache: dict[str, Any] = {}
+
+    async def _read_variable(name: str) -> Any:
+        variable_name = name.replace(VARIABLE_PLACEHOLDER_PREFIX, "")
+        cached = cache.get(variable_name, _SENTINEL)
+        if cached is not _SENTINEL:
+            return cached
+        variable = await client.read_variable_by_name(name=variable_name)
+        if variable is None:
+            cache[variable_name] = _MISSING
+            return _MISSING
+        cache[variable_name] = variable.value
+        return variable.value
+
+    async def _resolve(tmpl: T) -> T:
+        if isinstance(tmpl, str):
+            placeholders = find_placeholders(tmpl)
+            has_variable_placeholder = any(
+                placeholder.type is PlaceholderType.VARIABLE
+                for placeholder in placeholders
+            )
+            if not placeholders or not has_variable_placeholder:
+                return tmpl
+            elif (
+                len(placeholders) == 1
+                and list(placeholders)[0].full_match == tmpl
+                and list(placeholders)[0].type is PlaceholderType.VARIABLE
+            ):
+                value = await _read_variable(list(placeholders)[0].name)
+                if value is _MISSING:
+                    return ""
+                else:
+                    return cast(T, value)
+            else:
+                for full_match, name, placeholder_type in placeholders:
+                    if placeholder_type is PlaceholderType.VARIABLE:
+                        value = await _read_variable(name)
+                        if value is _MISSING:
+                            tmpl = tmpl.replace(full_match, "")
+                        else:
+                            tmpl = tmpl.replace(full_match, str(value))
+                return tmpl
+        elif isinstance(tmpl, dict):
+            return {key: await _resolve(value) for key, value in tmpl.items()}
+        elif isinstance(tmpl, list):
+            return [await _resolve(item) for item in tmpl]
+        else:
+            return tmpl
+
+    return await _resolve(template)

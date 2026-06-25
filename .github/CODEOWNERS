@@ -3,11 +3,3 @@
 
 # ui
 /ui                                  @znicholasbrown @desertaxle @zzstoatzz
-
-# imports
-/src/prefect/__init__.py             @aaazzam @chrisguidry @cicdw @desertaxle @zzstoatzz
-/src/prefect/main.py                 @aaazzam @chrisguidry @cicdw @desertaxle @zzstoatzz
-
-# UI Replatform
-/ui-v2                               @aaazzam @desertaxle @devinvillarosa
-/ui-v2/src/api/prefect.ts            @cicdw @desertaxle @zzstoatzz

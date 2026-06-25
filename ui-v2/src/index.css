@@ -1,9 +1,30 @@
 @import "tailwindcss";
 
+@font-face {
+	font-family: "Geist";
+	src: url("/fonts/Geist-VariableFont_wght.ttf") format("truetype");
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Geist Mono";
+	src: url("/fonts/GeistMono-VariableFont_wght.ttf") format("truetype");
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+}
+
 @plugin "tailwindcss-animate";
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
+
+@theme {
+	--font-sans: "Geist", system-ui, sans-serif;
+	--font-mono: "Geist Mono", ui-monospace, monospace;
+}
 
 :root {
 	/* Primary hue - Prefect Blue */
@@ -58,6 +79,9 @@
 	/* Link tokens */
 	--link: hsl(217 90% 54%);
 	--link-hover: hsl(217 90% 42%);
+
+	/* Event token - purple used for event indicators and charts */
+	--event: hsl(262 83% 58%);
 
 	/* State colors - Default color mode (matches V1) */
 	/* Completed - Green */
@@ -217,6 +241,9 @@
 	/* Link tokens - dark mode */
 	--link: hsl(217 90% 68%);
 	--link-hover: hsl(217 90% 78%);
+
+	/* Event token - dark mode */
+	--event: hsl(262 83% 70%);
 
 	/* Dark mode state color overrides */
 
@@ -2205,6 +2232,9 @@
 	/* Link tokens for Tailwind utilities */
 	--color-link: var(--link);
 	--color-link-hover: var(--link-hover);
+
+	/* Event token for Tailwind utilities */
+	--color-event: var(--event);
 
 	/* Sentiment colors for Tailwind utilities */
 	--color-sentiment-positive: var(--sentiment-positive);

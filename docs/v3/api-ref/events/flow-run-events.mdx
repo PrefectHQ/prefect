@@ -1,0 +1,151 @@
+---
+title: Flow run events
+description: Events emitted during flow run state transitions and heartbeats.
+keywords: ["state transition", "lifecycle", "liveness", "orchestration"]
+---
+
+Flow run events track the lifecycle of every flow run, from scheduling through
+completion. They are emitted on every state transition and, optionally, as
+periodic heartbeats during execution.
+
+## `prefect.flow-run.{state}`
+
+Emitted each time a flow run transitions to a new state. The `{state}` suffix is
+the state name (for example, `prefect.flow-run.Running` or
+`prefect.flow-run.Completed`).
+
+### State variants
+
+| State name | State type | Description |
+|------------|-----------|-------------|
+| `Scheduled` | SCHEDULED | Run is scheduled for future execution |
+| `Late` | SCHEDULED | Scheduled run was not started on time |
+| `AwaitingConcurrencySlot` | SCHEDULED | Waiting for a concurrency slot |
+| `AwaitingRetry` | SCHEDULED | Waiting before a retry attempt |
+| `Pending` | PENDING | Run is ready to execute |
+| `Running` | RUNNING | Run is actively executing |
+| `Retrying` | RUNNING | Run is retrying after a failure |
+| `Completed` | COMPLETED | Run finished successfully |
+| `Failed` | FAILED | Run finished with an error |
+| `Crashed` | CRASHED | Run terminated unexpectedly (infrastructure failure) |
+| `Cancelled` | CANCELLED | Run was cancelled |
+| `Cancelling` | CANCELLING | Cancellation was requested but not yet confirmed |
+| `Paused` | PAUSED | Run is paused, waiting for input or manual resumption |
+| `Suspended` | PAUSED | Run is suspended and its infrastructure may be freed |
+
+### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.flow-run.{uuid}` |
+| `prefect.resource.name` | Flow run name (for example, `crimson-fox`) |
+| `prefect.run-count` | Number of times this run has been attempted |
+| `prefect.state-message` | Message associated with the state transition (truncated to 100,000 characters) |
+| `prefect.state-name` | State name (for example, `Running`) |
+| `prefect.state-timestamp` | ISO 8601 timestamp of the state transition |
+| `prefect.state-type` | State type enum value (for example, `RUNNING`, `COMPLETED`) |
+
+### Related resources
+
+| Resource ID pattern | Role | When present |
+|---------------------|------|--------------|
+| `prefect.flow.{uuid}` | `flow` | Always |
+| `prefect.deployment.{uuid}` | `deployment` | When triggered by a deployment |
+| `prefect.work-queue.{uuid}` | `work-queue` | When a work queue is assigned |
+| `prefect.work-pool.{uuid}` | `work-pool` | When a work pool is assigned (includes `prefect.work-pool.type` label) |
+| `prefect.task-run.{uuid}` | `task-run` | When the flow run is a subflow called from a task |
+| `prefect.tag.{tag}` | `tag` | One entry per tag on the flow run or its flow/deployment |
+| `prefect.deployment.{uuid}` or `prefect.automation.{uuid}` | `creator` | Provenance: which deployment or automation created this run |
+
+### Payload
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `intended.from` | string or null | State type of the initial state (null for the first transition) |
+| `intended.to` | string | State type of the validated (new) state |
+| `initial_state` | object or null | Previous state: `type`, `name`, `message`, and `pause_reschedule` if paused |
+| `validated_state` | object | New state: `type`, `name`, `message`, and `pause_reschedule` if paused |
+
+<Expandable title="Example: flow run transitions to Running">
+
+```json
+{
+  "occurred": "2026-03-31T18:30:00.000000Z",
+  "event": "prefect.flow-run.Running",
+  "resource": {
+    "prefect.resource.id": "prefect.flow-run.e3755d32-cec5-42ca-9bcd-af236e308ba6",
+    "prefect.resource.name": "crimson-fox",
+    "prefect.run-count": "1",
+    "prefect.state-message": "",
+    "prefect.state-name": "Running",
+    "prefect.state-timestamp": "2026-03-31T18:30:00.000000Z",
+    "prefect.state-type": "RUNNING"
+  },
+  "related": [
+    {
+      "prefect.resource.id": "prefect.flow.a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "prefect.resource.name": "my-etl-flow",
+      "prefect.resource.role": "flow"
+    },
+    {
+      "prefect.resource.id": "prefect.deployment.b2c3d4e5-f6a7-8901-bcde-f12345678901",
+      "prefect.resource.name": "my-etl-flow/production",
+      "prefect.resource.role": "deployment"
+    },
+    {
+      "prefect.resource.id": "prefect.work-pool.c3d4e5f6-a7b8-9012-cdef-123456789012",
+      "prefect.resource.name": "my-k8s-pool",
+      "prefect.work-pool.type": "kubernetes",
+      "prefect.resource.role": "work-pool"
+    },
+    {
+      "prefect.resource.id": "prefect.tag.production",
+      "prefect.resource.role": "tag"
+    }
+  ],
+  "payload": {
+    "intended": {
+      "from": "PENDING",
+      "to": "RUNNING"
+    },
+    "initial_state": {
+      "type": "PENDING",
+      "name": "Pending"
+    },
+    "validated_state": {
+      "type": "RUNNING",
+      "name": "Running"
+    }
+  },
+  "id": "f6a7b890-1234-5678-9012-abcdef345678",
+  "follows": "d4e5f6a7-b890-1234-5678-9012abcdef34"
+}
+```
+
+</Expandable>
+
+## `prefect.flow-run.heartbeat`
+
+Emitted periodically during flow run execution when heartbeat frequency is configured.
+Used for liveness detection, particularly with
+[zombie flow detection](/v3/advanced/detect-zombie-flows).
+
+### Resource
+
+| Label | Description |
+|-------|-------------|
+| `prefect.resource.id` | `prefect.flow-run.{uuid}` |
+| `prefect.resource.name` | Flow run name |
+| `prefect.version` | Prefect SDK version |
+
+### Related resources
+
+| Resource ID pattern | Role | When present |
+|---------------------|------|--------------|
+| `prefect.flow.{uuid}` | `flow` | Always |
+| `prefect.deployment.{uuid}` | `deployment` | When triggered by a deployment |
+| `prefect.tag.{tag}` | `tag` | One entry per tag |
+
+### Payload
+
+This event has no payload.

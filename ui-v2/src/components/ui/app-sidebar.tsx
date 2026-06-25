@@ -1,7 +1,12 @@
+import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { LogOut } from "lucide-react";
+import { useState } from "react";
+import { buildGetSettingsQuery } from "@/api/admin";
+import { buildUiSettingsQuery } from "@/api/ui-settings";
 import { useAuthSafe } from "@/auth";
 import { Button } from "@/components/ui/button";
+import { PrefectLogo } from "@/components/ui/prefect-logo";
 import {
 	Sidebar,
 	SidebarContent,
@@ -12,10 +17,17 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import {
+	switchToV1Ui,
+	UiVersionSwitchDialog,
+	type UiVersionSwitchDialogValues,
+} from "@/components/ui-version-switch";
+import { isUiAvailable } from "@/utils/ui-version";
 
 export function AppSidebar() {
 	const auth = useAuthSafe();
 	const navigate = useNavigate();
+	const [isSwitchDialogOpen, setIsSwitchDialogOpen] = useState(false);
 
 	const handleLogout = () => {
 		auth?.logout();
@@ -24,36 +36,41 @@ export function AppSidebar() {
 
 	const authRequired = auth?.authRequired ?? false;
 
+	const { data: settings } = useQuery(buildGetSettingsQuery());
+	const { data: browserUiSettings } = useQuery(buildUiSettingsQuery());
+	const showPromotionalContent = (() => {
+		const server = (settings as Record<string, unknown> | undefined)?.server as
+			| Record<string, unknown>
+			| undefined;
+		const ui = server?.ui as Record<string, unknown> | undefined;
+		return (ui?.show_promotional_content as boolean | undefined) ?? true;
+	})();
+	const analyticsEnabled = (() => {
+		const server = (settings as Record<string, unknown> | undefined)?.server as
+			| Record<string, unknown>
+			| undefined;
+		return (server?.analytics_enabled as boolean | undefined) ?? false;
+	})();
+	const canSwitchToV1 =
+		isUiAvailable(browserUiSettings?.availableUis, "v1") &&
+		Boolean(browserUiSettings?.v1BaseUrl);
+
+	const handleSwitchToV1 = (feedback?: UiVersionSwitchDialogValues) => {
+		if (!browserUiSettings) {
+			return;
+		}
+
+		switchToV1Ui({
+			uiSettings: browserUiSettings,
+			analyticsEnabled,
+			feedback,
+		});
+	};
+
 	return (
 		<Sidebar>
 			<SidebarHeader>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					fill="none"
-					viewBox="0 0 76 76"
-					className="size-11"
-					aria-label="Prefect Logo"
-				>
-					<title>Prefect Logo</title>
-					<path
-						fill="currentColor"
-						fillRule="evenodd"
-						d="M15.89 15.07 38 26.543v22.935l22.104-11.47.007.004V15.068l-.003.001L38 3.598z"
-						clipRule="evenodd"
-					/>
-					<path
-						fill="currentColor"
-						fillRule="evenodd"
-						d="M15.89 15.07 38 26.543v22.935l22.104-11.47.007.004V15.068l-.003.001L38 3.598z"
-						clipRule="evenodd"
-					/>
-					<path
-						fill="currentColor"
-						fillRule="evenodd"
-						d="M37.987 49.464 15.89 38v22.944l.013-.006L38 72.402V49.457z"
-						clipRule="evenodd"
-					/>
-				</svg>
+				<PrefectLogo />
 			</SidebarHeader>
 			<SidebarContent>
 				<SidebarGroup>
@@ -153,25 +170,29 @@ export function AppSidebar() {
 			</SidebarContent>
 			<SidebarFooter>
 				<SidebarMenu>
-					<SidebarMenuItem>
-						<a
-							href="https://prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss&utm_term=none&utm_content=none"
-							target="_blank"
-							rel="noreferrer"
-						>
-							<SidebarMenuButton asChild>
-								<div className="flex items-center justify-between">
-									<span>Ready to scale?</span>
-									<Button size="sm">Upgrade</Button>
-								</div>
-							</SidebarMenuButton>
-						</a>
-					</SidebarMenuItem>
-					<SidebarMenuItem>
-						<SidebarMenuButton asChild>
-							<span>Join the community</span>
-						</SidebarMenuButton>
-					</SidebarMenuItem>
+					{showPromotionalContent && (
+						<>
+							<SidebarMenuItem>
+								<a
+									href="https://prefect.io/cloud-vs-oss?utm_source=oss&utm_medium=oss&utm_campaign=oss&utm_term=none&utm_content=none"
+									target="_blank"
+									rel="noreferrer"
+								>
+									<SidebarMenuButton asChild>
+										<div className="flex items-center justify-between">
+											<span>Ready to scale?</span>
+											<Button size="sm">Upgrade</Button>
+										</div>
+									</SidebarMenuButton>
+								</a>
+							</SidebarMenuItem>
+							<SidebarMenuItem>
+								<SidebarMenuButton asChild>
+									<span>Join the community</span>
+								</SidebarMenuButton>
+							</SidebarMenuItem>
+						</>
+					)}
 					<SidebarMenuItem>
 						<Link to="/settings">
 							{({ isActive }) => (
@@ -181,6 +202,13 @@ export function AppSidebar() {
 							)}
 						</Link>
 					</SidebarMenuItem>
+					{canSwitchToV1 && (
+						<SidebarMenuItem>
+							<SidebarMenuButton onClick={() => setIsSwitchDialogOpen(true)}>
+								<span>Switch back to current UI</span>
+							</SidebarMenuButton>
+						</SidebarMenuItem>
+					)}
 					{authRequired && (
 						<SidebarMenuItem>
 							<SidebarMenuButton onClick={handleLogout}>
@@ -191,6 +219,12 @@ export function AppSidebar() {
 					)}
 				</SidebarMenu>
 			</SidebarFooter>
+			<UiVersionSwitchDialog
+				open={isSwitchDialogOpen}
+				onOpenChange={setIsSwitchDialogOpen}
+				onSkipFeedback={() => handleSwitchToV1()}
+				onSubmitFeedback={(values) => handleSwitchToV1(values)}
+			/>
 		</Sidebar>
 	);
 }

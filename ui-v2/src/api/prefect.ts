@@ -3043,6 +3043,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/storage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Server Default Result Storage
+         * @description Get the configured server default result storage block.
+         */
+        get: operations["read_server_default_result_storage_admin_storage_get"];
+        /**
+         * Update Server Default Result Storage
+         * @description Set the server default result storage block.
+         */
+        put: operations["update_server_default_result_storage_admin_storage_put"];
+        post?: never;
+        /**
+         * Clear Server Default Result Storage
+         * @description Clear the configured server default result storage block.
+         */
+        delete: operations["clear_server_default_result_storage_admin_storage_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/hello": {
         parameters: {
             query?: never;
@@ -3543,17 +3571,17 @@ export interface components {
              * Actions
              * @description The actions to perform when this Automation triggers
              */
-            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Trigger
              * @description The actions to perform when an Automation goes into a triggered state
              */
-            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Resolve
              * @description The actions to perform when an Automation goes into a resolving state
              */
-            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Id
              * Format: uuid
@@ -3597,17 +3625,17 @@ export interface components {
              * Actions
              * @description The actions to perform when this Automation triggers
              */
-            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Trigger
              * @description The actions to perform when an Automation goes into a triggered state
              */
-            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Resolve
              * @description The actions to perform when an Automation goes into a resolving state
              */
-            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Owner Resource
              * @description The resource to which this automation belongs
@@ -3732,17 +3760,17 @@ export interface components {
              * Actions
              * @description The actions to perform when this Automation triggers
              */
-            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Trigger
              * @description The actions to perform when an Automation goes into a triggered state
              */
-            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_trigger?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
             /**
              * Actions On Resolve
              * @description The actions to perform when an Automation goes into a resolving state
              */
-            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
+            actions_on_resolve?: (components["schemas"]["DoNothing"] | components["schemas"]["RunDeployment"] | components["schemas"]["PauseDeployment"] | components["schemas"]["ResumeDeployment"] | components["schemas"]["CancelFlowRun"] | components["schemas"]["DeleteFlowRun"] | components["schemas"]["ChangeFlowRunState"] | components["schemas"]["PauseWorkQueue"] | components["schemas"]["ResumeWorkQueue"] | components["schemas"]["SendNotification"] | components["schemas"]["CallWebhook"] | components["schemas"]["PauseAutomation"] | components["schemas"]["ResumeAutomation"] | components["schemas"]["SuspendFlowRun"] | components["schemas"]["ResumeFlowRun"] | components["schemas"]["PauseWorkPool"] | components["schemas"]["ResumeWorkPool"])[];
         };
         /**
          * BlockDocument
@@ -5814,6 +5842,18 @@ export interface components {
              */
             expiration: string;
         };
+        /**
+         * DeleteFlowRun
+         * @description Deletes a flow run associated with the trigger
+         */
+        DeleteFlowRun: {
+            /**
+             * Type
+             * @default delete-flow-run
+             * @constant
+             */
+            type: "delete-flow-run";
+        };
         /** DependencyResult */
         DependencyResult: {
             /**
@@ -6960,8 +7000,6 @@ export interface components {
              * @default true
              */
             warn: boolean;
-            /** @description Settings for the experimental plugin system */
-            plugins?: components["schemas"]["PluginsSettings"];
         };
         /**
          * Flow
@@ -8905,12 +8943,17 @@ export interface components {
         };
         /**
          * PluginsSettings
-         * @description Settings for configuring the experimental plugin system
+         * @description Settings for configuring the plugin system.
+         *
+         *     Each field also accepts the legacy `PREFECT_EXPERIMENTS_PLUGINS_*` env-var
+         *     name. The system warns once at import time when any of those legacy names
+         *     is present in the environment. Legacy `[experiments.plugins]` TOML tables
+         *     are read as a lower-priority fallback for the same backward-compat reason.
          */
         PluginsSettings: {
             /**
              * Enabled
-             * @description Enable the experimental plugin system.
+             * @description Enable the plugin system.
              * @default false
              */
             enabled: boolean;
@@ -9294,6 +9337,12 @@ export interface components {
              * @default false
              */
             crash_on_cancellation_failure: boolean;
+            /**
+             * Auto Install Dependencies
+             * @description Whether runners may install dependencies before executing flow runs. Enable this when deployments pull code that needs dependencies prepared at runtime.
+             * @default false
+             */
+            auto_install_dependencies: boolean;
             server?: components["schemas"]["RunnerServerSettings"];
         };
         /**
@@ -9660,6 +9709,24 @@ export interface components {
              * @default *
              */
             cors_allowed_headers: string;
+            /**
+             * Websocket Ping Interval
+             * @description WebSocket ping interval in seconds. Only applies when starting the server with `prefect server start`.
+             * @default 20
+             */
+            websocket_ping_interval: number;
+            /**
+             * Websocket Ping Timeout
+             * @description WebSocket ping timeout in seconds. Only applies when starting the server with `prefect server start`.
+             * @default 20
+             */
+            websocket_ping_timeout: number;
+            /**
+             * Max Parameter Size
+             * @description The maximum size of parameters (in bytes, JSON-serialized) that can be stored on a flow run or deployment. Set to 0 to disable the limit.
+             * @default 524288
+             */
+            max_parameter_size: number;
         };
         /** ServerConcurrencySettings */
         ServerConcurrencySettings: {
@@ -9757,6 +9824,29 @@ export interface components {
              * @default 5
              */
             connection_timeout: number | null;
+        };
+        /**
+         * ServerDefaultResultStorage
+         * @description Server-side default result storage configuration.
+         */
+        ServerDefaultResultStorage: {
+            /**
+             * Default Result Storage Block Id
+             * @description The block document ID of the server default result storage block.
+             */
+            default_result_storage_block_id?: string | null;
+        };
+        /**
+         * ServerDefaultResultStorageUpdate
+         * @description Request payload for setting the server default result storage block.
+         */
+        ServerDefaultResultStorageUpdate: {
+            /**
+             * Default Result Storage Block Id
+             * Format: uuid
+             * @description The block document ID of the server default result storage block.
+             */
+            default_result_storage_block_id: string;
         };
         /** ServerDeploymentsSettings */
         ServerDeploymentsSettings: {
@@ -9952,6 +10042,36 @@ export interface components {
              * @default 20
              */
             loop_seconds: number;
+            /**
+             * Cancelling Timeout Seconds
+             * @description The cancellation cleanup service will enqueue worker cleanup for flow runs that remain in CANCELLING longer than this many seconds. Defaults to `300`.
+             * @default 300
+             */
+            cancelling_timeout_seconds: number;
+        };
+        /**
+         * ServerServicesCleanupReconcilerSettings
+         * @description Settings for controlling the cleanup reconciler service.
+         */
+        ServerServicesCleanupReconcilerSettings: {
+            /**
+             * Enabled
+             * @description Whether or not to start the cleanup reconciler service in the server application.
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Loop Seconds
+             * @description The cleanup reconciler service will look for expired cleanup message leases this often. Defaults to `5`.
+             * @default 5
+             */
+            loop_seconds: number;
+            /**
+             * Batch Size
+             * @description The maximum number of expired cleanup message leases to process per service loop. Defaults to `100`.
+             * @default 100
+             */
+            batch_size: number;
         };
         /**
          * ServerServicesDBVacuumSettings
@@ -10255,6 +10375,8 @@ export interface components {
             scheduler?: components["schemas"]["ServerServicesSchedulerSettings"];
             pause_expirations?: components["schemas"]["ServerServicesPauseExpirationsSettings"];
             repossessor?: components["schemas"]["ServerServicesRepossessorSettings"];
+            /** @description Settings for controlling the cleanup reconciler service */
+            cleanup_reconciler?: components["schemas"]["ServerServicesCleanupReconcilerSettings"];
             task_run_recorder?: components["schemas"]["ServerServicesTaskRunRecorderSettings"];
             triggers?: components["schemas"]["ServerServicesTriggersSettings"];
         };
@@ -10398,6 +10520,8 @@ export interface components {
             tasks?: components["schemas"]["ServerTasksSettings"];
             /** @description Settings for controlling server UI behavior */
             ui?: components["schemas"]["ServerUISettings"];
+            /** @description Settings for controlling server worker channel behavior */
+            worker_channel?: components["schemas"]["ServerWorkerChannelSettings"];
         };
         /**
          * ServerTasksSchedulingSettings
@@ -10453,7 +10577,7 @@ export interface components {
             enabled: boolean;
             /**
              * V2 Enabled
-             * @description Whether to serve the experimental V2 UI instead of the default V1 UI.
+             * @description Whether neutral UI entry points should default to the experimental V2 UI instead of V1 when the browser has no saved UI preference.
              * @default false
              */
             v2_enabled: boolean;
@@ -10479,6 +10603,35 @@ export interface components {
              * @default true
              */
             show_promotional_content: boolean;
+        };
+        /**
+         * ServerWorkerChannelSettings
+         * @description Settings for server-side worker channel storage and delivery policy.
+         */
+        ServerWorkerChannelSettings: {
+            /**
+             * Cleanup Queue Storage
+             * @description The module to use for storing worker cleanup delivery messages. The default in-memory backend stores messages, leases, wakeups, and dead-letter entries only in the current server process; use an external storage module for high availability or restart-safe cleanup delivery.
+             * @default prefect.server.worker_communication.cleanup_queue.memory
+             */
+            cleanup_queue_storage: string;
+            /**
+             * Cleanup Lease Seconds
+             * @description The default cleanup message reservation lease duration in seconds.
+             * @default 30
+             */
+            cleanup_lease_seconds: number;
+            /**
+             * Cleanup Max Delivery Attempts
+             * @description The maximum number of committed cleanup reservations before a message is moved to the dead-letter queue.
+             * @default 3
+             */
+            cleanup_max_delivery_attempts: number;
+            /**
+             * Cleanup Completed Idempotency Retention Seconds
+             * @description How long completed cleanup idempotency records are retained after acknowledgement. None keeps them for the lifetime of the current server process. The in-memory backend does not survive restart; use external storage for high availability or restart-safe cleanup idempotency.
+             */
+            cleanup_completed_idempotency_retention_seconds?: number | null;
         };
         /**
          * SetStateStatus
@@ -10524,6 +10677,8 @@ export interface components {
             /** @description Settings for internal Prefect machinery */
             internal?: components["schemas"]["InternalSettings"];
             logging?: components["schemas"]["LoggingSettings"];
+            /** @description Settings for the plugin system. */
+            plugins?: components["schemas"]["PluginsSettings"];
             results?: components["schemas"]["ResultsSettings"];
             runner?: components["schemas"]["RunnerSettings"];
             server?: components["schemas"]["ServerSettings"];
@@ -12656,6 +12811,27 @@ export interface components {
              * @description List of enabled feature flags.
              */
             flags?: string[];
+            /**
+             * Default Ui
+             * @description The default UI used for neutral entry points when the browser has no saved UI preference.
+             * @enum {string}
+             */
+            default_ui: "v1" | "v2";
+            /**
+             * Available Uis
+             * @description List of UI bundles currently available to this server.
+             */
+            available_uis?: ("v1" | "v2")[];
+            /**
+             * V1 Base Url
+             * @description The base URL for the legacy V1 UI, or null when unavailable.
+             */
+            v1_base_url?: string | null;
+            /**
+             * V2 Base Url
+             * @description The base URL for the V2 UI, or null when unavailable.
+             */
+            v2_base_url?: string | null;
         };
     };
     responses: never;
@@ -18965,6 +19141,101 @@ export interface operations {
                 content: {
                     "application/json": string;
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_server_default_result_storage_admin_storage_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerDefaultResultStorage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_server_default_result_storage_admin_storage_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServerDefaultResultStorageUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServerDefaultResultStorage"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_server_default_result_storage_admin_storage_delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

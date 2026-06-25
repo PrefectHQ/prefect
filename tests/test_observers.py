@@ -1,15 +1,26 @@
 import asyncio
+import threading
 import uuid
+from contextlib import suppress
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from prefect import flow
-from prefect._observers import FlowRunCancellingObserver
+from prefect._flow_run_suspension import (
+    FlowRunSuspensionRequest,
+    observe_flow_run_suspension,
+)
+from prefect._internal.observers import (
+    FlowRunCancellingObserver,
+    FlowRunSuspendingObserver,
+)
+from prefect._internal.testing import retry_asserts
 from prefect.client.schemas.objects import StateType
 from prefect.events.filters import EventAnyResourceFilter, EventFilter, EventNameFilter
 from prefect.events.utilities import emit_event
+from prefect.states import Running, Suspended
 
 
 @flow
@@ -247,11 +258,10 @@ class TestFlowRunCancellingObserver:
                 id=uuid.uuid4(),
             )
 
-            # Give time for event to be processed
-            await asyncio.sleep(0.2)
-
-            # Should call callback
-            callback.assert_called_once_with(flow_run_id)
+            # Retry assertion to handle event propagation delays under CI load
+            async for attempt in retry_asserts(max_attempts=5, delay=0.5):
+                with attempt:
+                    callback.assert_called_once_with(flow_run_id)
 
     async def test_consume_events_ignores_non_in_flight_flow_runs(self):
         """Test that websocket events for flow runs not in the in-flight set are ignored."""
@@ -277,10 +287,10 @@ class TestFlowRunCancellingObserver:
                 id=uuid.uuid4(),
             )
 
-            await asyncio.sleep(0.2)
-
-            # Only the in-flight flow run should trigger the callback
-            callback.assert_called_once_with(in_flight_id)
+            # Retry assertion to handle event propagation delays under CI load
+            async for attempt in retry_asserts(max_attempts=5, delay=0.5):
+                with attempt:
+                    callback.assert_called_once_with(in_flight_id)
 
     async def test_polling_fallback_on_websocket_failure(self):
         """Test observer switches to polling when websocket fails."""
@@ -464,7 +474,7 @@ class TestFlowRunCancellingObserver:
         )
 
         with patch(
-            "prefect._observers.get_events_subscriber",
+            "prefect._internal.observers.get_events_subscriber",
             side_effect=Exception("WebSocket connection failed"),
         ):
             async with observer:
@@ -490,7 +500,7 @@ class TestFlowRunCancellingObserver:
         mock_flow_run.id = flow_run_id
 
         with patch(
-            "prefect._observers.get_events_subscriber",
+            "prefect._internal.observers.get_events_subscriber",
             side_effect=Exception("WebSocket connection failed"),
         ):
             async with observer:
@@ -515,7 +525,7 @@ class TestFlowRunCancellingObserver:
         )
 
         with patch(
-            "prefect._observers.get_events_subscriber",
+            "prefect._internal.observers.get_events_subscriber",
             side_effect=Exception("WebSocket connection failed"),
         ):
             async with observer:
@@ -525,3 +535,229 @@ class TestFlowRunCancellingObserver:
 
         # After exiting context, polling task should be cancelled/done
         assert polling_task.cancelled() or polling_task.done()
+
+
+class TestFlowRunSuspendingObserver:
+    async def test_observer_validates_event_filter_has_suspended_event(self):
+        callback = AsyncMock()
+
+        valid_filter = EventFilter(
+            event=EventNameFilter(name=["prefect.flow-run.Suspended"]),
+            any_resource=EventAnyResourceFilter(id=["prefect.work-pool.test-id"]),
+        )
+        observer = FlowRunSuspendingObserver(
+            on_suspended=callback, event_filter=valid_filter
+        )
+        assert observer._event_filter == valid_filter
+
+        with pytest.raises(
+            ValueError, match="must include 'prefect.flow-run.Suspended'"
+        ):
+            FlowRunSuspendingObserver(
+                on_suspended=callback,
+                event_filter=EventFilter(
+                    event=EventNameFilter(name=["prefect.flow-run.Running"])
+                ),
+            )
+
+    async def test_polling_with_mocked_suspended_flow_runs(self):
+        callback = MagicMock()
+        observer = FlowRunSuspendingObserver(
+            on_suspended=callback, polling_interval=0.1
+        )
+
+        flow_run_id = uuid.uuid4()
+        state = Suspended()
+        mock_flow_run = mock.MagicMock()
+        mock_flow_run.id = flow_run_id
+        mock_flow_run.state = state
+
+        async with observer:
+            observer.add_in_flight_flow_run_id(flow_run_id)
+
+            with patch.object(
+                observer._client, "read_flow_runs", return_value=[mock_flow_run]
+            ):
+                await observer._check_for_suspended_flow_runs()
+
+            callback.assert_called_once_with(flow_run_id, state)
+            assert flow_run_id in observer._suspended_flow_run_ids
+
+    async def test_watch_flow_run_id_checks_current_state(self):
+        callback = MagicMock()
+        observer = FlowRunSuspendingObserver(on_suspended=callback)
+
+        flow_run_id = uuid.uuid4()
+        state = Suspended()
+        flow_run = mock.MagicMock(state=state)
+
+        async with observer:
+            with patch.object(
+                observer._client,
+                "read_flow_run",
+                return_value=flow_run,
+            ) as read_flow_run:
+                await observer.watch_flow_run_id(flow_run_id)
+
+            assert flow_run_id in observer._in_flight_flow_run_ids
+            read_flow_run.assert_called_once_with(flow_run_id)
+            callback.assert_called_once_with(flow_run_id, state)
+
+    async def test_watch_flow_run_id_retries_initial_check_until_success(self, caplog):
+        callback = MagicMock()
+        observer = FlowRunSuspendingObserver(
+            on_suspended=callback, polling_interval=0.01
+        )
+
+        flow_run_id = uuid.uuid4()
+        state = Suspended()
+        flow_run = mock.MagicMock(state=state)
+        caplog.set_level("WARNING", logger="prefect.FlowRunSuspendingObserver")
+
+        async with observer:
+            with patch.object(
+                observer._client,
+                "read_flow_run",
+                side_effect=[
+                    RuntimeError("boom"),
+                    RuntimeError("still boom"),
+                    flow_run,
+                ],
+            ) as read_flow_run:
+                await observer.watch_flow_run_id(flow_run_id)
+
+            assert flow_run_id in observer._in_flight_flow_run_ids
+            assert read_flow_run.call_count == 3
+            callback.assert_called_once_with(flow_run_id, state)
+            assert flow_run_id in observer._suspended_flow_run_ids
+            assert "Failed to check current state" in caplog.text
+
+    async def test_event_consumer_reads_flow_run_before_callback(self):
+        callback = MagicMock()
+        observer = FlowRunSuspendingObserver(on_suspended=callback)
+
+        flow_run_id = uuid.uuid4()
+        suspended_state = Suspended()
+        running_flow_run = mock.MagicMock(state=Running())
+        suspended_flow_run = mock.MagicMock(state=suspended_state)
+
+        async with observer:
+            observer.add_in_flight_flow_run_id(flow_run_id)
+
+            with patch.object(
+                observer._client,
+                "read_flow_run",
+                side_effect=[running_flow_run, suspended_flow_run],
+            ):
+                await observer._notify_if_suspended(flow_run_id)
+                callback.assert_not_called()
+
+                await observer._notify_if_suspended(flow_run_id)
+
+            callback.assert_called_once_with(flow_run_id, suspended_state)
+
+    async def test_clean_event_consumer_completion_starts_polling(self):
+        callback = MagicMock()
+        observer = FlowRunSuspendingObserver(on_suspended=callback)
+
+        async def complete():
+            pass
+
+        async def never_finish(*args, **kwargs):
+            await asyncio.Event().wait()
+
+        consumer_task = asyncio.create_task(complete())
+        await consumer_task
+
+        with patch(
+            "prefect._internal.observers.critical_service_loop",
+            AsyncMock(side_effect=never_finish),
+        ) as critical_service_loop:
+            observer._start_polling_task(consumer_task)
+            await asyncio.sleep(0)
+
+            assert observer._polling_task is not None
+            critical_service_loop.assert_called_once()
+
+            observer._polling_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await observer._polling_task
+
+    @pytest.mark.parametrize("task_state", ["completed", "cancelled"])
+    async def test_event_consumer_completion_does_not_poll_during_shutdown(
+        self, task_state: str
+    ):
+        callback = MagicMock()
+        observer = FlowRunSuspendingObserver(on_suspended=callback)
+        observer._is_shutting_down = True
+
+        async def complete():
+            pass
+
+        consumer_task = asyncio.create_task(complete())
+        if task_state == "cancelled":
+            consumer_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await consumer_task
+        else:
+            await consumer_task
+
+        with patch(
+            "prefect._internal.observers.critical_service_loop"
+        ) as critical_service_loop:
+            observer._start_polling_task(consumer_task)
+
+        assert observer._polling_task is None
+        critical_service_loop.assert_not_called()
+
+    def test_observe_flow_run_suspension_waits_for_initial_check(self, monkeypatch):
+        flow_run_id = uuid.uuid4()
+        suspension_request = FlowRunSuspensionRequest()
+        watch_started = threading.Event()
+        release_watch = threading.Event()
+        entered_context = threading.Event()
+        exit_context = threading.Event()
+        errors: list[BaseException] = []
+
+        class FakeFlowRunSuspendingObserver:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *exc_info):
+                pass
+
+            async def watch_flow_run_id(self, observed_flow_run_id):
+                assert observed_flow_run_id == flow_run_id
+                watch_started.set()
+                await asyncio.to_thread(release_watch.wait)
+
+        monkeypatch.setattr(
+            "prefect._internal.observers.FlowRunSuspendingObserver",
+            FakeFlowRunSuspendingObserver,
+        )
+
+        def enter_observer_context():
+            try:
+                with observe_flow_run_suspension(flow_run_id, suspension_request):
+                    entered_context.set()
+                    exit_context.wait(timeout=2)
+            except BaseException as exc:
+                errors.append(exc)
+
+        thread = threading.Thread(target=enter_observer_context)
+        thread.start()
+
+        assert watch_started.wait(timeout=2)
+        assert not entered_context.wait(timeout=2.2)
+
+        release_watch.set()
+        assert entered_context.wait(timeout=2)
+
+        exit_context.set()
+        thread.join(timeout=2)
+
+        assert not thread.is_alive()
+        assert not errors

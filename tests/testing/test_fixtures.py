@@ -10,6 +10,8 @@ import pytest
 
 from prefect.testing import fixtures
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestHostedApiServerWindowsProcessHandling:
     """Tests for Windows-specific process handling in hosted_api_server fixture."""

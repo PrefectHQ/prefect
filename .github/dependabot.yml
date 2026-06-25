@@ -43,18 +43,6 @@ updates:
       interval: "daily"
     labels: ["development"]
 
-  # Check for Python updates in v2
-  - package-ecosystem: "pip"
-    target-branch: "2.x"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    labels: ["development", "2.x"]
-    groups:
-      python-dependencies-v2:
-        patterns:
-          - "*"
-
   # update uv.lock file
   - package-ecosystem: "uv" 
     directory: "/" # Location of package manifests

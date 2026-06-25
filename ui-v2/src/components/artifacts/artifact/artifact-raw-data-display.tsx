@@ -1,4 +1,5 @@
 import { EditorView, useCodeMirror } from "@uiw/react-codemirror";
+import { useTheme } from "next-themes";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { ArtifactWithFlowRunAndTaskRun } from "@/api/artifacts";
@@ -17,6 +18,7 @@ export const ArtifactDataDisplay = ({ artifact }: ArtifactDataDisplayProps) => {
 	};
 
 	const editor = useRef<HTMLDivElement | null>(null);
+	const { resolvedTheme } = useTheme();
 	const basicSetup = {
 		highlightActiveLine: false,
 		foldGutter: false,
@@ -34,6 +36,7 @@ export const ArtifactDataDisplay = ({ artifact }: ArtifactDataDisplayProps) => {
 		indentWithTab: false,
 		editable: true,
 		basicSetup,
+		theme: resolvedTheme === "dark" ? "dark" : "light",
 	});
 
 	useEffect(() => {

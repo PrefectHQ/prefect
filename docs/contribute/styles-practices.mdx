@@ -282,52 +282,9 @@ In almost all other cases, we bump the minor version, which denotes a non-backwa
 the major version changes to denote a backwards compatible change that is significant in some way, such as a major release
 milestone.
 
-### Version composition
+## Versioning scheme, deprecation, and compatibility
 
-Versions are composed of three parts: MAJOR.MINOR.PATCH. For example, the version 2.5.0 has a major version of 2, a minor version
-of 5, and patch version of 0.
-
-Occasionally, we add a suffix to the version such as `rc`, `a`, or `b`. These indicate pre-release versions that users can
-opt into for testing and experimentation prior to a generally available release.
-
-Each release will increase one of the version numbers. If we increase a number other than the patch version, the versions to the
-right of it reset to zero.
-
-## Prefect's versioning scheme
-
-Prefect increases the major version when significant and widespread changes are made to the core product.
-
-Prefect increases the minor version when:
-
-*   Introducing a new concept that changes how to use Prefect
-*   Changing an existing concept in a way that fundamentally alters its usage
-*   Removing a deprecated feature
-
-Prefect increases the patch version when:
-
-*   Making enhancements to existing features
-*   Fixing behavior in existing features
-*   Adding new capabilities to existing concepts
-*   Updating dependencies
-
-## Deprecation
-
-At times, Prefect will deprecate a feature. A feature is deprecated when it will no longer be maintained. Frequently,
-a deprecated feature will have a new and improved alternative. Deprecated features will be retained for at least **3** minor
-version increases or **6 months**, whichever is longer. We may retain deprecated features longer than this time period.
-
-Prefect will sometimes include changes to behavior to fix a bug. These changes are not categorized as breaking changes.
-
-## Client compatibility with Prefect
-
-When running a Prefect server, you are in charge of ensuring the version is compatible with those of the clients that are
-using the server. Prefect aims to maintain backwards compatibility with old clients for each server release. In contrast,
-sometimes you cannot use new clients with an old server. The new client may expect the server to support capabilities that
-it does not yet include. For this reason, we recommend that all clients are the same version as the server or older.
-
-For example, you can use a client on 2.1.0 with a server on 2.5.0. You cannot use a client on 2.5.0 with a server on 2.1.0.
-
-## Client compatibility with Cloud
-
-Prefect Cloud targets compatibility with all versions of Prefect clients. If you encounter a compatibility issue, please
-[file a bug report](https://github.com/prefectHQ/prefect/issues/new/choose).
+The user-facing versioning policy lives in [Versioning and compatibility](/v3/release-notes/versioning). It covers
+version composition (the `MAJOR.MINOR.PATCH` parts and pre-release suffixes), how Prefect increments each number
+(which does not strictly follow semantic versioning), the deprecation window, and which client versions are
+compatible with a given server or Prefect Cloud.

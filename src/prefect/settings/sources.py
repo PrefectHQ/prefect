@@ -14,6 +14,7 @@ from pydantic_settings import (
     EnvSettingsSource,
     PydanticBaseSettingsSource,
 )
+from pydantic_settings.exceptions import SettingsError
 from pydantic_settings.sources import (
     ENV_FILE_SENTINEL,
     ConfigFileSourceMixin,
@@ -60,13 +61,13 @@ class EnvFilterSettingsSource(EnvSettingsSource):
         env_filter: Optional[List[str]] = None,
     ) -> None:
         super().__init__(
-            settings_cls,
-            case_sensitive,
-            env_prefix,
-            env_nested_delimiter,
-            env_ignore_empty,
-            env_parse_none_str,
-            env_parse_enums,
+            settings_cls=settings_cls,
+            case_sensitive=case_sensitive,
+            env_prefix=env_prefix,
+            env_nested_delimiter=env_nested_delimiter,
+            env_ignore_empty=env_ignore_empty,
+            env_parse_none_str=env_parse_none_str,
+            env_parse_enums=env_parse_enums,
         )
         self.env_vars: Mapping[str, str | None]
         if env_filter:
@@ -96,15 +97,15 @@ class FilteredDotEnvSettingsSource(DotEnvSettingsSource):
         env_blacklist: Optional[List[str]] = None,
     ) -> None:
         super().__init__(
-            settings_cls,
-            env_file,
-            env_file_encoding,
-            case_sensitive,
-            env_prefix,
-            env_nested_delimiter,
-            env_ignore_empty,
-            env_parse_none_str,
-            env_parse_enums,
+            settings_cls=settings_cls,
+            env_file=env_file,
+            env_file_encoding=env_file_encoding,
+            case_sensitive=case_sensitive,
+            env_prefix=env_prefix,
+            env_nested_delimiter=env_nested_delimiter,
+            env_ignore_empty=env_ignore_empty,
+            env_parse_none_str=env_parse_none_str,
+            env_parse_enums=env_parse_enums,
         )
         self.env_blacklist = env_blacklist
         if self.env_blacklist:
@@ -230,7 +231,12 @@ class TomlConfigSettingsSourceBase(PydanticBaseSettingsSource, ConfigFileSourceM
         self.toml_data: dict[str, Any] = {}
 
     def _read_file(self, path: Path) -> dict[str, Any]:
-        return _read_toml_file(path)
+        try:
+            return _read_toml_file(path)
+        except tomllib.TOMLDecodeError as e:
+            raise SettingsError(
+                f"Failed to load Prefect settings from {path}: invalid TOML ({e})"
+            ) from e
 
     @staticmethod
     def _field_is_dict_type(field: FieldInfo) -> bool:

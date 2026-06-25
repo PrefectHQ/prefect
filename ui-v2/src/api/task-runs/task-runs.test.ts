@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createFakeTaskRun } from "@/mocks";
 import type { TaskRun } from ".";
 import {
+	buildGetFlowRunsTaskRunsCountQuery,
 	buildPaginateTaskRunsQuery,
 	queryKeyFactory,
 	useDeleteTaskRun,
@@ -87,6 +88,21 @@ describe("task runs api", () => {
 			const { refetchInterval } = buildPaginateTaskRunsQuery();
 
 			expect(refetchInterval).toBe(30_000);
+		});
+	});
+
+	describe("buildGetFlowRunsTaskRunsCountQuery", () => {
+		it("has a 30s refetch interval by default", () => {
+			const { refetchInterval } = buildGetFlowRunsTaskRunsCountQuery(["id-0"]);
+			expect(refetchInterval).toBe(30_000);
+		});
+
+		it("allows overriding the refetch interval", () => {
+			const { refetchInterval } = buildGetFlowRunsTaskRunsCountQuery(
+				["id-0"],
+				5_000,
+			);
+			expect(refetchInterval).toBe(5_000);
 		});
 	});
 

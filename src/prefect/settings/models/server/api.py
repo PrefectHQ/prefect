@@ -143,3 +143,19 @@ class ServerAPISettings(PrefectBaseSettings):
             "prefect_server_cors_allowed_headers",
         ),
     )
+
+    websocket_ping_interval: float = Field(
+        default=20.0,
+        description="WebSocket ping interval in seconds. Only applies when starting the server with `prefect server start`.",
+    )
+
+    websocket_ping_timeout: float = Field(
+        default=20.0,
+        description="WebSocket ping timeout in seconds. Only applies when starting the server with `prefect server start`.",
+    )
+
+    max_parameter_size: int = Field(
+        default=524_288,
+        description="The maximum size of parameters (in bytes, JSON-serialized) that can be stored on a flow run or deployment. Set to 0 to disable the limit.",
+        ge=0,
+    )

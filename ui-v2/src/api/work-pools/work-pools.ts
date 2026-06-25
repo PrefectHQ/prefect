@@ -92,6 +92,7 @@ export const buildFilterWorkPoolsQuery = (
 			return res.data;
 		},
 		enabled,
+		refetchInterval: 30_000,
 		placeholderData: keepPreviousData,
 	});
 
@@ -125,6 +126,7 @@ export const buildCountWorkPoolsQuery = (filter: WorkPoolsCountFilter = {}) =>
 			});
 			return res.data ?? 0;
 		},
+		refetchInterval: 30_000,
 		placeholderData: keepPreviousData,
 	});
 
@@ -146,6 +148,7 @@ export const buildGetWorkPoolQuery = (name: string) =>
 			}
 			return res.data;
 		},
+		refetchInterval: 30_000,
 		placeholderData: keepPreviousData,
 	});
 

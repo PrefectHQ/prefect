@@ -11,7 +11,8 @@ import pytest
 
 from prefect import flow, task
 from prefect.client.orchestration import PrefectClient
-from prefect.exceptions import MissingResult
+from prefect.context import FlowRunContext
+from prefect.exceptions import MissingResult, Pause
 from prefect.flow_engine import run_flow_async, run_flow_sync
 from prefect.futures import (
     PrefectConcurrentFuture,
@@ -26,7 +27,7 @@ from prefect.futures import (
     wait,
 )
 from prefect.server.events.pipeline import EventsPipeline
-from prefect.states import Completed, Failed
+from prefect.states import Completed, Failed, Suspended
 from prefect.task_engine import run_task_async, run_task_sync
 from prefect.task_runners import ThreadPoolTaskRunner
 
@@ -47,6 +48,12 @@ class MockFuture(PrefectWrappedFuture[Any, Future[Any]]):
         return self._final_state.result()
 
 
+def mark_flow_run_suspension_requested() -> None:
+    flow_run_context = FlowRunContext.get()
+    assert flow_run_context
+    flow_run_context.flow_run_suspension_request.mark_requested(Suspended())
+
+
 class TestUtilityFunctions:
     def test_wait(self):
         mock_futures = [MockFuture(data=i) for i in range(5)]
@@ -63,6 +70,19 @@ class TestUtilityFunctions:
         mock_futures.append(PrefectConcurrentFuture(uuid.uuid4(), hanging_future))
         futures = wait(mock_futures, timeout=0.01)
         assert futures.not_done == {mock_futures[-1]}
+
+    @pytest.mark.timeout(method="thread")
+    def test_wait_with_timeout_checks_flow_run_suspension(self):
+        @flow
+        def suspendable_flow():
+            hanging_future = Future()
+            future = PrefectConcurrentFuture(uuid.uuid4(), hanging_future)
+            mark_flow_run_suspension_requested()
+
+            wait([future], timeout=0.01)
+
+        with pytest.raises(Pause):
+            suspendable_flow()
 
     def test_wait_monitors_all_futures_concurrently_with_timeout(self):
         """Test that wait() with timeout monitors all futures concurrently, not sequentially."""
@@ -90,14 +110,15 @@ class TestUtilityFunctions:
             thread.start()
 
         # Wait with timeout that allows fast futures to complete
-        done, not_done = wait(futures, timeout=0.1)
+        done, not_done = wait(futures, timeout=1.0)
 
         # Should have captured all 3 fast futures
         assert len(done) == 3
         assert len(not_done) == 1  # Just the slow future
 
-        # Verify we got the right futures
-        done_results = sorted([f.result() for f in done])
+        # Verify we got the right futures via the wrapped future to avoid
+        # run_coro_as_sync deadlocks under xdist parallel execution
+        done_results = sorted([f.wrapped_future.result().data for f in done])
         assert done_results == [1, 2, 3]
 
     def test_as_completed(self):
@@ -161,6 +182,64 @@ class TestUtilityFunctions:
                 for future in as_completed(futures, timeout=5):
                     results.append(future.result())
             assert exc_info.value.args[0] == f"2 (of {len(timings)}) futures unfinished"
+
+    @pytest.mark.timeout(method="thread")
+    def test_wait_uses_private_completion_callback_for_prefect_concurrent_future(self):
+        wrapped_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+        callback_errors: list[BaseException] = []
+
+        def raising_callback(_future: PrefectFuture[Any]):
+            raise KeyboardInterrupt("boom")
+
+        future.add_done_callback(raising_callback)
+
+        def resolve_future():
+            try:
+                wrapped_future.set_result(Completed(data=42))
+            except BaseException as exc:
+                callback_errors.append(exc)
+
+        thread = threading.Thread(target=resolve_future)
+        thread.start()
+        done, not_done = wait([future], timeout=0.5)
+        thread.join()
+
+        assert done == {future}
+        assert not not_done
+        assert future.result() == 42
+        assert len(callback_errors) == 1
+        assert isinstance(callback_errors[0], KeyboardInterrupt)
+
+    @pytest.mark.timeout(method="thread")
+    def test_as_completed_uses_private_completion_callback_for_prefect_concurrent_future(
+        self,
+    ):
+        wrapped_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+        callback_errors: list[BaseException] = []
+
+        def raising_callback(_future: PrefectFuture[Any]):
+            raise KeyboardInterrupt("boom")
+
+        future.add_done_callback(raising_callback)
+
+        def resolve_future():
+            try:
+                wrapped_future.set_result(Completed(data=42))
+            except BaseException as exc:
+                callback_errors.append(exc)
+
+        thread = threading.Thread(target=resolve_future)
+        thread.start()
+        results = [
+            done_future.result() for done_future in as_completed([future], timeout=0.5)
+        ]
+        thread.join()
+
+        assert results == [42]
+        assert len(callback_errors) == 1
+        assert isinstance(callback_errors[0], KeyboardInterrupt)
 
     async def test_as_completed_yields_correct_order_dist(self, events_pipeline):
         @task
@@ -241,6 +320,22 @@ class TestPrefectConcurrentFuture:
 
         with pytest.raises(ValueError, match="oops"):
             future.result(raise_on_failure=True)
+
+    @pytest.mark.parametrize("method", ["wait", "result"])
+    def test_timeout_checks_flow_run_suspension(self, method: str):
+        @flow
+        def suspendable_flow():
+            wrapped_future = Future()
+            future = PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)
+            mark_flow_run_suspension_requested()
+
+            if method == "wait":
+                future.wait(timeout=0.01)
+            else:
+                future.result(timeout=0.01)
+
+        with pytest.raises(Pause):
+            suspendable_flow()
 
 
 class TestResolveFuturesToStates:
@@ -399,6 +494,27 @@ class TestPrefectDistributedFuture:
         future = PrefectDistributedFuture(task_run_id=task_run.id)
         future.wait(timeout=0.25)
         assert future.state.is_pending()
+
+    @pytest.mark.parametrize("method", ["wait", "result"])
+    async def test_timeout_checks_flow_run_suspension(self, method: str):
+        @task
+        async def my_task():
+            return 42
+
+        task_run = await my_task.create_run()
+        future = PrefectDistributedFuture(task_run_id=task_run.id)
+
+        @flow
+        def suspendable_flow():
+            mark_flow_run_suspension_requested()
+
+            if method == "wait":
+                future.wait(timeout=0.01)
+            else:
+                future.result(timeout=0.01)
+
+        with pytest.raises(Pause):
+            suspendable_flow()
 
     async def test_wait_without_timeout(self, events_pipeline):
         @task
@@ -577,6 +693,34 @@ class TestPrefectFlowRunFuture:
         future = PrefectFlowRunFuture(flow_run_id=flow_run.id)
         future.wait(timeout=0.25)
         assert future.state.is_pending()
+
+    @pytest.mark.parametrize("method", ["wait", "result"])
+    async def test_timeout_checks_flow_run_suspension(
+        self,
+        prefect_client: PrefectClient,
+        method: str,
+    ):
+        @flow
+        async def my_flow():
+            return 42
+
+        flow_run = await prefect_client.create_flow_run(
+            flow=my_flow,
+            parameters={},
+        )
+        future = PrefectFlowRunFuture(flow_run_id=flow_run.id)
+
+        @flow
+        def suspendable_flow():
+            mark_flow_run_suspension_requested()
+
+            if method == "wait":
+                future.wait(timeout=0.01)
+            else:
+                future.result(timeout=0.01)
+
+        with pytest.raises(Pause):
+            suspendable_flow()
 
     async def test_wait_without_timeout(
         self, events_pipeline: EventsPipeline, prefect_client: PrefectClient

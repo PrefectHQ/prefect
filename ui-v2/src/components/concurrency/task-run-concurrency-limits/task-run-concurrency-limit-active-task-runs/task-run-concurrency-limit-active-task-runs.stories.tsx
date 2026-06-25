@@ -47,3 +47,8 @@ type Story = StoryObj<typeof TaskRunConcurrencyLimitActiveTaskRuns>;
 export const story: Story = {
 	name: "TaskRunConcurrencyLimitActiveTaskRuns",
 };
+
+export const Empty: Story = {
+	name: "TaskRunConcurrencyLimitActiveTaskRuns — empty",
+	args: { data: [] },
+};

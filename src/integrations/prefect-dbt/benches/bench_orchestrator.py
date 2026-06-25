@@ -250,6 +250,7 @@ def run_benchmarks(
             test_strategy=TestStrategy.SKIP,
             create_summary_artifact=False,
             write_run_results=False,
+            raise_on_failure=False,
         )
         return orch.run_build(select=select)
 
@@ -277,6 +278,7 @@ def run_benchmarks(
             test_strategy=TestStrategy.SKIP,
             create_summary_artifact=False,
             write_run_results=False,
+            raise_on_failure=False,
         )
         return orch.run_build(select=select)
 

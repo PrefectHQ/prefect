@@ -2,6 +2,8 @@ import pytest
 import respx
 from httpx import Response
 
+pytestmark = pytest.mark.clear_db
+
 
 class TestReadCollectionViews:
     def collection_view_url(self, view):

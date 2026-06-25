@@ -10,12 +10,12 @@
     "validate:types": "vue-tsc --noEmit"
   },
   "dependencies": {
-    "@prefecthq/prefect-design": "^2.16.2",
+    "@prefecthq/prefect-design": "2.16.4",
     "@prefecthq/prefect-ui-library": "3.15.0",
     "@prefecthq/vue-charts": "^2.1.1",
     "@prefecthq/vue-compositions": "^1.12.2",
     "@types/lodash.debounce": "4.0.9",
-    "axios": "^1.13.6",
+    "axios": "^1.16.0",
     "lodash.debounce": "4.0.8",
     "lodash.merge": "^4.6.2",
     "tailwindcss": "3.4.16",
@@ -25,12 +25,12 @@
   "devDependencies": {
     "@prefecthq/eslint-config": "1.0.32",
     "@types/lodash.merge": "^4.6.9",
-    "@vitejs/plugin-vue": "^6.0.1",
+    "@vitejs/plugin-vue": "^6.0.7",
     "autoprefixer": "10.4.21",
     "eslint": "^8.57.1",
     "ts-node": "10.9.2",
     "typescript": "^5.9.2",
-    "vite": "^7.2.7",
+    "vite": "^8.0.16",
     "vue-tsc": "^3.1.2"
   }
 }

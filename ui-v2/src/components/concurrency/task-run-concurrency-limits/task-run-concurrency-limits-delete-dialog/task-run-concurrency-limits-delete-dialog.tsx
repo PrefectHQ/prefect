@@ -32,13 +32,13 @@ export const TaskRunConcurrencyLimitsDeleteDialog = ({
 		deleteTaskRunConcurrencyLimit(id, {
 			onSuccess: () => {
 				toast.success("Concurrency limit deleted");
+				onDelete();
 			},
 			onError: (error) => {
 				const message =
 					error.message || "Unknown error while deleting concurrency limit.";
-				console.error(message);
+				toast.error(message);
 			},
-			onSettled: onDelete,
 		});
 	};
 

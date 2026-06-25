@@ -10,6 +10,7 @@ import base64
 import contextlib
 import gc
 import hmac
+import importlib.metadata
 import logging
 import mimetypes
 import os
@@ -39,8 +40,9 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from packaging.version import Version
 from starlette.exceptions import HTTPException
 from typing_extensions import Self
 
@@ -50,7 +52,9 @@ import prefect.settings
 from prefect._internal.compatibility.starlette import status
 from prefect._internal.observability import configure_logfire
 from prefect.client.constants import SERVER_API_VERSION
+from prefect.locking._filelock import FileLock
 from prefect.logging import get_logger
+from prefect.server.api._ui_static import UIBundle, UIVersion, log_ui_static_copy_error
 from prefect.server.api.background_workers import background_worker
 from prefect.server.api.dependencies import EnforceMinimumAPIVersion
 from prefect.server.exceptions import ObjectNotFoundError
@@ -71,6 +75,12 @@ from prefect.settings import (
 from prefect.utilities.hashing import hash_objects
 
 logfire: Any | None = configure_logfire()
+
+# FastAPI < 0.137 copies routes when including a router; 0.137+ keeps a
+# reference to the original via _IncludedRouter.
+_FASTAPI_COPIES_ROUTES_ON_INCLUDE: bool = Version(
+    importlib.metadata.version("fastapi")
+) < Version("0.137.0")
 
 TITLE = "Prefect Server"
 API_TITLE = "Prefect REST API"
@@ -124,6 +134,9 @@ API_ROUTERS = (
 )
 
 SQLITE_LOCKED_MSG = "database is locked"
+UI_VERSION_COOKIE_NAME = "prefect_ui_version"
+UI_VERSION_PATH_SEGMENT = "v2"
+UI_STATIC_REFERENCE_FILE_NAME = "UI_SERVE_BASE"
 
 
 class _SQLiteLockedOperationalErrorFilter(logging.Filter):
@@ -176,6 +189,98 @@ class SPAStaticFiles(StaticFiles):
             return await super().get_response(path, scope)
         except HTTPException:
             return await super().get_response("./index.html", scope)
+
+
+def _normalize_ui_base_url(base_url: str) -> str:
+    if not base_url:
+        return "/"
+
+    if not base_url.startswith("/"):
+        base_url = f"/{base_url}"
+
+    if base_url != "/":
+        base_url = base_url.rstrip("/")
+
+    return base_url or "/"
+
+
+def _join_ui_path(base_url: str, suffix: str) -> str:
+    normalized_base_url = _normalize_ui_base_url(base_url)
+    normalized_suffix = f"/{suffix.lstrip('/')}"
+
+    if normalized_base_url == "/":
+        return normalized_suffix
+
+    return f"{normalized_base_url}{normalized_suffix}"
+
+
+def _resolve_ui_base_urls(configured_base_url: str) -> tuple[str, str]:
+    normalized_base_url = _normalize_ui_base_url(configured_base_url)
+    v2_suffix = f"/{UI_VERSION_PATH_SEGMENT}"
+
+    if normalized_base_url == v2_suffix:
+        return "/", normalized_base_url
+
+    if normalized_base_url.endswith(v2_suffix):
+        v1_base_url = normalized_base_url[: -len(v2_suffix)] or "/"
+        return v1_base_url, normalized_base_url
+
+    return normalized_base_url, _join_ui_path(
+        normalized_base_url, UI_VERSION_PATH_SEGMENT
+    )
+
+
+def _path_targets_ui(path: str, base_url: str) -> bool:
+    if base_url == "/":
+        return path.startswith("/")
+
+    return path == base_url or path.startswith(f"{base_url}/")
+
+
+def _relative_ui_path(path: str, base_url: str) -> str:
+    if base_url == "/":
+        return path or "/"
+
+    relative_path = path.removeprefix(base_url)
+    return relative_path or "/"
+
+
+def _build_ui_path(base_url: str, relative_path: str) -> str:
+    normalized_base_url = _normalize_ui_base_url(base_url)
+    normalized_relative_path = (
+        relative_path if relative_path.startswith("/") else f"/{relative_path}"
+    )
+
+    if normalized_base_url == "/":
+        return normalized_relative_path
+
+    if normalized_relative_path == "/":
+        # Preserve the trailing slash so the redirect target falls inside
+        # the bundle's mount. Starlette's `Mount` only routes requests
+        # whose path starts with `{mount}/`; a bare `{mount}` falls through
+        # to whatever else matches, which in practice is the V1 SPA mount
+        # at "/" — that returns V1's index.html under the `/v2` URL and
+        # the V1 router can't resolve the route.
+        return f"{normalized_base_url}/"
+
+    return f"{normalized_base_url}{normalized_relative_path}"
+
+
+def _looks_like_ui_static_bundle(static_dir: str) -> bool:
+    return os.path.exists(os.path.join(static_dir, UI_STATIC_REFERENCE_FILE_NAME))
+
+
+def _is_html_navigation(request: Request) -> bool:
+    if request.method not in {"GET", "HEAD"}:
+        return False
+
+    sec_fetch_mode = request.headers.get("sec-fetch-mode")
+    sec_fetch_dest = request.headers.get("sec-fetch-dest")
+    if sec_fetch_mode == "navigate" or sec_fetch_dest in {"document", "iframe"}:
+        return True
+
+    accept = request.headers.get("accept", "").lower()
+    return "text/html" in accept
 
 
 class RequestLimitMiddleware:
@@ -395,21 +500,16 @@ def create_api_app(
 
     for router in API_ROUTERS:
         api_app.include_router(router, dependencies=dependencies)
-        if final:
-            # Important note about how FastAPI works:
+        if final and _FASTAPI_COPIES_ROUTES_ON_INCLUDE:
+            # When including a router, older versions of FastAPI (< 0.137) copy
+            # the routes and build entirely new Pydantic models.  Since Prefect
+            # does not reuse routers, we can delete the originals to reclaim
+            # ~50-55 MB of memory.
             #
-            # When including a router, FastAPI copies the routes and builds entirely new
-            # Pydantic models to represent the request bodies of the routes in the
-            # router.  This is because the dependencies may change if the same router is
-            # included multiple times, but it also means that we are holding onto an
-            # entire set of Pydantic models on the original routers for the duration of
-            # the server process that will never be used.
-            #
-            # Because Prefect does not reuse routers, we are free to clean up the routes
-            # because we know they won't be used again.  Thus, if we have the hint that
-            # this is the final instance we will create in this process, we can clean up
-            # the routes on the original source routers to conserve memory (~50-55MB as
-            # of introducing this change).
+            # FastAPI 0.137+ wraps included routers in an _IncludedRouter that
+            # references the original router for request matching, so the
+            # originals must be kept.  The duplication no longer occurs in this
+            # case either, so the optimisation is unnecessary.
             del router.routes
 
     if final:
@@ -478,32 +578,57 @@ def create_api_app(
 
 def create_ui_app(ephemeral: bool) -> FastAPI:
     ui_app = FastAPI(title=UI_TITLE)
-    base_url = prefect.settings.PREFECT_UI_SERVE_BASE.value()
-
-    # Determine which UI to serve based on setting
-    v2_enabled = prefect.settings.get_current_settings().server.ui.v2_enabled
-
-    if v2_enabled:
-        source_static_path = prefect.__ui_v2_static_path__
-        static_subpath = prefect.__ui_v2_static_subpath__
-        cache_key = f"v2:{prefect.__version__}:{base_url}"
-    else:
-        source_static_path = prefect.__ui_static_path__
-        static_subpath = prefect.__ui_static_subpath__
-        cache_key = f"v1:{prefect.__version__}:{base_url}"
-
-    stripped_base_url = base_url.rstrip("/")
-    static_dir = prefect.settings.PREFECT_UI_STATIC_DIRECTORY.value() or str(
-        static_subpath
+    configured_default_ui: UIVersion = (
+        "v2" if prefect.settings.get_current_settings().server.ui.v2_enabled else "v1"
     )
-    reference_file_name = "UI_SERVE_BASE"
+    v1_base_url, v2_base_url = _resolve_ui_base_urls(PREFECT_UI_SERVE_BASE.value())
+    ui_settings_path = _join_ui_path(v1_base_url, "ui-settings")
+    static_directory_root = prefect.settings.PREFECT_UI_STATIC_DIRECTORY.value()
+    mounted_bundles: dict[UIVersion, UIBundle] = {}
 
     if os.name == "nt":
         # Windows defaults to text/plain for .js files
         mimetypes.init()
         mimetypes.add_type("application/javascript", ".js")
 
-    @ui_app.get(f"{stripped_base_url}/ui-settings")
+    def available_ui_versions() -> list[UIVersion]:
+        return [version for version in ("v1", "v2") if version in mounted_bundles]
+
+    def default_ui() -> UIVersion:
+        available_uis = available_ui_versions()
+        if configured_default_ui in available_uis:
+            return configured_default_ui
+        if available_uis:
+            return available_uis[0]
+        return configured_default_ui
+
+    def build_static_dir(version: UIVersion, default_subpath: str) -> str:
+        if static_directory_root:
+            if version == "v1" and _looks_like_ui_static_bundle(static_directory_root):
+                return static_directory_root
+            return os.path.join(static_directory_root, version)
+        return default_subpath
+
+    bundles = [
+        UIBundle(
+            version="v1",
+            source_static_path=str(prefect.__ui_static_path__),
+            static_dir=build_static_dir("v1", str(prefect.__ui_static_subpath__)),
+            base_url=v1_base_url,
+            cache_key=f"v1:{prefect.__version__}:{v1_base_url}",
+            mount_name="ui_v1",
+        ),
+        UIBundle(
+            version="v2",
+            source_static_path=str(prefect.__ui_v2_static_path__),
+            static_dir=build_static_dir("v2", str(prefect.__ui_v2_static_subpath__)),
+            base_url=v2_base_url,
+            cache_key=f"v2:{prefect.__version__}:{v2_base_url}",
+            mount_name="ui_v2",
+        ),
+    ]
+
+    @ui_app.get(ui_settings_path)
     def ui_settings() -> UISettings:  # type: ignore[reportUnusedFunction]
         return UISettings(
             api_url=prefect.settings.PREFECT_UI_API_URL.value(),
@@ -512,58 +637,139 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
             if prefect.settings.PREFECT_SERVER_API_AUTH_STRING.value()
             else None,
             flags=[],
+            default_ui=default_ui(),
+            available_uis=available_ui_versions(),
+            v1_base_url=v1_base_url if "v1" in mounted_bundles else None,
+            v2_base_url=v2_base_url if "v2" in mounted_bundles else None,
         )
 
-    def reference_file_matches_base_url() -> bool:
-        reference_file_path = os.path.join(static_dir, reference_file_name)
+    @ui_app.middleware("http")
+    async def redirect_to_preferred_ui(request: Request, call_next: Any):  # type: ignore[reportUnusedFunction]
+        scope_path = request.scope["path"]
+        path = scope_path.removeprefix(request.scope.get("root_path", "")) or "/"
 
-        if os.path.exists(static_dir):
+        if (
+            not _is_html_navigation(request)
+            or not available_ui_versions()
+            or path.endswith("/ui-settings")
+        ):
+            return await call_next(request)
+
+        requested_ui: UIVersion | None = None
+        relative_path: str | None = None
+        if _path_targets_ui(path, v2_base_url):
+            requested_ui = "v2"
+            relative_path = _relative_ui_path(path, v2_base_url)
+        elif _path_targets_ui(path, v1_base_url):
+            requested_ui = "v1"
+            relative_path = _relative_ui_path(path, v1_base_url)
+
+        if requested_ui is None or relative_path is None:
+            return await call_next(request)
+
+        if requested_ui == "v2":
+            if requested_ui in mounted_bundles:
+                return await call_next(request)
+        elif relative_path != "/":
+            return await call_next(request)
+
+        requested_cookie_ui = request.cookies.get(UI_VERSION_COOKIE_NAME)
+        preferred_ui = (
+            requested_cookie_ui
+            if requested_cookie_ui in available_ui_versions()
+            else default_ui()
+        )
+
+        if preferred_ui == requested_ui:
+            return await call_next(request)
+
+        redirect_path = _build_ui_path(
+            mounted_bundles[preferred_ui].base_url,
+            relative_path,
+        )
+        scope_prefix = (
+            scope_path[: -len(path)]
+            if scope_path.endswith(path) and path != "/"
+            else request.scope.get("root_path", "")
+        )
+        redirect_url = str(request.url.replace(path=f"{scope_prefix}{redirect_path}"))
+        return RedirectResponse(
+            url=redirect_url,
+            status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+        )
+
+    def reference_file_matches_cache_key(bundle: UIBundle) -> bool:
+        reference_file_path = os.path.join(
+            bundle.static_dir, UI_STATIC_REFERENCE_FILE_NAME
+        )
+
+        if os.path.exists(bundle.static_dir):
             try:
                 with open(reference_file_path, "r") as f:
-                    return f.read() == cache_key
+                    return f.read() == bundle.cache_key
             except FileNotFoundError:
                 return False
         else:
             return False
 
-    def create_ui_static_subpath() -> None:
-        if not os.path.exists(static_dir):
-            os.makedirs(static_dir)
+    def create_ui_static_subpath(bundle: UIBundle) -> None:
+        if os.path.isdir(bundle.static_dir):
+            shutil.rmtree(bundle.static_dir)
 
-        copy_directory(str(source_static_path), str(static_dir))
+        os.makedirs(bundle.static_dir)
+        copy_directory(bundle.source_static_path, bundle.static_dir)
         replace_placeholder_string_in_files(
-            str(static_dir),
+            bundle.static_dir,
             "/PREFECT_UI_SERVE_BASE_REPLACE_PLACEHOLDER",
-            stripped_base_url,
+            "" if bundle.base_url == "/" else bundle.base_url,
         )
 
         # Create a file to indicate that the static files have been copied
         # This is used to determine if the static files need to be copied again
         # when the server is restarted
-        with open(os.path.join(static_dir, reference_file_name), "w") as f:
-            f.write(cache_key)
+        with open(
+            os.path.join(bundle.static_dir, UI_STATIC_REFERENCE_FILE_NAME), "w"
+        ) as f:
+            f.write(bundle.cache_key)
 
     ui_app.add_middleware(GZipMiddleware)
 
-    if (
-        os.path.exists(source_static_path)
-        and prefect.settings.PREFECT_UI_ENABLED.value()
-        and not ephemeral
-    ):
-        # Log which UI version is being served
-        if v2_enabled:
-            logger.info("Serving experimental V2 UI")
+    if prefect.settings.PREFECT_UI_ENABLED.value() and not ephemeral:
+        for bundle in bundles:
+            if not os.path.exists(bundle.source_static_path):
+                continue
 
-        # If the static files have already been copied, check if the base_url has changed
-        # If it has, we delete the subpath directory and copy the files again
-        if not reference_file_matches_base_url():
-            create_ui_static_subpath()
+            if not reference_file_matches_cache_key(bundle):
+                lock_path = os.path.join(
+                    os.path.dirname(bundle.static_dir),
+                    f".{bundle.version}_ui_static.lock",
+                )
+                lock = FileLock(lock_path, timeout=90)
+                try:
+                    lock.acquire()
+                    try:
+                        # Re-check after acquiring the lock; another worker
+                        # may have completed the copy while we waited.
+                        if not reference_file_matches_cache_key(bundle):
+                            create_ui_static_subpath(bundle)
+                    finally:
+                        lock.release()
+                except OSError as exc:
+                    log_ui_static_copy_error(bundle, exc, logger)
+                    continue
 
-        ui_app.mount(
-            PREFECT_UI_SERVE_BASE.value(),
-            SPAStaticFiles(directory=static_dir),
-            name="ui_root",
-        )
+            mounted_bundles[bundle.version] = bundle
+
+        for version in ("v2", "v1"):
+            bundle = mounted_bundles.get(version)
+            if bundle is None:
+                continue
+
+            ui_app.mount(
+                bundle.base_url,
+                SPAStaticFiles(directory=bundle.static_dir),
+                name=bundle.mount_name,
+            )
 
     return ui_app
 
@@ -650,6 +856,22 @@ def _memoize_block_auto_registration(
     return wrapper
 
 
+def _log_worker_channel_config() -> None:
+    """Log worker channel queue backend and key configuration at startup."""
+    wc_settings = prefect.settings.get_current_settings().server.worker_channel
+    logger.debug(
+        "Worker channel configuration: "
+        "cleanup_queue_storage=%s "
+        "cleanup_lease_seconds=%s "
+        "cleanup_max_delivery_attempts=%s "
+        "cleanup_completed_idempotency_retention_seconds=%s",
+        wc_settings.cleanup_queue_storage,
+        wc_settings.cleanup_lease_seconds,
+        wc_settings.cleanup_max_delivery_attempts,
+        wc_settings.cleanup_completed_idempotency_retention_seconds,
+    )
+
+
 def create_app(
     settings: Optional[prefect.settings.Settings] = None,
     ephemeral: bool = False,
@@ -718,6 +940,8 @@ def create_app(
 
         await run_migrations()
         await add_block_types()
+
+        _log_worker_channel_config()
 
         Services: type[Service] | None = (
             RunInWebservers
@@ -871,6 +1095,7 @@ class SubprocessASGIServer:
     def __init__(self, port: Optional[int] = None):
         # This ensures initialization happens only once
         if not hasattr(self, "_initialized"):
+            self._instance_key: Optional[int] = port
             self.port: Optional[int] = port
             self.server_process: subprocess.Popen[Any] | None = None
             self.running: bool = False
@@ -1012,8 +1237,12 @@ class SubprocessASGIServer:
                 self.server_process.wait()
             finally:
                 self.server_process = None
-        if self.port in self._instances:
-            del self._instances[self.port]
+        # Use _instance_key (the original port passed to __new__) for cleanup,
+        # since self.port may have changed during start() when an available port
+        # was assigned.
+        instance_key = getattr(self, "_instance_key", self.port)
+        if instance_key in self._instances:
+            del self._instances[instance_key]
         if self.running:
             self.running = False
 

@@ -14,9 +14,13 @@ These tests cover:
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
+import pytest
 from starlette import status
 
+from prefect._internal.testing import retry_asserts
 from prefect.server import models, schemas
+
+pytestmark = pytest.mark.clear_db
 
 
 class TestFlowRunBulkDelete:
@@ -178,12 +182,19 @@ class TestFlowRunBulkDelete:
             )
         await session.commit()
 
-        # Bulk delete with no filter - should delete up to limit
-        response = await hosted_api_client.post(
-            "/flow_runs/bulk_delete",
-            json={"limit": 2},
-        )
-        assert response.status_code == status.HTTP_200_OK
+        # Bulk delete with no filter - should delete up to limit.
+        # Retry only the request to handle transient SQLite "database is
+        # locked" 503 errors from concurrent access between the test session
+        # and the hosted API server subprocess. The deletion count assertion
+        # stays outside the retry loop so a wrong count is never masked.
+        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
+            with attempt:
+                response = await hosted_api_client.post(
+                    "/flow_runs/bulk_delete",
+                    json={"limit": 2},
+                )
+                assert response.status_code == status.HTTP_200_OK
+
         data = response.json()
         assert len(data["deleted"]) == 2
 

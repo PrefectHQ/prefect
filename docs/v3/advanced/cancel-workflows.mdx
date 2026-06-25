@@ -68,7 +68,13 @@ Another worker may attempt cancellation.
 - If the worker runs into an unexpected error during cancellation, the flow run may or may not be cancelled 
 depending on where the error occurred. The worker will try again to cancel the flow run. Another worker may attempt cancellation.
 
-### Cancel through the CLI
+<Note>
+If a flow run remains in `CANCELLING` for longer than the cancelling timeout (default: 300 seconds), the server automatically transitions it to `CANCELLED`.
+This acts as a safety net when a worker is unavailable or fails to complete the cancellation process.
+To adjust the timeout, set `PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_CANCELLING_TIMEOUT_SECONDS` to the desired number of seconds.
+</Note>
+
+## Cancel through the CLI
 
 From the command line in your execution environment, you can cancel a flow run by using the 
 `prefect flow-run cancel` CLI command, passing the ID of the flow run.
@@ -77,8 +83,49 @@ From the command line in your execution environment, you can cancel a flow run b
 prefect flow-run cancel 'a55a4804-9e3c-4042-8b59-b3b6b7618736'
 ```
 
-### Cancel through the UI
+## Cancel through the UI
 
 Navigate to the flow run's detail page and click `Cancel` in the upper right corner.
 
 ![Prefect UI](/v3/img/ui/flow-run-cancellation-ui.png)
+
+## Cancel through the Python client
+
+To request cancellation programmatically, set the flow run state to `CANCELLING`.
+This is the same state used by the CLI, UI, and automation cancellation actions.
+
+{/* pmd-metadata: notest */}
+```python
+from uuid import UUID
+
+from prefect import get_client
+from prefect.client.schemas.objects import State, StateType
+
+
+flow_run_id = UUID("a55a4804-9e3c-4042-8b59-b3b6b7618736")
+
+with get_client(sync_client=True) as client:
+    result = client.set_flow_run_state(
+        flow_run_id=flow_run_id,
+        state=State(type=StateType.CANCELLING, name="Cancelling"),
+    )
+
+print(result.status)
+```
+
+<Warning>
+Do not force a running flow run directly into the terminal `CANCELLED` state
+to request cancellation.
+`CANCELLING` signals that execution should stop and infrastructure should be cleaned up.
+`CANCELLED` is the final state after cancellation is complete, or when there is no running infrastructure to stop.
+</Warning>
+
+## Cancel through the REST API
+
+To request cancellation with the REST API, set the flow run state to `CANCELLING`.
+
+```bash
+curl -X POST "$PREFECT_API_URL/flow_runs/a55a4804-9e3c-4042-8b59-b3b6b7618736/set_state" \
+  -H "Content-Type: application/json" \
+  -d '{"state": {"type": "CANCELLING", "name": "Cancelling"}}'
+```

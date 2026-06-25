@@ -4,10 +4,12 @@ import base64
 import time
 from typing import Any, Dict, Optional
 
-from httpx import AsyncClient, Client
+from httpx import AsyncClient, Client, Headers
 from pydantic import Field, PrivateAttr, SecretStr, model_validator
 
 from prefect.blocks.core import Block
+
+_DATABRICKS_PARTNER_USER_AGENT = "prefect+prefect-databricks"
 
 
 class DatabricksCredentials(Block):
@@ -23,9 +25,15 @@ class DatabricksCredentials(Block):
         databricks_instance:
             Databricks instance used in formatting the endpoint URL.
         token: The token to authenticate with Databricks (for PAT authentication).
-        client_id: The service principal client ID (for OAuth authentication).
-        client_secret: The service principal client secret (for OAuth authentication).
-        tenant_id: The tenant ID for Azure Databricks (optional, for OAuth authentication).
+        client_id:
+            The service principal client ID for OAuth authentication. If provided,
+            `client_secret` must also be provided.
+        client_secret:
+            The service principal client secret for OAuth authentication. If provided,
+            `client_id` must also be provided.
+        tenant_id:
+            The tenant ID for Azure Databricks. Optional, only needed for Azure
+            Databricks service principal authentication.
         client_kwargs: Additional keyword arguments to pass to AsyncClient.
 
     Examples:
@@ -215,7 +223,7 @@ class DatabricksCredentials(Block):
         Returns:
             A Databricks REST AsyncClient.
 
-        Example:
+        Examples:
             Gets a Databricks REST AsyncClient using PAT authentication.
             ```python
             from prefect import flow
@@ -258,7 +266,14 @@ class DatabricksCredentials(Block):
         else:
             auth_token = self.token.get_secret_value()
 
-        client_kwargs = self.client_kwargs or {}
-        client_kwargs["headers"] = {"Authorization": f"Bearer {auth_token}"}
+        client_kwargs = dict(self.client_kwargs or {})
+        headers = Headers(client_kwargs.pop("headers", {}) or {})
+        user_agent = headers.get("User-Agent")
+        if not user_agent:
+            headers["User-Agent"] = _DATABRICKS_PARTNER_USER_AGENT
+        elif _DATABRICKS_PARTNER_USER_AGENT not in user_agent.split():
+            headers["User-Agent"] = f"{user_agent} {_DATABRICKS_PARTNER_USER_AGENT}"
+        headers["Authorization"] = f"Bearer {auth_token}"
+        client_kwargs["headers"] = headers
         client = AsyncClient(base_url=base_url, **client_kwargs)
         return client

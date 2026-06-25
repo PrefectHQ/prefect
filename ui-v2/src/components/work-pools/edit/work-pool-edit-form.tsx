@@ -17,11 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { BaseJobTemplateFormSection } from "../create/infrastructure-configuration-step/base-job-template-form-section";
-import {
-	type WorkerBaseJobTemplate,
-	type WorkPoolEditFormValues,
-	workPoolEditSchema,
-} from "./schema";
+import { type WorkPoolEditFormValues, workPoolEditSchema } from "./schema";
 
 type WorkPoolEditFormProps = {
 	workPool: WorkPool;
@@ -40,9 +36,7 @@ export const WorkPoolEditForm = ({ workPool }: WorkPoolEditFormProps) => {
 		},
 	});
 
-	const baseJobTemplate = form.watch("baseJobTemplate") as
-		| WorkerBaseJobTemplate
-		| undefined;
+	const baseJobTemplate = form.watch("baseJobTemplate");
 	const showBaseJobTemplateSection = workPool.type !== "prefect-agent";
 
 	const handleCancel = () => {

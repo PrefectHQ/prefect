@@ -8,6 +8,8 @@ from prefect import flow
 from prefect.testing.cli import invoke_and_assert
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
+pytestmark = pytest.mark.clear_db
+
 
 async def read_queue(prefect_client, name, pool=None):
     return await prefect_client.read_work_queue_by_name(name=name, work_pool_name=pool)
@@ -20,6 +22,7 @@ class TestCreateWorkQueue:
             expected_output_contains=[
                 "Created work queue with properties:",
                 "name - 'q-name'",
+                "prefect worker start -q 'q-name' -p '",
             ],
             expected_code=0,
         )
@@ -43,6 +46,9 @@ class TestCreateWorkQueue:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=f"work-queue create {queue_name} -p {work_pool.name}",
+            expected_output_contains=[
+                f"prefect worker start -q '{queue_name}' -p '{work_pool.name}'",
+            ],
             expected_code=0,
         )
 

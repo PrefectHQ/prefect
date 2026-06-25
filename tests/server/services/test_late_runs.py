@@ -6,7 +6,9 @@ from uuid import uuid4
 import pytest
 
 from prefect.server import models, schemas
-from prefect.server.services.late_runs import mark_flow_run_late
+from prefect.server.services.late_runs import mark_flow_run_late, monitor_late_runs
+
+pytestmark = pytest.mark.clear_db
 
 
 @pytest.fixture
@@ -136,6 +138,50 @@ async def test_monitor_query_filters_already_late_runs(session, late_run, db):
     # The monitor query would not select this run again because:
     # - state_name is now "Late", not "Scheduled"
     # This is tested by verifying the query filter behavior, not by calling the task twice
+
+
+async def test_mark_already_late_run_is_rejected(session, late_run, db):
+    """Re-marking an already-Late run does not perform a Late -> Late transition.
+
+    Regression test for https://github.com/PrefectHQ/prefect/issues/22139
+    """
+    await mark_flow_run_late(late_run.id, db=db)
+    await session.refresh(late_run)
+    assert late_run.state.name == "Late"
+    first_state_id = late_run.state.id
+
+    await mark_flow_run_late(late_run.id, db=db)
+    await session.refresh(late_run)
+    # The run is still Late, and no new Late state was committed.
+    assert late_run.state.name == "Late"
+    assert late_run.state.id == first_state_id
+
+
+async def test_monitor_enqueues_with_deterministic_dedup_key(session, late_run, db):
+    """monitor_late_runs enqueues mark tasks with a per-run dedup key so repeated
+    monitor loops over the same still-Scheduled run do not enqueue duplicate tasks.
+
+    Regression test for https://github.com/PrefectHQ/prefect/issues/22139
+    """
+
+    class FakeDocket:
+        def __init__(self):
+            self.keys: list[str | None] = []
+
+        def add(self, function, key=None):
+            self.keys.append(key)
+
+            async def _enqueue(*args, **kwargs):
+                return None
+
+            return _enqueue
+
+    docket = FakeDocket()
+    await monitor_late_runs(docket=docket, db=db)
+    await monitor_late_runs(docket=docket, db=db)
+
+    expected_key = f"mark-flow-run-late:{late_run.id}"
+    assert docket.keys == [expected_key, expected_key]
 
 
 async def test_cancels_late_run_when_deployment_has_cancel_new_and_limit_is_full(

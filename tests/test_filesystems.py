@@ -81,6 +81,41 @@ class TestLocalFileSystem:
         assert fs._resolve_path(tmp_path / "subdirectory") == tmp_path / "subdirectory"
         assert fs._resolve_path("subdirectory") == tmp_path / "subdirectory"
 
+    async def test_resolve_path_rejects_paths_outside_basepath(self, tmp_path):
+        fs = LocalFileSystem(basepath=str(tmp_path / "sandbox"))
+        (tmp_path / "sandbox").mkdir()
+
+        with pytest.raises(ValueError, match="outside of the base path"):
+            fs._resolve_path(tmp_path / "escape")
+
+        with pytest.raises(ValueError, match="outside of the base path"):
+            fs._resolve_path("../escape")
+
+    @pytest.mark.parametrize(
+        "method_name",
+        ["read_path", "write_path", "get_directory", "put_directory"],
+    )
+    async def test_public_methods_reject_paths_outside_basepath(
+        self, tmp_path, method_name
+    ):
+        basepath = tmp_path / "sandbox"
+        basepath.mkdir()
+        outside = tmp_path / "escape.txt"
+        fs = LocalFileSystem(basepath=str(basepath))
+
+        kwargs: dict[str, object]
+        if method_name == "read_path":
+            kwargs = {"path": str(outside)}
+        elif method_name == "write_path":
+            kwargs = {"path": str(outside), "content": b"nope"}
+        elif method_name == "get_directory":
+            kwargs = {"from_path": str(outside), "local_path": str(tmp_path / "dst")}
+        else:
+            kwargs = {"local_path": str(tmp_path), "to_path": str(outside)}
+
+        with pytest.raises(ValueError, match="outside of the base path"):
+            await getattr(fs, method_name)(**kwargs)
+
     async def test_get_directory_duplicate_directory(self, tmp_path):
         fs = LocalFileSystem(basepath=str(tmp_path))
         await fs.get_directory(".", ".")

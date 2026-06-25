@@ -70,6 +70,7 @@ to poll for flow runs.
 """  # noqa
 
 import datetime
+import logging
 import sys
 import time
 from enum import Enum
@@ -96,6 +97,7 @@ from prefect.client.orchestration import get_client
 from prefect.exceptions import InfrastructureNotFound
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.dockerutils import get_prefect_image_name
+from prefect.utilities.processutils import command_from_string
 from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
@@ -127,6 +129,12 @@ ENV_SECRETS = ["PREFECT_API_KEY", "PREFECT_API_AUTH_STRING"]
 # has gone wrong and we should raise an exception to inform the user they should
 # check their Azure account for orphaned container groups.
 CONTAINER_GROUP_DELETION_TIMEOUT_SECONDS = 30
+
+# Retry settings for transient Azure ARM API errors (e.g. HTTP 503)
+CONTAINER_GROUP_GET_MAX_RETRIES = 3
+CONTAINER_GROUP_GET_BACKOFF_FACTOR = 1.0
+
+logger = logging.getLogger(__name__)
 DockerRegistry = Union[ACRManagedIdentity, DockerRegistryCredentials, None]
 
 
@@ -262,7 +270,7 @@ class AzureContainerJobConfiguration(BaseJobConfiguration):
 
         # convert the command from a string to a list, because that's what ACI expects
         if self.command:
-            container["properties"]["command"] = self.command.split(" ")
+            container["properties"]["command"] = command_from_string(self.command)
 
         self._add_image()
 
@@ -851,12 +859,33 @@ class AzureContainerWorker(
         container_group_name: str,
     ) -> ContainerGroup:
         """
-        Gets the container group from Azure.
+        Gets the container group from Azure, retrying on transient server errors.
         """
-        return client.container_groups.get(
-            resource_group_name=resource_group_name,
-            container_group_name=container_group_name,
-        )
+        for attempt in range(CONTAINER_GROUP_GET_MAX_RETRIES + 1):
+            try:
+                return client.container_groups.get(
+                    resource_group_name=resource_group_name,
+                    container_group_name=container_group_name,
+                )
+            except HttpResponseError as e:
+                is_retryable = e.status_code is not None and e.status_code >= 500
+                if is_retryable and attempt < CONTAINER_GROUP_GET_MAX_RETRIES:
+                    delay = CONTAINER_GROUP_GET_BACKOFF_FACTOR * (2**attempt)
+                    logger.warning(
+                        "Transient Azure API error (HTTP %s) while fetching "
+                        "container group %r, retrying in %.1fs "
+                        "(attempt %d/%d)...",
+                        e.status_code,
+                        container_group_name,
+                        delay,
+                        attempt + 1,
+                        CONTAINER_GROUP_GET_MAX_RETRIES,
+                    )
+                    time.sleep(delay)
+                    continue
+                raise
+        # Unreachable, but satisfies type checkers
+        raise RuntimeError("Unexpected state in _get_container_group")
 
     def _get_and_stream_output(
         self,

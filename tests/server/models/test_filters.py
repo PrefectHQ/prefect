@@ -12,6 +12,8 @@ from prefect.server import models
 from prefect.server.schemas import actions, core, filters, schedules, states
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture(autouse=True, scope="module")
 async def clear_db(db):

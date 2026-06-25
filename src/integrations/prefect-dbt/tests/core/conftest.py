@@ -7,7 +7,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-from dbt.artifacts.resources.types import NodeType
+from dbt.node_types import NodeType
 from prefect_dbt.core._executor import DbtExecutor, ExecutionResult
 from prefect_dbt.core._manifest import DbtNode
 
@@ -74,6 +74,10 @@ def _make_mock_settings(**overrides: object) -> MagicMock:
     settings.project_dir = overrides.get("project_dir", Path("/proj"))
     settings.profiles_dir = overrides.get("profiles_dir", Path("/profiles"))
     settings.target_path = overrides.get("target_path", Path("target"))
+    # Mirror the real PrefectDbtSettings.log_level attribute so callers that
+    # forward `settings.log_level.value` to dbt receive a deterministic
+    # string instead of a MagicMock.
+    settings.log_level.value = overrides.get("log_level_value", "info")
     # model_copy() is called in __init__ to avoid mutating the caller's object
     settings.model_copy.return_value = settings
 

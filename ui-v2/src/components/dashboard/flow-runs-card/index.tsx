@@ -30,6 +30,19 @@ type FlowRunsCardProps = {
 	};
 	selectedStates?: StateType[];
 	onStateChange?: (states: StateType[]) => void;
+	/**
+	 * Flow ID whose pagination is currently persisted (e.g. in the URL).
+	 * Only the accordion section matching this id reads `accordionPage`;
+	 * all others default to page 1.
+	 */
+	activeAccordionFlowId?: string;
+	/** Controlled page value for the accordion section matching `activeAccordionFlowId`. */
+	accordionPage?: number;
+	/**
+	 * Called when the user paginates within an accordion section. Receives
+	 * the flow id so callers can scope the persisted page to a specific flow.
+	 */
+	onAccordionPageChange?: (flowId: string, page: number) => void;
 };
 
 const BAR_WIDTH = 8;
@@ -39,6 +52,9 @@ export function FlowRunsCard({
 	filter,
 	selectedStates: controlledSelectedStates,
 	onStateChange: controlledOnStateChange,
+	activeAccordionFlowId,
+	accordionPage,
+	onAccordionPageChange,
 }: FlowRunsCardProps) {
 	const [numberOfBars, setNumberOfBars] = useState<number>(0);
 	const debouncedNumberOfBars = useDebounce(numberOfBars, 150);
@@ -67,7 +83,7 @@ export function FlowRunsCard({
 
 	const flowRunsFilter: FlowRunsFilter = useMemo(() => {
 		const baseFilter: FlowRunsFilter = {
-			sort: "START_TIME_DESC",
+			sort: "EXPECTED_START_TIME_DESC",
 			offset: 0,
 		};
 
@@ -76,7 +92,7 @@ export function FlowRunsCard({
 		};
 
 		if (filter?.startDate && filter?.endDate) {
-			flowRunsFilterObj.start_time = {
+			flowRunsFilterObj.expected_start_time = {
 				after_: filter.startDate,
 				before_: filter.endDate,
 			};
@@ -380,6 +396,9 @@ export function FlowRunsCard({
 						<FlowRunsAccordion
 							filter={flowRunsFilter}
 							stateTypes={selectedStates}
+							activeFlowId={activeAccordionFlowId}
+							page={accordionPage}
+							onPageChange={onAccordionPageChange}
 						/>
 					</>
 				)}

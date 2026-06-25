@@ -1,0 +1,313 @@
+---
+title: 3.7
+---
+
+## 3.7.5 - No run left `CANCELLING`
+
+*Released on June 18, 2026*
+
+**Enhancements ➕➕**
+
+* Add cancelling timeout cleanup producer by [@desertaxle](https://github.com/desertaxle) in [#22238](https://github.com/PrefectHQ/prefect/pull/22238)
+* Add backend observability for worker channel and cleanup queue by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22310](https://github.com/PrefectHQ/prefect/pull/22310)
+
+**Bug Fixes 🐞**
+
+* Fix pending task runs in flow run graph by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22287](https://github.com/PrefectHQ/prefect/pull/22287)
+* Add index on `event_resources(occurred)` for vacuum performance by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22250](https://github.com/PrefectHQ/prefect/pull/22250)
+* Fix FastAPI 0.137 compatibility — skip route deletion when router is referenced by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22277](https://github.com/PrefectHQ/prefect/pull/22277)
+* Degrade events WebSocket on transient connection failures by [@yukiyan](https://github.com/yukiyan) in [#22241](https://github.com/PrefectHQ/prefect/pull/22241)
+* Declare `ESCAPE` character in `LIKE` expressions for SQLite compatibility by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22264](https://github.com/PrefectHQ/prefect/pull/22264)
+* Snapshot block registry before iterating in auto-registration by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22297](https://github.com/PrefectHQ/prefect/pull/22297)
+* Avoid subflow tracking key collisions by [@zzstoatzz](https://github.com/zzstoatzz) in [#22286](https://github.com/PrefectHQ/prefect/pull/22286)
+* Preserve IANA timezone names in `RRuleSchedule.from_rrule()` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22232](https://github.com/PrefectHQ/prefect/pull/22232)
+* Handle `RecursionError` in `Flow.serialize_parameters` by [@chuqCTC](https://github.com/chuqCTC) in [#22245](https://github.com/PrefectHQ/prefect/pull/22245)
+* Prevent SSRF via remote `$ref` in JSON schema validation by [@chrisguidry](https://github.com/chrisguidry) in [#22252](https://github.com/PrefectHQ/prefect/pull/22252)
+* URL-encode credentials in asyncpg `LISTEN`/`NOTIFY` DSN by [@chuqCTC](https://github.com/chuqCTC) in [#22089](https://github.com/PrefectHQ/prefect/pull/22089)
+* Fix `profile inspect --output json` emitting invalid JSON for active profile by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22317](https://github.com/PrefectHQ/prefect/pull/22317)
+
+**Development & Tidiness 🧹**
+
+* Add "context deadline exceeded" to transient Docker build error patterns by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22266](https://github.com/PrefectHQ/prefect/pull/22266)
+* Use `retry_asserts` for flaky automation notification test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22246](https://github.com/PrefectHQ/prefect/pull/22246)
+* Fix stale `EventLoopThread` globals after fork causing subprocess deadlocks by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22308](https://github.com/PrefectHQ/prefect/pull/22308)
+* Run `db_vacuum` maintenance queries without the API statement timeout by [@zzstoatzz](https://github.com/zzstoatzz) in [#22291](https://github.com/PrefectHQ/prefect/pull/22291)
+* Support AnyIO 4.14 task group interface by [@zzstoatzz](https://github.com/zzstoatzz) in [#22309](https://github.com/PrefectHQ/prefect/pull/22309)
+* Bump runtime uv image pins to 0.11.21 by [@jakekaplan](https://github.com/jakekaplan) in [#22265](https://github.com/PrefectHQ/prefect/pull/22265)
+* Migrate CI workflows to `prefect-ci-bot` trust-tier Apps by [@jamiezieziula](https://github.com/jamiezieziula) in [#22288](https://github.com/PrefectHQ/prefect/pull/22288)
+
+**Documentation 📓**
+
+* Document Cloud-only features and fix the Cloud badge by [@mitchnielsen](https://github.com/mitchnielsen) in [#22229](https://github.com/PrefectHQ/prefect/pull/22229)
+* Add user-facing versioning and compatibility page by [@mitchnielsen](https://github.com/mitchnielsen) in [#22228](https://github.com/PrefectHQ/prefect/pull/22228)
+* Document programmatic flow run cancellation by [@zzstoatzz](https://github.com/zzstoatzz) in [#22243](https://github.com/PrefectHQ/prefect/pull/22243)
+* Fix deployment name format in schedule creation guide by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22284](https://github.com/PrefectHQ/prefect/pull/22284)
+* Align zombie-flow detection guide with current heartbeat defaults by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22285](https://github.com/PrefectHQ/prefect/pull/22285)
+* Document lifecycle events for automations, concurrency, artifacts, work pools/queues by [@github-actions](https://github.com/github-actions)[bot] in [#22230](https://github.com/PrefectHQ/prefect/pull/22230)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.7.4...3.7.5
+
+
+---
+
+## 3.7.4 - From cradle to grave
+
+*Released on June 05, 2026*
+
+**New Features 🎉**
+
+* Emit lifecycle events (`created`, `updated`, `deleted`) for all domain objects including variables, flows, block documents, block types, concurrency limits, artifact collections, and automations by [@chrisguidry](https://github.com/chrisguidry) in [#22226](https://github.com/PrefectHQ/prefect/pull/22226)
+
+**Enhancements ➕➕**
+
+* Add Redis-backed cleanup queue backend with optimistic transactions and cross-process wakeups by [@desertaxle](https://github.com/desertaxle) in [#22109](https://github.com/PrefectHQ/prefect/pull/22109)
+* Add cleanup reconciler for worker channel delivery with lease expiry, retry, and dead-letter policies by [@desertaxle](https://github.com/desertaxle) in [#22205](https://github.com/PrefectHQ/prefect/pull/22205)
+* Add cleanup delivery dispatcher for routing reserved cleanup messages to workers over WebSocket by [@desertaxle](https://github.com/desertaxle) in [#22206](https://github.com/PrefectHQ/prefect/pull/22206)
+* Add configurable filter params (`automations`, `sort`, `limit`, `offset`) to `read_automations` client methods by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22191](https://github.com/PrefectHQ/prefect/pull/22191)
+* Surface sanitized git clone stderr in error messages when no known hint matches by [@zzstoatzz](https://github.com/zzstoatzz) in [#22196](https://github.com/PrefectHQ/prefect/pull/22196)
+
+**Bug Fixes 🐞**
+
+* Fix deploy init field parsing by [@zzstoatzz](https://github.com/zzstoatzz) in [#22183](https://github.com/PrefectHQ/prefect/pull/22183)
+* Fix `parse_obj_as()` crash with `StopIteration` on empty dict by [@devteamaegis](https://github.com/devteamaegis) in [#22188](https://github.com/PrefectHQ/prefect/pull/22188)
+* Fix prompt to save new deployments into an existing `prefect.yaml` by [@zzstoatzz](https://github.com/zzstoatzz) in [#22195](https://github.com/PrefectHQ/prefect/pull/22195)
+* Filter stdlib paths from `PYTHONPATH` to prevent subprocess CLI breakage by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22179](https://github.com/PrefectHQ/prefect/pull/22179)
+* Recover perpetual services after Redis disruption by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22213](https://github.com/PrefectHQ/prefect/pull/22213)
+
+**Documentation 📓**
+
+* Document max request size limit for Prefect Cloud API by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22186](https://github.com/PrefectHQ/prefect/pull/22186)
+* Document `flow_run_log_summary` automation template variable by [@mitchnielsen](https://github.com/mitchnielsen) in [#22192](https://github.com/PrefectHQ/prefect/pull/22192)
+* Clarify runtime auto-install gating conditions by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22209](https://github.com/PrefectHQ/prefect/pull/22209)
+* Document deployment schedule clear command by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22221](https://github.com/PrefectHQ/prefect/pull/22221)
+* Use canonical `PREFECT_TASKS_*` env vars in retries guide by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22235](https://github.com/PrefectHQ/prefect/pull/22235)
+
+**Development & Tidiness 🧹**
+
+* Preserve cyclopts modules in `reset_sys_modules` by [@zzstoatzz](https://github.com/zzstoatzz) in [#22194](https://github.com/PrefectHQ/prefect/pull/22194)
+* Increase `hold_timeout` in `test_wait_for_lock` to prevent race condition by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22202](https://github.com/PrefectHQ/prefect/pull/22202)
+* Use `automatic=True` for cleanup reconciler perpetual service by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22225](https://github.com/PrefectHQ/prefect/pull/22225)
+* Scope `uv` bytecode compilation to image builds by [@zzstoatzz](https://github.com/zzstoatzz) in [#22227](https://github.com/PrefectHQ/prefect/pull/22227)
+* Upgrade UI builder stages from bullseye to bookworm by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22231](https://github.com/PrefectHQ/prefect/pull/22231)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.7.3...3.7.4
+
+
+---
+
+## 3.7.3 - Scheduler go brrrr
+
+*Released on June 01, 2026*
+
+Automatic dependency installation for pulled-code deployments is now opt-in. In 3.7.2, the runner would automatically prepare project dependencies when a deployment pulled code containing a `pyproject.toml`. This behavior is now disabled by default. Set `PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES=true` (or `runner.auto_install_dependencies = true` in your profile) to re-enable it.
+
+**Enhancements ➕➕**
+
+* Expose WebSocket ping interval/timeout settings for uvicorn by [@chuqCTC](https://github.com/chuqCTC) in [#22091](https://github.com/PrefectHQ/prefect/pull/22091)
+* Activate scheduler partial index for faster scheduling queries by [@zzstoatzz](https://github.com/zzstoatzz) in [#22111](https://github.com/PrefectHQ/prefect/pull/22111)
+* Lazify `prefect.server` package exports for faster imports by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22122](https://github.com/PrefectHQ/prefect/pull/22122)
+
+**Bug Fixes 🐞**
+
+* Raise `pydantic-settings` lower bound to `>=2.9.1` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22075](https://github.com/PrefectHQ/prefect/pull/22075)
+* Cap `reconnect_delay` exponent to prevent `OverflowError` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22086](https://github.com/PrefectHQ/prefect/pull/22086)
+* Guard `ZeroDivisionError` in `RetryFailedTasks` when `retry_jitter_factor` is set without `retry_delay` by [@devteamaegis](https://github.com/devteamaegis) in [#22071](https://github.com/PrefectHQ/prefect/pull/22071)
+* Redact API URL userinfo in client errors by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22098](https://github.com/PrefectHQ/prefect/pull/22098)
+* Execute local deployment paths in place by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22100](https://github.com/PrefectHQ/prefect/pull/22100)
+* Preserve persisted result metadata by [@desertaxle](https://github.com/desertaxle) in [#22110](https://github.com/PrefectHQ/prefect/pull/22110)
+* Make runner dependency installation opt-in by [@desertaxle](https://github.com/desertaxle) in [#22116](https://github.com/PrefectHQ/prefect/pull/22116)
+* Preserve `TaskRunRecorder` upsert order by [@desertaxle](https://github.com/desertaxle) in [#22112](https://github.com/PrefectHQ/prefect/pull/22112)
+* Lowercase work pool name in block document names for `storage configure` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22144](https://github.com/PrefectHQ/prefect/pull/22144)
+* Remove double client injection in `_resolve_flow_for_hooks` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22176](https://github.com/PrefectHQ/prefect/pull/22176)
+
+**Integrations & Dependencies 🤝**
+
+* Bump starlette to 1.2.0 for CVE-2026-48710 by [@zzstoatzz](https://github.com/zzstoatzz) in [#22145](https://github.com/PrefectHQ/prefect/pull/22145)
+
+**Development & Tidiness 🧹**
+
+* Add server-side cleanup queue storage for worker communication by [@desertaxle](https://github.com/desertaxle) in [#22041](https://github.com/PrefectHQ/prefect/pull/22041)
+* Don't copy file-derived labels from linked issues by [@zzstoatzz](https://github.com/zzstoatzz) in [#22115](https://github.com/PrefectHQ/prefect/pull/22115)
+* Support string keys in `temporary_settings` by [@zzstoatzz](https://github.com/zzstoatzz) in [#22120](https://github.com/PrefectHQ/prefect/pull/22120)
+* Clean up WebSocket ping settings surface and tests by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22117](https://github.com/PrefectHQ/prefect/pull/22117)
+* Fix flaky tests on main — regenerate `SettingAccessor` and widen timing tolerance by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22133](https://github.com/PrefectHQ/prefect/pull/22133)
+* Add timeout and transport retries to `hosted_api_client` fixture by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22130](https://github.com/PrefectHQ/prefect/pull/22130)
+* Use direct API calls in suspension integration test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22157](https://github.com/PrefectHQ/prefect/pull/22157)
+* Use direct API calls in suspension integration test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22152](https://github.com/PrefectHQ/prefect/pull/22152)
+* Pin local worker registry in `test_create_with_unsupported_type` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22153](https://github.com/PrefectHQ/prefect/pull/22153)
+* Remove unneeded `clear_db` markers from isolated test modules by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22102](https://github.com/PrefectHQ/prefect/pull/22102)
+* Update CODEOWNERS to remove obsolete entries by [@desertaxle](https://github.com/desertaxle) in [#22178](https://github.com/PrefectHQ/prefect/pull/22178)
+
+**Documentation 📓**
+
+* Fix work-pool concurrency command examples by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22093](https://github.com/PrefectHQ/prefect/pull/22093)
+* Clarify non-interactive Prefect Cloud login requirements by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22095](https://github.com/PrefectHQ/prefect/pull/22095)
+* Fix multi-worker server docs Redis requirements by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22107](https://github.com/PrefectHQ/prefect/pull/22107)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.7.2...3.7.3
+
+
+---
+
+## 3.7.2 - Delete after running
+
+*Released on May 22, 2026*
+
+**Enhancements ➕➕**
+
+* Add delete flow run automation action by [@zzstoatzz](https://github.com/zzstoatzz) in [#22018](https://github.com/PrefectHQ/prefect/pull/22018)
+* Add worker channel handshake and heartbeat by [@desertaxle](https://github.com/desertaxle) in [#22004](https://github.com/PrefectHQ/prefect/pull/22004)
+* Add work-pool snapshot delivery to worker channel by [@desertaxle](https://github.com/desertaxle) in [#22026](https://github.com/PrefectHQ/prefect/pull/22026)
+* Index triggers by expect pattern to avoid O(n) scan in `find_interested_triggers` by [@chuqCTC](https://github.com/chuqCTC) in [#21977](https://github.com/PrefectHQ/prefect/pull/21977)
+* Cache variable reads within a single `resolve_variables()` call by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22060](https://github.com/PrefectHQ/prefect/pull/22060)
+* Cache block document template resolution by [@zzstoatzz](https://github.com/zzstoatzz) in [#22065](https://github.com/PrefectHQ/prefect/pull/22065)
+* Validate PEP 508 dependencies in `execute_bundle_in_subprocess` by [@theluckystrike](https://github.com/theluckystrike) in [#21916](https://github.com/PrefectHQ/prefect/pull/21916)
+
+**Bug Fixes 🐞**
+
+* Remove redundant `submitted_ids` set in `ScheduledRunPoller` by [@J3r3myPerera](https://github.com/J3r3myPerera) in [#21982](https://github.com/PrefectHQ/prefect/pull/21982)
+* Fix Apprise logger level normalization by [@hemantmm](https://github.com/hemantmm) in [#21709](https://github.com/PrefectHQ/prefect/pull/21709)
+* Handle concurrent work-pool creation in worker REST fallback by [@1fanwang](https://github.com/1fanwang) in [#21919](https://github.com/PrefectHQ/prefect/pull/21919)
+* Use stdlib `importlib.metadata` instead of `importlib_metadata` backport by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22012](https://github.com/PrefectHQ/prefect/pull/22012)
+* Improve missing block reference error messages by [@hemantmm](https://github.com/hemantmm) in [#21945](https://github.com/PrefectHQ/prefect/pull/21945)
+* Correctly check process liveness before adding to process map by [@J3r3myPerera](https://github.com/J3r3myPerera) in [#22006](https://github.com/PrefectHQ/prefect/pull/22006)
+* Fix Azure blob result storage to overwrite on rewrite by [@wtfashwin](https://github.com/wtfashwin) in [#22035](https://github.com/PrefectHQ/prefect/pull/22035)
+* Surface actionable error when UI static files fail due to insufficient disk space by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22057](https://github.com/PrefectHQ/prefect/pull/22057)
+* Route lease renewal failure log through run logger by [@zzstoatzz](https://github.com/zzstoatzz) in [#22053](https://github.com/PrefectHQ/prefect/pull/22053)
+* Show clean CLI error for malformed TOML settings files by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22030](https://github.com/PrefectHQ/prefect/pull/22030)
+* Make `ZipBuilder` storage keys truly content-addressed by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22008](https://github.com/PrefectHQ/prefect/pull/22008)
+* Fix default result store existence checks by [@desertaxle](https://github.com/desertaxle) in [#22058](https://github.com/PrefectHQ/prefect/pull/22058)
+* Fix worker-channel ready frame returning `worker_id=None` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22067](https://github.com/PrefectHQ/prefect/pull/22067)
+
+**Development & Tidiness 🧹**
+
+* Make `test_flow_parameter_caching` deterministic by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21973](https://github.com/PrefectHQ/prefect/pull/21973)
+* Widen suspension propagation window in external-suspension integration test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21972](https://github.com/PrefectHQ/prefect/pull/21972)
+* Fix flaky `test_worker` integration test with event subscription race by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22010](https://github.com/PrefectHQ/prefect/pull/22010)
+* Make `test_read_flow_runs_filters_by_start_time` deterministic by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22024](https://github.com/PrefectHQ/prefect/pull/22024)
+* Speed up client test CI shards by [@desertaxle](https://github.com/desertaxle) in [#22003](https://github.com/PrefectHQ/prefect/pull/22003)
+* Add import-performance guardrails by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22002](https://github.com/PrefectHQ/prefect/pull/22002)
+* Flip `clear_db` marker from opt-out to opt-in by [@desertaxle](https://github.com/desertaxle) in [#21918](https://github.com/PrefectHQ/prefect/pull/21918)
+* Measure true cold imports in CodSpeed benchmarks by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22019](https://github.com/PrefectHQ/prefect/pull/22019)
+* Fix low-risk import cycles by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22040](https://github.com/PrefectHQ/prefect/pull/22040)
+
+**Documentation 📓**
+
+* Replace stale `prefect run` CLI example with `python` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22013](https://github.com/PrefectHQ/prefect/pull/22013)
+* Fix stale internal links on work-pools concept page by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22031](https://github.com/PrefectHQ/prefect/pull/22031)
+* Fix retired deployment-doc links in create-deployments page by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22061](https://github.com/PrefectHQ/prefect/pull/22061)
+* Update Airflow migration guide to use `prefect deploy` + `prefect.yaml` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22059](https://github.com/PrefectHQ/prefect/pull/22059)
+* Add delete-flow-run automation action to action types table by [@github-actions](https://github.com/github-actions)[bot] in [#22021](https://github.com/PrefectHQ/prefect/pull/22021)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.7.1...3.7.2
+
+
+---
+
+## 3.7.1 - Don't touch that dial!
+
+*Released on May 16, 2026*
+
+**Enhancements ➕➕**
+
+* Add `deployment_name` logging variable by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21804](https://github.com/PrefectHQ/prefect/pull/21804)
+* Infer logs page size from API response in CLI by [@alighazi288](https://github.com/alighazi288) in [#21711](https://github.com/PrefectHQ/prefect/pull/21711)
+* Add default result storage CLI by [@zzstoatzz](https://github.com/zzstoatzz) in [#21771](https://github.com/PrefectHQ/prefect/pull/21771)
+* Add Pydantic-aware `tojson` template filter by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21861](https://github.com/PrefectHQ/prefect/pull/21861)
+* Add worker channel protocol contract by [@desertaxle](https://github.com/desertaxle) in [#21859](https://github.com/PrefectHQ/prefect/pull/21859)
+* Add worker channel client with REST fallback by [@desertaxle](https://github.com/desertaxle) in [#21885](https://github.com/PrefectHQ/prefect/pull/21885)
+* Add worker cleanup executor by [@desertaxle](https://github.com/desertaxle) in [#21895](https://github.com/PrefectHQ/prefect/pull/21895)
+* Add worker work-pool snapshot handling by [@desertaxle](https://github.com/desertaxle) in [#21898](https://github.com/PrefectHQ/prefect/pull/21898)
+* Add `cancelling_timeout_teardown.v1` cleanup handler by [@desertaxle](https://github.com/desertaxle) in [#21911](https://github.com/PrefectHQ/prefect/pull/21911)
+
+**Bug Fixes 🐞**
+
+* Fix flow run logs download from Prefect UI in browser by [@baltic-tea](https://github.com/baltic-tea) in [#21718](https://github.com/PrefectHQ/prefect/pull/21718)
+* Fix flow run suspension at orchestration boundaries by [@desertaxle](https://github.com/desertaxle) in [#21875](https://github.com/PrefectHQ/prefect/pull/21875)
+* Clear default result storage when deleting block by [@zzstoatzz](https://github.com/zzstoatzz) in [#21862](https://github.com/PrefectHQ/prefect/pull/21862)
+* Preserve trailing slash when redirecting to V2 UI by [@zzstoatzz](https://github.com/zzstoatzz) in [#21912](https://github.com/PrefectHQ/prefect/pull/21912)
+* Fix concurrency lease renewal starvation with thread-backed renewal by [@desertaxle](https://github.com/desertaxle) in [#21925](https://github.com/PrefectHQ/prefect/pull/21925)
+* Enforce tz-aware `DateTime` on Python >= 3.13 by [@zzstoatzz](https://github.com/zzstoatzz) in [#21952](https://github.com/PrefectHQ/prefect/pull/21952)
+* Fix subflow duplication when process is re-executed against same `flow_run_id` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21951](https://github.com/PrefectHQ/prefect/pull/21951)
+* Reject COMPLETED→COMPLETED transitions that discard result data by [@saschwartz](https://github.com/saschwartz) in [#21956](https://github.com/PrefectHQ/prefect/pull/21956)
+* Use tz-aware `now("UTC")` for `last_adhoc_pull` timestamp in runner by [@J3r3myPerera](https://github.com/J3r3myPerera) in [#21961](https://github.com/PrefectHQ/prefect/pull/21961)
+* Guard `.get()` calls on arbitrary `State.data` in result-data-loss rules by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21967](https://github.com/PrefectHQ/prefect/pull/21967)
+
+**Integrations & Dependencies 🤝**
+
+* Bump `prefect-github` extra floor to `>=0.4.2` by [@zzstoatzz](https://github.com/zzstoatzz) in [#21946](https://github.com/PrefectHQ/prefect/pull/21946)
+
+**Development & Tidiness 🧹**
+
+* Fix flaky `test_flow_run_execute_cancellation_runs_nested_subflow_hooks` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21866](https://github.com/PrefectHQ/prefect/pull/21866)
+* Migrate low-risk private modules to `_internal` (batch 1 of 3) by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21879](https://github.com/PrefectHQ/prefect/pull/21879)
+* Migrate medium-complexity private modules to `_internal` (batch 2) by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21881](https://github.com/PrefectHQ/prefect/pull/21881)
+* Migrate `_result_records.py` and `utilities/_engine.py` to `_internal/` (batch 3) by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21880](https://github.com/PrefectHQ/prefect/pull/21880)
+* Label agents-md-update PRs and exclude from changelog by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21910](https://github.com/PrefectHQ/prefect/pull/21910)
+* Fix duplicated "the" in `flow_run_slas` test comments by [@lphuc2250gma](https://github.com/lphuc2250gma) in [#21943](https://github.com/PrefectHQ/prefect/pull/21943)
+* Widen timing tolerance in `test_renew_concurrency_lease` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21965](https://github.com/PrefectHQ/prefect/pull/21965)
+* Fix flaky `test_reschedule_flow_runs` timeout under CI load by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21966](https://github.com/PrefectHQ/prefect/pull/21966)
+* Harden AGENTS.md auto-sync reviews by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21975](https://github.com/PrefectHQ/prefect/pull/21975)
+
+**Documentation 📓**
+
+* Document default result storage by [@zzstoatzz](https://github.com/zzstoatzz) in [#21774](https://github.com/PrefectHQ/prefect/pull/21774)
+* Document published REST OpenAPI schema by [@zzstoatzz](https://github.com/zzstoatzz) in [#21844](https://github.com/PrefectHQ/prefect/pull/21844)
+* Mark server-side default result storage as beta by [@zzstoatzz](https://github.com/zzstoatzz) in [#21877](https://github.com/PrefectHQ/prefect/pull/21877)
+* Document context propagation for threads in add-logging guide by [@jbbqqf](https://github.com/jbbqqf) in [#21883](https://github.com/PrefectHQ/prefect/pull/21883)
+* Recommend managed automation for zombie detection by [@bunchesofdonald](https://github.com/bunchesofdonald) in [#21894](https://github.com/PrefectHQ/prefect/pull/21894)
+* Add unlisted infrastructure debugging overview page by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21900](https://github.com/PrefectHQ/prefect/pull/21900)
+* Note metric-trigger Cloud gating and event prefix difference by [@zzstoatzz](https://github.com/zzstoatzz) in [#21935](https://github.com/PrefectHQ/prefect/pull/21935)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.7.0...3.7.1
+
+
+---
+
+## 3.7.0 - Our little features are all grown up 🥲
+
+*Released on May 06, 2026*
+
+**New Features 🎉**
+
+* Graduate infrastructure decorators to GA by [@desertaxle](https://github.com/desertaxle) in [#21784](https://github.com/PrefectHQ/prefect/pull/21784)
+* Promote plugin system from experimental to GA by [@desertaxle](https://github.com/desertaxle) in [#21787](https://github.com/PrefectHQ/prefect/pull/21787)
+* Add isolated workspace resolver for flow run setup by [@desertaxle](https://github.com/desertaxle) in [#21699](https://github.com/PrefectHQ/prefect/pull/21699)
+
+**Enhancements ➕➕**
+
+* Support inline block placeholder substitution by [@hemantmm](https://github.com/hemantmm) in [#21777](https://github.com/PrefectHQ/prefect/pull/21777)
+* Render Mermaid.js diagrams in Markdown blocks in `ui-v2` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21793](https://github.com/PrefectHQ/prefect/pull/21793)
+* Eliminate O(N²) checksum scan in `read_block_schemas` by [@VittoriaLanzo](https://github.com/VittoriaLanzo) in [#21754](https://github.com/PrefectHQ/prefect/pull/21754)
+* Add per-browser UI version switcher by [@desertaxle](https://github.com/desertaxle) in [#21706](https://github.com/PrefectHQ/prefect/pull/21706)
+* Add server default result storage config surface by [@zzstoatzz](https://github.com/zzstoatzz) in [#21532](https://github.com/PrefectHQ/prefect/pull/21532)
+* Route server default result storage through runtime resolution by [@zzstoatzz](https://github.com/zzstoatzz) in [#21759](https://github.com/PrefectHQ/prefect/pull/21759)
+* Add `flow.generate_mermaid_graph()` method for dependency-free flow visualization by [@znicholasbrown](https://github.com/znicholasbrown) in [#21786](https://github.com/PrefectHQ/prefect/pull/21786)
+* Route flow-run execute through workspace resolver by [@desertaxle](https://github.com/desertaxle) in [#21796](https://github.com/PrefectHQ/prefect/pull/21796)
+* Add flow engine module entrypoint by [@desertaxle](https://github.com/desertaxle) in [#21799](https://github.com/PrefectHQ/prefect/pull/21799)
+* Run prepared pyproject workspaces with `uv` by [@desertaxle](https://github.com/desertaxle) in [#21801](https://github.com/PrefectHQ/prefect/pull/21801)
+* Warn when nested `ThreadPoolTaskRunner` submission would deadlock by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21800](https://github.com/PrefectHQ/prefect/pull/21800)
+* Add cycle detection for `block_document` references by [@Lougarou](https://github.com/Lougarou) in [#21829](https://github.com/PrefectHQ/prefect/pull/21829)
+
+**Bug Fixes 🐞**
+
+* Use `now()` helper instead of `DateTime.now()` in deployment CLI by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21769](https://github.com/PrefectHQ/prefect/pull/21769)
+* Fix race condition in `GitRepository.pull_code()` with file-based locking by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21388](https://github.com/PrefectHQ/prefect/pull/21388)
+* Retry `record_bulk_task_run_events` on `IntegrityError` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21813](https://github.com/PrefectHQ/prefect/pull/21813)
+* Set custom flow run names before Running events by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21803](https://github.com/PrefectHQ/prefect/pull/21803)
+* Prevent deadlock in `mark_deployments_ready` / `mark_deployments_not_ready` by [@chuqCTC](https://github.com/chuqCTC) in [#21792](https://github.com/PrefectHQ/prefect/pull/21792)
+* Fix V2 concurrency lease release errors by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21797](https://github.com/PrefectHQ/prefect/pull/21797)
+
+**Development & Tidiness 🧹**
+
+* Avoid `run_coro_as_sync` deadlock in wait futures test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21766](https://github.com/PrefectHQ/prefect/pull/21766)
+* Widen timing tolerance for `test_flow_run_lateness_when_scheduled` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21781](https://github.com/PrefectHQ/prefect/pull/21781)
+* Widen flow timeout in `test_timeout_concurrency_slot_released` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21788](https://github.com/PrefectHQ/prefect/pull/21788)
+* Add apt retry config to `old-sqlite.Dockerfile` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21814](https://github.com/PrefectHQ/prefect/pull/21814)
+* Use thread-based `pytest-timeout` for `test_timeout_stops_execution_at_next_task_for_sync_flows` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21819](https://github.com/PrefectHQ/prefect/pull/21819)
+* Add zombie flow detection trigger regression test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#21802](https://github.com/PrefectHQ/prefect/pull/21802)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.6.29...3.7.0
+
+
+---

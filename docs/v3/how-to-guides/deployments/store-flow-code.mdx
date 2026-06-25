@@ -395,7 +395,7 @@ If using the Python `deploy` method with a private repository that references a 
 
     For accessing a private repository, we recommend using HTTPS with [Project Access Tokens](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html).
 
-    [Create a token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html) with the **read_repository** scope.
+[Create a token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html) with the **read_repository** and **api** scopes.
 
     If using a `Secret` block, you can create it through code or the UI ahead of time and reference it at deployment creation as shown above. 
 
@@ -576,6 +576,36 @@ To push the image to a remote registry, pass `push=True` in the Python `deploy` 
 
 If an `image` is not specified by one of the methods above, deployment flow runs associated with a Docker work pool will use the base Prefect image (e.g. `prefecthq/prefect:3-latest`) when executing.
 Alternatively, you can create a custom Docker image outside of Prefect by running `docker build` && `docker push` elsewhere (e.g. in your CI/CD pipeline) and then reference the resulting `image` in the `job_variables` section of your deployment definition, or set the `image` as a default directly on the work pool.
+
+<Note>
+When you run `prefect deploy` with a custom image in `job_variables` and no build step, Prefect automatically adds a `set_working_directory` pull step to your deployment. In interactive mode, Prefect prompts you for the working directory inside your image (defaulting to `/opt/prefect/<project-dir>`). In non-interactive mode, it defaults to `/opt/prefect` and prints a warning. To use a different path, add an explicit `set_working_directory` step to the `pull` section of your `prefect.yaml`.
+</Note>
+
+#### Python project dependencies in custom images
+
+When a deployment pulls code that includes a `pyproject.toml`, Prefect starts the flow run without installing project
+dependencies by default. This keeps custom images predictable and avoids unexpected package installation during flow run
+startup.
+
+If you want Prefect to prepare the project's runtime dependencies before starting the flow run, set
+`PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES=true` in the image or work pool job variables. Default dependency groups are not
+installed.
+
+<Note>
+Setting `PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES=true` is necessary but not sufficient. Prefect only
+uses `uv` to install dependencies at runtime when **all** of the following conditions are met:
+
+1. `PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES` is set to `true`.
+2. A `pyproject.toml` exists at the detected project root.
+3. The `dependencies` list under `[project]` in that `pyproject.toml` includes `prefect`.
+4. `uv` is available on the runtime environment's `PATH`.
+
+If any condition is not met, Prefect silently falls back to running the flow without installing
+dependencies. Verify each condition when debugging missing packages at runtime.
+</Note>
+
+If your custom image already contains the required project code and dependencies, leave
+`PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES` unset or set it to `false`.
 
 For more information, see [this discussion of custom Docker images](/v3/how-to-guides/deployment_infra/docker/#automatically-build-a-custom-docker-image-with-a-local-dockerfile).
 

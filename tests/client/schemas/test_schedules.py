@@ -1,6 +1,9 @@
 import datetime
 from itertools import combinations
+from zoneinfo import ZoneInfo
 
+import dateutil.rrule
+import dateutil.tz
 import pytest
 
 from prefect.client.schemas.actions import (
@@ -131,6 +134,47 @@ class TestConstructSchedule:
         )
 
 
+class TestRRuleNormalizationOnClientWrite:
+    """Mirror of `tests/server/schemas/test_actions.py::TestRRuleNormalizationOnWrite`.
+
+    The client SDK constructs `DeploymentScheduleCreate` /
+    `DeploymentScheduleUpdate` before sending to the API, so it must
+    apply the same `DTSTART` injection. Without this, prefect-client
+    users would send bare RRules and the server would silently
+    re-normalize them, hiding the contract from anyone reading the
+    client code. Keeping client and server in lockstep is the standing
+    rule (`src/prefect/client/CLAUDE.md`).
+    """
+
+    def test_create_normalizes_bare_minutely(self):
+        action = DeploymentScheduleCreate(
+            schedule=RRuleSchedule(rrule="FREQ=MINUTELY;INTERVAL=5")
+        )
+        assert action.schedule.rrule.startswith("DTSTART:")
+        assert action.schedule.rrule.endswith("FREQ=MINUTELY;INTERVAL=5")
+        # Recent anchor (not the legacy 2020 fallback).
+        assert "DTSTART:2020" not in action.schedule.rrule
+
+    def test_create_preserves_anchored_rule(self):
+        original = "DTSTART:19970902T090000\nRRULE:FREQ=YEARLY;COUNT=2;BYDAY=TU"
+        action = DeploymentScheduleCreate(schedule=RRuleSchedule(rrule=original))
+        assert action.schedule.rrule == original
+
+    def test_update_normalizes_bare_secondly(self):
+        from prefect.client.schemas.actions import DeploymentScheduleUpdate
+
+        action = DeploymentScheduleUpdate(schedule=RRuleSchedule(rrule="FREQ=SECONDLY"))
+        assert action.schedule.rrule.startswith("DTSTART:")
+        assert action.schedule.rrule.endswith("FREQ=SECONDLY")
+
+    def test_rrule_schedule_constructed_directly_is_not_normalized(self):
+        # The validator must NOT live on RRuleSchedule itself — only on
+        # the action schemas. Otherwise every DB read would re-inject
+        # DTSTART and cause phase drift on INTERVAL>1 schedules.
+        bare = RRuleSchedule(rrule="FREQ=MINUTELY;INTERVAL=5")
+        assert bare.rrule == "FREQ=MINUTELY;INTERVAL=5"
+
+
 class TestDeploymentFlowRunCreate:
     """Test DeploymentFlowRunCreate schema serialization"""
 
@@ -189,3 +233,104 @@ class TestDeploymentFlowRunCreate:
         assert len(dumped["parameters"]["dates"]) == 2
         assert dumped["parameters"]["dates"][0] == "2025-10-24"
         assert dumped["parameters"]["dates"][1] == "2025-10-25"
+
+
+class TestRRuleScheduleFromRRule:
+    """Verify that from_rrule() preserves IANA timezone names across DST."""
+
+    # dtstart before 2024 spring-forward (Mar 10 02:00 ET)
+    _DTSTART_BEFORE_DST = datetime.datetime(2024, 3, 1, 9, 0, 0)
+
+    def _assert_daily_9am_across_dst(
+        self, schedule: RRuleSchedule, tz_name: str
+    ) -> None:
+        """Shared assertions for timezone preservation and DST correctness."""
+        assert schedule.timezone == tz_name
+        rrule_out = schedule.to_rrule()
+        tz = ZoneInfo(tz_name)
+        # Generate enough occurrences to span the DST transition
+        occurrences = list(rrule_out[:20])
+        assert len(occurrences) >= 15
+        for dt in occurrences:
+            local = dt.astimezone(tz)
+            assert local.hour == 9, (
+                f"Expected 9 AM {tz_name}, got {local.hour}:00 on {local.date()}"
+            )
+
+    @pytest.mark.parametrize(
+        "tz_factory,tz_name",
+        [
+            pytest.param(
+                lambda: ZoneInfo("America/New_York"),
+                "America/New_York",
+                id="zoneinfo",
+            ),
+            pytest.param(
+                lambda: dateutil.tz.gettz("America/New_York"),
+                "America/New_York",
+                id="dateutil",
+            ),
+        ],
+    )
+    def test_single_rrule_preserves_iana_timezone(
+        self, tz_factory: object, tz_name: str
+    ) -> None:
+        tz = tz_factory()  # type: ignore[operator]
+        rule = dateutil.rrule.rrule(
+            freq=dateutil.rrule.DAILY,
+            dtstart=self._DTSTART_BEFORE_DST.replace(tzinfo=tz),
+        )
+        schedule = RRuleSchedule.from_rrule(rule)
+        self._assert_daily_9am_across_dst(schedule, tz_name)
+
+    @pytest.mark.parametrize(
+        "tz_factory,tz_name",
+        [
+            pytest.param(
+                lambda: ZoneInfo("America/New_York"),
+                "America/New_York",
+                id="zoneinfo",
+            ),
+            pytest.param(
+                lambda: dateutil.tz.gettz("America/New_York"),
+                "America/New_York",
+                id="dateutil",
+            ),
+        ],
+    )
+    def test_rruleset_preserves_iana_timezone(
+        self, tz_factory: object, tz_name: str
+    ) -> None:
+        tz = tz_factory()  # type: ignore[operator]
+        rule = dateutil.rrule.rrule(
+            freq=dateutil.rrule.DAILY,
+            dtstart=self._DTSTART_BEFORE_DST.replace(tzinfo=tz),
+        )
+        rset = dateutil.rrule.rruleset()
+        rset.rrule(rule)
+        schedule = RRuleSchedule.from_rrule(rset)
+        self._assert_daily_9am_across_dst(schedule, tz_name)
+
+    def test_single_rrule_preserves_name_bearing_tzinfo(self) -> None:
+        """Regression: tzinfo with a public .name attribute (e.g. pendulum)."""
+
+        class _NameTZ(datetime.tzinfo):
+            """Minimal tzinfo stub that exposes .name like pendulum zones."""
+
+            name = "America/New_York"
+
+            def utcoffset(self, dt: datetime.datetime | None) -> datetime.timedelta:
+                return datetime.timedelta(hours=-5)
+
+            def tzname(self, dt: datetime.datetime | None) -> str:
+                return "EST"
+
+            def dst(self, dt: datetime.datetime | None) -> datetime.timedelta:
+                return datetime.timedelta(0)
+
+        rule = dateutil.rrule.rrule(
+            freq=dateutil.rrule.DAILY,
+            dtstart=self._DTSTART_BEFORE_DST.replace(tzinfo=_NameTZ()),
+        )
+        schedule = RRuleSchedule.from_rrule(rule)
+        assert schedule.timezone == "America/New_York"

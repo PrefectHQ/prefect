@@ -2,10 +2,17 @@
 Tests for worker attribution environment variables.
 """
 
+from __future__ import annotations
+
+import os
 from unittest import mock
 from uuid import uuid4
 
-from prefect.workers.base import BaseJobConfiguration
+import pytest
+
+from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
+
+pytestmark = pytest.mark.clear_db
 
 
 class TestBaseAttributionEnvironment:
@@ -189,3 +196,128 @@ class TestPrepareForFlowRun:
         assert "PREFECT__WORKER_ID" not in config.env
         assert config.env["PREFECT__WORKER_NAME"] == "test-worker"
         assert config.env["PREFECT__FLOW_RUN_ID"] == str(flow_run.id)
+
+
+class _TestWorker(BaseWorker):
+    type: str = "test-attribution"
+    job_configuration = BaseJobConfiguration
+
+    async def run(self) -> BaseWorkerResult:
+        pass
+
+
+class _WorkerChannelTestDouble:
+    def __init__(self, worker: BaseWorker, worker_id):
+        self._worker = worker
+        self._worker_id = worker_id
+        self.set_client = mock.Mock()
+        self.sync = mock.AsyncMock(side_effect=self._sync)
+
+    async def _sync(self, task_group):
+        if self._worker_id is not None:
+            self._worker._record_worker_id(self._worker_id)
+
+    def stop(self):
+        pass
+
+
+class TestWorkerSelfAttribution:
+    """Tests that the worker sets attribution env vars in its own process."""
+
+    async def test_setup_sets_worker_name_env_var(self):
+        """Worker name should be set in os.environ during setup."""
+        worker = _TestWorker(work_pool_name="test-pool", name="my-test-worker")
+
+        with mock.patch.dict(os.environ, {}, clear=False):
+            # Remove any pre-existing value
+            os.environ.pop("PREFECT__WORKER_NAME", None)
+
+            with mock.patch.object(worker, "sync_with_backend"):
+                with mock.patch("prefect.workers.base.get_client") as mock_get_client:
+                    mock_client = mock.AsyncMock()
+                    mock_get_client.return_value = mock_client
+                    mock_client.__aenter__ = mock.AsyncMock(return_value=mock_client)
+                    mock_client.__aexit__ = mock.AsyncMock(return_value=False)
+
+                    await worker.setup()
+
+            assert os.environ.get("PREFECT__WORKER_NAME") == "my-test-worker"
+
+    async def test_sync_with_backend_sets_worker_id_env_var(self):
+        """Worker ID should be set in os.environ when backend returns an ID."""
+        worker = _TestWorker(work_pool_name="test-pool", name="my-test-worker")
+        remote_id = uuid4()
+
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("PREFECT__WORKER_ID", None)
+
+            worker._client = mock.Mock()
+            worker._worker_channel = _WorkerChannelTestDouble(worker, remote_id)
+            await worker.sync_with_backend()
+
+            assert os.environ.get("PREFECT__WORKER_ID") == str(remote_id)
+            assert worker.backend_id == remote_id
+
+    async def test_sync_with_backend_does_not_set_worker_id_when_none(self):
+        """Worker ID env var should not be set when heartbeat returns None."""
+        worker = _TestWorker(work_pool_name="test-pool", name="my-test-worker")
+
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("PREFECT__WORKER_ID", None)
+
+            worker._client = mock.Mock()
+            worker._worker_channel = _WorkerChannelTestDouble(worker, None)
+            await worker.sync_with_backend()
+
+            assert "PREFECT__WORKER_ID" not in os.environ
+
+    async def test_teardown_cleans_up_env_vars(self):
+        """Teardown should remove attribution env vars from os.environ."""
+        worker = _TestWorker(work_pool_name="test-pool", name="my-test-worker")
+        worker_id = uuid4()
+        worker.backend_id = worker_id
+
+        with mock.patch.dict(
+            os.environ,
+            {
+                "PREFECT__WORKER_NAME": "my-test-worker",
+                "PREFECT__WORKER_ID": str(worker_id),
+            },
+            clear=False,
+        ):
+            await worker.teardown(None, None, None)
+
+            assert "PREFECT__WORKER_NAME" not in os.environ
+            assert "PREFECT__WORKER_ID" not in os.environ
+
+    async def test_teardown_does_not_remove_other_workers_env_vars(self):
+        """Teardown should not remove env vars belonging to a different worker."""
+        worker = _TestWorker(work_pool_name="test-pool", name="my-test-worker")
+        worker.backend_id = uuid4()
+
+        other_worker_name = "other-worker"
+        other_worker_id = str(uuid4())
+
+        with mock.patch.dict(
+            os.environ,
+            {
+                "PREFECT__WORKER_NAME": other_worker_name,
+                "PREFECT__WORKER_ID": other_worker_id,
+            },
+            clear=False,
+        ):
+            await worker.teardown(None, None, None)
+
+            assert os.environ["PREFECT__WORKER_NAME"] == other_worker_name
+            assert os.environ["PREFECT__WORKER_ID"] == other_worker_id
+
+    async def test_teardown_safe_when_env_vars_not_set(self):
+        """Teardown should not raise if env vars were never set."""
+        worker = _TestWorker(work_pool_name="test-pool", name="my-test-worker")
+
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("PREFECT__WORKER_NAME", None)
+            os.environ.pop("PREFECT__WORKER_ID", None)
+
+            # Should not raise
+            await worker.teardown(None, None, None)

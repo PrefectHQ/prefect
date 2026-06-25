@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -74,20 +74,25 @@ const formSchema = z.object({
 
 export type CreateFlowRunSchema = z.infer<typeof formSchema>;
 
-const createDefaultValues = (): CreateFlowRunSchema => ({
+// nb: Parameter values are managed separately by `useSchemaForm`; this only
+// builds defaults for the react-hook-form portion of the create flow run form.
+const createDefaultValues = (deployment: Deployment): CreateFlowRunSchema => ({
 	empirical_policy: {
 		retries: 0,
 		retry_delay: 0,
 	},
 	name: createFakeFlowRunName(),
-	job_variables: "",
+	job_variables: deployment.job_variables
+		? JSON.stringify(deployment.job_variables)
+		: "",
 	state: {
 		message: "",
 		state_details: { scheduled_time: null },
 	},
-	tags: [],
-	enforce_parameter_schema: true,
-	parameter_openapi_schema: {},
+	tags: deployment.tags ?? [],
+	work_queue_name: deployment.work_queue_name,
+	enforce_parameter_schema: deployment.enforce_parameter_schema,
+	parameter_openapi_schema: deployment.parameter_openapi_schema,
 });
 
 export const useCreateFlowRunForm = (
@@ -95,42 +100,25 @@ export const useCreateFlowRunForm = (
 	overrideParameters: Record<string, unknown> | undefined,
 ) => {
 	const navigate = useNavigate();
+	// Capture initial form values once so subsequent deployment refetches
+	// (driven by `refetchInterval` / `refetchOnWindowFocus`) do not overwrite
+	// in-flight user edits. See OSS-7952.
+	const [initialFormValues] = useState(() => createDefaultValues(deployment));
+	const [initialParameterValues] = useState(
+		() => overrideParameters ?? deployment.parameters ?? {},
+	);
 	const form = useForm({
 		resolver: zodResolver(formSchema),
-		defaultValues: createDefaultValues(),
+		defaultValues: initialFormValues,
 	});
 	const {
 		values: parametersFormValues,
 		setValues: setParametersFormValues,
 		errors: parameterFormErrors,
 		validateForm: validateParametersForm,
-	} = useSchemaForm();
+	} = useSchemaForm(initialParameterValues);
 
 	const { createDeploymentFlowRun } = useDeploymentCreateFlowRun();
-
-	// syncs form state to deployment to update
-	useEffect(() => {
-		const {
-			work_queue_name,
-			tags,
-			parameter_openapi_schema,
-			enforce_parameter_schema,
-			job_variables,
-		} = deployment;
-
-		// nb: parameter form state and validation is handled separately using SchemaForm
-		// Use parameters from an external source, if they're undefined, default to the deployment parameters
-		setParametersFormValues(overrideParameters ?? deployment.parameters ?? {});
-
-		// nb: Handle remaining form fields using react-hook-form
-		form.reset({
-			work_queue_name,
-			tags,
-			parameter_openapi_schema,
-			enforce_parameter_schema,
-			job_variables: job_variables ? JSON.stringify(job_variables) : "",
-		});
-	}, [form, deployment, setParametersFormValues, overrideParameters]);
 
 	const onCreate = async (values: CreateFlowRunSchema) => {
 		if (values.parameter_openapi_schema && values.enforce_parameter_schema) {
@@ -169,7 +157,10 @@ export const useCreateFlowRunForm = (
 						to: "/deployments/deployment/$id",
 						params: { id: deployment.id },
 					});
-					form.reset(createDefaultValues());
+					form.reset(createDefaultValues(deployment));
+					setParametersFormValues(
+						overrideParameters ?? deployment.parameters ?? {},
+					);
 				},
 				onError: (error) => {
 					const message =

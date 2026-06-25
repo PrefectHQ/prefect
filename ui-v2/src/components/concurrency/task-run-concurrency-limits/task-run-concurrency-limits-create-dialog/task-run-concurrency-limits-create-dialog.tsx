@@ -29,7 +29,12 @@ const formSchema = z.object({
 		.number()
 		.default(0)
 		.or(z.string())
-		.pipe(z.coerce.number()),
+		.pipe(
+			z.coerce
+				.number()
+				.int({ message: "Concurrency limit must be a whole number" })
+				.nonnegative({ message: "Concurrency limit must be 0 or greater" }),
+		),
 });
 
 const DEFAULT_VALUES = {

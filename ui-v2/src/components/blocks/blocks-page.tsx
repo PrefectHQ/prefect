@@ -16,6 +16,7 @@ import { SearchInput } from "@/components/ui/input";
 import { BlockDocumentsDataTable } from "./block-document-data-table";
 import { BlockTypesMultiSelect } from "./block-types-multi-select";
 import { BlocksRowCount } from "./blocks-row-count";
+import { DefaultResultStorageCard } from "./default-result-storage-card";
 import { BlocksEmptyState } from "./empty-state";
 
 type BlocksPageProps = {
@@ -30,6 +31,13 @@ type BlocksPageProps = {
 	pagination: PaginationState;
 	onPaginationChange: (paginationState: PaginationState) => void;
 	onClearFilters: () => void;
+	defaultResultStorageBlockId: string | undefined;
+	defaultResultStorageBlock: BlockDocument | undefined;
+	onUpdateDefaultResultStorage: (blockDocumentId: string) => void;
+	onClearDefaultResultStorage: () => void;
+	isUpdatingDefaultResultStorage: boolean;
+	isClearingDefaultResultStorage: boolean;
+	isLoadingDefaultResultStorageBlock: boolean;
 };
 
 const BlocksFilteredEmptyState = ({
@@ -63,6 +71,13 @@ export const BlocksPage = ({
 	pagination,
 	onPaginationChange,
 	onClearFilters,
+	defaultResultStorageBlockId,
+	defaultResultStorageBlock,
+	onUpdateDefaultResultStorage,
+	onClearDefaultResultStorage,
+	isUpdatingDefaultResultStorage,
+	isClearingDefaultResultStorage,
+	isLoadingDefaultResultStorageBlock,
 }: BlocksPageProps) => {
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
@@ -80,6 +95,15 @@ export const BlocksPage = ({
 					</Link>
 				</Button>
 			</div>
+			<DefaultResultStorageCard
+				defaultResultStorageBlockId={defaultResultStorageBlockId}
+				defaultResultStorageBlock={defaultResultStorageBlock}
+				onUpdateDefaultResultStorage={onUpdateDefaultResultStorage}
+				onClearDefaultResultStorage={onClearDefaultResultStorage}
+				isUpdatingDefaultResultStorage={isUpdatingDefaultResultStorage}
+				isClearingDefaultResultStorage={isClearingDefaultResultStorage}
+				isLoadingDefaultResultStorageBlock={isLoadingDefaultResultStorageBlock}
+			/>
 			{allCount === 0 ? (
 				<BlocksEmptyState />
 			) : (
@@ -88,7 +112,7 @@ export const BlocksPage = ({
 						<BlocksRowCount
 							rowSelection={rowSelection}
 							setRowSelection={setRowSelection}
-							count={allCount}
+							count={filteredCount ?? allCount}
 						/>
 						<div className="flex items-center gap-2">
 							<div className="min-w-56">
@@ -115,7 +139,7 @@ export const BlocksPage = ({
 							blockDocuments={blockDocuments}
 							rowSelection={rowSelection}
 							setRowSelection={setRowSelection}
-							blockDocumentsCount={allCount}
+							blockDocumentsCount={filteredCount ?? allCount}
 							pagination={pagination}
 							onPaginationChange={onPaginationChange}
 						/>

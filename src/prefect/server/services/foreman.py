@@ -34,7 +34,7 @@ logger: logging.Logger = get_logger(__name__)
 )
 async def monitor_worker_health(
     perpetual: Perpetual = Perpetual(
-        automatic=False,
+        automatic=True,
         every=timedelta(
             seconds=get_current_settings().server.services.foreman.loop_seconds
         ),

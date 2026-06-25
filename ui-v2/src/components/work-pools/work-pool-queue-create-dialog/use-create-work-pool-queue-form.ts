@@ -68,7 +68,7 @@ export const DEFAULT_VALUES = {
 type UseCreateOrEditWorkPoolQueueFormOptions = {
 	workPoolName: string;
 	queueToEdit?: WorkPoolQueue;
-	onSubmit: () => void;
+	onSubmit: (values: { name: string }) => void;
 };
 
 export const useCreateOrEditWorkPoolQueueForm = ({
@@ -122,7 +122,7 @@ export const useCreateOrEditWorkPoolQueueForm = ({
 					onSuccess: () => {
 						toast.success("Work queue updated");
 						form.reset(DEFAULT_VALUES);
-						onSubmit();
+						onSubmit({ name: values.name });
 					},
 					onError: (error) => {
 						const message =
@@ -141,7 +141,7 @@ export const useCreateOrEditWorkPoolQueueForm = ({
 					onSuccess: () => {
 						toast.success("Work queue created");
 						form.reset(DEFAULT_VALUES);
-						onSubmit();
+						onSubmit({ name: values.name });
 					},
 					onError: (error) => {
 						const message =

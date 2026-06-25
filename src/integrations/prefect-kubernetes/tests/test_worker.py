@@ -47,6 +47,7 @@ from prefect.settings import (
 )
 from prefect.types._datetime import now
 from prefect.utilities.dockerutils import get_prefect_image_name
+from prefect.utilities.processutils import command_to_string
 
 FAKE_CLUSTER = "fake-cluster"
 MOCK_CLUSTER_UID = "1234"
@@ -3349,18 +3350,27 @@ class TestKubernetesWorker:
             work_pool: WorkPool,
             monkeypatch: pytest.MonkeyPatch,
         ):
+            from prefect.bundles import _pin_prefect_in_bundle_step_requires
+
             frozen_uuid = uuid.uuid4()
             monkeypatch.setattr(uuid, "uuid4", lambda: frozen_uuid)
             python_version_info = sys.version_info
             async with KubernetesWorker(work_pool_name=work_pool.name) as k8s_worker:
                 future = await k8s_worker.submit(test_flow)
                 assert isinstance(future, PrefectFlowRunFuture)
+            # `_pin_prefect_in_bundle_step_requires` appends `prefect==<version>`
+            # for non-local Prefect builds (CI) and is a no-op for editable
+            # installs (local dev), so use it here to mirror whatever the
+            # bundle code does in the current environment. See PR #21651.
+            requires = ",".join(
+                _pin_prefect_in_bundle_step_requires(["prefect-mock==0.5.5"])
+            )
             expected_upload_command = [
                 "uv",
                 "run",
                 "--quiet",
                 "--with",
-                "prefect-mock==0.5.5",
+                requires,
                 "--python",
                 f"{python_version_info.major}.{python_version_info.minor}",
                 "-m",
@@ -3381,7 +3391,7 @@ class TestKubernetesWorker:
                 "uv",
                 "run",
                 "--with",
-                "prefect-mock==0.5.5",
+                requires,
                 "--python",
                 f"{python_version_info.major}.{python_version_info.minor}",
                 "-m",
@@ -3398,7 +3408,7 @@ class TestKubernetesWorker:
                 assert flow_run.work_pool_name == work_pool.name
                 assert flow_run.work_queue_name == "default"
                 assert flow_run.job_variables == {
-                    "command": " ".join(expected_execute_command)
+                    "command": command_to_string(expected_execute_command)
                 }
 
         async def test_submit_adhoc_run_failed_submission(

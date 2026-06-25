@@ -13,7 +13,7 @@ test.describe("Settings Page", () => {
 		await expect(
 			page.getByLabel("breadcrumb").getByText("Settings"),
 		).toBeVisible();
-		await expect(page.getByText("Version")).toBeVisible();
+		await expect(page.getByText("Version", { exact: true })).toBeVisible();
 		await expect(page.getByText("Theme")).toBeVisible();
 		await expect(page.locator("label[for='light']")).toBeVisible();
 		await expect(page.locator("label[for='dark']")).toBeVisible();

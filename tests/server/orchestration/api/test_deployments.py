@@ -1,5 +1,6 @@
 import datetime
 from typing import List
+from unittest import mock
 from uuid import uuid4
 
 import pytest
@@ -22,6 +23,8 @@ from prefect.settings import (
 from prefect.types._datetime import now as now_fn
 from prefect.types._datetime import parse_datetime
 from prefect.utilities.callables import parameter_schema
+
+pytestmark = pytest.mark.clear_db
 
 
 def assert_status_events(deployment_name: str, events: List[str]):
@@ -1001,6 +1004,41 @@ class TestCreateDeployment:
             " 'string'" in response.text
         )
 
+    @pytest.mark.parametrize(
+        "ref",
+        [
+            "https://a.example.com/schema.json",
+            "http://b.example.com.namespace.svc/schema.json",
+            "http://169.254.169.254/latest/meta-data/",
+        ],
+    )
+    async def test_create_deployment_external_ref_schema_does_not_fetch(
+        self,
+        ref,
+        client,
+        flow,
+        work_pool,
+    ):
+        data = dict(
+            name="My Deployment",
+            flow_id=str(flow.id),
+            work_pool_name=work_pool.name,
+            enforce_parameter_schema=True,
+            parameter_openapi_schema={
+                "type": "object",
+                "properties": {"foo": {"$ref": ref}},
+            },
+            parameters={"foo": 1},
+        )
+
+        with mock.patch("urllib.request.urlopen") as urlopen:
+            urlopen.side_effect = AssertionError(
+                "validation attempted an outbound network request"
+            )
+            response = await client.post("/deployments/", json=data)
+            urlopen.assert_not_called()
+        assert response.status_code == 422, response.text
+
     async def test_create_deployment_enforces_schema_by_default(
         self,
         client,
@@ -1185,6 +1223,36 @@ class TestCreateDeployment:
         # Ensure that the schedules are removed
         assert response.status_code == 200
         assert response.json().get("schedules") == []
+
+    async def test_create_deployment_with_oversized_parameters_returns_422(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+    ):
+        large_params = {"data": "x" * 1_000_000}
+        response = await client.post(
+            "/deployments/",
+            json={
+                "name": "Oversized Deployment",
+                "flow_id": str(flow.id),
+                "parameters": large_params,
+            },
+        )
+        assert response.status_code == 422
+
+    async def test_create_deployment_with_small_parameters_succeeds(
+        self,
+        client: AsyncClient,
+        flow: Flow,
+    ):
+        small_params = {"data": "x" * 100}
+        data = DeploymentCreate(
+            name="Small Params Deployment",
+            flow_id=flow.id,
+            parameters=small_params,
+        ).model_dump(mode="json")
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
 
 
 class TestReadDeployment:

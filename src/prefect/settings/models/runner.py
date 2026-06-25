@@ -71,6 +71,15 @@ class RunnerSettings(PrefectBaseSettings):
         ),
     )
 
+    auto_install_dependencies: bool = Field(
+        default=False,
+        description=(
+            "Whether runners may install dependencies before executing flow runs. "
+            "Enable this when deployments pull code that needs dependencies prepared "
+            "at runtime."
+        ),
+    )
+
     server: RunnerServerSettings = Field(
         default_factory=RunnerServerSettings,
         description="Settings for controlling runner server behavior",

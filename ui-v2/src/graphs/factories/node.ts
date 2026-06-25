@@ -13,6 +13,7 @@ import {
 	type TaskRunContainer,
 	taskRunContainerFactory,
 } from "@/graphs/factories/nodeTaskRun";
+import { isPendingPlaceholderNode } from "@/graphs/factories/nodeBar";
 import type { RunGraphArtifact } from "@/graphs/models";
 import type { BoundsContainer } from "@/graphs/models/boundsContainer";
 import type { Pixels } from "@/graphs/models/layout";
@@ -53,6 +54,7 @@ export async function nodeContainerFactory(
 	let cacheKey: string | null = null;
 	let nodeIsSelected = false;
 	let initialized = false;
+	let isTicking = false;
 
 	// Mark container as cullable for PixiJS v8 native viewport culling
 	container.cullable = true;
@@ -66,7 +68,7 @@ export async function nodeContainerFactory(
 		selectItem({ kind: internalNode.kind, id: internalNode.id });
 	});
 
-	if (!internalNode.end_time) {
+	if (shouldNodeTick(internalNode)) {
 		startTicking();
 	}
 
@@ -102,7 +104,9 @@ export async function nodeContainerFactory(
 			createArtifacts(newNodeData.artifacts),
 		]);
 
-		if (newNodeData.end_time) {
+		if (shouldNodeTick(newNodeData)) {
+			startTicking();
+		} else {
 			stopTicking();
 		}
 
@@ -186,11 +190,21 @@ export async function nodeContainerFactory(
 	}
 
 	function startTicking(): void {
+		if (isTicking) {
+			return;
+		}
+
 		application.ticker.add(tick);
+		isTicking = true;
 	}
 
 	function stopTicking(): void {
+		if (!isTicking) {
+			return;
+		}
+
 		application.ticker.remove(tick);
+		isTicking = false;
 	}
 
 	function tick(): void {
@@ -216,7 +230,6 @@ export async function nodeContainerFactory(
 	}
 
 	function getNodeCacheKey(nodeData: RunGraphNode): string {
-		const endTime = nodeData.end_time ?? new Date();
 		const artifactCacheKey = nodeData.artifacts
 			?.map((artifact) => {
 				if (artifact.type === "progress") {
@@ -230,7 +243,7 @@ export async function nodeContainerFactory(
 
 		const values = [
 			nodeData.state_type,
-			endTime.getTime(),
+			getNodeCacheEndTime(nodeData),
 			layout.horizontal,
 			layout.horizontalScaleMultiplier,
 			config.theme,
@@ -260,4 +273,19 @@ export async function nodeContainerFactory(
 		bar,
 		setPosition,
 	};
+}
+
+export function shouldNodeTick(nodeData: RunGraphNode): boolean {
+	return !nodeData.end_time && !isPendingPlaceholderNode(nodeData);
+}
+
+export function getNodeCacheEndTime(
+	nodeData: RunGraphNode,
+	now = new Date(),
+): number | string {
+	if (isPendingPlaceholderNode(nodeData)) {
+		return "pending-placeholder";
+	}
+
+	return (nodeData.end_time ?? now).getTime();
 }

@@ -9,8 +9,10 @@ from __future__ import annotations
 import logging
 import os
 import signal
+import tempfile
 import threading
 import webbrowser
+from pathlib import Path
 from types import FrameType
 from typing import TYPE_CHECKING, Annotated, Any, Optional
 from uuid import UUID
@@ -36,10 +38,9 @@ from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.responses import SetStateStatus
 from prefect.client.schemas.sorting import FlowRunSort, LogSort
 from prefect.exceptions import Abort, ObjectNotFound
-from prefect.flows import load_flow_from_flow_run
 from prefect.logging import get_logger
 from prefect.runner._flow_run_executor import FlowRunExecutorContext
-from prefect.runner._starter_engine import EngineCommandStarter
+from prefect.runner._workspace_starter import WorkspaceResolvingEngineCommandStarter
 from prefect.states import AwaitingRetry, State, exception_to_crashed_state
 from prefect.types._datetime import human_friendly_diff
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
@@ -48,7 +49,7 @@ from prefect.utilities.urls import url_for
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
-    from prefect.client.schemas.objects import FlowRun
+    from prefect.client.schemas.objects import FlowRun, Log
 
 flow_run_app: cyclopts.App = cyclopts.App(
     name="flow-run",
@@ -58,7 +59,6 @@ flow_run_app: cyclopts.App = cyclopts.App(
     help_flags=["--help"],
 )
 
-LOGS_DEFAULT_PAGE_SIZE = 200
 LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS = 20
 
 logger: logging.Logger = get_logger(__name__)
@@ -540,14 +540,11 @@ async def logs(
     if output and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
 
-    output_json = bool(output and output.lower() == "json")
-    offset = 0
-    more_logs = True
-    num_logs_returned = 0
-    collected_logs: list[dict[str, Any]] = []
-
     if head and tail:
         exit_with_error("Please provide either a `head` or `tail` option but not both.")
+
+    output_json = bool(output and output.lower() == "json")
+    collected_logs: list[dict[str, Any]] = []
 
     user_specified_num_logs = (
         num_logs or LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS
@@ -555,10 +552,21 @@ async def logs(
         else None
     )
 
-    if tail:
-        offset = max(0, user_specified_num_logs - LOGS_DEFAULT_PAGE_SIZE)
-
     log_filter = LogFilter(flow_run_id={"any_": [id]})
+    sort = LogSort.TIMESTAMP_DESC if reverse or tail else LogSort.TIMESTAMP_ASC
+
+    def render(logs_to_render: "list[Log]") -> None:
+        if output_json:
+            collected_logs.extend(log.model_dump(mode="json") for log in logs_to_render)
+            return
+        for log in logs_to_render:
+            timestamp = f"{log.timestamp:%Y-%m-%d %H:%M:%S.%f}"[:-3]
+            log_level = f"{logging.getLevelName(log.level):7s}"
+            flow_run_info = f"Flow run {flow_run.name!r} - {escape(log.message)}"
+            _cli.console.print(
+                f"{timestamp} | {log_level} | {flow_run_info}",
+                soft_wrap=True,
+            )
 
     async with get_client() as client:
         try:
@@ -566,62 +574,82 @@ async def logs(
         except ObjectNotFound:
             exit_with_error(f"Flow run '{id!s}' not found!")
 
-        while more_logs:
-            num_logs_to_return_from_page = (
-                LOGS_DEFAULT_PAGE_SIZE
-                if user_specified_num_logs is None
-                else min(
-                    LOGS_DEFAULT_PAGE_SIZE, user_specified_num_logs - num_logs_returned
-                )
-            )
+        # Bounded requests start with the requested count to avoid overfetching.
+        # If that exceeds the server maximum, retry without a limit to discover
+        # the server page size from the first response.
+        page_size: Optional[int] = None
+        offset = 0
+        num_logs_collected = 0
+        tail_buffer: list[Log] = []
 
-            page_logs = await client.read_logs(
-                log_filter=log_filter,
-                limit=num_logs_to_return_from_page,
-                offset=offset,
-                sort=(
-                    LogSort.TIMESTAMP_DESC if reverse or tail else LogSort.TIMESTAMP_ASC
-                ),
-            )
-
-            logs_to_render = (
-                list(reversed(page_logs)) if tail and not reverse else page_logs
-            )
-
-            if output_json:
-                collected_logs.extend(
-                    log.model_dump(mode="json") for log in logs_to_render
-                )
+        while True:
+            if page_size is None:
+                limit = user_specified_num_logs
+            elif user_specified_num_logs is not None:
+                remaining = user_specified_num_logs - num_logs_collected
+                if remaining <= 0:
+                    break
+                limit = min(page_size, remaining)
             else:
-                for log in logs_to_render:
-                    timestamp = f"{log.timestamp:%Y-%m-%d %H:%M:%S.%f}"[:-3]
-                    log_level = f"{logging.getLevelName(log.level):7s}"
-                    flow_run_info = (
-                        f"Flow run {flow_run.name!r} - {escape(log.message)}"
-                    )
+                limit = page_size
 
-                    log_message = f"{timestamp} | {log_level} | {flow_run_info}"
-                    _cli.console.print(
-                        log_message,
-                        soft_wrap=True,
+            try:
+                page_logs = await client.read_logs(
+                    log_filter=log_filter,
+                    limit=limit,
+                    offset=offset,
+                    sort=sort,
+                )
+            except httpx.HTTPStatusError as exc:
+                if (
+                    page_size is None
+                    and limit is not None
+                    and exc.response.status_code
+                    == status.HTTP_422_UNPROCESSABLE_CONTENT
+                    and "Invalid limit" in exc.response.text
+                ):
+                    limit = None
+                    page_logs = await client.read_logs(
+                        log_filter=log_filter,
+                        limit=limit,
+                        offset=offset,
+                        sort=sort,
                     )
+                else:
+                    raise
 
-            num_logs_returned += num_logs_to_return_from_page
+            if page_size is None:
+                page_size = limit if limit is not None else len(page_logs)
+                if page_size == 0:
+                    break
+
+            if (
+                user_specified_num_logs is not None
+                and len(page_logs) > user_specified_num_logs - num_logs_collected
+            ):
+                page_logs = page_logs[: user_specified_num_logs - num_logs_collected]
 
             if tail:
-                if offset != 0:
-                    offset = (
-                        0
-                        if offset < LOGS_DEFAULT_PAGE_SIZE
-                        else offset - LOGS_DEFAULT_PAGE_SIZE
-                    )
-                else:
-                    more_logs = False
+                tail_buffer.extend(page_logs)
             else:
-                if len(page_logs) == LOGS_DEFAULT_PAGE_SIZE:
-                    offset += LOGS_DEFAULT_PAGE_SIZE
-                else:
-                    more_logs = False
+                render(page_logs)
+
+            num_logs_collected += len(page_logs)
+            offset += len(page_logs)
+
+            if (
+                user_specified_num_logs is not None
+                and num_logs_collected >= user_specified_num_logs
+            ):
+                break
+            if len(page_logs) < page_size:
+                break
+
+        if tail:
+            # tail_buffer is in DESC order across pages; reverse to ASC unless --reverse
+            if not reverse:
+                tail_buffer = list(reversed(tail_buffer))
+            render(tail_buffer)
 
     if output_json:
         json_output = orjson.dumps(collected_logs, option=orjson.OPT_INDENT_2).decode()
@@ -674,42 +702,48 @@ async def execute(
     if id is None:
         exit_with_error("Could not determine the ID of the flow run to execute.")
 
-    async with FlowRunExecutorContext() as ctx:
-        flow_run = await ctx.client.read_flow_run(id)
+    with tempfile.TemporaryDirectory(prefix="prefect-flow-run-") as workspace_root:
+        async with FlowRunExecutorContext() as ctx:
+            flow_run = await ctx.client.read_flow_run(id)
 
-        on_sigterm = os.environ.get(
-            "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", ""
-        ).lower()
-        reschedule_mode = (
-            threading.current_thread() is threading.main_thread()
-            and on_sigterm == "reschedule"
-        )
+            on_sigterm = os.environ.get(
+                "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", ""
+            ).lower()
+            reschedule_mode = (
+                threading.current_thread() is threading.main_thread()
+                and on_sigterm == "reschedule"
+            )
 
-        def _handle_reschedule_sigterm(_signal: int, _frame: FrameType | None):
-            """Reschedule the flow run and kill the child process (if running)."""
-            logger.info("SIGTERM received, initiating graceful shutdown...")
-            with get_client(sync_client=True) as sync_client:
-                try:
-                    propose_state_sync(sync_client, AwaitingRetry(), flow_run_id=id)
-                except Abort:
-                    pass
-                except Exception:
-                    logger.exception("Failed to reschedule flow run")
+            def _handle_reschedule_sigterm(_signal: int, _frame: FrameType | None):
+                """Reschedule the flow run and kill the child process (if running)."""
+                logger.info("SIGTERM received, initiating graceful shutdown...")
+                with get_client(sync_client=True) as sync_client:
+                    try:
+                        propose_state_sync(sync_client, AwaitingRetry(), flow_run_id=id)
+                    except Abort:
+                        pass
+                    except Exception:
+                        logger.exception("Failed to reschedule flow run")
 
-            handle = ctx.process_manager.get(id)
-            if handle and handle.pid:
-                try:
-                    os.kill(handle.pid, signal.SIGTERM)
-                except ProcessLookupError:
-                    pass
-            exit_with_success("Flow run successfully rescheduled.")
+                handle = ctx.process_manager.get(id)
+                if handle and handle.pid:
+                    try:
+                        os.kill(handle.pid, signal.SIGTERM)
+                    except ProcessLookupError:
+                        pass
+                exit_with_success("Flow run successfully rescheduled.")
 
-        if reschedule_mode:
-            signal.signal(signal.SIGTERM, _handle_reschedule_sigterm)
+            if reschedule_mode:
+                signal.signal(signal.SIGTERM, _handle_reschedule_sigterm)
 
-        executor = ctx.create_executor(
-            flow_run,
-            EngineCommandStarter(),
-            resolve_flow=lambda fr: load_flow_from_flow_run(ctx.client, fr),
-        )
-        await executor.submit()
+            starter = WorkspaceResolvingEngineCommandStarter(
+                workspace_root=Path(workspace_root),
+                control_channel=ctx.control_channel,
+            )
+            executor = ctx.create_executor(
+                flow_run,
+                starter,
+                resolve_flow=starter.resolve_flow,
+                propose_submitting=False,
+            )
+            await executor.submit()

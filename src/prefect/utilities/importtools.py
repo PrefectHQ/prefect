@@ -1,4 +1,5 @@
 import ast
+import hashlib
 import importlib
 import importlib.util
 import os
@@ -95,7 +96,16 @@ def load_script_as_module(path: str) -> ModuleType:
 
     # fall back in case of filenames with the same names as modules
     if module_name in sys.modules:
-        module_name = f"__prefect_loader_{id(path)}__"
+        # Key on the resolved absolute path (via a short stable hash) so that
+        # repeated loads of the same file reuse the same `sys.modules` slot
+        # rather than leaking a fresh entry every call. Previously this used
+        # `id(path)`, which is the identity of the Python string argument --
+        # fresh on every call site -- so callers that loaded the same file in
+        # a loop grew `sys.modules` unboundedly.
+        path_digest = hashlib.sha1(
+            str(Path(path).resolve()).encode("utf-8")
+        ).hexdigest()[:16]
+        module_name = f"__prefect_loader_{path_digest}__"
 
     spec = importlib.util.spec_from_file_location(
         module_name,

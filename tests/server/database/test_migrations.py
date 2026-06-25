@@ -22,7 +22,7 @@ from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 from prefect.types._datetime import now
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
-pytestmark = pytest.mark.service("database")
+pytestmark = [pytest.mark.service("database"), pytest.mark.clear_db]
 
 
 @pytest.fixture

@@ -103,8 +103,14 @@ This starts 4 worker processes to handle API and UI requests concurrently.
 
 Multi-worker mode has specific infrastructure requirements:
 
-1. **PostgreSQL database** - SQLite is not supported due to database locking issues
-2. **Redis messaging** - In-memory messaging doesn't work across processes
+1. **PostgreSQL database** — SQLite is not supported due to database locking issues
+2. **Redis for messaging, event ordering, and concurrency lease storage** — the in-memory defaults do not work across processes
+
+<Note>
+`prefect server start --workers` validates these requirements at startup. If any required
+Redis-backed setting is still using its in-memory default, the server exits with an error
+before starting. See the configuration example below for the full set of required settings.
+</Note>
 
 ### Configuration example
 
@@ -112,17 +118,23 @@ Multi-worker mode has specific infrastructure requirements:
 # Set PostgreSQL connection
 prefect config set PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://postgres:password@localhost:5432/prefect"
 
-# Configure Redis messaging
-prefect config set PREFECT_SERVER_EVENTS_MESSAGING_CACHE="prefect.server.utilities.messaging.redis"
-prefect config set PREFECT_SERVER_EVENTS_MESSAGING_BROKER="prefect.server.utilities.messaging.redis"
+# Configure Redis-backed messaging, event ordering, and lease storage
+prefect config set PREFECT_MESSAGING_BROKER="prefect_redis.messaging"
+prefect config set PREFECT_MESSAGING_CACHE="prefect_redis.messaging"
+prefect config set PREFECT_SERVER_EVENTS_CAUSAL_ORDERING="prefect_redis.ordering"
+prefect config set PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE="prefect_redis.lease_storage"
 
-# Configure Redis messaging host and port
+# Configure Redis connection
 export PREFECT_REDIS_MESSAGING_HOST="redis"
 export PREFECT_REDIS_MESSAGING_PORT="6379"
+export PREFECT_REDIS_MESSAGING_DB="0"
 
 # Start server with 4 workers
 prefect server start --workers 4
 ```
+
+For a complete Redis setup including authentication, TLS, and Docket coordination for
+background services, see [How to scale self-hosted Prefect](/v3/advanced/self-hosted).
 
 <Tip>
 The number of workers should typically match the number of CPU cores available to your server process, but you may need to experiment to find the optimal value for your workload.

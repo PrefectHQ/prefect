@@ -25,6 +25,8 @@ from prefect.server.events.schemas.events import (
 )
 from prefect.types._datetime import now
 
+pytestmark = pytest.mark.clear_db
+
 
 @pytest.fixture
 def TestNotificationBlock(
@@ -204,6 +206,9 @@ async def test_success_event(
     email_me_block_id: UUID,
 ):
     action = notify_me.action
+
+    # Ignore lifecycle events emitted while creating the notification block fixtures
+    AssertingEventsClient.reset()
 
     with mock.patch.object(TestNotificationBlock, "notify"):
         await action.act(notify_me)

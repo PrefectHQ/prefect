@@ -279,6 +279,82 @@ class TestThreadPoolTaskRunner:
 
         assert test_flow().result() == 0
 
+    def test_warns_on_nested_submit_when_pool_is_saturated(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/17060.
+
+        When a parent task running on a bounded `ThreadPoolTaskRunner`
+        submits a child task while every worker thread is already occupied,
+        synchronously waiting on the child's result deadlocks the flow. The
+        runner should emit a clear warning naming `max_workers` so the user
+        can diagnose the situation.
+        """
+
+        @task
+        def some_task() -> int:
+            return 1
+
+        runner = ThreadPoolTaskRunner(max_workers=2)
+        with runner:
+            assert runner._executor is not None
+            # Simulate the saturated state: pretend the calling thread is one
+            # of the runner's worker threads and the pool is fully occupied.
+            runner._worker_thread_ids.add(threading.get_ident())
+            runner._active_submission_count = 2
+
+            with caplog.at_level("WARNING", logger="prefect.task_runner.threadpool"):
+                runner._warn_if_nested_submit_would_deadlock(some_task)
+
+        deadlock_warnings = [
+            record
+            for record in caplog.records
+            if "max_workers" in record.getMessage()
+            and "deadlock" in record.getMessage()
+        ]
+        assert deadlock_warnings, (
+            "expected a deadlock warning naming `max_workers` when a saturated "
+            "ThreadPoolTaskRunner sees a nested submit"
+        )
+
+        caplog.clear()
+        with runner:
+            runner._worker_thread_ids.add(threading.get_ident())
+            runner._active_submission_count = 2
+            runner._warn_if_nested_submit_would_deadlock(some_task)
+            runner._warn_if_nested_submit_would_deadlock(some_task)
+        repeat_warnings = [
+            record
+            for record in caplog.records
+            if "max_workers" in record.getMessage()
+            and "deadlock" in record.getMessage()
+        ]
+        assert len(repeat_warnings) <= 1, (
+            "warning should be emitted at most once per runner instance"
+        )
+
+    def test_does_not_warn_on_nested_submit_with_default_max_workers(
+        self, caplog: pytest.LogCaptureFixture
+    ):
+        """With `max_workers` defaulting to `sys.maxsize` the runner cannot
+        deadlock from nested submissions and must not emit the #17060 warning.
+        """
+
+        @task
+        def some_task() -> int:
+            return 1
+
+        runner = ThreadPoolTaskRunner()
+        with runner:
+            runner._worker_thread_ids.add(threading.get_ident())
+            runner._active_submission_count = 64
+            with caplog.at_level("WARNING", logger="prefect.task_runner.threadpool"):
+                runner._warn_if_nested_submit_would_deadlock(some_task)
+
+        assert not [
+            record for record in caplog.records if "deadlock" in record.getMessage()
+        ]
+
 
 class TestProcessPoolTaskRunner:
     @pytest.fixture(autouse=True)
@@ -339,6 +415,23 @@ class TestProcessPoolTaskRunner:
         assert duplicate_runner.subprocess_message_processor_factories == (
             _processor_factory,
         )
+
+    def test_duplicate_handles_missing_subprocess_message_processor_factories(self):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/21401
+
+        When a ProcessPoolTaskRunner is deserialized in a subprocess, the
+        _subprocess_message_processor_factories attribute may be absent.
+        duplicate() should handle this gracefully instead of raising
+        AttributeError.
+        """
+        runner = ProcessPoolTaskRunner(max_workers=4)
+        # Simulate a deserialized instance missing the attribute
+        del runner._subprocess_message_processor_factories
+
+        duplicate_runner = runner.duplicate()
+
+        assert isinstance(duplicate_runner, ProcessPoolTaskRunner)
+        assert duplicate_runner.subprocess_message_processor_factories == ()
 
     def test_subprocess_message_processors_property_updates_factories(self):
         def _processor_factory():
@@ -1119,6 +1212,60 @@ class TestProcessPoolTaskRunner:
         message_queue.join_thread.assert_called_once()
         assert runner._subprocess_message_queue is None
         assert runner._message_forwarding_thread is None
+
+
+class TestUnpicklingFuture:
+    def test_add_done_callback_propagates_deserialization_error(self):
+        """
+        Regression test: when cloudpickle.loads() fails inside
+        _UnpicklingFuture.add_done_callback, the callback must still fire
+        and the error must be observable via .exception(). Before the fix,
+        the exception was swallowed by concurrent.futures internals and the
+        callback never ran, causing the flow run to hang as a zombie.
+        """
+        import threading
+
+        from prefect.task_runners import _UnpicklingFuture
+
+        inner = Future()
+        unpickling = _UnpicklingFuture(inner)
+
+        callback_called = threading.Event()
+        callback_arg = []
+
+        def on_done(future):
+            callback_arg.append(future)
+            callback_called.set()
+
+        unpickling.add_done_callback(on_done)
+
+        # Resolve inner future with bytes that are NOT valid cloudpickle
+        inner.set_result(b"this is not valid cloudpickle data")
+
+        assert callback_called.wait(timeout=5), "callback was never invoked"
+        assert len(callback_arg) == 1
+        assert callback_arg[0] is unpickling
+        assert unpickling.exception() is not None
+
+    def test_add_done_callback_passes_result_on_success(self):
+        import cloudpickle
+
+        from prefect.task_runners import _UnpicklingFuture
+
+        inner = Future()
+        unpickling = _UnpicklingFuture(inner)
+
+        callback_called = []
+
+        def on_done(future):
+            callback_called.append(future)
+
+        unpickling.add_done_callback(on_done)
+        inner.set_result(cloudpickle.dumps({"key": "value"}))
+
+        assert len(callback_called) == 1
+        assert callback_called[0] is unpickling
+        assert unpickling.result() == {"key": "value"}
 
 
 class TestPrefectTaskRunner:

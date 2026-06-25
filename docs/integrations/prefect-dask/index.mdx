@@ -359,6 +359,11 @@ def my_flow():
         future = show.submit(2)  # high priority task
 ```
 
+`priority` is a soft scheduling hint for queued work. It does not preempt tasks
+that have already been assigned to a worker, so sequential `.submit()` calls may
+still start in submission order even when later tasks have a higher priority.
+Use `wait_for` or stage your submissions if you need strict ordering.
+
 Another common use case is [resource](http://distributed.dask.org/en/stable/resources.html) annotations:
 
 ```python

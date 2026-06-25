@@ -1,5 +1,7 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { buildGetAutomationQuery } from "@/api/automations";
 import { AutomationsEditHeader } from "./automations-edit-header";
 import type { AutomationWizardSchema } from "./automations-wizard/automation-schema";
 import { AutomationWizard } from "./automations-wizard/automation-wizard";
@@ -11,6 +13,7 @@ type AutomationEditPageProps = {
 
 export const AutomationEditPage = ({ id }: AutomationEditPageProps) => {
 	const navigate = useNavigate();
+	const { data: automation } = useSuspenseQuery(buildGetAutomationQuery(id));
 
 	const { defaultValues, updateAutomation, isPending } = useEditAutomation({
 		automationId: id,
@@ -31,9 +34,10 @@ export const AutomationEditPage = ({ id }: AutomationEditPageProps) => {
 
 	return (
 		<div className="flex flex-col gap-4">
-			<AutomationsEditHeader />
+			<AutomationsEditHeader automation={automation} />
 			<AutomationWizard
 				defaultValues={defaultValues}
+				isEditMode
 				onSubmit={handleSubmit}
 				submitLabel="Save"
 				isSubmitting={isPending}

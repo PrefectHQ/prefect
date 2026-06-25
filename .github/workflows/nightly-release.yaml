@@ -8,12 +8,26 @@ on:
 jobs:
   nightly-release:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     steps:
+      # The release created below must NOT be authored by the default
+      # GITHUB_TOKEN. GitHub suppresses follow-on workflow runs (except
+      # workflow_dispatch/repository_dispatch) for events produced by
+      # GITHUB_TOKEN, which would prevent docker-images.yaml,
+      # helm-chart-release.yaml, python-package.yaml, and
+      # prefect-client-publish.yaml from triggering off the release event.
+      # Mint a public App token instead.
+      - name: Generate prefect-ci-bot-public token
+        id: app_token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.PREFECT_CI_BOT_PUBLIC_CLIENT_ID }}
+          private-key: ${{ secrets.PREFECT_CI_BOT_PUBLIC_PRIVATE_KEY }}
+          # Scope to the minimum needed for softprops/action-gh-release.
+          permission-contents: write
+
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           filter: blob:none
@@ -75,11 +89,11 @@ jobs:
       - name: Create development release
         id: create_development_release
         if: steps.check_changes.outputs.SHOULD_CREATE_RELEASE == 'true'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: "${{ steps.next_dev_version.outputs.next_tag }}: Nightly Development Release"
           tag_name: ${{ steps.next_dev_version.outputs.next_tag }}
           draft: false
           prerelease: true
           generate_release_notes: true
-          token: ${{ secrets.PREFECT_CONTENTS_RW }}
+          token: ${{ steps.app_token.outputs.token }}

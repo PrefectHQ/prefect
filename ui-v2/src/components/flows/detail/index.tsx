@@ -118,7 +118,7 @@ export default function FlowDetail({
 							to: ".",
 							search: (prev) => ({
 								...prev,
-								tab: value as "runs" | "deployments" | "details",
+								tab: value,
 							}),
 						})
 					}

@@ -32,7 +32,7 @@ type WorkPoolQueueCreateOrEditDialogProps = {
 	queueToEdit?: WorkPoolQueue;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	onSubmit: () => void;
+	onSubmit: (values: { name: string }) => void;
 };
 
 export const WorkPoolQueueCreateOrEditDialog = ({

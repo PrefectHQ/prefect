@@ -26,19 +26,78 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from contextlib import asynccontextmanager
 from datetime import timedelta
+from typing import AsyncIterator
 
 import sqlalchemy as sa
 from docket import CurrentDocket, Depends, Docket, Perpetual
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.logging import get_logger
 from prefect.server.database import PrefectDBInterface, provide_database_interface
+from prefect.server.database.configurations import AsyncPostgresConfiguration
 from prefect.server.schemas.states import TERMINAL_STATES
 from prefect.server.services.perpetual_services import perpetual_service
 from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 
 logger: logging.Logger = get_logger(__name__)
+
+
+# Vacuum runs batched maintenance deletes that legitimately scan large tables
+# (e.g. the orphaned-log anti-join). On Postgres these inherit the asyncpg
+# `command_timeout` derived from `PREFECT_API_DATABASE_TIMEOUT` (10s by
+# default) — a latency budget meant for user-facing API queries, not bulk
+# maintenance. When a batch exceeds it asyncpg raises `TimeoutError`, killing
+# the task before it makes progress. Maintenance work runs on a dedicated
+# connection with no statement timeout so it can run to completion; sqlite's
+# `timeout` is a lock-wait, not a statement deadline, so it is left as-is.
+_MAINTENANCE_CONFIGS: dict[str, AsyncPostgresConfiguration] = {}
+
+
+def _maintenance_database_config(
+    db: PrefectDBInterface,
+) -> AsyncPostgresConfiguration | None:
+    """Return a Postgres config with no statement timeout for vacuum work.
+
+    Returns `None` for non-Postgres backends, signalling callers to use the
+    default session.
+    """
+    config = db.database_config
+    if not isinstance(config, AsyncPostgresConfiguration):
+        return None
+    cached = _MAINTENANCE_CONFIGS.get(config.connection_url)
+    if cached is None:
+        cached = AsyncPostgresConfiguration(connection_url=config.connection_url)
+        # Opt out of the API statement timeout and keep a minimal pool, since
+        # vacuum tasks run sequentially on an hourly loop.
+        cached.timeout = None
+        cached.sqlalchemy_pool_size = 1
+        cached.sqlalchemy_max_overflow = 0
+        _MAINTENANCE_CONFIGS[config.connection_url] = cached
+    return cached
+
+
+@asynccontextmanager
+async def _maintenance_session(
+    db: PrefectDBInterface,
+) -> AsyncIterator[AsyncSession]:
+    """A transactional session for vacuum maintenance queries.
+
+    On Postgres this uses a dedicated connection with no statement timeout;
+    other backends fall back to the default session context.
+    """
+    config = _maintenance_database_config(db)
+    if config is None:
+        async with db.session_context(begin_transaction=True) as session:
+            yield session
+        return
+    engine = await config.engine()
+    session = await config.session(engine)
+    async with session:
+        async with config.begin_transaction(session):
+            yield session
 
 
 # ---------------------------------------------------------------------------
@@ -55,7 +114,7 @@ logger: logging.Logger = get_logger(__name__)
 async def schedule_vacuum_tasks(
     docket: Docket = CurrentDocket(),
     perpetual: Perpetual = Perpetual(
-        automatic=False,
+        automatic=True,
         every=timedelta(
             seconds=get_current_settings().server.services.db_vacuum.loop_seconds
         ),
@@ -89,7 +148,7 @@ async def schedule_vacuum_tasks(
 async def schedule_event_vacuum_tasks(
     docket: Docket = CurrentDocket(),
     perpetual: Perpetual = Perpetual(
-        automatic=False,
+        automatic=True,
         every=timedelta(
             seconds=get_current_settings().server.services.db_vacuum.loop_seconds
         ),
@@ -315,7 +374,7 @@ async def _reconcile_artifact_collections(
     )
 
     while True:
-        async with db.session_context(begin_transaction=True) as session:
+        async with _maintenance_session(db) as session:
             rows = (
                 await session.execute(
                     sa.select(db.ArtifactCollection.id, db.ArtifactCollection.key)
@@ -376,7 +435,7 @@ async def _batch_delete(
     """Delete matching rows in batches. Each batch gets its own DB transaction."""
     total = 0
     while True:
-        async with db.session_context(begin_transaction=True) as session:
+        async with _maintenance_session(db) as session:
             subquery = (
                 sa.select(model.id).where(condition).limit(batch_size).scalar_subquery()
             )

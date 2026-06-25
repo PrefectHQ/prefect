@@ -24,6 +24,7 @@ import {
 import FlowsPage from "@/components/flows/flows-page";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
+import { usePageSizePreference } from "@/hooks/use-page-size-preference";
 
 // Route for /flows/
 
@@ -31,14 +32,7 @@ const searchParams = z
 	.object({
 		name: z.string().optional(),
 		page: z.number().int().positive().optional().default(1).catch(1),
-		limit: z
-			.number()
-			.int()
-			.positive()
-			.max(100)
-			.optional()
-			.default(10)
-			.catch(10),
+		limit: z.number().int().positive().max(100).optional().catch(undefined),
 		tags: z.array(z.string()).optional(),
 		sort: z
 			.enum(["CREATED_DESC", "UPDATED_DESC", "NAME_ASC", "NAME_DESC"])
@@ -198,7 +192,7 @@ export const Route = createFileRoute("/flows/")({
 				count={count ?? 0}
 				totalCount={totalCount ?? 0}
 				pageCount={flowsPage?.pages ?? 0}
-				sort={sort as "NAME_ASC" | "NAME_DESC" | "CREATED_DESC"}
+				sort={sort}
 				pagination={pagination}
 				onPaginationChange={onPaginationChange}
 				onSortChange={onSortChange}
@@ -262,13 +256,29 @@ const usePagination = () => {
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
 
+	const onInitializePageSize = useCallback(
+		(pageSize: number) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({ ...prev, limit: pageSize }),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	const effectivePageSize = usePageSizePreference(
+		search.limit,
+		onInitializePageSize,
+	);
+
 	// Convert URL params (1-based page) to TanStack Table's PaginationState (0-based pageIndex)
 	const pagination: PaginationState = useMemo(
 		() => ({
 			pageIndex: (search.page ?? 1) - 1,
-			pageSize: search.limit ?? 10,
+			pageSize: effectivePageSize,
 		}),
-		[search.page, search.limit],
+		[search.page, effectivePageSize],
 	);
 
 	const onPaginationChange = useCallback(

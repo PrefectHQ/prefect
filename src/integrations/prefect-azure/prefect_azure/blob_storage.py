@@ -712,7 +712,10 @@ class AzureBlobStorageContainer(
             path: The path where the content will be written.
             content: The content to be written.
         """
-        await self.upload_from_file_object(BytesIO(content), path)
+        # `write_path` backs results storage, where re-writing an existing key
+        # (e.g. when a task runs with `refresh_cache=True`) must replace the
+        # existing blob rather than raise `ResourceExistsError`.
+        await self.upload_from_file_object(BytesIO(content), path, overwrite=True)
 
     @sync_compatible
     async def list_blobs(self) -> List[str]:

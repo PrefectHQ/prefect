@@ -7,6 +7,7 @@ import { createFakeWorkPool } from "@/mocks";
 import {
 	buildCountWorkPoolsQuery,
 	buildFilterWorkPoolsQuery,
+	buildGetWorkPoolQuery,
 	buildListWorkPoolWorkersQuery,
 	queryKeyFactory,
 	useDeleteWorkPool,
@@ -42,6 +43,11 @@ describe("work pools api", () => {
 			await waitFor(() => expect(result.current.isSuccess).toBe(true));
 			expect(result.current.data).toEqual([workPool]);
 		});
+
+		it("has a 30s refetch interval", () => {
+			const query = buildFilterWorkPoolsQuery();
+			expect(query.refetchInterval).toBe(30_000);
+		});
 	});
 
 	describe("buildCountWorkPoolsQuery", () => {
@@ -55,6 +61,18 @@ describe("work pools api", () => {
 			);
 			await waitFor(() => expect(result.current.isSuccess).toBe(true));
 			expect(result.current.data).toBe(1);
+		});
+
+		it("has a 30s refetch interval", () => {
+			const query = buildCountWorkPoolsQuery();
+			expect(query.refetchInterval).toBe(30_000);
+		});
+	});
+
+	describe("buildGetWorkPoolQuery", () => {
+		it("has a 30s refetch interval", () => {
+			const query = buildGetWorkPoolQuery("test-pool");
+			expect(query.refetchInterval).toBe(30_000);
 		});
 	});
 });

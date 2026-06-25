@@ -4,6 +4,12 @@ import { createWrapper } from "@tests/utils";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { GlobalConcurrencyLimitsCreateOrEditDialog } from "./global-concurrency-limits-create-or-edit-dialog";
 
+const ResizeObserverMock = class {
+	observe() {}
+	unobserve() {}
+	disconnect() {}
+};
+
 const MOCK_DATA = {
 	id: "0",
 	created: "2021-01-01T00:00:00Z",
@@ -17,12 +23,6 @@ const MOCK_DATA = {
 
 describe("GlobalConcurrencyLimitsCreateOrEditDialog", () => {
 	beforeAll(() => {
-		class ResizeObserverMock {
-			observe() {}
-			unobserve() {}
-			disconnect() {}
-		}
-
 		global.ResizeObserver = ResizeObserverMock;
 	});
 
@@ -83,5 +83,48 @@ describe("GlobalConcurrencyLimitsCreateOrEditDialog", () => {
 
 		// ------------ Assert
 		expect(mockOnSubmitFn).toHaveBeenCalledOnce();
+	});
+
+	it("allows concurrency limit of 0", async () => {
+		const user = userEvent.setup();
+
+		const mockOnSubmitFn = vi.fn();
+		render(
+			<GlobalConcurrencyLimitsCreateOrEditDialog
+				onOpenChange={vi.fn()}
+				onSubmit={mockOnSubmitFn}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		const limitInput = screen.getByLabelText("Concurrency Limit");
+		await user.clear(limitInput);
+		await user.type(limitInput, "0");
+		await user.type(screen.getByLabelText(/name/i), "test-limit");
+		await user.click(screen.getByRole("button", { name: /save/i }));
+
+		expect(mockOnSubmitFn).toHaveBeenCalledOnce();
+	});
+
+	it("shows validation error when concurrency limit is negative", async () => {
+		const user = userEvent.setup();
+
+		render(
+			<GlobalConcurrencyLimitsCreateOrEditDialog
+				onOpenChange={vi.fn()}
+				onSubmit={vi.fn()}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		const limitInput = screen.getByLabelText("Concurrency Limit");
+		await user.clear(limitInput);
+		await user.type(limitInput, "-5");
+		await user.type(screen.getByLabelText(/name/i), "test-limit");
+		await user.click(screen.getByRole("button", { name: /save/i }));
+
+		expect(
+			await screen.findByText("Concurrency limit must be 0 or greater"),
+		).toBeVisible();
 	});
 });

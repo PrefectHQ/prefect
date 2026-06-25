@@ -46,7 +46,8 @@ def test_normalize_schedule_objects():
 
     assert normalized[0].schedule.cron == "0 0 * * *"
     assert normalized[1].schedule.interval == datetime.timedelta(minutes=10)
-    assert normalized[2].schedule.rrule == "FREQ=DAILY"
+    # `DeploymentScheduleCreate` injects an explicit DTSTART (#21362).
+    assert normalized[2].schedule.rrule.endswith("FREQ=DAILY")
 
 
 def test_normalize_dicts():
@@ -67,7 +68,8 @@ def test_normalize_dicts():
     assert normalized[1].schedule.cron == "0 0 * * *"
 
     assert normalized[2].active is True
-    assert normalized[2].schedule.rrule == "FREQ=DAILY"
+    # `DeploymentScheduleCreate` injects an explicit DTSTART (#21362).
+    assert normalized[2].schedule.rrule.endswith("FREQ=DAILY")
 
 
 def test_normalize_minimal_deployment_schedules():
@@ -106,7 +108,8 @@ def test_normalize_mixed():
     assert normalized[1].schedule.interval == datetime.timedelta(minutes=10)
 
     assert normalized[2].active is False
-    assert normalized[2].schedule.rrule == "FREQ=DAILY"
+    # `DeploymentScheduleCreate` injects an explicit DTSTART (#21362).
+    assert normalized[2].schedule.rrule.endswith("FREQ=DAILY")
 
 
 def test_normalize_server_schema():

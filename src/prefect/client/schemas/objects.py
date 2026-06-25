@@ -36,6 +36,7 @@ from typing_extensions import Literal, Self, TypeVar
 
 from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.compatibility.migration import getattr_migration
+from prefect._internal.result_records import ResultRecordMetadata
 from prefect._internal.schemas.bases import (
     ObjectBaseModel,
     PrefectBaseModel,
@@ -54,7 +55,6 @@ from prefect._internal.schemas.validators import (
     validate_parent_and_ref_diff,
 )
 from prefect._internal.uuid7 import uuid7
-from prefect._result_records import ResultRecordMetadata
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 from prefect.settings import PREFECT_CLOUD_API_URL, PREFECT_CLOUD_UI_URL
 from prefect.types import (
@@ -943,6 +943,18 @@ class TaskRun(TimeSeriesBaseModel, ObjectBaseModel):
         return get_or_create_run_name(name)
 
 
+# These models are instantiated while task runs are being created locally on the
+# concurrent submission path. Rebuild them eagerly so threadpool workers do not
+# trigger deferred first-use schema builds under contention.
+RunInput.model_rebuild()
+TaskRunPolicy.model_rebuild()
+TaskRunResult.model_rebuild()
+FlowRunResult.model_rebuild()
+Parameter.model_rebuild()
+Constant.model_rebuild()
+TaskRun.model_rebuild()
+
+
 class Workspace(PrefectBaseModel):
     """
     A Prefect Cloud workspace.
@@ -1536,6 +1548,24 @@ class WorkPoolStorageConfiguration(PrefectBaseModel):
     default_result_storage_block_id: Optional[UUID] = Field(
         default=None,
         description="The block document ID of the default result storage block.",
+    )
+
+
+class ServerDefaultResultStorage(PrefectBaseModel):
+    """Server-side default result storage configuration."""
+
+    default_result_storage_block_id: Optional[UUID] = Field(
+        default=None,
+        description="The block document ID of the server default result storage block.",
+    )
+
+
+class ServerDefaultResultStorageUpdate(PrefectBaseModel):
+    """Request payload for setting the server default result storage block."""
+
+    default_result_storage_block_id: UUID = Field(
+        default=...,
+        description="The block document ID of the server default result storage block.",
     )
 
 

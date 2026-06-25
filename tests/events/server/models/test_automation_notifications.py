@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from prefect._internal.testing import retry_asserts
 from prefect.server.events.actions import DoNothing
 from prefect.server.events.models.automations import (
     create_automation,
@@ -21,6 +22,8 @@ from prefect.server.events.schemas.automations import (
 from prefect.server.events.triggers import listen_for_automation_changes
 from prefect.server.utilities.database import get_dialect
 from prefect.settings import PREFECT_API_SERVICES_TRIGGERS_ENABLED, temporary_settings
+
+pytestmark = pytest.mark.clear_db
 
 
 @pytest.fixture
@@ -169,24 +172,23 @@ async def test_automation_listener_receives_notifications_and_processes_them(
                 await delete_automation(automations_session, created.id)
                 await automations_session.commit()
 
-                await asyncio.sleep(0.1)
+                # Retry assertions to handle NOTIFY propagation delays under load
+                async for attempt in retry_asserts(max_attempts=10, delay=0.25):
+                    with attempt:
+                        assert len(automation_changed_calls) == 3
 
-                # Verify all three notifications were received and processed
-                assert len(automation_changed_calls) == 3
-
-                # Check each notification
-                assert automation_changed_calls[0] == (
-                    created.id,
-                    "automation__created",
-                )
-                assert automation_changed_calls[1] == (
-                    created.id,
-                    "automation__updated",
-                )
-                assert automation_changed_calls[2] == (
-                    created.id,
-                    "automation__deleted",
-                )
+                        assert automation_changed_calls[0] == (
+                            created.id,
+                            "automation__created",
+                        )
+                        assert automation_changed_calls[1] == (
+                            created.id,
+                            "automation__updated",
+                        )
+                        assert automation_changed_calls[2] == (
+                            created.id,
+                            "automation__deleted",
+                        )
 
             finally:
                 listener_task.cancel()

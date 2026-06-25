@@ -140,6 +140,7 @@ _TRANSIENT_ERROR_PATTERNS = (
     "i/o timeout",
     "TLS handshake timeout",
     "connection reset",
+    "context deadline exceeded",
 )
 
 logger: logging.Logger = logging.getLogger(__name__)

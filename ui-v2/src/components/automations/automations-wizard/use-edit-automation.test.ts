@@ -419,7 +419,7 @@ describe("useEditAutomation", () => {
 				});
 			});
 
-			it("transforms call-webhook action to do-nothing (unsupported in form)", () => {
+			it("transforms call-webhook action preserving block_document_id and payload", () => {
 				const automation = createFakeAutomation({
 					actions: [
 						{
@@ -433,7 +433,9 @@ describe("useEditAutomation", () => {
 				const result = transformAutomationToFormValues(automation);
 
 				expect(result.actions[0]).toEqual({
-					type: "do-nothing",
+					type: "call-webhook",
+					block_document_id: "webhook-block",
+					payload: "{}",
 				});
 			});
 

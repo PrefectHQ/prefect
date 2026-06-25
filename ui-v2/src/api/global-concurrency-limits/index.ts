@@ -4,5 +4,6 @@ export {
 	useCreateGlobalConcurrencyLimit,
 	useDeleteGlobalConcurrencyLimit,
 	useListGlobalConcurrencyLimits,
+	useResetGlobalConcurrencyLimit,
 	useUpdateGlobalConcurrencyLimit,
 } from "./global-concurrency-limits";

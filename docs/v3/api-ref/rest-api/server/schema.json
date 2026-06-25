@@ -9572,6 +9572,134 @@
                 }
             }
         },
+        "/admin/storage": {
+            "get": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Read Server Default Result Storage",
+                "description": "Get the configured server default result storage block.",
+                "operationId": "read_server_default_result_storage_admin_storage_get",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ServerDefaultResultStorage"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Update Server Default Result Storage",
+                "description": "Set the server default result storage block.",
+                "operationId": "update_server_default_result_storage_admin_storage_put",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServerDefaultResultStorageUpdate"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Successful Response",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ServerDefaultResultStorage"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "Admin"
+                ],
+                "summary": "Clear Server Default Result Storage",
+                "description": "Clear the configured server default result storage block.",
+                "operationId": "clear_server_default_result_storage_admin_storage_delete",
+                "parameters": [
+                    {
+                        "name": "x-prefect-api-version",
+                        "in": "header",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "title": "X-Prefect-Api-Version"
+                        }
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Successful Response"
+                    },
+                    "422": {
+                        "description": "Validation Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HTTPValidationError"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/hello": {
             "get": {
                 "tags": [
@@ -10702,6 +10830,9 @@
                                     "$ref": "#/components/schemas/CancelFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
@@ -10759,6 +10890,9 @@
                                     "$ref": "#/components/schemas/CancelFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
@@ -10814,6 +10948,9 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/CancelFlowRun"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
                                 },
                                 {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
@@ -10956,6 +11093,9 @@
                                     "$ref": "#/components/schemas/CancelFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
@@ -11013,6 +11153,9 @@
                                     "$ref": "#/components/schemas/CancelFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
@@ -11068,6 +11211,9 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/CancelFlowRun"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
                                 },
                                 {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
@@ -11371,6 +11517,9 @@
                                     "$ref": "#/components/schemas/CancelFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
@@ -11428,6 +11577,9 @@
                                     "$ref": "#/components/schemas/CancelFlowRun"
                                 },
                                 {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
+                                },
+                                {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
                                 },
                                 {
@@ -11483,6 +11635,9 @@
                                 },
                                 {
                                     "$ref": "#/components/schemas/CancelFlowRun"
+                                },
+                                {
+                                    "$ref": "#/components/schemas/DeleteFlowRun"
                                 },
                                 {
                                     "$ref": "#/components/schemas/ChangeFlowRunState"
@@ -15963,6 +16118,19 @@
                 ],
                 "title": "CsrfToken"
             },
+            "DeleteFlowRun": {
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "const": "delete-flow-run",
+                        "title": "Type",
+                        "default": "delete-flow-run"
+                    }
+                },
+                "type": "object",
+                "title": "DeleteFlowRun",
+                "description": "Deletes a flow run associated with the trigger"
+            },
             "DependencyResult": {
                 "properties": {
                     "id": {
@@ -18575,11 +18743,6 @@
                             "PREFECT_EXPERIMENTS_WARN",
                             "PREFECT_EXPERIMENTAL_WARN"
                         ]
-                    },
-                    "plugins": {
-                        "$ref": "#/components/schemas/PluginsSettings",
-                        "description": "Settings for the experimental plugin system",
-                        "supported_environment_variables": []
                     }
                 },
                 "type": "object",
@@ -22736,9 +22899,10 @@
                     "enabled": {
                         "type": "boolean",
                         "title": "Enabled",
-                        "description": "Enable the experimental plugin system.",
+                        "description": "Enable the plugin system.",
                         "default": false,
                         "supported_environment_variables": [
+                            "PREFECT_PLUGINS_ENABLED",
                             "PREFECT_EXPERIMENTS_PLUGINS_ENABLED"
                         ]
                     },
@@ -22758,6 +22922,7 @@
                         "title": "Allow",
                         "description": "Comma-separated list of plugin names to allow. If set, only these plugins will be loaded.",
                         "supported_environment_variables": [
+                            "PREFECT_PLUGINS_ALLOW",
                             "PREFECT_EXPERIMENTS_PLUGINS_ALLOW"
                         ]
                     },
@@ -22777,6 +22942,7 @@
                         "title": "Deny",
                         "description": "Comma-separated list of plugin names to deny. These plugins will not be loaded.",
                         "supported_environment_variables": [
+                            "PREFECT_PLUGINS_DENY",
                             "PREFECT_EXPERIMENTS_PLUGINS_DENY"
                         ]
                     },
@@ -22786,6 +22952,7 @@
                         "description": "Maximum time in seconds for all plugins to complete their setup hooks.",
                         "default": 20.0,
                         "supported_environment_variables": [
+                            "PREFECT_PLUGINS_SETUP_TIMEOUT_SECONDS",
                             "PREFECT_EXPERIMENTS_PLUGINS_SETUP_TIMEOUT_SECONDS"
                         ]
                     },
@@ -22795,6 +22962,7 @@
                         "description": "If True, exit if a required plugin fails during setup.",
                         "default": false,
                         "supported_environment_variables": [
+                            "PREFECT_PLUGINS_STRICT",
                             "PREFECT_EXPERIMENTS_PLUGINS_STRICT"
                         ]
                     },
@@ -22804,13 +22972,14 @@
                         "description": "If True, load plugins but do not execute their hooks. Useful for testing.",
                         "default": false,
                         "supported_environment_variables": [
+                            "PREFECT_PLUGINS_SAFE_MODE",
                             "PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE"
                         ]
                     }
                 },
                 "type": "object",
                 "title": "PluginsSettings",
-                "description": "Settings for configuring the experimental plugin system"
+                "description": "Settings for configuring the plugin system.\n\nEach field also accepts the legacy `PREFECT_EXPERIMENTS_PLUGINS_*` env-var\nname. The system warns once at import time when any of those legacy names\nis present in the environment. Legacy `[experiments.plugins]` TOML tables\nare read as a lower-priority fallback for the same backward-compat reason."
             },
             "QueueFilter": {
                 "properties": {
@@ -23342,6 +23511,15 @@
                         "default": false,
                         "supported_environment_variables": [
                             "PREFECT_RUNNER_CRASH_ON_CANCELLATION_FAILURE"
+                        ]
+                    },
+                    "auto_install_dependencies": {
+                        "type": "boolean",
+                        "title": "Auto Install Dependencies",
+                        "description": "Whether runners may install dependencies before executing flow runs. Enable this when deployments pull code that needs dependencies prepared at runtime.",
+                        "default": false,
+                        "supported_environment_variables": [
+                            "PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES"
                         ]
                     },
                     "server": {
@@ -24021,6 +24199,34 @@
                             "PREFECT_SERVER_API_CORS_ALLOWED_HEADERS",
                             "PREFECT_SERVER_CORS_ALLOWED_HEADERS"
                         ]
+                    },
+                    "websocket_ping_interval": {
+                        "type": "number",
+                        "title": "Websocket Ping Interval",
+                        "description": "WebSocket ping interval in seconds. Only applies when starting the server with `prefect server start`.",
+                        "default": 20.0,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_API_WEBSOCKET_PING_INTERVAL"
+                        ]
+                    },
+                    "websocket_ping_timeout": {
+                        "type": "number",
+                        "title": "Websocket Ping Timeout",
+                        "description": "WebSocket ping timeout in seconds. Only applies when starting the server with `prefect server start`.",
+                        "default": 20.0,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_API_WEBSOCKET_PING_TIMEOUT"
+                        ]
+                    },
+                    "max_parameter_size": {
+                        "type": "integer",
+                        "minimum": 0.0,
+                        "title": "Max Parameter Size",
+                        "description": "The maximum size of parameters (in bytes, JSON-serialized) that can be stored on a flow run or deployment. Set to 0 to disable the limit.",
+                        "default": 524288,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_API_MAX_PARAMETER_SIZE"
+                        ]
                     }
                 },
                 "type": "object",
@@ -24248,6 +24454,42 @@
                 "type": "object",
                 "title": "ServerDatabaseSettings",
                 "description": "Settings for controlling server database behavior"
+            },
+            "ServerDefaultResultStorage": {
+                "properties": {
+                    "default_result_storage_block_id": {
+                        "anyOf": [
+                            {
+                                "type": "string",
+                                "format": "uuid"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Default Result Storage Block Id",
+                        "description": "The block document ID of the server default result storage block."
+                    }
+                },
+                "type": "object",
+                "title": "ServerDefaultResultStorage",
+                "description": "Server-side default result storage configuration."
+            },
+            "ServerDefaultResultStorageUpdate": {
+                "properties": {
+                    "default_result_storage_block_id": {
+                        "type": "string",
+                        "format": "uuid",
+                        "title": "Default Result Storage Block Id",
+                        "description": "The block document ID of the server default result storage block."
+                    }
+                },
+                "type": "object",
+                "required": [
+                    "default_result_storage_block_id"
+                ],
+                "title": "ServerDefaultResultStorageUpdate",
+                "description": "Request payload for setting the server default result storage block."
             },
             "ServerDeploymentsSettings": {
                 "properties": {
@@ -24542,11 +24784,57 @@
                             "PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS",
                             "PREFECT_API_SERVICES_CANCELLATION_CLEANUP_LOOP_SECONDS"
                         ]
+                    },
+                    "cancelling_timeout_seconds": {
+                        "type": "number",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Cancelling Timeout Seconds",
+                        "description": "The cancellation cleanup service will enqueue worker cleanup for flow runs that remain in CANCELLING longer than this many seconds. Defaults to `300`.",
+                        "default": 300,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_CANCELLING_TIMEOUT_SECONDS"
+                        ]
                     }
                 },
                 "type": "object",
                 "title": "ServerServicesCancellationCleanupSettings",
                 "description": "Settings for controlling the cancellation cleanup service"
+            },
+            "ServerServicesCleanupReconcilerSettings": {
+                "properties": {
+                    "enabled": {
+                        "type": "boolean",
+                        "title": "Enabled",
+                        "description": "Whether or not to start the cleanup reconciler service in the server application.",
+                        "default": true,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_CLEANUP_RECONCILER_ENABLED"
+                        ]
+                    },
+                    "loop_seconds": {
+                        "type": "number",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Loop Seconds",
+                        "description": "The cleanup reconciler service will look for expired cleanup message leases this often. Defaults to `5`.",
+                        "default": 5,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_CLEANUP_RECONCILER_LOOP_SECONDS"
+                        ]
+                    },
+                    "batch_size": {
+                        "type": "integer",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Batch Size",
+                        "description": "The maximum number of expired cleanup message leases to process per service loop. Defaults to `100`.",
+                        "default": 100,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_CLEANUP_RECONCILER_BATCH_SIZE"
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "ServerServicesCleanupReconcilerSettings",
+                "description": "Settings for controlling the cleanup reconciler service."
             },
             "ServerServicesDBVacuumSettings": {
                 "properties": {
@@ -25005,6 +25293,11 @@
                         "$ref": "#/components/schemas/ServerServicesRepossessorSettings",
                         "supported_environment_variables": []
                     },
+                    "cleanup_reconciler": {
+                        "$ref": "#/components/schemas/ServerServicesCleanupReconcilerSettings",
+                        "description": "Settings for controlling the cleanup reconciler service",
+                        "supported_environment_variables": []
+                    },
                     "task_run_recorder": {
                         "$ref": "#/components/schemas/ServerServicesTaskRunRecorderSettings",
                         "supported_environment_variables": []
@@ -25254,6 +25547,11 @@
                         "$ref": "#/components/schemas/ServerUISettings",
                         "description": "Settings for controlling server UI behavior",
                         "supported_environment_variables": []
+                    },
+                    "worker_channel": {
+                        "$ref": "#/components/schemas/ServerWorkerChannelSettings",
+                        "description": "Settings for controlling server worker channel behavior",
+                        "supported_environment_variables": []
                     }
                 },
                 "type": "object",
@@ -25345,7 +25643,7 @@
                     "v2_enabled": {
                         "type": "boolean",
                         "title": "V2 Enabled",
-                        "description": "Whether to serve the experimental V2 UI instead of the default V1 UI.",
+                        "description": "Whether neutral UI entry points should default to the experimental V2 UI instead of V1 when the browser has no saved UI preference.",
                         "default": false,
                         "supported_environment_variables": [
                             "PREFECT_SERVER_UI_V2_ENABLED"
@@ -25405,6 +25703,58 @@
                 },
                 "type": "object",
                 "title": "ServerUISettings"
+            },
+            "ServerWorkerChannelSettings": {
+                "properties": {
+                    "cleanup_queue_storage": {
+                        "type": "string",
+                        "title": "Cleanup Queue Storage",
+                        "description": "The module to use for storing worker cleanup delivery messages. The default in-memory backend stores messages, leases, wakeups, and dead-letter entries only in the current server process; use an external storage module for high availability or restart-safe cleanup delivery.",
+                        "default": "prefect.server.worker_communication.cleanup_queue.memory",
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE"
+                        ]
+                    },
+                    "cleanup_lease_seconds": {
+                        "type": "number",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Cleanup Lease Seconds",
+                        "description": "The default cleanup message reservation lease duration in seconds.",
+                        "default": 30.0,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_LEASE_SECONDS"
+                        ]
+                    },
+                    "cleanup_max_delivery_attempts": {
+                        "type": "integer",
+                        "minimum": 1.0,
+                        "title": "Cleanup Max Delivery Attempts",
+                        "description": "The maximum number of committed cleanup reservations before a message is moved to the dead-letter queue.",
+                        "default": 3,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_MAX_DELIVERY_ATTEMPTS"
+                        ]
+                    },
+                    "cleanup_completed_idempotency_retention_seconds": {
+                        "anyOf": [
+                            {
+                                "type": "number",
+                                "minimum": 0.0
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Cleanup Completed Idempotency Retention Seconds",
+                        "description": "How long completed cleanup idempotency records are retained after acknowledgement. None keeps them for the lifetime of the current server process. The in-memory backend does not survive restart; use external storage for high availability or restart-safe cleanup idempotency.",
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_COMPLETED_IDEMPOTENCY_RETENTION_SECONDS"
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "ServerWorkerChannelSettings",
+                "description": "Settings for server-side worker channel storage and delivery policy."
             },
             "SetStateStatus": {
                 "type": "string",
@@ -25487,6 +25837,11 @@
                     },
                     "logging": {
                         "$ref": "#/components/schemas/LoggingSettings",
+                        "supported_environment_variables": []
+                    },
+                    "plugins": {
+                        "$ref": "#/components/schemas/PluginsSettings",
+                        "description": "Settings for the plugin system.",
                         "supported_environment_variables": []
                     },
                     "results": {

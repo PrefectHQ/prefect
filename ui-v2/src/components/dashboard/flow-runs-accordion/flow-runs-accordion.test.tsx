@@ -10,7 +10,7 @@ import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
 import { Suspense } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { FlowRunsFilter } from "@/api/flow-runs";
 import type { Flow } from "@/api/flows";
 import { createFakeFlow, createFakeFlowRun, createFakeState } from "@/mocks";
@@ -51,13 +51,22 @@ const FlowRunsAccordionHeaderRouter = ({
 const FlowRunsAccordionContentRouter = ({
 	flowId,
 	filter,
+	page,
+	onPageChange,
 }: {
 	flowId: string;
 	filter?: FlowRunsFilter;
+	page?: number;
+	onPageChange?: (page: number) => void;
 }) => {
 	const router = createRouterWithComponent(
 		<Suspense fallback={<div>Loading...</div>}>
-			<FlowRunsAccordionContent flowId={flowId} filter={filter} />
+			<FlowRunsAccordionContent
+				flowId={flowId}
+				filter={filter}
+				page={page}
+				onPageChange={onPageChange}
+			/>
 		</Suspense>,
 	);
 	return <RouterProvider router={router} />;
@@ -233,6 +242,101 @@ describe("FlowRunsAccordion", () => {
 			expect(screen.getByText("Test Flow 2")).toBeInTheDocument();
 		});
 	});
+
+	it("only applies the controlled page to the accordion section matching activeFlowId", async () => {
+		const user = userEvent.setup();
+		const onPageChange = vi.fn();
+		const flow1 = createFakeFlow({ id: "flow-1", name: "Flow One" });
+		const flow2 = createFakeFlow({ id: "flow-2", name: "Flow Two" });
+
+		server.use(
+			http.post(buildApiUrl("/flow_runs/filter"), () => {
+				return HttpResponse.json([
+					createFakeFlowRun({
+						id: "seed-1",
+						flow_id: "flow-1",
+						state_type: "FAILED",
+					}),
+					createFakeFlowRun({
+						id: "seed-2",
+						flow_id: "flow-2",
+						state_type: "FAILED",
+					}),
+				]);
+			}),
+			http.post(buildApiUrl("/flows/filter"), () => {
+				return HttpResponse.json([flow1, flow2]);
+			}),
+			http.post(buildApiUrl("/flow_runs/count"), () => {
+				return HttpResponse.json(6);
+			}),
+			http.post(buildApiUrl("/flow_runs/paginate"), async ({ request }) => {
+				const body = (await request.json()) as {
+					page?: number;
+					flows?: { id?: { any_?: string[] } };
+				};
+				const flowId = body.flows?.id?.any_?.[0] ?? "unknown";
+				const page = body.page ?? 1;
+				return HttpResponse.json({
+					results: [
+						createFakeFlowRun({
+							id: `${flowId}-run-${page}`,
+							name: `${flowId} page ${page}`,
+							flow_id: flowId,
+							state_type: "FAILED",
+						}),
+					],
+					count: 6,
+					pages: 2,
+					page,
+					limit: 3,
+				});
+			}),
+			http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
+				return HttpResponse.json({});
+			}),
+		);
+
+		render(
+			<FlowRunsAccordionRouter
+				stateTypes={["FAILED"]}
+				activeFlowId="flow-1"
+				page={2}
+				onPageChange={onPageChange}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		// Expand both accordion sections so their content renders.
+		await waitFor(() => {
+			expect(screen.getByText("Flow One")).toBeInTheDocument();
+		});
+		const triggers = screen
+			.getAllByRole("button")
+			.filter((btn) => btn.getAttribute("data-slot") === "accordion-trigger");
+		expect(triggers).toHaveLength(2);
+		for (const trigger of triggers) {
+			await user.click(trigger);
+		}
+
+		// The active flow's section is rendered at page 2; the other defaults to 1.
+		await waitFor(() => {
+			expect(screen.getByText("flow-1 page 2")).toBeInTheDocument();
+		});
+		await waitFor(() => {
+			expect(screen.getByText("flow-2 page 1")).toBeInTheDocument();
+		});
+
+		// Clicking inside a non-active section should still invoke the callback
+		// scoped to that section's flow id — so the caller can move the URL's
+		// "active flow" pointer to a different flow.
+		const nextButtons = screen.getAllByRole("button", { name: /next/i });
+		// The non-active section is currently on page 1 of 2, so Next is enabled.
+		const flow2Next = nextButtons.find((btn) => !btn.hasAttribute("disabled"));
+		expect(flow2Next).toBeDefined();
+		if (flow2Next) await user.click(flow2Next);
+		expect(onPageChange).toHaveBeenLastCalledWith("flow-2", 2);
+	});
 });
 
 describe("FlowRunsAccordionHeader", () => {
@@ -256,7 +360,7 @@ describe("FlowRunsAccordionHeader", () => {
 		render(
 			<FlowRunsAccordionHeaderRouter
 				flow={flow}
-				filter={{ sort: "START_TIME_DESC", offset: 0 }}
+				filter={{ sort: "EXPECTED_START_TIME_DESC", offset: 0 }}
 			/>,
 			{
 				wrapper: createWrapper(),
@@ -285,7 +389,7 @@ describe("FlowRunsAccordionHeader", () => {
 		render(
 			<FlowRunsAccordionHeaderRouter
 				flow={flow}
-				filter={{ sort: "START_TIME_DESC", offset: 0 }}
+				filter={{ sort: "EXPECTED_START_TIME_DESC", offset: 0 }}
 			/>,
 			{
 				wrapper: createWrapper(),
@@ -319,7 +423,7 @@ describe("FlowRunsAccordionHeader", () => {
 		render(
 			<FlowRunsAccordionHeaderRouter
 				flow={flow}
-				filter={{ sort: "START_TIME_DESC", offset: 0 }}
+				filter={{ sort: "EXPECTED_START_TIME_DESC", offset: 0 }}
 			/>,
 			{
 				wrapper: createWrapper(),
@@ -474,6 +578,64 @@ describe("FlowRunsAccordionContent", () => {
 		});
 
 		expect(screen.queryByText(/Page \d+ of \d+/)).not.toBeInTheDocument();
+	});
+
+	it("uses the controlled page prop and calls onPageChange on navigation", async () => {
+		const user = userEvent.setup();
+		const onPageChange = vi.fn();
+		server.use(
+			http.post(buildApiUrl("/flow_runs/paginate"), async ({ request }) => {
+				const body = (await request.json()) as { page?: number };
+				const page = body.page ?? 1;
+				return HttpResponse.json({
+					results: [
+						createFakeFlowRun({
+							id: `run-${page}`,
+							name: `Controlled Page ${page} Run`,
+							flow_id: "flow-1",
+						}),
+					],
+					count: 6,
+					pages: 2,
+					page,
+					limit: 3,
+				});
+			}),
+			http.post(buildApiUrl("/ui/flow_runs/count-task-runs"), () => {
+				return HttpResponse.json({ "run-1": 0, "run-2": 0 });
+			}),
+		);
+
+		const { rerender } = render(
+			<FlowRunsAccordionContentRouter
+				flowId="flow-1"
+				page={2}
+				onPageChange={onPageChange}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		await waitFor(() => {
+			expect(screen.getByText("Page 2 of 2")).toBeInTheDocument();
+		});
+
+		const prevButton = screen.getByRole("button", { name: /previous/i });
+		await user.click(prevButton);
+
+		expect(onPageChange).toHaveBeenCalledWith(1);
+
+		// Re-render with the new controlled page value to simulate URL-driven state.
+		rerender(
+			<FlowRunsAccordionContentRouter
+				flowId="flow-1"
+				page={1}
+				onPageChange={onPageChange}
+			/>,
+		);
+
+		await waitFor(() => {
+			expect(screen.getByText("Page 1 of 2")).toBeInTheDocument();
+		});
 	});
 
 	it("navigates between pages when clicking pagination buttons", async () => {

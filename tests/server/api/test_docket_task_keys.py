@@ -23,7 +23,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from prefect._internal.compatibility.starlette import status
 from prefect.server import models, schemas
 from prefect.server.schemas.statuses import DeploymentStatus
-from prefect.settings import get_current_settings
+from prefect.server.services.cancellation_cleanup import cancelling_timeout_check_key
+from prefect.settings import (
+    PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_ENABLED,
+    get_current_settings,
+    temporary_settings,
+)
+
+pytestmark = pytest.mark.clear_db
 
 
 @asynccontextmanager
@@ -164,6 +171,76 @@ class TestDocketAtMostOnceExecution:
         )
         await session.commit()
         return task_run
+
+    async def test_cancelling_flow_run_state_queues_single_timeout_check(
+        self,
+        flow_run,
+        real_docket: Docket,
+        client_with_real_docket: AsyncClient,
+    ):
+        running_response = await client_with_real_docket.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json={"state": {"type": "RUNNING", "name": "Running"}},
+        )
+        assert running_response.status_code == status.HTTP_201_CREATED
+
+        initial_snapshot = await real_docket.snapshot()
+        initial_task_count = initial_snapshot.total_tasks
+
+        with temporary_settings(
+            {PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_ENABLED: True}
+        ):
+            cancelling_response = await client_with_real_docket.post(
+                f"/flow_runs/{flow_run.id}/set_state",
+                json={"state": {"type": "CANCELLING", "name": "Cancelling"}},
+            )
+        assert cancelling_response.status_code == status.HTTP_201_CREATED
+
+        final_snapshot = await real_docket.snapshot()
+        new_tasks = final_snapshot.total_tasks - initial_task_count
+        assert new_tasks == 1
+
+        task_keys = {task.key for task in final_snapshot.future}
+        task_keys.update(task.key for task in final_snapshot.running)
+        assert cancelling_timeout_check_key(flow_run.id) in task_keys
+
+    async def test_bulk_cancelling_flow_run_state_queues_timeout_check(
+        self,
+        flow_run,
+        real_docket: Docket,
+        client_with_real_docket: AsyncClient,
+    ):
+        running_response = await client_with_real_docket.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json={"state": {"type": "RUNNING", "name": "Running"}},
+        )
+        assert running_response.status_code == status.HTTP_201_CREATED
+
+        initial_snapshot = await real_docket.snapshot()
+        initial_task_count = initial_snapshot.total_tasks
+
+        with temporary_settings(
+            {PREFECT_SERVER_SERVICES_CANCELLATION_CLEANUP_ENABLED: True}
+        ):
+            cancelling_response = await client_with_real_docket.post(
+                "/flow_runs/bulk_set_state",
+                json={
+                    "flow_runs": {"id": {"any_": [str(flow_run.id)]}},
+                    "state": {"type": "CANCELLING", "name": "Cancelling"},
+                },
+            )
+        assert cancelling_response.status_code == status.HTTP_200_OK
+        results = cancelling_response.json()["results"]
+        assert len(results) == 1
+        assert results[0]["status"] == "ACCEPT"
+
+        final_snapshot = await real_docket.snapshot()
+        new_tasks = final_snapshot.total_tasks - initial_task_count
+        assert new_tasks == 1
+
+        task_keys = {task.key for task in final_snapshot.future}
+        task_keys.update(task.key for task in final_snapshot.running)
+        assert cancelling_timeout_check_key(flow_run.id) in task_keys
 
     async def test_work_queue_duplicate_requests_queue_single_task(
         self,

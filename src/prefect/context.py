@@ -30,6 +30,7 @@ from typing_extensions import Self
 
 import prefect.settings
 import prefect.types._datetime
+from prefect._flow_run_suspension import FlowRunSuspensionRequest
 from prefect._internal.compatibility.migration import getattr_migration
 from prefect.assets import Asset
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
@@ -37,6 +38,7 @@ from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.objects import RunType
 from prefect.events.worker import EventsWorker
 from prefect.exceptions import MissingContextError
+from prefect.logging.configuration import ensure_logging_setup
 from prefect.results import (
     ResultStore,
     get_default_persist_setting,
@@ -149,7 +151,7 @@ def hydrated_context(
     # We need to rebuild the models because we might be hydrating in a remote
     # environment where the models are not available.
     # TODO: Remove this once we have fixed our circular imports and we don't need to rebuild models any more.
-    from prefect._result_records import ResultRecordMetadata
+    from prefect._internal.result_records import ResultRecordMetadata
     from prefect.flows import Flow
     from prefect.tasks import Task
 
@@ -163,6 +165,8 @@ def hydrated_context(
 
     with ExitStack() as stack:
         if serialized_context:
+            ensure_logging_setup()
+
             # Set up settings context
             if settings_context := serialized_context.get("settings_context"):
                 stack.enter_context(SettingsContext(**settings_context))
@@ -467,10 +471,24 @@ class EngineContext(RunContext):
     # Counter for flow pauses
     observed_flow_pauses: dict[str, int] = Field(default_factory=dict)
 
+    # In-process suspension request used to stop execution at orchestration
+    # boundaries with the server-accepted Suspended state.
+    flow_run_suspension_request: FlowRunSuspensionRequest = Field(
+        default_factory=FlowRunSuspensionRequest,
+        exclude=True,
+    )
+
     # Tracking for result from task runs and sub flows in this flow run for
-    # dependency tracking. Holds the ID of the object returned by
-    # the run and state
-    run_results: dict[int, tuple[State, RunType]] = Field(default_factory=dict)
+    # dependency tracking. Keyed by `id(obj)` of the result object. The
+    # third tuple element is `Optional[weakref.ReferenceType]` — a weak
+    # reference back to the object that registered the entry, used by
+    # `get_state_for_result` to verify identity at lookup time and reject
+    # stale hits caused by CPython recycling a freed memory address. The
+    # weakref is `None` for objects that don't support `__weakref__`
+    # (plain `dict`, `list`, `set`, `str`, `int`, `tuple`, ...) — for
+    # those, the legacy `id()`-only lookup is preserved as a known
+    # limitation tracked in #20558.
+    run_results: dict[int, tuple[State, RunType, Any]] = Field(default_factory=dict)
 
     # Tracking information needed to track asset linage between
     # tasks and materialization

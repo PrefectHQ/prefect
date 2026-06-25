@@ -5,7 +5,7 @@ from typing import Generator
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from prefect_docker.experimental.decorators import docker
+from prefect_docker.decorators import docker
 from prefect_docker.worker import DockerWorker
 
 import prefect
@@ -15,6 +15,7 @@ from prefect.client.schemas.objects import (
     WorkPoolStorageConfiguration,
 )
 from prefect.futures import PrefectFuture
+from prefect.utilities.processutils import command_to_string
 
 
 @pytest.fixture
@@ -286,6 +287,8 @@ async def test_uses_volume_mount_when_work_pool_has_storage_configuration(
     def test_flow():
         return "test"
 
+    from prefect.bundles import _pin_prefect_in_bundle_step_requires
+
     async with DockerWorker(
         work_pool_name=work_pool_without_storage_configuration.name
     ) as worker:
@@ -302,7 +305,47 @@ async def test_uses_volume_mount_when_work_pool_has_storage_configuration(
         assert configuration.volumes[0] == "/tmp/test:/tmp/test"
         assert configuration.volumes[1].endswith("/tmp/")
 
+        # `_pin_prefect_in_bundle_step_requires` appends `prefect==<version>`
+        # for non-local Prefect builds (CI) and is a no-op for editable
+        # installs (local dev). See PR #21651.
+        requires = ",".join(_pin_prefect_in_bundle_step_requires(["prefect"]))
         python_version = sys.version_info
         assert configuration.command.startswith(
-            f"uv run --with prefect --python {python_version.major}.{python_version.minor} -m prefect._experimental.bundles.execute"
+            f"uv run --with {requires} --python {python_version.major}.{python_version.minor} -m prefect.bundles.execute"
         )
+
+
+async def test_uses_launcher_for_volume_mount_execution(
+    work_pool_without_storage_configuration: WorkPool,
+    mock_run: AsyncMock,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Test that Docker's local bundle execution path respects launcher."""
+
+    frozen_uuid = uuid.uuid4()
+    monkeypatch.setattr(uuid, "uuid4", lambda: frozen_uuid)
+
+    @docker(
+        work_pool=work_pool_without_storage_configuration.name,
+        launcher=["/opt/prefect runtime/bin/python"],
+    )
+    @prefect.flow
+    def test_flow():
+        return "test"
+
+    async with DockerWorker(
+        work_pool_name=work_pool_without_storage_configuration.name
+    ) as worker:
+        await worker.submit(test_flow)
+        await asyncio.sleep(0.1)
+
+        mock_run.assert_called_once()
+        configuration = mock_run.call_args.kwargs["configuration"]
+        expected_command = [
+            "/opt/prefect runtime/bin/python",
+            "-m",
+            "prefect.bundles.execute",
+            "--key",
+            f"/tmp/{frozen_uuid}",
+        ]
+        assert configuration.command == command_to_string(expected_command)
