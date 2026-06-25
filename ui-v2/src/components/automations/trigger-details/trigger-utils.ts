@@ -250,11 +250,6 @@ function isEmptyMatchRelated(trigger: EventTrigger): boolean {
 }
 
 function isFlowRunStateTriggerMatchRelated(trigger: EventTrigger): boolean {
-	const allowedRelatedResources = [
-		"prefect.flow.",
-		"prefect.tag.",
-		"prefect.deployment.",
-	];
 	const prefectResourceIds = getTriggerMatchRelatedValue(
 		trigger,
 		"prefect.resource.id",
@@ -268,9 +263,20 @@ function isFlowRunStateTriggerMatchRelated(trigger: EventTrigger): boolean {
 		return false;
 	}
 
-	return prefectResourceIds.every((value) =>
-		allowedRelatedResources.some((resource) => value.startsWith(resource)),
+	const hasFlow = prefectResourceIds.some((value) =>
+		value.startsWith("prefect.flow."),
 	);
+	const hasTag = prefectResourceIds.some((value) =>
+		value.startsWith("prefect.tag."),
+	);
+	const hasOnlySupportedResources = prefectResourceIds.every(
+		(value) =>
+			value.startsWith("prefect.flow.") ||
+			value.startsWith("prefect.tag.") ||
+			value.startsWith("prefect.deployment."),
+	);
+
+	return hasOnlySupportedResources && !(hasFlow && hasTag);
 }
 
 /**
