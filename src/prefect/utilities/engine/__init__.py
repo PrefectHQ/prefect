@@ -1087,7 +1087,7 @@ def resolve_inputs_sync(
                 remove_annotations=True,
                 context={"parameter_name": parameter},
             )
-        except UpstreamTaskError:
+        except (UpstreamTaskError, PrefectException):
             raise
         except Exception as exc:
             raise PrefectException(

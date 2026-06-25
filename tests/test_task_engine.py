@@ -19,7 +19,7 @@ from prefect.cache_policies import FLOW_PARAMETERS, INPUTS, TASK_SOURCE
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas import StateDetails
 from prefect.client.schemas.filters import TaskRunFilter, TaskRunFilterName
-from prefect.client.schemas.objects import StateType
+from prefect.client.schemas.objects import FlowRun, StateType
 from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.sync import concurrency
 from prefect.context import (
@@ -28,7 +28,7 @@ from prefect.context import (
     TaskRunContext,
     get_run_context,
 )
-from prefect.exceptions import CrashedRun, MissingResult, Pause
+from prefect.exceptions import CrashedRun, MissingResult, Pause, PrefectException
 from prefect.filesystems import LocalFileSystem
 from prefect.flow_engine import run_flow_async, run_flow_sync
 from prefect.flow_runs import suspend_flow_run
@@ -56,6 +56,7 @@ from prefect.task_runners import ThreadPoolTaskRunner
 from prefect.testing.utilities import exceptions_equal
 from prefect.transactions import transaction
 from prefect.types._datetime import now
+from prefect.utilities.annotations import opaque
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import propose_state
 
@@ -3812,9 +3813,6 @@ class TestRunSchemaObjectAsTaskArgument:
     """
 
     def test_flow_run_as_task_arg_raises_clear_error(self):
-        from prefect.client.schemas.objects import FlowRun
-        from prefect.exceptions import PrefectException
-
         @task
         def some_task(flow_run: FlowRun | None) -> str:
             return "ok"
@@ -3831,9 +3829,6 @@ class TestRunSchemaObjectAsTaskArgument:
             my_flow()
 
     async def test_flow_run_as_task_arg_raises_clear_error_async(self):
-        from prefect.client.schemas.objects import FlowRun
-        from prefect.exceptions import PrefectException
-
         @task
         async def some_task(flow_run: FlowRun | None) -> str:
             return "ok"
@@ -3849,10 +3844,23 @@ class TestRunSchemaObjectAsTaskArgument:
         ):
             await my_flow()
 
-    def test_opaque_flow_run_passes_through(self):
-        from prefect.client.schemas.objects import FlowRun
-        from prefect.utilities.annotations import opaque
+    def test_flow_run_as_mapped_task_arg_raises_clear_error(self):
+        @task
+        def some_task(flow_run: FlowRun | None, x: int) -> str:
+            return "ok"
 
+        @flow
+        def my_flow() -> None:
+            ctx = get_run_context()
+            some_task.map(flow_run=ctx.flow_run, x=[1, 2])
+
+        with pytest.raises(
+            PrefectException,
+            match=r"Passing a `FlowRun` object as a task argument is not supported",
+        ):
+            my_flow()
+
+    def test_opaque_flow_run_passes_through(self):
         @task
         def some_task(flow_run: FlowRun | None) -> str:
             return "ok"
@@ -3865,9 +3873,6 @@ class TestRunSchemaObjectAsTaskArgument:
         assert my_flow() == "ok"
 
     async def test_opaque_flow_run_passes_through_async(self):
-        from prefect.client.schemas.objects import FlowRun
-        from prefect.utilities.annotations import opaque
-
         @task
         async def some_task(flow_run: FlowRun | None) -> str:
             return "ok"
@@ -3928,10 +3933,6 @@ class TestRunSchemaObjectAsTaskArgument:
         assert my_flow() == 43
 
     def test_flow_run_returned_from_upstream_via_state_raises_clear_error(self):
-        from prefect.client.schemas.objects import FlowRun
-        from prefect.context import FlowRunContext
-        from prefect.exceptions import PrefectException
-
         @task
         def get_flow_run() -> FlowRun:
             return FlowRunContext.get().flow_run
@@ -3952,10 +3953,6 @@ class TestRunSchemaObjectAsTaskArgument:
             my_flow()
 
     def test_flow_run_returned_from_upstream_via_future_raises_clear_error(self):
-        from prefect.client.schemas.objects import FlowRun
-        from prefect.context import FlowRunContext
-        from prefect.exceptions import PrefectException
-
         @task
         def get_flow_run() -> FlowRun:
             return FlowRunContext.get().flow_run
