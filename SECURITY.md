@@ -26,7 +26,7 @@ The following are **out of scope**:
 
 When we receive a valid report:
 
-1. We triage the report and determine whether it affects FastMCP directly.
+1. We triage the report and determine whether it affects Prefect directly.
 2. We develop and test a fix on a private branch.
 3. We coordinate CVE assignment through GitHub's advisory process when warranted.
 4. We publish the advisory and release a patched version.
