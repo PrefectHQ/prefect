@@ -43,6 +43,7 @@ class FlowRunGraphV2Node(NamedTuple):
     id: UUID
     label: str
     state_type: StateType
+    flow_run_run_count: int
     start_time: DateTime
     end_time: Optional[DateTime]
     parent_ids: Optional[list[UUID]]
@@ -452,6 +453,7 @@ class BaseQueryComponents(ABC):
                         id=row.id,
                         label=row.label,
                         state_type=row.state_type,
+                        flow_run_run_count=row.flow_run_run_count,
                         start_time=row.start_time,
                         end_time=row.end_time,
                         parents=[Edge(id=id) for id in row.parent_ids or []],
@@ -651,6 +653,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                 sa.func.coalesce(FlowRun.state_type, TaskRun.state_type).label(
                     "state_type"
                 ),
+                TaskRun.flow_run_run_count.label("flow_run_run_count"),
                 sa.func.coalesce(
                     FlowRun.start_time,
                     FlowRun.expected_start_time,
@@ -737,6 +740,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                 edges.c.id,
                 edges.c.label,
                 edges.c.state_type,
+                edges.c.flow_run_run_count,
                 edges.c.start_time,
                 edges.c.end_time,
                 with_parents.c.parent_ids,
@@ -761,6 +765,7 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
                 graph.c.id,
                 graph.c.label,
                 graph.c.state_type,
+                graph.c.flow_run_run_count,
                 graph.c.start_time,
                 graph.c.end_time,
                 graph.c.parent_ids,
@@ -970,6 +975,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                 sa.func.coalesce(FlowRun.state_type, TaskRun.state_type).label(
                     "state_type"
                 ),
+                TaskRun.flow_run_run_count.label("flow_run_run_count"),
                 sa.func.coalesce(
                     FlowRun.start_time,
                     FlowRun.expected_start_time,
@@ -1047,6 +1053,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                 edges.c.id,
                 edges.c.label,
                 edges.c.state_type,
+                edges.c.flow_run_run_count,
                 edges.c.start_time,
                 edges.c.end_time,
                 with_parents.c.parent_ids,
@@ -1072,6 +1079,7 @@ class AioSqliteQueryComponents(BaseQueryComponents):
                 graph.c.id,
                 graph.c.label,
                 graph.c.state_type,
+                graph.c.flow_run_run_count,
                 graph.c.start_time,
                 graph.c.end_time,
                 sa.type_coerce(graph.c.parent_ids, UUIDList),
