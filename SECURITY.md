@@ -15,7 +15,7 @@ Please report security vulnerabilities privately using [GitHub's security adviso
 
 ## Scope
 
-We accept reports for vulnerabilities in Prefect itself — the library code in this repository.
+We accept reports for vulnerabilities in Prefect code and products maintained in this repository, including the Python SDK, self-hosted server/API, and web UI.
 
 The following are **out of scope**:
 
