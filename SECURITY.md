@@ -5,13 +5,13 @@
 | Version | Supported          |
 | ------- | ------------------ |
 | 3.x     | :white_check_mark: |
-| 2.x     | :x:                |
+| 2.x     | :white_check_mark: |
 | 1.x     | :x:                |
 | 0.x     | :x:                |
 
 ## Reporting a Vulnerability
 
-Please report security vulnerabilities privately using [GitHub's security advisory feature](https://github.com/PrefectHQ/fastmcp/security/advisories/new). Do not open public issues for security concerns.
+Please report security vulnerabilities privately using [GitHub's security advisory feature](https://github.com/PrefectHQ/prefect/security/advisories/new). Do not open public issues for security concerns.
 
 ## Scope
 
