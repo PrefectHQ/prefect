@@ -350,9 +350,8 @@ describe("Runs page", () => {
 			);
 
 			await waitFor(() => {
-				const requestWithTags = paginateRequests.find(
-					(request) =>
-						request.flow_runs?.tags?.any_?.includes("project_id:123"),
+				const requestWithTags = paginateRequests.find((request) =>
+					request.flow_runs?.tags?.any_?.includes("project_id:123"),
 				);
 				expect(requestWithTags?.flow_runs?.tags).toEqual({
 					operator: "and_",
