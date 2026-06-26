@@ -2,6 +2,43 @@
 title: 3.7
 ---
 
+## 3.7.6 - You can only be `Late` once
+
+*Released on June 25, 2026*
+
+**Bug Fixes 🐞**
+
+* Return `PrefectFutureList` from `Task.map` when `deferred=True` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22355](https://github.com/PrefectHQ/prefect/pull/22355)
+* Fix race condition in UI static directory creation with multiple workers by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22363](https://github.com/PrefectHQ/prefect/pull/22363)
+* Raise clear error when `FlowRun`/`TaskRun` passed as task argument by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22352](https://github.com/PrefectHQ/prefect/pull/22352)
+* Prevent duplicate `Late` state transitions in `MarkLateRuns` by [@Abdulrehman-PIAIC80387](https://github.com/Abdulrehman-PIAIC80387) in [#22316](https://github.com/PrefectHQ/prefect/pull/22316)
+* Quote `-q` and `-p` args separately in work-queue create output by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22350](https://github.com/PrefectHQ/prefect/pull/22350)
+
+**Development & Tidiness 🧹**
+
+* Widen timing tolerance in lease TTL test to prevent CI flakiness by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22328](https://github.com/PrefectHQ/prefect/pull/22328)
+* Fix flaky `test_dispatches_cleanup_message_and_sends_ack_result` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22347](https://github.com/PrefectHQ/prefect/pull/22347)
+
+**Documentation 📓**
+
+* Add deployment naming recommendations to concepts page by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22335](https://github.com/PrefectHQ/prefect/pull/22335)
+* Use canonical `PREFECT_SERVER_SERVICES_SCHEDULER_*` env vars in schedules page by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22337](https://github.com/PrefectHQ/prefect/pull/22337)
+* Bump `mdxify` to `>=0.2.42`, drop empty API-ref stubs by [@zzstoatzz](https://github.com/zzstoatzz) in [#22339](https://github.com/PrefectHQ/prefect/pull/22339)
+* Append `/api` to self-hosted `PREFECT_API_URL` in systemd guide by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22342](https://github.com/PrefectHQ/prefect/pull/22342)
+* Use canonical `PREFECT_SERVER_DATABASE_*` env vars in Windows guide by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22343](https://github.com/PrefectHQ/prefect/pull/22343)
+* Regenerate API refs with `mdxify` `>=0.2.45` (drop empty stubs) by [@zzstoatzz](https://github.com/zzstoatzz) in [#22344](https://github.com/PrefectHQ/prefect/pull/22344)
+* Add redirects for removed SDK stubs by [@zzstoatzz](https://github.com/zzstoatzz) in [#22349](https://github.com/PrefectHQ/prefect/pull/22349)
+* Use canonical `PREFECT_WORKER_*` defaults in healthchecks guide by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22351](https://github.com/PrefectHQ/prefect/pull/22351)
+* Document `CANCELLING` timeout that auto-transitions stuck flow runs to `CANCELLED` by [@github-actions](https://github.com/github-actions)[bot] in [#22305](https://github.com/PrefectHQ/prefect/pull/22305)
+* Note that Redis Cluster URLs are not yet supported in self-hosted setup by [@github-actions](https://github.com/github-actions)[bot] in [#22370](https://github.com/PrefectHQ/prefect/pull/22370)
+* Use `schedules` consistently in `prefect.yaml` guide and add deletion note by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22364](https://github.com/PrefectHQ/prefect/pull/22364)
+* Add dependent parameter form example by [@zzstoatzz](https://github.com/zzstoatzz) in [#22383](https://github.com/PrefectHQ/prefect/pull/22383)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.7.5...3.7.6
+
+
+---
+
 ## 3.7.5 - No run left `CANCELLING`
 
 *Released on June 18, 2026*

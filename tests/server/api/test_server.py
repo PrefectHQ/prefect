@@ -1273,3 +1273,66 @@ def test_create_ui_app_handles_generic_os_error_on_static_files(
     route_names = [r.name for r in ui_app.routes if hasattr(r, "name")]
     assert "ui_v1" not in route_names
     assert "ui_v2" not in route_names
+
+
+def test_create_ui_app_uses_filelock_to_serialize_static_dir_creation(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """FileLock prevents concurrent workers from racing on static dir setup."""
+
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI")
+    v2_source = _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI")
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", v2_source)
+
+    static_root = tmp_path / "ui-static"
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_UI_STATIC_DIRECTORY: str(static_root),
+        }
+    ):
+        with patch("prefect.server.api.server.FileLock") as mock_filelock_cls:
+            mock_lock = MagicMock()
+            mock_filelock_cls.return_value = mock_lock
+            create_ui_app(ephemeral=False)
+
+    # FileLock should have been instantiated for each bundle (v1 and v2)
+    assert mock_filelock_cls.call_count == 2
+    for call in mock_filelock_cls.call_args_list:
+        lock_path = call[0][0]
+        assert lock_path.endswith("_ui_static.lock")
+
+    # acquire() and release() called for each bundle
+    assert mock_lock.acquire.call_count == 2
+    assert mock_lock.release.call_count == 2
+
+
+def test_create_ui_app_skips_creation_if_cache_key_matches_after_lock(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Double-check pattern: skip creation if another worker finished first."""
+
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI")
+    v2_source = _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI")
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", v2_source)
+
+    static_root = tmp_path / "ui-static"
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_UI_STATIC_DIRECTORY: str(static_root),
+        }
+    ):
+        # First call sets up the static dirs normally
+        create_ui_app(ephemeral=False)
+
+        # Second call should skip creation because the cache key matches;
+        # copy_directory should not be called again.
+        with patch("prefect.server.api.server.copy_directory") as mock_copy:
+            create_ui_app(ephemeral=False)
+
+    mock_copy.assert_not_called()

@@ -22,6 +22,7 @@ class TestCreateWorkQueue:
             expected_output_contains=[
                 "Created work queue with properties:",
                 "name - 'q-name'",
+                "prefect worker start -q 'q-name' -p '",
             ],
             expected_code=0,
         )
@@ -45,6 +46,9 @@ class TestCreateWorkQueue:
         await run_sync_in_worker_thread(
             invoke_and_assert,
             command=f"work-queue create {queue_name} -p {work_pool.name}",
+            expected_output_contains=[
+                f"prefect worker start -q '{queue_name}' -p '{work_pool.name}'",
+            ],
             expected_code=0,
         )
 
