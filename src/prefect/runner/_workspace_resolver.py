@@ -343,17 +343,16 @@ async def prepare_workspace(
                 if resolved_directory is not None:
                     step_selected_working_directory = True
                     working_directory = resolved_directory
-                # After any step that produces a directory output, clear the
-                # source CWD hint so subsequent set_working_directory steps
-                # resolve relative paths against the current CWD rather than
-                # the original process CWD.
-                _PULL_STEP_SOURCE_CWD.set(None)
-                return
-
-            if step_end_cwd is not None and step_end_cwd != step_start_cwd:
+            elif step_end_cwd is not None and step_end_cwd != step_start_cwd:
                 step_selected_working_directory = True
                 working_directory = step_end_cwd
-                _PULL_STEP_SOURCE_CWD.set(None)
+
+            # Clear source CWD after every step so the fallback only applies
+            # to the first pull step (the baked-image case).  Steps that run
+            # before set_working_directory (e.g. run_shell_script) create
+            # workspace-relative content, so subsequent relative paths must
+            # resolve against the current CWD, not the original process CWD.
+            _PULL_STEP_SOURCE_CWD.set(None)
 
         source_cwd_token = _PULL_STEP_SOURCE_CWD.set(source_cwd)
         try:

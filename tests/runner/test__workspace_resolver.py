@@ -1012,6 +1012,70 @@ class TestRelativePathSetWorkingDirectory:
         assert result.workspace.working_directory == container_workdir.resolve()
         assert result.workspace.project_root == container_workdir.resolve()
 
+    async def test_run_shell_script_then_set_working_directory_resolves_workspace_relative(
+        self,
+        prefect_client,
+        tmp_path: Path,
+    ) -> None:
+        """When run_shell_script creates a directory in the workspace and
+        set_working_directory follows with a relative path, the path must
+        resolve against the workspace CWD — not the original process CWD."""
+        container_workdir = tmp_path / "container-workdir"
+        container_workdir.mkdir()
+
+        # Write a helper script that creates workspace content
+        setup_script = tmp_path / "setup.sh"
+        setup_script.write_text(
+            "#!/bin/sh\n"
+            "mkdir -p generated/flows\n"
+            'printf "from prefect import flow\\n\\n'
+            '@flow\\ndef hello():\\n    return 42\\n" '
+            "> generated/flows/hello.py\n"
+            'printf "[project]\\nname = \\"gen\\"\\nversion = \\"0.1.0\\"\\n" '
+            "> generated/pyproject.toml\n"
+        )
+        setup_script.chmod(0o755)
+
+        workspace_root = tmp_path / "composition-workspace"
+
+        flow_id = await prefect_client.create_flow_from_name("composition-relative")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="composition-relative-deployment",
+            entrypoint="flows/hello.py:hello",
+            pull_steps=[
+                {
+                    "prefect.deployments.steps.run_shell_script": {
+                        "script": str(setup_script),
+                        "stream_output": False,
+                    }
+                },
+                {
+                    "prefect.deployments.steps.set_working_directory": {
+                        "directory": "generated"
+                    }
+                },
+            ],
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        with tmpchdir(container_workdir):
+            process = _run_workspace_resolver(flow_run.id, workspace_root)
+            assert Path.cwd() == container_workdir.resolve()
+
+        result = _parse_result(process)
+
+        assert process.returncode == 0, process.stderr
+        assert result.status == "success"
+        assert result.workspace is not None
+        # The directory should be workspace-relative, NOT container_workdir-relative
+        assert (
+            result.workspace.working_directory
+            == (workspace_root / "generated").resolve()
+        )
+
 
 class TestProjectRootDetection:
     def test_does_not_walk_above_workspace_root(self, tmp_path: Path) -> None:
