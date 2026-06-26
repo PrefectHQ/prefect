@@ -315,26 +315,27 @@ async def test_reading_graph_includes_task_flow_run_run_count(
     base_time: DateTime,
 ):
     task_run = db.TaskRun(
-        id = uuid4(),
-        flow_run_id = flow_run.id,
-        name = "task-with-attempt",
-        task_key = "task-with-attempt",
-        dynamic_key = "task-with-attempt",
-        state_type = StateType.COMPLETED,
-        state_name = "Completed",
-        flow_run_run_count = 2,
-        start_time = base_time,
-        end_time = base_time + datetime.timedelta(seconds = 1),
+        id=uuid4(),
+        flow_run_id=flow_run.id,
+        name="task-with-attempt",
+        task_key="task-with-attempt",
+        dynamic_key="task-with-attempt",
+        state_type=StateType.COMPLETED,
+        state_name="Completed",
+        flow_run_run_count=2,
+        start_time=base_time,
+        end_time=base_time + datetime.timedelta(seconds=1),
     )
     session.add(task_run)
     await session.commit()
 
     graph = await read_flow_run_graph(
-        session = session,
-        flow_run_id = flow_run.id,
+        session=session,
+        flow_run_id=flow_run.id,
     )
 
     assert graph.nodes[0][1].flow_run_run_count == 2
+
 
 @pytest.fixture
 async def nested_tasks(
