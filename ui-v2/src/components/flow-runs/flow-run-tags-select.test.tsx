@@ -91,6 +91,26 @@ describe("FlowRunTagsSelect", () => {
 		expect(onChange).toHaveBeenCalledWith(["newtag"]);
 	});
 
+	it("adds a freeform tag on blur", async () => {
+		const onChange = vi.fn();
+		const user = userEvent.setup();
+		renderWithQueryClient(
+			<>
+				<FlowRunTagsSelect value={[]} onChange={onChange} />
+				<button type="button">Next field</button>
+			</>,
+		);
+
+		const trigger = screen.getByRole("button", { name: /flow run tags/i });
+		await user.click(trigger);
+
+		const combo = screen.getByRole("combobox");
+		await user.type(combo, "manual-tag");
+		await user.click(screen.getByRole("button", { name: /next field/i }));
+
+		expect(onChange).toHaveBeenCalledWith(["manual-tag"]);
+	});
+
 	it("adds a tag when typing a trailing comma", async () => {
 		const onChange = vi.fn();
 		const user = userEvent.setup();
