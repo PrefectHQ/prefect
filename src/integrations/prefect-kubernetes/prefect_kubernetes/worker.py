@@ -1171,7 +1171,7 @@ class KubernetesWorker(
         except ApiException as exc:
             if exc.status != 404:
                 raise
-            # Create the secret if it doesn't already exist
+            # The secret doesn't exist yet, so create it.
             metadata = V1ObjectMeta(name=name, namespace=namespace)
             secret = V1Secret(
                 api_version="v1",
@@ -1179,9 +1179,26 @@ class KubernetesWorker(
                 metadata=metadata,
                 data={"value": encoded_value},
             )
-            secret = await core_client.create_namespaced_secret(
-                namespace=namespace, body=secret
-            )
+            try:
+                secret = await core_client.create_namespaced_secret(
+                    namespace=namespace, body=secret
+                )
+            except ApiException as create_exc:
+                if create_exc.status != 409:
+                    raise
+                # A concurrent job submission created the secret between our
+                # read and create. Re-read the secret created by the other
+                # worker rather than replacing it. The values should match
+                # since both workers derived the secret from the same source,
+                # so we raise only if they unexpectedly differ.
+                secret = await core_client.read_namespaced_secret(
+                    name=name, namespace=namespace
+                )
+                if (secret.data or {}).get("value") != encoded_value:
+                    raise RuntimeError(
+                        f"Secret {name!r} in namespace {namespace!r} was "
+                        "created concurrently with a different value."
+                    ) from create_exc
         return secret
 
     @asynccontextmanager

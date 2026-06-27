@@ -305,6 +305,14 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
 
     k8s_occurred = _pod_phase_occurred(phase, status, k8s_created_time)
 
+    # Kubernetes lifecycle timestamps have second-granularity, so consecutive
+    # phase transitions for the same pod can collide or arrive non-monotonically.
+    # Force strict monotonicity per pod so consumers that sort by `occurred`
+    # (e.g. /events/filter) see lifecycle events in arrival order.
+    prev_event = _last_event_cache.get(uid)
+    if k8s_occurred and prev_event is not None and k8s_occurred <= prev_event.occurred:
+        k8s_occurred = prev_event.occurred + timedelta(microseconds=1)
+
     # Prefer Kubernetes lifecycle timestamps so replicated events preserve
     # when the pod phase changed instead of when the observer processed it.
     prefect_event = Event(
@@ -315,7 +323,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
         **({"occurred": k8s_occurred} if k8s_occurred else {}),
     )
 
-    if (prev_event := _last_event_cache.get(uid)) is not None:
+    if prev_event is not None:
         # This check replicates a similar check in `emit_event` in `prefect.events.utilities`
         if (
             -timedelta(minutes=5)
