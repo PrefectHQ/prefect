@@ -1,5 +1,6 @@
+import pytest
 from prefect_redis.blocks import RedisDatabase
-from pydantic import SecretStr
+from pydantic import SecretStr, ValidationError
 
 
 def test_as_connection_params():
@@ -43,3 +44,10 @@ async def test_no_key_ttl_leaves_keys_without_expiry(isolated_redis_db_number, r
     block = RedisDatabase(host="localhost", port=6379, db=isolated_redis_db_number)
     await block.write_path("no-ttl-key", b"value")
     assert await redis.ttl("no-ttl-key") == -1
+
+
+@pytest.mark.parametrize("bad_ttl", [0, -1])
+def test_key_ttl_must_be_positive(bad_ttl):
+    # Redis rejects SET ... EX <= 0; fail fast at construction, not at write time.
+    with pytest.raises(ValidationError):
+        RedisDatabase(host="localhost", port=6379, key_ttl=bad_ttl)

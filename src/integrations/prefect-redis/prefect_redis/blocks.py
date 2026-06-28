@@ -63,11 +63,13 @@ class RedisDatabase(WritableFileSystem):
     ssl: bool = Field(default=False, description="Whether to use SSL")
     key_ttl: Optional[int] = Field(
         default=None,
+        gt=0,
         description=(
             "Optional per-key time-to-live in seconds, applied to every written "
-            "key (Redis `SET ... EX`). When `None` (the default) keys never "
-            "expire. Useful when using the block as `result_storage`/cache on a "
-            "Redis with a `maxmemory` + `volatile-lru` eviction policy."
+            "key (Redis `SET ... EX`). Must be positive; when `None` (the "
+            "default) keys never expire. Useful when using the block as "
+            "`result_storage`/cache on a Redis with a `maxmemory` + "
+            "`volatile-lru` eviction policy."
         ),
     )
 
