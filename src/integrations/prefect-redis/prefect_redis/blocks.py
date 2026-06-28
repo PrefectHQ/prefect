@@ -24,6 +24,8 @@ class RedisDatabase(WritableFileSystem):
         username: The username to use when connecting to the Redis server
         password: The password to use when connecting to the Redis server
         ssl: Whether to use SSL when connecting to the Redis server
+        key_ttl: Optional per-key TTL in seconds applied to every written key
+            (`SET ... EX`); `None` (default) means keys never expire
 
     Example:
         Create a new block from hostname, username and password:
@@ -59,6 +61,15 @@ class RedisDatabase(WritableFileSystem):
     username: Optional[SecretStr] = Field(default=None, description="Redis username")
     password: Optional[SecretStr] = Field(default=None, description="Redis password")
     ssl: bool = Field(default=False, description="Whether to use SSL")
+    key_ttl: Optional[int] = Field(
+        default=None,
+        description=(
+            "Optional per-key time-to-live in seconds, applied to every written "
+            "key (Redis `SET ... EX`). When `None` (the default) keys never "
+            "expire. Useful when using the block as `result_storage`/cache on a "
+            "Redis with a `maxmemory` + `volatile-lru` eviction policy."
+        ),
+    )
 
     def block_initialization(self) -> None:
         """Validate parameters"""
@@ -91,7 +102,7 @@ class RedisDatabase(WritableFileSystem):
             content: Binary object to write
         """
         client = self.get_async_client()
-        ret = await client.set(path, content)
+        ret = await client.set(path, content, ex=self.key_ttl)
 
         await client.close()
         return ret
@@ -163,6 +174,8 @@ class RedisDatabase(WritableFileSystem):
         """
         data = self.model_dump()
         data.pop("block_type_slug", None)
+        # `key_ttl` governs write behavior, not the connection — never a client kwarg.
+        data.pop("key_ttl", None)
         # Unwrap SecretStr fields
         if self.username is not None:
             data["username"] = self.username.get_secret_value()
