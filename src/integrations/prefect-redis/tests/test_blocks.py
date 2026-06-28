@@ -72,6 +72,15 @@ def test_write_then_read_round_trip_sync(redis_block: RedisDatabase):
     assert redis_block.read_path("my-key") == b"hello"
 
 
+async def test_awrite_path_returns_set_result(redis_block: RedisDatabase):
+    # Backward compat: redis-py SET returns True on success; don't drop it.
+    assert await redis_block.awrite_path("my-key", b"hello") is True
+
+
+def test_write_path_returns_set_result_sync(redis_block: RedisDatabase):
+    assert redis_block.write_path("my-key", b"hello") is True
+
+
 def test_write_path_accepts_sync_kwarg(redis_block: RedisDatabase):
     # Regression for #22393: core persists results via
     # `call_explicitly_sync_block_method`, which invokes the block method with
