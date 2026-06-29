@@ -140,7 +140,7 @@ class RedisDatabase(WritableFileSystem):
         """
         client = self.get_async_client()
         try:
-            return await client.set(path, content, ex=self.key_ttl)
+            return await client.set(path, content, ex=self.key_ttl) is True
         finally:
             await client.aclose()
 
@@ -160,7 +160,7 @@ class RedisDatabase(WritableFileSystem):
         """
         client = self.get_client()
         try:
-            return client.set(path, content, ex=self.key_ttl)
+            return client.set(path, content, ex=self.key_ttl) is True
         finally:
             client.close()
 
