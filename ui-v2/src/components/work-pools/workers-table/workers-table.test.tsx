@@ -26,9 +26,11 @@ const mockWorkersOnline = [
 // Test wrapper that provides state management for the controlled component
 const WorkersTableWrapper = ({
 	workPoolName,
+	workPoolType = "process",
 	workers,
 }: {
 	workPoolName: string;
+	workPoolType?: string;
 	workers: typeof mockWorkersOnline;
 }) => {
 	const [pagination, setPagination] = useState<PaginationState>({
@@ -40,6 +42,7 @@ const WorkersTableWrapper = ({
 	return (
 		<WorkersTable
 			workPoolName={workPoolName}
+			workPoolType={workPoolType}
 			workers={workers}
 			pagination={pagination}
 			columnFilters={columnFilters}
@@ -106,6 +109,48 @@ describe("WorkersTable", () => {
 		expect(screen.getByText("0 workers")).toBeInTheDocument();
 		expect(
 			screen.getByText('prefect worker start --pool "empty-pool"'),
+		).toBeInTheDocument();
+	});
+
+	it("shows kubernetes empty state with helm command", () => {
+		renderWithQueryClient(
+			<WorkersTableWrapper
+				workPoolName="k8s-pool"
+				workPoolType="kubernetes"
+				workers={[]}
+			/>,
+		);
+
+		expect(screen.getByText("No workers running")).toBeInTheDocument();
+		expect(screen.getByText(/helm install/)).toBeInTheDocument();
+	});
+
+	it("shows push pool empty state without worker command", () => {
+		renderWithQueryClient(
+			<WorkersTableWrapper
+				workPoolName="push-pool"
+				workPoolType="ecs:push"
+				workers={[]}
+			/>,
+		);
+
+		expect(screen.getByText("No workers needed")).toBeInTheDocument();
+		expect(screen.getByText(/push work pool/)).toBeInTheDocument();
+		expect(screen.getByText("View setup docs")).toBeInTheDocument();
+	});
+
+	it("shows managed pool empty state without worker command", () => {
+		renderWithQueryClient(
+			<WorkersTableWrapper
+				workPoolName="managed-pool"
+				workPoolType="prefect:managed"
+				workers={[]}
+			/>,
+		);
+
+		expect(screen.getByText("No workers needed")).toBeInTheDocument();
+		expect(
+			screen.getByText(/Prefect manages the infrastructure/),
 		).toBeInTheDocument();
 	});
 

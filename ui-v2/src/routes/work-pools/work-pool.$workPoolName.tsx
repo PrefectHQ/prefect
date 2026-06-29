@@ -38,6 +38,10 @@ import { WorkPoolDetails } from "@/components/work-pools/work-pool-details";
 import { WorkPoolFlowRunsTab } from "@/components/work-pools/work-pool-flow-runs-tab";
 import { WorkPoolPageHeader } from "@/components/work-pools/work-pool-page-header";
 import { WorkPoolQueuesTable } from "@/components/work-pools/work-pool-queues-table";
+import {
+	categorizeWorkPoolType,
+	getWorkPoolSetupInstructions,
+} from "@/components/work-pools/work-pool-setup-instructions";
 import { WorkersTable } from "@/components/work-pools/workers-table";
 import { cn } from "@/utils";
 import { useRedirectDetailsTabOnDesktop } from "./-use-redirect-details-tab-on-desktop";
@@ -93,7 +97,13 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 		};
 
 		// Wrapper component for Workers tab
-		const WorkersTabWrapper = ({ workPoolName }: { workPoolName: string }) => {
+		const WorkersTabWrapper = ({
+			workPoolName,
+			workPoolType,
+		}: {
+			workPoolName: string;
+			workPoolType: string;
+		}) => {
 			const [pagination, setPagination] = useState<PaginationState>({
 				pageIndex: 0,
 				pageSize: 10,
@@ -109,6 +119,7 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 			return (
 				<WorkersTable
 					workPoolName={workPoolName}
+					workPoolType={workPoolType}
 					workers={workers}
 					pagination={pagination}
 					columnFilters={columnFilters}
@@ -127,8 +138,13 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 			buildGetWorkPoolQuery(workPoolName),
 		);
 
-		const showCodeBanner = workPool.status !== "READY";
-		const codeBannerCommand = `prefect worker start --pool "${workPool.name}"`;
+		const poolCategory = categorizeWorkPoolType(workPool.type);
+		const setupInstructions = getWorkPoolSetupInstructions(
+			workPool.name,
+			workPool.type,
+		);
+		const showCodeBanner =
+			workPool.status !== "READY" && poolCategory !== "managed";
 
 		const tabs = useMemo(
 			() =>
@@ -215,12 +231,31 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 						{showCodeBanner && (
 							<div className="w-full bg-muted/50 py-6 px-4 rounded-lg mb-6">
 								<div className="max-w-4xl mx-auto">
-									<CodeBanner
-										command={codeBannerCommand}
-										title="Your work pool is almost ready!"
-										subtitle="Run this command to start."
-										className="py-0"
-									/>
+									{setupInstructions.command ? (
+										<CodeBanner
+											command={setupInstructions.command}
+											title={setupInstructions.title}
+											subtitle={setupInstructions.description}
+											className="py-0"
+										/>
+									) : (
+										<div className="space-y-2 text-center">
+											<h3 className="text-lg font-semibold text-foreground">
+												{setupInstructions.title}
+											</h3>
+											<p className="text-muted-foreground text-sm">
+												{setupInstructions.description}
+											</p>
+											<a
+												href={setupInstructions.docsUrl}
+												target="_blank"
+												rel="noreferrer"
+												className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+											>
+												View setup docs
+											</a>
+										</div>
+									)}
 								</div>
 							</div>
 						)}
@@ -337,7 +372,10 @@ export const Route = createFileRoute("/work-pools/work-pool/$workPoolName")({
 											</div>
 										}
 									>
-										<WorkersTabWrapper workPoolName={workPoolName} />
+										<WorkersTabWrapper
+											workPoolName={workPoolName}
+											workPoolType={workPool.type}
+										/>
 									</Suspense>
 								</TabsContent>
 

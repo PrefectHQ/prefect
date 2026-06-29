@@ -38,7 +38,13 @@ const mockWorkersWithVariety = [
 ];
 
 // Wrapper component that handles state management for Storybook
-const WorkersTableStory = ({ workPoolName }: { workPoolName: string }) => {
+const WorkersTableStory = ({
+	workPoolName,
+	workPoolType = "process",
+}: {
+	workPoolName: string;
+	workPoolType?: string;
+}) => {
 	const { data: workers = [] } = useSuspenseQuery(
 		buildListWorkPoolWorkersQuery(workPoolName),
 	);
@@ -52,6 +58,7 @@ const WorkersTableStory = ({ workPoolName }: { workPoolName: string }) => {
 	return (
 		<WorkersTable
 			workPoolName={workPoolName}
+			workPoolType={workPoolType}
 			workers={workers}
 			pagination={pagination}
 			columnFilters={columnFilters}
@@ -84,6 +91,38 @@ export const Default: Story = {
 					if (req.params.name === "test-pool") {
 						return HttpResponse.json(mockWorkersWithVariety);
 					}
+					return HttpResponse.json([]);
+				}),
+			],
+		},
+	},
+};
+
+export const EmptyStatePushPool: Story = {
+	args: {
+		workPoolName: "push-pool",
+		workPoolType: "ecs:push",
+	},
+	parameters: {
+		msw: {
+			handlers: [
+				http.post(buildApiUrl("/work_pools/:name/workers/filter"), () => {
+					return HttpResponse.json([]);
+				}),
+			],
+		},
+	},
+};
+
+export const EmptyStateKubernetes: Story = {
+	args: {
+		workPoolName: "k8s-pool",
+		workPoolType: "kubernetes",
+	},
+	parameters: {
+		msw: {
+			handlers: [
+				http.post(buildApiUrl("/work_pools/:name/workers/filter"), () => {
 					return HttpResponse.json([]);
 				}),
 			],

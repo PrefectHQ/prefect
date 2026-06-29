@@ -20,6 +20,7 @@ import { WorkersTableToolbar } from "./components/workers-table-toolbar";
 
 export type WorkersTableProps = {
 	workPoolName: string;
+	workPoolType: string;
 	workers: WorkPoolWorker[];
 	pagination: PaginationState;
 	columnFilters: ColumnFiltersState;
@@ -30,6 +31,7 @@ export type WorkersTableProps = {
 
 export const WorkersTable = ({
 	workPoolName,
+	workPoolType,
 	workers,
 	pagination,
 	columnFilters,
@@ -120,6 +122,7 @@ export const WorkersTable = ({
 				<WorkersTableEmptyState
 					hasSearchQuery={searchQuery.length > 0}
 					workPoolName={workPoolName}
+					workPoolType={workPoolType}
 				/>
 			</div>
 		);
