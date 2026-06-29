@@ -159,41 +159,36 @@ class DeploymentScheduleCreate(ActionBaseModel):
     @classmethod
     def from_schedule(cls, schedule: Schedule) -> "DeploymentScheduleCreate":
         if schedule.interval is not None:
-            return cls(
-                schedule=IntervalSchedule(
-                    interval=schedule.interval,
-                    timezone=schedule.timezone,
-                    anchor_date=schedule.anchor_date,
-                ),
-                parameters=schedule.parameters,
-                active=schedule.active,
-                slug=schedule.slug,
+            inner_schedule = IntervalSchedule(
+                interval=schedule.interval,
+                timezone=schedule.timezone,
+                anchor_date=schedule.anchor_date,
             )
         elif schedule.cron is not None:
-            return cls(
-                schedule=CronSchedule(
-                    cron=schedule.cron,
-                    timezone=schedule.timezone,
-                    day_or=schedule.day_or,
-                ),
-                parameters=schedule.parameters,
-                active=schedule.active,
-                slug=schedule.slug,
+            inner_schedule = CronSchedule(
+                cron=schedule.cron,
+                timezone=schedule.timezone,
+                day_or=schedule.day_or,
             )
         elif schedule.rrule is not None:
-            return cls(
-                schedule=RRuleSchedule(
-                    rrule=schedule.rrule,
-                    timezone=schedule.timezone,
-                ),
-                parameters=schedule.parameters,
-                active=schedule.active,
-                slug=schedule.slug,
+            inner_schedule = RRuleSchedule(
+                rrule=schedule.rrule,
+                timezone=schedule.timezone,
             )
         else:
-            return cls(
-                schedule=NoSchedule(),
-            )
+            return cls(schedule=NoSchedule())
+
+        # Only forward `active` when the user set it explicitly. Leaving it
+        # unset lets a redeploy preserve a schedule that was paused server-side.
+        active_kwarg = (
+            {"active": schedule.active} if schedule.active is not None else {}
+        )
+        return cls(
+            schedule=inner_schedule,
+            parameters=schedule.parameters,
+            slug=schedule.slug,
+            **active_kwarg,
+        )
 
 
 class DeploymentScheduleUpdate(ActionBaseModel):

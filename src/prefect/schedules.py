@@ -35,7 +35,9 @@ class Schedule:
             This behaves like fcron and enables you to e.g. define a job that
             executes each 2nd friday of a month by setting the days of month and
             the weekday.
-        active: Whether or not the schedule is active.
+        active: Whether or not the schedule is active. If left unset, the
+            schedule is active when first created and keeps its existing
+            active state when an existing deployment is updated.
         parameters: A dictionary containing parameter overrides for the schedule.
         slug: A unique identifier for the schedule.
     """
@@ -48,7 +50,7 @@ class Schedule:
         default_factory=partial(datetime.datetime.now, tz=datetime.timezone.utc)
     )
     day_or: bool = True
-    active: bool = True
+    active: bool | None = None
     parameters: dict[str, Any] = dataclasses.field(default_factory=dict)
     slug: str | None = None
 
@@ -74,7 +76,7 @@ def Cron(
     /,
     timezone: str | None = None,
     day_or: bool = True,
-    active: bool = True,
+    active: bool | None = None,
     parameters: dict[str, Any] | None = None,
     slug: str | None = None,
 ) -> Schedule:
@@ -90,7 +92,9 @@ def Cron(
             This behaves like fcron and enables you to e.g. define a job that
             executes each 2nd friday of a month by setting the days of month and
             the weekday.
-        active: Whether or not the schedule is active.
+        active: Whether or not the schedule is active. If left unset, the
+            schedule is active when first created and keeps its existing
+            active state when an existing deployment is updated.
         parameters: A dictionary containing parameter overrides for the schedule.
         slug: A unique identifier for the schedule.
 
@@ -130,7 +134,7 @@ def Interval(
     /,
     anchor_date: datetime.datetime | None = None,
     timezone: str | None = None,
-    active: bool = True,
+    active: bool | None = None,
     parameters: dict[str, Any] | None = None,
     slug: str | None = None,
 ) -> Schedule:
@@ -142,7 +146,9 @@ def Interval(
             it will be interpreted as seconds.
         anchor_date: The anchor date to use for the schedule.
         timezone: A valid timezone string in IANA tzdata format (e.g. America/New_York).
-        active: Whether or not the schedule is active.
+        active: Whether or not the schedule is active. If left unset, the
+            schedule is active when first created and keeps its existing
+            active state when an existing deployment is updated.
         parameters: A dictionary containing parameter overrides for the schedule.
         slug: A unique identifier for the schedule.
 
@@ -188,7 +194,7 @@ def RRule(
     rrule: str,
     /,
     timezone: str | None = None,
-    active: bool = True,
+    active: bool | None = None,
     parameters: dict[str, Any] | None = None,
     slug: str | None = None,
 ) -> Schedule:
@@ -198,7 +204,9 @@ def RRule(
     Args:
         rrule: A valid RRule string (e.g. "RRULE:FREQ=DAILY;INTERVAL=1").
         timezone: A valid timezone string in IANA tzdata format (e.g. America/New_York).
-        active: Whether or not the schedule is active.
+        active: Whether or not the schedule is active. If left unset, the
+            schedule is active when first created and keeps its existing
+            active state when an existing deployment is updated.
         parameters: A dictionary containing parameter overrides for the schedule.
         slug: A unique identifier for the schedule.
 
