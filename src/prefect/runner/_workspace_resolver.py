@@ -14,7 +14,11 @@ import anyio
 from pydantic import BaseModel
 
 from prefect.client.orchestration import get_client
-from prefect.deployments.steps.core import _observe_step_completion, run_steps
+from prefect.deployments.steps.core import (
+    _PULL_STEP_SOURCE_CWD,
+    _observe_step_completion,
+    run_steps,
+)
 from prefect.filesystems import LocalFileSystem
 from prefect.logging.loggers import get_logger
 from prefect.utilities.filesystem import relative_path_to_current_platform
@@ -339,20 +343,29 @@ async def prepare_workspace(
                 if resolved_directory is not None:
                     step_selected_working_directory = True
                     working_directory = resolved_directory
-                return
-
-            if step_end_cwd is not None and step_end_cwd != step_start_cwd:
+            elif step_end_cwd is not None and step_end_cwd != step_start_cwd:
                 step_selected_working_directory = True
                 working_directory = step_end_cwd
 
-        with _observe_step_completion(_track_step_workspace):
-            await run_steps(
-                deployment.pull_steps,
-                print_function=_stderr_print,
-                deployment=deployment,
-                flow_run=flow_run,
-                logger=LOGGER,
-            )
+            # Clear source CWD after every step so the fallback only applies
+            # to the first pull step (the baked-image case).  Steps that run
+            # before set_working_directory (e.g. run_shell_script) create
+            # workspace-relative content, so subsequent relative paths must
+            # resolve against the current CWD, not the original process CWD.
+            _PULL_STEP_SOURCE_CWD.set(None)
+
+        source_cwd_token = _PULL_STEP_SOURCE_CWD.set(source_cwd)
+        try:
+            with _observe_step_completion(_track_step_workspace):
+                await run_steps(
+                    deployment.pull_steps,
+                    print_function=_stderr_print,
+                    deployment=deployment,
+                    flow_run=flow_run,
+                    logger=LOGGER,
+                )
+        finally:
+            _PULL_STEP_SOURCE_CWD.reset(source_cwd_token)
 
         if not step_selected_working_directory:
             working_directory = await _ensure_entrypoint_in_workspace(
