@@ -125,7 +125,7 @@ class RedisDatabase(WritableFileSystem):
         finally:
             client.close()
 
-    async def awrite_path(self, path: str, content: bytes) -> None:
+    async def awrite_path(self, path: str, content: bytes) -> bool:
         """Write to a redis key
 
         Args:
@@ -145,7 +145,7 @@ class RedisDatabase(WritableFileSystem):
             await client.aclose()
 
     @async_dispatch(awrite_path)
-    def write_path(self, path: str, content: bytes) -> None:
+    def write_path(self, path: str, content: bytes) -> bool:
         """Write to a redis key
 
         Args:
