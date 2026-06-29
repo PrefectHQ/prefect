@@ -61,7 +61,6 @@ def test_key_ttl_must_be_positive(bad_ttl):
         RedisDatabase(host="localhost", port=6379, key_ttl=bad_ttl)
 
 
-
 async def test_awrite_then_aread_round_trip(redis_block: RedisDatabase):
     await redis_block.awrite_path("my-key", b"hello")
     assert await redis_block.aread_path("my-key") == b"hello"
