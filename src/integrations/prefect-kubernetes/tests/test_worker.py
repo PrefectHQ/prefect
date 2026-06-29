@@ -3952,3 +3952,68 @@ class TestStoreEnvAsSecret:
             assert secret_body.metadata.labels.get("prefect.io/flow-run-id") == str(
                 flow_run.id
             )
+
+    async def test_cleans_up_secret_on_job_creation_failure(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
+        enable_store_env_as_secret,
+    ):
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
+
+        mock_secret = MagicMock()
+        mock_secret.metadata.name = "test-env-secret"
+        mock_core_client.return_value.create_namespaced_secret.return_value = (
+            mock_secret
+        )
+        mock_batch_client.return_value.create_namespaced_job.side_effect = ApiException(
+            status=403, reason="Forbidden"
+        )
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(), {"image": "foo"}
+        )
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            configuration.prepare_for_flow_run(flow_run=flow_run)
+            with pytest.raises(InfrastructureError):
+                await k8s_worker.run(flow_run, configuration)
+
+            # The orphaned Secret should be cleaned up
+            mock_core_client.return_value.delete_namespaced_secret.assert_called_once_with(
+                name="test-env-secret",
+                namespace=configuration.namespace,
+            )
+
+    async def test_owner_ref_failure_does_not_fail_job(
+        self,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
+        enable_store_env_as_secret,
+    ):
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
+
+        mock_secret = MagicMock()
+        mock_secret.metadata.name = "test-env-secret"
+        mock_core_client.return_value.create_namespaced_secret.return_value = (
+            mock_secret
+        )
+        mock_core_client.return_value.patch_namespaced_secret.side_effect = (
+            ApiException(status=403, reason="Forbidden")
+        )
+
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(), {"image": "foo"}
+        )
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            configuration.prepare_for_flow_run(flow_run=flow_run)
+            # Should not raise — the Job was created successfully
+            await k8s_worker.run(flow_run, configuration)
+
+            # Job should still have been created
+            mock_batch_client.return_value.create_namespaced_job.assert_called_once()

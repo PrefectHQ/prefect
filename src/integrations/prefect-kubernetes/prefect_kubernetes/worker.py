@@ -1119,6 +1119,20 @@ class KubernetesWorker(
                         configuration.job_manifest,
                     )
         except kubernetes_asyncio.client.exceptions.ApiException as exc:
+            # Clean up the orphaned env Secret if Job creation failed
+            if env_secret_name:
+                try:
+                    core_client = CoreV1Api(client)
+                    await core_client.delete_namespaced_secret(
+                        name=env_secret_name,
+                        namespace=configuration.namespace,
+                    )
+                except Exception:
+                    self._logger.warning(
+                        "Failed to clean up env secret %r after Job creation failure",
+                        env_secret_name,
+                    )
+
             # Parse the reason and message from the response if feasible
             message = ""
             if exc.reason:
@@ -1134,12 +1148,19 @@ class KubernetesWorker(
             ) from exc
 
         if env_secret_name:
-            await self._set_secret_owner_reference(
-                secret_name=env_secret_name,
-                namespace=configuration.namespace,
-                job=job,
-                client=client,
-            )
+            try:
+                await self._set_secret_owner_reference(
+                    secret_name=env_secret_name,
+                    namespace=configuration.namespace,
+                    job=job,
+                    client=client,
+                )
+            except Exception:
+                self._logger.warning(
+                    "Failed to set owner reference on env secret %r; "
+                    "it will not be automatically cleaned up when the Job is deleted",
+                    env_secret_name,
+                )
 
         return job
 
