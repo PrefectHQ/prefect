@@ -38,7 +38,17 @@ status = 301
 
 [[redirects]]
 from = "https://orion-docs.prefect.io/*"
-to = "https://docs.prefect.io/:splat"
+to = "https://docs.prefect.io/"
+status = 301
+
+[[redirects]]
+from = "https://reference.prefect.io/prefect_databricks/jobs/"
+to = "https://docs.prefect.io/integrations/prefect-databricks/api-ref/prefect_databricks-jobs"
+status = 301
+
+[[redirects]]
+from = "https://reference.prefect.io/*"
+to = "https://docs.prefect.io/v3/api-ref/python"
 status = 301
 
 # Netlify redirect rules match on the first rule, 
