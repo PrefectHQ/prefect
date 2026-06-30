@@ -692,7 +692,9 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
             if scope_path.endswith(path) and path != "/"
             else request.scope.get("root_path", "")
         )
-        redirect_url = str(request.url.replace(path=f"{scope_prefix}{redirect_path}"))
+        redirect_url = f"{scope_prefix}{redirect_path}"
+        if request.url.query:
+            redirect_url = f"{redirect_url}?{request.url.query}"
         return RedirectResponse(
             url=redirect_url,
             status_code=status.HTTP_307_TEMPORARY_REDIRECT,
