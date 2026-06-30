@@ -22,5 +22,12 @@ class ServerDocketSettings(PrefectBaseSettings):
 
     url: str = Field(
         default="memory://",
-        description="The URL of the Redis server to use for Docket.",
+        description=(
+            "The URL of the Redis server to use for Docket. Supports the "
+            "memory:// (single-server only), redis://, rediss://, "
+            "redis+sentinel:// and rediss+sentinel:// schemes; the Sentinel "
+            "schemes discover the current master through the listed Sentinel "
+            "daemons and follow failover automatically (requires "
+            "pydocket>=0.22.0)."
+        ),
     )
