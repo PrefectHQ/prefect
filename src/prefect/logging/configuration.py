@@ -6,7 +6,7 @@ import os
 import re
 import string
 import warnings
-from functools import partial
+from functools import lru_cache, partial
 from pathlib import Path
 from typing import Any, Callable
 
@@ -45,14 +45,16 @@ def load_logging_config(path: Path) -> dict[str, Any]:
             )
         )
 
-    # Load overrides from the environment
+    # Load overrides from the environment and from settings (profiles/config files)
     flat_config = dict_to_flatdict(config)
+    setting_overrides = current_settings.logging.overrides
 
     for key_tup, val in flat_config.items():
-        env_val = os.environ.get(
-            # Generate a valid environment variable with nesting indicated with '_'
-            to_envvar("PREFECT_LOGGING_" + "_".join(key_tup)).upper()
-        )
+        env_var = to_envvar("PREFECT_LOGGING_" + "_".join(key_tup)).upper()
+        # Generate a valid environment variable with nesting indicated with '_'
+        env_val = os.environ.get(env_var)
+        if env_val is None:
+            env_val = setting_overrides.get(env_var)
         if env_val:
             if isinstance(val, list):
                 val = env_val.split(",")
@@ -63,6 +65,27 @@ def load_logging_config(path: Path) -> dict[str, Any]:
         flat_config[key_tup] = val
 
     return flatdict_to_dict(flat_config)
+
+
+@lru_cache(maxsize=8)
+def get_valid_setting_overrides(path: Path) -> frozenset[str]:
+    """Return the set of valid `PREFECT_LOGGING_*` override names for a logging
+    configuration file.
+
+    These correspond to every nested key in the logging configuration file
+    (logging.yml), e.g. `PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL`. Used by the
+    CLI to validate `prefect config set` keys. The file is parsed lazily (only when
+    this is called) and the result is cached, so it never runs on import.
+    """
+    if not path.exists():
+        return frozenset()
+    config = yaml.safe_load(path.read_text())
+    if not isinstance(config, dict):
+        return frozenset()
+    return frozenset(
+        to_envvar("PREFECT_LOGGING_" + "_".join(key_tup)).upper()
+        for key_tup in dict_to_flatdict(config)
+    )
 
 
 def ensure_logging_setup() -> None:

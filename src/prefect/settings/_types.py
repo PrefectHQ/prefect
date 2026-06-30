@@ -41,6 +41,7 @@ SettingAccessor: TypeAlias = Literal[
     "logging.level",
     "logging.log_prints",
     "logging.markup",
+    "logging.overrides",
     "logging.to_api.batch_interval",
     "logging.to_api.batch_size",
     "logging.to_api.enabled",

@@ -334,6 +334,80 @@ class PyprojectTomlConfigSettingsSource(TomlConfigSettingsSourceBase):
             self.toml_data: dict[str, Any] = self.toml_data.get(key, {})
 
 
+def _declared_env_names(settings_cls: Type[BaseSettings]) -> set[str]:
+    """Environment variable names that map to declared fields of a settings model.
+
+    Walks nested settings models so that, e.g., `LoggingToAPISettings` fields are
+    included. Used to distinguish declared logging settings from arbitrary
+    `PREFECT_LOGGING_*` override keys.
+    """
+    names: set[str] = set()
+    prefix = settings_cls.model_config.get("env_prefix", "") or ""
+    for field_name, field in settings_cls.model_fields.items():
+        annotation = field.annotation
+        if isinstance(annotation, type) and issubclass(annotation, BaseSettings):
+            names |= _declared_env_names(annotation)
+            continue
+        names.add(f"{prefix}{field_name}".upper())
+        alias = field.validation_alias
+        if isinstance(alias, AliasChoices):
+            for choice in alias.choices:
+                if isinstance(choice, str):
+                    names.add(choice.upper())
+    return names
+
+
+class LoggingOverridesSource(PydanticBaseSettingsSource):
+    """Collect `PREFECT_LOGGING_*` keys that do not map to a declared field into the
+    `overrides` field.
+
+    This lets logging configuration file (logging.yml) paths such as
+    `PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL` be configured through the
+    settings system (environment variables and profiles) and show up in
+    `get_current_settings()` / `prefect config view`.
+
+    Only cheap key filtering is performed here; the logging configuration file is
+    never read or parsed at this layer.
+    """
+
+    def __init__(self, settings_cls: Type[BaseSettings]):
+        super().__init__(settings_cls)
+        self.settings_cls = settings_cls
+        self._declared = _declared_env_names(settings_cls)
+
+    def get_field_value(
+        self, field: FieldInfo, field_name: str
+    ) -> Tuple[Any, str, bool]:
+        return None, field_name, False
+
+    def _is_override_key(self, key: str) -> bool:
+        return key.startswith("PREFECT_LOGGING_") and key not in self._declared
+
+    def _collect(self) -> Dict[str, str]:
+        overrides: Dict[str, str] = {}
+        # Lower priority: profile settings (config set writes here)
+        try:
+            profile_settings = ProfileSettingsTomlLoader(
+                self.settings_cls
+            ).profile_settings
+        except Exception:
+            profile_settings = {}
+        for key, value in profile_settings.items():
+            upper = key.upper()
+            if self._is_override_key(upper):
+                overrides[upper] = str(value)
+        # Higher priority: environment variables override profile values
+        for key, value in os.environ.items():
+            upper = key.upper()
+            if self._is_override_key(upper):
+                overrides[upper] = value
+        return overrides
+
+    def __call__(self) -> Dict[str, Any]:
+        overrides = self._collect()
+        return {"overrides": overrides} if overrides else {}
+
+
 def _is_test_mode() -> bool:
     """Check if the current process is in test mode."""
     return bool(

@@ -32,6 +32,31 @@ config_app: cyclopts.App = cyclopts.App(
 )
 
 
+def _valid_logging_override_names() -> frozenset[str]:
+    """Valid `PREFECT_LOGGING_*` override keys derived from the logging config file.
+
+    Lazily parses the logging configuration file (CLI-only, cached) so logging.yml
+    keys such as `PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL` can be set via
+    `prefect config set`.
+    """
+    from prefect.logging.configuration import (
+        DEFAULT_LOGGING_SETTINGS_PATH,
+        get_valid_setting_overrides,
+    )
+
+    names: set[str] = set(get_valid_setting_overrides(DEFAULT_LOGGING_SETTINGS_PATH))
+    configured = get_current_settings().logging.config_path
+    if configured and Path(configured).exists():
+        names |= get_valid_setting_overrides(Path(configured))
+    return frozenset(names)
+
+
+def _logging_override_setting(name: str) -> Setting:
+    """Build a `Setting` wrapper for a logging override key so it round-trips through
+    profiles and `prefect config view` without being treated as a string."""
+    return Setting(name=name, default=None, type_=str)
+
+
 @config_app.command(name="set")
 def set_(
     settings: Annotated[
@@ -42,6 +67,7 @@ def set_(
     Change the value for a setting by setting the value in the current profile.
     """
     valid_setting_names = _get_valid_setting_names(Settings)
+    valid_logging_overrides = _valid_logging_override_names()
     parsed_settings: dict[Union[str, Setting], Any] = {}
 
     for item in settings:
@@ -52,16 +78,17 @@ def set_(
                 f"Failed to parse argument {item!r}. Use the format 'VAR=VAL'."
             )
 
-        if setting not in valid_setting_names:
+        if setting in valid_setting_names:
+            if setting in {"PREFECT_HOME", "PREFECT_PROFILES_PATH"}:
+                exit_with_error(
+                    f"Setting {setting!r} cannot be changed with this command. "
+                    "Use an environment variable instead."
+                )
+            parsed_settings[setting] = value
+        elif setting in valid_logging_overrides:
+            parsed_settings[_logging_override_setting(setting)] = value
+        else:
             exit_with_error(f"Unknown setting name {setting!r}.")
-
-        if setting in {"PREFECT_HOME", "PREFECT_PROFILES_PATH"}:
-            exit_with_error(
-                f"Setting {setting!r} cannot be changed with this command. "
-                "Use an environment variable instead."
-            )
-
-        parsed_settings[setting] = value
 
     try:
         new_profile = prefect.settings.update_current_profile(parsed_settings)
@@ -76,11 +103,12 @@ def set_(
         exit_with_error(help_message)
 
     for setting, value in parsed_settings.items():
-        _cli.console.print(f"Set {setting!r} to {value!r}.")
-        if setting in os.environ:
+        name = setting.name if isinstance(setting, Setting) else setting
+        _cli.console.print(f"Set {name!r} to {value!r}.")
+        if name in os.environ:
             _cli.console.print(
-                f"[yellow]{setting} is also set by an environment variable which will "
-                f"override your config value. Run `unset {setting}` to clear it."
+                f"[yellow]{name} is also set by an environment variable which will "
+                f"override your config value. Run `unset {name}` to clear it."
             )
 
     exit_with_success(f"Updated profile {new_profile.name!r}.")
@@ -118,15 +146,19 @@ def unset(
     Removes the setting from the current profile.
     """
     valid_setting_names = _get_valid_setting_names(Settings)
+    valid_logging_overrides = _valid_logging_override_names()
     settings_context = prefect.context.get_settings_context()
     profiles = prefect.settings.load_profiles()
     profile = profiles[settings_context.profile.name]
     parsed: set[Setting] = set()
 
     for setting_name in setting_names:
-        if setting_name not in valid_setting_names:
+        if setting_name in valid_setting_names:
+            parsed.add(_get_settings_fields(Settings)[setting_name])
+        elif setting_name in valid_logging_overrides:
+            parsed.add(_logging_override_setting(setting_name))
+        else:
             exit_with_error(f"Unknown setting name {setting_name!r}.")
-        parsed.add(_get_settings_fields(Settings)[setting_name])
 
     for setting in parsed:
         if setting not in profile.settings:
