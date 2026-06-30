@@ -16,8 +16,8 @@ def _wrap_single_action_mappings(data: Any) -> Any:
     """Normalize action sections that are given as a single step mapping.
 
     A non-empty mapping like
-    ``{"prefect.deployments.steps.run_shell_script": {"script": "echo hi"}}``
-    is wrapped into a one-item action list. Lists, ``None``, and empty mappings
+    `{"prefect.deployments.steps.run_shell_script": {"script": "echo hi"}}`
+    is wrapped into a one-item action list. Lists, `None`, and empty mappings
     are left unchanged.
     """
     if not isinstance(data, dict):
