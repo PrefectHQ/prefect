@@ -423,6 +423,51 @@ def test_create_ui_app_preserves_root_path_in_redirects(
 
 
 @pytest.mark.parametrize(
+    ("serve_base", "request_path", "cookie_value", "expected_location"),
+    [
+        ("/", "/", "v2", "/v2/"),
+        ("/prefect", "/prefect", "v2", "/prefect/v2/"),
+    ],
+)
+def test_create_ui_app_redirect_uses_relative_location(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    serve_base: str,
+    request_path: str,
+    cookie_value: str,
+    expected_location: str,
+):
+    """The redirect Location must be a relative path so it works behind
+    reverse proxies that forward an internal Host header."""
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI")
+    v2_source = _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI")
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", v2_source)
+
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_UI_SERVE_BASE: serve_base,
+            PREFECT_UI_STATIC_DIRECTORY: str(tmp_path / "ui-static"),
+        }
+    ):
+        ui_app = create_ui_app(ephemeral=False)
+
+    client = TestClient(ui_app)
+    client.cookies.set("prefect_ui_version", cookie_value)
+    response = client.get(
+        request_path,
+        headers={"accept": "text/html", "host": "internal-host:4200"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == status.HTTP_307_TEMPORARY_REDIRECT
+    location = response.headers["location"]
+    assert location == expected_location
+    assert "://" not in location
+
+
+@pytest.mark.parametrize(
     ("serve_base", "request_path", "expected_location"),
     [
         ("/", "/", "/v2/"),
