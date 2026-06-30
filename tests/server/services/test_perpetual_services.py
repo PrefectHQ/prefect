@@ -324,6 +324,27 @@ class TestPerpetualServiceRecovery:
 
             assert await _runs_state(docket, key) == b"queued"
 
+    async def test_reschedule_skips_when_another_worker_holds_the_lock(self) -> None:
+        """Only one worker recovers per reconnection window: if the recovery lock
+        is already held, reschedule is a no-op for this worker."""
+        async with _docket() as docket:
+            docket.register(_fake_perpetual_service)
+            key = _fake_perpetual_service.__name__
+            await _seed_stuck_running(docket, key)
+
+            async with docket.redis() as redis:
+                lock = redis.lock(
+                    docket.key("perpetual-recovery:lock"),
+                    timeout=30,
+                    blocking=False,
+                )
+                assert await lock.acquire()
+                try:
+                    await reschedule_automatic_perpetual_tasks(docket)
+                    assert await _runs_state(docket, key) == b"running"
+                finally:
+                    await lock.release()
+
     async def test_reschedule_ignores_non_perpetual_tasks(self) -> None:
         """Only tasks with an automatic Perpetual dependency are rescheduled."""
         async with _docket() as docket:
