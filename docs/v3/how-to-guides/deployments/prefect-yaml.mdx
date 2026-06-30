@@ -102,6 +102,17 @@ section:
   kwarg2: more-values
 ```
 
+When an action contains only a single step, you can provide it as a mapping instead of a one-item list:
+
+```yaml
+section:
+  prefect_package.path.to.importable.step:
+    id: "step-id" # optional
+    requires: "pip-installable-package-spec" # optional
+    kwarg1: value
+    kwarg2: more-values
+```
+
 Every step optionally provides a `requires` field. Prefect uses this to auto-install if the step is not
 found in the current environment. Each step can specify an `id` to reference outputs in
 future steps. The additional fields map directly to Python keyword arguments to the step function. Within a given section,
