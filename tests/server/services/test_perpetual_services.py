@@ -286,9 +286,9 @@ async def _runs_state(docket: Docket, key: str) -> bytes | None:
 async def _seed_stuck_running(docket: Docket, key: str) -> None:
     """Simulate a perpetual task left mid-execution by a Redis disruption.
 
-    On claim, docket sets ``state=running`` and deletes the ``known`` field.
+    On claim, docket sets `state=running` and deletes the `known` field.
     If Redis is disrupted before the run completes, that state persists and
-    ``docket.add`` treats the task as already known (a permanent no-op).
+    `docket.add` treats the task as already known (a permanent no-op).
     """
     async with docket.redis() as redis:
         runs_key = docket.runs_key(key)

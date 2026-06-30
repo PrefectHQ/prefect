@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, AsyncIterator, Callable, TypeVar
 from docket import Docket, Perpetual
 from docket.dependencies import Dependency, get_single_dependency_parameter_of_type
 from docket.execution import TaskFunction
+from redis.exceptions import LockError
 
 from prefect.logging import get_logger
 
@@ -23,6 +24,10 @@ if TYPE_CHECKING:
     from docket import Worker
 
 logger: logging.Logger = get_logger(__name__)
+
+# Seconds a worker may hold the recovery lock before it auto-expires (in case the
+# worker crashes mid-recovery). Matches docket's own perpetual scheduling lock.
+_RECOVERY_LOCK_TIMEOUT_SECONDS = 10
 
 EnabledGetter = Callable[[], bool]
 """A callable that returns whether a service is enabled."""
@@ -195,15 +200,35 @@ async def reschedule_automatic_perpetual_tasks(docket: Docket) -> None:
     it was executing. `docket.replace` overwrites the stale state, so a
     perpetual service interrupted by a transient Redis outage starts running
     again once Redis recovers, without requiring a server restart.
+
+    A non-blocking lock ensures only one worker performs the recovery per
+    reconnection window, so an HA deployment doesn't have every worker
+    re-scheduling the same tasks at once.
     """
-    for task_function in docket.tasks.values():
-        perpetual = get_single_dependency_parameter_of_type(task_function, Perpetual)
-        if perpetual is None or not perpetual.automatic:
-            continue
-        logger.debug(f"Force-rescheduling perpetual service: {task_function.__name__}")
-        await docket.replace(
-            task_function, datetime.now(timezone.utc), task_function.__name__
-        )()
+    async with docket.redis() as redis:
+        try:
+            async with redis.lock(
+                docket.key("perpetual-recovery:lock"),
+                timeout=_RECOVERY_LOCK_TIMEOUT_SECONDS,
+                blocking=False,
+            ):
+                for task_function in docket.tasks.values():
+                    perpetual = get_single_dependency_parameter_of_type(
+                        task_function, Perpetual
+                    )
+                    if perpetual is None or not perpetual.automatic:
+                        continue
+                    logger.debug(
+                        f"Force-rescheduling perpetual service: {task_function.__name__}"
+                    )
+                    await docket.replace(
+                        task_function,
+                        datetime.now(timezone.utc),
+                        task_function.__name__,
+                    )()
+        except LockError:
+            # Another worker is already performing the recovery.
+            return
 
 
 class PerpetualServiceRecovery(Dependency["PerpetualServiceRecovery"]):
