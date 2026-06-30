@@ -1,13 +1,22 @@
 from __future__ import annotations
 
 import base64
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
+import contextvars
+from contextlib import asynccontextmanager
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AsyncIterator,
+    Dict,
+    List,
+    Optional,
+)
 from urllib.parse import quote
 from uuid import UUID
 
 import httpx
 import pydantic
-from httpx import Response
+from httpx import Request, Response
 from starlette import status
 from typing_extensions import Self
 
@@ -25,6 +34,35 @@ if TYPE_CHECKING:
     import logging
 
 logger: "logging.Logger" = get_logger(__name__)
+
+
+# Per-request headers pushed by `scoped_headers()`; the httpx request hook
+# installed on each client merges them into outgoing requests so a single
+# long-lived client (see `prefect.server.events.actions.consumer`) can be reused
+# across automation actions while still tagging each request with
+# automation-specific identifiers. The contextvar makes the headers request-local
+# so concurrent actions sharing a client never clobber each other's headers.
+_request_scoped_headers: contextvars.ContextVar[Optional[Dict[str, str]]] = (
+    contextvars.ContextVar("_request_scoped_headers", default=None)
+)
+
+
+async def _apply_scoped_headers(request: Request) -> None:
+    extras = _request_scoped_headers.get()
+    if not extras:
+        return
+    for name, value in extras.items():
+        request.headers[name] = value
+
+
+@asynccontextmanager
+async def scoped_headers(headers: Dict[str, str]) -> AsyncIterator[None]:
+    """Attach headers to every request sent by a shared client in this scope."""
+    token = _request_scoped_headers.set(headers)
+    try:
+        yield
+    finally:
+        _request_scoped_headers.reset(token)
 
 
 class BaseClient:
@@ -53,6 +91,7 @@ class BaseClient:
             base_url=f"http://prefect-in-memory{settings.server.api.base_path or '/api'}",
             enable_csrf_support=settings.server.api.csrf_protection_enabled,
             raise_on_all_errors=False,
+            event_hooks={"request": [_apply_scoped_headers]},
         )
 
     async def __aenter__(self) -> Self:
