@@ -30,6 +30,81 @@ Register the block types in the `prefect-redis` module to make them available fo
 prefect block register -m prefect_redis
 ```
 
+## Connecting with a URL (including Redis Sentinel)
+
+Every `prefect-redis` connection point — the server messaging client, the
+`RedisLockManager`, and the `RedisDatabase` block — accepts a full connection URL in
+addition to the individual `host`/`port`/`db`/`username`/`password`/`ssl` fields. When
+a URL is provided it is authoritative and the scalar fields are ignored.
+
+The following schemes are supported:
+
+| Scheme | Behavior |
+| --- | --- |
+| `redis://` | Single-node TCP connection |
+| `rediss://` | Single-node TLS connection |
+| `redis+sentinel://` | [Redis Sentinel](https://redis.io/docs/latest/operate/oss_and_stack/management/sentinel/) discovery (TCP data nodes) |
+| `rediss+sentinel://` | Redis Sentinel discovery (TLS data nodes) |
+
+The Sentinel schemes accept a comma-separated list of Sentinel members and a master
+group name, and the resulting client resolves the current master through the Sentinel
+daemons and follows failover automatically:
+
+```
+redis+sentinel://[user:pass@]sentinel-a:26379,sentinel-b:26379/<master-name>[/<db>][?params]
+```
+
+Sentinel-specific query parameters configure the connections to the Sentinel daemons
+separately from the data nodes: `sentinel_username`, `sentinel_password`, `sentinel_ssl`,
+`sentinel_tls_insecure`, and `sentinel_tls_ca_file`. Single-node TLS URLs additionally
+accept `tls_insecure` and `tls_ca_file`.
+
+### Server messaging (events / streams)
+
+Point the Prefect server's Redis messaging at a Sentinel topology with a single
+environment variable:
+
+```bash
+export PREFECT_REDIS_MESSAGING_URL="redis+sentinel://sentinel-a:26379,sentinel-b:26379/mymaster"
+```
+
+The same setting also accepts single-node `redis://` / `rediss://` URLs.
+
+### Background services (Docket)
+
+Multi-server deployments also point `PREFECT_SERVER_DOCKET_URL` at the same shared
+Redis so the server's background services coordinate through it. That URL is
+resolved by [Docket](https://github.com/chrisguidry/docket) rather than
+`prefect-redis`, so Sentinel URLs require a `pydocket` release that includes Redis
+Sentinel support:
+
+```bash
+export PREFECT_SERVER_DOCKET_URL="redis+sentinel://sentinel-a:26379,sentinel-b:26379/mymaster/0"
+```
+
+### Lock manager
+
+{/* pmd-metadata: notest */}
+```python
+from prefect_redis import RedisLockManager
+
+lock_manager = RedisLockManager(
+    connection_url="redis+sentinel://sentinel-a:26379,sentinel-b:26379/mymaster"
+)
+```
+
+### `RedisDatabase` block
+
+{/* pmd-metadata: notest */}
+```python
+from prefect_redis import RedisDatabase
+
+block = RedisDatabase.from_connection_string(
+    "redis+sentinel://sentinel-a:26379,sentinel-b:26379/mymaster"
+)
+block.save("BLOCK_NAME")
+```
+
 ## Resources
 
 Refer to the [SDK documentation](/integrations/prefect-redis/api-ref/prefect_redis-blocks) to explore all the capabilities of `prefect-redis`.
