@@ -151,11 +151,17 @@ def unset(
     profiles = prefect.settings.load_profiles()
     profile = profiles[settings_context.profile.name]
     parsed: set[Setting] = set()
+    profile_setting_names = {setting.name for setting in profile.settings}
 
     for setting_name in setting_names:
         if setting_name in valid_setting_names:
             parsed.add(_get_settings_fields(Settings)[setting_name])
-        elif setting_name in valid_logging_overrides:
+        elif setting_name in valid_logging_overrides or (
+            setting_name.startswith("PREFECT_LOGGING_")
+            and setting_name in profile_setting_names
+        ):
+            # Always allow removing a stored logging override, even if it is no longer
+            # a valid override key (e.g. the logging config file changed).
             parsed.add(_logging_override_setting(setting_name))
         else:
             exit_with_error(f"Unknown setting name {setting_name!r}.")

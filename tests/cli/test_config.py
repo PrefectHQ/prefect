@@ -229,6 +229,25 @@ def test_unset_logging_override():
     )
 
 
+def test_unset_stored_logging_override_that_is_no_longer_valid():
+    """A stored logging override can always be removed, even if it is no longer a valid
+    override key (e.g. the logging config file changed)."""
+    stale_key = "PREFECT_LOGGING_LOGGERS_SOME_REMOVED_LOGGER_LEVEL"
+    save_profiles(
+        ProfilesCollection(
+            [Profile(name="foo", settings={stale_key: "ERROR"})], active=None
+        )
+    )
+
+    invoke_and_assert(
+        ["--profile", "foo", "config", "unset", stale_key, "-y"],
+        expected_output_contains=f"Unset '{stale_key}'.",
+    )
+
+    profiles = load_profiles()
+    assert all(setting.name != stale_key for setting in profiles["foo"].settings)
+
+
 def test_set_multiple_settings():
     save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
 
