@@ -1,14 +1,25 @@
 """Tests for the perpetual services registry and scheduling."""
 
+from contextlib import asynccontextmanager
+from datetime import timedelta
+from typing import AsyncGenerator
+from uuid import uuid4
+
 import pytest
-from docket import Perpetual
+from docket import Docket, Perpetual, Worker
 from docket.dependencies import get_single_dependency_parameter_of_type
+from docket.execution import Disposition
 
 from prefect.server.services.perpetual_services import (
     _PERPETUAL_SERVICES,
+    PerpetualServiceConfig,
+    PerpetualServiceRecovery,
     get_enabled_perpetual_services,
     get_perpetual_services,
+    register_and_schedule_perpetual_services,
+    reschedule_automatic_perpetual_tasks,
 )
+from prefect.settings import get_current_settings
 
 pytestmark = pytest.mark.clear_db
 
@@ -244,3 +255,121 @@ def test_all_perpetual_services_use_automatic_true():
             f"{config.function.__name__} uses automatic=False; "
             "all perpetual services must use automatic=True for Redis recovery"
         )
+
+
+async def _fake_perpetual_service(
+    perpetual: Perpetual = Perpetual(automatic=True, every=timedelta(seconds=10)),
+) -> None:
+    """A minimal automatic perpetual task used in recovery tests."""
+
+
+async def _fake_non_perpetual_task() -> None:
+    """A task with no Perpetual dependency (must be ignored by recovery)."""
+
+
+@asynccontextmanager
+async def _docket() -> AsyncGenerator[Docket, None]:
+    """A real Docket against the test backend (fakeredis), uniquely named."""
+    settings = get_current_settings()
+    async with Docket(
+        name=f"test-perpetual-{uuid4().hex[:8]}",
+        url=settings.server.docket.url,
+    ) as docket:
+        yield docket
+
+
+async def _runs_state(docket: Docket, key: str) -> bytes | None:
+    async with docket.redis() as redis:
+        return await redis.hget(docket.runs_key(key), "state")
+
+
+async def _seed_stuck_running(docket: Docket, key: str) -> None:
+    """Simulate a perpetual task left mid-execution by a Redis disruption.
+
+    On claim, docket sets ``state=running`` and deletes the ``known`` field.
+    If Redis is disrupted before the run completes, that state persists and
+    ``docket.add`` treats the task as already known (a permanent no-op).
+    """
+    async with docket.redis() as redis:
+        runs_key = docket.runs_key(key)
+        await redis.delete(runs_key)
+        await redis.hset(runs_key, mapping={"state": "running"})
+
+
+class TestPerpetualServiceRecovery:
+    """Recovery of perpetual services after a Redis disruption (#22212)."""
+
+    async def test_docket_add_is_a_noop_for_a_stuck_running_task(self) -> None:
+        """Baseline: docket.add (what the worker uses) cannot recover a task
+        left in state=running -- this is the bug we are fixing."""
+        async with _docket() as docket:
+            docket.register(_fake_perpetual_service)
+            key = _fake_perpetual_service.__name__
+            await _seed_stuck_running(docket, key)
+
+            execution = await docket.add(_fake_perpetual_service, key=key)()
+
+            assert execution.disposition is Disposition.ALREADY_SCHEDULED
+            assert await _runs_state(docket, key) == b"running"
+
+    async def test_reschedule_recovers_a_stuck_running_task(self) -> None:
+        """reschedule_automatic_perpetual_tasks force-reschedules via replace,
+        clearing the stale running state."""
+        async with _docket() as docket:
+            docket.register(_fake_perpetual_service)
+            key = _fake_perpetual_service.__name__
+            await _seed_stuck_running(docket, key)
+
+            await reschedule_automatic_perpetual_tasks(docket)
+
+            assert await _runs_state(docket, key) == b"queued"
+
+    async def test_reschedule_ignores_non_perpetual_tasks(self) -> None:
+        """Only tasks with an automatic Perpetual dependency are rescheduled."""
+        async with _docket() as docket:
+            docket.register(_fake_non_perpetual_task)
+            key = _fake_non_perpetual_task.__name__
+
+            await reschedule_automatic_perpetual_tasks(docket)
+
+            assert await _runs_state(docket, key) is None
+
+    async def test_register_and_schedule_recovers_a_stuck_running_task(
+        self, monkeypatch
+    ) -> None:
+        """A server restart that finds a service stuck running must recover it:
+        register_and_schedule_perpetual_services uses replace, not add."""
+        config = PerpetualServiceConfig(
+            function=_fake_perpetual_service, enabled_getter=lambda: True
+        )
+        monkeypatch.setattr(
+            "prefect.server.services.perpetual_services._PERPETUAL_SERVICES",
+            [config],
+        )
+        async with _docket() as docket:
+            docket.register(_fake_perpetual_service)
+            key = _fake_perpetual_service.__name__
+            await _seed_stuck_running(docket, key)
+
+            await register_and_schedule_perpetual_services(docket)
+
+            assert await _runs_state(docket, key) == b"queued"
+
+    async def test_recovery_dependency_reschedules_on_worker_lifecycle(self) -> None:
+        """The worker dependency force-reschedules on lifecycle entry, which the
+        docket worker enters at the start of every loop (incl. reconnection)."""
+        async with _docket() as docket:
+            docket.register(_fake_perpetual_service)
+            key = _fake_perpetual_service.__name__
+            await _seed_stuck_running(docket, key)
+
+            worker = Worker(docket, dependencies=[PerpetualServiceRecovery()])
+            async with PerpetualServiceRecovery.worker_lifecycle(docket, worker):
+                assert await _runs_state(docket, key) == b"queued"
+
+    async def test_recovery_dependency_is_discovered_by_worker(self) -> None:
+        """The worker must discover PerpetualServiceRecovery's lifecycle hook."""
+        async with _docket() as docket:
+            worker = Worker(docket, dependencies=[PerpetualServiceRecovery()])
+            lifecycle_classes = worker._dependency_lifecycle_classes()
+            assert PerpetualServiceRecovery in lifecycle_classes

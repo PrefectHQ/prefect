@@ -27,6 +27,7 @@ from prefect.server.services.db_vacuum import (
 from prefect.server.services.late_runs import mark_flow_run_late
 from prefect.server.services.pause_expirations import fail_expired_pause
 from prefect.server.services.perpetual_services import (
+    PerpetualServiceRecovery,
     register_and_schedule_perpetual_services,
 )
 from prefect.server.services.repossessor import revoke_expired_lease
@@ -63,7 +64,7 @@ async def background_worker(
     webserver_only: bool = False,
 ) -> AsyncGenerator[None, None]:
     worker_task: asyncio.Task[None] | None = None
-    async with Worker(docket) as worker:
+    async with Worker(docket, dependencies=[PerpetualServiceRecovery()]) as worker:
         # Register background task functions
         docket.register_collection(
             "prefect.server.api.background_workers:task_functions"

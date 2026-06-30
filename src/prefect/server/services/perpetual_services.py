@@ -8,14 +8,19 @@ using docket's Perpetual dependency for distributed, HA-aware task scheduling.
 from __future__ import annotations
 
 import logging
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from typing import Callable, TypeVar
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, AsyncIterator, Callable, TypeVar
 
 from docket import Docket, Perpetual
-from docket.dependencies import get_single_dependency_parameter_of_type
+from docket.dependencies import Dependency, get_single_dependency_parameter_of_type
 from docket.execution import TaskFunction
 
 from prefect.logging import get_logger
+
+if TYPE_CHECKING:
+    from docket import Worker
 
 logger: logging.Logger = get_logger(__name__)
 
@@ -160,7 +165,13 @@ async def register_and_schedule_perpetual_services(
             continue
 
         logger.info(f"Scheduling perpetual service: {config.function.__name__}")
-        await docket.add(config.function, key=config.function.__name__)()
+        # Use replace (not add): add is a no-op when a task is already known,
+        # which includes a task left in state=running by a Redis disruption.
+        # replace unconditionally (re)establishes the schedule, recovering a
+        # service whose prior run was interrupted before the server restarted.
+        await docket.replace(
+            config.function, datetime.now(timezone.utc), config.function.__name__
+        )()
 
     total = len(all_services)
     enabled = len(enabled_services)
@@ -168,3 +179,55 @@ async def register_and_schedule_perpetual_services(
     logger.info(
         f"Perpetual services: {enabled} enabled, {disabled} disabled, {total} total"
     )
+
+
+async def reschedule_automatic_perpetual_tasks(docket: Docket) -> None:
+    """Force-(re)schedule every registered automatic perpetual task.
+
+    Iterates the tasks registered on `docket` and re-establishes the schedule
+    for each one that declares an automatic `Perpetual` dependency, using
+    `docket.replace`.
+
+    The docket worker already reschedules automatic perpetual tasks on every
+    (re)connection via its built-in `_schedule_all_automatic_perpetual_tasks`,
+    but that uses `docket.add`, which is a no-op when a task is already known --
+    including a task left in `state=running` because Redis was disrupted while
+    it was executing. `docket.replace` overwrites the stale state, so a
+    perpetual service interrupted by a transient Redis outage starts running
+    again once Redis recovers, without requiring a server restart.
+    """
+    for task_function in docket.tasks.values():
+        perpetual = get_single_dependency_parameter_of_type(task_function, Perpetual)
+        if perpetual is None or not perpetual.automatic:
+            continue
+        logger.debug(f"Force-rescheduling perpetual service: {task_function.__name__}")
+        await docket.replace(
+            task_function, datetime.now(timezone.utc), task_function.__name__
+        )()
+
+
+class PerpetualServiceRecovery(Dependency["PerpetualServiceRecovery"]):
+    """Worker dependency that recovers perpetual services after a Redis outage.
+
+    The docket worker enters each dependency's `worker_lifecycle` at the start
+    of every worker loop -- including the loop that begins after the worker
+    reconnects to Redis following a disruption. Hooking in here lets us
+    force-reschedule every automatic perpetual task (via `docket.replace`),
+    clearing any `state=running` left behind by the outage. Without this, a
+    service mid-execution when Redis dropped would never run again, because the
+    worker's built-in rescheduling uses `docket.add`, which no-ops on a task
+    that is still marked running.
+    """
+
+    single = True
+
+    async def __aenter__(self) -> "PerpetualServiceRecovery":
+        return self
+
+    @classmethod
+    @asynccontextmanager
+    async def worker_lifecycle(
+        cls, docket: Docket, worker: "Worker"
+    ) -> AsyncIterator[None]:
+        await reschedule_automatic_perpetual_tasks(docket)
+        yield
