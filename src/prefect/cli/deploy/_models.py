@@ -9,6 +9,28 @@ from prefect._experimental.sla.objects import SlaTypes
 from prefect.client.schemas.actions import DeploymentScheduleCreate
 from prefect.client.schemas.schedules import SCHEDULE_TYPES
 
+_ACTION_FIELDS = ("build", "push", "pull")
+
+
+def _wrap_single_action_mappings(data: Any) -> Any:
+    """Normalize action sections that are given as a single step mapping.
+
+    A non-empty mapping like
+    ``{"prefect.deployments.steps.run_shell_script": {"script": "echo hi"}}``
+    is wrapped into a one-item action list. Lists, ``None``, and empty mappings
+    are left unchanged.
+    """
+    if not isinstance(data, dict):
+        return data
+    updates = {
+        field: [value]
+        for field in _ACTION_FIELDS
+        if isinstance((value := data.get(field)), dict) and value
+    }
+    if updates:
+        data = {**data, **updates}
+    return data
+
 
 class WorkPoolConfig(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -48,6 +70,11 @@ class DeploymentConfig(BaseModel):
     push: Optional[Union[List[Dict[str, Any]], Dict[str, Any]]] = None
     pull: Optional[Union[List[Dict[str, Any]], Dict[str, Any]]] = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_action_mappings(cls, data: Any) -> Any:
+        return _wrap_single_action_mappings(data)
+
     # infra-specific
     work_pool: Optional[WorkPoolConfig] = None
 
@@ -72,6 +99,11 @@ class PrefectYamlModel(BaseModel):
 
     # deployments
     deployments: List[DeploymentConfig] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_action_mappings(cls, data: Any) -> Any:
+        return _wrap_single_action_mappings(data)
 
     @staticmethod
     def _validate_action_steps(steps: Optional[List[Dict[str, Any]]]) -> None:
