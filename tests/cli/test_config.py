@@ -164,6 +164,71 @@ def test_set_setting_with_equal_sign_in_value():
     assert profiles["foo"].settings == {PREFECT_API_KEY: "foo=bar"}
 
 
+LOGGING_OVERRIDE_KEY = "PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL"
+
+
+def test_set_logging_override():
+    """Custom logging.yml override keys can be set via `config set` (closes #18666)."""
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+
+    invoke_and_assert(
+        ["--profile", "foo", "config", "set", f"{LOGGING_OVERRIDE_KEY}=ERROR"],
+        expected_output=f"""
+            Set '{LOGGING_OVERRIDE_KEY}' to 'ERROR'.
+            Updated profile 'foo'.
+            """,
+    )
+
+    profiles = load_profiles()
+    stored = {
+        setting.name: value for setting, value in profiles["foo"].settings.items()
+    }
+    assert stored.get(LOGGING_OVERRIDE_KEY) == "ERROR"
+
+
+def test_set_logging_override_rejects_unknown_key():
+    """A `PREFECT_LOGGING_*` key not present in logging.yml is rejected."""
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+
+    invoke_and_assert(
+        ["--profile", "foo", "config", "set", "PREFECT_LOGGING_NOT_A_REAL_KEY=ERROR"],
+        expected_output_contains="Unknown setting name 'PREFECT_LOGGING_NOT_A_REAL_KEY'.",
+        expected_code=1,
+    )
+
+
+def test_view_shows_logging_override():
+    """`config view` renders a logging override without crashing (regression for #18670)."""
+    save_profiles(
+        ProfilesCollection(
+            [Profile(name="foo", settings={LOGGING_OVERRIDE_KEY: "ERROR"})], active=None
+        )
+    )
+
+    invoke_and_assert(
+        ["--profile", "foo", "config", "view"],
+        expected_output_contains=f"{LOGGING_OVERRIDE_KEY}='ERROR'",
+    )
+
+
+def test_unset_logging_override():
+    save_profiles(
+        ProfilesCollection(
+            [Profile(name="foo", settings={LOGGING_OVERRIDE_KEY: "ERROR"})], active=None
+        )
+    )
+
+    invoke_and_assert(
+        ["--profile", "foo", "config", "unset", LOGGING_OVERRIDE_KEY, "-y"],
+        expected_output_contains=f"Unset '{LOGGING_OVERRIDE_KEY}'.",
+    )
+
+    profiles = load_profiles()
+    assert all(
+        setting.name != LOGGING_OVERRIDE_KEY for setting in profiles["foo"].settings
+    )
+
+
 def test_set_multiple_settings():
     save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
 

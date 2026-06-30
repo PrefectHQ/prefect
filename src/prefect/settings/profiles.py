@@ -37,15 +37,19 @@ def _cast_settings(
         raise ValueError("Settings must be a dictionary.")
     casted_settings = {}
     for k, value in settings.items():
-        try:
-            if isinstance(k, str):
-                setting = _get_settings_fields(Settings)[k]
-            else:
-                setting = k
-            casted_settings[setting] = value
-        except KeyError as e:
-            warnings.warn(f"Setting {e} is not recognized")
+        if not isinstance(k, str):
+            casted_settings[k] = value
             continue
+        setting = _get_settings_fields(Settings).get(k)
+        if setting is not None:
+            casted_settings[setting] = value
+        elif k.upper().startswith("PREFECT_LOGGING_"):
+            # Custom logging overrides (e.g. PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL)
+            # map into logging.yml rather than a declared setting field. Wrap them so they
+            # round-trip through profiles and `prefect config view` without warning.
+            casted_settings[Setting(name=k, default=None, type_=str)] = value
+        else:
+            warnings.warn(f"Setting '{k}' is not recognized")
     return casted_settings
 
 
