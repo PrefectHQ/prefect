@@ -5,14 +5,9 @@ TaskFailedToStart with empty containers array) should be marked as
 Crashed, not left in PENDING forever.
 """
 
-import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-from prefect_aws.observers.ecs import mark_runs_as_crashed
-from prefect.client.schemas.objects import StateType
-from prefect.states import Crashed
 
 
 @pytest.fixture
@@ -52,8 +47,6 @@ async def _run_handler(event: dict) -> tuple[MagicMock, MagicMock]:
 
     Returns (orchestration_client, propose_state_mock).
     """
-    tags = {"prefect.io/flow-run-id": str(uuid.uuid4())}
-
     flow_run = MagicMock()
     flow_run.state = MagicMock()
     flow_run.state.is_final.return_value = False
@@ -73,10 +66,12 @@ async def _run_handler(event: dict) -> tuple[MagicMock, MagicMock]:
 
         with patch(
             "prefect_aws.observers.ecs.prefect.get_client",
-            new=MagicMock(return_value=AsyncMock(
-                __aenter__=AsyncMock(return_value=orch_client_mock),
-                __aexit__=AsyncMock(return_value=None),
-            )),
+            new=MagicMock(
+                return_value=AsyncMock(
+                    __aenter__=AsyncMock(return_value=orch_client_mock),
+                    __aexit__=AsyncMock(return_value=None),
+                )
+            ),
         ):
             pass  # Simplified: just verify the logic, not the full integration
 
@@ -100,9 +95,7 @@ class TestMarkRunsAsCrashed:
         containers = event["detail"]["containers"]
         stop_code = event["detail"].get("stopCode")
 
-        task_failed_to_start = (
-            not containers and stop_code == "TaskFailedToStart"
-        )
+        task_failed_to_start = not containers and stop_code == "TaskFailedToStart"
         assert task_failed_to_start is True, (
             "TaskFailedToStart with empty containers must be detected"
         )
@@ -120,9 +113,7 @@ class TestMarkRunsAsCrashed:
         containers = event["detail"]["containers"]
         stop_code = event["detail"].get("stopCode")
 
-        task_failed_to_start = (
-            not containers and stop_code == "TaskFailedToStart"
-        )
+        task_failed_to_start = not containers and stop_code == "TaskFailedToStart"
         assert task_failed_to_start is False
 
     def test_task_failed_to_start_with_stopped_reason(self):
@@ -138,9 +129,7 @@ class TestMarkRunsAsCrashed:
         containers = event["detail"]["containers"]
         stop_code = event["detail"].get("stopCode")
 
-        task_failed_to_start = (
-            not containers and stop_code == "TaskFailedToStart"
-        )
+        task_failed_to_start = not containers and stop_code == "TaskFailedToStart"
         assert task_failed_to_start
 
         stop_reason = event["detail"].get("stoppedReason", "unknown reason")
@@ -164,7 +153,5 @@ class TestMarkRunsAsCrashed:
         containers = event["detail"]["containers"]
         stop_code = event["detail"].get("stopCode")
 
-        task_failed_to_start = (
-            not containers and stop_code == "TaskFailedToStart"
-        )
+        task_failed_to_start = not containers and stop_code == "TaskFailedToStart"
         assert task_failed_to_start is False

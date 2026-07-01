@@ -897,14 +897,19 @@ async def mark_runs_as_crashed(event: dict[str, Any], tags: dict[str, str]):
         # Propose Crashed when containers exited non-zero, OR when ECS
         # stopped the task before any container could start (e.g.,
         # TaskFailedToStart with an empty containers array).
-        task_failed_to_start = not containers and event.get("detail", {}).get(
-            "stopCode"
-        ) == "TaskFailedToStart"
-        should_crash = bool(any(containers_with_non_zero_exit_codes)) or task_failed_to_start
+        task_failed_to_start = (
+            not containers
+            and event.get("detail", {}).get("stopCode") == "TaskFailedToStart"
+        )
+        should_crash = (
+            bool(any(containers_with_non_zero_exit_codes)) or task_failed_to_start
+        )
 
         if should_crash:
             if task_failed_to_start:
-                stop_reason = event.get("detail", {}).get("stoppedReason", "unknown reason")
+                stop_reason = event.get("detail", {}).get(
+                    "stoppedReason", "unknown reason"
+                )
                 crash_message = (
                     f"ECS task failed to start: {stop_reason}. "
                     f"The capacity provider could not place the task."
