@@ -300,7 +300,30 @@ def sync_compatible(
     ```
     python result: Coroutine = sync_compatible(my_async_function)(arg1, arg2) # type: ignore
     ```
+
+    Deprecated: define an explicit async function and dispatch to a sync
+    implementation with `@async_dispatch` instead. See
+    https://github.com/PrefectHQ/prefect/issues/15008.
     """
+    # Imported lazily to keep this low-level module free of heavier imports.
+    from prefect._internal.compatibility.deprecated import (
+        PrefectDeprecationWarning,
+        generate_deprecation_message,
+    )
+
+    warnings.warn(
+        generate_deprecation_message(
+            name="`sync_compatible`",
+            start_date="May 2026",
+            help=(
+                "Define an explicit async function and wrap a sync implementation "
+                "with `@async_dispatch(<async_fn>)` instead. See "
+                "https://github.com/PrefectHQ/prefect/issues/15008 for details."
+            ),
+        ),
+        PrefectDeprecationWarning,
+        stacklevel=2,
+    )
 
     @wraps(async_fn)
     def coroutine_wrapper(
