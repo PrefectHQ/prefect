@@ -1,6 +1,7 @@
 import os
 import sys
 import warnings
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Type, get_origin
 
@@ -334,12 +335,14 @@ class PyprojectTomlConfigSettingsSource(TomlConfigSettingsSourceBase):
             self.toml_data: dict[str, Any] = self.toml_data.get(key, {})
 
 
-def _declared_env_names(settings_cls: Type[BaseSettings]) -> set[str]:
+@lru_cache(maxsize=None)
+def _declared_env_names(settings_cls: Type[BaseSettings]) -> frozenset[str]:
     """Environment variable names that map to declared fields of a settings model.
 
     Walks nested settings models so that, e.g., `LoggingToAPISettings` fields are
     included. Used to distinguish declared logging settings from arbitrary
-    `PREFECT_LOGGING_*` override keys.
+    `PREFECT_LOGGING_*` override keys. Cached per settings class since the field set
+    is static.
     """
     names: set[str] = set()
     prefix = settings_cls.model_config.get("env_prefix", "") or ""
@@ -354,7 +357,7 @@ def _declared_env_names(settings_cls: Type[BaseSettings]) -> set[str]:
             for choice in alias.choices:
                 if isinstance(choice, str):
                     names.add(choice.upper())
-    return names
+    return frozenset(names)
 
 
 class LoggingOverridesSource(PydanticBaseSettingsSource):
