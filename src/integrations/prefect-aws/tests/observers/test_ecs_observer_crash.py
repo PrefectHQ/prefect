@@ -5,153 +5,204 @@ TaskFailedToStart with empty containers array) should be marked as
 Crashed, not left in PENDING forever.
 """
 
-from unittest.mock import AsyncMock, MagicMock, patch
+import uuid
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from prefect_aws.observers.ecs import mark_runs_as_crashed
 
-@pytest.fixture
-def base_event() -> dict:
-    return {
-        "detail": {
-            "taskArn": "arn:aws:ecs:us-east-1:123456789:task/test-cluster/abc123",
-            "lastStatus": "STOPPED",
-            "stopCode": "EssentialContainerExited",
-            "stoppedReason": "Essential container in task exited",
-            "containers": [
-                {
-                    "name": "prefect",
-                    "exitCode": 1,
-                    "containerArn": "arn:aws:ecs:...:container/prefect",
-                }
-            ],
+from prefect.client.schemas import FlowRun, State
+from prefect.client.schemas.objects import StateType
+
+
+class TestMarkRunsAsCrashedTaskFailedToStart:
+    """Tests verifying that TaskFailedToStart events produce a Crashed proposal."""
+
+    @pytest.fixture
+    def task_failed_to_start_event(self) -> dict:
+        return {
+            "detail": {
+                "taskArn": "arn:aws:ecs:us-east-1:123456789:task/test-cluster/def456",
+                "lastStatus": "STOPPED",
+                "stopCode": "TaskFailedToStart",
+                "stoppedReason": "TaskFailedToStart: RESOURCE:GPU",
+                "containers": [],
+            }
         }
-    }
 
+    @pytest.fixture
+    def sample_tags(self) -> dict:
+        return {"prefect.io/flow-run-id": str(uuid.uuid4())}
 
-@pytest.fixture
-def task_failed_to_start_event() -> dict:
-    return {
-        "detail": {
-            "taskArn": "arn:aws:ecs:us-east-1:123456789:task/test-cluster/def456",
-            "lastStatus": "STOPPED",
-            "stopCode": "TaskFailedToStart",
-            "stoppedReason": "TaskFailedToStart: RESOURCE:GPU",
-            "containers": [],
-        }
-    }
+    @pytest.fixture
+    def running_flow_run(self, sample_tags) -> FlowRun:
+        return FlowRun(
+            id=uuid.UUID(sample_tags["prefect.io/flow-run-id"]),
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="RUNNING", name="Running"),
+        )
 
-
-async def _run_handler(event: dict) -> tuple[MagicMock, MagicMock]:
-    """Run mark_runs_as_crashed with mocked dependencies.
-
-    Returns (orchestration_client, propose_state_mock).
-    """
-    flow_run = MagicMock()
-    flow_run.state = MagicMock()
-    flow_run.state.is_final.return_value = False
-    flow_run.state.is_scheduled.return_value = False
-    flow_run.state.is_paused.return_value = False
-    flow_run.state.is_running.return_value = False
-
-    orch_client = AsyncMock()
-    orch_client.read_flow_run.return_value = flow_run
-
-    with patch(
-        "prefect_aws.observers.ecs.prefect.get_client",
-        return_value=AsyncMock().__aenter__,
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    async def test_task_failed_to_start_proposes_crashed(
+        self,
+        mock_propose_state,
+        mock_get_client,
+        task_failed_to_start_event,
+        sample_tags,
+        running_flow_run,
     ):
-        orch_client_mock = AsyncMock()
-        orch_client_mock.read_flow_run = AsyncMock(return_value=flow_run)
+        """TaskFailedToStart with empty containers should propose a Crashed state."""
+        flow_run_id = uuid.UUID(sample_tags["prefect.io/flow-run-id"])
+        mock_client = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
+        mock_client.read_flow_run.return_value = running_flow_run
 
-        with patch(
-            "prefect_aws.observers.ecs.prefect.get_client",
-            new=MagicMock(
-                return_value=AsyncMock(
-                    __aenter__=AsyncMock(return_value=orch_client_mock),
-                    __aexit__=AsyncMock(return_value=None),
-                )
-            ),
-        ):
-            pass  # Simplified: just verify the logic, not the full integration
+        await mark_runs_as_crashed(task_failed_to_start_event, sample_tags)
 
-    return orch_client, None
+        mock_client.read_flow_run.assert_called_once_with(flow_run_id=flow_run_id)
+        mock_propose_state.assert_called_once()
 
+        call_args = mock_propose_state.call_args[1]
+        proposed_state = call_args["state"]
+        assert proposed_state.type == StateType.CRASHED
+        assert proposed_state.name == "Crashed"
+        assert call_args["flow_run_id"] == flow_run_id
+        assert call_args["client"] == mock_client
 
-class TestMarkRunsAsCrashed:
-    """Tests for the mark_runs_as_crashed event handler."""
-
-    def test_task_failed_to_start_should_crash(self):
-        """TaskFailedToStart with empty containers should be detected as
-        needing a crash proposal."""
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    async def test_normal_exit_with_containers_does_not_crash(
+        self,
+        mock_propose_state,
+        mock_get_client,
+        sample_tags,
+        running_flow_run,
+    ):
+        """A normal STOPPED event with containers should NOT propose Crashed."""
         event = {
             "detail": {
-                "stopCode": "TaskFailedToStart",
-                "stoppedReason": "TaskFailedToStart: RESOURCE:GPU",
-                "containers": [],
-            }
-        }
-
-        containers = event["detail"]["containers"]
-        stop_code = event["detail"].get("stopCode")
-
-        task_failed_to_start = not containers and stop_code == "TaskFailedToStart"
-        assert task_failed_to_start is True, (
-            "TaskFailedToStart with empty containers must be detected"
-        )
-
-    def test_normal_exit_with_containers_not_task_failed(self):
-        """Normal STOPPED event with containers should not match
-        TaskFailedToStart."""
-        event = {
-            "detail": {
+                "taskArn": "arn:aws:ecs:us-east-1:123456789:task/cluster/abc123",
+                "lastStatus": "STOPPED",
                 "stopCode": "EssentialContainerExited",
-                "containers": [{"name": "prefect", "exitCode": 0}],
+                "stoppedReason": "Essential container in task exited",
+                "containers": [
+                    {"name": "prefect", "exitCode": 0},
+                ],
             }
         }
+        mock_client = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
+        mock_client.read_flow_run.return_value = running_flow_run
 
-        containers = event["detail"]["containers"]
-        stop_code = event["detail"].get("stopCode")
+        await mark_runs_as_crashed(event, sample_tags)
 
-        task_failed_to_start = not containers and stop_code == "TaskFailedToStart"
-        assert task_failed_to_start is False
+        mock_propose_state.assert_not_called()
 
-    def test_task_failed_to_start_with_stopped_reason(self):
-        """The stoppedReason field should be included in the crash message."""
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    async def test_empty_containers_without_task_failed_does_not_crash(
+        self,
+        mock_propose_state,
+        mock_get_client,
+        sample_tags,
+        running_flow_run,
+    ):
+        """Empty containers with a different stopCode should NOT propose Crashed."""
         event = {
             "detail": {
-                "stopCode": "TaskFailedToStart",
-                "stoppedReason": "TaskFailedToStart: RESOURCE:GPU",
-                "containers": [],
-            }
-        }
-
-        containers = event["detail"]["containers"]
-        stop_code = event["detail"].get("stopCode")
-
-        task_failed_to_start = not containers and stop_code == "TaskFailedToStart"
-        assert task_failed_to_start
-
-        stop_reason = event["detail"].get("stoppedReason", "unknown reason")
-        crash_message = (
-            f"ECS task failed to start: {stop_reason}. "
-            f"The capacity provider could not place the task."
-        )
-        assert "RESOURCE:GPU" in crash_message
-        assert "capacity provider" in crash_message
-
-    def test_empty_containers_without_task_failed(self):
-        """Empty containers with a different stopCode should NOT be treated
-        as TaskFailedToStart."""
-        event = {
-            "detail": {
+                "taskArn": "arn:aws:ecs:us-east-1:123456789:task/cluster/xyz789",
+                "lastStatus": "STOPPED",
                 "stopCode": "ServiceSchedulingStrategy",
                 "containers": [],
             }
         }
+        mock_client = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
+        mock_client.read_flow_run.return_value = running_flow_run
 
-        containers = event["detail"]["containers"]
-        stop_code = event["detail"].get("stopCode")
+        await mark_runs_as_crashed(event, sample_tags)
 
-        task_failed_to_start = not containers and stop_code == "TaskFailedToStart"
-        assert task_failed_to_start is False
+        mock_propose_state.assert_not_called()
+
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    async def test_task_failed_to_start_crash_message_includes_reason(
+        self,
+        mock_propose_state,
+        mock_get_client,
+        task_failed_to_start_event,
+        sample_tags,
+        running_flow_run,
+    ):
+        """The Crashed message should include the stoppedReason from the event."""
+        mock_client = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
+        mock_client.read_flow_run.return_value = running_flow_run
+
+        await mark_runs_as_crashed(task_failed_to_start_event, sample_tags)
+
+        call_args = mock_propose_state.call_args[1]
+        crash_message = call_args.get("message", "")
+        assert "TaskFailedToStart" in crash_message
+        assert "RESOURCE:GPU" in crash_message
+        assert "capacity provider" in crash_message
+
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    async def test_task_failed_to_start_skips_final_flow_run(
+        self,
+        mock_propose_state,
+        mock_get_client,
+        task_failed_to_start_event,
+        sample_tags,
+    ):
+        """A TaskFailedToStart event should NOT crash a flow run in a final state."""
+        flow_run_id = uuid.UUID(sample_tags["prefect.io/flow-run-id"])
+        final_flow_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="COMPLETED", name="Completed"),
+        )
+        mock_client = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
+        mock_client.read_flow_run.return_value = final_flow_run
+
+        await mark_runs_as_crashed(task_failed_to_start_event, sample_tags)
+
+        mock_propose_state.assert_not_called()
+
+    @patch("prefect_aws.observers.ecs.prefect.get_client")
+    @patch("prefect_aws.observers.ecs.propose_state")
+    async def test_task_failed_to_start_missing_flow_run(
+        self,
+        mock_propose_state,
+        mock_get_client,
+        task_failed_to_start_event,
+        sample_tags,
+    ):
+        """A TaskFailedToStart event should not crash when flow run is not found."""
+        from prefect.exceptions import ObjectNotFound
+
+        mock_client = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.__aenter__.return_value = mock_client
+        mock_get_client.return_value = mock_context
+        mock_client.read_flow_run.side_effect = ObjectNotFound("Flow run not found")
+
+        await mark_runs_as_crashed(task_failed_to_start_event, sample_tags)
+
+        mock_propose_state.assert_not_called()
