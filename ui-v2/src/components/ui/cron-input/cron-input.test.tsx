@@ -43,6 +43,42 @@ describe("CronInput", () => {
 		expect(screen.queryByText("Invalid expression")).not.toBeInTheDocument();
 	});
 
+	it("renders an invalid cron message for an equal range step", async () => {
+		const user = userEvent.setup();
+		render(<TestCronInput />);
+
+		await user.type(screen.getByRole("textbox"), "0 23-23/6 * * *");
+
+		expect(screen.getByText("Invalid expression")).toBeVisible();
+	});
+
+	it("renders an invalid cron message for a month alias step at the field max", async () => {
+		const user = userEvent.setup();
+		render(<TestCronInput />);
+
+		await user.type(screen.getByRole("textbox"), "0 0 1 DEC/2 *");
+
+		expect(screen.getByText("Invalid expression")).toBeVisible();
+	});
+
+	it("renders an invalid cron message for a day-of-week alias step at the field max", async () => {
+		const user = userEvent.setup();
+		render(<TestCronInput />);
+
+		await user.type(screen.getByRole("textbox"), "0 0 * * SAT/2");
+
+		expect(screen.getByText("Invalid expression")).toBeVisible();
+	});
+
+	it("renders an invalid cron message for six-field cron expressions", async () => {
+		const user = userEvent.setup();
+		render(<TestCronInput />);
+
+		await user.type(screen.getByRole("textbox"), "59/15 * * * * *");
+
+		expect(screen.getByText("Invalid expression")).toBeVisible();
+	});
+
 	it("renders an invalid cron message for a server-diverging step", async () => {
 		const user = userEvent.setup();
 		render(<TestCronInput />);

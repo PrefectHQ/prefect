@@ -77,6 +77,21 @@ describe("CronScheduleForm", () => {
 		expect(screen.getByText(/invalid expression/i)).toBeVisible();
 	});
 
+	it("does not submit a diverging alias cron expression", async () => {
+		const user = userEvent.setup();
+		const onSubmit = vi.fn();
+		render(<CronScheduleFormTest deployment_id="0" onSubmit={onSubmit} />, {
+			wrapper: createWrapper(),
+		});
+
+		await user.clear(screen.getByLabelText(/value/i));
+		await user.type(screen.getByLabelText(/value/i), "0 0 * * SAT/2");
+		await user.click(screen.getByRole("button", { name: /save/i }));
+
+		expect(onSubmit).not.toHaveBeenCalled();
+		expect(screen.getByText(/invalid expression/i)).toBeVisible();
+	});
+
 	it("is able to edit a cron schedule", () => {
 		// Setup
 		const MOCK_SCHEDULE = {
