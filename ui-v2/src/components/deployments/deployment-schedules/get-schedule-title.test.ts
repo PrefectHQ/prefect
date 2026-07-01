@@ -49,6 +49,67 @@ describe("getScheduleTitle()", () => {
 		expect(RESULT).toEqual(EXPECTED);
 	});
 
+	it("returns the raw cron string for a diverging alias step", () => {
+		const mockDeploymentSchedule: DeploymentSchedule = {
+			...baseDeploymentSchedule,
+			schedule: {
+				cron: "0 0 * * SAT/2",
+				timezone: "UTC",
+				day_or: true,
+			},
+		};
+
+		const RESULT = getScheduleTitle(mockDeploymentSchedule);
+
+		expect(RESULT).toBe("0 0 * * SAT/2");
+	});
+
+	it("returns the raw cron string for a six-field cron expression", () => {
+		const mockDeploymentSchedule: DeploymentSchedule = {
+			...baseDeploymentSchedule,
+			schedule: {
+				cron: "59/15 * * * * *",
+				timezone: "UTC",
+				day_or: true,
+			},
+		};
+
+		const RESULT = getScheduleTitle(mockDeploymentSchedule);
+
+		expect(RESULT).toBe("59/15 * * * * *");
+	});
+
+	it("returns the raw cron string for a diverging step", () => {
+		const mockDeploymentSchedule: DeploymentSchedule = {
+			...baseDeploymentSchedule,
+			schedule: {
+				cron: "0 23/6 * * *",
+				timezone: "UTC",
+				day_or: true,
+			},
+		};
+
+		const RESULT = getScheduleTitle(mockDeploymentSchedule);
+
+		expect(RESULT).toBe("0 23/6 * * *");
+	});
+
+	it("returns a cron formatted title for an aligned step", () => {
+		const mockDeploymentSchedule: DeploymentSchedule = {
+			...baseDeploymentSchedule,
+			schedule: {
+				cron: "0 */6 * * *",
+				timezone: "UTC",
+				day_or: true,
+			},
+		};
+
+		const RESULT = getScheduleTitle(mockDeploymentSchedule);
+
+		expect(RESULT).toMatch(/every 6 hours/i);
+		expect(RESULT).not.toBe("0 */6 * * *");
+	});
+
 	it("returns a rrule formatted title", () => {
 		const mockDeploymentSchedule: DeploymentSchedule = {
 			...baseDeploymentSchedule,
