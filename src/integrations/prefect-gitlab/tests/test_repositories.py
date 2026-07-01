@@ -114,6 +114,33 @@ class TestGitLab:
         ]
         assert mock.await_args[0][0][: len(expected_cmd)] == expected_cmd
 
+    async def test_https_connection_with_token_escapes_special_chars(
+        self, monkeypatch
+    ):
+        """Ensure special characters in GitLab tokens are URL-encoded."""
+
+        class p:
+            returncode = 0
+
+        mock = AsyncMock(return_value=p())
+        monkeypatch.setattr(prefect_gitlab.repositories, "run_process", mock)
+        credential = "abc+def/ghi="
+        repo = "https://gitlab.com/PrefectHQ/prefect.git"
+        g = GitLabRepository(
+            repository=repo,
+            credentials=GitLabCredentials(token=SecretStr(credential)),
+        )
+        await g.get_directory()
+        assert mock.await_count == 1
+        expected_cmd = [
+            "git",
+            "clone",
+            "https://oauth2:abc%2Bdef%2Fghi%3D@gitlab.com/PrefectHQ/prefect.git",
+            "--depth",
+            "1",
+        ]
+        assert mock.await_args[0][0][: len(expected_cmd)] == expected_cmd
+
     async def test_http_connection_with_token_added_correctly(self, monkeypatch):
         """Ensure that the repo url is in the format `http://<oauth-key>@gitlab.com/<username>/<repo>.git`."""  # noqa: E501
 

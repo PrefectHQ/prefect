@@ -1,12 +1,17 @@
 """Module used to enable authenticated interactions with GitLab"""
 
 from typing import Optional
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import quote, urlparse, urlunparse
 
 from gitlab import Gitlab
 from pydantic import Field, SecretStr
 
 from prefect.blocks.core import Block
+
+
+def _quote_credential(value: str) -> str:
+    """URL-encode a credential value for safe embedding in git URLs."""
+    return quote(value, safe="")
 
 
 class GitLabCredentials(Block):
@@ -65,14 +70,16 @@ class GitLabCredentials(Block):
         # Deploy tokens should not have oauth2: prefix (GitLab 16.3.4+ rejects them)
         # See: https://github.com/PrefectHQ/prefect/issues/10832
         if ":" in token_value and not token_value.startswith("oauth2:"):
-            credentials = token_value
+            username, token = token_value.split(":", 1)
+            credentials = f"{_quote_credential(username)}:{_quote_credential(token)}"
         # Personal access token: add oauth2: prefix
         # See: https://github.com/PrefectHQ/prefect/issues/16836
         elif not token_value.startswith("oauth2:"):
-            credentials = f"oauth2:{token_value}"
+            credentials = f"oauth2:{_quote_credential(token_value)}"
         else:
             # Already prefixed
-            credentials = token_value
+            username, token = token_value.split(":", 1)
+            credentials = f"{_quote_credential(username)}:{_quote_credential(token)}"
 
         # Insert credentials into URL
         parsed = urlparse(url)
