@@ -152,7 +152,8 @@ class TestMarkRunsAsCrashedTaskFailedToStart:
         await mark_runs_as_crashed(task_failed_to_start_event, sample_tags)
 
         call_args = mock_propose_state.call_args[1]
-        crash_message = call_args.get("message", "")
+        proposed_state = call_args["state"]
+        crash_message = proposed_state.message
         assert "TaskFailedToStart" in crash_message
         assert "RESOURCE:GPU" in crash_message
         assert "capacity provider" in crash_message
