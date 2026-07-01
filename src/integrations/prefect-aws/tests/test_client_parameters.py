@@ -3,6 +3,7 @@ from typing import Any, Dict
 import pytest
 from botocore import UNSIGNED
 from botocore.client import Config
+from prefect_aws import __version__ as PREFECT_AWS_VERSION
 from prefect_aws.client_parameters import AwsClientParameters
 
 
@@ -34,7 +35,10 @@ class TestAwsClientParameters:
     def test_get_params_override_expected_output(
         self, params: AwsClientParameters, result: Dict[str, Any], tmp_path
     ):
-        assert result == params.get_params_override()
+        override = params.get_params_override()
+        # A default prefect-aws User-Agent Config is always injected.
+        assert isinstance(override.pop("config"), Config)
+        assert override == result
 
     @pytest.mark.parametrize(
         "params,result",
@@ -133,6 +137,42 @@ class TestAwsClientParameters:
         override_params = params.get_params_override()
         assert "verify" not in override_params, (
             "verify should not be in params_override when not explicitly set"
+        )
+
+    def test_default_user_agent_extra_includes_prefect_aws(self):
+        # Every constructed boto3 client should advertise prefect-aws so
+        # operators can attribute traffic back to Prefect workloads.
+        override = AwsClientParameters().get_params_override()
+        assert (
+            f"prefect-aws/{PREFECT_AWS_VERSION}" in override["config"].user_agent_extra
+        )
+
+    def test_caller_user_agent_extra_is_preserved(self):
+        # If a caller already set user_agent_extra, the prefect-aws token is
+        # appended without dropping the caller's value.
+        params = AwsClientParameters(config=Config(user_agent_extra="my-app/1.0"))
+        override = params.get_params_override()
+        ua_extra = override["config"].user_agent_extra
+        assert "my-app/1.0" in ua_extra
+        assert f"prefect-aws/{PREFECT_AWS_VERSION}" in ua_extra
+
+    def test_user_agent_extra_is_idempotent(self):
+        # Calling get_params_override repeatedly must not duplicate the token.
+        params = AwsClientParameters()
+        first = params.get_params_override()["config"].user_agent_extra
+        second = params.get_params_override()["config"].user_agent_extra
+        assert first == second
+        assert first.count(f"prefect-aws/{PREFECT_AWS_VERSION}") == 1
+
+    def test_unsigned_signature_version_preserved_with_user_agent(self):
+        # Regression: the UA-tagging step must not undo the manual
+        # signature_version=UNSIGNED conversion that get_params_override
+        # performs after constructing the Config.
+        params = AwsClientParameters(config=Config(signature_version="unsigned"))
+        override = params.get_params_override()
+        assert override["config"].signature_version is UNSIGNED
+        assert (
+            f"prefect-aws/{PREFECT_AWS_VERSION}" in override["config"].user_agent_extra
         )
 
     def test_get_params_override_with_explicit_verify(self):

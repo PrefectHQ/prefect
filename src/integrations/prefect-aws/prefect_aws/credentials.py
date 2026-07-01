@@ -1,5 +1,6 @@
 """Module handling AWS credentials"""
 
+import abc
 import uuid
 from enum import Enum
 from functools import lru_cache
@@ -264,89 +265,63 @@ class AwsCredentials(CredentialsBlock):
         return self.get_client(client_type=ClientType.SECRETS_MANAGER)
 
 
-class MinIOCredentials(CredentialsBlock):
+class S3CompatibleCredentials(CredentialsBlock, abc.ABC):
     """
-    Block used to manage authentication with MinIO. Refer to the
-    [MinIO docs](https://docs.min.io/docs/minio-server-configuration-guide.html)
-    for more info about the possible credential configurations.
+    Base block for authentication against any S3-compatible object storage
+    service (Backblaze B2, Cloudflare R2, MinIO, Wasabi, etc.).
+
+    Subclasses provide vendor-named credential fields and implement
+    `_access_key_id` / `_secret_access_key`; this base class handles the
+    shared boto3 session and client plumbing.
+
+    For the generic case, use `AwsCredentials` with
+    `aws_client_parameters.endpoint_url` set to the provider's S3 endpoint.
 
     Attributes:
-        minio_root_user: Admin or root user.
-        minio_root_password: Admin or root password.
-        region_name: Location of server, e.g. "us-east-1".
-
-    Example:
-        Load stored MinIO credentials:
-        ```python
-        from prefect_aws import MinIOCredentials
-
-        minio_credentials_block = MinIOCredentials.load("BLOCK_NAME")
-        ```
-    """  # noqa E501
+        region_name: Region or location of the bucket. Must match the region
+            segment in `aws_client_parameters.endpoint_url` when the provider
+            requires it.
+        aws_client_parameters: Extra parameters used to initialize the boto3
+            client; set `endpoint_url` here.
+    """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)
 
-    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/676cb17bcbdff601f97e0a02ff8bcb480e91ff40-250x250.png"  # noqa
-    _block_type_name = "MinIO Credentials"
-    _description = (
-        "Block used to manage authentication with MinIO. Refer to the MinIO "
-        "docs: https://docs.min.io/docs/minio-server-configuration-guide.html "
-        "for more info about the possible credential configurations."
-    )
-    _documentation_url = "https://docs.prefect.io/integrations/prefect-aws"  # noqa
-
-    minio_root_user: str = Field(default=..., description="Admin or root user.")
-    minio_root_password: SecretStr = Field(
-        default=..., description="Admin or root password."
-    )
     region_name: Optional[str] = Field(
         default=None,
-        description="The AWS Region where you want to create new connections.",
+        description="Region or location of the bucket.",
     )
     aws_client_parameters: AwsClientParameters = Field(
         default_factory=AwsClientParameters,
         description="Extra parameters to initialize the Client.",
     )
 
-    def __hash__(self):
-        return hash(
-            (
-                hash(self.minio_root_user),
-                hash(self.minio_root_password),
-                hash(self.region_name),
-                hash(self.aws_client_parameters),
-            )
-        )
+    # Inheriting from `abc.ABC` opts this class out of Prefect's Block
+    # registry (see `prefect.utilities.dispatch._register_subclass_of_base_type`),
+    # so only concrete vendor subclasses appear in the Blocks UI and in the
+    # block-standards test suite.
+
+    @property
+    @abc.abstractmethod
+    def _access_key_id(self) -> str: ...
+
+    @property
+    @abc.abstractmethod
+    def _secret_access_key(self) -> Optional[SecretStr]: ...
 
     def get_boto3_session(self) -> boto3.Session:
         """
-        Returns an authenticated boto3 session that can be used to create clients
-        and perform object operations on MinIO server.
-
-        Example:
-            Create an S3 client from an authorized boto3 session
-
-            ```python
-            minio_credentials = MinIOCredentials(
-                minio_root_user = "minio_root_user",
-                minio_root_password = "minio_root_password"
-            )
-            s3_client = minio_credentials.get_boto3_session().client(
-                service_name="s3",
-                endpoint_url="http://localhost:9000"
-            )
-            ```
+        Returns an authenticated boto3 session that can be used to create
+        clients and perform object operations on the S3-compatible service.
         """
-
-        minio_root_password = (
-            self.minio_root_password.get_secret_value()
-            if self.minio_root_password
+        secret = (
+            self._secret_access_key.get_secret_value()
+            if self._secret_access_key
             else None
         )
-
         return boto3.Session(
-            aws_access_key_id=self.minio_root_user,
-            aws_secret_access_key=minio_root_password,
+            aws_access_key_id=self._access_key_id,
+            aws_secret_access_key=secret,
             region_name=self.region_name,
         )
 
@@ -376,3 +351,118 @@ class MinIOCredentials(CredentialsBlock):
             An authenticated S3 client.
         """
         return self.get_client(client_type=ClientType.S3)
+
+
+class MinIOCredentials(S3CompatibleCredentials):
+    """
+    Block used to manage authentication with MinIO. Refer to the
+    [MinIO docs](https://docs.min.io/docs/minio-server-configuration-guide.html)
+    for more info about the possible credential configurations.
+
+    Attributes:
+        minio_root_user: Admin or root user.
+        minio_root_password: Admin or root password.
+        region_name: Location of server, e.g. "us-east-1".
+
+    Example:
+        Load stored MinIO credentials:
+        ```python
+        from prefect_aws import MinIOCredentials
+
+        minio_credentials_block = MinIOCredentials.load("BLOCK_NAME")
+        ```
+    """  # noqa E501
+
+    _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/676cb17bcbdff601f97e0a02ff8bcb480e91ff40-250x250.png"  # noqa
+    _block_type_name = "MinIO Credentials"
+    _description = (
+        "Block used to manage authentication with MinIO. Refer to the MinIO "
+        "docs: https://docs.min.io/docs/minio-server-configuration-guide.html "
+        "for more info about the possible credential configurations."
+    )
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-aws"  # noqa
+
+    minio_root_user: str = Field(default=..., description="Admin or root user.")
+    minio_root_password: SecretStr = Field(
+        default=..., description="Admin or root password."
+    )
+
+    @property
+    def _access_key_id(self) -> str:
+        return self.minio_root_user
+
+    @property
+    def _secret_access_key(self) -> Optional[SecretStr]:
+        return self.minio_root_password
+
+    def __hash__(self):
+        return hash(
+            (
+                hash(self.minio_root_user),
+                hash(self.minio_root_password),
+                hash(self.region_name),
+                hash(self.aws_client_parameters),
+            )
+        )
+
+
+class BackblazeB2Credentials(S3CompatibleCredentials):
+    """
+    Block used to manage authentication with Backblaze B2 via its
+    [S3-compatible API](https://www.backblaze.com/docs/cloud-storage-s3-compatible-api).
+    Create a bucket-scoped [Application Key](https://www.backblaze.com/docs/cloud-storage-application-keys)
+    in the B2 console; the `keyID` becomes `application_key_id` and the
+    `applicationKey` becomes `application_key`.
+
+    Attributes:
+        application_key_id: B2 application key ID (the "keyID" in the B2
+            console).
+        application_key: B2 application key (the "applicationKey" in the B2
+            console).
+        region_name: B2 region, e.g. "us-west-004". Must match the region
+            segment in `aws_client_parameters.endpoint_url`.
+
+    Example:
+        Load stored Backblaze B2 credentials:
+        ```python
+        from prefect_aws import BackblazeB2Credentials
+
+        b2_credentials_block = BackblazeB2Credentials.load("BLOCK_NAME")
+        ```
+    """  # noqa E501
+
+    _logo_url = "https://cdn.prod.website-files.com/63d32de856f6323a43a277f2/64b1ab4daf31e414a481b056_Webclip.png"  # noqa
+    _block_type_name = "Backblaze B2 Credentials"
+    _description = (
+        "Block used to manage authentication with Backblaze B2 via its "
+        "S3-compatible API. See "
+        "https://www.backblaze.com/docs/cloud-storage-s3-compatible-api"
+    )
+    _documentation_url = "https://docs.prefect.io/integrations/prefect-aws"  # noqa
+
+    application_key_id: str = Field(
+        default=...,
+        description='B2 application key ID (the "keyID" in the B2 console).',
+    )
+    application_key: SecretStr = Field(
+        default=...,
+        description='B2 application key (the "applicationKey" in the B2 console).',
+    )
+
+    @property
+    def _access_key_id(self) -> str:
+        return self.application_key_id
+
+    @property
+    def _secret_access_key(self) -> Optional[SecretStr]:
+        return self.application_key
+
+    def __hash__(self):
+        return hash(
+            (
+                hash(self.application_key_id),
+                hash(self.application_key),
+                hash(self.region_name),
+                hash(self.aws_client_parameters),
+            )
+        )
