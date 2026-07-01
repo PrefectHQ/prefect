@@ -50,6 +50,10 @@ Enable it on the process running `prefect server start` (install `prefect-azure`
 in that image/environment):
 
 ```bash
+# Enable the plugin system so Prefect loads the database hook
+# (on Prefect < 3.7 use PREFECT_EXPERIMENTS_PLUGINS_ENABLED=true instead)
+export PREFECT_PLUGINS_ENABLED=true
+
 export PREFECT_INTEGRATIONS_AZURE_POSTGRES_MANAGED_IDENTITY_ENABLED=true
 # Optional: select a specific user-assigned identity
 export PREFECT_INTEGRATIONS_AZURE_POSTGRES_MANAGED_IDENTITY_CLIENT_ID=<client-id>
