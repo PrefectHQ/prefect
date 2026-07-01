@@ -128,6 +128,29 @@ To use AWS IAM authentication for your PostgreSQL database (experimental):
    export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://iam_user@host:5432/prefect"
    ```
 
+### Azure Managed Identity Authentication
+
+To use Azure managed identity (Microsoft Entra ID) authentication for your PostgreSQL database (experimental):
+
+1. **Install the Azure integration**:
+   ```bash
+   pip install prefect-azure
+   ```
+
+2. **Enable Microsoft Entra authentication** on your Azure Database for PostgreSQL flexible server and grant the identity a database principal via the `pgaadauth` extension.
+
+3. **Enable plugins and managed identity authentication**:
+   ```bash
+   export PREFECT_EXPERIMENTS_PLUGINS_ENABLED=true
+   export PREFECT_INTEGRATIONS_AZURE_POSTGRES_MANAGED_IDENTITY_ENABLED=true
+   # Optional: export PREFECT_INTEGRATIONS_AZURE_POSTGRES_MANAGED_IDENTITY_CLIENT_ID=<client-id>
+   ```
+
+4. **Configure your connection URL**:
+   ```bash
+   export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://<identity-name>@host:5432/prefect"
+   ```
+
 ### Redis setup
 
 Configure Redis as your server's message broker, cache, and lease storage:

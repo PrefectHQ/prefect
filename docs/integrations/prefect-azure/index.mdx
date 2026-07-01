@@ -129,6 +129,48 @@ See the [Azure Container Instances Worker Guide](/integrations/prefect-azure/aci
 
 If you're using Prefect Cloud, [ACI push work pools](/v3/how-to-guides/deployment_infra/serverless#azure-container-instances) provide all the benefits of ACI with a quick setup and no worker needed.
 
+## Managed Identity Authentication for PostgreSQL (Experimental)
+
+`prefect-azure` includes a plugin that authenticates the Prefect server to Azure Database for PostgreSQL using a Microsoft Entra ID token from a managed identity, so no database password is stored anywhere. The token is acquired via `DefaultAzureCredential` and supplied to the database driver on every new connection, so short-lived tokens are refreshed automatically.
+
+### Prerequisites
+
+Before using managed identity authentication, configure Azure:
+
+1. **Enable Microsoft Entra authentication** on your Azure Database for PostgreSQL flexible server.
+
+2. **Create a database principal** for the identity and grant it access, using the `pgaadauth` extension while connected as an Entra administrator:
+   ```sql
+   SELECT * FROM pgaadauth_create_principal('<identity-name>', false, false);
+   GRANT CONNECT ON DATABASE prefect TO "<identity-name>";
+   ```
+
+3. **Make the identity available to the Prefect server** — a user-assigned or system-assigned managed identity when running in Azure, or your `az login` identity when developing locally (both are resolved by `DefaultAzureCredential`).
+
+### Enable the Plugin
+
+1. Enable the experimental plugin system:
+   ```bash
+   export PREFECT_EXPERIMENTS_PLUGINS_ENABLED=true
+   ```
+
+2. Enable managed identity authentication:
+   ```bash
+   export PREFECT_INTEGRATIONS_AZURE_POSTGRES_MANAGED_IDENTITY_ENABLED=true
+   ```
+
+3. (Optional) Select a specific user-assigned identity by client ID:
+   ```bash
+   export PREFECT_INTEGRATIONS_AZURE_POSTGRES_MANAGED_IDENTITY_CLIENT_ID=<client-id>
+   ```
+
+4. Configure a password-less database connection URL (the plugin supplies the token):
+   ```bash
+   export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://<identity-name>@<host>:5432/prefect"
+   ```
+
+The plugin will automatically acquire and inject a Microsoft Entra token as the password when connecting to the database.
+
 ## Resources
 
 For assistance using Azure, consult the [Azure documentation](https://learn.microsoft.com/en-us/azure).
