@@ -14,10 +14,27 @@ Contact Prefect support at [help@prefect.io](mailto:help@prefect.io) with questi
 
 Prefect Cloud applies rate limits at the account level to ensure system stability. When limits are exceeded, endpoints return a `429` response with a `Retry-After` header.
 
-Rate limits are organized into two buckets:
+Rate limits are organized into two buckets. All API paths within a bucket share a single counter. There are no sub-limits per resource type.
 
-- **API Requests** — All calls to the orchestration API, including creating, reading, and updating flows, flow runs, task runs, deployments, work pools, and other resources.
-- **Logs + Events** — All log writes and event submissions, including task run events.
+### API Requests
+
+Every HTTP call to the Prefect Cloud orchestration API counts as one request toward this bucket, including:
+
+- Creating, reading, updating, and deleting **flows**, **flow runs**, **task runs**, **deployments**, **work pools**, **work queues**, **blocks**, **artifacts**, **variables**, and **concurrency limits**
+- **Flow run and task run state transitions** (each `set_state` call counts as one request)
+- **Reading events and logs** (filter and count queries)
+
+<Note>
+Concurrency limit operations count toward this bucket. When a task uses a concurrency limit tag, the SDK makes API calls to acquire and release the concurrency slot. This means a task with a concurrency limit tag generates additional API requests beyond the task run state transitions themselves.
+</Note>
+
+### Logs + Events
+
+Every log message and every event submitted to Prefect Cloud counts as one request toward this bucket, including:
+
+- **Log writes**: Each individual log message counts as one request (not each HTTP batch). This includes all logs sent by flows, tasks, and Prefect infrastructure (such as worker and agent logs).
+- **Event submissions**: Each event submitted through the `/events` HTTP endpoint counts as one request.
+- **Task run events via WebSocket**: The Prefect SDK streams task run lifecycle events (such as `Running`, `Completed`, and `Failed` state changes) to Prefect Cloud over a WebSocket connection. Each event counts as one request toward this bucket. These events are emitted automatically by the SDK for every `@task` execution and are not manually created.
 
 ### Limits by plan
 
@@ -57,9 +74,9 @@ required on every `POST`, `PUT`, and `PATCH` request; omitting it returns a `411
 This limit applies to the entire HTTP request body, which includes JSON encoding overhead. Common scenarios
 where you may encounter this limit:
 
-- **Large artifacts** — Table or Markdown artifacts with many rows or large cell values.
-- **Bulk log writes** — Batches of log entries that together exceed 5 MiB.
-- **Flow run inputs** — Large payloads passed through `flow.send_input()` or `send_input()`.
+- **Large artifacts**: Table or Markdown artifacts with many rows or large cell values.
+- **Bulk log writes**: Batches of log entries that together exceed 5 MiB.
+- **Flow run inputs**: Large payloads passed through `flow.send_input()` or `send_input()`.
 
 ### Reduce request size
 
