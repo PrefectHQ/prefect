@@ -149,9 +149,10 @@ Before using managed identity authentication, configure Azure:
 
 ### Enable the Plugin
 
-1. Enable the experimental plugin system:
+1. Enable the plugin system:
    ```bash
-   export PREFECT_EXPERIMENTS_PLUGINS_ENABLED=true
+   # on Prefect < 3.7 use PREFECT_EXPERIMENTS_PLUGINS_ENABLED=true instead
+   export PREFECT_PLUGINS_ENABLED=true
    ```
 
 2. Enable managed identity authentication:
