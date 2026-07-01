@@ -476,7 +476,7 @@ class ShellOperation(JobBlock[list[str]]):
             )
             temp_file.write(joined_commands.encode())
 
-            if self.shell is None and sys.platform == "win32" or extension == ".ps1":
+            if self.shell is None and (sys.platform == "win32" or extension == ".ps1"):
                 shell = "powershell"
             elif self.shell is None:
                 shell = "bash"
