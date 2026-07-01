@@ -9,7 +9,6 @@ import uuid
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from prefect_aws.observers.ecs import mark_runs_as_crashed
 
 from prefect.client.schemas import FlowRun, State
