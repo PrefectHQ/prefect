@@ -23,6 +23,26 @@ OSSRDBMS_SCOPE = "https://ossrdbms-aad.database.windows.net/.default"
 def set_database_connection_params(
     connection_url: str, settings: Any
 ) -> Mapping[str, Any]:
+    """Provide Microsoft Entra ID (managed identity) auth params for Postgres.
+
+    Prefect calls this hook when building its server database engine and merges
+    the returned mapping into asyncpg's `connect_args`. When managed-identity auth
+    is enabled (`AzureSettings().postgres.managed_identity.enabled`), this returns
+    a `password` callable that mints a short-lived Entra token via
+    `DefaultAzureCredential` and an SSL context. asyncpg invokes the callable on
+    every new connection, so tokens refresh automatically and no database password
+    is required. Returns an empty mapping when the feature is disabled.
+
+    Args:
+        connection_url: The database connection URL (unused; the username and host
+            come from the URL Prefect already built).
+        settings: The current Prefect settings (unused; integration settings are
+            read from `AzureSettings`).
+
+    Returns:
+        A mapping of asyncpg connection parameters to merge into `connect_args`,
+        or an empty mapping when managed-identity auth is disabled.
+    """
     mi_settings = AzureSettings().postgres.managed_identity
 
     if not mi_settings.enabled:
