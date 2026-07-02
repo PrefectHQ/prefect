@@ -28,8 +28,8 @@ def timeout_async(
     try:
         with cancel_async_after(timeout=seconds):
             yield
-    except CancelledError:
-        raise timeout_exc_type(f"Scope timed out after {seconds} second(s).")
+    except CancelledError as e:
+        raise timeout_exc_type(f"Scope timed out after {seconds} second(s).") from e
 
 
 @contextmanager
