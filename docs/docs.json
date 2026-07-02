@@ -194,6 +194,7 @@
                 ]
               },
               "v3/how-to-guides/deployment_infra/serverless",
+              "v3/how-to-guides/deployment_infra/push-pool-oidc",
               "v3/how-to-guides/deployment_infra/docker",
               "v3/how-to-guides/deployment_infra/serve-flows-docker",
               "v3/how-to-guides/deployment_infra/kubernetes",

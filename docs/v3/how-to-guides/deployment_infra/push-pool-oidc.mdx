@@ -1,0 +1,331 @@
+---
+title: How to use OIDC with push work pools
+sidebarTitle: Use OIDC with push work pools
+description: Configure OIDC-based authentication for push work pools to eliminate static credentials.
+keywords: ["oidc", "push work pool", "workload identity", "federated identity", "short-lived credentials"]
+---
+
+<span class="badge cloud"></span>
+
+Push work pools can authenticate with your cloud provider using OpenID Connect (OIDC) instead of static credentials.
+Prefect Cloud acts as an OIDC identity provider and issues short-lived tokens that your cloud provider exchanges for temporary credentials, so no long-lived secrets are stored in Prefect Cloud.
+
+OIDC authentication is supported for the following push work pool types:
+
+- AWS Elastic Container Service (ECS)
+- Google Cloud Run
+- Google Cloud Run V2
+
+<Note>
+For OIDC with **Prefect Managed** work pools, see [Using cloud workload identity with Prefect Managed work pools](/v3/how-to-guides/deployment_infra/managed-aws-federated-identity).
+</Note>
+
+## How it works
+
+When Prefect Cloud submits a flow run to a push work pool configured with OIDC credentials:
+
+1. Prefect Cloud generates a signed JWT from its OIDC provider (`https://api.prefect.cloud/oidc-provider`).
+2. The token includes your Prefect Cloud account ID as the subject (`prefect:account:<ACCOUNT_ID>`) and `prefect-cloud` as the audience.
+3. The push work pool worker exchanges the JWT for temporary credentials from your cloud provider (AWS STS or GCP Security Token Service).
+4. The temporary credentials are used to create and run the infrastructure for your flow run.
+
+The JWT also includes metadata about the flow run (deployment name, flow name, flow run ID, work pool name, and workspace ID), which you can reference in trust policy conditions for fine-grained access control.
+
+## Configure OIDC for AWS ECS push work pools
+
+<Steps>
+<Step title="Create the OIDC identity provider in AWS">
+
+Register Prefect Cloud as an OIDC identity provider in your AWS account. You only need to do this once per AWS account.
+
+{/* pmd-metadata: notest */}
+```bash
+aws iam create-open-id-connect-provider \
+  --url https://api.prefect.cloud/oidc-provider \
+  --client-id-list prefect-cloud
+```
+
+This command returns an ARN similar to `arn:aws:iam::123456789012:oidc-provider/api.prefect.cloud/oidc-provider`.
+Use that ARN in the trust policy below.
+
+</Step>
+<Step title="Create or update an IAM role with a trust policy">
+
+The IAM role must trust the OIDC provider and allow `sts:AssumeRoleWithWebIdentity`.
+Create a trust policy that restricts access to your Prefect Cloud account:
+
+{/* pmd-metadata: notest */}
+```json trust-policy.json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::123456789012:oidc-provider/api.prefect.cloud/oidc-provider"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "api.prefect.cloud/oidc-provider:aud": "prefect-cloud",
+          "api.prefect.cloud/oidc-provider:sub": "prefect:account:<PREFECT_CLOUD_ACCOUNT_ID>"
+        }
+      }
+    }
+  ]
+}
+```
+
+Replace `123456789012` with your AWS account ID and `<PREFECT_CLOUD_ACCOUNT_ID>` with your Prefect Cloud account ID.
+
+Apply the trust policy to a new or existing role:
+
+{/* pmd-metadata: notest */}
+```bash
+aws iam create-role \
+  --role-name prefect-ecs-push-role \
+  --assume-role-policy-document file://trust-policy.json
+```
+
+</Step>
+<Step title="Attach a permissions policy to the role">
+
+Attach a permissions policy with the least-privilege access your flow runs need.
+At a minimum, the role needs permissions to run ECS tasks and pull container images:
+
+{/* pmd-metadata: notest */}
+```json permissions-policy.json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ecs:RunTask",
+        "ecs:StopTask",
+        "ecs:DescribeTasks",
+        "ecs:RegisterTaskDefinition",
+        "ecs:DeregisterTaskDefinition",
+        "ecs:DescribeTaskDefinition",
+        "ecs:TagResource"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ec2:DescribeVpcs",
+        "ec2:DescribeSubnets",
+        "ec2:DescribeSecurityGroups"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::123456789012:role/*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "logs:GetLogEvents",
+      "Resource": "arn:aws:logs:*:123456789012:log-group:*"
+    }
+  ]
+}
+```
+
+{/* pmd-metadata: notest */}
+```bash
+aws iam put-role-policy \
+  --role-name prefect-ecs-push-role \
+  --policy-name prefect-ecs-push-policy \
+  --policy-document file://permissions-policy.json
+```
+
+Adjust the permissions for the AWS services and resources your deployments need.
+
+</Step>
+<Step title="Configure the work pool in Prefect Cloud">
+
+In the Prefect Cloud UI, create or edit an **ECS push** work pool.
+Under the **AWS Credentials** field, select the **OidcAwsCredentials** option and provide:
+
+- **Role ARN**: the ARN of the IAM role you created (for example, `arn:aws:iam::123456789012:role/prefect-ecs-push-role`)
+- **Region Name**: the AWS region to use (for example, `us-east-1`)
+
+</Step>
+</Steps>
+
+## Configure OIDC for Google Cloud Run push work pools
+
+<Steps>
+<Step title="Create a Workload Identity Pool and Provider in GCP">
+
+Create a Workload Identity Pool to trust Prefect Cloud's OIDC tokens:
+
+{/* pmd-metadata: notest */}
+```bash
+gcloud iam workload-identity-pools create prefect-pool \
+  --location="global" \
+  --display-name="Prefect Cloud Pool"
+```
+
+Create an OIDC provider within the pool:
+
+{/* pmd-metadata: notest */}
+```bash
+gcloud iam workload-identity-pools providers create-oidc prefect-cloud-provider \
+  --location="global" \
+  --workload-identity-pool="prefect-pool" \
+  --issuer-uri="https://api.prefect.cloud/oidc-provider" \
+  --allowed-audiences="prefect-cloud" \
+  --attribute-mapping="google.subject=assertion.sub,attribute.account_id=assertion.account_id"
+```
+
+</Step>
+<Step title="Create a service account and grant impersonation">
+
+Create a GCP service account for Prefect flow runs:
+
+{/* pmd-metadata: notest */}
+```bash
+gcloud iam service-accounts create prefect-cloud-run \
+  --display-name="Prefect Cloud Run"
+```
+
+Grant the Workload Identity Pool the ability to impersonate this service account.
+Restrict it to tokens issued for your Prefect Cloud account:
+
+{/* pmd-metadata: notest */}
+```bash
+gcloud iam service-accounts add-iam-policy-binding \
+  prefect-cloud-run@<GCP_PROJECT_ID>.iam.gserviceaccount.com \
+  --role="roles/iam.workloadIdentityUser" \
+  --member="principalSet://iam.googleapis.com/projects/<GCP_PROJECT_NUMBER>/locations/global/workloadIdentityPools/prefect-pool/attribute.account_id/<PREFECT_CLOUD_ACCOUNT_ID>"
+```
+
+Replace `<GCP_PROJECT_ID>`, `<GCP_PROJECT_NUMBER>`, and `<PREFECT_CLOUD_ACCOUNT_ID>` with your values.
+
+</Step>
+<Step title="Grant Cloud Run permissions to the service account">
+
+Assign the roles needed to create and manage Cloud Run jobs:
+
+{/* pmd-metadata: notest */}
+```bash
+gcloud projects add-iam-policy-binding <GCP_PROJECT_ID> \
+  --member="serviceAccount:prefect-cloud-run@<GCP_PROJECT_ID>.iam.gserviceaccount.com" \
+  --role="roles/run.developer"
+
+gcloud projects add-iam-policy-binding <GCP_PROJECT_ID> \
+  --member="serviceAccount:prefect-cloud-run@<GCP_PROJECT_ID>.iam.gserviceaccount.com" \
+  --role="roles/iam.serviceAccountUser"
+```
+
+</Step>
+<Step title="Configure the work pool in Prefect Cloud">
+
+In the Prefect Cloud UI, create or edit a **Cloud Run push** or **Cloud Run V2 push** work pool.
+Under the **GCP Credentials** field, select the **OidcGcpCredentials** option and provide:
+
+- **Project**: your GCP project ID (for example, `my-project-123`)
+- **Workload Identity Audience**: the audience URL for your Workload Identity provider, in the format:
+  ```
+  //iam.googleapis.com/projects/<GCP_PROJECT_NUMBER>/locations/global/workloadIdentityPools/prefect-pool/providers/prefect-cloud-provider
+  ```
+- **Service Account Email**: the email of the service account to impersonate (for example, `prefect-cloud-run@my-project-123.iam.gserviceaccount.com`)
+
+</Step>
+</Steps>
+
+## Override OIDC credentials for a single deployment
+
+If different deployments in the same work pool need different cloud provider roles, set the credentials in deployment `job_variables`.
+This overrides the work pool default for that deployment only.
+
+<Tabs>
+<Tab title="AWS ECS">
+
+{/* pmd-metadata: notest */}
+```yaml prefect.yaml
+deployments:
+  - name: my-deployment
+    entrypoint: "example.py:my_flow"
+    work_pool:
+      name: "my-ecs-push-pool"
+      job_variables:
+        aws_credentials:
+          role_arn: "arn:aws:iam::123456789012:role/deployment-specific-role"
+          region_name: "us-west-2"
+```
+
+</Tab>
+<Tab title="Google Cloud Run">
+
+{/* pmd-metadata: notest */}
+```yaml prefect.yaml
+deployments:
+  - name: my-deployment
+    entrypoint: "example.py:my_flow"
+    work_pool:
+      name: "my-cloud-run-push-pool"
+      job_variables:
+        credentials:
+          project: "my-project-123"
+          workload_identity_audience: "//iam.googleapis.com/projects/123456/locations/global/workloadIdentityPools/prefect-pool/providers/prefect-cloud-provider"
+          service_account_email: "deployment-specific@my-project-123.iam.gserviceaccount.com"
+```
+
+</Tab>
+</Tabs>
+
+## Restrict access with fine-grained trust policies
+
+The JWT issued by Prefect Cloud includes metadata about each flow run. Use these claims in your trust policy conditions to restrict which deployments, flows, or workspaces can assume a given role.
+
+Available claims in the JWT payload:
+
+| Claim | Description |
+|---|---|
+| `sub` | `prefect:account:<account_id>` |
+| `aud` | `prefect-cloud` |
+| `account_id` | Prefect Cloud account ID |
+| `workspace_id` | Prefect Cloud workspace ID |
+| `work_pool_name` | Name of the work pool |
+| `deployment_name` | Name of the deployment |
+| `flow_name` | Name of the flow |
+| `flow_run_id` | ID of the flow run |
+
+For example, to restrict an AWS IAM role to a specific workspace:
+
+{/* pmd-metadata: notest */}
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::123456789012:oidc-provider/api.prefect.cloud/oidc-provider"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "api.prefect.cloud/oidc-provider:aud": "prefect-cloud",
+          "api.prefect.cloud/oidc-provider:sub": "prefect:account:<PREFECT_CLOUD_ACCOUNT_ID>"
+        },
+        "StringLike": {
+          "api.prefect.cloud/oidc-provider:workspace_id": "<WORKSPACE_ID>"
+        }
+      }
+    }
+  ]
+}
+```
+
+## Further reading
+
+- [Run flows on serverless compute](/v3/how-to-guides/deployment_infra/serverless)
+- [Using cloud workload identity with Prefect Managed work pools](/v3/how-to-guides/deployment_infra/managed-aws-federated-identity)
+- [Override job variables](/v3/how-to-guides/deployments/customize-job-variables)
+- [Define deployments with YAML](/v3/how-to-guides/deployments/prefect-yaml)
