@@ -32,6 +32,21 @@ def test_set_values_via_environment_variables(monkeypatch: pytest.MonkeyPatch):
     assert settings.cluster_uid == "test-cluster-uid"
 
 
+def test_store_env_as_secret_defaults_to_false():
+    settings = KubernetesSettings()
+    assert settings.worker.store_env_as_secret is False
+
+
+def test_store_env_as_secret_via_environment_variable(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv(
+        "PREFECT_INTEGRATIONS_KUBERNETES_WORKER_STORE_ENV_AS_SECRET", "true"
+    )
+    settings = KubernetesSettings()
+    assert settings.worker.store_env_as_secret is True
+
+
 def test_set_values_via_dot_env_file(tmp_path: Path):
     dot_env_path = tmp_path / ".env"
     with open(dot_env_path, "w") as f:
