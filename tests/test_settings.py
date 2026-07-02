@@ -416,9 +416,6 @@ SUPPORTED_SETTINGS = {
     },
     "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_LEASE_SECONDS": {"test_value": 60.0},
     "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_MAX_DELIVERY_ATTEMPTS": {"test_value": 5},
-    "PREFECT_SERVER_WORKER_CHANNEL_SNAPSHOT_RECONCILIATION_SECONDS": {
-        "test_value": 600.0
-    },
     "PREFECT_SERVER_WORKER_CHANNEL_CLEANUP_QUEUE_STORAGE": {
         "test_value": "prefect.server.worker_communication.cleanup_queue.memory"
     },
