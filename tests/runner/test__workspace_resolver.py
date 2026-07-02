@@ -839,8 +839,6 @@ class TestWorkspaceResolverProcess:
         process = _run_workspace_resolver(
             flow_run.id,
             tmp_path / "logged-workspace",
-            # The test session disables API logging globally; the subprocess must
-            # have it on to exercise log delivery.
             extra_env={"PREFECT_LOGGING_TO_API_ENABLED": "True"},
         )
         result = _parse_result(process)

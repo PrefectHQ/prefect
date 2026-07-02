@@ -298,8 +298,6 @@ async def prepare_workspace(
             f"Deployment {deployment.id} does not have an entrypoint and can not be run."
         )
 
-    # Bind pull-step logging to the flow run so `APILogHandler` ships it to the
-    # API; the handler drops records that don't carry a `flow_run_id`.
     run_logger = flow_run_logger(flow_run)
 
     source_cwd = Path.cwd().resolve()
@@ -442,8 +440,6 @@ async def _main_async(argv: list[str] | None = None) -> int:
         sys.stdout.write("\n")
         return 1
     finally:
-        # This process exits right after writing its result; flush the API log
-        # worker so buffered pull-step logs are delivered before then.
         await APILogHandler.aflush()
 
     result = PreparedWorkspaceResult(status="success", workspace=workspace)
