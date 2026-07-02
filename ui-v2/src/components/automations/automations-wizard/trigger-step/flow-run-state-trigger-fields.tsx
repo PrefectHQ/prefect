@@ -14,7 +14,8 @@ import { TagsInput } from "@/components/ui/tags-input";
 import { PostureSelect } from "./posture-select";
 import { StateMultiSelect } from "./state-multi-select";
 
-type MatchRelated = Record<string, string | string[]> | undefined;
+type MatchRelatedObject = Record<string, string | string[]>;
+type MatchRelated = MatchRelatedObject | MatchRelatedObject[] | undefined;
 
 // Convert state names to event strings (e.g., "Completed" -> "prefect.flow-run.Completed")
 // When no states selected, returns wildcard ["prefect.flow-run.*"] (Vue behavior)
@@ -39,48 +40,62 @@ function fromStateNameEvents(events: string[] | undefined): StateName[] {
 		.map((event) => event.replace("prefect.flow-run.", "") as StateName);
 }
 
-function extractFlowIdsFromMatchRelated(matchRelated: MatchRelated): string[] {
+function asMatchRelatedArray(matchRelated: MatchRelated): MatchRelatedObject[] {
 	if (!matchRelated) return [];
+	return Array.isArray(matchRelated) ? matchRelated : [matchRelated];
+}
 
-	const resourceIds = matchRelated["prefect.resource.id"];
-	if (!resourceIds) return [];
-
-	const ids = Array.isArray(resourceIds) ? resourceIds : [resourceIds];
-	return ids
-		.filter((id) => id.startsWith("prefect.flow."))
-		.map((id) => id.replace("prefect.flow.", ""));
+function extractFlowIdsFromMatchRelated(matchRelated: MatchRelated): string[] {
+	const objects = asMatchRelatedArray(matchRelated);
+	const ids: string[] = [];
+	for (const obj of objects) {
+		const resourceIds = obj["prefect.resource.id"];
+		if (!resourceIds) continue;
+		const arr = Array.isArray(resourceIds) ? resourceIds : [resourceIds];
+		ids.push(
+			...arr
+				.filter((id) => id.startsWith("prefect.flow."))
+				.map((id) => id.replace("prefect.flow.", "")),
+		);
+	}
+	return ids;
 }
 
 function extractTagsFromMatchRelated(matchRelated: MatchRelated): string[] {
-	if (!matchRelated) return [];
-
-	const resourceIds = matchRelated["prefect.resource.id"];
-	if (!resourceIds) return [];
-
-	const ids = Array.isArray(resourceIds) ? resourceIds : [resourceIds];
-	return ids
-		.filter((id) => id.startsWith("prefect.tag."))
-		.map((id) => id.replace("prefect.tag.", ""));
+	const objects = asMatchRelatedArray(matchRelated);
+	const tags: string[] = [];
+	for (const obj of objects) {
+		const resourceIds = obj["prefect.resource.id"];
+		if (!resourceIds) continue;
+		const arr = Array.isArray(resourceIds) ? resourceIds : [resourceIds];
+		tags.push(
+			...arr
+				.filter((id) => id.startsWith("prefect.tag."))
+				.map((id) => id.replace("prefect.tag.", "")),
+		);
+	}
+	return tags;
 }
 
 function buildMatchRelated(flowIds: string[], tags: string[]): MatchRelated {
-	const flowResourceIds = flowIds.map((id) => `prefect.flow.${id}`);
-	const tagResourceIds = tags.map((tag) => `prefect.tag.${tag}`);
-
-	// Return empty object when no flows/tags selected (matches Vue behavior)
-	if (flowResourceIds.length === 0 && tagResourceIds.length === 0) {
+	// Return empty object when no flows/tags selected
+	if (flowIds.length === 0 && tags.length === 0) {
 		return {};
 	}
 
-	// Set role based on which type is selected (Vue behavior)
-	// Since tags are hidden when flows are selected, only one type will be present
-	const role = flowResourceIds.length > 0 ? "flow" : "tag";
-	const resourceIds = [...flowResourceIds, ...tagResourceIds];
+	// Flows use a single match_related object (OR: match any selected flow)
+	if (flowIds.length > 0) {
+		return {
+			"prefect.resource.role": "flow",
+			"prefect.resource.id": flowIds.map((id) => `prefect.flow.${id}`),
+		};
+	}
 
-	return {
-		"prefect.resource.role": role,
-		"prefect.resource.id": resourceIds,
-	};
+	// Tags use separate match_related objects (AND: match all selected tags)
+	return tags.map((tag) => ({
+		"prefect.resource.role": "tag",
+		"prefect.resource.id": `prefect.tag.${tag}`,
+	}));
 }
 
 export const FlowRunStateTriggerFields = () => {

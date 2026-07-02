@@ -162,8 +162,12 @@ export const CustomTriggerFields = () => {
 						control={form.control}
 						name="trigger.match_related"
 						render={({ field }) => {
+							const singleValue =
+								field.value && !Array.isArray(field.value)
+									? field.value
+									: undefined;
 							const resourceIds =
-								(field.value?.["prefect.resource.id"] as
+								(singleValue?.["prefect.resource.id"] as
 									| string[]
 									| undefined) ?? [];
 							const resourceIdsArray = Array.isArray(resourceIds)
