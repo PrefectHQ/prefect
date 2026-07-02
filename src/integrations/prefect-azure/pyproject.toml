@@ -66,6 +66,9 @@ Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/pref
 [project.entry-points."prefect.collections"]
 prefect_azure = "prefect_azure"
 
+[project.entry-points."prefect.plugins"]
+azure = "prefect_azure.plugins"
+
 [tool.setuptools_scm]
 version_file = "prefect_azure/_version.py"
 root = "../../.."

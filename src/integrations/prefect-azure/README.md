@@ -37,6 +37,36 @@ To use ML Datastore:
 pip install "prefect-azure[ml_datastore]"
 ```
 
+## Managed identity authentication for the Prefect server database
+
+`prefect-azure` provides a Prefect plugin that lets the **Prefect server** connect
+to Azure Database for PostgreSQL using a Microsoft Entra ID (managed identity)
+token instead of a password. When enabled, the server acquires a short-lived Entra
+token via `DefaultAzureCredential` and supplies it to `asyncpg` on every new
+connection, so tokens refresh automatically and no database password is stored
+anywhere.
+
+Enable it on the process running `prefect server start` (install `prefect-azure`
+in that image/environment):
+
+```bash
+# Enable the plugin system so Prefect loads the database hook
+# (on Prefect < 3.7 use PREFECT_EXPERIMENTS_PLUGINS_ENABLED=true instead)
+export PREFECT_PLUGINS_ENABLED=true
+
+export PREFECT_INTEGRATIONS_AZURE_POSTGRES_MANAGED_IDENTITY_ENABLED=true
+# Optional: select a specific user-assigned identity
+export PREFECT_INTEGRATIONS_AZURE_POSTGRES_MANAGED_IDENTITY_CLIENT_ID=<client-id>
+
+# Provide a password-less connection URL (the plugin supplies the token)
+export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://<entra-principal>@<host>:5432/<db>"
+```
+
+The Postgres server must have Microsoft Entra authentication enabled and the
+identity mapped to a database role (via `pgaadauth`). Locally, `DefaultAzureCredential`
+falls back to your `az login` identity, so the same configuration works for
+development.
+
 ## Examples
 
 ### Download a blob
