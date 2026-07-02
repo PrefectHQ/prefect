@@ -212,11 +212,14 @@ def test_sqlite_locked_log_filter_works_for_docket_worker_logger():
     "exc",
     (
         sa.exc.DBAPIError("statement", {"params": 0}, ValueError("orig")),
+        sa.exc.TimeoutError(),
         asyncpg.exceptions.QueryCanceledError(),
         asyncpg.exceptions.ConnectionDoesNotExistError(),
         asyncpg.exceptions.CannotConnectNowError(),
+        asyncpg.exceptions.TooManyConnectionsError(),
         sa.exc.InvalidRequestError(),
         sa.orm.exc.DetachedInstanceError(),
+        TimeoutError(),
     ),
 )
 async def test_retryable_exception_handler(exc):
