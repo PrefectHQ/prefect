@@ -45,6 +45,7 @@ from prefect.server.worker_communication.cleanup_queue import (
     CleanupQueueReservation,
     WorkerCleanupQueue,
 )
+from prefect.settings import get_current_settings
 from prefect.types._datetime import now
 
 try:
@@ -408,8 +409,6 @@ class WorkerChannelConnection:
         await consumer.run(handle_message)
 
     async def _send_loop(self, ready: WorkerReadyFrame) -> None:
-        from prefect.settings import get_current_settings
-
         reconciliation_seconds = (
             get_current_settings().server.worker_channel.snapshot_reconciliation_seconds
         )
@@ -426,7 +425,7 @@ class WorkerChannelConnection:
                     self._snapshot_queue.get(),
                     timeout=reconciliation_seconds,
                 )
-            except TimeoutError:
+            except asyncio.TimeoutError:
                 invalidation = WorkerChannelSnapshotInvalidation(
                     work_pool_id=self.work_pool_id,
                     reason="periodic_reconciliation",
