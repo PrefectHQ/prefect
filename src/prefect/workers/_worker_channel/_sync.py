@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import time
 from collections.abc import Awaitable, Callable
 from contextlib import AsyncExitStack
 from logging import Logger
@@ -56,7 +55,6 @@ class WorkPoolWorkerChannel:
         reconnect_base_seconds: float = 1.0,
         reconnect_max_seconds: float = 30.0,
         setup_timeout_seconds: float | None = None,
-        rest_reconciliation_seconds: float = 300.0,
     ):
         self._client = client
         self.work_pool_name = work_pool_name
@@ -106,8 +104,6 @@ class WorkPoolWorkerChannel:
         self._websocket_started = False
         self._run_scope: anyio.CancelScope | None = None
         self._stopped = False
-        self._rest_reconciliation_seconds = rest_reconciliation_seconds
-        self._last_rest_sync_monotonic: float = time.monotonic()
 
     @property
     def url(self) -> str | None:
@@ -137,10 +133,6 @@ class WorkPoolWorkerChannel:
         if self._run_scope is not None:
             self._run_scope.cancel()
 
-    def _rest_reconciliation_due(self) -> bool:
-        elapsed = time.monotonic() - self._last_rest_sync_monotonic
-        return elapsed >= self._rest_reconciliation_seconds
-
     async def sync(self, task_group: anyio.abc.TaskGroup | None) -> None:
         if task_group is not None:
             channel_started = await self._start_websocket(task_group)
@@ -149,10 +141,7 @@ class WorkPoolWorkerChannel:
             if self.url is None:
                 self.state.mark_terminal("endpoint_unavailable")
 
-        if (
-            not (channel_started and self.snapshots_available)
-            or self._rest_reconciliation_due()
-        ):
+        if not (channel_started and self.snapshots_available):
             await self._sync_rest_work_pool()
 
         await self._send_rest_worker_heartbeat()
@@ -344,7 +333,6 @@ class WorkPoolWorkerChannel:
                         "Ignoring supplied base job template because the work pool"
                         " already exists"
                     )
-                self._last_rest_sync_monotonic = time.monotonic()
                 return
 
         if (
@@ -355,7 +343,6 @@ class WorkPoolWorkerChannel:
                 "Skipping REST work pool sync because the worker channel applied a "
                 "snapshot while REST sync was in flight."
             )
-            self._last_rest_sync_monotonic = time.monotonic()
             return
 
         if not work_pool.base_job_template:
@@ -372,11 +359,9 @@ class WorkPoolWorkerChannel:
                 "Skipping REST work pool snapshot because the worker channel applied "
                 "a snapshot while REST sync was in flight."
             )
-            self._last_rest_sync_monotonic = time.monotonic()
             return
 
         self._protocol.record_rest_work_pool_snapshot(work_pool)
-        self._last_rest_sync_monotonic = time.monotonic()
 
     async def _set_work_pool_template(
         self, work_pool: WorkPool, job_template: dict[str, Any]
