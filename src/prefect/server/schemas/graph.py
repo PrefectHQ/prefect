@@ -31,6 +31,7 @@ class Node(PrefectBaseModel):
     id: UUID
     label: str
     state_type: StateType
+    flow_run_run_count: int = 0
     start_time: DateTime
     end_time: Optional[DateTime]
     parents: List[Edge]

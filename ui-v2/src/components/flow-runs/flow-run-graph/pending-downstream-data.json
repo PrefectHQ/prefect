@@ -34,7 +34,8 @@
 					{
 						"id": "pending-downstream-task-run"
 					}
-				]
+				],
+				"flow_run_run_count": 1
 			}
 		],
 		[
@@ -53,7 +54,8 @@
 					}
 				],
 				"artifacts": [],
-				"children": []
+				"children": [],
+				"flow_run_run_count": 1
 			}
 		]
 	]

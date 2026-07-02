@@ -16,6 +16,7 @@ describe("fetchFlowRunGraph", () => {
 					id: "node-1",
 					label: "test-task",
 					state_type: "COMPLETED",
+					flow_run_run_count: 1,
 					start_time: "2023-09-27T15:50:39.995728+00:00",
 					end_time: "2023-09-27T15:50:40.532868+00:00",
 					parents: [],
@@ -29,6 +30,18 @@ describe("fetchFlowRunGraph", () => {
 	});
 
 	describe("state mapping", () => {
+		it("maps node flow run attempt counts from the API response", async () => {
+			server.use(
+				http.get(buildApiUrl("/flow_runs/:id/graph-v2"), () => {
+					return HttpResponse.json(createMockGraphResponse({ states: [] }));
+				}),
+			);
+
+			const result = await fetchFlowRunGraph("test-flow-run-id");
+
+			expect(result.nodes.get("node-1")?.flow_run_run_count).toBe(1);
+		});
+
 		it("should map states from the API response", async () => {
 			const mockStates = [
 				{

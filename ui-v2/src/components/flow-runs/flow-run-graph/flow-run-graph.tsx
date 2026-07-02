@@ -11,6 +11,13 @@ import {
 import { buildCountFlowRunsQuery } from "@/api/flow-runs";
 import { buildCountTaskRunsQuery } from "@/api/task-runs";
 import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import {
 	emitter,
 	type GraphItemSelection,
 	isArtifactsSelection,
@@ -38,8 +45,13 @@ import { FlowRunGraphEventPopover } from "./flow-run-graph-event-popover";
 import { FlowRunGraphEventsPopover } from "./flow-run-graph-events-popover";
 import { FlowRunGraphSelectionPanel } from "./flow-run-graph-selection-panel";
 import { FlowRunGraphStatePopover } from "./flow-run-graph-state-popover";
+import {
+	filterRunGraphDataByFlowRunAttempt,
+	getFlowRunAttemptRunCounts,
+} from "./utilities";
 
 const TERMINAL_STATES = ["COMPLETED", "FAILED", "CANCELLED", "CRASHED"];
+const ALL_ATTEMPTS = "all";
 
 type FlowRunGraphProps = {
 	flowRunId: string;
@@ -74,6 +86,10 @@ export function FlowRunGraph({
 	const [selectedArtifactId, setSelectedArtifactId] = useState<string | null>(
 		null,
 	);
+	const [attemptRunCounts, setAttemptRunCounts] = useState<number[]>([]);
+	const [selectedAttemptRunCount, setSelectedAttemptRunCount] = useState<
+		number | typeof ALL_ATTEMPTS | null
+	>(null);
 	const { resolvedTheme } = useTheme();
 
 	const fullscreen = controlledFullscreen ?? internalFullscreen;
@@ -115,10 +131,39 @@ export function FlowRunGraph({
 		[onFullscreenChange],
 	);
 
+	const fetchGraph = useCallback(
+		async (id: string) => {
+			const data = await fetchFlowRunGraph(id);
+			const runCounts = getFlowRunAttemptRunCounts(data);
+			const fallbackAttempt =
+				runCounts.length > 1 ? runCounts[runCounts.length - 1] : ALL_ATTEMPTS;
+			const shouldUseFallback =
+				selectedAttemptRunCount === null ||
+				(selectedAttemptRunCount !== ALL_ATTEMPTS &&
+					!runCounts.includes(selectedAttemptRunCount));
+			const nextSelectedAttempt = shouldUseFallback
+				? fallbackAttempt
+				: selectedAttemptRunCount;
+
+			setAttemptRunCounts(runCounts);
+			if (
+				runCounts.length > 1 &&
+				nextSelectedAttempt !== selectedAttemptRunCount
+			) {
+				setSelectedAttemptRunCount(nextSelectedAttempt);
+			} else if (runCounts.length <= 1 && selectedAttemptRunCount !== null) {
+				setSelectedAttemptRunCount(null);
+			}
+
+			return filterRunGraphDataByFlowRunAttempt(data, nextSelectedAttempt);
+		},
+		[selectedAttemptRunCount],
+	);
+
 	const config = useMemo<RunGraphConfig>(
 		() => ({
 			runId: flowRunId,
-			fetch: fetchFlowRunGraph,
+			fetch: fetchGraph,
 			fetchEvents: fetchFlowRunEvents,
 			styles: (theme) => ({
 				node: (node: RunGraphNode) => ({
@@ -136,7 +181,7 @@ export function FlowRunGraph({
 			}),
 			theme: resolvedTheme === "dark" ? "dark" : "light",
 		}),
-		[flowRunId, resolvedTheme],
+		[fetchGraph, flowRunId, resolvedTheme],
 	);
 
 	useEffect(() => {
@@ -192,6 +237,32 @@ export function FlowRunGraph({
 	return (
 		<div className={`${heightClass} ${className ?? ""}`} style={style}>
 			<div ref={stageRef} className="size-full [&>canvas]:size-full" />
+			{attemptRunCounts.length > 1 && selectedAttemptRunCount !== null && (
+				<div className="absolute left-2 top-2">
+					<Select
+						value={selectedAttemptRunCount.toString()}
+						onValueChange={(value) => {
+							setSelectedAttemptRunCount(
+								value === ALL_ATTEMPTS ? ALL_ATTEMPTS : Number(value),
+							);
+							setInternalSelected(undefined);
+							onSelectedChange?.(undefined);
+						}}
+					>
+						<SelectTrigger aria-label="Flow run attempt" className="bg-card">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent>
+							{attemptRunCounts.map((runCount) => (
+								<SelectItem key={runCount} value={runCount.toString()}>
+									Run {runCount}
+								</SelectItem>
+							))}
+							<SelectItem value={ALL_ATTEMPTS}>All runs</SelectItem>
+						</SelectContent>
+					</Select>
+				</div>
+			)}
 			{!hasNodes && (
 				<div className="absolute inset-0 flex items-center justify-center bg-background/50">
 					<p className="text-muted-foreground">

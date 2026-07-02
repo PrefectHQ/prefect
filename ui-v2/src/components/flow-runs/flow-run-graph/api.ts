@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { parseISO } from "date-fns";
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";
@@ -124,6 +125,7 @@ function mapNode([id, node]: GraphResponseNode): [string, RunGraphNode] {
 			id: node.id,
 			label: node.label,
 			state_type: node.state_type,
+			flow_run_run_count: node.flow_run_run_count,
 			start_time: parseISO(node.start_time),
 			end_time: node.end_time ? parseISO(node.end_time) : null,
 			parents: node.parents,

@@ -33,6 +33,7 @@ export type RunGraphNode = {
 	id: string;
 	label: string;
 	state_type: StateType;
+	flow_run_run_count: number;
 	start_time: Date;
 	end_time: Date | null;
 	parents: RunGraphEdge[];
