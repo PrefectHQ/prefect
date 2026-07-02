@@ -16,6 +16,62 @@ For small changes such as typo fixes you can simply open a pull request - we typ
 For larger changes including all bug fixes, we ask that you first open [an issue](https://github.com/PrefectHQ/prefect/issues) or comment on the issue that you are planning to work on.
 </Note>
 
+## Design principles
+
+Prefect contributions should serve the project and its users, not just the immediate implementation request.
+We evaluate code, documentation, and issue proposals against these principles:
+
+- **User-centered**: Changes should solve a real workflow orchestration need for Prefect users and explain the user-facing value.
+- **Correct and reliable**: Prefer behavior that is explicit, deterministic, observable, and safe under failure.
+- **Minimal and focused**: Keep changes scoped to one clear problem and avoid broad rewrites or new abstractions without a strong reason.
+- **Consistent with Prefect's architecture**: Follow existing public APIs, orchestration boundaries, async patterns, settings behavior, and integration conventions.
+- **Well-tested and documented**: Cover meaningful behavior with tests and update documentation when users need to understand new or changed behavior.
+
+Pull requests that make Prefect harder to reason about, broaden maintenance burden without clear user value, or bypass established architecture may be rejected even if the implementation works locally.
+
+## Issue first, code second
+
+For anything larger than a small documentation or typo fix, open an issue or join the existing issue before opening a pull request.
+Issues give maintainers and contributors a place to confirm the problem, discuss scope, identify architectural constraints, and decide whether the change belongs in Prefect.
+An open issue is not automatically an invitation to open a pull request.
+Some issues require maintainer ownership because they touch architecture, product direction, compatibility, security, or release planning.
+
+Use the issue discussion to narrow the work before writing code.
+For complex issues, propose a detailed approach and wait for a maintainer to confirm that the approach and contributor ownership are appropriate before submitting a pull request.
+A pull request is not the best place to discover that a feature does not fit the project, duplicates existing behavior, or requires a different design.
+
+## Using AI tools responsibly
+
+You may use AI tools to explore the codebase, draft documentation, sketch tests, refactor code, or review your own work.
+You are responsible for every issue, pull request, and comment you submit.
+Treat AI output as a starting point, not as evidence that a change is correct.
+
+Before opening an issue or pull request:
+
+- Reproduce the behavior yourself and include a minimal reproducible example for bugs when possible.
+- Keep each pull request focused on one bug fix, feature, or documentation improvement.
+- Explain the user-facing problem, why your approach fits Prefect's existing architecture, and any tradeoffs.
+- Run the relevant checks locally and include behavior-focused tests for code changes.
+- Update documentation when your change affects user-facing behavior.
+
+Maintainers may close issues without further triage when they appear low-effort, unverified, likely AI-generated and lacking concrete detail, too broad, difficult to follow, or primarily shift investigation and validation onto maintainers.
+Maintainers may ask for pull request revisions for the same reasons, or close pull requests that appear low-effort, likely AI-generated, and substantially far from the expected implementation.
+This applies whether or not AI tools were used.
+
+## What maintainers look for
+
+Reviews focus on whether the change should become part of Prefect and whether it can be maintained over time.
+The strongest pull requests:
+
+- Solve a clear user problem with enough context for reviewers to understand the value.
+- Fit Prefect's existing architecture, public APIs, and compatibility expectations.
+- Prefer clear, idiomatic code over cleverness, excessive abstraction, or broad rewrites.
+- Include tests that protect behavior instead of mirroring private implementation details.
+- Update documentation for user-facing behavior changes, or explain why documentation is not needed.
+- Explain meaningful tradeoffs, migration concerns, or follow-up work in the pull request description.
+
+Even working code may need revision if it is difficult to reason about, overengineered, inconsistent with established patterns, or likely to create maintenance burden out of proportion to the user value.
+
 ## Fork the repository
 <fork />
 
@@ -79,6 +135,7 @@ Prefect relies on unit testing to ensure proposed changes don't negatively impac
 For all code changes, including bug fixes, we ask that you write at least one corresponding test.
 One rule of thumb - especially for bug fixes - is that you should write a test that fails prior to your changes and passes with your changes.
 This ensures the test will fail and prevent the bug from resurfacing if other changes are made in the future.
+Prefer tests that assert user-visible behavior or public contracts instead of private implementation details.
 All tests can be found in the `tests/` directory of the repository.
 
 You can run the test suite with `pytest`:
@@ -93,6 +150,19 @@ pytest tests/test_flows.py
 # run all tests that match a pattern
 pytest tests/test_tasks.py -k cache_policy
 ```
+
+## Submit your pull request
+
+Before submitting a pull request:
+
+- Confirm the related issue is linked, unless the change is a small documentation or typo fix.
+- Keep the scope to one feature, bug fix, or documentation improvement.
+- Describe the problem, the approach, and any tradeoffs or alternatives considered.
+- Run the relevant tests and checks locally.
+- Add or update documentation for user-facing behavior changes.
+
+The code shows what changed.
+The pull request description should explain why the change is useful and why this approach is appropriate for Prefect.
 
 ## Working with a development UI
 

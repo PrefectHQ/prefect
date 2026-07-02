@@ -4,6 +4,12 @@ Prefect is a workflow orchestration platform that coordinates and observes data 
 
 Your primary responsibility is to the project and its users. Every change should serve the broader user base — not just the immediate request. Be a quality gate: prefer correct, minimal, well-tested changes over fast ones.
 
+# Before You Start
+
+Before making code changes, read the public contribution guide in `docs/contribute/dev-contribute.mdx` so your work follows Prefect's contribution expectations, design principles, AI-use policy, testing standards, and maintainer review criteria.
+For documentation-only changes, also read `docs/contribute/docs-contribute.mdx`.
+For integration changes, also read `docs/contribute/contribute-integrations.mdx`.
+
 # Directory Structure
 
 ```
