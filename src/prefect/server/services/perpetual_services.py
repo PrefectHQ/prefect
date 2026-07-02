@@ -8,14 +8,19 @@ using docket's Perpetual dependency for distributed, HA-aware task scheduling.
 from __future__ import annotations
 
 import logging
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass
-from typing import Callable, TypeVar
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, AsyncGenerator, Callable, TypeVar
 
 from docket import Docket, Perpetual
-from docket.dependencies import get_single_dependency_parameter_of_type
+from docket.dependencies import Dependency, get_single_dependency_parameter_of_type
 from docket.execution import TaskFunction
 
 from prefect.logging import get_logger
+
+if TYPE_CHECKING:
+    from docket import Worker
 
 logger: logging.Logger = get_logger(__name__)
 
@@ -160,7 +165,7 @@ async def register_and_schedule_perpetual_services(
             continue
 
         logger.info(f"Scheduling perpetual service: {config.function.__name__}")
-        await docket.add(config.function, key=config.function.__name__)()
+        await _replace_perpetual_service(docket, config)
 
     total = len(all_services)
     enabled = len(enabled_services)
@@ -168,3 +173,62 @@ async def register_and_schedule_perpetual_services(
     logger.info(
         f"Perpetual services: {enabled} enabled, {disabled} disabled, {total} total"
     )
+
+
+async def _replace_perpetual_service(
+    docket: Docket, config: PerpetualServiceConfig
+) -> None:
+    """Force-(re)schedule a perpetual service using `docket.replace`.
+
+    Unlike `docket.add` (which is a no-op when a task is already known,
+    including stuck in *running* state), `replace` unconditionally
+    overwrites the existing schedule.  This recovers perpetual services
+    that were mid-execution when Redis went down and whose runs-hash is
+    left with `state=running` after reconnection.
+    """
+    key = config.function.__name__
+    await docket.replace(config.function, datetime.now(timezone.utc), key)()
+
+
+class PerpetualServiceRecovery(Dependency["PerpetualServiceRecovery"]):
+    """Worker dependency that force-reschedules perpetual services on each
+    worker loop start (including after Redis reconnection).
+
+    When a perpetual task is mid-execution during a Redis disruption, its
+    runs-hash is left with `state=running`.  `docket.add()` (used by
+    the worker's built-in `_schedule_all_automatic_perpetual_tasks`)
+    considers running tasks already known and skips them.  This dependency
+    hooks into the worker lifecycle to call `docket.replace()` instead,
+    which unconditionally reschedules — clearing the stale state.
+    """
+
+    single = True
+
+    def __init__(self, services: list[PerpetualServiceConfig]) -> None:
+        self._services = services
+
+    async def __aenter__(self) -> PerpetualServiceRecovery:
+        return self
+
+    @classmethod
+    def worker_lifecycle(
+        cls, docket: Docket, worker: Worker
+    ) -> AbstractAsyncContextManager[None] | None:
+        for dep in (worker.dependencies or {}).values():
+            if isinstance(dep, cls):
+                return dep._recovery_context(docket)
+        return None  # pragma: no cover
+
+    @asynccontextmanager
+    async def _recovery_context(self, docket: Docket) -> AsyncGenerator[None, None]:
+        for config in self._services:
+            perpetual = get_single_dependency_parameter_of_type(
+                config.function, Perpetual
+            )
+            if perpetual is None:
+                continue
+            logger.debug(
+                f"Force-rescheduling perpetual service: {config.function.__name__}"
+            )
+            await _replace_perpetual_service(docket, config)
+        yield
