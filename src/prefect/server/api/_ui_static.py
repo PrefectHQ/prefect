@@ -19,7 +19,6 @@ class UIBundle:
     static_dir: str
     base_url: str
     cache_key: str
-    mount_name: str
 
 
 def log_ui_static_copy_error(
