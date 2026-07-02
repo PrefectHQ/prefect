@@ -8,6 +8,7 @@ from uuid import uuid4
 
 import pytest
 
+from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.filesystems import LocalFileSystem
 from prefect.runner._workspace_resolver import (
     PreparedWorkspaceResult,
@@ -25,11 +26,12 @@ CUSTOM_STEP_FQN = "tests.utilities.workspace_resolver_steps"
 
 
 def _run_workspace_resolver(
-    flow_run_id, workspace_root: Path
+    flow_run_id, workspace_root: Path, extra_env: dict[str, str] | None = None
 ) -> subprocess.CompletedProcess[str]:
     env = {
         **os.environ,
         **get_current_settings().to_environment_variables(exclude_unset=True),
+        **(extra_env or {}),
     }
     pythonpath = str(REPO_ROOT)
     if env.get("PYTHONPATH"):
@@ -804,6 +806,93 @@ class TestWorkspaceResolverProcess:
         assert "resolver-step-noise" not in process.stdout
         assert result.workspace is not None
         assert result.workspace.project_root == local_project.resolve()
+
+    async def test_pull_step_logs_are_sent_to_the_api(
+        self,
+        prefect_client,
+        tmp_path: Path,
+    ) -> None:
+        local_project = tmp_path / "logged-project"
+        flow_file = local_project / "flows" / "hello.py"
+        flow_file.parent.mkdir(parents=True, exist_ok=True)
+        flow_file.write_text(
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'logged'\n"
+        )
+
+        flow_id = await prefect_client.create_flow_from_name("logged-hello")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="logged-deployment",
+            entrypoint="flows/hello.py:hello",
+            pull_steps=[
+                {
+                    "prefect.deployments.steps.set_working_directory": {
+                        "directory": str(local_project)
+                    }
+                }
+            ],
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        process = _run_workspace_resolver(
+            flow_run.id,
+            tmp_path / "logged-workspace",
+            extra_env={"PREFECT_LOGGING_TO_API_ENABLED": "True"},
+        )
+        result = _parse_result(process)
+
+        assert process.returncode == 0, process.stderr
+        assert result.status == "success"
+
+        logs = await prefect_client.read_logs(
+            log_filter=LogFilter(flow_run_id=LogFilterFlowRunId(any_=[flow_run.id]))
+        )
+        messages = [log.message for log in logs]
+        assert "Running 1 deployment pull step(s)" in messages
+        assert "Executing deployment step: set_working_directory" in messages
+        assert (
+            "Deployment step 'set_working_directory' completed successfully" in messages
+        )
+
+    async def test_pull_step_logs_are_sent_to_the_api_when_a_step_fails(
+        self,
+        prefect_client,
+        tmp_path: Path,
+    ) -> None:
+        flow_id = await prefect_client.create_flow_from_name("failing-logged-flow")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="failing-logged-deployment",
+            entrypoint="flows/hello.py:hello",
+            pull_steps=[
+                {
+                    f"{CUSTOM_STEP_FQN}.raise_error": {
+                        "message": "resolver exploded",
+                    }
+                }
+            ],
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        process = _run_workspace_resolver(
+            flow_run.id,
+            tmp_path / "failing-workspace",
+            extra_env={"PREFECT_LOGGING_TO_API_ENABLED": "True"},
+        )
+        result = _parse_result(process)
+
+        assert process.returncode == 1
+        assert result.status == "error"
+
+        logs = await prefect_client.read_logs(
+            log_filter=LogFilter(flow_run_id=LogFilterFlowRunId(any_=[flow_run.id]))
+        )
+        messages = [log.message for log in logs]
+        assert "Executing deployment step: raise_error" in messages
 
 
 class TestRelativePathSetWorkingDirectory:
