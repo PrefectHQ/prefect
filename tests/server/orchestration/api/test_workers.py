@@ -2921,6 +2921,40 @@ class TestWorkerChannelConnect:
         assert snapshot.payload.snapshot_sequence == 2
         assert snapshot.payload.work_pool.base_job_template == latest_base_job_template
 
+    async def test_idle_channel_sends_periodic_reconciliation_snapshot(
+        self, test_client: TestClient, session: AsyncSession, work_pool
+    ) -> None:
+        updated_base_job_template = _valid_base_job_template(["echo", "updated"])
+        await models.workers.update_work_pool(
+            session=session,
+            work_pool_id=work_pool.id,
+            work_pool=schemas.actions.WorkPoolUpdate(
+                base_job_template=updated_base_job_template,
+            ),
+        )
+        await session.commit()
+
+        with temporary_settings(
+            {"server.worker_channel.snapshot_reconciliation_seconds": 0.1}
+        ):
+            with _connect_worker_channel(test_client, work_pool.name) as websocket:
+                _authenticate_worker_channel(websocket)
+                websocket.send_json(_worker_hello_frame())
+                ready = WorkerReadyFrame.model_validate(websocket.receive_json())
+
+                snapshot = WorkPoolSnapshotFrame.model_validate(
+                    websocket.receive_json()
+                )
+
+        assert (
+            ready.payload.initial_snapshot.work_pool.base_job_template
+            == updated_base_job_template
+        )
+        assert snapshot.payload.snapshot_sequence == 2
+        assert snapshot.payload.reason == "periodic_reconciliation"
+        assert snapshot.payload.work_pool.id == work_pool.id
+        assert snapshot.payload.work_pool.base_job_template == updated_base_job_template
+
     async def test_work_pool_delete_closes_connection_without_snapshot(
         self, test_client: TestClient, client: AsyncClient, work_pool
     ) -> None:

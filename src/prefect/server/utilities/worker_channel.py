@@ -408,6 +408,12 @@ class WorkerChannelConnection:
         await consumer.run(handle_message)
 
     async def _send_loop(self, ready: WorkerReadyFrame) -> None:
+        from prefect.settings import get_current_settings
+
+        reconciliation_seconds = (
+            get_current_settings().server.worker_channel.snapshot_reconciliation_seconds
+        )
+
         await self._send_frame(ready)
         self._ready_sent.set()
         if self.cleanup_enabled and self._cleanup_queue is not None:
@@ -415,8 +421,18 @@ class WorkerChannelConnection:
             self._cleanup_registry.wake_dispatcher(self.work_pool_id)
 
         while not self._closed.is_set():
-            invalidation = await self._snapshot_queue.get()
-            invalidation = await self._coalesce_snapshot_invalidations(invalidation)
+            try:
+                invalidation = await asyncio.wait_for(
+                    self._snapshot_queue.get(),
+                    timeout=reconciliation_seconds,
+                )
+            except TimeoutError:
+                invalidation = WorkerChannelSnapshotInvalidation(
+                    work_pool_id=self.work_pool_id,
+                    reason="periodic_reconciliation",
+                )
+            else:
+                invalidation = await self._coalesce_snapshot_invalidations(invalidation)
 
             if invalidation.work_pool_deleted:
                 await self.close(WorkerChannelCloseReason.AUTHORIZATION_FAILED)

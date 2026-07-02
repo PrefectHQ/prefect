@@ -41,6 +41,17 @@ class ServerWorkerChannelSettings(PrefectBaseSettings):
         ),
     )
 
+    snapshot_reconciliation_seconds: float = Field(
+        default=300.0,
+        gt=0.0,
+        description=(
+            "Maximum number of seconds between work-pool snapshot pushes on an "
+            "idle worker channel connection. When no invalidation event arrives "
+            "within this window, the server re-reads the work pool and pushes a "
+            "fresh snapshot so workers self-heal from missed invalidations."
+        ),
+    )
+
     cleanup_completed_idempotency_retention_seconds: float | None = Field(
         default=None,
         ge=0.0,

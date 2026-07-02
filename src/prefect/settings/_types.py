@@ -201,6 +201,7 @@ SettingAccessor: TypeAlias = Literal[
     "server.worker_channel.cleanup_lease_seconds",
     "server.worker_channel.cleanup_max_delivery_attempts",
     "server.worker_channel.cleanup_queue_storage",
+    "server.worker_channel.snapshot_reconciliation_seconds",
     "silence_api_url_misconfiguration",
     "tasks.default_no_cache",
     "tasks.default_persist_result",
