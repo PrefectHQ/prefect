@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import builtins
 import contextlib
 import os
 import sys
@@ -20,7 +19,8 @@ from prefect.deployments.steps.core import (
     run_steps,
 )
 from prefect.filesystems import LocalFileSystem
-from prefect.logging.loggers import get_logger
+from prefect.logging.handlers import APILogHandler
+from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger
 from prefect.utilities.filesystem import relative_path_to_current_platform
 from prefect.utilities.processutils import get_sys_executable
 
@@ -29,7 +29,6 @@ if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
     from prefect.client.schemas.responses import DeploymentResponse
 
-LOGGER = get_logger("prefect.runner.workspace_resolver")
 STORAGE_BASE_PATH_PLACEHOLDER = "$STORAGE_BASE_PATH"
 
 
@@ -65,11 +64,6 @@ def get_workspace_resolver_command(
         str(flow_run_id),
         str(workspace_root),
     ]
-
-
-def _stderr_print(*args: Any, **kwargs: Any) -> None:
-    kwargs.pop("style", None)
-    builtins.print(*args, file=sys.stderr, **kwargs)
 
 
 def _resolve_runtime_entrypoint(entrypoint: str) -> str:
@@ -211,6 +205,7 @@ async def _ensure_entrypoint_in_workspace(
     workspace_root: Path,
     source_cwd: Path,
     storage_base_path: Path | None,
+    logger: PrefectLogAdapter,
 ) -> Path:
     if _has_entrypoint_file(deployment.entrypoint, workspace_root):
         return workspace_root
@@ -229,6 +224,7 @@ async def _ensure_entrypoint_in_workspace(
         workspace_root,
         source_cwd,
         storage_base_path,
+        logger,
     )
     return workspace_root
 
@@ -259,6 +255,7 @@ async def _pull_storage_into_workspace(
     workspace_root: Path,
     source_cwd: Path,
     storage_base_path: Path | None,
+    logger: PrefectLogAdapter,
 ) -> Path:
     local_path = _workspace_destination_for_deployment_path(
         deployment.path, workspace_root, storage_base_path
@@ -285,7 +282,7 @@ async def _pull_storage_into_workspace(
         )
         storage_block = LocalFileSystem(basepath=from_path)
 
-    LOGGER.info("Downloading flow code from storage at %r", from_path)
+    logger.info("Downloading flow code from storage at %r", from_path)
     await storage_block.get_directory(from_path=from_path, local_path=str(local_path))
     return local_path
 
@@ -301,6 +298,8 @@ async def prepare_workspace(
             f"Deployment {deployment.id} does not have an entrypoint and can not be run."
         )
 
+    run_logger = flow_run_logger(flow_run)
+
     source_cwd = Path.cwd().resolve()
     storage_base_path = _get_configured_storage_base_path()
     resolved_workspace_root = Path(workspace_root).expanduser().resolve()
@@ -314,6 +313,7 @@ async def prepare_workspace(
             resolved_workspace_root,
             source_cwd,
             storage_base_path,
+            run_logger,
         )
         local_runtime_directory = _resolve_local_runtime_directory(
             deployment.path, source_cwd, storage_base_path
@@ -326,7 +326,9 @@ async def prepare_workspace(
         working_directory = resolved_workspace_root
         step_selected_working_directory = False
         os.chdir(resolved_workspace_root)
-        LOGGER.info("Running %s deployment pull step(s)", len(deployment.pull_steps))
+        run_logger.info(
+            "Running %s deployment pull step(s)", len(deployment.pull_steps)
+        )
 
         def _track_step_workspace(
             _step: dict[str, Any],
@@ -359,10 +361,10 @@ async def prepare_workspace(
             with _observe_step_completion(_track_step_workspace):
                 await run_steps(
                     deployment.pull_steps,
-                    print_function=_stderr_print,
+                    print_function=run_logger.warning,
                     deployment=deployment,
                     flow_run=flow_run,
-                    logger=LOGGER,
+                    logger=run_logger,
                 )
         finally:
             _PULL_STEP_SOURCE_CWD.reset(source_cwd_token)
@@ -374,6 +376,7 @@ async def prepare_workspace(
                 resolved_workspace_root,
                 source_cwd,
                 storage_base_path,
+                run_logger,
             )
 
     os.chdir(working_directory)
@@ -436,6 +439,8 @@ async def _main_async(argv: list[str] | None = None) -> int:
         sys.stdout.write(result.model_dump_json())
         sys.stdout.write("\n")
         return 1
+    finally:
+        await APILogHandler.aflush()
 
     result = PreparedWorkspaceResult(status="success", workspace=workspace)
     sys.stdout.write(result.model_dump_json())

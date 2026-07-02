@@ -5,6 +5,7 @@ import { useRef } from "react";
 import { rrulestr } from "rrule";
 import type { components } from "@/api/prefect";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { divergesFromServerCron } from "@/components/ui/cron-input";
 import {
 	HoverCard,
 	HoverCardContent,
@@ -94,7 +95,9 @@ const CronScheduleBadge = ({
 	active: boolean;
 	schedule: CronSchedule;
 }) => {
-	const scheduleText = cronstrue.toString(schedule.cron);
+	const scheduleText = divergesFromServerCron(schedule.cron)
+		? schedule.cron
+		: cronstrue.toString(schedule.cron);
 	const detailedScheduleText = `${active ? "" : "(Paused)"} ${scheduleText} (${schedule.timezone})`;
 	const badgeVariant = active ? "success" : "warning";
 

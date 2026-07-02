@@ -8,6 +8,7 @@ from pydantic import Field
 from pydantic.types import SecretStr
 from redis.asyncio.connection import parse_url
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.filesystems import WritableFileSystem
 
 DEFAULT_PORT = 6379
@@ -81,7 +82,7 @@ class RedisDatabase(WritableFileSystem):
         if self.username and not self.password:
             raise ValueError("Missing password")
 
-    async def read_path(self, path: str) -> bytes:
+    async def aread_path(self, path: str) -> bytes:
         """Read a redis key
 
         Args:
@@ -89,25 +90,79 @@ class RedisDatabase(WritableFileSystem):
 
         Returns:
             Contents at key as bytes
+
+        Examples:
+            Read a key:
+                ```python
+                content = await block.aread_path("my-key")
+                ```
         """
         client = self.get_async_client()
-        ret = await client.get(path)
+        try:
+            return await client.get(path)
+        finally:
+            await client.aclose()
 
-        await client.close()
-        return ret
+    @async_dispatch(aread_path)
+    def read_path(self, path: str) -> bytes:
+        """Read a redis key
 
-    async def write_path(self, path: str, content: bytes) -> None:
+        Args:
+            path: Redis key to read from
+
+        Returns:
+            Contents at key as bytes
+
+        Examples:
+            Read a key:
+                ```python
+                content = block.read_path("my-key")
+                ```
+        """
+        client = self.get_client()
+        try:
+            return client.get(path)
+        finally:
+            client.close()
+
+    async def awrite_path(self, path: str, content: bytes) -> bool:
         """Write to a redis key
 
         Args:
             path: Redis key to write to
             content: Binary object to write
+
+        Examples:
+            Write a key:
+                ```python
+                await block.awrite_path("my-key", b"contents")
+                ```
         """
         client = self.get_async_client()
-        ret = await client.set(path, content, ex=self.key_ttl)
+        try:
+            return await client.set(path, content, ex=self.key_ttl) is True
+        finally:
+            await client.aclose()
 
-        await client.close()
-        return ret
+    @async_dispatch(awrite_path)
+    def write_path(self, path: str, content: bytes) -> bool:
+        """Write to a redis key
+
+        Args:
+            path: Redis key to write to
+            content: Binary object to write
+
+        Examples:
+            Write a key:
+                ```python
+                block.write_path("my-key", b"contents")
+                ```
+        """
+        client = self.get_client()
+        try:
+            return client.set(path, content, ex=self.key_ttl) is True
+        finally:
+            client.close()
 
     def get_client(self) -> redis.Redis:
         """Get Redis Client
