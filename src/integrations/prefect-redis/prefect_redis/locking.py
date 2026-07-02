@@ -96,6 +96,9 @@ class RedisLockManager(LockManager):
         }
 
     def __setstate__(self, state: dict[str, Any]) -> None:
+        # Lock managers pickled by pre-connection_url versions of prefect-redis
+        # carry no "connection_url" key; default it so _init_clients can run.
+        state.setdefault("connection_url", None)
         self.__dict__.update(state)
         self._init_clients()  # Re-initialize clients here
         self._locks = {}

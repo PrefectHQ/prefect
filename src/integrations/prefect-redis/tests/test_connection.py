@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from unittest import mock
 
 import pytest
 import redis
@@ -7,10 +8,13 @@ from prefect_redis.connection import (
     SENTINEL_SOCKET_KEEPALIVE_OPTIONS,
     RedisConnectionConfig,
     RedisUrlError,
+    aclose_redis_client,
     build_redis_client,
+    close_redis_client,
     parse_redis_url,
     redact_redis_url,
     redis_client_from_url,
+    uses_prefect_tls_query_params,
 )
 from redis.asyncio.sentinel import SentinelConnectionPool as AsyncSentinelPool
 from redis.sentinel import SentinelConnectionPool as SyncSentinelPool
@@ -66,6 +70,19 @@ PARSE_CASES = [
                 "ssl_check_hostname": True,
                 "ssl_ca_certs": None,
             },
+        ),
+    ),
+    ParseCase(
+        # Redis servers can be configured with more than the default 16
+        # logical databases, so indexes above 15 are valid.
+        name="single_node_high_db_index",
+        url="redis://cache:6379/42",
+        expected=RedisConnectionConfig(
+            db=42,
+            is_sentinel=False,
+            host="cache",
+            port=6379,
+            connection_kwargs={"ssl": False},
         ),
     ),
     ParseCase(
@@ -190,7 +207,7 @@ ERROR_CASES = [
     ),
     ErrorCase(name="invalid_port", url="redis://cache:notaport", match="Invalid port"),
     ErrorCase(
-        name="db_out_of_range", url="redis://cache:6379/99", match="out of range"
+        name="negative_db", url="redis://cache:6379/-1", match="must be non-negative"
     ),
     ErrorCase(
         name="invalid_db", url="redis://cache:6379/abc", match="Invalid database index"
@@ -350,6 +367,87 @@ def test_build_client_passes_extra_kwargs_to_data_connection() -> None:
 def test_redis_client_from_url_helper() -> None:
     client = redis_client_from_url("redis://cache:6379/0", asynchronous=True)
     assert isinstance(client, redis.asyncio.Redis)
+
+
+def test_uses_prefect_tls_query_params() -> None:
+    assert uses_prefect_tls_query_params("rediss://cache:6379?tls_insecure=true")
+    assert uses_prefect_tls_query_params("rediss://cache:6379?tls_ca_file=/ca.pem")
+    assert not uses_prefect_tls_query_params("rediss://cache:6379")
+    assert not uses_prefect_tls_query_params("rediss://cache:6379?ssl_cert_reqs=none")
+
+
+# ---------------------------------------------------------------------------
+# Sentinel daemon socket timeouts
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("asynchronous", [False, True])
+def test_sentinel_daemons_inherit_caller_socket_timeouts(asynchronous: bool) -> None:
+    # redis-py only copies socket_* options into sentinel_kwargs when
+    # sentinel_kwargs is None; since the builder always passes an explicit
+    # dict, it must forward the caller's timeouts itself so a partitioned
+    # daemon fails fast during discovery.
+    client = build_redis_client(
+        parse_redis_url("redis+sentinel://s1:26379,s2:26379/mymaster"),
+        asynchronous=asynchronous,
+        socket_timeout=1.5,
+        socket_connect_timeout=0.25,
+    )
+    for sentinel in client.connection_pool.sentinel_manager.sentinels:
+        conn = sentinel.connection_pool.connection_kwargs
+        assert conn["socket_timeout"] == 1.5
+        assert conn["socket_connect_timeout"] == 0.25
+    data_conn = client.connection_pool.connection_kwargs
+    assert data_conn["socket_timeout"] == 1.5
+    assert data_conn["socket_connect_timeout"] == 0.25
+
+
+# ---------------------------------------------------------------------------
+# close helpers
+# ---------------------------------------------------------------------------
+
+
+def test_close_redis_client_closes_sentinel_daemons() -> None:
+    client = build_redis_client(
+        parse_redis_url("redis+sentinel://s1:26379,s2:26379/mymaster"),
+        asynchronous=False,
+    )
+    daemons = list(client.connection_pool.sentinel_manager.sentinels)
+    with mock.patch.object(redis.Redis, "close", autospec=True) as mock_close:
+        close_redis_client(client)
+    closed = {id(call.args[0]) for call in mock_close.call_args_list}
+    assert id(client) in closed
+    for daemon in daemons:
+        assert id(daemon) in closed
+
+
+async def test_aclose_redis_client_closes_sentinel_daemons() -> None:
+    client = build_redis_client(
+        parse_redis_url("redis+sentinel://s1:26379,s2:26379/mymaster"),
+        asynchronous=True,
+    )
+    daemons = list(client.connection_pool.sentinel_manager.sentinels)
+    with mock.patch.object(redis.asyncio.Redis, "aclose", autospec=True) as mock_close:
+        await aclose_redis_client(client)
+    closed = {id(call.args[0]) for call in mock_close.call_args_list}
+    assert id(client) in closed
+    for daemon in daemons:
+        assert id(daemon) in closed
+
+
+async def test_aclose_redis_client_single_node() -> None:
+    # No sentinel manager on the pool; the helper must not raise.
+    client = build_redis_client(
+        parse_redis_url("redis://cache:6379/0"), asynchronous=True
+    )
+    await aclose_redis_client(client)
+
+
+def test_close_redis_client_single_node() -> None:
+    client = build_redis_client(
+        parse_redis_url("redis://cache:6379/0"), asynchronous=False
+    )
+    close_redis_client(client)
 
 
 # ---------------------------------------------------------------------------
