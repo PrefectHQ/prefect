@@ -2,7 +2,7 @@ import asyncio
 import threading
 import uuid
 from collections.abc import Iterable, Iterator
-from datetime import timezone
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -385,6 +385,7 @@ def make_cleanup_connection(
         work_pool_id=work_pool.id,
         consumer_id=consumer_id or uuid.uuid4(),
         worker_name=worker_name,
+        work_pool_updated=work_pool.updated or datetime.now(timezone.utc),
         cleanup_queue=cleanup_queue,
         cleanup_kinds=cleanup_kinds,
         max_cleanup_concurrency=max_cleanup_concurrency,
