@@ -2984,6 +2984,116 @@ class TestWorkerChannelClient:
         snapshot.assert_called_once()
         assert channel.rest_fallback_enabled is False
 
+    async def test_sync_reconciles_rest_work_pool_when_channel_healthy_and_interval_elapsed(
+        self,
+    ):
+        """When the websocket channel is healthy but the REST reconciliation
+        interval has elapsed, sync should call _sync_rest_work_pool to pick up
+        any out-of-band work pool changes that the channel may have missed."""
+        worker_id = uuid.uuid4()
+        snapshot = Mock()
+        updated_template = {"job_configuration": {"image": "new:latest"}}
+        work_pool = WorkPool(
+            name="test-work-pool",
+            type="test",
+            base_job_template=updated_template,
+            default_queue_id=uuid.uuid4(),
+        )
+        client = worker_channel_test_client()
+        client.read_work_pool = AsyncMock(return_value=work_pool)
+        channel_by_ref: dict[str, WorkPoolWorkerChannel] = {}
+
+        def connect_factory(*args: Any, **kwargs: Any) -> FakeWorkerChannelConnect:
+            channel = channel_by_ref["channel"]
+            websocket = FakeWorkerChannelWebSocket(
+                [
+                    {"type": "auth_success"},
+                    worker_channel_ready_frame(
+                        channel.consumer_id, worker_id=worker_id
+                    ),
+                ]
+            )
+            return FakeWorkerChannelConnect(websocket)
+
+        channel = WorkPoolWorkerChannel(
+            client=client,
+            api_url="http://localhost:4200/api",
+            work_pool_is_available=lambda: True,
+            work_pool_name="test-work-pool",
+            worker_name="test-worker",
+            worker_type="test",
+            heartbeat_interval_seconds=30,
+            work_queue_names=[],
+            create_pool_if_not_found=True,
+            default_base_job_template={},
+            worker_metadata=no_worker_channel_metadata,
+            logger=logging.getLogger("test-worker-channel"),
+            on_work_pool_snapshot=snapshot,
+            connect_factory=connect_factory,
+            rest_reconciliation_seconds=0,  # immediate reconciliation
+        )
+        channel_by_ref["channel"] = channel
+
+        async with anyio.create_task_group() as task_group:
+            await channel.sync(task_group)
+            task_group.cancel_scope.cancel()
+
+        # REST read should have been called because interval is 0
+        client.read_work_pool.assert_awaited_once()
+        # Snapshot callback should have been called twice: once from the
+        # websocket handshake and once from the REST reconciliation
+        assert snapshot.call_count == 2
+        assert snapshot.call_args.args[0].base_job_template == updated_template
+
+    async def test_sync_skips_rest_reconciliation_when_interval_not_elapsed(self):
+        """When the websocket channel is healthy and the REST reconciliation
+        interval has NOT elapsed, sync should not call _sync_rest_work_pool."""
+        worker_id = uuid.uuid4()
+        snapshot = Mock()
+        client = worker_channel_test_client()
+        client.read_work_pool = AsyncMock()
+        channel_by_ref: dict[str, WorkPoolWorkerChannel] = {}
+
+        def connect_factory(*args: Any, **kwargs: Any) -> FakeWorkerChannelConnect:
+            channel = channel_by_ref["channel"]
+            websocket = FakeWorkerChannelWebSocket(
+                [
+                    {"type": "auth_success"},
+                    worker_channel_ready_frame(
+                        channel.consumer_id, worker_id=worker_id
+                    ),
+                ]
+            )
+            return FakeWorkerChannelConnect(websocket)
+
+        channel = WorkPoolWorkerChannel(
+            client=client,
+            api_url="http://localhost:4200/api",
+            work_pool_is_available=lambda: True,
+            work_pool_name="test-work-pool",
+            worker_name="test-worker",
+            worker_type="test",
+            heartbeat_interval_seconds=30,
+            work_queue_names=[],
+            create_pool_if_not_found=True,
+            default_base_job_template={},
+            worker_metadata=no_worker_channel_metadata,
+            logger=logging.getLogger("test-worker-channel"),
+            on_work_pool_snapshot=snapshot,
+            connect_factory=connect_factory,
+            rest_reconciliation_seconds=300,  # 5 minutes — won't trigger
+        )
+        channel_by_ref["channel"] = channel
+
+        async with anyio.create_task_group() as task_group:
+            await channel.sync(task_group)
+            task_group.cancel_scope.cancel()
+
+        # REST read should NOT have been called (interval hasn't elapsed)
+        client.read_work_pool.assert_not_awaited()
+        # Only the websocket snapshot callback
+        snapshot.assert_called_once()
+
     async def test_sync_times_out_setup_for_rest_fallback(self):
         client = worker_channel_test_client()
         client.read_work_pool = AsyncMock(

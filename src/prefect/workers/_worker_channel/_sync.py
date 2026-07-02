@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from collections.abc import Awaitable, Callable
 from contextlib import AsyncExitStack
 from logging import Logger
@@ -55,6 +56,7 @@ class WorkPoolWorkerChannel:
         reconnect_base_seconds: float = 1.0,
         reconnect_max_seconds: float = 30.0,
         setup_timeout_seconds: float | None = None,
+        rest_reconciliation_seconds: float = 300.0,
     ):
         self._client = client
         self.work_pool_name = work_pool_name
@@ -104,6 +106,8 @@ class WorkPoolWorkerChannel:
         self._websocket_started = False
         self._run_scope: anyio.CancelScope | None = None
         self._stopped = False
+        self._rest_reconciliation_seconds = rest_reconciliation_seconds
+        self._last_rest_sync_monotonic: float = time.monotonic()
 
     @property
     def url(self) -> str | None:
@@ -133,6 +137,10 @@ class WorkPoolWorkerChannel:
         if self._run_scope is not None:
             self._run_scope.cancel()
 
+    def _rest_reconciliation_due(self) -> bool:
+        elapsed = time.monotonic() - self._last_rest_sync_monotonic
+        return elapsed >= self._rest_reconciliation_seconds
+
     async def sync(self, task_group: anyio.abc.TaskGroup | None) -> None:
         if task_group is not None:
             channel_started = await self._start_websocket(task_group)
@@ -141,7 +149,10 @@ class WorkPoolWorkerChannel:
             if self.url is None:
                 self.state.mark_terminal("endpoint_unavailable")
 
-        if not (channel_started and self.snapshots_available):
+        if (
+            not (channel_started and self.snapshots_available)
+            or self._rest_reconciliation_due()
+        ):
             await self._sync_rest_work_pool()
 
         await self._send_rest_worker_heartbeat()
@@ -296,6 +307,7 @@ class WorkPoolWorkerChannel:
                     self._run_scope = None
 
     async def _sync_rest_work_pool(self) -> None:
+        self._last_rest_sync_monotonic = time.monotonic()
         initial_snapshot_sequence = self._protocol.work_pool_snapshot_sequence
         try:
             work_pool = await self._client.read_work_pool(
