@@ -1,7 +1,6 @@
 """Redis credentials handling"""
 
 from typing import Any, Dict, Optional, Union, cast
-from urllib.parse import urlsplit
 
 import redis
 import redis.asyncio
@@ -12,9 +11,12 @@ from redis.asyncio.connection import parse_url
 from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.filesystems import WritableFileSystem
 from prefect_redis.connection import (
-    SCHEME_SENTINEL,
+    aclose_redis_client,
     build_redis_client,
+    close_redis_client,
+    is_sentinel_url,
     parse_redis_url,
+    uses_prefect_tls_query_params,
 )
 
 DEFAULT_PORT = 6379
@@ -121,7 +123,7 @@ class RedisDatabase(WritableFileSystem):
         try:
             return await client.get(path)
         finally:
-            await client.aclose()
+            await aclose_redis_client(client)
 
     @async_dispatch(aread_path)
     def read_path(self, path: str) -> bytes:
@@ -143,7 +145,7 @@ class RedisDatabase(WritableFileSystem):
         try:
             return client.get(path)
         finally:
-            client.close()
+            close_redis_client(client)
 
     async def awrite_path(self, path: str, content: bytes) -> bool:
         """Write to a redis key
@@ -162,7 +164,7 @@ class RedisDatabase(WritableFileSystem):
         try:
             return await client.set(path, content, ex=self.key_ttl) is True
         finally:
-            await client.aclose()
+            await aclose_redis_client(client)
 
     @async_dispatch(awrite_path)
     def write_path(self, path: str, content: bytes) -> bool:
@@ -182,7 +184,7 @@ class RedisDatabase(WritableFileSystem):
         try:
             return client.set(path, content, ex=self.key_ttl) is True
         finally:
-            client.close()
+            close_redis_client(client)
 
     def get_client(self) -> redis.Redis:
         """Get Redis Client
@@ -242,6 +244,10 @@ class RedisDatabase(WritableFileSystem):
         - `redis+sentinel://` / `rediss+sentinel://` discover the master through
           Redis Sentinel and follow failover automatically
 
+        Sentinel URLs and URLs carrying the `tls_insecure`/`tls_ca_file` query
+        params are stored verbatim on `connection_url`; other URLs are flattened
+        to the scalar host/port/db/username/password/ssl fields.
+
         Args:
             connection_string: Redis connection string
 
@@ -254,9 +260,13 @@ class RedisDatabase(WritableFileSystem):
             else connection_string.get_secret_value()
         )
 
-        # Sentinel URLs cannot be flattened to scalar host/port fields, so they are
-        # retained verbatim and resolved through the Sentinel daemons at connect time.
-        if urlsplit(raw_connection_string).scheme.lower() in SCHEME_SENTINEL:
+        # Sentinel URLs cannot be flattened to scalar host/port fields, and URLs
+        # carrying prefect-specific TLS query params (tls_insecure/tls_ca_file)
+        # would lose them in flattening — both are retained verbatim and parsed
+        # by `parse_redis_url` at connect time.
+        if is_sentinel_url(raw_connection_string) or uses_prefect_tls_query_params(
+            raw_connection_string
+        ):
             return cls(connection_url=SecretStr(raw_connection_string))
 
         connection_kwargs = parse_url(raw_connection_string)
