@@ -298,10 +298,8 @@ async def prepare_workspace(
             f"Deployment {deployment.id} does not have an entrypoint and can not be run."
         )
 
-    # Log through a flow-run-bound logger so records carry a `flow_run_id` and the
-    # `APILogHandler` ships them to the API; a plain module logger's records are
-    # dropped by the handler and pull-step logs never reach the flow run's log
-    # stream in the UI.
+    # Bind pull-step logging to the flow run so `APILogHandler` ships it to the
+    # API; the handler drops records that don't carry a `flow_run_id`.
     run_logger = flow_run_logger(flow_run)
 
     source_cwd = Path.cwd().resolve()
