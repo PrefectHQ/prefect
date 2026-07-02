@@ -79,6 +79,26 @@ describe("Trigger Schemas", () => {
 			};
 			expect(() => EventTriggerSchema.parse(trigger)).not.toThrow();
 		});
+
+		it("validates match_related with multiple resource specifications", () => {
+			const trigger = {
+				type: "event",
+				posture: "Reactive",
+				threshold: 1,
+				within: 0,
+				match_related: [
+					{
+						"prefect.resource.role": "flow",
+						"prefect.resource.id": "prefect.flow.1",
+					},
+					{
+						"prefect.resource.role": "deployment",
+						"prefect.resource.id": "prefect.deployment.1",
+					},
+				],
+			};
+			expect(() => EventTriggerSchema.parse(trigger)).not.toThrow();
+		});
 	});
 
 	describe("CompoundTriggerSchema", () => {

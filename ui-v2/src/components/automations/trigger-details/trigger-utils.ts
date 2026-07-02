@@ -249,28 +249,34 @@ function isEmptyMatchRelated(trigger: EventTrigger): boolean {
 	return Object.keys(matchRelated).length === 0;
 }
 
-function isMatchRelatedResource(
-	trigger: EventTrigger,
-	resource: string,
-): boolean {
+function isFlowRunStateTriggerMatchRelated(trigger: EventTrigger): boolean {
 	const prefectResourceIds = getTriggerMatchRelatedValue(
 		trigger,
 		"prefect.resource.id",
 	);
 
+	if (isEmptyMatchRelated(trigger)) {
+		return true;
+	}
+
 	if (prefectResourceIds.length === 0) {
 		return false;
 	}
 
-	return prefectResourceIds.every((value) => value.startsWith(resource));
-}
-
-function isFlowRunStateTriggerMatchRelated(trigger: EventTrigger): boolean {
-	return (
-		isEmptyMatchRelated(trigger) ||
-		isMatchRelatedResource(trigger, "prefect.flow") ||
-		isMatchRelatedResource(trigger, "prefect.tag")
+	const hasFlow = prefectResourceIds.some((value) =>
+		value.startsWith("prefect.flow."),
 	);
+	const hasTag = prefectResourceIds.some((value) =>
+		value.startsWith("prefect.tag."),
+	);
+	const hasOnlySupportedResources = prefectResourceIds.every(
+		(value) =>
+			value.startsWith("prefect.flow.") ||
+			value.startsWith("prefect.tag.") ||
+			value.startsWith("prefect.deployment."),
+	);
+
+	return hasOnlySupportedResources && !(hasFlow && hasTag);
 }
 
 /**
@@ -281,7 +287,7 @@ function isFlowRunStateTriggerMatchRelated(trigger: EventTrigger): boolean {
  * - for_each contains 'prefect.resource.id'
  * - after events start with 'prefect.flow-run'
  * - expect events start with 'prefect.flow-run'
- * - matchRelated is empty OR contains flow/tag patterns
+ * - matchRelated is empty OR contains flow/tag/deployment patterns
  * - threshold === 1
  */
 export function isFlowRunStateTrigger(trigger: unknown): boolean {

@@ -91,6 +91,26 @@ export const WithSelectedTags: Story = {
 	),
 };
 
+export const WithSelectedDeployments: Story = {
+	render: () => (
+		<FlowRunStateTriggerFieldsStory
+			posture="Reactive"
+			selectedDeploymentIds={["deployment-id-1", "deployment-id-2"]}
+		/>
+	),
+};
+
+export const WithFlowAndDeployments: Story = {
+	render: () => (
+		<FlowRunStateTriggerFieldsStory
+			posture="Reactive"
+			selectedFlowIds={["flow-id-1"]}
+			selectedDeploymentIds={["deployment-id-1"]}
+			selectedStates={["Completed"]}
+		/>
+	),
+};
+
 export const WithFlowsHidesTags: Story = {
 	render: () => (
 		<FlowRunStateTriggerFieldsStory
@@ -106,28 +126,48 @@ function FlowRunStateTriggerFieldsStory({
 	selectedStates = [],
 	selectedFlowIds = [],
 	selectedTags = [],
+	selectedDeploymentIds = [],
 	within,
 }: {
 	posture?: "Reactive" | "Proactive";
 	selectedStates?: StateName[];
 	selectedFlowIds?: string[];
 	selectedTags?: string[];
+	selectedDeploymentIds?: string[];
 	within?: number;
 }) {
 	const buildMatchRelated = () => {
-		const resourceIds: string[] = [
+		const flowOrTagResourceIds: string[] = [
 			...selectedFlowIds.map((id) => `prefect.flow.${id}`),
 			...selectedTags.map((tag) => `prefect.tag.${tag}`),
 		];
+		const deploymentResourceIds = selectedDeploymentIds.map(
+			(id) => `prefect.deployment.${id}`,
+		);
+		const matchRelated: Array<Record<string, string | string[]>> = [];
 
-		if (resourceIds.length === 0) {
+		if (
+			flowOrTagResourceIds.length === 0 &&
+			deploymentResourceIds.length === 0
+		) {
 			return undefined;
 		}
 
-		return {
-			"prefect.resource.role": "flow",
-			"prefect.resource.id": resourceIds,
-		};
+		if (flowOrTagResourceIds.length > 0) {
+			matchRelated.push({
+				"prefect.resource.role": selectedFlowIds.length > 0 ? "flow" : "tag",
+				"prefect.resource.id": flowOrTagResourceIds,
+			});
+		}
+
+		if (deploymentResourceIds.length > 0) {
+			matchRelated.push({
+				"prefect.resource.role": "deployment",
+				"prefect.resource.id": deploymentResourceIds,
+			});
+		}
+
+		return matchRelated.length === 1 ? matchRelated[0] : matchRelated;
 	};
 
 	const form = useForm({

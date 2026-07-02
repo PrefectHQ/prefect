@@ -10,6 +10,12 @@ vi.mock("@/components/flows/flow-link", () => ({
 	),
 }));
 
+vi.mock("@/components/deployments/deployment-link", () => ({
+	DeploymentLink: ({ deploymentId }: { deploymentId: string }) => (
+		<span data-testid="deployment-link">{deploymentId}</span>
+	),
+}));
+
 const queryClient = new QueryClient({
 	defaultOptions: {
 		queries: {
@@ -206,6 +212,38 @@ describe("TriggerDetailsFlowRunState", () => {
 		expect(screen.getByText("critical")).toBeInTheDocument();
 	});
 
+	it("renders deployment links when deploymentIds are provided", () => {
+		render(
+			<TriggerDetailsFlowRunState
+				flowIds={[]}
+				tags={[]}
+				deploymentIds={["deployment-id-1", "deployment-id-2"]}
+				posture="Reactive"
+				states={["FAILED"]}
+			/>,
+			{ wrapper: QueryWrapper },
+		);
+
+		expect(screen.getByText("of deployment")).toBeInTheDocument();
+		expect(screen.getAllByTestId("deployment-link")).toHaveLength(2);
+		expect(screen.getByText("or")).toBeInTheDocument();
+	});
+
+	it("does not render deployment section when deploymentIds is empty", () => {
+		render(
+			<TriggerDetailsFlowRunState
+				flowIds={[]}
+				tags={[]}
+				deploymentIds={[]}
+				posture="Reactive"
+				states={["COMPLETED"]}
+			/>,
+			{ wrapper: QueryWrapper },
+		);
+
+		expect(screen.queryByText("of deployment")).not.toBeInTheDocument();
+	});
+
 	it("does not render flow section when flowIds is empty", () => {
 		render(
 			<TriggerDetailsFlowRunState
@@ -239,6 +277,7 @@ describe("TriggerDetailsFlowRunState", () => {
 			<TriggerDetailsFlowRunState
 				flowIds={["flow-id-1"]}
 				tags={["production"]}
+				deploymentIds={["deployment-id-1"]}
 				posture="Proactive"
 				states={["FAILED", "CRASHED"]}
 				time={60}
@@ -249,6 +288,7 @@ describe("TriggerDetailsFlowRunState", () => {
 		expect(screen.getByText("When any flow run")).toBeInTheDocument();
 		expect(screen.getByText("of flow")).toBeInTheDocument();
 		expect(screen.getByText("with the tag")).toBeInTheDocument();
+		expect(screen.getByText("of deployment")).toBeInTheDocument();
 		expect(screen.getByText("stays in")).toBeInTheDocument();
 		expect(screen.getByText("Failed")).toBeInTheDocument();
 		expect(screen.getByText("Crashed")).toBeInTheDocument();
