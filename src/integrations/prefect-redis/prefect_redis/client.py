@@ -13,9 +13,10 @@ from prefect.settings.base import (
     build_settings_config,  # type: ignore[reportPrivateUsage]
 )
 from prefect_redis.connection import (
-    SCHEME_SENTINEL,
     build_redis_client,
+    is_sentinel_url,
     parse_redis_url,
+    uses_prefect_tls_query_params,
 )
 
 _UNSET: Any = object()
@@ -114,19 +115,7 @@ _client_cache: dict[CacheKey, Redis] = {}
 
 def is_cluster_url(url: str) -> bool:
     """Return True if the URL uses the Redis Cluster scheme."""
-    return url.partition("://")[0] in {"redis+cluster", "rediss+cluster"}
-
-
-def is_sentinel_url(url: str) -> bool:
-    """Return True if the URL uses a Redis Sentinel scheme.
-
-    Splits the scheme off by hand rather than using `urlparse`: a Sentinel
-    member list that includes an IPv6 host (e.g.
-    `redis+sentinel://s1:26379,[::1]:26379/mymaster`) makes `urlparse` raise
-    `ValueError: Invalid IPv6 URL` before the tolerant `parse_redis_url` path
-    can run. This mirrors `is_cluster_url` and never validates the netloc.
-    """
-    return url.partition("://")[0] in SCHEME_SENTINEL
+    return url.partition("://")[0].lower() in {"redis+cluster", "rediss+cluster"}
 
 
 def normalize_cluster_url(url: str) -> str:
@@ -223,8 +212,10 @@ def get_async_redis_client(
     `PREFECT_REDIS_MESSAGING_URL`), `Redis.from_url` is used and
     the discrete host/port/… arguments are ignored. `redis+sentinel://`
     and `rediss+sentinel://` URLs resolve the current master through the
-    listed Sentinel daemons and follow failover automatically. Redis
-    Cluster URLs are detected but intentionally not enabled yet.
+    listed Sentinel daemons and follow failover automatically; single-node
+    URLs carrying the `tls_insecure`/`tls_ca_file` query params are parsed
+    by prefect-redis as well. Redis Cluster URLs are detected but
+    intentionally not enabled yet.
 
     Args:
         url: Full Redis URL (e.g. `redis://localhost:6379/0` or
@@ -259,7 +250,12 @@ def get_async_redis_client(
 
     url = url or settings.url
     if url:
-        if is_sentinel_url(url):
+        if is_cluster_url(url):
+            _raise_cluster_not_supported()
+        # Sentinel URLs and single-node URLs carrying prefect-specific TLS
+        # query params (tls_insecure/tls_ca_file) go through prefect's own
+        # parser; redis-py's from_url does not understand either.
+        if is_sentinel_url(url) or uses_prefect_tls_query_params(url):
             return cast(
                 Redis,
                 build_redis_client(
@@ -273,8 +269,6 @@ def get_async_redis_client(
                     protocol=resolved_protocol,
                 ),
             )
-        if is_cluster_url(url):
-            _raise_cluster_not_supported()
         return Redis.from_url(
             url,
             health_check_interval=health_check_interval
@@ -313,7 +307,9 @@ def async_redis_from_settings(
     }
 
     if settings.url:
-        if is_sentinel_url(settings.url):
+        if is_cluster_url(settings.url):
+            _raise_cluster_not_supported()
+        if is_sentinel_url(settings.url) or uses_prefect_tls_query_params(settings.url):
             return cast(
                 Redis,
                 build_redis_client(
@@ -323,8 +319,6 @@ def async_redis_from_settings(
                     **options,
                 ),
             )
-        if is_cluster_url(settings.url):
-            _raise_cluster_not_supported()
         return Redis.from_url(
             settings.url,
             health_check_interval=settings.health_check_interval,
