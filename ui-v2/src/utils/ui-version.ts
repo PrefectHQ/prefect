@@ -217,6 +217,7 @@ export function setPreferredUiVersion(args: {
 		location,
 		currentBasePath: args.currentBasePath,
 	});
+	// biome-ignore lint/suspicious/noDocumentCookie: Cookie Store API is asynchronous and not available in all supported browsers.
 	document.cookie = `${UI_VERSION_COOKIE_NAME}=${args.version}; Path=${cookiePath}; Max-Age=${ONE_YEAR_IN_SECONDS}; SameSite=Lax`;
 }
 

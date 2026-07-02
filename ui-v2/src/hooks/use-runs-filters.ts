@@ -19,7 +19,10 @@ const parseStateFilter = (stateString: string): FlowRunState[] => {
 
 const parseCommaSeparatedFilter = (filterString: string): string[] => {
 	if (!filterString) return [];
-	return filterString.split(",").filter((s) => s.trim().length > 0);
+	return filterString
+		.split(",")
+		.map((s) => s.trim())
+		.filter((s) => s.length > 0);
 };
 
 export type RunsFilters = {

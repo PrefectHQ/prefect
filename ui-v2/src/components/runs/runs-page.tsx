@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import type { ChangeEvent } from "react";
 import type { FlowRun, SimpleFlowRun } from "@/api/flow-runs";
 import { buildListFlowsQuery } from "@/api/flows";
 import type { TaskRunResponse } from "@/api/task-runs";
 import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
+import { FlowRunTagsSelect } from "@/components/flow-runs/flow-run-tags-select";
 import {
 	DateRangeFilter,
 	type DateRangeUrlState,
@@ -52,7 +52,6 @@ import { SearchInput } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TagsInput } from "@/components/ui/tags-input";
 import { SaveFilterDialog } from "./save-filter-dialog";
 import { isSystemFilter } from "./use-saved-filters";
 
@@ -278,12 +277,9 @@ export const RunsPage = ({
 					</div>
 					<div className="flex flex-col gap-1 w-full lg:w-auto">
 						<Label className="text-xs text-muted-foreground">Tags</Label>
-						<TagsInput
+						<FlowRunTagsSelect
 							value={Array.from(selectedTags)}
-							onChange={(e: string[] | ChangeEvent<HTMLInputElement>) => {
-								const tags = Array.isArray(e) ? e : [];
-								onTagsFilterChange(new Set(tags));
-							}}
+							onChange={(tags) => onTagsFilterChange(new Set(tags))}
 							placeholder="All tags"
 						/>
 					</div>

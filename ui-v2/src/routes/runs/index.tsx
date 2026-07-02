@@ -130,7 +130,10 @@ const parseWorkPoolsFilter = (workPoolsString: string): string[] => {
 // Helper to parse tags string to array of tag strings
 const parseTagsFilter = (tagsString: string): string[] => {
 	if (!tagsString) return [];
-	return tagsString.split(",").filter((s) => s.trim().length > 0);
+	return tagsString
+		.split(",")
+		.map((s) => s.trim())
+		.filter((s) => s.length > 0);
 };
 
 const buildPaginationBody = (search?: SearchParams): FlowRunsPaginateFilter => {
