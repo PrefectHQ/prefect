@@ -307,7 +307,6 @@ class WorkPoolWorkerChannel:
                     self._run_scope = None
 
     async def _sync_rest_work_pool(self) -> None:
-        self._last_rest_sync_monotonic = time.monotonic()
         initial_snapshot_sequence = self._protocol.work_pool_snapshot_sequence
         try:
             work_pool = await self._client.read_work_pool(
@@ -345,6 +344,7 @@ class WorkPoolWorkerChannel:
                         "Ignoring supplied base job template because the work pool"
                         " already exists"
                     )
+                self._last_rest_sync_monotonic = time.monotonic()
                 return
 
         if (
@@ -355,6 +355,7 @@ class WorkPoolWorkerChannel:
                 "Skipping REST work pool sync because the worker channel applied a "
                 "snapshot while REST sync was in flight."
             )
+            self._last_rest_sync_monotonic = time.monotonic()
             return
 
         if not work_pool.base_job_template:
@@ -371,9 +372,11 @@ class WorkPoolWorkerChannel:
                 "Skipping REST work pool snapshot because the worker channel applied "
                 "a snapshot while REST sync was in flight."
             )
+            self._last_rest_sync_monotonic = time.monotonic()
             return
 
         self._protocol.record_rest_work_pool_snapshot(work_pool)
+        self._last_rest_sync_monotonic = time.monotonic()
 
     async def _set_work_pool_template(
         self, work_pool: WorkPool, job_template: dict[str, Any]
