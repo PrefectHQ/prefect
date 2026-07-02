@@ -272,6 +272,35 @@ async def create_deployment(
     return result_deployment
 
 
+def _schedule_match_key(slug: Optional[str], schedule: Any) -> str:
+    """Build a stable key for matching an updated schedule to an existing one.
+
+    Schedules carry a slug; slug-less schedules are matched on their
+    serialized definition so an unchanged schedule can be recognized across
+    a redeploy.
+    """
+    if slug:
+        return f"slug:{slug}"
+    definition = schedule.model_dump_json() if schedule is not None else "null"
+    return f"schedule:{definition}"
+
+
+def _resolve_schedule_active(
+    schedule: "schemas.actions.DeploymentScheduleUpdate",
+    existing_active: dict[str, bool],
+) -> bool:
+    """Determine the active state for a schedule being recreated on update.
+
+    An explicit `active` always wins. When it's omitted, inherit the matching
+    existing schedule's state, falling back to active for a new schedule.
+    """
+    if schedule.active is not None:
+        return schedule.active
+    return existing_active.get(
+        _schedule_match_key(schedule.slug, schedule.schedule), True
+    )
+
+
 @db_injector
 async def update_deployment(
     db: PrefectDBInterface,
@@ -383,7 +412,15 @@ async def update_deployment(
 
     if should_update_schedules:
         # If schedules were provided, remove the existing schedules and
-        # replace them with the new ones.
+        # replace them with the new ones. An update that doesn't specify
+        # `active` should keep a matching schedule's current active state
+        # rather than silently re-activating one that was paused.
+        existing_active = {
+            _schedule_match_key(s.slug, s.schedule): s.active
+            for s in await read_deployment_schedules(
+                session=session, deployment_id=deployment_id
+            )
+        }
         await delete_schedules_for_deployment(
             session=session, deployment_id=deployment_id
         )
@@ -393,7 +430,7 @@ async def update_deployment(
             schedules=[
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schedule.schedule,
-                    active=schedule.active if schedule.active is not None else True,
+                    active=_resolve_schedule_active(schedule, existing_active),
                     parameters=schedule.parameters,
                     slug=schedule.slug,
                 )

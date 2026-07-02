@@ -29,7 +29,7 @@ class TestSchedule:
         assert schedule.timezone is None
         assert isinstance(schedule.anchor_date, datetime.datetime)
         assert schedule.day_or is True
-        assert schedule.active is True
+        assert schedule.active is None
         assert schedule.parameters == {}
 
 
@@ -39,7 +39,7 @@ class TestCronSchedule:
         assert schedule.cron == "0 0 * * *"
         assert schedule.timezone is None
         assert schedule.day_or is True
-        assert schedule.active is True
+        assert schedule.active is None
         assert schedule.parameters == {}
 
     def test_cron_schedule_with_all_parameters(self):
@@ -65,7 +65,7 @@ class TestIntervalSchedule:
         assert schedule.interval == interval
         assert isinstance(schedule.anchor_date, datetime.datetime)
         assert schedule.timezone is None
-        assert schedule.active is True
+        assert schedule.active is None
         assert schedule.parameters == {}
 
     def test_interval_schedule_with_seconds(self):
@@ -91,7 +91,7 @@ class TestRRuleSchedule:
         schedule = RRule(rrule)
         assert schedule.rrule == rrule
         assert schedule.timezone is None
-        assert schedule.active is True
+        assert schedule.active is None
         assert schedule.parameters == {}
 
     def test_rrule_schedule_with_all_parameters(self):
