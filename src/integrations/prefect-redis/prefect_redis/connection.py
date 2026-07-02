@@ -53,6 +53,9 @@ SCHEME_ALL = frozenset({"redis", "rediss"}) | SCHEME_SENTINEL
 _TRUE_VALUES = frozenset({"1", "true", "yes", "on"})
 _FALSE_VALUES = frozenset({"0", "false", "no", "off"})
 _SECRET_QUERY_KEYS = frozenset({"password", "sentinel_password"})
+# Query keys redis-py's own URL parser does not understand; URLs carrying them
+# must be routed through `parse_redis_url` rather than `Redis.from_url`.
+_PREFECT_TLS_QUERY_KEYS = frozenset({"tls_insecure", "tls_ca_file"})
 _REDACTED = "***"
 _DEFAULT_PORT = 6379
 # Sentinel daemons listen on 26379 by default, so sentinel members without an
@@ -140,6 +143,35 @@ def _split_connection_url(url: str) -> "tuple[SplitResult, str]":
     return urlsplit(f"{scheme}://netloc-placeholder{tail}"), netloc
 
 
+def is_sentinel_url(url: str) -> bool:
+    """Return True if the URL uses a Redis Sentinel scheme.
+
+    Splits the scheme off by hand rather than using `urlparse`: a Sentinel
+    member list that includes an IPv6 host (e.g.
+    `redis+sentinel://s1:26379,[::1]:26379/mymaster`) makes `urlparse` raise
+    `ValueError: Invalid IPv6 URL` before the tolerant `parse_redis_url` path
+    can run. Schemes are matched case-insensitively per RFC 3986.
+    """
+    return url.partition("://")[0].lower() in SCHEME_SENTINEL
+
+
+def uses_prefect_tls_query_params(url: str) -> bool:
+    """Return True if the URL carries prefect-redis-specific TLS query
+    parameters (`tls_insecure` / `tls_ca_file`).
+
+    redis-py's URL parser passes unknown query keys through as `Redis(...)`
+    kwargs, which fail with `TypeError` at first connection — so URLs carrying
+    these keys must be built via `parse_redis_url`/`build_redis_client` and
+    retained verbatim rather than flattened to scalar connection fields.
+    """
+    try:
+        parts, _ = _split_connection_url(url)
+    except ValueError:
+        return False
+    query = parse_qs(parts.query, keep_blank_values=True)
+    return not _PREFECT_TLS_QUERY_KEYS.isdisjoint(query)
+
+
 def redact_redis_url(url: str) -> str:
     """Return `url` with the userinfo password and sensitive query values masked."""
     try:
@@ -187,9 +219,9 @@ def _parse_db(segment: str, *, url: str) -> int:
         raise RedisUrlError(
             f"Invalid database index {segment!r} in connection URL: {redact_redis_url(url)}"
         ) from exc
-    if not 0 <= db <= 15:
+    if db < 0:
         raise RedisUrlError(
-            f"Database index {db} out of range (0-15) in connection URL: {redact_redis_url(url)}"
+            f"Database index {db} must be non-negative in connection URL: {redact_redis_url(url)}"
         )
     return db
 
@@ -250,7 +282,7 @@ def parse_redis_url(url: str) -> RedisConnectionConfig:
 
     Raises:
         RedisUrlError: With secrets redacted, for any unsupported scheme, malformed
-            member list, missing Sentinel service name, or out-of-range database index.
+            member list, missing Sentinel service name, or negative database index.
     """
     parts, netloc = _split_connection_url(url)
     scheme = parts.scheme.lower()
@@ -364,16 +396,28 @@ def build_redis_client(
         # deliberately not applied to the Sentinel daemon connections, which only
         # carry short discovery polls.
         data_node_kwargs = {**_SENTINEL_DATA_NODE_DEFAULTS, **config.connection_kwargs}
+        # redis-py copies socket_* options from connection_kwargs into
+        # sentinel_kwargs only when sentinel_kwargs is None; the explicit dict
+        # always passed here suppresses that fallback. Forward the caller's
+        # timeouts so a partitioned Sentinel daemon fails fast during master
+        # discovery instead of blocking on OS connect defaults. Keepalive stays
+        # data-node only: the daemon connections carry short discovery polls.
+        sentinel_kwargs: dict[str, Any] = {
+            key: extra[key]
+            for key in ("socket_timeout", "socket_connect_timeout")
+            if key in extra
+        }
+        sentinel_kwargs.update(config.sentinel_kwargs)
         if asynchronous:
             async_sentinel = AsyncSentinel(
                 list(config.sentinels),
-                sentinel_kwargs=dict(config.sentinel_kwargs),
+                sentinel_kwargs=sentinel_kwargs,
                 **data_node_kwargs,
             )
             return async_sentinel.master_for(config.service_name, db=config.db, **extra)
         sync_sentinel = SyncSentinel(
             list(config.sentinels),
-            sentinel_kwargs=dict(config.sentinel_kwargs),
+            sentinel_kwargs=sentinel_kwargs,
             **data_node_kwargs,
         )
         return sync_sentinel.master_for(config.service_name, db=config.db, **extra)
@@ -392,3 +436,27 @@ def redis_client_from_url(
 ) -> Union[redis.Redis, redis.asyncio.Redis]:
     """Convenience wrapper: `build_redis_client(parse_redis_url(url), ...)`."""
     return build_redis_client(parse_redis_url(url), asynchronous=asynchronous, **extra)
+
+
+def close_redis_client(client: redis.Redis) -> None:
+    """Close a sync client returned by `build_redis_client`.
+
+    A Sentinel-backed client holds one extra Redis client per Sentinel daemon
+    on its connection pool's `sentinel_manager`; closing only the returned
+    client would leave those daemon connections to be reclaimed by the garbage
+    collector (emitting `ResourceWarning`s). This closes both.
+    """
+    client.close()
+    manager = getattr(client.connection_pool, "sentinel_manager", None)
+    if manager is not None:
+        for daemon_client in manager.sentinels:
+            daemon_client.close()
+
+
+async def aclose_redis_client(client: redis.asyncio.Redis) -> None:
+    """Async counterpart of `close_redis_client`."""
+    await client.aclose()
+    manager = getattr(client.connection_pool, "sentinel_manager", None)
+    if manager is not None:
+        for daemon_client in manager.sentinels:
+            await daemon_client.aclose()
