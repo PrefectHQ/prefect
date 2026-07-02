@@ -21,6 +21,7 @@ import prefect.server.schemas as schemas
 from prefect._internal.schema import ParameterSchema
 from prefect._internal.schemas.validators import (
     get_or_create_run_name,
+    normalize_artifact_data_for_type,
     normalize_schedule_rrule,
     remove_old_deployment_fields,
     validate_cache_key_length,
@@ -1045,6 +1046,11 @@ class ArtifactCreate(ActionBaseModel):
     task_run_id: Optional[UUID] = Field(
         default=None, description="The task run associated with the artifact."
     )
+
+    @model_validator(mode="after")
+    def normalize_rich_artifact_data(self) -> "ArtifactCreate":
+        self.data = normalize_artifact_data_for_type(self.type, self.data)
+        return self
 
     @classmethod
     def from_result(cls, data: Any | dict[str, Any]) -> "ArtifactCreate":

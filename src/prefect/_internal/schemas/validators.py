@@ -156,6 +156,103 @@ def convert_to_strings(value: Union[Any, Iterable[Any]]) -> Union[str, list[str]
     return str(value)
 
 
+DEFAULT_RICH_ARTIFACT_SANDBOX: tuple[str, ...] = ("allow-scripts",)
+SUPPORTED_RICH_ARTIFACT_SANDBOX: frozenset[str] = frozenset(
+    {"allow-same-origin", "allow-scripts"}
+)
+
+
+def normalize_rich_artifact_sandbox(
+    sandbox: Optional[Iterable[Any]],
+) -> list[str]:
+    if sandbox is None:
+        raw_tokens = list(DEFAULT_RICH_ARTIFACT_SANDBOX)
+    elif isinstance(sandbox, (str, bytes)) or not isiterable(sandbox):
+        raise ValueError("Rich artifact sandbox must be a list of strings.")
+    else:
+        raw_tokens = list(sandbox)
+
+    normalized_tokens: list[str] = []
+    seen_tokens: set[str] = set()
+    for token in raw_tokens:
+        if not isinstance(token, str):
+            raise ValueError("Rich artifact sandbox must be a list of strings.")
+
+        normalized = token.strip().lower()
+        if not normalized or normalized not in SUPPORTED_RICH_ARTIFACT_SANDBOX:
+            continue
+
+        if normalized in seen_tokens:
+            continue
+
+        seen_tokens.add(normalized)
+        normalized_tokens.append(normalized)
+
+    if (
+        "allow-scripts" in seen_tokens
+        and "allow-same-origin" in seen_tokens
+        and "allow-same-origin" in normalized_tokens
+    ):
+        normalized_tokens.remove("allow-same-origin")
+
+    return normalized_tokens
+
+
+def get_default_rich_artifact_csp(sandbox: Iterable[str]) -> str:
+    normalized_sandbox = {token.strip().lower() for token in sandbox}
+    script_src = (
+        "'unsafe-inline'" if "allow-scripts" in normalized_sandbox else "'none'"
+    )
+
+    return "; ".join(
+        [
+            "default-src 'none'",
+            f"script-src {script_src}",
+            "style-src 'unsafe-inline'",
+            "img-src data:",
+            "font-src data:",
+            "media-src data:",
+            "connect-src 'none'",
+            "base-uri 'none'",
+            "form-action 'none'",
+            "frame-src 'none'",
+            "object-src 'none'",
+            "worker-src 'none'",
+            "manifest-src 'none'",
+        ]
+    )
+
+
+def normalize_rich_artifact_csp(_csp: Optional[Any], sandbox: Iterable[str]) -> str:
+    # Rich artifacts use a fixed restrictive CSP derived from the sanitized
+    # sandbox tokens. This prevents artifact authors from widening the policy
+    # to re-enable outbound requests or other blocked capabilities.
+    return get_default_rich_artifact_csp(sandbox)
+
+
+def normalize_rich_artifact_data(data: Any) -> dict[str, Any]:
+    if not isinstance(data, Mapping):
+        raise ValueError("Rich artifact data must be an object.")
+
+    html = data.get("html")
+    if not isinstance(html, str):
+        raise ValueError("Rich artifact data must include an html string.")
+
+    sandbox = normalize_rich_artifact_sandbox(data.get("sandbox"))
+
+    return {
+        "html": html,
+        "sandbox": sandbox,
+        "csp": normalize_rich_artifact_csp(data.get("csp"), sandbox),
+    }
+
+
+def normalize_artifact_data_for_type(artifact_type: Optional[str], data: Any) -> Any:
+    if artifact_type == "rich":
+        return normalize_rich_artifact_data(data)
+    return data
+
+
 ### SCHEDULE SCHEMA VALIDATORS ###
 
 
