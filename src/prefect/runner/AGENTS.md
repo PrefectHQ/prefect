@@ -134,6 +134,8 @@ These validations exist to prevent git argument injection. Do not bypass them wh
 
 **Stdout is reserved for the JSON `PreparedWorkspaceResult` payload only.** Pull step output (including inherited stdout from child processes) is redirected to stderr. Parse `process.stdout` for the result, `process.stderr` for diagnostics. Violating this breaks callers silently.
 
+**Pull-step logs also ship to the API.** `prepare_workspace` builds a per-run `flow_run_logger(flow_run)` and threads it into every helper (storage pull, pull steps) instead of using a module-level logger, so `PREFECT_LOGGING_TO_API_ENABLED` sends pull step output to the flow run's log stream. Because the subprocess exits immediately after writing its JSON result, `_main_async` calls `APILogHandler.aflush()` in a `finally` block — any new early-return/exit path must preserve this or buffered API logs are silently dropped.
+
 **Caller-facing API:** Use `WorkspaceResolvingEngineCommandStarter` (`_workspace_starter.py`) rather than calling the resolver directly. It wraps the subprocess call, memoizes the resolved workspace (one subprocess call per starter instance), and provides `resolve_flow()` that loads the flow inside the resolved workspace context. Pass `starter.resolve_flow` as the `resolve_flow` argument to `FlowRunExecutorContext.create_executor()` — using a separate lambda bypasses the workspace context and will fail to find the flow.
 
 **Env/sys.path isolation:** `_prepared_workspace_context` mutates `os.environ` and `sys.path` in the caller process but does NOT change `os.getcwd()`. The parent working directory is preserved.
