@@ -361,7 +361,7 @@ async def prepare_workspace(
             with _observe_step_completion(_track_step_workspace):
                 await run_steps(
                     deployment.pull_steps,
-                    print_function=run_logger.info,
+                    print_function=run_logger.warning,
                     deployment=deployment,
                     flow_run=flow_run,
                     logger=run_logger,
