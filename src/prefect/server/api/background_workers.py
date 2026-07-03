@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from contextlib import asynccontextmanager
 from logging import Logger
 from typing import Any, AsyncGenerator, Callable
@@ -110,6 +111,8 @@ async def _supervised_worker(worker: Worker) -> None:
         except asyncio.CancelledError:
             raise
         except Exception:
+            if _is_task_cancelling():
+                raise asyncio.CancelledError()
             delay = worker.reconnection_delay.total_seconds()
             logger.error(
                 "Docket worker exited unexpectedly, restarting in %s seconds",
@@ -117,3 +120,15 @@ async def _supervised_worker(worker: Worker) -> None:
                 exc_info=True,
             )
             await asyncio.sleep(delay)
+
+
+def _is_task_cancelling() -> bool:
+    """Check if the current asyncio task has a pending cancellation.
+
+    On Python 3.11+ ``Task.cancelling()`` tracks pending cancel requests.
+    On older versions this always returns ``False``.
+    """
+    if sys.version_info < (3, 11):
+        return False
+    task = asyncio.current_task()
+    return task is not None and task.cancelling() > 0

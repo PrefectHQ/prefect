@@ -6,7 +6,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from redis.exceptions import TimeoutError as RedisTimeoutError
 
-from prefect.server.api.background_workers import _supervised_worker
+from prefect.server.api.background_workers import (
+    _is_task_cancelling,
+    _supervised_worker,
+)
 
 
 class TestSupervisedWorker:
@@ -112,3 +115,29 @@ class TestSupervisedWorker:
         args = mock_logger.error.call_args
         assert "Docket worker exited unexpectedly" in args[0][0]
         assert args[1]["exc_info"] is True
+
+    async def test_propagates_cancellation_when_task_is_cancelling(self):
+        """If the task is being cancelled but run_forever() raises a non-CancelledError
+        (e.g. during Docket cleanup), the supervisor re-raises CancelledError instead
+        of restarting."""
+        worker = MagicMock()
+        worker.reconnection_delay.total_seconds.return_value = 0
+        worker.run_forever = AsyncMock(
+            side_effect=RedisTimeoutError("cleanup error during shutdown")
+        )
+
+        with patch(
+            "prefect.server.api.background_workers._is_task_cancelling",
+            return_value=True,
+        ):
+            with pytest.raises(asyncio.CancelledError):
+                await _supervised_worker(worker)
+
+        worker.run_forever.assert_awaited_once()
+
+
+class TestIsTaskCancelling:
+    """Tests for the _is_task_cancelling helper."""
+
+    async def test_returns_false_normally(self):
+        assert _is_task_cancelling() is False
