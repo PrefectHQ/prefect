@@ -125,8 +125,8 @@ async def _supervised_worker(worker: Worker) -> None:
 def _is_task_cancelling() -> bool:
     """Check if the current asyncio task has a pending cancellation.
 
-    On Python 3.11+ ``Task.cancelling()`` tracks pending cancel requests.
-    On older versions this always returns ``False``.
+    On Python 3.11+ `Task.cancelling()` tracks pending cancel requests.
+    On older versions this always returns `False`.
     """
     if sys.version_info < (3, 11):
         return False
