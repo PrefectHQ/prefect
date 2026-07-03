@@ -294,11 +294,11 @@ async def read_work_queue_by_name(
     db: PrefectDBInterface, session: AsyncSession, name: str
 ) -> Optional[orm_models.WorkQueue]:
     """
-    Reads a WorkQueue by id.
+    Reads a WorkQueue by name.
 
     Args:
         session (AsyncSession): A database session
-        work_queue_id (str): a WorkQueue id
+        name (str): a WorkQueue name
 
     Returns:
         orm_models.WorkQueue: the WorkQueue
