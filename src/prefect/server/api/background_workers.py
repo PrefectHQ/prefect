@@ -75,7 +75,10 @@ async def background_worker(
         )
 
         try:
-            worker_task = asyncio.create_task(worker.run_forever())
+            worker_task = asyncio.create_task(
+                _supervised_worker(worker),
+                name="supervised-docket-worker",
+            )
             yield
 
         finally:
@@ -85,3 +88,32 @@ async def background_worker(
                     await worker_task
                 except asyncio.CancelledError:
                     pass
+
+
+async def _supervised_worker(worker: Worker) -> None:
+    """Run worker.run_forever() with automatic restart on unexpected exit.
+
+    Docket's Worker._run() reconnect loop only catches
+    redis.exceptions.ConnectionError.  During Redis failovers a
+    redis.exceptions.TimeoutError (which is *not* a ConnectionError subclass)
+    can propagate out of run_forever(), silently killing the worker loop while
+    the independent heartbeat task keeps the pod looking healthy.
+
+    This wrapper catches any unexpected exception from run_forever() and
+    restarts after the worker's configured reconnection_delay, so background
+    scheduling resumes once Redis connectivity recovers.
+    """
+    while True:
+        try:
+            await worker.run_forever()
+            return  # clean exit
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            delay = worker.reconnection_delay.total_seconds()
+            logger.error(
+                "Docket worker exited unexpectedly, restarting in %s seconds",
+                delay,
+                exc_info=True,
+            )
+            await asyncio.sleep(delay)
