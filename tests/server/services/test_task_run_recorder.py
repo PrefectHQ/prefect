@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql.dml import Insert
 
+from prefect._internal.testing import retry_asserts
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.models.flow_runs import create_flow_run
 from prefect.server.models.task_run_states import (
@@ -1149,6 +1150,57 @@ async def test_event_dropped_after_max_retries_exceeded(
     assert "Dropping event" in caplog.text
     assert "after 2 failed attempts" in caplog.text
     assert "1 dropped" in caplog.text
+
+
+async def test_periodic_flush_survives_dropped_events(
+    pending_event: ReceivedEvent,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/21057
+
+    `flush()` re-raises when an event is dropped after exhausting persist
+    retries. If that exception propagates out of `flush_periodically`, the
+    periodic flush task dies silently (it is only cancelled, never awaited)
+    and queued events are stranded until the next incoming message — or
+    forever, once the queue backlog exceeds the write batch size.
+    """
+    poison = pending_event
+    good = pending_event.model_copy(update={"id": uuid4()})
+    recorded: list[ReceivedEvent] = []
+    flush_attempts = 0
+
+    async def mock_record_bulk(events: list[ReceivedEvent]):
+        nonlocal flush_attempts
+        flush_attempts += 1
+        if any(e.id == poison.id for e in events):
+            raise Exception("Simulated persistent DB failure")
+        recorded.extend(events)
+
+    monkeypatch.setattr(
+        "prefect.server.services.task_run_recorder.record_bulk_task_run_events",
+        mock_record_bulk,
+    )
+
+    # write_batch_size > 1 so message_handler never flushes; only the
+    # periodic flush task can persist these events
+    async with task_run_recorder.consumer(
+        write_batch_size=10, flush_every=1, max_persist_retries=0
+    ) as handler:
+        await handler(message(poison))
+
+        # first periodic flush drops the poison event and re-raises
+        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
+            with attempt:
+                assert flush_attempts >= 1
+        assert len(recorded) == 0
+
+        await handler(message(good))
+
+        # the periodic flush task must still be alive to persist this event;
+        # assert before exiting the context, since teardown also flushes
+        async for attempt in retry_asserts(max_attempts=10, delay=0.5):
+            with attempt:
+                assert [e.id for e in recorded] == [good.id]
 
 
 def make_event_with_flow_run(

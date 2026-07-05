@@ -484,13 +484,18 @@ async def consumer(
                 raise
 
     async def flush_periodically():
-        try:
-            while True:
+        while True:
+            try:
                 await asyncio.sleep(flush_every)
                 if queue.qsize():
                     await flush()
-        except asyncio.CancelledError:
-            return
+            except asyncio.CancelledError:
+                return
+            except Exception:
+                # flush() re-raises when events are dropped; this task is never
+                # awaited, so letting that propagate would kill periodic
+                # flushing silently and strand queued events (issue #21057)
+                logger.exception("Error during periodic flush; continuing")
 
     async def message_handler(message: Message):
         event: ReceivedEvent = ReceivedEvent.model_validate_json(message.data)
