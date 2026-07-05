@@ -81,10 +81,12 @@ from prefect.events import AutomationCore, EventTrigger, Posture
 from prefect.filesystems import LocalFileSystem
 from prefect.server.api.server import create_app
 from prefect.server.database.orm_models import WorkPool
+from prefect.server.services.task_run_recorder import TaskRunRecorder
 from prefect.settings import (
     PREFECT_API_AUTH_STRING,
     PREFECT_API_DATABASE_MIGRATE_ON_START,
     PREFECT_API_KEY,
+    PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED,
     PREFECT_API_SSL_CERT_FILE,
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
     PREFECT_API_URL,
@@ -619,6 +621,49 @@ async def test_client_runs_migrations_for_two_different_ephemeral_apps(
 
         if not enabled:
             mock.assert_not_awaited()
+
+
+async def test_client_restarts_services_for_ephemeral_app_on_each_session(
+    monkeypatch,
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/21057
+
+    Background services like the `TaskRunRecorder` must restart on every
+    lifespan entry, even though one-time startup work (migrations, block
+    registration) is only done once per app. Otherwise, once the first
+    ephemeral session ends, later sessions against the same cached app have
+    no consumer to persist task-run events, and task runs silently vanish.
+    """
+    unique_docket = f"test-docket-{uuid4().hex[:8]}"
+    with temporary_settings(
+        updates={
+            PREFECT_SERVER_DOCKET_NAME: unique_docket,
+            PREFECT_API_SERVICES_TASK_RUN_RECORDER_ENABLED: True,
+        }
+    ):
+        # turn on lifespan for this test; it turns off after its run once per process
+        monkeypatch.setattr(prefect.server.api.server, "LIFESPAN_RAN_FOR_APP", set())
+
+        app = create_app(ephemeral=True, ignore_cache=True)
+
+        original_start = TaskRunRecorder.start
+        start_calls = []
+
+        async def patched_start(self, *args, **kwargs):
+            start_calls.append(1)
+            return await original_start(self, *args, **kwargs)
+
+        monkeypatch.setattr(TaskRunRecorder, "start", patched_start)
+
+        async with PrefectClient(app):
+            # give the service's startup task a chance to run before teardown
+            await anyio.sleep(0.1)
+        assert len(start_calls) == 1
+
+        # a fresh session against the same cached app should start the service again
+        async with PrefectClient(app):
+            await anyio.sleep(0.1)
+        assert len(start_calls) == 2
 
 
 async def test_client_does_not_run_migrations_for_hosted_app(

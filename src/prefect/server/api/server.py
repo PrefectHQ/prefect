@@ -936,12 +936,10 @@ def create_app(
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
-        if app in LIFESPAN_RAN_FOR_APP:
-            yield
-            return
-
-        await run_migrations()
-        await add_block_types()
+        if app not in LIFESPAN_RAN_FOR_APP:
+            await run_migrations()
+            await add_block_types()
+            LIFESPAN_RAN_FOR_APP.add(app)
 
         _log_worker_channel_config()
 
@@ -969,7 +967,6 @@ def create_app(
             api_app.state.docket = docket
             if Services:
                 await stack.enter_async_context(Services.running())
-            LIFESPAN_RAN_FOR_APP.add(app)
             yield
 
     def on_service_exit(service: Service, task: asyncio.Task[None]) -> None:
