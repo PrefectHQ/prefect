@@ -147,9 +147,56 @@ def _running_loop() -> Union[asyncio.AbstractEventLoop, None]:
         raise
 
 
+def _force_close_client_sockets(client: Redis) -> None:
+    """Synchronously close the sockets held by a client's connection pool.
+
+    A client's connections are bound to the event loop that created them, so
+    once that loop is closed there is no public async API able to release them
+    (``connection_pool.disconnect()`` / ``client.aclose()`` are coroutines that
+    require a live, matching loop). This reaches the underlying socket through
+    the asyncio transport and closes the file descriptor directly. The transport
+    and connection-pool attributes accessed here are redis-py/asyncio internals,
+    so every access is guarded — a non-standard pool (e.g. a cluster pool) is
+    skipped rather than raising.
+    """
+    pool = getattr(client, "connection_pool", None)
+    if pool is None:
+        return
+
+    connections = list(getattr(pool, "_available_connections", [])) + list(
+        getattr(pool, "_in_use_connections", [])
+    )
+    for conn in connections:
+        writer = getattr(conn, "_writer", None)
+        if writer is None:
+            continue
+        transport = getattr(writer, "transport", None)
+        sock = getattr(transport, "_sock", None)
+        if sock is not None:
+            try:
+                sock.close()
+            except OSError:
+                pass
+        conn._writer = None
+        conn._reader = None
+
+
+def _evict_closed_loop_clients() -> None:
+    """Drop and release cached clients whose owning event loop has closed.
+
+    Keeps ``_client_cache`` bounded to roughly one entry per currently-live loop
+    and releases the sockets those closed-loop clients would otherwise leak.
+    """
+    for key in list(_client_cache):
+        loop = key[3]
+        if loop is not None and loop.is_closed():
+            _force_close_client_sockets(_client_cache.pop(key))
+
+
 def cached(fn: Callable[..., Any]) -> Callable[..., Any]:
     @functools.wraps(fn)
     def cached_fn(*args: Any, **kwargs: Any) -> Redis:
+        _evict_closed_loop_clients()
         key = (fn, args, tuple(kwargs.items()), _running_loop())
         if key not in _client_cache:
             _client_cache[key] = fn(*args, **kwargs)
@@ -159,14 +206,22 @@ def cached(fn: Callable[..., Any]) -> Callable[..., Any]:
 
 
 def close_all_cached_connections() -> None:
-    """Close all cached Redis connections."""
+    """Close all cached Redis connections and clear the cache.
+
+    Clients whose owning loop is still open are disconnected on that loop;
+    clients whose loop has already closed (or was never bound to one) have their
+    sockets force-closed synchronously so their file descriptors are released.
+    """
     loop: Union[asyncio.AbstractEventLoop, None]
 
     for (_, _, _, loop), client in _client_cache.items():
-        if not loop or (loop and loop.is_closed()):
+        if not loop or loop.is_closed():
+            _force_close_client_sockets(client)
             continue
         loop.run_until_complete(client.connection_pool.disconnect())
         loop.run_until_complete(client.aclose())
+
+    _client_cache.clear()
 
 
 async def clear_cached_clients() -> None:
@@ -174,9 +229,21 @@ async def clear_cached_clients() -> None:
 
     This should be called when a connection error is detected to ensure
     subsequent calls to get_async_redis_client() return fresh clients
-    rather than stale ones with broken connections.
+    rather than stale ones with broken connections. Clients are closed before
+    being dropped so their connections/sockets are released rather than
+    orphaned: the client on the current running loop is closed with the normal
+    async API, while any client bound to an already-closed loop has its sockets
+    force-closed synchronously.
     """
     global _client_cache
+
+    current_loop = _running_loop()
+    for (_, _, _, loop), client in _client_cache.items():
+        if loop is current_loop and loop is not None:
+            await client.connection_pool.disconnect()
+            await client.aclose()
+        elif loop is None or loop.is_closed():
+            _force_close_client_sockets(client)
 
     _client_cache.clear()
 

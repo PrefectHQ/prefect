@@ -1,3 +1,4 @@
+import asyncio
 import warnings
 from unittest.mock import MagicMock, patch
 
@@ -6,6 +7,7 @@ from prefect_redis.client import (
     RedisMessagingSettings,
     _client_cache,
     async_redis_from_settings,
+    clear_cached_clients,
     close_all_cached_connections,
     cluster_key_prefix,
     get_async_redis_client,
@@ -394,3 +396,76 @@ def test_close_all_cached_connections(mock_cache):
 
     # Verify run_until_complete was called twice (for disconnect and close)
     assert mock_loop.run_until_complete.call_count == 2
+
+
+def _live_writers(client: Redis) -> list[object]:
+    """Return connection objects in a client's pool that still hold a writer."""
+    pool = client.connection_pool
+    connections = list(pool._available_connections) + list(pool._in_use_connections)
+    return [conn for conn in connections if getattr(conn, "_writer", None) is not None]
+
+
+def test_cached_clients_are_evicted_when_their_loop_closes(isolated_redis_db_number):
+    """Regression for the per-event-loop client leak (GitHub #22442).
+
+    Each ``asyncio.run`` creates a fresh loop; the client cached for a loop that
+    has since closed must be evicted (and its socket released) rather than
+    accumulating without bound.
+    """
+    _client_cache.clear()
+
+    async def touch() -> None:
+        client = get_async_redis_client()
+        await client.ping()  # force a real connection on THIS event loop
+
+    try:
+        for _ in range(10):
+            asyncio.run(touch())
+            # Never more than one entry: the just-closed loop's client is evicted
+            # on the next `cached` call (and the current run leaves one behind).
+            assert len(_client_cache) <= 1
+    finally:
+        close_all_cached_connections()
+
+    assert len(_client_cache) == 0
+
+
+def test_close_all_cached_connections_releases_closed_loop_clients(
+    isolated_redis_db_number,
+):
+    """close_all_cached_connections must force-close clients from dead loops."""
+    _client_cache.clear()
+
+    captured: list[Redis] = []
+
+    async def touch() -> None:
+        client = get_async_redis_client()
+        await client.ping()
+        captured.append(client)
+
+    # Populate the cache with a client bound to a now-closed loop, without
+    # triggering the proactive eviction that `get_async_redis_client` performs.
+    asyncio.run(touch())
+    client = captured[0]
+    assert _live_writers(client), "expected a live connection before cleanup"
+
+    close_all_cached_connections()
+
+    assert len(_client_cache) == 0
+    assert _live_writers(client) == [], "sockets from the closed loop were not released"
+
+
+async def test_clear_cached_clients_closes_current_loop_client(
+    isolated_redis_db_number,
+):
+    """clear_cached_clients must close clients before dropping them."""
+    _client_cache.clear()
+
+    client = get_async_redis_client()
+    await client.ping()
+    assert _live_writers(client), "expected a live connection before cleanup"
+
+    await clear_cached_clients()
+
+    assert len(_client_cache) == 0
+    assert _live_writers(client) == [], "current-loop client was not closed"
