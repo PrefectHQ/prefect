@@ -15,7 +15,10 @@
     "primary": "#2D6DF6"
   },
   "contextual": {
-    "options": ["copy", "view"]
+    "options": [
+      "copy",
+      "view"
+    ]
   },
   "errors": {
     "404": {
