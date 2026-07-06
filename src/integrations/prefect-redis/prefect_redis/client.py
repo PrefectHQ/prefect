@@ -196,6 +196,11 @@ def _transport_socket(transport: Any) -> Union[socket.socket, None]:
     holds the fd. `get_extra_info("socket")` is deliberately avoided: it returns
     an `asyncio.TransportSocket` wrapper that forbids `close()`, so it cannot be
     used to release the fd. The walk is bounded to guard against cycles.
+
+    Non-CPython transports (e.g. uvloop's) expose no `_sock`, so this returns
+    None and the force-close path degrades to dropping the reference: the fd is
+    then released when the garbage collector reclaims the orphaned pool rather
+    than deterministically.
     """
     seen: set[int] = set()
     while transport is not None and id(transport) not in seen:
