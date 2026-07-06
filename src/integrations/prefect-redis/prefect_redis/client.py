@@ -158,6 +158,12 @@ def _force_close_client_sockets(client: Redis) -> None:
     and connection-pool attributes accessed here are redis-py/asyncio internals,
     so every access is guarded — a non-standard pool (e.g. a cluster pool) is
     skipped rather than raising.
+
+    This must only be called for clients whose owning loop is already closed:
+    that loop's selector is gone, so closing the raw file descriptor cannot
+    race with a live transport still polling it. Force-closing a socket that
+    belongs to a running loop would free the fd for reuse while asyncio still
+    has it registered, corrupting an unrelated connection.
     """
     pool = getattr(client, "connection_pool", None)
     if pool is None:
@@ -181,6 +187,10 @@ def _force_close_client_sockets(client: Redis) -> None:
         conn._reader = None
 
 
+def _is_closed_loop(loop: Union[asyncio.AbstractEventLoop, None]) -> bool:
+    return loop is not None and loop.is_closed()
+
+
 def _evict_closed_loop_clients() -> None:
     """Drop and release cached clients whose owning event loop has closed.
 
@@ -188,8 +198,7 @@ def _evict_closed_loop_clients() -> None:
     and releases the sockets those closed-loop clients would otherwise leak.
     """
     for key in list(_client_cache):
-        loop = key[3]
-        if loop is not None and loop.is_closed():
+        if _is_closed_loop(key[3]):
             _force_close_client_sockets(_client_cache.pop(key))
 
 
@@ -209,17 +218,20 @@ def close_all_cached_connections() -> None:
     """Close all cached Redis connections and clear the cache.
 
     Clients whose owning loop is still open are disconnected on that loop;
-    clients whose loop has already closed (or was never bound to one) have their
-    sockets force-closed synchronously so their file descriptors are released.
+    clients whose loop has already closed have their sockets force-closed
+    synchronously so their file descriptors are released. Clients that were
+    never bound to a loop are simply dropped — their connections (if any) live
+    on some other loop that may still be running, so it is not safe to reach
+    into their sockets from here.
     """
     loop: Union[asyncio.AbstractEventLoop, None]
 
     for (_, _, _, loop), client in _client_cache.items():
-        if not loop or loop.is_closed():
+        if _is_closed_loop(loop):
             _force_close_client_sockets(client)
-            continue
-        loop.run_until_complete(client.connection_pool.disconnect())
-        loop.run_until_complete(client.aclose())
+        elif loop is not None:
+            loop.run_until_complete(client.connection_pool.disconnect())
+            loop.run_until_complete(client.aclose())
 
     _client_cache.clear()
 
@@ -229,20 +241,16 @@ async def clear_cached_clients() -> None:
 
     This should be called when a connection error is detected to ensure
     subsequent calls to get_async_redis_client() return fresh clients
-    rather than stale ones with broken connections. Clients are closed before
-    being dropped so their connections/sockets are released rather than
-    orphaned: the client on the current running loop is closed with the normal
-    async API, while any client bound to an already-closed loop has its sockets
-    force-closed synchronously.
+    rather than stale ones with broken connections. Clients bound to an
+    already-closed loop have their sockets force-closed synchronously so their
+    file descriptors are released rather than leaked; all other clients are
+    dropped from the cache without touching their live sockets (the caller
+    replaces them with fresh clients on the next call).
     """
     global _client_cache
 
-    current_loop = _running_loop()
     for (_, _, _, loop), client in _client_cache.items():
-        if loop is current_loop and loop is not None:
-            await client.connection_pool.disconnect()
-            await client.aclose()
-        elif loop is None or loop.is_closed():
+        if _is_closed_loop(loop):
             _force_close_client_sockets(client)
 
     _client_cache.clear()

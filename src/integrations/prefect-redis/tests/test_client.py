@@ -455,10 +455,38 @@ def test_close_all_cached_connections_releases_closed_loop_clients(
     assert _live_writers(client) == [], "sockets from the closed loop were not released"
 
 
-async def test_clear_cached_clients_closes_current_loop_client(
+def test_clear_cached_clients_releases_closed_loop_clients(isolated_redis_db_number):
+    """clear_cached_clients force-closes clients whose loop has already closed."""
+    _client_cache.clear()
+
+    captured: list[Redis] = []
+
+    async def touch() -> None:
+        client = get_async_redis_client()
+        await client.ping()
+        captured.append(client)
+
+    asyncio.run(touch())  # leaves a client bound to a now-closed loop in the cache
+    closed_loop_client = captured[0]
+    assert _live_writers(closed_loop_client), (
+        "expected a live connection before cleanup"
+    )
+
+    asyncio.run(clear_cached_clients())
+
+    assert len(_client_cache) == 0
+    assert _live_writers(closed_loop_client) == [], (
+        "sockets from the closed loop were not released"
+    )
+
+
+async def test_clear_cached_clients_drops_live_client_without_closing(
     isolated_redis_db_number,
 ):
-    """clear_cached_clients must close clients before dropping them."""
+    """clear_cached_clients drops a live-loop client from the cache but must not
+    force-close its socket: the fd is still registered with the running loop's
+    selector, and the caller simply fetches a fresh client afterwards.
+    """
     _client_cache.clear()
 
     client = get_async_redis_client()
@@ -468,4 +496,6 @@ async def test_clear_cached_clients_closes_current_loop_client(
     await clear_cached_clients()
 
     assert len(_client_cache) == 0
-    assert _live_writers(client) == [], "current-loop client was not closed"
+    assert _live_writers(client), "live-loop client should not be force-closed"
+
+    await client.aclose()
