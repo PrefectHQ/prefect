@@ -152,7 +152,7 @@ def _force_close_client_sockets(client: Redis) -> None:
 
     A client's connections are bound to the event loop that created them, so
     once that loop is closed there is no public async API able to release them
-    (``connection_pool.disconnect()`` / ``client.aclose()`` are coroutines that
+    (`connection_pool.disconnect()` / `client.aclose()` are coroutines that
     require a live, matching loop). This reaches the underlying socket through
     the asyncio transport and closes the file descriptor directly. The transport
     and connection-pool attributes accessed here are redis-py/asyncio internals,
@@ -194,7 +194,7 @@ def _is_closed_loop(loop: Union[asyncio.AbstractEventLoop, None]) -> bool:
 def _evict_closed_loop_clients() -> None:
     """Drop and release cached clients whose owning event loop has closed.
 
-    Keeps ``_client_cache`` bounded to roughly one entry per currently-live loop
+    Keeps `_client_cache` bounded to roughly one entry per currently-live loop
     and releases the sockets those closed-loop clients would otherwise leak.
     """
     for key in list(_client_cache):

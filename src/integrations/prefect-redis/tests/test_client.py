@@ -408,7 +408,7 @@ def _live_writers(client: Redis) -> list[object]:
 def test_cached_clients_are_evicted_when_their_loop_closes(isolated_redis_db_number):
     """Regression for the per-event-loop client leak (GitHub #22442).
 
-    Each ``asyncio.run`` creates a fresh loop; the client cached for a loop that
+    Each `asyncio.run` creates a fresh loop; the client cached for a loop that
     has since closed must be evicted (and its socket released) rather than
     accumulating without bound.
     """
