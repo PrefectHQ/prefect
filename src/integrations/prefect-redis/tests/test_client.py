@@ -547,6 +547,7 @@ def test_force_close_releases_plain_transport_socket():
 
     assert left.fileno() == -1, "plain transport socket was not closed"
 
+
 def test_concurrent_eviction_from_multiple_threads(isolated_redis_db_number):
     """Eviction must tolerate another thread removing the same dead-loop entry.
 
