@@ -63,6 +63,10 @@ Integrations that need runtime-configurable behavior use `PrefectBaseSettings` s
 
 Unlike core `prefect.settings`, integration settings are not wired into the root `Settings` hierarchy. Access them by instantiating the class directly: `settings = MyIntegrationSettings()`. Tests override values via `mock.patch.dict("os.environ", {...})`.
 
+## Database Connection Plugin Hooks
+
+Passwordless database auth (`prefect-aws` IAM, `prefect-azure` managed identity) is a `plugins.py` exposing `set_database_connection_params(connection_url, settings) -> Mapping[str, Any]`, registered via `[project.entry-points."prefect.plugins"]` and decorated with `register_hook` (import from `prefect.plugins`, falling back to `prefect._experimental.plugins` for pre-GA Prefect releases). Return `{}` when the feature is disabled; otherwise return `connect_args` to merge into the server's asyncpg connection. Model a new one on an existing `plugins.py` rather than designing the hook shape from scratch.
+
 ## Related
 
 - `docs/integrations/` → Integration-specific documentation pages
