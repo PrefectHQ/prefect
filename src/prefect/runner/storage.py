@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import os
 import re
 import shutil
+import stat
 import subprocess
+import sys
 import warnings
 from copy import deepcopy
 from pathlib import Path
@@ -29,6 +32,30 @@ from prefect.filesystems import ReadableDeploymentStorage, WritableDeploymentSto
 from prefect.locking._filelock import FileLock
 from prefect.logging.loggers import get_logger
 from prefect.utilities.collections import visit_collection
+
+
+def _clear_read_only_attributes(path: Path) -> None:
+    """
+    Recursively clear the read-only attribute on files within a directory.
+
+    On Windows, git writes pack and loose object files as read-only (mode
+    `0o444`). A subsequent `git pull` that needs to repack or replace those
+    files then fails with `[WinError 5] Access is denied`. Marking the files
+    as writable beforehand lets git manage them. This is a no-op on
+    non-Windows platforms, where read-only object files do not block git.
+    """
+    if sys.platform != "win32":
+        return
+    if not path.exists():
+        return
+    for entry in path.rglob("*"):
+        try:
+            if entry.is_file() and not entry.is_symlink():
+                os.chmod(entry, stat.S_IWRITE | stat.S_IREAD)
+        except OSError:
+            # Best effort: if a single file can't be made writable, let git
+            # surface the underlying error rather than masking it here.
+            continue
 
 
 @runtime_checkable
@@ -392,6 +419,11 @@ class GitRepository:
                     f"The existing repository at {str(self.destination)} "
                     f"does not match the configured repository {configured_repo_url}"
                 )
+
+            # On Windows, git object files are read-only, which prevents git
+            # from repacking or replacing them during a pull. Clear the
+            # read-only attribute first to avoid `[WinError 5] Access is denied`.
+            _clear_read_only_attributes(git_dir)
 
             # Sparsely checkout the repository if directories are specified and the repo is not in sparse-checkout mode already
             if self._directories and not await self.is_sparsely_checked_out():

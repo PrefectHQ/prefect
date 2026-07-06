@@ -1,6 +1,8 @@
 import asyncio
+import os
 import re
 import shutil
+import stat
 import subprocess
 import sys
 from pathlib import Path
@@ -22,6 +24,7 @@ from prefect.runner.storage import (
     LocalStorage,
     RemoteStorage,
     RunnerStorage,
+    _clear_read_only_attributes,
     _get_git_clone_error_hint,
     _get_remote_storage_error_hint,
     create_storage_from_source,
@@ -334,6 +337,34 @@ class TestGitRepository:
         # Should NOT raise - the URLs match (same repo, same credentials)
         # Before fix: raises ValueError because stripped URL != URL with creds
         await repo.pull_code()
+
+    async def test_pull_code_clears_readonly_before_pull(self, monkeypatch):
+        """Regression test for GitHub issue #22446.
+
+        On Windows, git object files are read-only, so a `git pull` that needs
+        to repack or replace them fails with `[WinError 5] Access is denied`.
+        The read-only attribute on the `.git` directory must be cleared before
+        pulling.
+        """
+
+        async def mock_run_process(*args, **kwargs):
+            class Result:
+                stdout = "https://github.com/org/repo.git".encode()
+
+            return Result()
+
+        monkeypatch.setattr("prefect.runner.storage.run_process", mock_run_process)
+        monkeypatch.setattr("pathlib.Path.exists", lambda x: ".git" in str(x))
+
+        clear_mock = MagicMock()
+        monkeypatch.setattr(
+            "prefect.runner.storage._clear_read_only_attributes", clear_mock
+        )
+
+        repo = GitRepository(url="https://github.com/org/repo.git")
+        await repo.pull_code()
+
+        clear_mock.assert_called_once_with(repo.destination / ".git")
 
     async def test_pull_code_clone_repo(self, mock_run_process: AsyncMock, monkeypatch):
         monkeypatch.setattr("pathlib.Path.exists", lambda x: False)
@@ -1412,6 +1443,37 @@ class TestGitCloneErrorHints:
         joined = "\n".join(debug_messages)
         assert "ghp_SECRETTOKEN" not in joined, "token must be sanitized"
         assert "github.com" in joined
+
+
+class TestClearReadOnlyAttributes:
+    """Tests for the Windows read-only object file workaround (issue #22446)."""
+
+    def test_noop_on_non_windows(self, monkeypatch, tmp_path: Path):
+        monkeypatch.setattr("prefect.runner.storage.sys.platform", "linux")
+        readonly_file = tmp_path / "pack-abc.idx"
+        readonly_file.write_text("data")
+        readonly_file.chmod(0o444)
+
+        _clear_read_only_attributes(tmp_path)
+
+        assert not (os.stat(readonly_file).st_mode & stat.S_IWRITE)
+
+    def test_clears_readonly_on_windows(self, monkeypatch, tmp_path: Path):
+        monkeypatch.setattr("prefect.runner.storage.sys.platform", "win32")
+        pack_dir = tmp_path / "objects" / "pack"
+        pack_dir.mkdir(parents=True)
+        readonly_file = pack_dir / "pack-abc.idx"
+        readonly_file.write_text("data")
+        readonly_file.chmod(0o444)
+
+        _clear_read_only_attributes(tmp_path)
+
+        assert os.stat(readonly_file).st_mode & stat.S_IWRITE
+
+    def test_missing_path_is_noop(self, monkeypatch, tmp_path: Path):
+        monkeypatch.setattr("prefect.runner.storage.sys.platform", "win32")
+        # Should not raise when the directory does not exist
+        _clear_read_only_attributes(tmp_path / "does-not-exist")
 
 
 class TestGitRepositoryConcurrency:
