@@ -148,7 +148,9 @@ def _running_loop() -> Union[asyncio.AbstractEventLoop, None]:
         raise
 
 
-def _force_close_client_sockets(client: Redis) -> None:
+def _force_close_client_sockets(
+    client: Redis, only_dead_loop_connections: bool = False
+) -> None:
     """Synchronously close the sockets held by a client's connection pool.
 
     A client's connections are bound to the event loop that created them, so
@@ -160,11 +162,15 @@ def _force_close_client_sockets(client: Redis) -> None:
     so every access is guarded — a non-standard pool (e.g. a cluster pool) is
     skipped rather than raising.
 
-    This must only be called for clients whose owning loop is already closed:
+    Sockets must only be force-closed once their owning loop is already closed:
     that loop's selector is gone, so closing the raw file descriptor cannot
     race with a live transport still polling it. Force-closing a socket that
     belongs to a running loop would free the fd for reuse while asyncio still
-    has it registered, corrupting an unrelated connection.
+    has it registered, corrupting an unrelated connection. Callers that know
+    the client's owning loop is closed may close everything; for clients cached
+    with no owning loop (created outside any loop, connections bound to
+    whichever loop first awaited them), pass `only_dead_loop_connections=True`
+    to close only connections whose own writer loop has closed.
     """
     pool = getattr(client, "connection_pool", None)
     if pool is None:
@@ -176,6 +182,10 @@ def _force_close_client_sockets(client: Redis) -> None:
     for conn in connections:
         writer = getattr(conn, "_writer", None)
         if writer is None:
+            continue
+        if only_dead_loop_connections and not _is_closed_loop(
+            getattr(writer, "_loop", None)
+        ):
             continue
         sock = _transport_socket(getattr(writer, "transport", None))
         if sock is not None:
@@ -249,16 +259,18 @@ def close_all_cached_connections() -> None:
     Clients whose owning loop is still open are disconnected on that loop;
     clients whose loop has already closed have their sockets force-closed
     synchronously so their file descriptors are released. Clients that were
-    never bound to a loop are simply dropped — their connections (if any) live
-    on some other loop that may still be running, so it is not safe to reach
-    into their sockets from here.
+    never bound to a loop have their connections inspected individually:
+    connections whose own loop has closed are force-closed, while connections
+    on a still-running loop are left alone and dropped with the cache entry.
     """
     loop: Union[asyncio.AbstractEventLoop, None]
 
     for (_, _, _, loop), client in _client_cache.items():
         if _is_closed_loop(loop):
             _force_close_client_sockets(client)
-        elif loop is not None:
+        elif loop is None:
+            _force_close_client_sockets(client, only_dead_loop_connections=True)
+        else:
             loop.run_until_complete(client.connection_pool.disconnect())
             loop.run_until_complete(client.aclose())
 
@@ -272,15 +284,18 @@ async def clear_cached_clients() -> None:
     subsequent calls to get_async_redis_client() return fresh clients
     rather than stale ones with broken connections. Clients bound to an
     already-closed loop have their sockets force-closed synchronously so their
-    file descriptors are released rather than leaked; all other clients are
-    dropped from the cache without touching their live sockets (the caller
-    replaces them with fresh clients on the next call).
+    file descriptors are released rather than leaked; clients cached with no
+    owning loop have only their dead-loop connections force-closed; all other
+    clients are dropped from the cache without touching their live sockets
+    (the caller replaces them with fresh clients on the next call).
     """
     global _client_cache
 
     for (_, _, _, loop), client in _client_cache.items():
         if _is_closed_loop(loop):
             _force_close_client_sockets(client)
+        elif loop is None:
+            _force_close_client_sockets(client, only_dead_loop_connections=True)
 
     _client_cache.clear()
 

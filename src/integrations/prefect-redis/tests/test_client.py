@@ -578,3 +578,51 @@ def test_concurrent_eviction_from_multiple_threads(isolated_redis_db_number):
     close_all_cached_connections()
 
     assert not errors, f"eviction raced across threads: {errors[0]!r}"
+
+
+def test_close_all_releases_dead_connections_of_loopless_client(
+    isolated_redis_db_number,
+):
+    """A client cached with no running loop (`loop=None` key) opens connections
+    lazily on whichever loop first awaits it. Once that loop closes, cleanup
+    must release those sockets rather than dropping the cache entry with the
+    fd still open (GitHub #22445).
+    """
+    _client_cache.clear()
+
+    client = get_async_redis_client()  # cached under loop=None
+    assert len(_client_cache) == 1
+
+    async def use() -> None:
+        await client.ping()
+
+    asyncio.run(use())  # connection now bound to a closed loop
+    assert _live_writers(client), "expected a live connection before cleanup"
+
+    close_all_cached_connections()
+
+    assert len(_client_cache) == 0
+    assert _live_writers(client) == [], (
+        "dead-loop connections of a loopless client were not released"
+    )
+
+
+async def test_clear_cached_clients_keeps_live_connections_of_loopless_client(
+    isolated_redis_db_number,
+):
+    """The per-connection check must not close a loopless client's connections
+    that belong to a still-running loop.
+    """
+    _client_cache.clear()
+
+    client = get_async_redis_client.__wrapped__()
+    _client_cache[(get_async_redis_client.__wrapped__, (), (), None)] = client
+    await client.ping()  # connection bound to the CURRENT (live) loop
+    assert _live_writers(client), "expected a live connection"
+
+    await clear_cached_clients()
+
+    assert len(_client_cache) == 0
+    assert _live_writers(client), "live-loop connection should not be force-closed"
+    await client.ping()  # still usable
+    await client.aclose()
