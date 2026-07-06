@@ -1,5 +1,6 @@
 import asyncio
 import socket
+import threading
 import warnings
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -545,3 +546,34 @@ def test_force_close_releases_plain_transport_socket():
     _force_close_client_sockets(_fake_client_with_transport(plain_transport))
 
     assert left.fileno() == -1, "plain transport socket was not closed"
+
+def test_concurrent_eviction_from_multiple_threads(isolated_redis_db_number):
+    """Eviction must tolerate another thread removing the same dead-loop entry.
+
+    Each `asyncio.run` leaves a closed-loop entry behind; concurrent callers
+    snapshot the cache, so two threads can race to pop the same key. A bare
+    `pop(key)` raises `KeyError` out of `get_async_redis_client` here.
+    """
+    _client_cache.clear()
+    errors: list[BaseException] = []
+
+    async def touch() -> None:
+        client = get_async_redis_client()
+        await client.ping()
+
+    def worker() -> None:
+        try:
+            for _ in range(50):
+                asyncio.run(touch())
+        except BaseException as e:  # noqa: BLE001
+            errors.append(e)
+
+    threads = [threading.Thread(target=worker) for _ in range(8)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    close_all_cached_connections()
+
+    assert not errors, f"eviction raced across threads: {errors[0]!r}"

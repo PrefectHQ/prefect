@@ -221,7 +221,9 @@ def _evict_closed_loop_clients() -> None:
     """
     for key in list(_client_cache):
         if _is_closed_loop(key[3]):
-            _force_close_client_sockets(_client_cache.pop(key))
+            client = _client_cache.pop(key, None)
+            if client is not None:
+                _force_close_client_sockets(client)
 
 
 def cached(fn: Callable[..., Any]) -> Callable[..., Any]:
