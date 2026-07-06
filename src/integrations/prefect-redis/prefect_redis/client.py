@@ -1,5 +1,6 @@
 import asyncio
 import functools
+import socket
 import warnings
 from typing import Any, Callable, Optional, Union
 from urllib.parse import urlparse, urlunparse
@@ -176,8 +177,7 @@ def _force_close_client_sockets(client: Redis) -> None:
         writer = getattr(conn, "_writer", None)
         if writer is None:
             continue
-        transport = getattr(writer, "transport", None)
-        sock = getattr(transport, "_sock", None)
+        sock = _transport_socket(getattr(writer, "transport", None))
         if sock is not None:
             try:
                 sock.close()
@@ -185,6 +185,28 @@ def _force_close_client_sockets(client: Redis) -> None:
                 pass
         conn._writer = None
         conn._reader = None
+
+
+def _transport_socket(transport: Any) -> Union[socket.socket, None]:
+    """Return the raw, closeable socket behind an asyncio transport, if any.
+
+    A selector transport owns the socket directly as `_sock`. A TLS transport
+    (`rediss://` / `ssl=True`) has no `_sock`; it wraps a lower-level selector
+    transport reached via `_ssl_protocol._transport`, which is what actually
+    holds the fd. `get_extra_info("socket")` is deliberately avoided: it returns
+    an `asyncio.TransportSocket` wrapper that forbids `close()`, so it cannot be
+    used to release the fd. The walk is bounded to guard against cycles.
+    """
+    seen: set[int] = set()
+    while transport is not None and id(transport) not in seen:
+        seen.add(id(transport))
+        sock = getattr(transport, "_sock", None)
+        if sock is not None:
+            return sock
+        transport = getattr(
+            getattr(transport, "_ssl_protocol", None), "_transport", None
+        )
+    return None
 
 
 def _is_closed_loop(loop: Union[asyncio.AbstractEventLoop, None]) -> bool:

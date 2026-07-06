@@ -1,11 +1,14 @@
 import asyncio
+import socket
 import warnings
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 from prefect_redis.client import (
     RedisMessagingSettings,
     _client_cache,
+    _force_close_client_sockets,
     async_redis_from_settings,
     clear_cached_clients,
     close_all_cached_connections,
@@ -499,3 +502,46 @@ async def test_clear_cached_clients_drops_live_client_without_closing(
     assert _live_writers(client), "live-loop client should not be force-closed"
 
     await client.aclose()
+
+
+def _fake_client_with_transport(transport: object) -> Redis:
+    """Build a stand-in Redis whose pool holds one connection with `transport`."""
+    conn = SimpleNamespace(
+        _writer=SimpleNamespace(transport=transport), _reader=object()
+    )
+    pool = SimpleNamespace(_available_connections=[conn], _in_use_connections=[])
+    return SimpleNamespace(connection_pool=pool)  # type: ignore[return-value]
+
+
+def test_force_close_releases_tls_transport_socket():
+    """TLS transports have no `_sock`; the fd lives on the wrapped transport.
+
+    An asyncio SSL transport (`rediss://` / `ssl=True`) exposes no `_sock`; the
+    real socket lives on the selector transport reached via
+    `_ssl_protocol._transport`. If the force-close path doesn't follow that
+    chain it silently leaks the fd (GH #22443).
+    """
+    left, right = socket.socketpair()
+    right.close()
+
+    # Mimic asyncio's _SSLProtocolTransport -> SSLProtocol -> selector transport.
+    ssl_transport = SimpleNamespace(
+        _ssl_protocol=SimpleNamespace(_transport=SimpleNamespace(_sock=left))
+    )
+    assert not hasattr(ssl_transport, "_sock")
+
+    _force_close_client_sockets(_fake_client_with_transport(ssl_transport))
+
+    assert left.fileno() == -1, "TLS transport socket was not closed"
+
+
+def test_force_close_releases_plain_transport_socket():
+    """Plain selector transports expose the socket directly as `_sock`."""
+    left, right = socket.socketpair()
+    right.close()
+
+    plain_transport = SimpleNamespace(_sock=left)
+
+    _force_close_client_sockets(_fake_client_with_transport(plain_transport))
+
+    assert left.fileno() == -1, "plain transport socket was not closed"
