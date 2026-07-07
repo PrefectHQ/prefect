@@ -1148,6 +1148,7 @@ async def worker_channel_connect(
                 work_pool_id=ready.payload.initial_snapshot.work_pool.id,
                 consumer_id=hello.payload.consumer_id,
                 worker_name=hello.payload.worker_name,
+                work_pool_updated=ready.payload.initial_snapshot.work_pool.updated,
                 cleanup_queue=(
                     cleanup_queue
                     if CLEANUP_DELIVERY_CAPABILITY

@@ -43,7 +43,6 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from packaging.version import Version
-from starlette.exceptions import HTTPException
 from typing_extensions import Self
 
 import prefect
@@ -174,21 +173,6 @@ def _install_sqlite_locked_log_filter() -> None:
     logging.getLogger("uvicorn.error").addFilter(filter_)
     logging.getLogger("docket.worker").addFilter(filter_)
     _SQLITE_LOCKED_LOG_FILTER = filter_
-
-
-class SPAStaticFiles(StaticFiles):
-    """
-    Implementation of `StaticFiles` for serving single page applications.
-
-    Adds `get_response` handling to ensure that when a resource isn't found the
-    application still returns the index.
-    """
-
-    async def get_response(self, path: str, scope: Any) -> Response:
-        try:
-            return await super().get_response(path, scope)
-        except HTTPException:
-            return await super().get_response("./index.html", scope)
 
 
 def _normalize_ui_base_url(base_url: str) -> str:
@@ -616,7 +600,6 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
             static_dir=build_static_dir("v1", str(prefect.__ui_static_subpath__)),
             base_url=v1_base_url,
             cache_key=f"v1:{prefect.__version__}:{v1_base_url}",
-            mount_name="ui_v1",
         ),
         UIBundle(
             version="v2",
@@ -624,7 +607,6 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
             static_dir=build_static_dir("v2", str(prefect.__ui_v2_static_subpath__)),
             base_url=v2_base_url,
             cache_key=f"v2:{prefect.__version__}:{v2_base_url}",
-            mount_name="ui_v2",
         ),
     ]
 
@@ -692,7 +674,9 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
             if scope_path.endswith(path) and path != "/"
             else request.scope.get("root_path", "")
         )
-        redirect_url = str(request.url.replace(path=f"{scope_prefix}{redirect_path}"))
+        redirect_url = f"{scope_prefix}{redirect_path}"
+        if request.url.query:
+            redirect_url = f"{redirect_url}?{request.url.query}"
         return RedirectResponse(
             url=redirect_url,
             status_code=status.HTTP_307_TEMPORARY_REDIRECT,
@@ -765,10 +749,10 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
             if bundle is None:
                 continue
 
-            ui_app.mount(
+            ui_app.frontend(
                 bundle.base_url,
-                SPAStaticFiles(directory=bundle.static_dir),
-                name=bundle.mount_name,
+                directory=bundle.static_dir,
+                fallback="index.html",
             )
 
     return ui_app

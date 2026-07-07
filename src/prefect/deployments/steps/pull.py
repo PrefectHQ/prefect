@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.retries import retry_async_fn
+from prefect.deployments.steps.core import _PULL_STEP_SOURCE_CWD
 from prefect.logging.loggers import get_logger
 from prefect.runner.storage import BlockStorageAdapter, GitRepository, RemoteStorage
 from prefect.utilities.asyncutils import run_coro_as_sync
@@ -32,6 +33,10 @@ def set_working_directory(directory: str) -> dict[str, str]:
         dict: a dictionary containing a `directory` key of the
             absolute path of the directory that was set
     """
+    source_cwd = _PULL_STEP_SOURCE_CWD.get()
+    if source_cwd is not None and not Path(directory).expanduser().is_absolute():
+        directory = str((source_cwd / directory).resolve())
+
     os.chdir(directory)
     return dict(directory=os.getcwd())
 

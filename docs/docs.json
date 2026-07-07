@@ -14,6 +14,12 @@
     "light": "#5F92FF",
     "primary": "#2D6DF6"
   },
+  "contextual": {
+    "options": [
+      "copy",
+      "view"
+    ]
+  },
   "errors": {
     "404": {
       "redirect": true

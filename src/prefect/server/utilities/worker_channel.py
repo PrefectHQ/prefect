@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from collections.abc import Mapping
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
@@ -129,6 +130,7 @@ class WorkerChannelConnection:
         work_pool_id: UUID,
         consumer_id: UUID,
         worker_name: str,
+        work_pool_updated: datetime,
         cleanup_queue: WorkerCleanupQueue | None = None,
         cleanup_kinds: tuple[CleanupKind, ...] = (),
         cleanup_work_queue_ids: tuple[UUID, ...] = (),
@@ -143,6 +145,7 @@ class WorkerChannelConnection:
         self.work_pool_id = work_pool_id
         self.consumer_id = consumer_id
         self.worker_name = worker_name
+        self._work_pool_updated = work_pool_updated
         self._next_snapshot_sequence = 2
         self._snapshot_queue: asyncio.Queue[WorkerChannelSnapshotInvalidation] = (
             asyncio.Queue(maxsize=_WORKER_CHANNEL_SNAPSHOT_BUFFER_SIZE)
@@ -635,6 +638,8 @@ class WorkerChannelConnection:
             if work_pool is None:
                 return None
 
+            self._work_pool_updated = work_pool.updated
+
             payload = WorkPoolSnapshotPayload(
                 snapshot_sequence=self._next_snapshot_sequence,
                 reason=invalidation.reason,
@@ -678,7 +683,7 @@ class WorkerChannelConnection:
                     async with self.db.session_context(
                         begin_transaction=True
                     ) as session:
-                        await _persist_worker_channel_heartbeat(
+                        pool_updated = await _persist_worker_channel_heartbeat(
                             session=session,
                             work_pool_name=self.work_pool_name,
                             frame=frame,
@@ -696,6 +701,14 @@ class WorkerChannelConnection:
                         WorkerChannelCloseReason.HEARTBEAT_PERSISTENCE_FAILED
                     )
                     return
+
+                if pool_updated != self._work_pool_updated:
+                    self.queue_snapshot(
+                        WorkerChannelSnapshotInvalidation(
+                            work_pool_id=self.work_pool_id,
+                            reason="heartbeat_reconciliation",
+                        )
+                    )
                 continue
 
             if isinstance(
@@ -789,7 +802,7 @@ async def _persist_worker_channel_heartbeat(
     session: AsyncSession,
     work_pool_name: str,
     frame: WorkerHeartbeatFrame,
-) -> None:
+) -> datetime:
     work_pool = await models.workers.read_work_pool_by_name(
         session=session,
         work_pool_name=work_pool_name,
@@ -804,6 +817,8 @@ async def _persist_worker_channel_heartbeat(
         heartbeat_interval_seconds=frame.payload.heartbeat_interval_seconds,
         emit_status_change=emit_work_pool_status_event,
     )
+
+    return work_pool.updated
 
 
 async def publish_snapshot_invalidation(

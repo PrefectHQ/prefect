@@ -10,7 +10,7 @@ import {
 	useUpdateDeploymentSchedule,
 } from "@/api/deployments";
 import { Button } from "@/components/ui/button";
-import { CronInput } from "@/components/ui/cron-input";
+import { CronInput, divergesFromServerCron } from "@/components/ui/cron-input";
 import {
 	Dialog,
 	DialogContent,
@@ -34,7 +34,7 @@ import { TimezoneSelect } from "@/components/ui/timezone-select";
 const verifyCronValue = (cronValue: string) => {
 	try {
 		CronExpressionParser.parse(cronValue);
-		return true;
+		return !divergesFromServerCron(cronValue);
 	} catch {
 		return false;
 	}

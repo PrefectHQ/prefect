@@ -52,6 +52,11 @@ _STEP_COMPLETION_OBSERVER: ContextVar[_StepCompletionObserver | None] = ContextV
     default=None,
 )
 
+_PULL_STEP_SOURCE_CWD: ContextVar[Path | None] = ContextVar(
+    "pull_step_source_cwd",
+    default=None,
+)
+
 
 class StepExecutionError(Exception):
     """

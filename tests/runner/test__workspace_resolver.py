@@ -8,6 +8,7 @@ from uuid import uuid4
 
 import pytest
 
+from prefect.client.schemas.filters import LogFilter, LogFilterFlowRunId
 from prefect.filesystems import LocalFileSystem
 from prefect.runner._workspace_resolver import (
     PreparedWorkspaceResult,
@@ -25,11 +26,12 @@ CUSTOM_STEP_FQN = "tests.utilities.workspace_resolver_steps"
 
 
 def _run_workspace_resolver(
-    flow_run_id, workspace_root: Path
+    flow_run_id, workspace_root: Path, extra_env: dict[str, str] | None = None
 ) -> subprocess.CompletedProcess[str]:
     env = {
         **os.environ,
         **get_current_settings().to_environment_variables(exclude_unset=True),
+        **(extra_env or {}),
     }
     pythonpath = str(REPO_ROOT)
     if env.get("PYTHONPATH"):
@@ -804,6 +806,364 @@ class TestWorkspaceResolverProcess:
         assert "resolver-step-noise" not in process.stdout
         assert result.workspace is not None
         assert result.workspace.project_root == local_project.resolve()
+
+    async def test_pull_step_logs_are_sent_to_the_api(
+        self,
+        prefect_client,
+        tmp_path: Path,
+    ) -> None:
+        local_project = tmp_path / "logged-project"
+        flow_file = local_project / "flows" / "hello.py"
+        flow_file.parent.mkdir(parents=True, exist_ok=True)
+        flow_file.write_text(
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'logged'\n"
+        )
+
+        flow_id = await prefect_client.create_flow_from_name("logged-hello")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="logged-deployment",
+            entrypoint="flows/hello.py:hello",
+            pull_steps=[
+                {
+                    "prefect.deployments.steps.set_working_directory": {
+                        "directory": str(local_project)
+                    }
+                }
+            ],
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        process = _run_workspace_resolver(
+            flow_run.id,
+            tmp_path / "logged-workspace",
+            extra_env={"PREFECT_LOGGING_TO_API_ENABLED": "True"},
+        )
+        result = _parse_result(process)
+
+        assert process.returncode == 0, process.stderr
+        assert result.status == "success"
+
+        logs = await prefect_client.read_logs(
+            log_filter=LogFilter(flow_run_id=LogFilterFlowRunId(any_=[flow_run.id]))
+        )
+        messages = [log.message for log in logs]
+        assert "Running 1 deployment pull step(s)" in messages
+        assert "Executing deployment step: set_working_directory" in messages
+        assert (
+            "Deployment step 'set_working_directory' completed successfully" in messages
+        )
+
+    async def test_pull_step_logs_are_sent_to_the_api_when_a_step_fails(
+        self,
+        prefect_client,
+        tmp_path: Path,
+    ) -> None:
+        flow_id = await prefect_client.create_flow_from_name("failing-logged-flow")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="failing-logged-deployment",
+            entrypoint="flows/hello.py:hello",
+            pull_steps=[
+                {
+                    f"{CUSTOM_STEP_FQN}.raise_error": {
+                        "message": "resolver exploded",
+                    }
+                }
+            ],
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        process = _run_workspace_resolver(
+            flow_run.id,
+            tmp_path / "failing-workspace",
+            extra_env={"PREFECT_LOGGING_TO_API_ENABLED": "True"},
+        )
+        result = _parse_result(process)
+
+        assert process.returncode == 1
+        assert result.status == "error"
+
+        logs = await prefect_client.read_logs(
+            log_filter=LogFilter(flow_run_id=LogFilterFlowRunId(any_=[flow_run.id]))
+        )
+        messages = [log.message for log in logs]
+        assert "Executing deployment step: raise_error" in messages
+
+
+class TestRelativePathSetWorkingDirectory:
+    """Tests for set_working_directory with relative paths resolving to the
+    original process CWD (e.g. the container WORKDIR) rather than the
+    temporary workspace root.  Regression tests for OSS-8050."""
+
+    async def test_relative_dot_resolves_to_original_cwd(
+        self,
+        prefect_client,
+        tmp_path: Path,
+    ) -> None:
+        container_workdir = tmp_path / "container-workdir"
+        flow_file = container_workdir / "flows" / "hello.py"
+        flow_file.parent.mkdir(parents=True, exist_ok=True)
+        flow_file.write_text(
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'cwd'\n"
+        )
+        container_workdir.joinpath("pyproject.toml").write_text(
+            "[project]\nname = 'cwd-project'\nversion = '0.1.0'\n"
+        )
+
+        flow_id = await prefect_client.create_flow_from_name("relative-dot")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="relative-dot-deployment",
+            entrypoint="flows/hello.py:hello",
+            pull_steps=[
+                {"prefect.deployments.steps.set_working_directory": {"directory": "."}}
+            ],
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        workspace_root = tmp_path / "dot-workspace"
+        with tmpchdir(container_workdir):
+            process = _run_workspace_resolver(flow_run.id, workspace_root)
+            assert Path.cwd() == container_workdir.resolve()
+
+        result = _parse_result(process)
+
+        assert process.returncode == 0, process.stderr
+        assert result.status == "success"
+        assert result.workspace is not None
+        assert result.workspace.working_directory == container_workdir.resolve()
+        assert result.workspace.project_root == container_workdir.resolve()
+
+    async def test_relative_subdir_resolves_to_original_cwd(
+        self,
+        prefect_client,
+        tmp_path: Path,
+    ) -> None:
+        container_workdir = tmp_path / "container-workdir"
+        subdir = container_workdir / "app"
+        flow_file = subdir / "flows" / "hello.py"
+        flow_file.parent.mkdir(parents=True, exist_ok=True)
+        flow_file.write_text(
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'sub'\n"
+        )
+        subdir.joinpath("pyproject.toml").write_text(
+            "[project]\nname = 'subdir-project'\nversion = '0.1.0'\n"
+        )
+
+        flow_id = await prefect_client.create_flow_from_name("relative-subdir")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="relative-subdir-deployment",
+            entrypoint="flows/hello.py:hello",
+            pull_steps=[
+                {
+                    "prefect.deployments.steps.set_working_directory": {
+                        "directory": "app"
+                    }
+                }
+            ],
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        workspace_root = tmp_path / "subdir-workspace"
+        with tmpchdir(container_workdir):
+            process = _run_workspace_resolver(flow_run.id, workspace_root)
+            assert Path.cwd() == container_workdir.resolve()
+
+        result = _parse_result(process)
+
+        assert process.returncode == 0, process.stderr
+        assert result.status == "success"
+        assert result.workspace is not None
+        assert result.workspace.working_directory == subdir.resolve()
+        assert result.workspace.project_root == subdir.resolve()
+
+    async def test_relative_path_after_git_clone_resolves_to_clone_directory(
+        self,
+        prefect_client,
+        tmp_path: Path,
+    ) -> None:
+        """When git_clone runs before set_working_directory, the relative path
+        in set_working_directory should resolve against the clone directory CWD
+        rather than the original process CWD."""
+        source_repo = tmp_path / "source-repo"
+        flow_file = source_repo / "service" / "flows" / "hello.py"
+        flow_file.parent.mkdir(parents=True, exist_ok=True)
+        flow_file.write_text(
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'chained'\n"
+        )
+        (source_repo / "service" / "pyproject.toml").write_text(
+            "[project]\nname = 'chained-project'\nversion = '0.1.0'\n"
+        )
+        _create_git_repo(source_repo)
+
+        flow_id = await prefect_client.create_flow_from_name("chained-relative")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="chained-relative-deployment",
+            entrypoint="flows/hello.py:hello",
+            pull_steps=[
+                {
+                    "prefect.deployments.steps.git_clone": {
+                        "id": "clone",
+                        "repository": source_repo.as_uri(),
+                        "clone_directory_name": "checkout",
+                    }
+                },
+                {
+                    "prefect.deployments.steps.set_working_directory": {
+                        "directory": "{{ clone.directory }}/service"
+                    }
+                },
+            ],
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        parent_cwd = tmp_path / "parent-cwd"
+        parent_cwd.mkdir()
+        workspace_root = tmp_path / "chained-workspace"
+
+        with tmpchdir(parent_cwd):
+            process = _run_workspace_resolver(flow_run.id, workspace_root)
+            assert Path.cwd() == parent_cwd.resolve()
+
+        result = _parse_result(process)
+
+        assert process.returncode == 0, process.stderr
+        assert result.status == "success"
+        assert result.workspace is not None
+        assert (
+            result.workspace.working_directory
+            == (workspace_root / "checkout" / "service").resolve()
+        )
+        assert (
+            result.workspace.project_root
+            == (workspace_root / "checkout" / "service").resolve()
+        )
+
+    async def test_relative_dot_with_run_shell_script_resolves_to_original_cwd(
+        self,
+        prefect_client,
+        tmp_path: Path,
+    ) -> None:
+        """Reproduces the exact scenario from the bug report: set_working_directory
+        with '.' followed by run_shell_script should run from the original CWD."""
+        container_workdir = tmp_path / "container-workdir"
+        flow_file = container_workdir / "flows" / "hello.py"
+        flow_file.parent.mkdir(parents=True, exist_ok=True)
+        flow_file.write_text(
+            "from prefect import flow\n\n@flow\ndef hello():\n    return 'shell'\n"
+        )
+        container_workdir.joinpath("pyproject.toml").write_text(
+            "[project]\nname = 'shell-project'\nversion = '0.1.0'\n"
+        )
+
+        flow_id = await prefect_client.create_flow_from_name("shell-relative")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="shell-relative-deployment",
+            entrypoint="flows/hello.py:hello",
+            pull_steps=[
+                {"prefect.deployments.steps.set_working_directory": {"directory": "."}},
+                {
+                    "prefect.deployments.steps.run_shell_script": {
+                        "script": "echo 'setup complete'",
+                        "stream_output": False,
+                    }
+                },
+            ],
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        workspace_root = tmp_path / "shell-workspace"
+        with tmpchdir(container_workdir):
+            process = _run_workspace_resolver(flow_run.id, workspace_root)
+            assert Path.cwd() == container_workdir.resolve()
+
+        result = _parse_result(process)
+
+        assert process.returncode == 0, process.stderr
+        assert result.status == "success"
+        assert result.workspace is not None
+        assert result.workspace.working_directory == container_workdir.resolve()
+        assert result.workspace.project_root == container_workdir.resolve()
+
+    async def test_run_shell_script_then_set_working_directory_resolves_workspace_relative(
+        self,
+        prefect_client,
+        tmp_path: Path,
+    ) -> None:
+        """When run_shell_script creates a directory in the workspace and
+        set_working_directory follows with a relative path, the path must
+        resolve against the workspace CWD — not the original process CWD."""
+        container_workdir = tmp_path / "container-workdir"
+        container_workdir.mkdir()
+
+        # Write a helper script that creates workspace content
+        setup_script = tmp_path / "setup.sh"
+        setup_script.write_text(
+            "#!/bin/sh\n"
+            "mkdir -p generated/flows\n"
+            'printf "from prefect import flow\\n\\n'
+            '@flow\\ndef hello():\\n    return 42\\n" '
+            "> generated/flows/hello.py\n"
+            'printf "[project]\\nname = \\"gen\\"\\nversion = \\"0.1.0\\"\\n" '
+            "> generated/pyproject.toml\n"
+        )
+        setup_script.chmod(0o755)
+
+        workspace_root = tmp_path / "composition-workspace"
+
+        flow_id = await prefect_client.create_flow_from_name("composition-relative")
+        deployment_id = await prefect_client.create_deployment(
+            flow_id=flow_id,
+            name="composition-relative-deployment",
+            entrypoint="flows/hello.py:hello",
+            pull_steps=[
+                {
+                    "prefect.deployments.steps.run_shell_script": {
+                        "script": str(setup_script),
+                        "stream_output": False,
+                    }
+                },
+                {
+                    "prefect.deployments.steps.set_working_directory": {
+                        "directory": "generated"
+                    }
+                },
+            ],
+        )
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        with tmpchdir(container_workdir):
+            process = _run_workspace_resolver(flow_run.id, workspace_root)
+            assert Path.cwd() == container_workdir.resolve()
+
+        result = _parse_result(process)
+
+        assert process.returncode == 0, process.stderr
+        assert result.status == "success"
+        assert result.workspace is not None
+        # The directory should be workspace-relative, NOT container_workdir-relative
+        assert (
+            result.workspace.working_directory
+            == (workspace_root / "generated").resolve()
+        )
 
 
 class TestProjectRootDetection:
