@@ -11,7 +11,7 @@ api-ref:
     uvx --with-editable ./src/integrations/prefect-aws \
         --python 3.12 \
         --isolated \
-        mdxify \
+        'mdxify>=0.2.45' \
         --all \
         --root-module prefect_aws \
         --output-dir docs/integrations/prefect-aws/api-ref \

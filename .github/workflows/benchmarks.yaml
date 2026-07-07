@@ -31,7 +31,7 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
           fetch-depth: 0
@@ -51,7 +51,7 @@ jobs:
         # Note: We use a "cache" instead of artifacts because artifacts are not available
         #       across workflow runs.
         id: bench-cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ./.benchmarks
           # Pushes benchmark results for this branch and sha, this will always be a cache miss
@@ -130,7 +130,7 @@ jobs:
         shard_index: [0, 1, 2, 3]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           filter: blob:none

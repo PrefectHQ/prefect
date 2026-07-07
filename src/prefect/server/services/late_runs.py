@@ -82,4 +82,6 @@ async def monitor_late_runs(
         runs = result.all()
 
         for run in runs:
-            await docket.add(mark_flow_run_late)(run.id)
+            await docket.add(mark_flow_run_late, key=f"mark-flow-run-late:{run.id}")(
+                run.id
+            )

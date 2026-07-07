@@ -44,6 +44,12 @@ class ServerServicesCancellationCleanupSettings(ServicesBaseSetting):
         ),
     )
 
+    cancelling_timeout_seconds: float = Field(
+        default=300,
+        gt=0,
+        description="The cancellation cleanup service will enqueue worker cleanup for flow runs that remain in CANCELLING longer than this many seconds. Defaults to `300`.",
+    )
+
 
 _VALID_VACUUM_TYPES = frozenset({"events", "flow_runs"})
 

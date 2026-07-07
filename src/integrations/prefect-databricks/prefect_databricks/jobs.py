@@ -36,18 +36,15 @@ async def jobs_runs_export(
             Which views to export (CODE, DASHBOARDS, or ALL). Defaults to CODE.
 
     Returns:
-        Upon success, a dict of the response. </br>- `views: List["models.ViewItem"]`</br>
+        Upon success, a dict of the response containing the key `views`
+        (`List["models.ViewItem"]`).
 
-    <h4>API Endpoint:</h4>
-    `/2.0/jobs/runs/export`
-
-    <h4>API Responses:</h4>
-    | Response | Description |
-    | --- | --- |
-    | 200 | Run was exported successfully. |
-    | 400 | The request was malformed. See JSON response for error details. |
-    | 401 | The request was unauthorized. |
-    | 500 | The request was not handled correctly due to a server error. |
+    Note:
+        Calls the `/2.0/jobs/runs/export` API endpoint. Possible responses are
+        200 (run was exported successfully), 400 (the request was malformed;
+        see the JSON response for error details), 401 (the request was
+        unauthorized), and 500 (the request was not handled correctly due to a
+        server error).
     """  # noqa
     endpoint = "/2.0/jobs/runs/export"  # noqa
 
@@ -97,261 +94,56 @@ async def jobs_create(
     Args:
         databricks_credentials:
             Credentials to use for authentication with Databricks.
-        name:
-            An optional name for the job, e.g. `A multitask job`.
+        name: An optional name for the job.
         tags:
-            A map of tags associated with the job. These are forwarded to the
-            cluster as cluster tags for jobs clusters, and are subject
-            to the same limitations as cluster tags. A maximum of 25
-            tags can be added to the job, e.g.
-            ```
-            {"cost-center": "engineering", "team": "jobs"}
-            ```
+            A map of string key-value tags associated with the job, up to a
+            maximum of 25. These are forwarded to jobs clusters as cluster tags.
         tasks:
-            A list of task specifications to be executed by this job, e.g.
-            ```
-            [
-                {
-                    "task_key": "Sessionize",
-                    "description": "Extracts session data from events",
-                    "depends_on": [],
-                    "existing_cluster_id": "0923-164208-meows279",
-                    "spark_jar_task": {
-                        "main_class_name": "com.databricks.Sessionize",
-                        "parameters": ["--data", "dbfs:/path/to/data.json"],
-                    },
-                    "libraries": [{"jar": "dbfs:/mnt/databricks/Sessionize.jar"}],
-                    "timeout_seconds": 86400,
-                    "max_retries": 3,
-                    "min_retry_interval_millis": 2000,
-                    "retry_on_timeout": False,
-                },
-                {
-                    "task_key": "Orders_Ingest",
-                    "description": "Ingests order data",
-                    "depends_on": [],
-                    "job_cluster_key": "auto_scaling_cluster",
-                    "spark_jar_task": {
-                        "main_class_name": "com.databricks.OrdersIngest",
-                        "parameters": ["--data", "dbfs:/path/to/order-data.json"],
-                    },
-                    "libraries": [{"jar": "dbfs:/mnt/databricks/OrderIngest.jar"}],
-                    "timeout_seconds": 86400,
-                    "max_retries": 3,
-                    "min_retry_interval_millis": 2000,
-                    "retry_on_timeout": False,
-                },
-                {
-                    "task_key": "Match",
-                    "description": "Matches orders with user sessions",
-                    "depends_on": [
-                        {"task_key": "Orders_Ingest"},
-                        {"task_key": "Sessionize"},
-                    ],
-                    "new_cluster": {
-                        "spark_version": "7.3.x-scala2.12",
-                        "node_type_id": "i3.xlarge",
-                        "spark_conf": {"spark.speculation": True},
-                        "aws_attributes": {
-                            "availability": "SPOT",
-                            "zone_id": "us-west-2a",
-                        },
-                        "autoscale": {"min_workers": 2, "max_workers": 16},
-                    },
-                    "notebook_task": {
-                        "notebook_path": "/Users/user.name@databricks.com/Match",
-                        "source": "WORKSPACE",
-                        "base_parameters": {"name": "John Doe", "age": "35"},
-                    },
-                    "timeout_seconds": 86400,
-                    "max_retries": 3,
-                    "min_retry_interval_millis": 2000,
-                    "retry_on_timeout": False,
-                },
-            ]
-            ```
+            A list of task specifications (`JobTaskSettings`) to execute. Each
+            task defines its key, the cluster it runs on, and the work to do
+            (a notebook, JAR, Python, SQL, or dbt task).
         job_clusters:
-            A list of job cluster specifications that can be shared and reused by
-            tasks of this job. Libraries cannot be declared in a shared
-            job cluster. You must declare dependent libraries in task
-            settings, e.g.
-            ```
-            [
-                {
-                    "job_cluster_key": "auto_scaling_cluster",
-                    "new_cluster": {
-                        "spark_version": "7.3.x-scala2.12",
-                        "node_type_id": "i3.xlarge",
-                        "spark_conf": {"spark.speculation": True},
-                        "aws_attributes": {
-                            "availability": "SPOT",
-                            "zone_id": "us-west-2a",
-                        },
-                        "autoscale": {"min_workers": 2, "max_workers": 16},
-                    },
-                }
-            ]
-            ```
+            A list of shared job-cluster specifications (`JobCluster`) that tasks
+            can reuse. Libraries must be declared per task, not on a shared
+            cluster.
         email_notifications:
-            An optional set of email addresses that is notified when runs of this
-            job begin or complete as well as when this job is deleted.
-            The default behavior is to not send any emails. Key-values:
-            - on_start:
-                A list of email addresses to be notified when a run begins.
-                If not specified on job creation, reset, or update, the list
-                is empty, and notifications are not sent, e.g.
-                ```
-                ["user.name@databricks.com"]
-                ```
-            - on_success:
-                A list of email addresses to be notified when a run
-                successfully completes. A run is considered to have
-                completed successfully if it ends with a `TERMINATED`
-                `life_cycle_state` and a `SUCCESSFUL` result_state. If not
-                specified on job creation, reset, or update, the list is
-                empty, and notifications are not sent, e.g.
-                ```
-                ["user.name@databricks.com"]
-                ```
-            - on_failure:
-                A list of email addresses to notify when a run completes
-                unsuccessfully. A run is considered unsuccessful if it ends
-                with an `INTERNAL_ERROR` `life_cycle_state` or a `SKIPPED`,
-                `FAILED`, or `TIMED_OUT` `result_state`. If not specified on
-                job creation, reset, or update, or the list is empty, then
-                notifications are not sent. Job-level failure notifications
-                are sent only once after the entire job run (including all
-                of its retries) has failed. Notifications are not sent when
-                failed job runs are retried. To receive a failure
-                notification after every failed task (including every failed
-                retry), use task-level notifications instead, e.g.
-                ```
-                ["user.name@databricks.com"]
-                ```
-            - no_alert_for_skipped_runs:
-                If true, do not send email to recipients specified in
-                `on_failure` if the run is skipped.
+            Email addresses (`JobEmailNotifications`) to notify when runs of the
+            job start, succeed, or fail.
         webhook_notifications:
-            A collection of system notification IDs to notify when runs of this job
-            begin or complete. The default behavior is to not send any
-            system notifications. Key-values:
-            - on_start:
-                An optional list of notification IDs to call when the run
-                starts. A maximum of 3 destinations can be specified for the
-                `on_start` property, e.g.
-                ```
-                [
-                    {"id": "03dd86e4-57ef-4818-a950-78e41a1d71ab"},
-                    {"id": "0481e838-0a59-4eff-9541-a4ca6f149574"},
-                ]
-                ```
-            - on_success:
-                An optional list of notification IDs to call when the run
-                completes successfully. A maximum of 3 destinations can be
-                specified for the `on_success` property, e.g.
-                ```
-                [{"id": "03dd86e4-57ef-4818-a950-78e41a1d71ab"}]
-                ```
-            - on_failure:
-                An optional list of notification IDs to call when the run
-                fails. A maximum of 3 destinations can be specified for the
-                `on_failure` property, e.g.
-                ```
-                [{"id": "0481e838-0a59-4eff-9541-a4ca6f149574"}]
-                ```
+            System notification IDs (`WebhookNotifications`) to call when runs of
+            the job start, succeed, or fail, up to three destinations per event.
         timeout_seconds:
-            An optional timeout applied to each run of this job. The default
-            behavior is to have no timeout, e.g. `86400`.
+            An optional timeout, in seconds, applied to each run of the job. The
+            default is no timeout.
         schedule:
-            An optional periodic schedule for this job. The default behavior is that
-            the job only runs when triggered by clicking “Run Now” in
-            the Jobs UI or sending an API request to `runNow`. Key-values:
-            - quartz_cron_expression:
-                A Cron expression using Quartz syntax that describes the
-                schedule for a job. See [Cron Trigger](http://www.quartz-
-                scheduler.org/documentation/quartz-2.3.0/tutorials/crontrigger.html)
-                for details. This field is required, e.g. `20 30 * * * ?`.
-            - timezone_id:
-                A Java timezone ID. The schedule for a job is resolved with
-                respect to this timezone. See [Java
-                TimeZone](https://docs.oracle.com/javase/7/docs/api/java/util/TimeZone.html)
-                for details. This field is required, e.g. `Europe/London`.
-            - pause_status:
-                Indicate whether this schedule is paused or not, e.g.
-                `PAUSED`.
+            An optional periodic schedule (`CronSchedule`) expressed with Quartz
+            cron syntax. By default the job runs only when triggered manually or
+            through the API.
         max_concurrent_runs:
-            An optional maximum allowed number of concurrent runs of the job.  Set
-            this value if you want to be able to execute multiple runs
-            of the same job concurrently. This is useful for example if
-            you trigger your job on a frequent schedule and want to
-            allow consecutive runs to overlap with each other, or if you
-            want to trigger multiple runs which differ by their input
-            parameters.  This setting affects only new runs. For
-            example, suppose the job’s concurrency is 4 and there are 4
-            concurrent active runs. Then setting the concurrency to 3
-            won’t kill any of the active runs. However, from then on,
-            new runs are skipped unless there are fewer than 3 active
-            runs.  This value cannot exceed 1000\. Setting this value to
-            0 causes all new runs to be skipped. The default behavior is
-            to allow only 1 concurrent run, e.g. `10`.
+            The maximum number of concurrent runs allowed. Defaults to 1 and
+            cannot exceed 1000; set to 0 to skip all new runs.
         git_source:
-            This functionality is in Public Preview.  An optional specification for
-            a remote repository containing the notebooks used by this
-            job's notebook tasks, e.g.
-            ```
-            {
-                "git_url": "https://github.com/databricks/databricks-cli",
-                "git_branch": "main",
-                "git_provider": "gitHub",
-            }
-            ``` Key-values:
-            - git_url:
-                URL of the repository to be cloned by this job. The maximum
-                length is 300 characters, e.g.
-                `https://github.com/databricks/databricks-cli`.
-            - git_provider:
-                Unique identifier of the service used to host the Git
-                repository. The value is case insensitive, e.g. `github`.
-            - git_branch:
-                Name of the branch to be checked out and used by this job.
-                This field cannot be specified in conjunction with git_tag
-                or git_commit. The maximum length is 255 characters, e.g.
-                `main`.
-            - git_tag:
-                Name of the tag to be checked out and used by this job. This
-                field cannot be specified in conjunction with git_branch or
-                git_commit. The maximum length is 255 characters, e.g.
-                `release-1.0.0`.
-            - git_commit:
-                Commit to be checked out and used by this job. This field
-                cannot be specified in conjunction with git_branch or
-                git_tag. The maximum length is 64 characters, e.g.
-                `e0056d01`.
-            - git_snapshot:
-                Read-only state of the remote repository at the time the job was run.
-                            This field is only included on job runs.
+            An optional remote Git repository (`GitSource`) containing the
+            notebooks used by the job's notebook tasks. This functionality is in
+            Public Preview.
         format:
-            Used to tell what is the format of the job. This field is ignored in
-            Create/Update/Reset calls. When using the Jobs API 2.1 this
-            value is always set to `'MULTI_TASK'`, e.g. `MULTI_TASK`.
+            The format of the job. Ignored in create, update, and reset calls;
+            always `MULTI_TASK` on the Jobs API 2.1.
         access_control_list:
-            List of permissions to set on the job.
+            A list of permissions (`AccessControlRequest`) to set on the job.
         parameters:
-            Job-level parameter definitions.
+            Job-level parameter definitions (`JobParameter`).
 
     Returns:
-        Upon success, a dict of the response. </br>- `job_id: int`</br>
+        Upon success, a dict of the response containing the key `job_id`
+        (`int`).
 
-    <h4>API Endpoint:</h4>
-    `/2.1/jobs/create`
-
-    <h4>API Responses:</h4>
-    | Response | Description |
-    | --- | --- |
-    | 200 | Job was created successfully. |
-    | 400 | The request was malformed. See JSON response for error details. |
-    | 401 | The request was unauthorized. |
-    | 500 | The request was not handled correctly due to a server error. |
+    Note:
+        Calls the `/2.1/jobs/create` API endpoint. Possible responses are
+        200 (job was created successfully), 400 (the request was malformed;
+        see the JSON response for error details), 401 (the request was
+        unauthorized), and 500 (the request was not handled correctly due to a
+        server error).
     """  # noqa
     endpoint = "/2.1/jobs/create"  # noqa
 
@@ -407,16 +199,12 @@ async def jobs_delete(
     Returns:
         Upon success, an empty dict.
 
-    <h4>API Endpoint:</h4>
-    `/2.1/jobs/delete`
-
-    <h4>API Responses:</h4>
-    | Response | Description |
-    | --- | --- |
-    | 200 | Job was deleted successfully. |
-    | 400 | The request was malformed. See JSON response for error details. |
-    | 401 | The request was unauthorized. |
-    | 500 | The request was not handled correctly due to a server error. |
+    Note:
+        Calls the `/2.1/jobs/delete` API endpoint. Possible responses are
+        200 (job was deleted successfully), 400 (the request was malformed;
+        see the JSON response for error details), 401 (the request was
+        unauthorized), and 500 (the request was not handled correctly due to a
+        server error).
     """  # noqa
     endpoint = "/2.1/jobs/delete"  # noqa
 
@@ -458,18 +246,16 @@ async def jobs_get(
             Credentials to use for authentication with Databricks.
 
     Returns:
-        Upon success, a dict of the response. </br>- `job_id: int`</br>- `creator_user_name: str`</br>- `run_as_user_name: str`</br>- `settings: "models.JobSettings"`</br>- `created_time: int`</br>
+        Upon success, a dict of the response containing the keys `job_id`
+        (`int`), `creator_user_name` (`str`), `run_as_user_name` (`str`),
+        `settings` (`"models.JobSettings"`), and `created_time` (`int`).
 
-    <h4>API Endpoint:</h4>
-    `/2.1/jobs/get`
-
-    <h4>API Responses:</h4>
-    | Response | Description |
-    | --- | --- |
-    | 200 | Job was retrieved successfully. |
-    | 400 | The request was malformed. See JSON response for error details. |
-    | 401 | The request was unauthorized. |
-    | 500 | The request was not handled correctly due to a server error. |
+    Note:
+        Calls the `/2.1/jobs/get` API endpoint. Possible responses are
+        200 (job was retrieved successfully), 400 (the request was malformed;
+        see the JSON response for error details), 401 (the request was
+        unauthorized), and 500 (the request was not handled correctly due to a
+        server error).
     """  # noqa
     endpoint = "/2.1/jobs/get"  # noqa
 
@@ -521,18 +307,15 @@ async def jobs_list(
             Whether to include task and cluster details in the response.
 
     Returns:
-        Upon success, a dict of the response. </br>- `jobs: List["models.Job"]`</br>- `has_more: bool`</br>
+        Upon success, a dict of the response containing the keys `jobs`
+        (`List["models.Job"]`) and `has_more` (`bool`).
 
-    <h4>API Endpoint:</h4>
-    `/2.1/jobs/list`
-
-    <h4>API Responses:</h4>
-    | Response | Description |
-    | --- | --- |
-    | 200 | List of jobs was retrieved successfully. |
-    | 400 | The request was malformed. See JSON response for error details. |
-    | 401 | The request was unauthorized. |
-    | 500 | The request was not handled correctly due to a server error. |
+    Note:
+        Calls the `/2.1/jobs/list` API endpoint. Possible responses are
+        200 (list of jobs was retrieved successfully), 400 (the request was
+        malformed; see the JSON response for error details), 401 (the request
+        was unauthorized), and 500 (the request was not handled correctly due
+        to a server error).
     """  # noqa
     endpoint = "/2.1/jobs/list"  # noqa
 
@@ -574,192 +357,22 @@ async def jobs_reset(
     Args:
         databricks_credentials:
             Credentials to use for authentication with Databricks.
-        job_id:
-            The canonical identifier of the job to reset. This field is required,
-            e.g. `11223344`.
+        job_id: The canonical identifier of the job to reset. Required.
         new_settings:
-            The new settings of the job. These settings completely replace the old
-            settings.  Changes to the field
-            `JobSettings.timeout_seconds` are applied to active runs.
-            Changes to other fields are applied to future runs only. Key-values:
-            - name:
-                An optional name for the job, e.g. `A multitask job`.
-            - tags:
-                A map of tags associated with the job. These are forwarded
-                to the cluster as cluster tags for jobs clusters, and are
-                subject to the same limitations as cluster tags. A maximum
-                of 25 tags can be added to the job, e.g.
-                ```
-                {"cost-center": "engineering", "team": "jobs"}
-                ```
-            - tasks:
-                A list of task specifications to be executed by this job, e.g.
-                ```
-                [
-                    {
-                        "task_key": "Sessionize",
-                        "description": "Extracts session data from events",
-                        "depends_on": [],
-                        "existing_cluster_id": "0923-164208-meows279",
-                        "spark_jar_task": {
-                            "main_class_name": "com.databricks.Sessionize",
-                            "parameters": [
-                                "--data",
-                                "dbfs:/path/to/data.json",
-                            ],
-                        },
-                        "libraries": [
-                            {"jar": "dbfs:/mnt/databricks/Sessionize.jar"}
-                        ],
-                        "timeout_seconds": 86400,
-                        "max_retries": 3,
-                        "min_retry_interval_millis": 2000,
-                        "retry_on_timeout": False,
-                    },
-                    {
-                        "task_key": "Orders_Ingest",
-                        "description": "Ingests order data",
-                        "depends_on": [],
-                        "job_cluster_key": "auto_scaling_cluster",
-                        "spark_jar_task": {
-                            "main_class_name": "com.databricks.OrdersIngest",
-                            "parameters": [
-                                "--data",
-                                "dbfs:/path/to/order-data.json",
-                            ],
-                        },
-                        "libraries": [
-                            {"jar": "dbfs:/mnt/databricks/OrderIngest.jar"}
-                        ],
-                        "timeout_seconds": 86400,
-                        "max_retries": 3,
-                        "min_retry_interval_millis": 2000,
-                        "retry_on_timeout": False,
-                    },
-                    {
-                        "task_key": "Match",
-                        "description": "Matches orders with user sessions",
-                        "depends_on": [
-                            {"task_key": "Orders_Ingest"},
-                            {"task_key": "Sessionize"},
-                        ],
-                        "new_cluster": {
-                            "spark_version": "7.3.x-scala2.12",
-                            "node_type_id": "i3.xlarge",
-                            "spark_conf": {"spark.speculation": True},
-                            "aws_attributes": {
-                                "availability": "SPOT",
-                                "zone_id": "us-west-2a",
-                            },
-                            "autoscale": {
-                                "min_workers": 2,
-                                "max_workers": 16,
-                            },
-                        },
-                        "notebook_task": {
-                            "notebook_path": "/Users/user.name@databricks.com/Match",
-                            "source": "WORKSPACE",
-                            "base_parameters": {
-                                "name": "John Doe",
-                                "age": "35",
-                            },
-                        },
-                        "timeout_seconds": 86400,
-                        "max_retries": 3,
-                        "min_retry_interval_millis": 2000,
-                        "retry_on_timeout": False,
-                    },
-                ]
-                ```
-            - job_clusters:
-                A list of job cluster specifications that can be shared and
-                reused by tasks of this job. Libraries cannot be declared in
-                a shared job cluster. You must declare dependent libraries
-                in task settings, e.g.
-                ```
-                [
-                    {
-                        "job_cluster_key": "auto_scaling_cluster",
-                        "new_cluster": {
-                            "spark_version": "7.3.x-scala2.12",
-                            "node_type_id": "i3.xlarge",
-                            "spark_conf": {"spark.speculation": True},
-                            "aws_attributes": {
-                                "availability": "SPOT",
-                                "zone_id": "us-west-2a",
-                            },
-                            "autoscale": {
-                                "min_workers": 2,
-                                "max_workers": 16,
-                            },
-                        },
-                    }
-                ]
-                ```
-            - email_notifications:
-                An optional set of email addresses that is notified when
-                runs of this job begin or complete as well as when this job
-                is deleted. The default behavior is to not send any emails.
-            - webhook_notifications:
-                A collection of system notification IDs to notify when runs
-                of this job begin or complete. The default behavior is to
-                not send any system notifications.
-            - timeout_seconds:
-                An optional timeout applied to each run of this job. The
-                default behavior is to have no timeout, e.g. `86400`.
-            - schedule:
-                An optional periodic schedule for this job. The default
-                behavior is that the job only runs when triggered by
-                clicking “Run Now” in the Jobs UI or sending an API request
-                to `runNow`.
-            - max_concurrent_runs:
-                An optional maximum allowed number of concurrent runs of the
-                job.  Set this value if you want to be able to execute
-                multiple runs of the same job concurrently. This is useful
-                for example if you trigger your job on a frequent schedule
-                and want to allow consecutive runs to overlap with each
-                other, or if you want to trigger multiple runs which differ
-                by their input parameters.  This setting affects only new
-                runs. For example, suppose the job’s concurrency is 4 and
-                there are 4 concurrent active runs. Then setting the
-                concurrency to 3 won’t kill any of the active runs. However,
-                from then on, new runs are skipped unless there are fewer
-                than 3 active runs.  This value cannot exceed 1000\. Setting
-                this value to 0 causes all new runs to be skipped. The
-                default behavior is to allow only 1 concurrent run, e.g.
-                `10`.
-            - git_source:
-                This functionality is in Public Preview.  An optional
-                specification for a remote repository containing the
-                notebooks used by this job's notebook tasks, e.g.
-                ```
-                {
-                    "git_url": "https://github.com/databricks/databricks-cli",
-                    "git_branch": "main",
-                    "git_provider": "gitHub",
-                }
-                ```
-            - format:
-                Used to tell what is the format of the job. This field is
-                ignored in Create/Update/Reset calls. When using the Jobs
-                API 2.1 this value is always set to `'MULTI_TASK'`, e.g.
-                `MULTI_TASK`.
-            - job_settings:
-                Job-level parameter definitions.
+            The complete new settings (`JobSettings`) for the job. These
+            entirely replace the job's existing settings: changes to
+            `timeout_seconds` apply to active runs, while changes to other
+            fields apply only to future runs.
 
     Returns:
         Upon success, an empty dict.
 
-    <h4>API Endpoint:</h4>
-    `/2.1/jobs/reset`
-
-    <h4>API Responses:</h4>
-    | Response | Description |
-    | --- | --- |
-    | 200 | Job was overwritten successfully. |
-    | 400 | The request was malformed. See JSON response for error details. |
-    | 401 | The request was unauthorized. |
-    | 500 | The request was not handled correctly due to a server error. |
+    Note:
+        Calls the `/2.1/jobs/reset` API endpoint. Possible responses are
+        200 (job was overwritten successfully), 400 (the request was malformed;
+        see the JSON response for error details), 401 (the request was
+        unauthorized), and 500 (the request was not handled correctly due to a
+        server error).
     """  # noqa
     endpoint = "/2.1/jobs/reset"  # noqa
 
@@ -807,134 +420,50 @@ async def jobs_run_now(
     Args:
         databricks_credentials:
             Credentials to use for authentication with Databricks.
-        job_id:
-            The ID of the job to be executed, e.g. `11223344`.
+        job_id: The ID of the job to run.
         idempotency_token:
-            An optional token to guarantee the idempotency of job run requests. If a
-            run with the provided token already exists, the request does
-            not create a new run but returns the ID of the existing run
-            instead. If a run with the provided token is deleted, an
-            error is returned.  If you specify the idempotency token,
-            upon failure you can retry until the request succeeds.
-            Databricks guarantees that exactly one run is launched with
-            that idempotency token.  This token must have at most 64
-            characters.  For more information, see [How to ensure
-            idempotency for jobs](https://kb.databricks.com/jobs/jobs-
-            idempotency.html), e.g.
-            `8f018174-4792-40d5-bcbc-3e6a527352c8`.
+            An optional token (at most 64 characters) guaranteeing the
+            idempotency of the request. If a run with the token already exists,
+            the existing run's ID is returned instead of creating a new run. See
+            the Databricks docs on job idempotency for details.
         jar_params:
-            A list of parameters for jobs with Spark JAR tasks, for example
-            `'jar_params': ['john doe', '35']`. The parameters are used
-            to invoke the main function of the main class specified in
-            the Spark JAR task. If not specified upon `run-now`, it
-            defaults to an empty list. jar_params cannot be specified in
-            conjunction with notebook_params. The JSON representation of
-            this field (for example `{'jar_params':['john doe','35']}`)
-            cannot exceed 10,000 bytes.  Use [Task parameter
-            variables](https://docs.databricks.com/jobs.html
-            parameter-variables) to set parameters containing
-            information about job runs, e.g.
-            ```
-            ["john", "doe", "35"]
-            ```
+            A list of command-line parameters for Spark JAR tasks, used to invoke
+            the main class. Cannot be combined with `notebook_params`, and its
+            JSON representation cannot exceed 10,000 bytes.
         notebook_params:
-            A map from keys to values for jobs with notebook task, for example
-            `'notebook_params': {'name': 'john doe', 'age': '35'}`. The
-            map is passed to the notebook and is accessible through the
-            [dbutils.widgets.get](https://docs.databricks.com/dev-
-            tools/databricks-utils.html
-            dbutils-widgets) function.  If not specified upon `run-now`,
-            the triggered run uses the job’s base parameters.
-            notebook_params cannot be specified in conjunction with
-            jar_params.  Use [Task parameter
-            variables](https://docs.databricks.com/jobs.html
-            parameter-variables) to set parameters containing
-            information about job runs.  The JSON representation of this
-            field (for example `{'notebook_params':{'name':'john
-            doe','age':'35'}}`) cannot exceed 10,000 bytes, e.g.
-            ```
-            {"name": "john doe", "age": "35"}
-            ```
+            A map of key-value parameters for notebook tasks, accessible through
+            `dbutils.widgets.get`. Cannot be combined with `jar_params`, and its
+            JSON representation cannot exceed 10,000 bytes.
         python_params:
-            A list of parameters for jobs with Python tasks, for example
-            `'python_params': ['john doe', '35']`. The parameters are
-            passed to Python file as command-line parameters. If
-            specified upon `run-now`, it would overwrite the parameters
-            specified in job setting. The JSON representation of this
-            field (for example `{'python_params':['john doe','35']}`)
-            cannot exceed 10,000 bytes.  Use [Task parameter
-            variables](https://docs.databricks.com/jobs.html
-            parameter-variables) to set parameters containing
-            information about job runs.  Important  These parameters
-            accept only Latin characters (ASCII character set). Using
-            non-ASCII characters returns an error. Examples of invalid,
-            non-ASCII characters are Chinese, Japanese kanjis, and
-            emojis, e.g.
-            ```
-            ["john doe", "35"]
-            ```
+            A list of command-line parameters for Python tasks. ASCII characters
+            only; its JSON representation cannot exceed 10,000 bytes.
         spark_submit_params:
-            A list of parameters for jobs with spark submit task, for example
-            `'spark_submit_params': ['--class',
-            'org.apache.spark.examples.SparkPi']`. The parameters are
-            passed to spark-submit script as command-line parameters. If
-            specified upon `run-now`, it would overwrite the parameters
-            specified in job setting. The JSON representation of this
-            field (for example `{'python_params':['john doe','35']}`)
-            cannot exceed 10,000 bytes.  Use [Task parameter
-            variables](https://docs.databricks.com/jobs.html
-            parameter-variables) to set parameters containing
-            information about job runs.  Important  These parameters
-            accept only Latin characters (ASCII character set). Using
-            non-ASCII characters returns an error. Examples of invalid,
-            non-ASCII characters are Chinese, Japanese kanjis, and
-            emojis, e.g.
-            ```
-            ["--class", "org.apache.spark.examples.SparkPi"]
-            ```
+            A list of parameters passed to the `spark-submit` script. ASCII
+            characters only; its JSON representation cannot exceed 10,000 bytes.
         python_named_params:
-            A map from keys to values for jobs with Python wheel task, for example
-            `'python_named_params': {'name': 'task', 'data':
-            'dbfs:/path/to/data.json'}`, e.g.
-            ```
-            {"name": "task", "data": "dbfs:/path/to/data.json"}
-            ```
+            A map of named parameters for Python wheel tasks.
         pipeline_params:
-
+            Parameters for Delta Live Tables pipeline tasks, such as whether to
+            trigger a full refresh.
         sql_params:
-            A map from keys to values for SQL tasks, for example `'sql_params':
-            {'name': 'john doe', 'age': '35'}`. The SQL alert task does
-            not support custom parameters, e.g.
-            ```
-            {"name": "john doe", "age": "35"}
-            ```
+            A map of key-value parameters for SQL tasks. SQL alert tasks do not
+            support custom parameters.
         dbt_commands:
-            An array of commands to execute for jobs with the dbt task, for example
-            `'dbt_commands': ['dbt deps', 'dbt seed', 'dbt run']`, e.g.
-            ```
-            ["dbt deps", "dbt seed", "dbt run"]
-            ```
-
+            A list of dbt commands to run for dbt tasks, for example
+            `["dbt deps", "dbt seed", "dbt run"]`.
         job_parameters:
-            A map from keys to values for job-level parameters used in the run, for example
-             `'job_parameters': {'param': 'overriding_val'}`, e.g.
-            ```
-            {"param": "overriding_val"}
-            ```
+            A map of job-level parameter overrides for the run.
 
     Returns:
-        Upon success, a dict of the response. </br>- `run_id: int`</br>- `number_in_job: int`</br>
+        Upon success, a dict of the response containing the keys `run_id`
+        (`int`) and `number_in_job` (`int`).
 
-    <h4>API Endpoint:</h4>
-    `/2.1/jobs/run-now`
-
-    <h4>API Responses:</h4>
-    | Response | Description |
-    | --- | --- |
-    | 200 | Run was started successfully. |
-    | 400 | The request was malformed. See JSON response for error details. |
-    | 401 | The request was unauthorized. |
-    | 500 | The request was not handled correctly due to a server error. |
+    Note:
+        Calls the `/2.1/jobs/run-now` API endpoint. Possible responses are
+        200 (run was started successfully), 400 (the request was malformed;
+        see the JSON response for error details), 401 (the request was
+        unauthorized), and 500 (the request was not handled correctly due to a
+        server error).
     """  # noqa
     endpoint = "/2.1/jobs/run-now"  # noqa
 
@@ -988,16 +517,12 @@ async def jobs_runs_cancel(
     Returns:
         Upon success, an empty dict.
 
-    <h4>API Endpoint:</h4>
-    `/2.1/jobs/runs/cancel`
-
-    <h4>API Responses:</h4>
-    | Response | Description |
-    | --- | --- |
-    | 200 | Run was cancelled successfully. |
-    | 400 | The request was malformed. See JSON response for error details. |
-    | 401 | The request was unauthorized. |
-    | 500 | The request was not handled correctly due to a server error. |
+    Note:
+        Calls the `/2.1/jobs/runs/cancel` API endpoint. Possible responses are
+        200 (run was cancelled successfully), 400 (the request was malformed;
+        see the JSON response for error details), 401 (the request was
+        unauthorized), and 500 (the request was not handled correctly due to a
+        server error).
     """  # noqa
     endpoint = "/2.1/jobs/runs/cancel"  # noqa
 
@@ -1042,16 +567,12 @@ async def jobs_runs_cancel_all(
     Returns:
         Upon success, an empty dict.
 
-    <h4>API Endpoint:</h4>
-    `/2.1/jobs/runs/cancel-all`
-
-    <h4>API Responses:</h4>
-    | Response | Description |
-    | --- | --- |
-    | 200 | All runs were cancelled successfully. |
-    | 400 | The request was malformed. See JSON response for error details. |
-    | 401 | The request was unauthorized. |
-    | 500 | The request was not handled correctly due to a server error. |
+    Note:
+        Calls the `/2.1/jobs/runs/cancel-all` API endpoint. Possible responses
+        are 200 (all runs were cancelled successfully), 400 (the request was
+        malformed; see the JSON response for error details), 401 (the request
+        was unauthorized), and 500 (the request was not handled correctly due
+        to a server error).
     """  # noqa
     endpoint = "/2.1/jobs/runs/cancel-all"  # noqa
 
@@ -1095,16 +616,12 @@ async def jobs_runs_delete(
     Returns:
         Upon success, an empty dict.
 
-    <h4>API Endpoint:</h4>
-    `/2.1/jobs/runs/delete`
-
-    <h4>API Responses:</h4>
-    | Response | Description |
-    | --- | --- |
-    | 200 | Run was deleted successfully. |
-    | 400 | The request was malformed. See JSON response for error details. |
-    | 401 | The request was unauthorized. |
-    | 500 | The request was not handled correctly due to a server error. |
+    Note:
+        Calls the `/2.1/jobs/runs/delete` API endpoint. Possible responses are
+        200 (run was deleted successfully), 400 (the request was malformed;
+        see the JSON response for error details), 401 (the request was
+        unauthorized), and 500 (the request was not handled correctly due to a
+        server error).
     """  # noqa
     endpoint = "/2.1/jobs/runs/delete"  # noqa
 
@@ -1149,18 +666,17 @@ async def jobs_runs_get(
             Whether to include the repair history in the response.
 
     Returns:
-        Upon success, a dict of the response. </br>- `job_id: int`</br>- `run_id: int`</br>- `number_in_job: int`</br>- `creator_user_name: str`</br>- `original_attempt_run_id: int`</br>- `state: "models.RunState"`</br>- `schedule: "models.CronSchedule"`</br>- `tasks: List["models.RunTask"]`</br>- `job_clusters: List["models.JobCluster"]`</br>- `cluster_spec: "models.ClusterSpec"`</br>- `cluster_instance: "models.ClusterInstance"`</br>- `git_source: "models.GitSource"`</br>- `overriding_parameters: "models.RunParameters"`</br>- `start_time: int`</br>- `setup_duration: int`</br>- `execution_duration: int`</br>- `cleanup_duration: int`</br>- `end_time: int`</br>- `trigger: "models.TriggerType"`</br>- `run_name: str`</br>- `run_page_url: str`</br>- `run_type: "models.RunType"`</br>- `attempt_number: int`</br>- `repair_history: List["models.RepairHistoryItem"]`</br>- `job_parameters: List["models.RunJobParameter]"`</br>
+        Upon success, a dict describing the run, including its identifiers
+        (`job_id`, `run_id`), `state`, `tasks`, cluster spec and instance,
+        scheduling and timing fields, and — when requested — its
+        `repair_history`.
 
-    <h4>API Endpoint:</h4>
-    `/2.1/jobs/runs/get`
-
-    <h4>API Responses:</h4>
-    | Response | Description |
-    | --- | --- |
-    | 200 | Run was retrieved successfully. |
-    | 400 | The request was malformed. See JSON response for error details. |
-    | 401 | The request was unauthorized. |
-    | 500 | The request was not handled correctly due to a server error. |
+    Note:
+        Calls the `/2.1/jobs/runs/get` API endpoint. Possible responses are
+        200 (run was retrieved successfully), 400 (the request was malformed;
+        see the JSON response for error details), 401 (the request was
+        unauthorized), and 500 (the request was not handled correctly due to a
+        server error).
     """  # noqa
     endpoint = "/2.1/jobs/runs/get"  # noqa
 
@@ -1211,18 +727,18 @@ async def jobs_runs_get_output(
             Credentials to use for authentication with Databricks.
 
     Returns:
-        Upon success, a dict of the response. </br>- `notebook_output: "models.NotebookOutput"`</br>- `sql_output: "models.SqlOutput"`</br>- `dbt_output: "models.DbtOutput"`</br>- `logs: str`</br>- `logs_truncated: bool`</br>- `error: str`</br>- `error_trace: str`</br>- `metadata: "models.Run"`</br>
+        Upon success, a dict of the response containing the keys
+        `notebook_output` (`"models.NotebookOutput"`),
+        `sql_output` (`"models.SqlOutput"`),
+        `dbt_output` (`"models.DbtOutput"`), `logs` (`str`),
+        `logs_truncated` (`bool`), `error` (`str`), `error_trace` (`str`), and
+        `metadata` (`"models.Run"`).
 
-    <h4>API Endpoint:</h4>
-    `/2.1/jobs/runs/get-output`
-
-    <h4>API Responses:</h4>
-    | Response | Description |
-    | --- | --- |
-    | 200 | Run output was retrieved successfully. |
-    | 400 | A job run with multiple tasks was provided. |
-    | 401 | The request was unauthorized. |
-    | 500 | The request was not handled correctly due to a server error. |
+    Note:
+        Calls the `/2.1/jobs/runs/get-output` API endpoint. Possible responses
+        are 200 (run output was retrieved successfully), 400 (a job run with
+        multiple tasks was provided), 401 (the request was unauthorized), and
+        500 (the request was not handled correctly due to a server error).
     """  # noqa
     endpoint = "/2.1/jobs/runs/get-output"  # noqa
 
@@ -1287,9 +803,7 @@ async def jobs_runs_list(
             limit of 0, the service instead uses the maximum limit.
         run_type:
             The type of runs to return. For a description of run types, see
-            [Run](https://docs.databricks.com/dev-
-            tools/api/latest/jobs.html
-            operation/JobsRunsGet).
+            [Run](https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsGet).
         expand_tasks:
             Whether to include task and cluster details in the response.
         start_time_from:
@@ -1302,18 +816,15 @@ async def jobs_runs_list(
             _start_time_from_ to filter by a time range.
 
     Returns:
-        Upon success, a dict of the response. </br>- `runs: List["models.Run"]`</br>- `has_more: bool`</br>
+        Upon success, a dict of the response containing the keys `runs`
+        (`List["models.Run"]`) and `has_more` (`bool`).
 
-    <h4>API Endpoint:</h4>
-    `/2.1/jobs/runs/list`
-
-    <h4>API Responses:</h4>
-    | Response | Description |
-    | --- | --- |
-    | 200 | List of runs was retrieved successfully. |
-    | 400 | The request was malformed. See JSON response for error details. |
-    | 401 | The request was unauthorized. |
-    | 500 | The request was not handled correctly due to a server error. |
+    Note:
+        Calls the `/2.1/jobs/runs/list` API endpoint. Possible responses are
+        200 (list of runs was retrieved successfully), 400 (the request was
+        malformed; see the JSON response for error details), 401 (the request
+        was unauthorized), and 500 (the request was not handled correctly due
+        to a server error).
     """  # noqa
     endpoint = "/2.1/jobs/runs/list"  # noqa
 
@@ -1373,134 +884,53 @@ async def jobs_runs_repair(
         databricks_credentials:
             Credentials to use for authentication with Databricks.
         run_id:
-            The job run ID of the run to repair. The run must not be in progress,
-            e.g. `455644833`.
-        rerun_tasks:
-            The task keys of the task runs to repair, e.g.
-            ```
-            ["task0", "task1"]
-            ```
+            The job run ID of the run to repair. The run must not be in progress.
+        rerun_tasks: The task keys of the task runs to repair.
         latest_repair_id:
-            The ID of the latest repair. This parameter is not required when
-            repairing a run for the first time, but must be provided on
-            subsequent requests to repair the same run, e.g.
-            `734650698524280`.
+            The ID of the latest repair. Not required when repairing a run for
+            the first time, but must be provided on subsequent repair requests
+            for the same run.
         rerun_all_failed_tasks:
-            If true, repair all failed tasks. Only one of rerun_tasks or
-            rerun_all_failed_tasks can be used.
+            If true, repair all failed tasks. Only one of `rerun_tasks` or
+            `rerun_all_failed_tasks` may be set.
         jar_params:
-            A list of parameters for jobs with Spark JAR tasks, for example
-            `'jar_params': ['john doe', '35']`. The parameters are used
-            to invoke the main function of the main class specified in
-            the Spark JAR task. If not specified upon `run-now`, it
-            defaults to an empty list. jar_params cannot be specified in
-            conjunction with notebook_params. The JSON representation of
-            this field (for example `{'jar_params':['john doe','35']}`)
-            cannot exceed 10,000 bytes.  Use [Task parameter
-            variables](https://docs.databricks.com/jobs.html
-            parameter-variables) to set parameters containing
-            information about job runs, e.g.
-            ```
-            ["john", "doe", "35"]
-            ```
+            A list of command-line parameters for Spark JAR tasks, used to invoke
+            the main class. Cannot be combined with `notebook_params`, and its
+            JSON representation cannot exceed 10,000 bytes.
         notebook_params:
-            A map from keys to values for jobs with notebook task, for example
-            `'notebook_params': {'name': 'john doe', 'age': '35'}`. The
-            map is passed to the notebook and is accessible through the
-            [dbutils.widgets.get](https://docs.databricks.com/dev-
-            tools/databricks-utils.html
-            dbutils-widgets) function.  If not specified upon `run-now`,
-            the triggered run uses the job’s base parameters.
-            notebook_params cannot be specified in conjunction with
-            jar_params.  Use [Task parameter
-            variables](https://docs.databricks.com/jobs.html
-            parameter-variables) to set parameters containing
-            information about job runs.  The JSON representation of this
-            field (for example `{'notebook_params':{'name':'john
-            doe','age':'35'}}`) cannot exceed 10,000 bytes, e.g.
-            ```
-            {"name": "john doe", "age": "35"}
-            ```
+            A map of key-value parameters for notebook tasks, accessible through
+            `dbutils.widgets.get`. Cannot be combined with `jar_params`, and its
+            JSON representation cannot exceed 10,000 bytes.
         python_params:
-            A list of parameters for jobs with Python tasks, for example
-            `'python_params': ['john doe', '35']`. The parameters are
-            passed to Python file as command-line parameters. If
-            specified upon `run-now`, it would overwrite the parameters
-            specified in job setting. The JSON representation of this
-            field (for example `{'python_params':['john doe','35']}`)
-            cannot exceed 10,000 bytes.  Use [Task parameter
-            variables](https://docs.databricks.com/jobs.html
-            parameter-variables) to set parameters containing
-            information about job runs.  Important  These parameters
-            accept only Latin characters (ASCII character set). Using
-            non-ASCII characters returns an error. Examples of invalid,
-            non-ASCII characters are Chinese, Japanese kanjis, and
-            emojis, e.g.
-            ```
-            ["john doe", "35"]
-            ```
+            A list of command-line parameters for Python tasks. ASCII characters
+            only; its JSON representation cannot exceed 10,000 bytes.
         spark_submit_params:
-            A list of parameters for jobs with spark submit task, for example
-            `'spark_submit_params': ['--class',
-            'org.apache.spark.examples.SparkPi']`. The parameters are
-            passed to spark-submit script as command-line parameters. If
-            specified upon `run-now`, it would overwrite the parameters
-            specified in job setting. The JSON representation of this
-            field (for example `{'python_params':['john doe','35']}`)
-            cannot exceed 10,000 bytes.  Use [Task parameter
-            variables](https://docs.databricks.com/jobs.html
-            parameter-variables) to set parameters containing
-            information about job runs.  Important  These parameters
-            accept only Latin characters (ASCII character set). Using
-            non-ASCII characters returns an error. Examples of invalid,
-            non-ASCII characters are Chinese, Japanese kanjis, and
-            emojis, e.g.
-            ```
-            ["--class", "org.apache.spark.examples.SparkPi"]
-            ```
+            A list of parameters passed to the `spark-submit` script. ASCII
+            characters only; its JSON representation cannot exceed 10,000 bytes.
         python_named_params:
-            A map from keys to values for jobs with Python wheel task, for example
-            `'python_named_params': {'name': 'task', 'data':
-            'dbfs:/path/to/data.json'}`, e.g.
-            ```
-            {"name": "task", "data": "dbfs:/path/to/data.json"}
-            ```
+            A map of named parameters for Python wheel tasks.
         pipeline_params:
-
+            Parameters for Delta Live Tables pipeline tasks, such as whether to
+            trigger a full refresh.
         sql_params:
-            A map from keys to values for SQL tasks, for example `'sql_params':
-            {'name': 'john doe', 'age': '35'}`. The SQL alert task does
-            not support custom parameters, e.g.
-            ```
-            {"name": "john doe", "age": "35"}
-            ```
+            A map of key-value parameters for SQL tasks. SQL alert tasks do not
+            support custom parameters.
         dbt_commands:
-            An array of commands to execute for jobs with the dbt task, for example
-            `'dbt_commands': ['dbt deps', 'dbt seed', 'dbt run']`, e.g.
-            ```
-            ["dbt deps", "dbt seed", "dbt run"]
-            ```
-
+            A list of dbt commands to run for dbt tasks, for example
+            `["dbt deps", "dbt seed", "dbt run"]`.
         job_parameters:
-            A map from keys to values for job-level parameters used in the run, for example
-             `'job_parameters': {'param': 'overriding_val'}`, e.g.
-            ```
-            {"param": "overriding_val"}
-            ```
+            A map of job-level parameter overrides for the run.
 
     Returns:
-        Upon success, a dict of the response. </br>- `repair_id: int`</br>
+        Upon success, a dict of the response containing the key `repair_id`
+        (`int`).
 
-    <h4>API Endpoint:</h4>
-    `/2.1/jobs/runs/repair`
-
-    <h4>API Responses:</h4>
-    | Response | Description |
-    | --- | --- |
-    | 200 | Run repair was initiated. |
-    | 400 | The request was malformed. See JSON response for error details. |
-    | 401 | The request was unauthorized. |
-    | 500 | The request was not handled correctly due to a server error. |
+    Note:
+        Calls the `/2.1/jobs/runs/repair` API endpoint. Possible responses are
+        200 (run repair was initiated), 400 (the request was malformed; see
+        the JSON response for error details), 401 (the request was
+        unauthorized), and 500 (the request was not handled correctly due to a
+        server error).
     """  # noqa
     endpoint = "/2.1/jobs/runs/repair"  # noqa
 
@@ -1558,158 +988,38 @@ async def jobs_runs_submit(
         databricks_credentials:
             Credentials to use for authentication with Databricks.
         tasks:
-            , e.g.
-            ```
-            [
-                {
-                    "task_key": "Sessionize",
-                    "description": "Extracts session data from events",
-                    "depends_on": [],
-                    "existing_cluster_id": "0923-164208-meows279",
-                    "spark_jar_task": {
-                        "main_class_name": "com.databricks.Sessionize",
-                        "parameters": ["--data", "dbfs:/path/to/data.json"],
-                    },
-                    "libraries": [{"jar": "dbfs:/mnt/databricks/Sessionize.jar"}],
-                    "timeout_seconds": 86400,
-                },
-                {
-                    "task_key": "Orders_Ingest",
-                    "description": "Ingests order data",
-                    "depends_on": [],
-                    "existing_cluster_id": "0923-164208-meows279",
-                    "spark_jar_task": {
-                        "main_class_name": "com.databricks.OrdersIngest",
-                        "parameters": ["--data", "dbfs:/path/to/order-data.json"],
-                    },
-                    "libraries": [{"jar": "dbfs:/mnt/databricks/OrderIngest.jar"}],
-                    "timeout_seconds": 86400,
-                },
-                {
-                    "task_key": "Match",
-                    "description": "Matches orders with user sessions",
-                    "depends_on": [
-                        {"task_key": "Orders_Ingest"},
-                        {"task_key": "Sessionize"},
-                    ],
-                    "new_cluster": {
-                        "spark_version": "7.3.x-scala2.12",
-                        "node_type_id": "i3.xlarge",
-                        "spark_conf": {"spark.speculation": True},
-                        "aws_attributes": {
-                            "availability": "SPOT",
-                            "zone_id": "us-west-2a",
-                        },
-                        "autoscale": {"min_workers": 2, "max_workers": 16},
-                    },
-                    "notebook_task": {
-                        "notebook_path": "/Users/user.name@databricks.com/Match",
-                        "source": "WORKSPACE",
-                        "base_parameters": {"name": "John Doe", "age": "35"},
-                    },
-                    "timeout_seconds": 86400,
-                },
-            ]
-            ```
-        run_name:
-            An optional name for the run. The default value is `Untitled`, e.g. `A
-            multitask job run`.
+            A list of task specifications (`RunSubmitTaskSettings`) to run. Each
+            task defines its key, the cluster it runs on, and the work to do
+            (a notebook, JAR, Python, SQL, or dbt task).
+        run_name: An optional name for the run. Defaults to `Untitled`.
         webhook_notifications:
-            A collection of system notification IDs to notify when runs of this job
-            begin or complete. The default behavior is to not send any
-            system notifications. Key-values:
-            - on_start:
-                An optional list of notification IDs to call when the run
-                starts. A maximum of 3 destinations can be specified for the
-                `on_start` property, e.g.
-                ```
-                [
-                    {"id": "03dd86e4-57ef-4818-a950-78e41a1d71ab"},
-                    {"id": "0481e838-0a59-4eff-9541-a4ca6f149574"},
-                ]
-                ```
-            - on_success:
-                An optional list of notification IDs to call when the run
-                completes successfully. A maximum of 3 destinations can be
-                specified for the `on_success` property, e.g.
-                ```
-                [{"id": "03dd86e4-57ef-4818-a950-78e41a1d71ab"}]
-                ```
-            - on_failure:
-                An optional list of notification IDs to call when the run
-                fails. A maximum of 3 destinations can be specified for the
-                `on_failure` property, e.g.
-                ```
-                [{"id": "0481e838-0a59-4eff-9541-a4ca6f149574"}]
-                ```
+            System notification IDs (`WebhookNotifications`) to call when the run
+            starts, succeeds, or fails, up to three destinations per event.
         git_source:
-            This functionality is in Public Preview.  An optional specification for
-            a remote repository containing the notebooks used by this
-            job's notebook tasks, e.g.
-            ```
-            {
-                "git_url": "https://github.com/databricks/databricks-cli",
-                "git_branch": "main",
-                "git_provider": "gitHub",
-            }
-            ``` Key-values:
-            - git_url:
-                URL of the repository to be cloned by this job. The maximum
-                length is 300 characters, e.g.
-                `https://github.com/databricks/databricks-cli`.
-            - git_provider:
-                Unique identifier of the service used to host the Git
-                repository. The value is case insensitive, e.g. `github`.
-            - git_branch:
-                Name of the branch to be checked out and used by this job.
-                This field cannot be specified in conjunction with git_tag
-                or git_commit. The maximum length is 255 characters, e.g.
-                `main`.
-            - git_tag:
-                Name of the tag to be checked out and used by this job. This
-                field cannot be specified in conjunction with git_branch or
-                git_commit. The maximum length is 255 characters, e.g.
-                `release-1.0.0`.
-            - git_commit:
-                Commit to be checked out and used by this job. This field
-                cannot be specified in conjunction with git_branch or
-                git_tag. The maximum length is 64 characters, e.g.
-                `e0056d01`.
-            - git_snapshot:
-                Read-only state of the remote repository at the time the job was run.
-                            This field is only included on job runs.
+            An optional remote Git repository (`GitSource`) containing the
+            notebooks used by the run's notebook tasks. This functionality is in
+            Public Preview.
         timeout_seconds:
-            An optional timeout applied to each run of this job. The default
-            behavior is to have no timeout, e.g. `86400`.
+            An optional timeout, in seconds, applied to the run. The default is
+            no timeout.
         idempotency_token:
-            An optional token that can be used to guarantee the idempotency of job
-            run requests. If a run with the provided token already
-            exists, the request does not create a new run but returns
-            the ID of the existing run instead. If a run with the
-            provided token is deleted, an error is returned.  If you
-            specify the idempotency token, upon failure you can retry
-            until the request succeeds. Databricks guarantees that
-            exactly one run is launched with that idempotency token.
-            This token must have at most 64 characters.  For more
-            information, see [How to ensure idempotency for
-            jobs](https://kb.databricks.com/jobs/jobs-idempotency.html),
-            e.g. `8f018174-4792-40d5-bcbc-3e6a527352c8`.
+            An optional token (at most 64 characters) guaranteeing the
+            idempotency of the request. If a run with the token already exists,
+            the existing run's ID is returned instead of creating a new run. See
+            the Databricks docs on job idempotency for details.
         access_control_list:
-            List of permissions to set on the job.
+            A list of permissions (`AccessControlRequest`) to set on the run.
 
     Returns:
-        Upon success, a dict of the response. </br>- `run_id: int`</br>
+        Upon success, a dict of the response containing the key `run_id`
+        (`int`).
 
-    <h4>API Endpoint:</h4>
-    `/2.1/jobs/runs/submit`
-
-    <h4>API Responses:</h4>
-    | Response | Description |
-    | --- | --- |
-    | 200 | Run was created and started successfully. |
-    | 400 | The request was malformed. See JSON response for error details. |
-    | 401 | The request was unauthorized. |
-    | 500 | The request was not handled correctly due to a server error. |
+    Note:
+        Calls the `/2.1/jobs/runs/submit` API endpoint. Possible responses are
+        200 (run was created and started successfully), 400 (the request was
+        malformed; see the JSON response for error details), 401 (the request
+        was unauthorized), and 500 (the request was not handled correctly due
+        to a server error).
     """  # noqa
     endpoint = "/2.1/jobs/runs/submit"  # noqa
 
@@ -1755,199 +1065,25 @@ async def jobs_update(
     Args:
         databricks_credentials:
             Credentials to use for authentication with Databricks.
-        job_id:
-            The canonical identifier of the job to update. This field is required,
-            e.g. `11223344`.
+        job_id: The canonical identifier of the job to update. Required.
         new_settings:
-            The new settings for the job. Any top-level fields specified in
-            `new_settings` are completely replaced. Partially updating
-            nested fields is not supported.  Changes to the field
-            `JobSettings.timeout_seconds` are applied to active runs.
-            Changes to other fields are applied to future runs only. Key-values:
-            - name:
-                An optional name for the job, e.g. `A multitask job`.
-            - tags:
-                A map of tags associated with the job. These are forwarded
-                to the cluster as cluster tags for jobs clusters, and are
-                subject to the same limitations as cluster tags. A maximum
-                of 25 tags can be added to the job, e.g.
-                ```
-                {"cost-center": "engineering", "team": "jobs"}
-                ```
-            - tasks:
-                A list of task specifications to be executed by this job, e.g.
-                ```
-                [
-                    {
-                        "task_key": "Sessionize",
-                        "description": "Extracts session data from events",
-                        "depends_on": [],
-                        "existing_cluster_id": "0923-164208-meows279",
-                        "spark_jar_task": {
-                            "main_class_name": "com.databricks.Sessionize",
-                            "parameters": [
-                                "--data",
-                                "dbfs:/path/to/data.json",
-                            ],
-                        },
-                        "libraries": [
-                            {"jar": "dbfs:/mnt/databricks/Sessionize.jar"}
-                        ],
-                        "timeout_seconds": 86400,
-                        "max_retries": 3,
-                        "min_retry_interval_millis": 2000,
-                        "retry_on_timeout": False,
-                    },
-                    {
-                        "task_key": "Orders_Ingest",
-                        "description": "Ingests order data",
-                        "depends_on": [],
-                        "job_cluster_key": "auto_scaling_cluster",
-                        "spark_jar_task": {
-                            "main_class_name": "com.databricks.OrdersIngest",
-                            "parameters": [
-                                "--data",
-                                "dbfs:/path/to/order-data.json",
-                            ],
-                        },
-                        "libraries": [
-                            {"jar": "dbfs:/mnt/databricks/OrderIngest.jar"}
-                        ],
-                        "timeout_seconds": 86400,
-                        "max_retries": 3,
-                        "min_retry_interval_millis": 2000,
-                        "retry_on_timeout": False,
-                    },
-                    {
-                        "task_key": "Match",
-                        "description": "Matches orders with user sessions",
-                        "depends_on": [
-                            {"task_key": "Orders_Ingest"},
-                            {"task_key": "Sessionize"},
-                        ],
-                        "new_cluster": {
-                            "spark_version": "7.3.x-scala2.12",
-                            "node_type_id": "i3.xlarge",
-                            "spark_conf": {"spark.speculation": True},
-                            "aws_attributes": {
-                                "availability": "SPOT",
-                                "zone_id": "us-west-2a",
-                            },
-                            "autoscale": {
-                                "min_workers": 2,
-                                "max_workers": 16,
-                            },
-                        },
-                        "notebook_task": {
-                            "notebook_path": "/Users/user.name@databricks.com/Match",
-                            "source": "WORKSPACE",
-                            "base_parameters": {
-                                "name": "John Doe",
-                                "age": "35",
-                            },
-                        },
-                        "timeout_seconds": 86400,
-                        "max_retries": 3,
-                        "min_retry_interval_millis": 2000,
-                        "retry_on_timeout": False,
-                    },
-                ]
-                ```
-            - job_clusters:
-                A list of job cluster specifications that can be shared and
-                reused by tasks of this job. Libraries cannot be declared in
-                a shared job cluster. You must declare dependent libraries
-                in task settings, e.g.
-                ```
-                [
-                    {
-                        "job_cluster_key": "auto_scaling_cluster",
-                        "new_cluster": {
-                            "spark_version": "7.3.x-scala2.12",
-                            "node_type_id": "i3.xlarge",
-                            "spark_conf": {"spark.speculation": True},
-                            "aws_attributes": {
-                                "availability": "SPOT",
-                                "zone_id": "us-west-2a",
-                            },
-                            "autoscale": {
-                                "min_workers": 2,
-                                "max_workers": 16,
-                            },
-                        },
-                    }
-                ]
-                ```
-            - email_notifications:
-                An optional set of email addresses that is notified when
-                runs of this job begin or complete as well as when this job
-                is deleted. The default behavior is to not send any emails.
-            - webhook_notifications:
-                A collection of system notification IDs to notify when runs
-                of this job begin or complete. The default behavior is to
-                not send any system notifications.
-            - timeout_seconds:
-                An optional timeout applied to each run of this job. The
-                default behavior is to have no timeout, e.g. `86400`.
-            - schedule:
-                An optional periodic schedule for this job. The default
-                behavior is that the job only runs when triggered by
-                clicking “Run Now” in the Jobs UI or sending an API request
-                to `runNow`.
-            - max_concurrent_runs:
-                An optional maximum allowed number of concurrent runs of the
-                job.  Set this value if you want to be able to execute
-                multiple runs of the same job concurrently. This is useful
-                for example if you trigger your job on a frequent schedule
-                and want to allow consecutive runs to overlap with each
-                other, or if you want to trigger multiple runs which differ
-                by their input parameters.  This setting affects only new
-                runs. For example, suppose the job’s concurrency is 4 and
-                there are 4 concurrent active runs. Then setting the
-                concurrency to 3 won’t kill any of the active runs. However,
-                from then on, new runs are skipped unless there are fewer
-                than 3 active runs.  This value cannot exceed 1000\. Setting
-                this value to 0 causes all new runs to be skipped. The
-                default behavior is to allow only 1 concurrent run, e.g.
-                `10`.
-            - git_source:
-                This functionality is in Public Preview.  An optional
-                specification for a remote repository containing the
-                notebooks used by this job's notebook tasks, e.g.
-                ```
-                {
-                    "git_url": "https://github.com/databricks/databricks-cli",
-                    "git_branch": "main",
-                    "git_provider": "gitHub",
-                }
-                ```
-            - format:
-                Used to tell what is the format of the job. This field is
-                ignored in Create/Update/Reset calls. When using the Jobs
-                API 2.1 this value is always set to `'MULTI_TASK'`, e.g.
-                `MULTI_TASK`.
-            - parameters:
-                Job-level parameter definitions.
+            The settings (`JobSettings`) to apply. Any top-level field provided
+            is replaced entirely; partial updates of nested fields are not
+            supported. Changes to `timeout_seconds` apply to active runs, while
+            changes to other fields apply only to future runs.
         fields_to_remove:
-            Remove top-level fields in the job settings. Removing nested fields is
-            not supported. This field is optional, e.g.
-            ```
-            ["libraries", "schedule"]
-            ```
+            An optional list of top-level fields to remove from the job's
+            settings. Removing nested fields is not supported.
 
     Returns:
         Upon success, an empty dict.
 
-    <h4>API Endpoint:</h4>
-    `/2.1/jobs/update`
-
-    <h4>API Responses:</h4>
-    | Response | Description |
-    | --- | --- |
-    | 200 | Job was updated successfully. |
-    | 400 | The request was malformed. See JSON response for error details. |
-    | 401 | The request was unauthorized. |
-    | 500 | The request was not handled correctly due to a server error. |
+    Note:
+        Calls the `/2.1/jobs/update` API endpoint. Possible responses are
+        200 (job was updated successfully), 400 (the request was malformed;
+        see the JSON response for error details), 401 (the request was
+        unauthorized), and 500 (the request was not handled correctly due to a
+        server error).
     """  # noqa
     endpoint = "/2.1/jobs/update"  # noqa
 

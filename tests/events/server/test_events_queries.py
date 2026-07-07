@@ -1057,6 +1057,142 @@ async def test_querying_by_resource_wildcards_even_for_ids(
         assert event.resource.id.startswith("foo.")
 
 
+async def test_querying_by_resource_labels_with_underscores(
+    session: AsyncSession,
+) -> None:
+    """Regression test: label values containing literal underscores must match on
+    SQLite where ESCAPE is opt-in (see OSS-8039)."""
+    event = ReceivedEvent(
+        occurred=now("UTC"),
+        event="test.underscore",
+        resource={
+            "prefect.resource.id": "res_with_underscores",
+            "my.label": "value_with_underscores",
+        },
+        related=[],
+        payload={},
+        id=uuid4(),
+        received=now("UTC"),
+    )
+    await write_events(session, [event])
+
+    events, _, _ = await query_events(
+        session=session,
+        filter=EventFilter(
+            occurred=EventOccurredFilter(
+                since=event.occurred - timedelta(seconds=1),
+                until=event.occurred + timedelta(seconds=1),
+            ),
+            resource=EventResourceFilter(
+                labels={"my.label": ["value_with_underscores"]}
+            ),
+        ),
+    )
+
+    assert len(events) == 1
+    assert events[0].id == event.id
+
+
+async def test_querying_by_resource_labels_with_percent(
+    session: AsyncSession,
+) -> None:
+    """Regression test: label values containing literal percent signs must match on
+    SQLite where ESCAPE is opt-in (see OSS-8039)."""
+    event = ReceivedEvent(
+        occurred=now("UTC"),
+        event="test.percent",
+        resource={
+            "prefect.resource.id": "res.percent",
+            "my.label": "100%done",
+        },
+        related=[],
+        payload={},
+        id=uuid4(),
+        received=now("UTC"),
+    )
+    await write_events(session, [event])
+
+    events, _, _ = await query_events(
+        session=session,
+        filter=EventFilter(
+            occurred=EventOccurredFilter(
+                since=event.occurred - timedelta(seconds=1),
+                until=event.occurred + timedelta(seconds=1),
+            ),
+            resource=EventResourceFilter(labels={"my.label": ["100%done"]}),
+        ),
+    )
+
+    assert len(events) == 1
+    assert events[0].id == event.id
+
+
+async def test_querying_by_resource_id_with_underscores(
+    session: AsyncSession,
+) -> None:
+    """Regression test: resource IDs containing underscores must match on SQLite."""
+    event = ReceivedEvent(
+        occurred=now("UTC"),
+        event="test.resource_id",
+        resource={
+            "prefect.resource.id": "my_app.thing_one.item_two",
+        },
+        related=[],
+        payload={},
+        id=uuid4(),
+        received=now("UTC"),
+    )
+    await write_events(session, [event])
+
+    events, _, _ = await query_events(
+        session=session,
+        filter=EventFilter(
+            occurred=EventOccurredFilter(
+                since=event.occurred - timedelta(seconds=1),
+                until=event.occurred + timedelta(seconds=1),
+            ),
+            resource=EventResourceFilter(id=["my_app.thing_one.item_two"]),
+        ),
+    )
+
+    assert len(events) == 1
+    assert events[0].id == event.id
+
+
+async def test_querying_by_resource_labels_with_backslash(
+    session: AsyncSession,
+) -> None:
+    """Regression test: label values containing literal backslashes must not be
+    misinterpreted as LIKE escape sequences (see OSS-8039)."""
+    event = ReceivedEvent(
+        occurred=now("UTC"),
+        event="test.backslash",
+        resource={
+            "prefect.resource.id": "res.backslash",
+            "my.path": "path\\to\\thing",
+        },
+        related=[],
+        payload={},
+        id=uuid4(),
+        received=now("UTC"),
+    )
+    await write_events(session, [event])
+
+    events, _, _ = await query_events(
+        session=session,
+        filter=EventFilter(
+            occurred=EventOccurredFilter(
+                since=event.occurred - timedelta(seconds=1),
+                until=event.occurred + timedelta(seconds=1),
+            ),
+            resource=EventResourceFilter(labels={"my.path": ["path\\to\\thing"]}),
+        ),
+    )
+
+    assert len(events) == 1
+    assert events[0].id == event.id
+
+
 async def test_querying_by_related_nothing(
     events_query_session: AsyncSession,
     full_occurred_range: EventOccurredFilter,

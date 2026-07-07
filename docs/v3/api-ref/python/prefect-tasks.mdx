@@ -50,7 +50,7 @@ increase the delay time by powers of 2.
 - a callable that can be passed to the task constructor
 
 
-### `task` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1978" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `task` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1991" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 task(__fn: Optional[Callable[P, R]] = None)
@@ -281,7 +281,7 @@ to its retry policy.
 
 **Methods:**
 
-#### `apply_async` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1648" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `apply_async` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1661" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 apply_async(self, args: Optional[tuple[Any, ...]] = None, kwargs: Optional[dict[str, Any]] = None, wait_for: Optional[Iterable[PrefectFuture[R]]] = None, dependencies: Optional[dict[str, set[RunInput]]] = None) -> PrefectDistributedFuture[R]
@@ -352,7 +352,7 @@ Examples:
     ```
 
 
-#### `aserve` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1812" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aserve` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1825" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aserve(self) -> NoReturn
@@ -380,7 +380,7 @@ await my_task.aserve()
 ```
 
 
-#### `create_local_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L979" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_local_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L992" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_local_run(self, client: Optional['PrefectClient'] = None, id: Optional[UUID] = None, parameters: Optional[dict[str, Any]] = None, flow_run_context: Optional[FlowRunContext] = None, parent_task_run_context: Optional[TaskRunContext] = None, wait_for: Optional[OneOrManyFutureOrResult[Any]] = None, extra_task_inputs: Optional[dict[str, set[RunInput]]] = None, deferred: bool = False) -> TaskRun
@@ -392,7 +392,7 @@ create_local_run(self, client: Optional['PrefectClient'] = None, id: Optional[UU
 create_run(self, client: Optional['PrefectClient'] = None, id: Optional[UUID] = None, parameters: Optional[dict[str, Any]] = None, flow_run_context: Optional[FlowRunContext] = None, parent_task_run_context: Optional[TaskRunContext] = None, wait_for: Optional[OneOrManyFutureOrResult[Any]] = None, extra_task_inputs: Optional[dict[str, set[RunInput]]] = None, deferred: bool = False) -> TaskRun
 ```
 
-#### `delay` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1764" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delay` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1777" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delay(self, *args: P.args, **kwargs: P.kwargs) -> PrefectDistributedFuture[R]
@@ -461,43 +461,43 @@ ismethod(self) -> bool
 isstaticmethod(self) -> bool
 ```
 
-#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1406" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1419" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 map(self: 'Task[P, R]', *args: Any, **kwargs: Any) -> list[State[R]]
 ```
 
-#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1416" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1429" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 map(self: 'Task[P, R]', *args: Any, **kwargs: Any) -> PrefectFutureList[R]
 ```
 
-#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1425" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1438" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 map(self: 'Task[P, R]', *args: Any, **kwargs: Any) -> list[State[R]]
 ```
 
-#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1435" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1448" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 map(self: 'Task[P, R]', *args: Any, **kwargs: Any) -> PrefectFutureList[R]
 ```
 
-#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1444" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1457" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 map(self: 'Task[P, Coroutine[Any, Any, R]]', *args: Any, **kwargs: Any) -> list[State[R]]
 ```
 
-#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1454" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1467" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 map(self: 'Task[P, Coroutine[Any, Any, R]]', *args: Any, **kwargs: Any) -> PrefectFutureList[R]
 ```
 
-#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1463" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `map` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1476" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 map(self, *args: Any, **kwargs: Any) -> Union[list[State[R]], PrefectFutureList[R]]
@@ -663,7 +663,7 @@ on_rollback(self, fn: Callable[['Transaction'], None]) -> Callable[['Transaction
 on_running(self, fn: StateHookCallable) -> StateHookCallable
 ```
 
-#### `serve` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1838" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `serve` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1851" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 serve(self) -> NoReturn
@@ -689,37 +689,37 @@ my_task.serve()
 ```
 
 
-#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1222" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1235" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 submit(self: 'Task[P, R]', *args: P.args, **kwargs: P.kwargs) -> PrefectFuture[R]
 ```
 
-#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1229" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1242" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 submit(self: 'Task[P, Coroutine[Any, Any, R]]', *args: P.args, **kwargs: P.kwargs) -> PrefectFuture[R]
 ```
 
-#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1238" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1251" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 submit(self: 'Task[P, R]', *args: P.args, **kwargs: P.kwargs) -> PrefectFuture[R]
 ```
 
-#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1247" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1260" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 submit(self: 'Task[P, Coroutine[Any, Any, R]]', *args: P.args, **kwargs: P.kwargs) -> State[R]
 ```
 
-#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1256" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1269" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 submit(self: 'Task[P, R]', *args: P.args, **kwargs: P.kwargs) -> State[R]
 ```
 
-#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L1277" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 submit(self: 'Union[Task[P, R], Task[P, Coroutine[Any, Any, R]]]', *args: Any, **kwargs: Any)
@@ -913,7 +913,7 @@ Examples:
     ```
 
 
-### `MaterializingTask` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L2200" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `MaterializingTask` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L2213" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A task that materializes Assets.
@@ -926,7 +926,7 @@ A task that materializes Assets.
 
 **Methods:**
 
-#### `with_options` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L2225" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `with_options` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/tasks.py#L2238" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 with_options(self, assets: Optional[Sequence[Union[str, Asset]]] = None, **task_kwargs: Unpack[TaskOptions]) -> 'MaterializingTask[P, R]'

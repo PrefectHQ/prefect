@@ -67,7 +67,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN_RW }}
 
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           filter: blob:none
@@ -147,9 +147,20 @@ jobs:
     # Only trigger on release events (nightly prereleases and official releases)
     if: github.event_name == 'release'
     steps:
+      - name: Generate prefect-ci-bot-bridge token
+        id: app_token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ secrets.PREFECT_CI_BOT_BRIDGE_CLIENT_ID }}
+          private-key: ${{ secrets.PREFECT_CI_BOT_BRIDGE_PRIVATE_KEY }}
+          owner: PrefectHQ
+          repositories: cluster-deployment
+          # Scope to the minimum needed for `gh workflow run`.
+          permission-actions: write
+
       - name: Dispatch to cluster-deployment
         env:
-          GH_TOKEN: ${{ secrets.CLUSTER_DEPLOYMENT_ACTIONS_RW }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
         run: |
           gh workflow run update-integration-test-image.yaml \
             -R PrefectHQ/cluster-deployment \
@@ -166,7 +177,7 @@ jobs:
       PREFECT_AWS_VERSION: ${{ steps.get_version.outputs.PREFECT_AWS_VERSION }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-tags: true
 
@@ -196,7 +207,7 @@ jobs:
       PREFECT_AZURE_VERSION: ${{ steps.get_version.outputs.PREFECT_AZURE_VERSION }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-tags: true
 
@@ -226,7 +237,7 @@ jobs:
       PREFECT_GCP_VERSION: ${{ steps.get_version.outputs.PREFECT_GCP_VERSION }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-tags: true
 

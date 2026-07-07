@@ -73,19 +73,21 @@ Lists jobs on the Databricks instance.
 from prefect import flow
 from prefect_databricks import DatabricksCredentials
 from prefect_databricks.rest import execute_endpoint
+
+
 @flow
-def example_execute_endpoint_flow():
+async def example_execute_endpoint_flow():
     endpoint = "/2.1/jobs/list"
-    databricks_credentials = DatabricksCredentials.load("my-block")
+    databricks_credentials = await DatabricksCredentials.load("my-block")
     params = {
         "limit": 5,
         "offset": None,
         "expand_tasks": True,
     }
-    response = execute_endpoint(
+    response = await execute_endpoint(
         endpoint,
         databricks_credentials,
-        params=params
+        params=params,
     )
     return response.json()
 ```
