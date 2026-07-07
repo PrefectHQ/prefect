@@ -34,6 +34,7 @@ import {
 	useVariableDialog,
 	VariableDialog,
 } from "@/components/variables/variable-dialog";
+import { usePageSizePreference } from "@/hooks/use-page-size-preference";
 
 /**
  * Schema for validating URL search parameters for the variables page.
@@ -45,7 +46,7 @@ import {
  */
 const searchParams = z.object({
 	offset: z.number().int().nonnegative().optional().default(0).catch(0),
-	limit: z.number().int().positive().optional().default(10).catch(10),
+	limit: z.number().int().positive().optional().catch(undefined),
 	sort: z
 		.enum(["CREATED_DESC", "UPDATED_DESC", "NAME_ASC", "NAME_DESC"])
 		.optional()
@@ -205,14 +206,31 @@ const usePagination = () => {
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
 
-	const pageIndex = search.offset ? Math.ceil(search.offset / search.limit) : 0;
-	const pageSize = search.limit ?? 10;
+	const onInitializePageSize = useCallback(
+		(pageSize: number) => {
+			void navigate({
+				to: ".",
+				search: (prev) => ({ ...prev, limit: pageSize }),
+				replace: true,
+			});
+		},
+		[navigate],
+	);
+
+	const effectivePageSize = usePageSizePreference(
+		search.limit,
+		onInitializePageSize,
+	);
+
+	const pageIndex = search.offset
+		? Math.ceil(search.offset / effectivePageSize)
+		: 0;
 	const pagination: PaginationState = useMemo(
 		() => ({
 			pageIndex,
-			pageSize,
+			pageSize: effectivePageSize,
 		}),
-		[pageIndex, pageSize],
+		[pageIndex, effectivePageSize],
 	);
 
 	const onPaginationChange = useCallback(

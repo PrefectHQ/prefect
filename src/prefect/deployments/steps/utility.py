@@ -15,7 +15,7 @@ Example:
         - prefect_docker.deployments.steps.build_docker_image:
             requires: prefect-docker
             image_name: my-image
-            image_tag: "{{ get-commit-hash.stdout }}"
+            tag: "{{ get-commit-hash.stdout }}"
             dockerfile: auto
     ```
 """
@@ -153,7 +153,7 @@ async def run_shell_script(
             - prefect_docker.deployments.steps.build_docker_image:
                 requires: prefect-docker
                 image_name: my-image
-                image_tag: "{{ get-commit-hash.stdout }}"
+                tag: "{{ get-commit-hash.stdout }}"
                 dockerfile: auto
         ```
 

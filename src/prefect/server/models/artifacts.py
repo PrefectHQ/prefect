@@ -309,7 +309,6 @@ async def read_artifacts(
         task_run_filter: Only select artifacts whose task runs matching this filter
         deployment_filter: Only select artifacts whose flow runs belong to deployments matching this filter
         flow_filter: Only select artifacts whose flow runs belong to flows matching this filter
-        work_pool_filter: Only select artifacts whose flow runs belong to work pools matching this filter
     """
     query = sa.select(db.Artifact).order_by(*sort.as_sql_sort())
 
@@ -357,7 +356,6 @@ async def read_latest_artifacts(
         task_run_filter: Only select artifacts whose task runs matching this filter
         deployment_filter: Only select artifacts whose flow runs belong to deployments matching this filter
         flow_filter: Only select artifacts whose flow runs belong to flows matching this filter
-        work_pool_filter: Only select artifacts whose flow runs belong to work pools matching this filter
     """
     query = sa.select(db.ArtifactCollection).order_by(*sort.as_sql_sort())
     query = await _apply_artifact_collection_filters(

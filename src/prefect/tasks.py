@@ -900,6 +900,19 @@ class Task(Generic[P, R]):
             if not flow_run_context:
                 dynamic_key = f"{self.task_key}-{str(uuid4().hex)}"
                 task_run_name = self.name
+            elif (
+                getattr(self, "_is_subflow_tracking_task", False)
+                and parent_task_run_context
+                and flow_run_context.flow_run
+                and parent_task_run_context.task_run.flow_run_id
+                == flow_run_context.flow_run.id
+            ):
+                # Subflows called from a task context need UUID keys because
+                # sibling call order is not a reliable identity across retries.
+                dynamic_key = dynamic_key_for_task_run(
+                    context=flow_run_context, task=self, stable=False
+                )
+                task_run_name = f"{self.name}-{dynamic_key}"
             else:
                 dynamic_key = dynamic_key_for_task_run(
                     context=flow_run_context, task=self
@@ -1620,10 +1633,10 @@ class Task(Generic[P, R]):
 
         if deferred:
             parameters_list = expand_mapping_parameters(self.fn, parameters)
-            futures = [
+            futures = PrefectFutureList(
                 self.apply_async(kwargs=parameters, wait_for=wait_for)
                 for parameters in parameters_list
-            ]
+            )
         elif task_runner := getattr(flow_run_context, "task_runner", None):
             assert isinstance(task_runner, TaskRunner)
             futures = task_runner.map(self, parameters, wait_for)

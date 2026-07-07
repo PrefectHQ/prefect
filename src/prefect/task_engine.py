@@ -299,6 +299,8 @@ class BaseTaskRunEngine(Generic[P, R]):
     def _resolve_parameters(self):
         if not self.parameters:
             return None
+        if getattr(self, "_parameters_resolved", False):
+            return None
 
         resolved_parameters = {}
         for parameter, value in self.parameters.items():
@@ -311,7 +313,7 @@ class BaseTaskRunEngine(Generic[P, R]):
                     remove_annotations=True,
                     context={"parameter_name": parameter},
                 )
-            except UpstreamTaskError:
+            except (UpstreamTaskError, PrefectException):
                 raise
             except Exception as exc:
                 raise PrefectException(
@@ -322,6 +324,7 @@ class BaseTaskRunEngine(Generic[P, R]):
                 ) from exc
 
         self.parameters = resolved_parameters
+        self._parameters_resolved = True
 
     def _set_custom_task_run_name(self):
         from prefect._internal.engine import resolve_custom_task_run_name

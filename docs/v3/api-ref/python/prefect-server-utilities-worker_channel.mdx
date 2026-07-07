@@ -7,31 +7,31 @@ sidebarTitle: worker_channel
 
 ## Functions
 
-### `work_pool_update_triggers_snapshot` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L78" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `work_pool_update_triggers_snapshot` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L119" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 work_pool_update_triggers_snapshot(update_values: Mapping[str, Any]) -> bool
 ```
 
-### `close_worker_channel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L568" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `close_worker_channel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L724" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 close_worker_channel(websocket: WebSocket, close_reason: WorkerChannelCloseReason) -> None
 ```
 
-### `build_worker_channel_work_pool_snapshot` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L575" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `build_worker_channel_work_pool_snapshot` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L731" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 build_worker_channel_work_pool_snapshot(session: AsyncSession, work_pool: ORMWorkPool) -> WorkPoolSnapshot
 ```
 
-### `publish_snapshot_invalidation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L666" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `publish_snapshot_invalidation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L824" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 publish_snapshot_invalidation(invalidation: WorkerChannelSnapshotInvalidation) -> None
 ```
 
-### `parse_snapshot_invalidation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L681" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `parse_snapshot_invalidation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L839" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 parse_snapshot_invalidation(message: messaging.Message) -> WorkerChannelSnapshotInvalidation
@@ -39,7 +39,7 @@ parse_snapshot_invalidation(message: messaging.Message) -> WorkerChannelSnapshot
 
 ## Classes
 
-### `WorkerChannelSnapshotInvalidation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L69" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkerChannelSnapshotInvalidation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L110" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
@@ -61,47 +61,47 @@ Reset the fields of the model that are in the `_reset_fields` set.
 - A new instance of the model with the reset fields.
 
 
-#### `targets` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L74" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `targets` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L115" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 targets(self) -> bool
 ```
 
-### `WorkerChannelConnection` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L82" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `WorkerChannelConnection` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L123" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `cleanup_enabled` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L120" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `cleanup_enabled` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L163" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 cleanup_enabled(self) -> bool
 ```
 
-#### `close` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L177" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `close` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L239" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 close(self, close_reason: WorkerChannelCloseReason) -> None
 ```
 
-#### `dispatch_one_cleanup_message` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L216" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `dispatch_one_cleanup_message` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L297" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 dispatch_one_cleanup_message(self) -> bool
 ```
 
-#### `has_cleanup_capacity` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L204" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `has_cleanup_capacity` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L285" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 has_cleanup_capacity(self) -> bool
 ```
 
-#### `queue_snapshot` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L185" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `queue_snapshot` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L256" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 queue_snapshot(self, invalidation: WorkerChannelSnapshotInvalidation) -> None
 ```
 
-#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L127" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/utilities/worker_channel.py#L170" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run(self, ready: WorkerReadyFrame, consumer_kwargs: Mapping[str, Any]) -> None

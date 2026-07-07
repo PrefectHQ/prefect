@@ -10,6 +10,7 @@ import base64
 import contextlib
 import gc
 import hmac
+import importlib.metadata
 import logging
 import mimetypes
 import os
@@ -41,7 +42,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from starlette.exceptions import HTTPException
+from packaging.version import Version
 from typing_extensions import Self
 
 import prefect
@@ -50,6 +51,7 @@ import prefect.settings
 from prefect._internal.compatibility.starlette import status
 from prefect._internal.observability import configure_logfire
 from prefect.client.constants import SERVER_API_VERSION
+from prefect.locking._filelock import FileLock
 from prefect.logging import get_logger
 from prefect.server.api._ui_static import UIBundle, UIVersion, log_ui_static_copy_error
 from prefect.server.api.background_workers import background_worker
@@ -72,6 +74,12 @@ from prefect.settings import (
 from prefect.utilities.hashing import hash_objects
 
 logfire: Any | None = configure_logfire()
+
+# FastAPI < 0.137 copies routes when including a router; 0.137+ keeps a
+# reference to the original via _IncludedRouter.
+_FASTAPI_COPIES_ROUTES_ON_INCLUDE: bool = Version(
+    importlib.metadata.version("fastapi")
+) < Version("0.137.0")
 
 TITLE = "Prefect Server"
 API_TITLE = "Prefect REST API"
@@ -165,21 +173,6 @@ def _install_sqlite_locked_log_filter() -> None:
     logging.getLogger("uvicorn.error").addFilter(filter_)
     logging.getLogger("docket.worker").addFilter(filter_)
     _SQLITE_LOCKED_LOG_FILTER = filter_
-
-
-class SPAStaticFiles(StaticFiles):
-    """
-    Implementation of `StaticFiles` for serving single page applications.
-
-    Adds `get_response` handling to ensure that when a resource isn't found the
-    application still returns the index.
-    """
-
-    async def get_response(self, path: str, scope: Any) -> Response:
-        try:
-            return await super().get_response(path, scope)
-        except HTTPException:
-            return await super().get_response("./index.html", scope)
 
 
 def _normalize_ui_base_url(base_url: str) -> str:
@@ -491,21 +484,16 @@ def create_api_app(
 
     for router in API_ROUTERS:
         api_app.include_router(router, dependencies=dependencies)
-        if final:
-            # Important note about how FastAPI works:
+        if final and _FASTAPI_COPIES_ROUTES_ON_INCLUDE:
+            # When including a router, older versions of FastAPI (< 0.137) copy
+            # the routes and build entirely new Pydantic models.  Since Prefect
+            # does not reuse routers, we can delete the originals to reclaim
+            # ~50-55 MB of memory.
             #
-            # When including a router, FastAPI copies the routes and builds entirely new
-            # Pydantic models to represent the request bodies of the routes in the
-            # router.  This is because the dependencies may change if the same router is
-            # included multiple times, but it also means that we are holding onto an
-            # entire set of Pydantic models on the original routers for the duration of
-            # the server process that will never be used.
-            #
-            # Because Prefect does not reuse routers, we are free to clean up the routes
-            # because we know they won't be used again.  Thus, if we have the hint that
-            # this is the final instance we will create in this process, we can clean up
-            # the routes on the original source routers to conserve memory (~50-55MB as
-            # of introducing this change).
+            # FastAPI 0.137+ wraps included routers in an _IncludedRouter that
+            # references the original router for request matching, so the
+            # originals must be kept.  The duplication no longer occurs in this
+            # case either, so the optimisation is unnecessary.
             del router.routes
 
     if final:
@@ -612,7 +600,6 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
             static_dir=build_static_dir("v1", str(prefect.__ui_static_subpath__)),
             base_url=v1_base_url,
             cache_key=f"v1:{prefect.__version__}:{v1_base_url}",
-            mount_name="ui_v1",
         ),
         UIBundle(
             version="v2",
@@ -620,7 +607,6 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
             static_dir=build_static_dir("v2", str(prefect.__ui_v2_static_subpath__)),
             base_url=v2_base_url,
             cache_key=f"v2:{prefect.__version__}:{v2_base_url}",
-            mount_name="ui_v2",
         ),
     ]
 
@@ -688,7 +674,9 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
             if scope_path.endswith(path) and path != "/"
             else request.scope.get("root_path", "")
         )
-        redirect_url = str(request.url.replace(path=f"{scope_prefix}{redirect_path}"))
+        redirect_url = f"{scope_prefix}{redirect_path}"
+        if request.url.query:
+            redirect_url = f"{redirect_url}?{request.url.query}"
         return RedirectResponse(
             url=redirect_url,
             status_code=status.HTTP_307_TEMPORARY_REDIRECT,
@@ -736,8 +724,20 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
                 continue
 
             if not reference_file_matches_cache_key(bundle):
+                lock_path = os.path.join(
+                    os.path.dirname(bundle.static_dir),
+                    f".{bundle.version}_ui_static.lock",
+                )
+                lock = FileLock(lock_path, timeout=90)
                 try:
-                    create_ui_static_subpath(bundle)
+                    lock.acquire()
+                    try:
+                        # Re-check after acquiring the lock; another worker
+                        # may have completed the copy while we waited.
+                        if not reference_file_matches_cache_key(bundle):
+                            create_ui_static_subpath(bundle)
+                    finally:
+                        lock.release()
                 except OSError as exc:
                     log_ui_static_copy_error(bundle, exc, logger)
                     continue
@@ -749,10 +749,10 @@ def create_ui_app(ephemeral: bool) -> FastAPI:
             if bundle is None:
                 continue
 
-            ui_app.mount(
+            ui_app.frontend(
                 bundle.base_url,
-                SPAStaticFiles(directory=bundle.static_dir),
-                name=bundle.mount_name,
+                directory=bundle.static_dir,
+                fallback="index.html",
             )
 
     return ui_app
@@ -840,6 +840,22 @@ def _memoize_block_auto_registration(
     return wrapper
 
 
+def _log_worker_channel_config() -> None:
+    """Log worker channel queue backend and key configuration at startup."""
+    wc_settings = prefect.settings.get_current_settings().server.worker_channel
+    logger.debug(
+        "Worker channel configuration: "
+        "cleanup_queue_storage=%s "
+        "cleanup_lease_seconds=%s "
+        "cleanup_max_delivery_attempts=%s "
+        "cleanup_completed_idempotency_retention_seconds=%s",
+        wc_settings.cleanup_queue_storage,
+        wc_settings.cleanup_lease_seconds,
+        wc_settings.cleanup_max_delivery_attempts,
+        wc_settings.cleanup_completed_idempotency_retention_seconds,
+    )
+
+
 def create_app(
     settings: Optional[prefect.settings.Settings] = None,
     ephemeral: bool = False,
@@ -908,6 +924,8 @@ def create_app(
 
         await run_migrations()
         await add_block_types()
+
+        _log_worker_channel_config()
 
         Services: type[Service] | None = (
             RunInWebservers

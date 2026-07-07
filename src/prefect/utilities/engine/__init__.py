@@ -28,6 +28,7 @@ import prefect.exceptions
 from prefect._internal.concurrency.cancellation import get_deadline
 from prefect.client.schemas import FlowRunResult, OrchestrationResult, TaskRun
 from prefect.client.schemas.objects import (
+    FlowRun,
     RunType,
     TaskRunResult,
 )
@@ -52,7 +53,7 @@ from prefect.results import ResultRecord, should_persist_result
 from prefect.settings import PREFECT_LOGGING_LOG_PRINTS
 from prefect.states import State
 from prefect.tasks import Task
-from prefect.utilities.annotations import allow_failure, quote
+from prefect.utilities.annotations import allow_failure, opaque, quote
 from prefect.utilities.collections import StopVisiting, visit_collection
 from prefect.utilities.text import truncated_to
 
@@ -61,7 +62,34 @@ if TYPE_CHECKING:
 
 API_HEALTHCHECKS: dict[str, float] = {}
 UNTRACKABLE_TYPES: set[type[Any]] = {bool, type(None), type(...), type(NotImplemented)}
+_RUN_SCHEMA_TYPES: tuple[type[Any], ...] = (FlowRun, TaskRun)
 engine_logger: Logger = get_logger("engine")
+
+
+def _raise_on_run_schema_unless_opaque(obj: Any, context: dict[str, Any]) -> None:
+    """Raise a clear error when a Prefect run schema object is passed as a
+    task argument without the `opaque` annotation.
+
+    These Pydantic models contain a `.state` attribute that
+    `visit_collection` would recurse into, causing the embedded state
+    to be mistakenly treated as an upstream task dependency.
+    """
+    if isinstance(obj, _RUN_SCHEMA_TYPES) and not isinstance(
+        context.get("annotation"), opaque
+    ):
+        type_name = type(obj).__name__
+        lower = type_name[0].lower() + type_name[1:]
+        raise PrefectException(
+            f"Passing a `{type_name}` object as a task argument is not supported."
+            " Prefect inspects task arguments for upstream `State` and"
+            " `PrefectFuture` dependencies, which causes the embedded"
+            f" `{type_name}.state` attribute to be mistakenly treated as an"
+            " upstream task dependency. Pass individual fields instead"
+            f" (e.g. `{lower}.id`) or wrap the object with"
+            f" `opaque({lower})` to skip dependency traversal."
+        )
+
+
 T = TypeVar("T")
 _prefect_sigterm_handler_depth = 0
 _prefect_sigterm_bridge_lock = threading.RLock()
@@ -379,6 +407,8 @@ async def resolve_inputs(
         if isinstance(context.get("annotation"), quote):
             raise StopVisiting()
 
+        _raise_on_run_schema_unless_opaque(expr, context)
+
         if isinstance(expr, PrefectFuture):
             fut: PrefectFuture[Any] = expr
             futures.add(fut)
@@ -415,6 +445,8 @@ async def resolve_inputs(
         if isinstance(context.get("annotation"), quote):
             raise StopVisiting()
 
+        _raise_on_run_schema_unless_opaque(expr, context)
+
         if isinstance(expr, PrefectFuture):
             state = expr.state
         elif isinstance(expr, State):
@@ -446,7 +478,9 @@ async def resolve_inputs(
         ):
             return state.data
 
-        return result_by_state.get(state)
+        resolved = result_by_state.get(state)
+        _raise_on_run_schema_unless_opaque(resolved, context)
+        return resolved
 
     resolved_parameters: dict[str, Any] = {}
     for parameter, value in parameters.items():
@@ -460,7 +494,7 @@ async def resolve_inputs(
                 remove_annotations=True,
                 context={},
             )
-        except UpstreamTaskError:
+        except (UpstreamTaskError, PrefectException):
             raise
         except Exception as exc:
             raise PrefectException(
@@ -951,6 +985,8 @@ def resolve_to_final_result(expr: Any, context: dict[str, Any]) -> Any:
     if isinstance(context.get("annotation"), quote):
         raise StopVisiting()
 
+    _raise_on_run_schema_unless_opaque(expr, context)
+
     if isinstance(expr, PrefectFuture):
         upstream_task_run: Optional[TaskRun] = context.get("current_task_run")
         upstream_task: Optional["Task[..., Any]"] = context.get("current_task")
@@ -995,6 +1031,11 @@ def resolve_to_final_result(expr: Any, context: dict[str, Any]) -> Any:
         return state.data
 
     result: Any = state.result(raise_on_failure=False, _sync=True)  # pyright: ignore[reportCallIssue] _sync messes up type inference and can be removed once async_dispatch is removed
+
+    # Check the resolved result: if a task returned a FlowRun/TaskRun, the
+    # caller (visit_collection) would recurse into its Pydantic fields and
+    # misinterpret the embedded .state as an upstream dependency.
+    _raise_on_run_schema_unless_opaque(result, context)
 
     if state.state_details.traceparent:
         parameter_context = propagate.extract(
@@ -1046,7 +1087,7 @@ def resolve_inputs_sync(
                 remove_annotations=True,
                 context={"parameter_name": parameter},
             )
-        except UpstreamTaskError:
+        except (UpstreamTaskError, PrefectException):
             raise
         except Exception as exc:
             raise PrefectException(

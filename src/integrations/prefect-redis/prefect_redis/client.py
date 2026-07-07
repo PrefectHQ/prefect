@@ -2,6 +2,7 @@ import asyncio
 import functools
 import warnings
 from typing import Any, Callable, Optional, Union
+from urllib.parse import urlparse, urlunparse
 
 from pydantic import Field, model_validator
 from redis.asyncio import Redis
@@ -102,6 +103,41 @@ CacheKey: TypeAlias = tuple[
 _client_cache: dict[CacheKey, Redis] = {}
 
 
+def is_cluster_url(url: str) -> bool:
+    """Return True if the URL uses the Redis Cluster scheme."""
+    return url.partition("://")[0] in {"redis+cluster", "rediss+cluster"}
+
+
+def normalize_cluster_url(url: str) -> str:
+    """Return a redis-py compatible URL for Redis Cluster connections."""
+    parsed = urlparse(url)
+    if parsed.scheme not in {"redis+cluster", "rediss+cluster"}:
+        return url
+
+    return urlunparse(parsed._replace(scheme=parsed.scheme.replace("+cluster", "")))
+
+
+def cluster_key_prefix(prefix: str, url: str | None = None) -> str:
+    """Return a key prefix, hash-tagged when configured for Redis Cluster."""
+    url = url or RedisMessagingSettings().url
+    if url and is_cluster_url(url):
+        return f"{{{prefix}}}"
+    return prefix
+
+
+def redis_key(prefix: str, suffix: str, url: str | None = None) -> str:
+    """Return a Redis key rooted at a cluster-aware prefix."""
+    return f"{cluster_key_prefix(prefix, url=url)}:{suffix}"
+
+
+def _raise_cluster_not_supported() -> None:
+    raise NotImplementedError(
+        "Redis Cluster URLs are detected but not enabled yet. "
+        "Cluster support requires hash-slot-safe keys across the Redis-backed "
+        "messaging, ordering, lease storage, and cleanup queue subsystems."
+    )
+
+
 def _running_loop() -> Union[asyncio.AbstractEventLoop, None]:
     try:
         return asyncio.get_running_loop()
@@ -162,9 +198,10 @@ def get_async_redis_client(
 ) -> Redis:
     """Retrieves an async Redis client.
 
-    When `url` is provided (or configured via
+    When a standalone `url` is provided (or configured via
     `PREFECT_REDIS_MESSAGING_URL`), `Redis.from_url` is used and
-    the discrete host/port/… arguments are ignored.
+    the discrete host/port/… arguments are ignored. Redis Cluster
+    URLs are detected but intentionally not enabled yet.
 
     Args:
         url: Full Redis URL (e.g. `redis://localhost:6379/0`).
@@ -198,6 +235,8 @@ def get_async_redis_client(
 
     url = url or settings.url
     if url:
+        if is_cluster_url(url):
+            _raise_cluster_not_supported()
         return Redis.from_url(
             url,
             health_check_interval=health_check_interval
@@ -236,6 +275,8 @@ def async_redis_from_settings(
     }
 
     if settings.url:
+        if is_cluster_url(settings.url):
+            _raise_cluster_not_supported()
         return Redis.from_url(
             settings.url,
             health_check_interval=settings.health_check_interval,

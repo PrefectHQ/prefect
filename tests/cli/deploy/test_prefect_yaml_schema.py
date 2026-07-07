@@ -112,3 +112,108 @@ class TestPrefectYamlSchema:
         # Check that key definitions exist in both
         assert "DeploymentConfig" in schema.get("$defs", {})
         assert "DeploymentConfig" in model_schema.get("$defs", {})
+
+
+class TestActionMappingNormalization:
+    @pytest.mark.parametrize("action_field", ["build", "push", "pull"])
+    def test_top_level_single_action_mapping_is_wrapped(self, action_field: str):
+        deployment_name = f"my-deployment-{uuid.uuid4()}"
+        step_mapping = {
+            "prefect.deployments.steps.run_shell_script": {"script": "echo hi"}
+        }
+        raw_data = {
+            "name": f"my-project-{uuid.uuid4()}",
+            "deployments": [
+                {
+                    "name": deployment_name,
+                    "entrypoint": "flows.py:my_flow",
+                }
+            ],
+            action_field: step_mapping,
+        }
+
+        model = PrefectYamlModel.model_validate(raw_data)
+
+        assert getattr(model, action_field) == [step_mapping]
+
+    def test_deployment_override_single_action_mapping_is_wrapped(self):
+        deployment_name = f"my-deployment-{uuid.uuid4()}"
+        step_mapping = {
+            "prefect.deployments.steps.run_shell_script": {"script": "echo hi"}
+        }
+        raw_data = {
+            "deployments": [
+                {
+                    "name": deployment_name,
+                    "entrypoint": "flows.py:my_flow",
+                    "pull": step_mapping,
+                }
+            ]
+        }
+
+        model = PrefectYamlModel.model_validate(raw_data)
+
+        assert model.deployments[0].pull == [step_mapping]
+
+    def test_action_mapping_lists_are_preserved(self):
+        deployment_name = f"my-deployment-{uuid.uuid4()}"
+        build_steps = [
+            {"prefect.deployments.steps.run_shell_script": {"script": "echo hi"}}
+        ]
+        pull_steps = [
+            {"prefect.deployments.steps.run_shell_script": {"script": "echo bye"}}
+        ]
+        raw_data = {
+            "build": build_steps,
+            "deployments": [
+                {
+                    "name": deployment_name,
+                    "entrypoint": "flows.py:my_flow",
+                    "pull": pull_steps,
+                }
+            ],
+        }
+
+        model = PrefectYamlModel.model_validate(raw_data)
+
+        assert model.build == build_steps
+        assert model.deployments[0].pull == pull_steps
+
+    def test_null_action_mappings_remain_none_and_omitted_fields_stay_none(self):
+        deployment_name = f"my-deployment-{uuid.uuid4()}"
+        raw_data = {
+            "build": None,
+            "deployments": [
+                {
+                    "name": deployment_name,
+                    "entrypoint": "flows.py:my_flow",
+                }
+            ],
+        }
+
+        model = PrefectYamlModel.model_validate(raw_data)
+
+        assert model.build is None
+        assert model.push is None
+        assert model.pull is None
+        assert model.deployments[0].build is None
+        assert model.deployments[0].push is None
+        assert model.deployments[0].pull is None
+
+    def test_empty_action_mappings_remain_dicts(self):
+        deployment_name = f"my-deployment-{uuid.uuid4()}"
+        raw_data = {
+            "build": {},
+            "deployments": [
+                {
+                    "name": deployment_name,
+                    "entrypoint": "flows.py:my_flow",
+                    "pull": {},
+                }
+            ],
+        }
+
+        model = PrefectYamlModel.model_validate(raw_data)
+
+        assert model.build == {}
+        assert model.deployments[0].pull == {}

@@ -3,10 +3,17 @@ import { CronExpressionParser } from "cron-parser";
 import cronstrue from "cronstrue";
 import { useState } from "react";
 import { Input, type InputProps } from "@/components/ui/input";
+import { divergesFromServerCron } from "./utils";
 
 const verifyCronValue = (cronValue: string) => {
 	try {
 		CronExpressionParser.parse(cronValue);
+		if (divergesFromServerCron(cronValue)) {
+			return {
+				description: "Invalid expression",
+				isCronValid: false,
+			};
+		}
 		return {
 			description: cronstrue.toString(cronValue),
 			isCronValid: true,

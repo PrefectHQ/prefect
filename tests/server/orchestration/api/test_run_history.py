@@ -854,7 +854,7 @@ async def test_last_bin_contains_end_date(client, route):
     assert parsed[1].interval_end == dt + timedelta(days=2)
 
 
-async def test_flow_run_lateness(client, session, start_of_test):
+async def test_flow_run_lateness(client, session):
     await session.execute(sa.text("delete from flow where true;"))
 
     f = await models.flows.create_flow(session=session, flow=core.Flow(name="lateness"))
@@ -930,6 +930,7 @@ async def test_flow_run_lateness(client, session, start_of_test):
         ),
     )
     response_histories = validate_response(response)
+    response_time = datetime.now(timezone.utc)
     interval = response_histories[0]
 
     assert interval["interval_start"] == dt - timedelta(days=1)
@@ -963,24 +964,18 @@ async def test_flow_run_lateness(client, session, start_of_test):
     assert interval["states"][2]["count_runs"] == 2
     assert interval["states"][2]["sum_estimated_run_time"] == timedelta(0)
 
-    expected_lateness = (request_time - (dt - timedelta(minutes=1))) + (
+    minimum_expected_lateness = (request_time - (dt - timedelta(minutes=1))) + (
         request_time - (dt - timedelta(seconds=25))
+    )
+    maximum_expected_lateness = (response_time - (dt - timedelta(minutes=1))) + (
+        response_time - (dt - timedelta(seconds=25))
     )
 
     # SQLite does not store microseconds. Hence each of the two
     # Scheduled runs estimated lateness can be 'off' by up to
     # a second based on how we estimate the 'current' time used by the api.
-    # Calculate tolerance based on test execution time to avoid flakes.
-    test_elapsed = (datetime.now(timezone.utc) - start_of_test).total_seconds()
-    tolerance = 2.0 + test_elapsed  # 2s for SQLite precision + test overhead
-
     assert (
-        abs(
-            (
-                expected_lateness
-                - timedelta(seconds=2)
-                - interval["states"][2]["sum_estimated_lateness"]
-            ).total_seconds()
-        )
-        < tolerance
+        minimum_expected_lateness - timedelta(seconds=2)
+        <= interval["states"][2]["sum_estimated_lateness"]
+        <= maximum_expected_lateness + timedelta(seconds=2)
     )

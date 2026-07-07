@@ -1054,7 +1054,7 @@ class WorkQueueHealthPolicy(PrefectBaseModel):
         Given empirical information about the state of the work queue, evaluate its health status.
 
         Args:
-            late_runs: the count of late runs for the work queue.
+            late_runs_count: the count of late runs for the work queue.
             last_polled: the last time the work queue was polled, if available.
 
         Returns:

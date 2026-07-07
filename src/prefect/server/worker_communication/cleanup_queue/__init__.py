@@ -34,9 +34,15 @@ if Counter is not None:
         "Worker cleanup queue lease expirations by transition result.",
         ["result"],
     )
+    CLEANUP_QUEUE_OPERATIONS = Counter(
+        "prefect_worker_cleanup_queue_operations_total",
+        "Worker cleanup queue operation outcomes.",
+        ["operation", "status"],
+    )
 else:
     CLEANUP_QUEUE_DEAD_LETTERS = None
     CLEANUP_QUEUE_LEASE_EXPIRATIONS = None
+    CLEANUP_QUEUE_OPERATIONS = None
 
 
 class CleanupQueueMessage(PrefectBaseModel):
@@ -323,6 +329,31 @@ def record_cleanup_queue_lease_expiry_result(
         )
 
 
+def record_cleanup_queue_operation(
+    operation: str,
+    *,
+    status: str,
+    work_pool_id: UUID,
+    message_id: UUID | None = None,
+    cleanup_kind: str | None = None,
+) -> None:
+    """
+    Record observability signals for a cleanup queue operation.
+    """
+    if CLEANUP_QUEUE_OPERATIONS is not None:
+        CLEANUP_QUEUE_OPERATIONS.labels(operation=operation, status=status).inc()
+
+    logger.debug(
+        "Worker cleanup queue operation: operation=%s status=%s "
+        "work_pool_id=%s message_id=%s cleanup_kind=%s",
+        operation,
+        status,
+        work_pool_id,
+        message_id,
+        cleanup_kind,
+    )
+
+
 def get_worker_cleanup_queue() -> WorkerCleanupQueue:
     """
     Return a cleanup queue instance from the configured storage module.
@@ -355,4 +386,5 @@ __all__ = [
     "get_worker_cleanup_queue",
     "record_cleanup_queue_dead_letter",
     "record_cleanup_queue_lease_expiry_result",
+    "record_cleanup_queue_operation",
 ]

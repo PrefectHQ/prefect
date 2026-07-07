@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import logging
 import shutil
 from typing import Any, AsyncGenerator, Generator, List, Optional
 from unittest import mock
@@ -1858,6 +1859,49 @@ class TestSetFlowRunState:
         )
         assert run.state.type == StateType.RUNNING
         assert run.state.name == "Test State"
+
+    async def test_set_flow_run_state_allows_cancelling_when_timeout_schedule_fails(
+        self,
+        app: FastAPI,
+        flow_run,
+        client: AsyncClient,
+        session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(state=dict(type="RUNNING", name="Running")),
+        )
+        assert response.status_code == status.HTTP_201_CREATED, response.text
+
+        monkeypatch.setattr(app.api_app.state, "docket", object(), raising=False)
+
+        async def fail_schedule_cancelling_timeout_check(**_: Any) -> None:
+            raise RuntimeError("docket unavailable")
+
+        monkeypatch.setattr(
+            "prefect.server.api.flow_runs.maybe_schedule_cancelling_timeout_check_for_state",
+            fail_schedule_cancelling_timeout_check,
+        )
+
+        with caplog.at_level(logging.ERROR):
+            response = await client.post(
+                f"/flow_runs/{flow_run.id}/set_state",
+                json=dict(state=dict(type="CANCELLING", name="Cancelling")),
+            )
+
+        assert response.status_code == status.HTTP_201_CREATED, response.text
+        api_response = OrchestrationResult.model_validate(response.json())
+        assert api_response.status == responses.SetStateStatus.ACCEPT
+        assert "Failed to schedule CANCELLING timeout check" in caplog.text
+
+        flow_run_id = flow_run.id
+        session.expire(flow_run)
+        run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert run.state.type == StateType.CANCELLING
 
     @pytest.mark.parametrize("proposed_state", ["PENDING", "RUNNING"])
     async def test_setting_flow_run_state_twice_aborts(

@@ -7,9 +7,14 @@ from prefect_redis.client import (
     _client_cache,
     async_redis_from_settings,
     close_all_cached_connections,
+    cluster_key_prefix,
     get_async_redis_client,
+    is_cluster_url,
+    normalize_cluster_url,
+    redis_key,
 )
 from redis.asyncio import Redis
+from redis.cluster import key_slot
 
 
 def test_redis_settings_defaults(isolated_redis_db_number: int):
@@ -38,6 +43,81 @@ def test_redis_settings_url_from_env(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("PREFECT_REDIS_MESSAGING_URL", "redis://envhost:6381/3")
     settings = RedisMessagingSettings()
     assert settings.url == "redis://envhost:6381/3"
+
+
+def test_cluster_url_detection():
+    assert is_cluster_url("redis+cluster://redis.example.com:6379")
+    assert is_cluster_url("rediss+cluster://redis.example.com:6379")
+    assert not is_cluster_url("redis://redis.example.com:6379")
+    assert not is_cluster_url("rediss://redis.example.com:6379")
+    assert not is_cluster_url("redis://host,[::1]:6379")
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        (
+            "redis+cluster://redis.example.com:6379",
+            "redis://redis.example.com:6379",
+        ),
+        (
+            "rediss+cluster://user:pass@redis.example.com:6380/0?protocol=3",
+            "rediss://user:pass@redis.example.com:6380/0?protocol=3",
+        ),
+        (
+            "redis://redis.example.com:6379/0",
+            "redis://redis.example.com:6379/0",
+        ),
+    ],
+)
+def test_normalize_cluster_url(url: str, expected: str):
+    assert normalize_cluster_url(url) == expected
+
+
+def test_cluster_key_prefix_hash_tags_cluster_urls():
+    assert (
+        cluster_key_prefix(
+            "prefect:events", url="redis+cluster://redis.example.com:6379"
+        )
+        == "{prefect:events}"
+    )
+    assert (
+        cluster_key_prefix(
+            "prefect:events", url="rediss+cluster://redis.example.com:6379"
+        )
+        == "{prefect:events}"
+    )
+    assert (
+        cluster_key_prefix("prefect:events", url="redis://redis.example.com:6379")
+        == "prefect:events"
+    )
+
+
+def test_redis_key_uses_cluster_aware_prefix():
+    assert (
+        redis_key(
+            "prefect:events",
+            "stream",
+            url="redis+cluster://redis.example.com:6379",
+        )
+        == "{prefect:events}:stream"
+    )
+    assert (
+        redis_key("prefect:events", "stream", url="redis://redis.example.com:6379")
+        == "prefect:events:stream"
+    )
+
+
+def test_cluster_keys_share_hash_slot():
+    keys = [
+        redis_key(
+            "prefect:events",
+            suffix,
+            url="redis+cluster://redis.example.com:6379",
+        )
+        for suffix in ["stream", "dlq", "dedupe:abc"]
+    ]
+    assert len({key_slot(key.encode()) for key in keys}) == 1
 
 
 def test_redis_settings_url_warns_on_conflicting_fields():
@@ -96,6 +176,13 @@ async def test_get_async_redis_client_with_url():
     assert conn_kwargs["port"] == 6382
     assert conn_kwargs["db"] == 4
     await client.aclose()
+
+
+async def test_get_async_redis_client_with_cluster_url_raises():
+    """Cluster URLs are detected but not enabled until key work is complete."""
+    _client_cache.clear()
+    with pytest.raises(NotImplementedError, match="Redis Cluster URLs"):
+        get_async_redis_client(url="redis+cluster://clusterhost:7000")
 
 
 async def test_get_async_redis_client_url_with_credentials():
@@ -168,6 +255,14 @@ async def test_async_redis_from_settings_with_url():
     assert conn_kwargs["port"] == 6385
     assert conn_kwargs["db"] == 7
     await client.aclose()
+
+
+async def test_async_redis_from_settings_with_cluster_url_raises():
+    """Settings URL cluster support is detection-only for now."""
+    _client_cache.clear()
+    settings = RedisMessagingSettings(url="rediss+cluster://fromurl:6385")
+    with pytest.raises(NotImplementedError, match="Redis Cluster URLs"):
+        async_redis_from_settings(settings)
 
 
 def test_redis_settings_connection_defaults():

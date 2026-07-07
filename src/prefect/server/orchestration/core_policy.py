@@ -1795,10 +1795,15 @@ class EnsureOnlyScheduledFlowsMarkedLate(FlowRunOrchestrationRule):
         marking_flow_late = (
             proposed_state.is_scheduled() and proposed_state.name == "Late"
         )
-        if marking_flow_late and not initial_state.is_scheduled():
-            await self.reject_transition(
-                state=None, reason="Only scheduled flows can be marked late."
-            )
+        if marking_flow_late:
+            if not initial_state.is_scheduled():
+                await self.reject_transition(
+                    state=None, reason="Only scheduled flows can be marked late."
+                )
+            elif initial_state.name == "Late":
+                await self.reject_transition(
+                    state=None, reason="This flow run is already marked late."
+                )
 
 
 class EnforceDeploymentConcurrencyOnLate(FlowRunOrchestrationRule):
