@@ -1,15 +1,13 @@
 import warnings
-from unittest.mock import MagicMock, patch
 
 import pytest
 from prefect_redis.client import (
     RedisMessagingSettings,
-    _client_cache,
     async_redis_from_settings,
-    close_all_cached_connections,
     cluster_key_prefix,
     get_async_redis_client,
     is_cluster_url,
+    managed_async_redis_client,
     normalize_cluster_url,
     redis_key,
 )
@@ -141,6 +139,11 @@ def test_redis_settings_url_no_warning_with_defaults(monkeypatch: pytest.MonkeyP
     assert len(caught) == 0
 
 
+def test_get_async_redis_client_requires_running_loop():
+    with pytest.raises(RuntimeError, match="running event loop"):
+        get_async_redis_client()
+
+
 async def test_get_async_redis_client_defaults():
     """Test that get_async_redis_client creates client with default settings"""
     client = get_async_redis_client()
@@ -180,7 +183,6 @@ async def test_get_async_redis_client_with_url():
 
 async def test_get_async_redis_client_with_cluster_url_raises():
     """Cluster URLs are detected but not enabled until key work is complete."""
-    _client_cache.clear()
     with pytest.raises(NotImplementedError, match="Redis Cluster URLs"):
         get_async_redis_client(url="redis+cluster://clusterhost:7000")
 
@@ -202,20 +204,12 @@ async def test_get_async_redis_client_url_from_settings(
 ):
     """Test that url from settings is used when no explicit url param is passed"""
     monkeypatch.setenv("PREFECT_REDIS_MESSAGING_URL", "redis://settingshost:6383/5")
-    # Clear cache so the env var is picked up by a fresh RedisMessagingSettings
-    _client_cache.clear()
-    try:
-        client = get_async_redis_client()
-        conn_kwargs = client.connection_pool.connection_kwargs
-        assert conn_kwargs["host"] == "settingshost"
-        assert conn_kwargs["port"] == 6383
-        assert conn_kwargs["db"] == 5
-        await client.aclose()
-    finally:
-        # The no-args cache entry now points at the URL-based client.
-        # Clear it so subsequent tests (and the autouse redis fixture)
-        # get a client matching the real env again.
-        _client_cache.clear()
+    client = get_async_redis_client()
+    conn_kwargs = client.connection_pool.connection_kwargs
+    assert conn_kwargs["host"] == "settingshost"
+    assert conn_kwargs["port"] == 6383
+    assert conn_kwargs["db"] == 5
+    await client.aclose()
 
 
 async def test_get_async_redis_client_explicit_url_overrides_settings(
@@ -259,7 +253,6 @@ async def test_async_redis_from_settings_with_url():
 
 async def test_async_redis_from_settings_with_cluster_url_raises():
     """Settings URL cluster support is detection-only for now."""
-    _client_cache.clear()
     settings = RedisMessagingSettings(url="rediss+cluster://fromurl:6385")
     with pytest.raises(NotImplementedError, match="Redis Cluster URLs"):
         async_redis_from_settings(settings)
@@ -286,51 +279,42 @@ def test_redis_settings_connection_from_env(monkeypatch: pytest.MonkeyPatch):
 
 async def test_get_async_redis_client_default_socket_timeout():
     """Default clients have socket_timeout=None (no timeout) for redis-py 8 compat."""
-    _client_cache.clear()
     client = get_async_redis_client()
     conn_kwargs = client.connection_pool.connection_kwargs
     assert conn_kwargs.get("socket_timeout") is None
     assert conn_kwargs.get("socket_connect_timeout") is None
     await client.aclose()
-    _client_cache.clear()
 
 
 async def test_get_async_redis_client_default_protocol():
     """Default clients use protocol=2 for older Redis/proxy compatibility."""
-    _client_cache.clear()
     client = get_async_redis_client()
     conn_kwargs = client.connection_pool.connection_kwargs
     assert conn_kwargs.get("protocol") == 2
     await client.aclose()
-    _client_cache.clear()
 
 
 async def test_get_async_redis_client_explicit_socket_timeout():
     """Explicit socket_timeout overrides the settings default."""
-    _client_cache.clear()
     client = get_async_redis_client(socket_timeout=30.0, socket_connect_timeout=5.0)
     conn_kwargs = client.connection_pool.connection_kwargs
     assert conn_kwargs["socket_timeout"] == 30.0
     assert conn_kwargs["socket_connect_timeout"] == 5.0
     await client.aclose()
-    _client_cache.clear()
 
 
 async def test_get_async_redis_client_url_passes_socket_timeout():
     """socket_timeout/protocol are passed through the from_url path."""
-    _client_cache.clear()
     client = get_async_redis_client(url="redis://localhost:6379/0")
     conn_kwargs = client.connection_pool.connection_kwargs
     assert conn_kwargs.get("socket_timeout") is None
     assert conn_kwargs.get("socket_connect_timeout") is None
     assert conn_kwargs.get("protocol") == 2
     await client.aclose()
-    _client_cache.clear()
 
 
 async def test_get_async_redis_client_url_query_overrides_keyword_defaults():
     """URL query params override keyword defaults (redis-py from_url behavior)."""
-    _client_cache.clear()
     client = get_async_redis_client(
         url="redis://localhost:6379/0?socket_timeout=7&socket_connect_timeout=3"
     )
@@ -338,12 +322,10 @@ async def test_get_async_redis_client_url_query_overrides_keyword_defaults():
     assert conn_kwargs["socket_timeout"] == 7
     assert conn_kwargs["socket_connect_timeout"] == 3
     await client.aclose()
-    _client_cache.clear()
 
 
 async def test_async_redis_from_settings_passes_connection_defaults():
     """async_redis_from_settings passes socket_timeout/protocol from settings."""
-    _client_cache.clear()
     settings = RedisMessagingSettings()
     client = async_redis_from_settings(settings)
     conn_kwargs = client.connection_pool.connection_kwargs
@@ -351,46 +333,46 @@ async def test_async_redis_from_settings_passes_connection_defaults():
     assert conn_kwargs.get("socket_connect_timeout") is None
     assert conn_kwargs.get("protocol") == 2
     await client.aclose()
-    _client_cache.clear()
 
 
 async def test_async_redis_from_settings_options_override():
     """Options kwargs override settings defaults in async_redis_from_settings."""
-    _client_cache.clear()
     settings = RedisMessagingSettings()
     client = async_redis_from_settings(settings, socket_timeout=15.0, protocol=3)
     conn_kwargs = client.connection_pool.connection_kwargs
     assert conn_kwargs["socket_timeout"] == 15.0
     assert conn_kwargs["protocol"] == 3
     await client.aclose()
-    _client_cache.clear()
 
 
 async def test_async_redis_from_settings_url_with_connection_defaults():
     """async_redis_from_settings with url passes connection defaults."""
-    _client_cache.clear()
     settings = RedisMessagingSettings(url="redis://localhost:6379/0")
     client = async_redis_from_settings(settings)
     conn_kwargs = client.connection_pool.connection_kwargs
     assert conn_kwargs.get("socket_timeout") is None
     assert conn_kwargs.get("protocol") == 2
     await client.aclose()
-    _client_cache.clear()
 
 
-@patch("prefect_redis.client._client_cache")
-def test_close_all_cached_connections(mock_cache):
-    """Test that close_all_cached_connections properly closes all clients"""
-    mock_client = MagicMock()
-    mock_loop = MagicMock()
-    mock_loop.is_closed.return_value = False
+async def test_get_async_redis_client_returns_uncached_clients():
+    first = get_async_redis_client()
+    second = get_async_redis_client()
+    try:
+        assert first is not second
+    finally:
+        await first.aclose()
+        await second.aclose()
 
-    # Mock the coroutines that would be awaited
-    mock_loop.run_until_complete.return_value = None
 
-    mock_cache.items.return_value = [((None, None, None, mock_loop), mock_client)]
+async def test_managed_async_redis_client_closes_connection(redis: Redis):
+    before = (await redis.info("clients"))["connected_clients"]
 
-    close_all_cached_connections()
+    async with managed_async_redis_client() as client:
+        await client.ping()
+        during = (await redis.info("clients"))["connected_clients"]
 
-    # Verify run_until_complete was called twice (for disconnect and close)
-    assert mock_loop.run_until_complete.call_count == 2
+    after = (await redis.info("clients"))["connected_clients"]
+
+    assert during >= before + 1
+    assert after == before
