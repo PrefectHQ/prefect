@@ -66,3 +66,4 @@ Unlike core `prefect.settings`, integration settings are not wired into the root
 ## Related
 
 - `docs/integrations/` → Integration-specific documentation pages
+- `prefect-redis/AGENTS.md` → Redis Cluster key hash-slot-safety convention for pipeline/transaction code
