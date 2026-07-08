@@ -1,3 +1,4 @@
+import asyncio
 import warnings
 from uuid import uuid4
 
@@ -378,11 +379,16 @@ async def test_managed_async_redis_client_closes_connection(redis: Redis):
             if client["name"] == client_name
         }
 
-    remaining_client_ids = {
-        client["id"]
-        for client in await redis.client_list()
-        if client["name"] == client_name
-    }
+    remaining_client_ids: set[str] = set()
+    for _ in range(10):
+        remaining_client_ids = {
+            client["id"]
+            for client in await redis.client_list()
+            if client["name"] == client_name
+        }
+        if remaining_client_ids.isdisjoint(managed_client_ids):
+            break
+        await asyncio.sleep(0.1)
 
     assert managed_client_ids
     assert remaining_client_ids.isdisjoint(managed_client_ids)
