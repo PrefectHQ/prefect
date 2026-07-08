@@ -452,17 +452,44 @@ class PrefectEventsClient(EventsClient):
 
     async def _checkpoint_loop(self) -> None:
         """Periodically checkpoint unconfirmed events on a time interval,
-        independent of the count-based checkpoint in _checkpoint."""
+        independent of the count-based checkpoint in _checkpoint.
+
+        If the connection has been lost (e.g. a server restart closed it),
+        reconnects and resends the unconfirmed events rather than leaving them
+        stranded until the next emit."""
         while True:
             await asyncio.sleep(self._checkpoint_interval)
-            if self._websocket and self._unconfirmed_events:
-                try:
+            if not self._unconfirmed_events:
+                continue
+            try:
+                if self._websocket:
                     await self._force_checkpoint()
+                    continue
+                # The connection was lost while events were still unconfirmed;
+                # reconnect to resend them rather than waiting for the next emit.
+                await self._reconnect()
+            except ConnectionClosed:
+                # The connection died since the last checkpoint; reconnect and
+                # resend the unconfirmed events. _reconnect() tears down the
+                # dead connection before connecting again.
+                try:
+                    await self._reconnect()
                 except Exception:
                     logger.debug(
-                        "Time-based checkpoint failed, will retry next interval.",
+                        "Reconnecting during time-based checkpoint failed, "
+                        "will retry next interval.",
                         exc_info=True,
                     )
+                    continue
+            except Exception:
+                logger.debug(
+                    "Time-based checkpoint failed, will retry next interval.",
+                    exc_info=True,
+                )
+                continue
+            # A successful _reconnect() resent the unconfirmed events and
+            # started a replacement checkpoint task, so this task is done.
+            return
 
     async def _force_checkpoint(self) -> None:
         """Checkpoint all unconfirmed events unconditionally."""

@@ -784,3 +784,63 @@ async def test_reconnect_only_resends_events_after_interval_checkpoint(
         recorder,
         [example_event_1, example_event_2, example_event_3],
     )
+
+
+async def test_background_checkpoint_reconnects_after_connection_loss(
+    Client: Type[PrefectEventsClient],
+    example_event_1: Event,
+    recorder: Recorder,
+    puppeteer: Puppeteer,
+):
+    """If the connection dies while events are unconfirmed (e.g. a server
+    restart) and nothing else is emitted, the background checkpoint task should
+    reconnect and resend them instead of pinging the dead connection forever."""
+    client = Client(
+        checkpoint_every=1000,
+        checkpoint_interval=0.1,
+    )
+    async with client:
+        # Sever the connection server-side as soon as the event is received,
+        # before any checkpoint can confirm it
+        puppeteer.hard_disconnect_after = example_event_1.id
+        await client.emit(example_event_1)
+        assert client._unconfirmed_events == [example_event_1]
+
+        # Wait for the background checkpoint to notice the dead connection,
+        # reconnect, resend, and confirm
+        await asyncio.sleep(0.5)
+        assert len(client._unconfirmed_events) == 0
+
+    # The event was received once before the disconnect and once as a resend
+    assert recorder.events == [example_event_1, example_event_1]
+    assert recorder.connections == 2
+
+
+async def test_background_checkpoint_retries_reconnect_until_server_available(
+    Client: Type[PrefectEventsClient],
+    example_event_1: Event,
+    recorder: Recorder,
+    puppeteer: Puppeteer,
+):
+    """If the server is unavailable when the background checkpoint tries to
+    reconnect, it should keep retrying each interval and deliver the
+    unconfirmed events once the server comes back."""
+    client = Client(
+        checkpoint_every=1000,
+        checkpoint_interval=0.1,
+    )
+    async with client:
+        puppeteer.hard_disconnect_after = example_event_1.id
+        puppeteer.refuse_any_further_connections = True
+        await client.emit(example_event_1)
+
+        # Several intervals of failed reconnects: the event is still held and
+        # the checkpoint task is still alive
+        await asyncio.sleep(0.35)
+        assert client._unconfirmed_events == [example_event_1]
+
+        puppeteer.refuse_any_further_connections = False
+        await asyncio.sleep(0.5)
+        assert len(client._unconfirmed_events) == 0
+
+    assert recorder.events[-1] == example_event_1
