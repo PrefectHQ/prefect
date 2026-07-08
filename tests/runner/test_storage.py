@@ -27,6 +27,7 @@ from prefect.runner.storage import (
     _clear_read_only_attributes,
     _get_git_clone_error_hint,
     _get_remote_storage_error_hint,
+    _rmtree_including_read_only,
     create_storage_from_source,
 )
 from prefect.utilities.filesystem import tmpchdir
@@ -338,7 +339,9 @@ class TestGitRepository:
         # Before fix: raises ValueError because stripped URL != URL with creds
         await repo.pull_code()
 
-    async def test_pull_code_clears_readonly_before_pull(self, monkeypatch):
+    async def test_pull_code_clears_readonly_before_pull(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
         """Regression test for GitHub issue #22446.
 
         On Windows, git object files are read-only, so a `git pull` that needs
@@ -1448,7 +1451,7 @@ class TestGitCloneErrorHints:
 class TestClearReadOnlyAttributes:
     """Tests for the Windows read-only object file workaround (issue #22446)."""
 
-    def test_noop_on_non_windows(self, monkeypatch, tmp_path: Path):
+    def test_noop_on_non_windows(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
         monkeypatch.setattr("prefect.runner.storage.sys.platform", "linux")
         readonly_file = tmp_path / "pack-abc.idx"
         readonly_file.write_text("data")
@@ -1458,7 +1461,9 @@ class TestClearReadOnlyAttributes:
 
         assert not (os.stat(readonly_file).st_mode & stat.S_IWRITE)
 
-    def test_clears_readonly_on_windows(self, monkeypatch, tmp_path: Path):
+    def test_clears_readonly_on_windows(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
         monkeypatch.setattr("prefect.runner.storage.sys.platform", "win32")
         pack_dir = tmp_path / "objects" / "pack"
         pack_dir.mkdir(parents=True)
@@ -1470,10 +1475,28 @@ class TestClearReadOnlyAttributes:
 
         assert os.stat(readonly_file).st_mode & stat.S_IWRITE
 
-    def test_missing_path_is_noop(self, monkeypatch, tmp_path: Path):
+    def test_missing_path_is_noop(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
         monkeypatch.setattr("prefect.runner.storage.sys.platform", "win32")
         # Should not raise when the directory does not exist
         _clear_read_only_attributes(tmp_path / "does-not-exist")
+
+    def test_rmtree_removes_read_only_files(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        """The reclone fallback must be able to delete read-only git objects."""
+        monkeypatch.setattr("prefect.runner.storage.sys.platform", "win32")
+        destination = tmp_path / "repo"
+        pack_dir = destination / ".git" / "objects" / "pack"
+        pack_dir.mkdir(parents=True)
+        readonly_file = pack_dir / "pack-abc.idx"
+        readonly_file.write_text("data")
+        readonly_file.chmod(0o444)
+
+        _rmtree_including_read_only(destination)
+
+        assert not destination.exists()
 
 
 class TestGitRepositoryConcurrency:

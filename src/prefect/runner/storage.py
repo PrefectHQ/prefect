@@ -58,6 +58,17 @@ def _clear_read_only_attributes(path: Path) -> None:
             continue
 
 
+def _rmtree_including_read_only(path: Path) -> None:
+    """
+    Remove a directory tree, first clearing read-only attributes so that
+    read-only git object files (mode `0o444` on Windows) do not raise
+    `[WinError 5] Access is denied` during deletion. This is a plain
+    `shutil.rmtree` on non-Windows platforms.
+    """
+    _clear_read_only_attributes(path)
+    shutil.rmtree(path)
+
+
 @runtime_checkable
 class RunnerStorage(Protocol):
     """
@@ -455,7 +466,7 @@ class GitRepository:
                     self._logger.error(
                         f"Failed to fetch latest changes with exit code {exc}"
                     )
-                    shutil.rmtree(self.destination)
+                    _rmtree_including_read_only(self.destination)
                     await self._clone_repo()
 
                 await run_process(
@@ -481,7 +492,7 @@ class GitRepository:
                     self._logger.error(
                         f"Failed to pull latest changes with exit code {exc}"
                     )
-                    shutil.rmtree(self.destination)
+                    _rmtree_including_read_only(self.destination)
                     await self._clone_repo()
 
         else:
