@@ -1,4 +1,5 @@
 import warnings
+from uuid import uuid4
 
 import pytest
 from prefect_redis.client import (
@@ -366,13 +367,22 @@ async def test_get_async_redis_client_returns_uncached_clients():
 
 
 async def test_managed_async_redis_client_closes_connection(redis: Redis):
-    before = (await redis.info("clients"))["connected_clients"]
+    client_name = f"prefect-test-{uuid4().hex}"
 
     async with managed_async_redis_client() as client:
         await client.ping()
-        during = (await redis.info("clients"))["connected_clients"]
+        await client.client_setname(client_name)
+        managed_client_ids = {
+            client["id"]
+            for client in await redis.client_list()
+            if client["name"] == client_name
+        }
 
-    after = (await redis.info("clients"))["connected_clients"]
+    remaining_client_ids = {
+        client["id"]
+        for client in await redis.client_list()
+        if client["name"] == client_name
+    }
 
-    assert during >= before + 1
-    assert after == before
+    assert managed_client_ids
+    assert remaining_client_ids.isdisjoint(managed_client_ids)
