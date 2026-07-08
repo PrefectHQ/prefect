@@ -1,6 +1,7 @@
 import datetime
 from typing import Any
 from unittest import mock
+from zoneinfo import ZoneInfo
 
 import dateutil.rrule
 import pytest
@@ -8,9 +9,11 @@ import pytest
 from prefect._internal.schemas.validators import (
     DEFAULT_RRULE_ANCHOR,
     normalize_rrule_string,
+    normalize_schedule_rrule,
     validate_parameter_openapi_schema,
     validate_values_conform_to_schema,
 )
+from prefect.client.schemas.schedules import RRuleSchedule
 
 # Tests for validate_schema function
 
@@ -239,3 +242,88 @@ class TestNormalizeRRuleString:
         # generator. The legacy 2020-anchored variant would have ~660k
         # here. Cap generously to keep the test stable.
         assert len(rr._cache) < 200  # pyright: ignore[reportPrivateUsage]
+
+
+# Tests for the timezone-aware recent anchor (#22455)
+
+
+class TestNormalizeRRuleStringTimezone:
+    """The injected recent anchor is serialized as a floating (offset-less)
+    `DTSTART` that `RRuleSchedule.to_rrule` later relabels with the
+    schedule's timezone. Its wall-clock digits must be computed in that
+    timezone, not UTC, or every occurrence is shifted forward by the
+    timezone's UTC offset. See PrefectHQ/prefect#22455."""
+
+    # 08:54 America/Chicago (CDT, UTC-5) == 13:54 UTC.
+    DEPLOY_UTC = datetime.datetime(2026, 7, 7, 13, 54, tzinfo=datetime.timezone.utc)
+
+    def test_anchor_uses_schedule_local_wall_clock(self):
+        # Deploy at 08:54 CDT: the hourly anchor floors to the local hour
+        # (08:00), not the UTC hour (13:00).
+        out = normalize_rrule_string(
+            "FREQ=MINUTELY;INTERVAL=60",
+            now=self.DEPLOY_UTC,
+            timezone="America/Chicago",
+        )
+        assert out.startswith("DTSTART:20260707T080000\n")
+
+    def test_no_timezone_defaults_to_utc(self):
+        # Without a timezone the behavior is unchanged: the anchor is the
+        # UTC hour, preserving the pre-fix serialization.
+        out = normalize_rrule_string("FREQ=MINUTELY;INTERVAL=60", now=self.DEPLOY_UTC)
+        assert out.startswith("DTSTART:20260707T130000\n")
+
+    def test_naive_now_treated_as_utc(self):
+        # A naive `now` is interpreted as UTC before being localized.
+        out = normalize_rrule_string(
+            "FREQ=MINUTELY;INTERVAL=60",
+            now=self.DEPLOY_UTC.replace(tzinfo=None),
+            timezone="America/Chicago",
+        )
+        assert out.startswith("DTSTART:20260707T080000\n")
+
+    def test_deploy_day_runs_not_suppressed(self):
+        """End-to-end: a `BYHOUR` schedule deployed mid-morning keeps its
+        remaining same-day runs instead of skipping to the UTC-shifted
+        anchor. This is the user-visible symptom in #22455."""
+        rrule = "FREQ=MINUTELY;INTERVAL=60;BYHOUR=6,7,8,9,10,11,12,13,14,15,16"
+        normalized = normalize_rrule_string(
+            rrule, now=self.DEPLOY_UTC, timezone="America/Chicago"
+        )
+        sched = RRuleSchedule(rrule=normalized, timezone="America/Chicago")
+        chi = ZoneInfo("America/Chicago")
+        start = datetime.datetime(2026, 7, 7, 0, 0, tzinfo=chi)
+        first_day = [
+            d.astimezone(chi) for d in sched.to_rrule().xafter(start, count=6, inc=True)
+        ]
+        # Deploy was at 08:54, so 08:00-16:00 remain schedulable on the
+        # deploy day (08:00 <= anchor <= 08:54). Pre-fix, the 13:00 UTC
+        # anchor suppressed everything before 13:00 local.
+        assert [d.hour for d in first_day] == [8, 9, 10, 11, 12, 13]
+        assert all(d.date() == datetime.date(2026, 7, 7) for d in first_day)
+
+    def test_invalid_timezone_falls_back_to_utc(self):
+        # `dateutil.tz.gettz` returns None for unknown names; we fall back
+        # to UTC rather than raising.
+        out = normalize_rrule_string(
+            "FREQ=MINUTELY;INTERVAL=60",
+            now=self.DEPLOY_UTC,
+            timezone="Not/AZone",
+        )
+        assert out.startswith("DTSTART:20260707T130000\n")
+
+    def test_normalize_schedule_rrule_threads_timezone(self):
+        # The `AfterValidator` used on the deployment schedule write path
+        # passes the schedule's timezone into the normalizer, so the anchor
+        # is stamped with the local hour rather than the UTC hour.
+        chi = ZoneInfo("America/Chicago")
+        before = datetime.datetime.now(chi)
+        normalized = normalize_schedule_rrule(
+            RRuleSchedule(rrule="FREQ=MINUTELY;INTERVAL=60", timezone="America/Chicago")
+        )
+        after = datetime.datetime.now(chi)
+        line = normalized.rrule.splitlines()[0]
+        assert line.startswith("DTSTART:")
+        dt = datetime.datetime.strptime(line[len("DTSTART:") :], "%Y%m%dT%H%M%S")
+        # Anchor is floored to the local hour captured during the call.
+        assert dt.hour in {before.hour, after.hour}
