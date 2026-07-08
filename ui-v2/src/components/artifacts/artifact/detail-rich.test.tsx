@@ -44,6 +44,23 @@ describe("ArtifactDetailRich", () => {
 		);
 	});
 
+	it("injects CSP into the parsed document head when fake head markup appears first", () => {
+		render(
+			<DetailRich
+				richData={{
+					html: `<!-- <head> --><html><head><title>Report</title></head><body><h1>Rich Content</h1></body></html>`,
+				}}
+			/>,
+		);
+
+		const srcDoc =
+			screen.getByTestId("rich-artifact-iframe").getAttribute("srcdoc") ?? "";
+
+		expect(srcDoc).toContain(
+			`<html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; media-src data:; connect-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'; object-src 'none'; worker-src 'none'; manifest-src 'none'"><title>Report</title></head>`,
+		);
+	});
+
 	it("strips allow-same-origin when allow-scripts is present", () => {
 		render(
 			<DetailRich

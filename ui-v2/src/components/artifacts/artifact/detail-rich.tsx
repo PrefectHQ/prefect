@@ -98,14 +98,13 @@ const parseRichArtifactData = (
 };
 
 const injectCsp = (html: string, csp: string): string => {
-	const cspTag = `<meta http-equiv="Content-Security-Policy" content="${csp}">`;
-	const hasHeadTag = /<head\b[^>]*>/i.test(html);
+	const parsedDocument = new DOMParser().parseFromString(html, "text/html");
+	const cspTag = parsedDocument.createElement("meta");
+	cspTag.setAttribute("http-equiv", "Content-Security-Policy");
+	cspTag.setAttribute("content", csp);
 
-	if (hasHeadTag) {
-		return html.replace(/<head\b[^>]*>/i, (match) => `${match}${cspTag}`);
-	}
-
-	return `<!doctype html><html><head>${cspTag}</head><body>${html}</body></html>`;
+	parsedDocument.head.prepend(cspTag);
+	return `<!doctype html>${parsedDocument.documentElement.outerHTML}`;
 };
 
 export const DetailRich = ({ richData }: DetailRichProps) => {
