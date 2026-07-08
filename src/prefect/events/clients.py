@@ -436,8 +436,17 @@ class PrefectEventsClient(EventsClient):
         # Clear the unconfirmed events here, because they are going back through emit
         # and will be added again through the normal checkpointing process
         self._unconfirmed_events = []
-        for event in events_to_resend:
-            await self.emit(event)
+        try:
+            while events_to_resend:
+                event = events_to_resend.pop(0)
+                await self.emit(event)
+        except Exception:
+            # If a resend fails partway through (emit() has its own retry
+            # budget), restore the events that were never attempted so a later
+            # reconnect can retry them. The event whose emit() failed was
+            # already added back to the buffer by emit() itself.
+            self._unconfirmed_events.extend(events_to_resend)
+            raise
         logger.debug("Finished resending unconfirmed events.")
         self._start_checkpoint_task()
 

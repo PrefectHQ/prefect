@@ -844,3 +844,47 @@ async def test_background_checkpoint_retries_reconnect_until_server_available(
         assert len(client._unconfirmed_events) == 0
 
     assert recorder.events[-1] == example_event_1
+
+
+async def test_failed_resend_does_not_drop_unattempted_events(
+    Client: Type[PrefectEventsClient],
+    example_event_1: Event,
+    example_event_2: Event,
+    example_event_3: Event,
+    recorder: Recorder,
+    puppeteer: Puppeteer,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """If the connection dies again partway through resending unconfirmed
+    events, the events whose resend was never attempted must be restored to
+    the buffer (not silently dropped) so a later reconnect can retry them."""
+    client = Client(
+        checkpoint_every=1000,
+        checkpoint_interval=60,  # keep the background loop out of the way
+    )
+    async with client:
+        # Fail the second resend, as if the connection died mid-batch
+        emit_calls = 0
+        real_emit = client.emit
+
+        async def flaky_emit(event: Event) -> None:
+            nonlocal emit_calls
+            emit_calls += 1
+            if emit_calls == 2:
+                raise ConnectionClosedError(None, None)
+            await real_emit(event)
+
+        monkeypatch.setattr(client, "emit", flaky_emit)
+        client._unconfirmed_events = [
+            example_event_1,
+            example_event_2,
+            example_event_3,
+        ]
+
+        with pytest.raises(ConnectionClosedError):
+            await client._reconnect()
+
+        # event 1 was resent (and is buffered again until confirmed); event 3
+        # was never attempted and must have been restored, not dropped
+        assert example_event_1 in client._unconfirmed_events
+        assert example_event_3 in client._unconfirmed_events
