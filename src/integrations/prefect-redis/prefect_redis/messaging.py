@@ -39,7 +39,11 @@ from prefect.server.utilities.messaging import (
 )
 from prefect.server.utilities.messaging import Publisher as _Publisher
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
-from prefect_redis.client import clear_cached_clients, get_async_redis_client
+from prefect_redis.client import (
+    clear_cached_clients,
+    cluster_key_prefix,
+    get_async_redis_client,
+)
 
 logger = get_logger(__name__)
 
@@ -122,6 +126,38 @@ class RedisMessagingConsumerSettings(PrefectBaseSettings):
 MESSAGE_DEDUPLICATION_LOOKBACK = timedelta(minutes=5)
 
 
+def _topic_key_prefix(topic: str) -> str:
+    return cluster_key_prefix(f"message:{topic}")
+
+
+def _stream_key(topic: str) -> str:
+    prefix = _topic_key_prefix(topic)
+    if prefix.startswith("{"):
+        return f"{prefix}:stream"
+    return topic
+
+
+def _deduplication_key(topic: str, attribute_value: Any) -> str:
+    prefix = _topic_key_prefix(topic)
+    if prefix.startswith("{"):
+        return f"{prefix}:dedupe:{attribute_value}"
+    return f"message:{topic}:{attribute_value}"
+
+
+def _dlq_key(topic: str) -> str:
+    prefix = _topic_key_prefix(topic)
+    if prefix.startswith("{"):
+        return f"{prefix}:dlq"
+    return "dlq"
+
+
+def _dlq_message_key(topic: str) -> str:
+    prefix = _topic_key_prefix(topic)
+    if prefix.startswith("{"):
+        return f"{prefix}:dlq:{uuid.uuid4().hex}"
+    return f"dlq:{uuid.uuid4().hex}"
+
+
 class Cache(_Cache):
     def __init__(self, topic: str = "messaging-cache"):
         self.topic = topic
@@ -144,7 +180,7 @@ class Cache(_Cache):
                     messages_without_attribute.append(m)
                     continue
                 p.set(
-                    f"message:{self.topic}:{m.attributes[attribute]}",
+                    _deduplication_key(self.topic, m.attributes[attribute]),
                     "1",
                     nx=True,
                     ex=MESSAGE_DEDUPLICATION_LOOKBACK,
@@ -166,7 +202,7 @@ class Cache(_Cache):
                         extra={"event_message": m},
                     )
                     continue
-                p.delete(f"message:{self.topic}:{m.attributes[attribute]}")
+                p.delete(_deduplication_key(self.topic, m.attributes[attribute]))
             await p.execute()
 
 
@@ -215,7 +251,8 @@ class Publisher(_Publisher):
     ):
         settings = RedisMessagingPublisherSettings()
 
-        self.stream = topic  # Use topic as stream name
+        self.topic = topic
+        self.stream = _stream_key(topic)
         self.cache = cache
         self.deduplicate_by = (
             deduplicate_by if deduplicate_by is not None else settings.deduplicate_by
@@ -318,8 +355,9 @@ class Consumer(_Consumer):
     ):
         settings = RedisMessagingConsumerSettings()
 
+        self.topic = topic
         self.name = name or topic
-        self.stream = topic  # Use topic as stream name
+        self.stream = _stream_key(topic)
         self.group = group or topic  # Use topic as default group name
         self.block = block if block is not None else settings.block
         self.min_idle_time = (
@@ -343,7 +381,10 @@ class Consumer(_Consumer):
         self.trim_every = trim_every if trim_every is not None else settings.trim_every
 
         self.subscription = Subscription(
-            max_retries=max_retries if max_retries is not None else settings.max_retries
+            max_retries=max_retries
+            if max_retries is not None
+            else settings.max_retries,
+            dlq_key=_dlq_key(topic),
         )
         self._retry_counts: dict[str, int] = {}
 
@@ -629,7 +670,7 @@ class Consumer(_Consumer):
         }
 
         # Store in Redis as a hash
-        message_id = f"dlq:{uuid.uuid4().hex}"
+        message_id = _dlq_message_key(self.topic)
         await redis_client.hset(message_id, mapping={"data": json.dumps(dlq_message)})
         # Add to a Redis set for easy retrieval
         await redis_client.sadd(self.subscription.dlq_key, message_id)
@@ -654,11 +695,12 @@ async def ephemeral_subscription(
     topic: str, source: Optional[str] = None, group: Optional[str] = None
 ) -> AsyncGenerator[dict[str, Any], None]:
     source = source or topic
+    source_stream = _stream_key(source)
     name = group or f"ephemeral-{socket.gethostname()}-{uuid.uuid4().hex}"
     redis_client: Redis = get_async_redis_client()
 
     try:
-        stream_info = await redis_client.xinfo_stream(source)
+        stream_info = await redis_client.xinfo_stream(source_stream)
         starting_message_id = stream_info["last-generated-id"]
     except ResponseError as exc:
         if "no such key" not in str(exc).lower():
