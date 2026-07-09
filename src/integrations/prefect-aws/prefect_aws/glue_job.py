@@ -8,6 +8,8 @@ from typing import Any, Optional
 
 from pydantic import BaseModel, Field
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.blocks.abstract import JobBlock, JobRun
 from prefect_aws import AwsCredentials
 
@@ -146,15 +148,22 @@ class GlueJobBlock(JobBlock):
         description="The AWS credentials to use to connect to Glue.",
     )
 
-    async def trigger(self) -> GlueJobRun:
-        """trigger for GlueJobRun"""
+    async def atrigger(self) -> GlueJobRun:
+        """async trigger for GlueJobRun"""
         client = self._get_client()
         job_run_id = self._start_job(client)
         return GlueJobRun(
             job_name=self.job_name,
             job_id=job_run_id,
             job_watch_poll_interval=self.job_watch_poll_interval,
+            aws_credentials=self.aws_credentials,
+            client=client,
         )
+
+    @async_dispatch(atrigger)
+    def trigger(self) -> GlueJobRun:
+        """trigger for GlueJobRun"""
+        return from_sync.call_soon_in_loop_thread(create_call(self.atrigger)).result()
 
     def _start_job(self, client: _GlueJobClient) -> str:
         """
