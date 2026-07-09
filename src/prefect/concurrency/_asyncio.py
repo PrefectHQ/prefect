@@ -46,9 +46,9 @@ logger: logging.Logger = get_logger("concurrency")
 def _format_http_status_error(exc: httpx.HTTPStatusError) -> str:
     """Format an HTTP status error from the server into a compact string.
 
-    Handles both Prefect API payloads (``exception_detail``) and raw FastAPI
-    payloads (``detail``), extracting Pydantic-style validation errors and
-    dropping the leading ``body`` location component.
+    Handles both Prefect API payloads (`exception_detail`) and raw FastAPI
+    payloads (`detail`), extracting Pydantic-style validation errors and
+    dropping the leading `body` location component.
     """
     status_code = exc.response.status_code
     reason = exc.response.reason_phrase
