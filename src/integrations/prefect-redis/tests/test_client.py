@@ -1,7 +1,9 @@
+import asyncio
 import warnings
 from unittest.mock import MagicMock, patch
 
 import pytest
+import redis.asyncio
 from prefect_redis.client import (
     RedisMessagingSettings,
     _client_cache,
@@ -394,3 +396,29 @@ def test_close_all_cached_connections(mock_cache):
 
     # Verify run_until_complete was called twice (for disconnect and close)
     assert mock_loop.run_until_complete.call_count == 2
+
+
+def test_close_all_cached_connections_closes_sentinel_daemons():
+    """A cached Sentinel-backed client holds one Redis client per Sentinel
+    daemon; cache teardown must close those too, not just the master client."""
+    _client_cache.clear()
+    loop = asyncio.new_event_loop()
+    try:
+
+        async def build() -> Redis:
+            return get_async_redis_client(
+                url="redis+sentinel://s1:26379,s2:26379/mymaster"
+            )
+
+        client = loop.run_until_complete(build())
+        daemons = list(client.connection_pool.sentinel_manager.sentinels)
+        assert daemons
+        with patch.object(redis.asyncio.Redis, "aclose", autospec=True) as mock_aclose:
+            close_all_cached_connections()
+        closed = {id(call.args[0]) for call in mock_aclose.call_args_list}
+        assert id(client) in closed
+        for daemon in daemons:
+            assert id(daemon) in closed
+    finally:
+        _client_cache.clear()
+        loop.close()
