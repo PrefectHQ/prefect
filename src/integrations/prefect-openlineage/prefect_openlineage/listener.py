@@ -17,7 +17,7 @@ from prefect.events.schemas.events import Event
 from prefect.runtime import flow_run, task_run
 from prefect.utilities.urls import url_for
 
-from adapter import PrefectOpenLineageAdapter
+from .adapter import PrefectOpenLineageAdapter
 
 JOB_NAMESPACE: str = os.environ.get("OPENLINEAGE_NAMESPACE", "default")
 
@@ -297,4 +297,6 @@ class PrefectOpenLineageListener:
 						if entity_type == "task-run":
 							await self.collect_and_process_task_runs(prefect_version, event, event_state)
 
-asyncio.run(PrefectOpenLineageListener().collect_and_process_runs())
+
+if __name__ == "__main__":
+	asyncio.run(PrefectOpenLineageListener().collect_and_process_runs())

@@ -12,7 +12,7 @@ from openlineage.client.facet_v2 import (job_dependencies_run,
                                          processing_engine_run)
 from openlineage.client.run import Job, Run, RunEvent, RunState
 
-from facets import PrefectDeploymentRunFacet
+from .facets import PrefectDeploymentRunFacet
 
 PRODUCER: str = "https://github.com/prefectHQ/prefect/src/integrations/prefect-openlineage"
 

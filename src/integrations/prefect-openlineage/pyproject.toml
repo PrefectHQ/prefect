@@ -3,7 +3,10 @@ requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
-dependencies = [] # TODO
+dependencies = [
+    "prefect>=3.7.0",
+    "openlineage-python>=1.0.0",
+]
 name = "prefect-openlineage"
 description = "Prefect integrations with the OpenLineage specification."
 readme = "README.md"
@@ -26,6 +29,22 @@ classifiers = [
 dynamic = ["version"]
 
 [dependency-groups]
+dev = [
+    "coverage",
+    "interrogate",
+    "mkdocs",
+    "mkdocs-gen-files",
+    "mkdocs-material",
+    "mkdocstrings[python]",
+    "mypy",
+    "pillow",
+    "pre-commit",
+    "pytest>=8.3",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-env",
+    "pytest-xdist",
+]
 
 [project.urls]
 Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-openlineage"
