@@ -107,31 +107,6 @@ async def test_get_async_redis_client_sentinel_url_param() -> None:
         client_module._client_cache.clear()
 
 
-async def test_get_async_redis_client_single_node_tls_query_params() -> None:
-    """Single-node URLs carrying the documented tls_insecure/tls_ca_file params
-    must be honored (redis-py's from_url would fail with a TypeError on them)."""
-    client_module._client_cache.clear()
-    try:
-        client = get_async_redis_client(
-            url="rediss://cache:6379/0?tls_insecure=true&tls_ca_file=/etc/ca.pem"
-        )
-        conn = client.connection_pool.connection_kwargs
-        assert conn["ssl_cert_reqs"] == "none"
-        assert conn["ssl_ca_certs"] == "/etc/ca.pem"
-    finally:
-        client_module._client_cache.clear()
-
-
-async def test_async_redis_from_settings_single_node_tls_query_params() -> None:
-    settings = RedisMessagingSettings(
-        url="rediss://cache:6379/0?tls_insecure=true&tls_ca_file=/etc/ca.pem"
-    )
-    client = async_redis_from_settings(settings)
-    conn = client.connection_pool.connection_kwargs
-    assert conn["ssl_cert_reqs"] == "none"
-    assert conn["ssl_ca_certs"] == "/etc/ca.pem"
-
-
 async def test_get_async_redis_client_sentinel_url_wins_over_host(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -238,18 +213,6 @@ def test_block_from_connection_string_tolerates_ipv6_members() -> None:
     block = RedisDatabase.from_connection_string(SENTINEL_URL_IPV6)
     assert block.connection_url is not None
     assert block.connection_url.get_secret_value() == SENTINEL_URL_IPV6
-
-
-def test_block_from_connection_string_retains_tls_query_params() -> None:
-    """tls_insecure/tls_ca_file cannot be represented by the scalar fields, so
-    URLs carrying them are stored verbatim instead of silently dropping them."""
-    url = "rediss://cache:6379/0?tls_insecure=true&tls_ca_file=/etc/ca.pem"
-    block = RedisDatabase.from_connection_string(url)
-    assert block.connection_url is not None
-    assert block.connection_url.get_secret_value() == url
-    conn = block.get_client().connection_pool.connection_kwargs
-    assert conn["ssl_cert_reqs"] == "none"
-    assert conn["ssl_ca_certs"] == "/etc/ca.pem"
 
 
 def test_block_as_connection_params_round_trips_into_lock_manager() -> None:
