@@ -13,6 +13,12 @@ body:
 
         3. I searched the Prefect documentation for this feature.
 
+        4. I can describe a real Prefect use case for this request.
+
+        Please ground proposals in user-facing behavior and explain why the behavior belongs in Prefect.
+        If AI tools helped draft your request, verify the final issue yourself and remove unvalidated or generic AI-generated context.
+        Issues that appear low-effort, unverified, or likely AI-generated and lacking concrete detail may be closed until they are resubmitted with a concrete use case and clear rationale.
+
         **Note:** Enhancements are only considered for Prefect 3.x. Prefect 2.x only receives bug fixes.
 
   - type: textarea
@@ -25,14 +31,14 @@ body:
   - type: textarea
     attributes:
       label: Describe the proposed behavior
-      description: A clear and concise description of what new feature or behavior you would like to see
+      description: A clear and concise description of what new feature or behavior you would like to see and why it belongs in Prefect.
     validations:
       required: true
 
   - type: textarea
     attributes:
       label: Example Use
-      description: Provide an example of how end users could leverage that functionality
+      description: Provide a concrete example of how end users could leverage that functionality in a real Prefect workflow.
     validations:
       required: false
 
