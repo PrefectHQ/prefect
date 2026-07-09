@@ -17,10 +17,15 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 STARTED_MARKER = "flow-started"
 COMPLETED_MARKER = "flow-completed"
 TASK_MARKER_PREFIX = "task-"
-# 150 tasks × 0.2 s ≈ 30 s gives the FlowRunSuspendingObserver enough time
-# to receive the Suspended event via the events websocket under CI load.
-TASK_COUNT = 150
 TASK_SLEEP = 0.2
+# The flow keeps running short tasks until it is externally suspended; it is not
+# expected to finish on its own. A fixed task count created a race where the flow
+# could complete before the FlowRunSuspendingObserver enforced the Suspended
+# state under CI load, leaving the run Completed instead of Suspended. Looping
+# well past any realistic suspension-propagation delay removes that race. The
+# large upper bound only guards against an unbounded loop if suspension is never
+# enforced (pytest-timeout fails the test in that case).
+MAX_TASK_MARKERS = 100_000
 
 
 @task
@@ -32,7 +37,7 @@ def write_task_marker(marker_dir: str, index: int) -> None:
 @flow(log_prints=True, persist_result=True)
 def externally_suspended_flow(marker_dir: str) -> None:
     Path(marker_dir, STARTED_MARKER).write_text("started")
-    for index in range(TASK_COUNT):
+    for index in range(MAX_TASK_MARKERS):
         write_task_marker(marker_dir, index)
     Path(marker_dir, COMPLETED_MARKER).write_text("completed")
 
@@ -175,9 +180,10 @@ def test_external_suspension_stops_flow_run_at_next_task_boundary(tmp_path: Path
 
         task_marker_count = _task_marker_count(marker_dir)
         assert suspended_run.state and suspended_run.state.name == "Suspended"
-        assert 0 < task_marker_count < TASK_COUNT, (
-            f"Expected suspension before all tasks completed, got {task_marker_count}"
-            f" task markers.\nExecution log:\n{_worker_output(execution_log_path)}"
+        assert task_marker_count > 0, (
+            "Expected at least one task to run before suspension, got"
+            f" {task_marker_count} task markers.\n"
+            f"Execution log:\n{_worker_output(execution_log_path)}"
         )
         assert not Path(marker_dir, COMPLETED_MARKER).exists()
 
