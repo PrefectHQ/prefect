@@ -86,10 +86,9 @@ Reads artifacts.
 - `task_run_filter`: Only select artifacts whose task runs matching this filter
 - `deployment_filter`: Only select artifacts whose flow runs belong to deployments matching this filter
 - `flow_filter`: Only select artifacts whose flow runs belong to flows matching this filter
-- `work_pool_filter`: Only select artifacts whose flow runs belong to work pools matching this filter
 
 
-### `read_latest_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/artifacts.py#L336" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_latest_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/artifacts.py#L335" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_latest_artifacts(db: PrefectDBInterface, session: AsyncSession, offset: Optional[int] = None, limit: Optional[int] = None, artifact_filter: Optional[filters.ArtifactCollectionFilter] = None, flow_run_filter: Optional[filters.FlowRunFilter] = None, task_run_filter: Optional[filters.TaskRunFilter] = None, deployment_filter: Optional[filters.DeploymentFilter] = None, flow_filter: Optional[filters.FlowFilter] = None, sort: sorting.ArtifactCollectionSort = sorting.ArtifactCollectionSort.ID_DESC) -> Sequence[orm_models.ArtifactCollection]
@@ -107,10 +106,9 @@ Reads artifacts.
 - `task_run_filter`: Only select artifacts whose task runs matching this filter
 - `deployment_filter`: Only select artifacts whose flow runs belong to deployments matching this filter
 - `flow_filter`: Only select artifacts whose flow runs belong to flows matching this filter
-- `work_pool_filter`: Only select artifacts whose flow runs belong to work pools matching this filter
 
 
-### `count_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/artifacts.py#L383" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `count_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/artifacts.py#L381" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 count_artifacts(db: PrefectDBInterface, session: AsyncSession, artifact_filter: Optional[filters.ArtifactFilter] = None, flow_run_filter: Optional[filters.FlowRunFilter] = None, task_run_filter: Optional[filters.TaskRunFilter] = None, deployment_filter: Optional[filters.DeploymentFilter] = None, flow_filter: Optional[filters.FlowFilter] = None) -> int
@@ -125,7 +123,7 @@ Args:
     task_run_filter: Only select artifacts whose task runs matching this filter
 
 
-### `count_latest_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/artifacts.py#L417" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `count_latest_artifacts` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/artifacts.py#L415" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 count_latest_artifacts(db: PrefectDBInterface, session: AsyncSession, artifact_filter: Optional[filters.ArtifactCollectionFilter] = None, flow_run_filter: Optional[filters.FlowRunFilter] = None, task_run_filter: Optional[filters.TaskRunFilter] = None, deployment_filter: Optional[filters.DeploymentFilter] = None, flow_filter: Optional[filters.FlowFilter] = None) -> int
@@ -140,7 +138,7 @@ Args:
     task_run_filter: Only select artifacts whose task runs matching this filter
 
 
-### `update_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/artifacts.py#L451" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `update_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/artifacts.py#L449" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_artifact(db: PrefectDBInterface, session: AsyncSession, artifact_id: UUID, artifact: actions.ArtifactUpdate) -> bool
@@ -158,7 +156,7 @@ Updates an artifact by id.
 - True if the update was successful, False otherwise
 
 
-### `delete_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/artifacts.py#L490" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_artifact` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/models/artifacts.py#L488" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_artifact(db: PrefectDBInterface, session: AsyncSession, artifact_id: UUID) -> bool
