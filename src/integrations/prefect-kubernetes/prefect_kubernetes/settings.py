@@ -141,6 +141,18 @@ class KubernetesWorkerSettings(PrefectBaseSettings):
         ),
     )
 
+    store_env_as_secret: bool = Field(
+        default=False,
+        description=(
+            "If `True`, the worker will store all generated plaintext environment "
+            "variables for each flow-run Job in a per-job Kubernetes Secret and "
+            "reference them via `envFrom.secretRef` instead of embedding values "
+            "directly in the Job manifest. The Secret is owned by the Job and "
+            "garbage-collected automatically when the Job is deleted. Requires "
+            "`create` and `patch` permissions on secrets in the target namespace."
+        ),
+    )
+
     add_tcp_keepalive: bool = Field(
         default=True,
         description="If `True`, the worker will add TCP keepalive to the Kubernetes client.",
