@@ -179,7 +179,7 @@ Before using RDS IAM authentication, you need to configure AWS:
 
 4. Configure your database connection URL:
    ```bash
-   export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://iam_user@your-rds-host:5432/prefect"
+   export PREFECT_SERVER_DATABASE_CONNECTION_URL="postgresql+asyncpg://iam_user@your-rds-host:5432/prefect"
    ```
 
 The plugin will automatically generate and inject an IAM authentication token as the password when connecting to the database.
