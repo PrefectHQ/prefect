@@ -57,7 +57,10 @@ redis+sentinel://[user:pass@]sentinel-a:26379,sentinel-b:26379/<master-name>[/<d
 Sentinel-specific query parameters configure the connections to the Sentinel daemons
 separately from the data nodes: `sentinel_username`, `sentinel_password`, `sentinel_ssl`,
 `sentinel_tls_insecure`, and `sentinel_tls_ca_file`. Single-node TLS URLs additionally
-accept `tls_insecure` and `tls_ca_file`.
+accept `tls_insecure` and `tls_ca_file`. All other query parameters are treated as
+standard [redis-py](https://redis-py.readthedocs.io/) connection options
+(`socket_timeout`, `max_connections`, `health_check_interval`, ...) and apply to the
+data-node connections.
 
 ### Server messaging (events / streams)
 
@@ -69,18 +72,6 @@ export PREFECT_REDIS_MESSAGING_URL="redis+sentinel://sentinel-a:26379,sentinel-b
 ```
 
 The same setting also accepts single-node `redis://` / `rediss://` URLs.
-
-### Background services (Docket)
-
-Multi-server deployments also point `PREFECT_SERVER_DOCKET_URL` at the same shared
-Redis so the server's background services coordinate through it. That URL is
-resolved by [Docket](https://github.com/chrisguidry/docket) rather than
-`prefect-redis`, so Sentinel URLs require a `pydocket` release that includes Redis
-Sentinel support:
-
-```bash
-export PREFECT_SERVER_DOCKET_URL="redis+sentinel://sentinel-a:26379,sentinel-b:26379/mymaster/0"
-```
 
 ### Lock manager
 
