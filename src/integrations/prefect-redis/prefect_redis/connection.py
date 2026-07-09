@@ -22,7 +22,9 @@ The `sentinel_username` and `sentinel_password` query parameters configure
 authentication to the Sentinel daemons separately from the data nodes. All other
 query parameters are standard redis-py connection options (`socket_timeout`,
 `max_connections`, `health_check_interval`, ...) and apply to the data-node
-connections with exactly the same parsing as a standalone `redis://` URL.
+connections with exactly the same parsing as a standalone `redis://` URL. On a
+TLS scheme the `ssl_*` options additionally apply to the Sentinel daemon
+connections, so one private CA (`?ssl_ca_certs=...`) covers the whole topology.
 
 The `redis+sentinel://` grammar and the Sentinel data-node TCP keepalive defaults
 (`SENTINEL_SOCKET_KEEPALIVE_OPTIONS`) deliberately mirror docket's `_redis_sentinel`
@@ -340,9 +342,17 @@ def parse_redis_url(url: str) -> RedisConnectionConfig:
         sentinel_kwargs["username"] = sentinel_username
     if sentinel_password:
         sentinel_kwargs["password"] = sentinel_password
+    funneled = _funnel_query_options(query, url=url)
+    connection_kwargs.update(funneled)
     if tls:
         sentinel_kwargs["ssl"] = True
-    connection_kwargs.update(_funnel_query_options(query, url=url))
+        # The Sentinel daemons share the data nodes' TLS profile: without this a
+        # private/self-signed CA passed as ?ssl_ca_certs= (or ?ssl_cert_reqs=none)
+        # would apply to the master connections only, and every daemon connection
+        # would fail certificate verification during discovery.
+        sentinel_kwargs.update(
+            {key: value for key, value in funneled.items() if key.startswith("ssl_")}
+        )
 
     return RedisConnectionConfig(
         db=db,
