@@ -143,7 +143,12 @@ class WorkerChannelTransport:
 
         status_code = self._status_code_from_exception(exc)
         if status_code is not None:
-            if status_code in {401, 403}:
+            if status_code == 401:
+                return WorkerChannelTerminalError(
+                    WorkerChannelCloseReason.AUTHENTICATION_FAILED.value,
+                    "Worker channel setup was rejected by the server",
+                )
+            if status_code == 403:
                 return WorkerChannelTerminalError(
                     WorkerChannelCloseReason.AUTHORIZATION_FAILED.value,
                     "Worker channel setup was rejected by the server",
