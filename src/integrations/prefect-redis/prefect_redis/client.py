@@ -13,6 +13,7 @@ from prefect.settings.base import (
     build_settings_config,  # type: ignore[reportPrivateUsage]
 )
 from prefect_redis.connection import (
+    aclose_redis_client,
     build_redis_client,
     is_sentinel_url,
     parse_redis_url,
@@ -169,14 +170,19 @@ def cached(fn: Callable[..., Any]) -> Callable[..., Any]:
 
 
 def close_all_cached_connections() -> None:
-    """Close all cached Redis connections."""
+    """Close all cached Redis connections.
+
+    Sentinel-backed clients hold one extra Redis client per Sentinel daemon, so
+    the daemon-aware `aclose_redis_client` is used rather than a bare
+    `client.aclose()`.
+    """
     loop: Union[asyncio.AbstractEventLoop, None]
 
     for (_, _, _, loop), client in _client_cache.items():
         if not loop or (loop and loop.is_closed()):
             continue
         loop.run_until_complete(client.connection_pool.disconnect())
-        loop.run_until_complete(client.aclose())
+        loop.run_until_complete(aclose_redis_client(client))
 
 
 async def clear_cached_clients() -> None:

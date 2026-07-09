@@ -160,6 +160,53 @@ PARSE_CASES = [
         ),
     ),
     ParseCase(
+        # Leftover query params are standard redis-py connection options and get
+        # redis-py's own type conversion, exactly like a standalone redis:// URL.
+        name="single_node_query_options_funneled_through_redis_py",
+        url="redis://cache:6379/1?health_check_interval=30&socket_timeout=2.5",
+        expected=RedisConnectionConfig(
+            db=1,
+            is_sentinel=False,
+            host="cache",
+            port=6379,
+            connection_kwargs={
+                "ssl": False,
+                "health_check_interval": 30,
+                "socket_timeout": 2.5,
+            },
+        ),
+    ),
+    ParseCase(
+        name="sentinel_query_options_funneled_to_data_nodes",
+        url="redis+sentinel://s1:26379/svc?socket_timeout=2.5&max_connections=10",
+        expected=RedisConnectionConfig(
+            db=0,
+            is_sentinel=True,
+            service_name="svc",
+            sentinels=(("s1", 26379),),
+            connection_kwargs={
+                "ssl": False,
+                "socket_timeout": 2.5,
+                "max_connections": 10,
+            },
+            sentinel_kwargs={"ssl": False},
+        ),
+    ),
+    ParseCase(
+        # db comes from the path and credentials from the userinfo; the query
+        # string is not allowed to override them.
+        name="governed_keys_not_taken_from_query",
+        url="redis+sentinel://app:secret@s1:26379/svc/2?db=9&username=q&password=leak",
+        expected=RedisConnectionConfig(
+            db=2,
+            is_sentinel=True,
+            service_name="svc",
+            sentinels=(("s1", 26379),),
+            connection_kwargs={"username": "app", "password": "secret", "ssl": False},
+            sentinel_kwargs={"ssl": False},
+        ),
+    ),
+    ParseCase(
         name="sentinel_ssl_override_disables_daemon_tls",
         url="rediss+sentinel://s1:26379/svc?tls_insecure=true&sentinel_ssl=false",
         expected=RedisConnectionConfig(
@@ -217,6 +264,11 @@ ERROR_CASES = [
         name="invalid_bool",
         url="rediss://cache:6379?tls_insecure=maybe",
         match="Invalid boolean",
+    ),
+    ErrorCase(
+        name="invalid_connection_option",
+        url="redis://cache:6379?socket_timeout=abc",
+        match="Invalid connection option",
     ),
 ]
 

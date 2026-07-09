@@ -21,7 +21,10 @@ Sentinel convention) for Sentinel members.
 Single-node URLs accept `tls_insecure` and `tls_ca_file` query parameters; the
 Sentinel schemes additionally accept `sentinel_username`, `sentinel_password`,
 `sentinel_ssl`, `sentinel_tls_insecure` and `sentinel_tls_ca_file` to configure
-the connections to the Sentinel daemons separately from the data nodes.
+the connections to the Sentinel daemons separately from the data nodes. All other
+query parameters are standard redis-py connection options (`socket_timeout`,
+`max_connections`, `health_check_interval`, ...) and apply to the data-node
+connections with exactly the same parsing as a standalone `redis://` URL.
 
 The `redis+sentinel://` grammar and the Sentinel data-node TCP keepalive defaults
 (`SENTINEL_SOCKET_KEEPALIVE_OPTIONS`) deliberately mirror docket's `_redis_sentinel`
@@ -37,10 +40,11 @@ from __future__ import annotations
 import socket
 from dataclasses import dataclass, field
 from typing import Any, Union
-from urllib.parse import SplitResult, parse_qs, unquote, urlsplit, urlunsplit
+from urllib.parse import SplitResult, parse_qs, unquote, urlencode, urlsplit, urlunsplit
 
 import redis
 import redis.asyncio
+from redis.asyncio.connection import parse_url as _redis_py_parse_url
 from redis.asyncio.sentinel import Sentinel as AsyncSentinel
 from redis.sentinel import Sentinel as SyncSentinel
 
@@ -266,15 +270,48 @@ def _split_members(
 def _build_ssl_kwargs(
     *, enabled: bool, query: dict[str, list[str]], url: str, prefix: str = ""
 ) -> dict[str, Any]:
+    # Pop the prefect-specific TLS keys even when TLS is off so they are never
+    # funneled to redis-py as unknown connection options.
+    insecure_raw = query.pop(f"{prefix}tls_insecure", ["false"])[0]
+    ca_file = query.pop(f"{prefix}tls_ca_file", [None])[0]
     if not enabled:
         return {"ssl": False}
-    insecure = _to_bool(query.get(f"{prefix}tls_insecure", ["false"])[0], url=url)
+    insecure = _to_bool(insecure_raw, url=url)
     return {
         "ssl": True,
         "ssl_cert_reqs": "none" if insecure else "optional",
         "ssl_check_hostname": not insecure,
-        "ssl_ca_certs": query.get(f"{prefix}tls_ca_file", [None])[0],
+        "ssl_ca_certs": ca_file,
     }
+
+
+def _funnel_query_options(query: dict[str, list[str]], *, url: str) -> dict[str, Any]:
+    """Convert leftover query parameters into redis-py connection options.
+
+    The prefect-specific keys have been popped from `query` by this point;
+    everything left is a standard redis-py connection option (`socket_timeout`,
+    `max_connections`, `health_check_interval`, ...). Funnel them through
+    redis-py's `parse_url` on a synthetic standalone URL so they get exactly the
+    same type conversion and validation as a `redis://` URL, mirroring docket's
+    `_redis_sentinel` parser (see the module docstring). The database comes from
+    the path and credentials from the userinfo, so `db`/`username`/`password`
+    are not allowed to sneak in through the query string.
+    """
+    if not query:
+        return {}
+    remaining = urlencode(
+        [(name, value) for name, values in query.items() for value in values]
+    )
+    try:
+        options: dict[str, Any] = _redis_py_parse_url(f"redis:///?{remaining}")
+    except ValueError as exc:
+        raise RedisUrlError(
+            f"Invalid connection option in connection URL "
+            f"({exc}): {redact_redis_url(url)}"
+        ) from exc
+    for governed in ("db", "username", "password"):
+        options.pop(governed, None)
+    return options
 
 
 def parse_redis_url(url: str) -> RedisConnectionConfig:
@@ -282,7 +319,8 @@ def parse_redis_url(url: str) -> RedisConnectionConfig:
 
     Raises:
         RedisUrlError: With secrets redacted, for any unsupported scheme, malformed
-            member list, missing Sentinel service name, or negative database index.
+            member list, missing Sentinel service name, negative database index, or
+            malformed connection option.
     """
     parts, netloc = _split_connection_url(url)
     scheme = parts.scheme.lower()
@@ -333,6 +371,7 @@ def parse_redis_url(url: str) -> RedisConnectionConfig:
             )
         db = _parse_db(path_segments[0], url=url) if path_segments else 0
         host, port = members[0]
+        connection_kwargs.update(_funnel_query_options(query, url=url))
         return RedisConnectionConfig(
             db=db,
             is_sentinel=False,
@@ -349,13 +388,13 @@ def parse_redis_url(url: str) -> RedisConnectionConfig:
     db = _parse_db(path_segments[1], url=url) if len(path_segments) > 1 else 0
 
     sentinel_kwargs: dict[str, Any] = {}
-    sentinel_username = query.get("sentinel_username", [None])[0]
-    sentinel_password = query.get("sentinel_password", [None])[0]
+    sentinel_username = query.pop("sentinel_username", [None])[0]
+    sentinel_password = query.pop("sentinel_password", [None])[0]
     if sentinel_username:
         sentinel_kwargs["username"] = sentinel_username
     if sentinel_password:
         sentinel_kwargs["password"] = sentinel_password
-    sentinel_ssl_raw = query.get("sentinel_ssl", [None])[0]
+    sentinel_ssl_raw = query.pop("sentinel_ssl", [None])[0]
     sentinel_tls = (
         tls_default if sentinel_ssl_raw is None else _to_bool(sentinel_ssl_raw, url=url)
     )
@@ -364,6 +403,7 @@ def parse_redis_url(url: str) -> RedisConnectionConfig:
             enabled=sentinel_tls, query=query, url=url, prefix="sentinel_"
         )
     )
+    connection_kwargs.update(_funnel_query_options(query, url=url))
 
     return RedisConnectionConfig(
         db=db,
