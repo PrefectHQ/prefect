@@ -26,7 +26,7 @@ body:
   - type: textarea
     attributes:
       label: Bug summary
-      description: A clear and concise description of verified behavior, ideally including [a minimal reproducible example](https://stackoverflow.com/help/minimal-reproducible-example).
+      description: A clear and concise description of observed behavior, ideally including [a minimal reproducible example](https://stackoverflow.com/help/minimal-reproducible-example).
       placeholder: >
         An explanation of the behavior, along with code that will help others reproduce the issue:
 
