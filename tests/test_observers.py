@@ -656,37 +656,40 @@ class TestFlowRunSuspendingObserver:
 
             callback.assert_called_once_with(flow_run_id, suspended_state)
 
-    async def test_clean_event_consumer_completion_starts_polling(self):
+    async def test_polling_backstop_runs_alongside_websocket(self):
+        callback = MagicMock()
+        observer = FlowRunSuspendingObserver(on_suspended=callback)
+
+        async with observer:
+            # The events websocket is the low-latency primary path, but the
+            # polling loop runs as a backstop so suspension is still enforced if
+            # the Suspended event is never delivered on the subscription.
+            assert observer._consumer_task is not None
+            assert observer._polling_task is not None
+            assert not observer._polling_task.done()
+
+    async def test_websocket_close_logs_without_starting_new_polling(self):
         callback = MagicMock()
         observer = FlowRunSuspendingObserver(on_suspended=callback)
 
         async def complete():
             pass
 
-        async def never_finish(*args, **kwargs):
-            await asyncio.Event().wait()
-
         consumer_task = asyncio.create_task(complete())
         await consumer_task
 
         with patch(
-            "prefect._internal.observers.critical_service_loop",
-            AsyncMock(side_effect=never_finish),
+            "prefect._internal.observers.critical_service_loop"
         ) as critical_service_loop:
-            observer._start_polling_task(consumer_task)
-            await asyncio.sleep(0)
+            observer._log_websocket_closed(consumer_task)
 
-            assert observer._polling_task is not None
-            critical_service_loop.assert_called_once()
-
-            observer._polling_task.cancel()
-            with suppress(asyncio.CancelledError):
-                await observer._polling_task
+        # Polling already runs from __aenter__, so a websocket close only logs;
+        # it never spins up an additional polling task.
+        assert observer._polling_task is None
+        critical_service_loop.assert_not_called()
 
     @pytest.mark.parametrize("task_state", ["completed", "cancelled"])
-    async def test_event_consumer_completion_does_not_poll_during_shutdown(
-        self, task_state: str
-    ):
+    async def test_websocket_close_during_shutdown_is_noop(self, task_state: str):
         callback = MagicMock()
         observer = FlowRunSuspendingObserver(on_suspended=callback)
         observer._is_shutting_down = True
@@ -705,7 +708,7 @@ class TestFlowRunSuspendingObserver:
         with patch(
             "prefect._internal.observers.critical_service_loop"
         ) as critical_service_loop:
-            observer._start_polling_task(consumer_task)
+            observer._log_websocket_closed(consumer_task)
 
         assert observer._polling_task is None
         critical_service_loop.assert_not_called()
