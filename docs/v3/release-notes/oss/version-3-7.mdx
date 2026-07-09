@@ -2,6 +2,40 @@
 title: 3.7
 ---
 
+## 3.7.8
+
+*Released on July 09, 2026*
+
+**Enhancements ➕➕**
+
+* Format server-side validation errors for concurrency slot acquisition by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22470](https://github.com/PrefectHQ/prefect/pull/22470)
+
+**Bug Fixes 🐞**
+
+* Keep `TaskRunRecorder` periodic flush alive when events are dropped by [@zzstoatzz](https://github.com/zzstoatzz) in [#22441](https://github.com/PrefectHQ/prefect/pull/22441)
+* Fix Windows permission error on `git pull` in runner storage by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22447](https://github.com/PrefectHQ/prefect/pull/22447)
+* Fix `RRULE` schedule anchor computed in UTC but interpreted as local time by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22456](https://github.com/PrefectHQ/prefect/pull/22456)
+* Reconnect events client from time-based checkpoint when connection is lost by [@ZaeemRiaz](https://github.com/ZaeemRiaz) in [#22451](https://github.com/PrefectHQ/prefect/pull/22451)
+* Reject `prefect api` requests passing both `--root` and `--account` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22462](https://github.com/PrefectHQ/prefect/pull/22462)
+* Differentiate HTTP 401 and 403 worker-channel upgrade failures by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22469](https://github.com/PrefectHQ/prefect/pull/22469)
+
+**Development & Tidiness 🧹**
+
+* Loop until suspended in external-suspension integration test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22466](https://github.com/PrefectHQ/prefect/pull/22466)
+* Add tests for untested functions in `utilities.math` by [@eeshsaxena](https://github.com/eeshsaxena) in [#22438](https://github.com/PrefectHQ/prefect/pull/22438)
+
+**Documentation 📓**
+
+* Replace legacy `PREFECT_API_DATABASE_*` examples with `PREFECT_SERVER_DATABASE_*` names by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22471](https://github.com/PrefectHQ/prefect/pull/22471)
+* Clarify AI contribution expectations by [@desertaxle](https://github.com/desertaxle) in [#22023](https://github.com/PrefectHQ/prefect/pull/22023)
+* Clarify pull steps run before `module-path` entrypoint imports by [@github-actions](https://github.com/github-actions)[bot] in [#22402](https://github.com/PrefectHQ/prefect/pull/22402)
+* Fix parameter name mismatches in docstrings by [@eeshsaxena](https://github.com/eeshsaxena) in [#22435](https://github.com/PrefectHQ/prefect/pull/22435)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.7.7...3.7.8
+
+
+---
+
 ## 3.7.7 - Don't put that work pool configuration in your mouth. It's stale.
 
 *Released on July 02, 2026*
