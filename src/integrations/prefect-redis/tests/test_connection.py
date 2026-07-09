@@ -143,6 +143,45 @@ PARSE_CASES = [
         ),
     ),
     ParseCase(
+        # On a TLS scheme the ssl_* options also apply to the Sentinel daemon
+        # connections; otherwise a private CA would cover the data nodes only
+        # and every daemon connection would fail verification at discovery.
+        name="sentinel_tls_ssl_options_shared_with_daemons",
+        url=(
+            "rediss+sentinel://s1:26390/svc"
+            "?ssl_ca_certs=/etc/ca.pem&ssl_check_hostname=false"
+        ),
+        expected=RedisConnectionConfig(
+            db=0,
+            is_sentinel=True,
+            service_name="svc",
+            sentinels=(("s1", 26390),),
+            connection_kwargs={
+                "ssl": True,
+                "ssl_ca_certs": "/etc/ca.pem",
+                "ssl_check_hostname": False,
+            },
+            sentinel_kwargs={
+                "ssl": True,
+                "ssl_ca_certs": "/etc/ca.pem",
+                "ssl_check_hostname": False,
+            },
+        ),
+    ),
+    ParseCase(
+        # On a plaintext scheme the daemons stay plaintext: ssl_* options pass
+        # through to the data-node kwargs only, like any redis-py option.
+        name="sentinel_plaintext_daemons_get_no_ssl_options",
+        url="redis+sentinel://s1:26379/svc?ssl_ca_certs=/etc/ca.pem",
+        expected=RedisConnectionConfig(
+            db=0,
+            is_sentinel=True,
+            service_name="svc",
+            sentinels=(("s1", 26379),),
+            connection_kwargs={"ssl_ca_certs": "/etc/ca.pem"},
+        ),
+    ),
+    ParseCase(
         # Leftover query params are standard redis-py connection options and get
         # redis-py's own type conversion, exactly like a standalone redis:// URL.
         name="single_node_query_options_funneled_through_redis_py",

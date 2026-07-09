@@ -58,7 +58,10 @@ The `sentinel_username` and `sentinel_password` query parameters configure
 authentication to the Sentinel daemons separately from the data nodes. All other query
 parameters are treated as standard [redis-py](https://redis-py.readthedocs.io/)
 connection options (`socket_timeout`, `max_connections`, `health_check_interval`, ...)
-and apply to the data-node connections.
+and apply to the data-node connections. On the `rediss+sentinel://` scheme the `ssl_*`
+options also apply to the Sentinel daemon connections, so a single private CA works
+for the whole topology, e.g.
+`rediss+sentinel://sentinel-a:26379,sentinel-b:26379/mymaster?ssl_ca_certs=/etc/redis/ca.pem`.
 
 ### Server messaging (events / streams)
 
