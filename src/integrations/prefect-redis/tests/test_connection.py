@@ -13,8 +13,6 @@ from prefect_redis.connection import (
     close_redis_client,
     parse_redis_url,
     redact_redis_url,
-    redis_client_from_url,
-    uses_prefect_tls_query_params,
 )
 from redis.asyncio.sentinel import SentinelConnectionPool as AsyncSentinelPool
 from redis.sentinel import SentinelConnectionPool as SyncSentinelPool
@@ -40,7 +38,6 @@ PARSE_CASES = [
             is_sentinel=False,
             host="localhost",
             port=6379,
-            connection_kwargs={"ssl": False},
         ),
     ),
     ParseCase(
@@ -51,7 +48,6 @@ PARSE_CASES = [
             is_sentinel=False,
             host="cache",
             port=6379,
-            connection_kwargs={"ssl": False},
         ),
     ),
     ParseCase(
@@ -66,9 +62,6 @@ PARSE_CASES = [
                 "username": "user",
                 "password": "pa@ss",
                 "ssl": True,
-                "ssl_cert_reqs": "optional",
-                "ssl_check_hostname": True,
-                "ssl_ca_certs": None,
             },
         ),
     ),
@@ -82,7 +75,6 @@ PARSE_CASES = [
             is_sentinel=False,
             host="cache",
             port=6379,
-            connection_kwargs={"ssl": False},
         ),
     ),
     ParseCase(
@@ -93,12 +85,14 @@ PARSE_CASES = [
             is_sentinel=False,
             host="cache",
             port=6379,
-            connection_kwargs={"username": "user", "ssl": False},
+            connection_kwargs={"username": "user"},
         ),
     ),
     ParseCase(
-        name="single_node_tls_insecure_and_ca_file",
-        url="rediss://cache:6379?tls_insecure=true&tls_ca_file=/etc/ca.pem",
+        # TLS options are plain redis-py connection options; unknown keys pass
+        # through verbatim just like a standalone rediss:// URL.
+        name="single_node_tls_options_pass_through",
+        url="rediss://cache:6379?ssl_cert_reqs=none&ssl_ca_certs=/etc/ca.pem",
         expected=RedisConnectionConfig(
             db=0,
             is_sentinel=False,
@@ -107,7 +101,6 @@ PARSE_CASES = [
             connection_kwargs={
                 "ssl": True,
                 "ssl_cert_reqs": "none",
-                "ssl_check_hostname": False,
                 "ssl_ca_certs": "/etc/ca.pem",
             },
         ),
@@ -121,8 +114,8 @@ PARSE_CASES = [
             is_sentinel=True,
             service_name="mymaster",
             sentinels=(("s1", 26379), ("s2", 26379), ("s3", 26379)),
-            connection_kwargs={"username": "app", "password": "secret", "ssl": False},
-            sentinel_kwargs={"username": "su", "password": "sp", "ssl": False},
+            connection_kwargs={"username": "app", "password": "secret"},
+            sentinel_kwargs={"username": "su", "password": "sp"},
         ),
     ),
     ParseCase(
@@ -133,30 +126,20 @@ PARSE_CASES = [
             is_sentinel=True,
             service_name="mymaster",
             sentinels=(("s1", 26379), ("s2", 26380), ("::1", 26379)),
-            connection_kwargs={"ssl": False},
-            sentinel_kwargs={"ssl": False},
         ),
     ),
     ParseCase(
-        name="sentinel_tls_data_nodes_follows_scheme",
+        # A rediss prefix turns on TLS for both the data nodes and the Sentinel
+        # daemon connections, mirroring docket's parser.
+        name="sentinel_tls_follows_scheme",
         url="rediss+sentinel://s1:26379/svc",
         expected=RedisConnectionConfig(
             db=0,
             is_sentinel=True,
             service_name="svc",
             sentinels=(("s1", 26379),),
-            connection_kwargs={
-                "ssl": True,
-                "ssl_cert_reqs": "optional",
-                "ssl_check_hostname": True,
-                "ssl_ca_certs": None,
-            },
-            sentinel_kwargs={
-                "ssl": True,
-                "ssl_cert_reqs": "optional",
-                "ssl_check_hostname": True,
-                "ssl_ca_certs": None,
-            },
+            connection_kwargs={"ssl": True},
+            sentinel_kwargs={"ssl": True},
         ),
     ),
     ParseCase(
@@ -170,7 +153,6 @@ PARSE_CASES = [
             host="cache",
             port=6379,
             connection_kwargs={
-                "ssl": False,
                 "health_check_interval": 30,
                 "socket_timeout": 2.5,
             },
@@ -185,11 +167,9 @@ PARSE_CASES = [
             service_name="svc",
             sentinels=(("s1", 26379),),
             connection_kwargs={
-                "ssl": False,
                 "socket_timeout": 2.5,
                 "max_connections": 10,
             },
-            sentinel_kwargs={"ssl": False},
         ),
     ),
     ParseCase(
@@ -202,25 +182,7 @@ PARSE_CASES = [
             is_sentinel=True,
             service_name="svc",
             sentinels=(("s1", 26379),),
-            connection_kwargs={"username": "app", "password": "secret", "ssl": False},
-            sentinel_kwargs={"ssl": False},
-        ),
-    ),
-    ParseCase(
-        name="sentinel_ssl_override_disables_daemon_tls",
-        url="rediss+sentinel://s1:26379/svc?tls_insecure=true&sentinel_ssl=false",
-        expected=RedisConnectionConfig(
-            db=0,
-            is_sentinel=True,
-            service_name="svc",
-            sentinels=(("s1", 26379),),
-            connection_kwargs={
-                "ssl": True,
-                "ssl_cert_reqs": "none",
-                "ssl_check_hostname": False,
-                "ssl_ca_certs": None,
-            },
-            sentinel_kwargs={"ssl": False},
+            connection_kwargs={"username": "app", "password": "secret"},
         ),
     ),
 ]
@@ -260,11 +222,6 @@ ERROR_CASES = [
         name="invalid_db", url="redis://cache:6379/abc", match="Invalid database index"
     ),
     ErrorCase(name="no_host", url="redis://", match="No host found"),
-    ErrorCase(
-        name="invalid_bool",
-        url="rediss://cache:6379?tls_insecure=maybe",
-        match="Invalid boolean",
-    ),
     ErrorCase(
         name="invalid_connection_option",
         url="redis://cache:6379?socket_timeout=abc",
@@ -342,8 +299,8 @@ NO_LEAK_CASES = [
         name="bad_port", url="redis://u:topsecret@cache:nope", secret="topsecret"
     ),
     NoLeakCase(
-        name="bad_bool",
-        url="rediss://u:topsecret@cache:6379?tls_insecure=maybe",
+        name="bad_option",
+        url="rediss://u:topsecret@cache:6379?socket_timeout=maybe",
         secret="topsecret",
     ),
 ]
@@ -414,18 +371,6 @@ def test_build_client_passes_extra_kwargs_to_data_connection() -> None:
     conn = client.connection_pool.connection_kwargs
     assert conn["decode_responses"] is True
     assert conn["health_check_interval"] == 42
-
-
-def test_redis_client_from_url_helper() -> None:
-    client = redis_client_from_url("redis://cache:6379/0", asynchronous=True)
-    assert isinstance(client, redis.asyncio.Redis)
-
-
-def test_uses_prefect_tls_query_params() -> None:
-    assert uses_prefect_tls_query_params("rediss://cache:6379?tls_insecure=true")
-    assert uses_prefect_tls_query_params("rediss://cache:6379?tls_ca_file=/ca.pem")
-    assert not uses_prefect_tls_query_params("rediss://cache:6379")
-    assert not uses_prefect_tls_query_params("rediss://cache:6379?ssl_cert_reqs=none")
 
 
 # ---------------------------------------------------------------------------

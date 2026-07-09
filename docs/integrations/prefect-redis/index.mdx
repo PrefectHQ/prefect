@@ -54,13 +54,11 @@ daemons and follows failover automatically:
 redis+sentinel://[user:pass@]sentinel-a:26379,sentinel-b:26379/<master-name>[/<db>][?params]
 ```
 
-Sentinel-specific query parameters configure the connections to the Sentinel daemons
-separately from the data nodes: `sentinel_username`, `sentinel_password`, `sentinel_ssl`,
-`sentinel_tls_insecure`, and `sentinel_tls_ca_file`. Single-node TLS URLs additionally
-accept `tls_insecure` and `tls_ca_file`. All other query parameters are treated as
-standard [redis-py](https://redis-py.readthedocs.io/) connection options
-(`socket_timeout`, `max_connections`, `health_check_interval`, ...) and apply to the
-data-node connections.
+The `sentinel_username` and `sentinel_password` query parameters configure
+authentication to the Sentinel daemons separately from the data nodes. All other query
+parameters are treated as standard [redis-py](https://redis-py.readthedocs.io/)
+connection options (`socket_timeout`, `max_connections`, `health_check_interval`, ...)
+and apply to the data-node connections.
 
 ### Server messaging (events / streams)
 
