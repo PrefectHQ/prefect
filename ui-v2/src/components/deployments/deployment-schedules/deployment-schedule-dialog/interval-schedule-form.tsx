@@ -90,7 +90,7 @@ const formSchema = z.object({
 		interval_value: z.number().or(z.string()).pipe(z.coerce.number()),
 		interval_time: z.enum(["seconds", "minutes", "hours", "days"]),
 		anchor_date: z.date(),
-		timezone: z.string().default("Etc/UTC"),
+		timezone: z.string().default("UTC"),
 	}),
 });
 type FormSchema = z.infer<typeof formSchema>;
@@ -101,7 +101,7 @@ const DEFAULT_VALUES: FormSchema = {
 		interval_value: 60,
 		interval_time: "minutes",
 		anchor_date: new Date(),
-		timezone: "Etc/UTC",
+		timezone: "UTC",
 	},
 };
 
@@ -141,7 +141,7 @@ export const IntervalScheduleForm = ({
 						interval_value,
 						interval_time,
 						anchor_date: anchor_date ? new Date(anchor_date) : new Date(),
-						timezone: timezone ?? "Etc/UTC",
+						timezone: timezone ?? "UTC",
 					},
 				});
 			}
