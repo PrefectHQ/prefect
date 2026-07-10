@@ -248,6 +248,13 @@ def view(
     context = prefect.context.get_settings_context()
     current_profile_settings = context.profile.settings
 
+    valid_logging_overrides = _valid_logging_override_names()
+    profile_override_names = {
+        setting.name
+        for setting in current_profile_settings
+        if setting.name.startswith("PREFECT_LOGGING_")
+    }
+
     ui_url = get_current_settings().ui_url
 
     if ui_url and not (output and output.lower() == "json"):
@@ -329,6 +336,18 @@ def view(
         if (env_value := os.getenv(setting.name)) is None:
             continue
         _process_setting(setting, env_value, "env")
+
+    # Custom logging overrides set via environment variables. The environment takes
+    # precedence over the profile at runtime, so surface it here first (later sources
+    # skip names already processed) to keep the displayed source accurate.
+    for env_name, env_value in os.environ.items():
+        upper = env_name.upper()
+        if not upper.startswith("PREFECT_LOGGING_"):
+            continue
+        if upper in valid_setting_names or upper in processed_settings:
+            continue
+        if upper in valid_logging_overrides or upper in profile_override_names:
+            _process_setting(_logging_override_setting(upper), env_value, "env")
 
     # .env file
     for key, value in (dotenv_values(".env") if Path(".env").is_file() else {}).items():

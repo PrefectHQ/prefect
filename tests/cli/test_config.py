@@ -211,6 +211,35 @@ def test_view_shows_logging_override():
     )
 
 
+def test_view_shows_env_precedence_for_logging_override(monkeypatch):
+    """When a logging override is set in both the profile and the environment,
+    `config view` shows the environment value and source, matching runtime precedence.
+    """
+    save_profiles(
+        ProfilesCollection(
+            [Profile(name="foo", settings={LOGGING_OVERRIDE_KEY: "WARNING"})],
+            active=None,
+        )
+    )
+    monkeypatch.setenv(LOGGING_OVERRIDE_KEY, "ERROR")
+
+    invoke_and_assert(
+        ["--profile", "foo", "config", "view"],
+        expected_output_contains=f"{LOGGING_OVERRIDE_KEY}='ERROR' (from env)",
+    )
+
+
+def test_view_shows_logging_override_set_only_in_env(monkeypatch):
+    """A logging override present only in the environment is shown by `config view`."""
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+    monkeypatch.setenv(LOGGING_OVERRIDE_KEY, "ERROR")
+
+    invoke_and_assert(
+        ["--profile", "foo", "config", "view"],
+        expected_output_contains=f"{LOGGING_OVERRIDE_KEY}='ERROR' (from env)",
+    )
+
+
 def test_unset_logging_override():
     save_profiles(
         ProfilesCollection(
