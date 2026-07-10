@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Sequence
 from uuid import uuid4
@@ -8,6 +9,8 @@ from prefect_redis.ordering import (
     CausalOrdering,
     EventArrivedEarly,
 )
+from redis.asyncio import RedisCluster
+from redis.cluster import key_slot
 
 from prefect.server.events.schemas.events import ReceivedEvent, Resource
 from prefect.types import DateTime
@@ -112,6 +115,84 @@ def example(request: pytest.FixtureRequest) -> Sequence[ReceivedEvent]:
 @pytest.fixture
 def causal_ordering() -> CausalOrdering:
     return CausalOrdering(scope="unit-tests")
+
+
+def test_causal_ordering_keys_share_cluster_hash_slot(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.setenv(
+        "PREFECT_REDIS_MESSAGING_URL", "redis+cluster://redis.example.com:6379"
+    )
+    monkeypatch.setattr("prefect_redis.ordering.get_async_redis_client", lambda: None)
+
+    ordering = CausalOrdering(scope="unit-tests")
+    keys = [
+        ordering._key("seen:event-id"),
+        ordering._key("processing:event-id"),
+        ordering._key("followers:event-id"),
+        ordering._key("event:event-id"),
+        ordering._key("waitlist"),
+        ordering._key("lost-followers:temporary-set"),
+    ]
+
+    assert keys == [
+        "{unit-tests}:seen:event-id",
+        "{unit-tests}:processing:event-id",
+        "{unit-tests}:followers:event-id",
+        "{unit-tests}:event:event-id",
+        "{unit-tests}:waitlist",
+        "{unit-tests}:lost-followers:temporary-set",
+    ]
+    assert len({key_slot(key.encode()) for key in keys}) == 1
+
+
+@pytest.mark.skipif(
+    not os.environ.get("PREFECT_REDIS_CLUSTER_TEST_URL"),
+    reason="requires PREFECT_REDIS_CLUSTER_TEST_URL",
+)
+async def test_causal_ordering_runs_against_real_redis_cluster(
+    event_one: ReceivedEvent,
+    event_two: ReceivedEvent,
+    event_three_a: ReceivedEvent,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    cluster_url = os.environ["PREFECT_REDIS_CLUSTER_TEST_URL"]
+    client_url = cluster_url.replace("redis+cluster://", "redis://", 1).replace(
+        "rediss+cluster://", "rediss://", 1
+    )
+    settings_url = cluster_url
+    if settings_url.startswith("redis://"):
+        settings_url = settings_url.replace("redis://", "redis+cluster://", 1)
+    elif settings_url.startswith("rediss://"):
+        settings_url = settings_url.replace("rediss://", "rediss+cluster://", 1)
+
+    redis_client = RedisCluster.from_url(client_url, decode_responses=True)
+    await redis_client.flushall()
+    try:
+        scope = f"cluster-ordering-{uuid4()}"
+        monkeypatch.setenv("PREFECT_REDIS_MESSAGING_URL", settings_url)
+        monkeypatch.setattr(
+            "prefect_redis.ordering.get_async_redis_client",
+            lambda: redis_client,
+        )
+        ordering = CausalOrdering(scope=scope)
+
+        await ordering.record_follower(event_two)
+        assert await ordering.record_event_as_processing(event_one) is True
+        followers = await ordering.complete_event_and_get_followers(event_one)
+        assert followers == [event_two]
+        await ordering.forget_follower(event_two)
+
+        await ordering.record_follower(event_three_a)
+        monkeypatch.setattr(
+            "prefect_redis.ordering.PRECEDING_EVENT_LOOKBACK",
+            timedelta(minutes=-1),
+        )
+        lost_followers = await ordering.get_lost_followers()
+        assert [follower.id for follower in lost_followers] == [event_three_a.id]
+    finally:
+        await redis_client.flushall()
+        await redis_client.aclose()
 
 
 async def test_ordering_is_correct(

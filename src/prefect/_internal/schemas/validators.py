@@ -321,6 +321,7 @@ def normalize_rrule_string(
     rrule_string: str,
     *,
     now: Optional[datetime.datetime] = None,
+    timezone: Optional[str] = None,
 ) -> str:
     """Inject a `DTSTART` line into an rrule string if it doesn't already have one.
 
@@ -350,8 +351,16 @@ def normalize_rrule_string(
       datetimes, ~3 MB).
 
     Strings that already contain a `DTSTART` are returned unchanged.
+
+    The injected anchor is written as a floating (offset-less) `DTSTART`,
+    which `RRuleSchedule.to_rrule` later relabels with the schedule's
+    timezone. `timezone` is the schedule's IANA timezone (defaulting to
+    UTC); the recent anchor's wall-clock digits are computed in it so the
+    floating anchor lands on the intended local instant rather than being
+    shifted by the timezone's UTC offset (PrefectHQ/prefect#22455).
     """
     import dateutil.rrule
+    import dateutil.tz
 
     # Already anchored — leave it alone.
     if "DTSTART" in rrule_string.upper():
@@ -400,10 +409,22 @@ def normalize_rrule_string(
     unit_seconds = 1 if freq == dateutil.rrule.SECONDLY else 60
     period_seconds = unit_seconds * interval
 
+    # The injected `DTSTART` is serialized as floating (no offset/`Z`) and
+    # `RRuleSchedule.to_rrule` later relabels it with the schedule's timezone
+    # via `.replace(tzinfo=...)`, which keeps the wall-clock digits without
+    # converting the offset. The anchor's wall-clock digits must therefore be
+    # computed in the schedule's own timezone; computing them in UTC shifts
+    # every occurrence forward by the timezone's offset, suppressing runs on
+    # the deploy day (PrefectHQ/prefect#22455).
+    anchor_tz = dateutil.tz.gettz(timezone) if timezone else datetime.timezone.utc
+    if anchor_tz is None:
+        anchor_tz = datetime.timezone.utc
+
     if now is None:
-        now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
-    elif now.tzinfo is not None:
-        now = now.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+        now = datetime.datetime.now(datetime.timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=datetime.timezone.utc)
+    now = now.astimezone(anchor_tz).replace(tzinfo=None)
 
     delta_seconds = (now - DEFAULT_RRULE_ANCHOR).total_seconds()
     if delta_seconds <= 0:
@@ -443,7 +464,9 @@ def normalize_schedule_rrule(schedule: _T) -> _T:
     rrule = getattr(schedule, "rrule", None)
     if not isinstance(rrule, str):
         return schedule
-    normalized = normalize_rrule_string(rrule)
+    normalized = normalize_rrule_string(
+        rrule, timezone=getattr(schedule, "timezone", None)
+    )
     if normalized == rrule:
         return schedule
     return type(schedule)(rrule=normalized, timezone=schedule.timezone)  # type: ignore[call-arg]

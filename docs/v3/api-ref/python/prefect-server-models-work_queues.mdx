@@ -84,11 +84,11 @@ read_work_queue_by_name(db: PrefectDBInterface, session: AsyncSession, name: str
 ```
 
 
-Reads a WorkQueue by id.
+Reads a WorkQueue by name.
 
 **Args:**
 - `session`: A database session
-- `work_queue_id`: a WorkQueue id
+- `name`: a WorkQueue name
 
 **Returns:**
 - orm_models.WorkQueue: the WorkQueue

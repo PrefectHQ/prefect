@@ -195,6 +195,11 @@ async def api_request(
             "For self-hosted servers, paths are relative to your configured API URL."
         )
 
+    if root and account:
+        exit_with_error(
+            "--root and --account cannot be used together. Choose one API scope."
+        )
+
     body_data = _parse_data(data)
 
     if body_data is None and data is None:
