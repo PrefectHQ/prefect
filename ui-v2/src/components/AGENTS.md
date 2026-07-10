@@ -48,6 +48,10 @@ This directory contains React components for the Prefect UI migration from Vue t
 
 `cronstrue.toString()` can successfully describe cron expressions that behave differently on the server, which schedules on `croniter` (e.g., slash-steps starting at a field's max value like `23/6 * * *`, equal low/high ranges, or 6-field crons). Guard any cron string from user input or the API with `divergesFromServerCron()` from `@/components/ui/cron-input` before trusting `cronstrue` output — reject on input forms, but fall back to rendering the raw cron string when displaying an already-saved schedule.
 
+## Automation Trigger `match_related`
+
+Event trigger `match_related` is `ResourceSpecification | ResourceSpecification[]` — each array entry is a separate AND'd condition scoped to a single `prefect.resource.role` (flow, tag, deployment). Never collapse the array to its first element or merge entries; that silently drops filter conditions (e.g. a deployment filter alongside a flow filter). Handle both shapes wherever `match_related` is read or built (schema, form fields, trigger-details rendering, trigger-type detection).
+
 ## Code Style
 
 - NEVER use `document.querySelector` in components
