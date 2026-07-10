@@ -51,9 +51,6 @@ jobs:
           node-version-file: ".nvmrc"
           cache-dependency-path: "**/package-lock.json"
 
-      - name: Install mintlify-scrape
-        run: npm install -g @mintlify/scraping
-
       - name: Run pre-commit
         run: |
           # Create a no-op nvm.sh so the check-ui-v2 hook's `. $NVM_DIR/nvm.sh`
@@ -93,5 +90,4 @@ jobs:
       - name: Run pyright check
         run: >-
           uv run pyright -p .github/pyrightconfig-ci.json --level error
-
 
