@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import posixpath
 import urllib.parse
 from pathlib import Path
 from shutil import copytree
@@ -412,14 +413,14 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         # Confirm that absolute paths are valid
         if scheme:
-            if scheme != base_scheme:
+            if scheme.lower() != base_scheme.lower():
                 raise ValueError(
                     f"Path {path!r} with scheme {scheme!r} must use the same scheme as"
                     f" the base path {base_scheme!r}."
                 )
 
         if netloc:
-            if netloc != base_netloc:
+            if netloc.lower() != base_netloc.lower():
                 raise ValueError(
                     f"Path {path!r} is outside of the base path {self.basepath!r}."
                 )
@@ -427,17 +428,45 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
             # Normalize the base path for containment checks so that sibling prefixes
             # (e.g. base `/foo` vs path `/foobar`) are not treated as contained.
             base_path = base_urlpath.rstrip("/")
-            normalized_path = urlpath.rstrip("/")
+            base_output_path = base_path + "/" if base_path else "/"
 
-            if normalized_path == base_path:
-                return f"{self.basepath.rstrip('/')}/"
+            if not urlpath:
+                urlpath = "/"
 
-            if normalized_path.startswith(base_path + "/"):
-                return path
+            # Decode percent-encoded and backslash separators so traversal checks
+            # see the resolved path shape; the returned URL is built from the raw
+            # urlpath to preserve safe object keys.
+            decoded_path = urllib.parse.unquote(urlpath).replace("\\", "/")
+            if any(segment == ".." for segment in decoded_path.split("/")):
+                raise ValueError(
+                    f"Path {path!r} is outside of the base path {self.basepath!r}."
+                )
+
+            resolved_path = posixpath.normpath(decoded_path)
+
+            if resolved_path == base_path:
+                return urllib.parse.urlunsplit(
+                    (base_scheme, base_netloc, base_output_path, "", "")
+                )
+
+            if (base_path and resolved_path.startswith(base_path + "/")) or (
+                not base_path and resolved_path.startswith("/")
+            ):
+                output_urlpath = posixpath.normpath(urlpath.replace("\\", "/"))
+                return urllib.parse.urlunsplit(
+                    (base_scheme, base_netloc, output_urlpath, "", "")
+                )
 
             raise ValueError(
                 f"Path {path!r} is outside of the base path {self.basepath!r}."
             )
+
+        if scheme:
+            decoded_path = urllib.parse.unquote(urlpath).replace("\\", "/")
+            if any(segment == ".." for segment in decoded_path.split("/")):
+                raise ValueError(
+                    f"Path {path!r} is outside of the base path {self.basepath!r}."
+                )
 
         return f"{self.basepath.rstrip('/')}/{urlpath.lstrip('/')}"
 
