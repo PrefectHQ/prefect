@@ -284,6 +284,26 @@ class TestPathHandling:
 
         assert route.called
 
+    def test_account_and_root_flags_are_mutually_exclusive(
+        self, respx_mock: MockRouter, account_id: UUID, workspace_id: UUID
+    ) -> None:
+        """Test passing both --root and --account on Cloud fails fast."""
+        with temporary_settings(
+            {
+                PREFECT_API_URL: f"https://api.prefect.cloud/api/accounts/{account_id}/workspaces/{workspace_id}",
+                PREFECT_CLOUD_API_URL: "https://api.prefect.cloud/api",
+            }
+        ):
+            result = invoke_and_assert(
+                ["api", "GET", "/me", "--root", "--account"],
+                expected_code=1,
+            )
+
+        assert (
+            "--root and --account cannot be used together. Choose one API scope."
+            in result.output
+        )
+
     def test_query_parameters(self, respx_mock: MockRouter) -> None:
         """Test query parameters in path."""
         route = respx_mock.get(
