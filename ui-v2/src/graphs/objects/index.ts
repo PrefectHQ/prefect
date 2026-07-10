@@ -21,7 +21,11 @@ import {
 } from "@/graphs/objects/flowRunStates";
 import { startFonts, stopFonts } from "@/graphs/objects/fonts";
 import { startGuides, stopGuides } from "@/graphs/objects/guides";
-import { startNodes, stopNodes } from "@/graphs/objects/nodes";
+import {
+	refreshRunData as refreshNodesRunData,
+	startNodes,
+	stopNodes,
+} from "@/graphs/objects/nodes";
 import { startPlayhead, stopPlayhead } from "@/graphs/objects/playhead";
 import { startScale, stopScale } from "@/graphs/objects/scale";
 import { startSelection, stopSelection } from "@/graphs/objects/selection";
@@ -87,4 +91,8 @@ export function stop(): void {
 	} catch (error) {
 		console.error(error);
 	}
+}
+
+export function refreshRunData(): void {
+	refreshNodesRunData();
 }

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { parseISO } from "date-fns";
 import type { components } from "@/api/prefect";
 import { getQueryService } from "@/api/service";

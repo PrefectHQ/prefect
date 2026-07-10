@@ -33,6 +33,21 @@ describe("getFlowRunAttemptRunCounts", () => {
 
 		expect(getFlowRunAttemptRunCounts(data)).toEqual([1, 2]);
 	});
+
+	it("does not treat pending downstream placeholders as run 0", () => {
+		const failedTask = createNode("failed-task", 2, {
+			state_type: "FAILED",
+			children: [{ id: "pending-task" }],
+		});
+		const pendingTask = createNode("pending-task", 0, {
+			state_type: "PENDING",
+			end_time: null,
+			parents: [{ id: "failed-task" }],
+		});
+		const data = createGraphData([failedTask, pendingTask]);
+
+		expect(getFlowRunAttemptRunCounts(data)).toEqual([2]);
+	});
 });
 
 describe("filterRunGraphDataByFlowRunAttempt", () => {
@@ -63,6 +78,64 @@ describe("filterRunGraphDataByFlowRunAttempt", () => {
 
 		expect(filtered.start_time).toEqual(failedTask.start_time);
 		expect(filtered.end_time).toEqual(pendingTask.start_time);
+	});
+
+	it("includes pending downstream placeholders in their connected flow run attempt", () => {
+		const failedTask = createNode("failed-task", 2, {
+			state_type: "FAILED",
+			children: [{ id: "pending-task" }],
+		});
+		const pendingTask = createNode("pending-task", 0, {
+			state_type: "PENDING",
+			end_time: null,
+			parents: [{ id: "failed-task" }],
+		});
+		const data = createGraphData([failedTask, pendingTask]);
+
+		const filtered = filterRunGraphDataByFlowRunAttempt(data, 2);
+
+		expect(Array.from(filtered.nodes.keys())).toEqual([
+			"failed-task",
+			"pending-task",
+		]);
+		expect(filtered.nodes.get("failed-task")?.children).toEqual([
+			{ id: "pending-task" },
+		]);
+		expect(filtered.nodes.get("pending-task")?.parents).toEqual([
+			{ id: "failed-task" },
+		]);
+	});
+
+	it("keeps active flow runs open-ended after filtering to an attempt", () => {
+		const task = createNode("task-1", 1, {
+			state_type: "COMPLETED",
+			start_time: new Date("2024-01-01T00:00:00.000Z"),
+			end_time: new Date("2024-01-01T00:01:00.000Z"),
+		});
+		const data = createGraphData([task], {
+			end_time: null,
+			states: [
+				{
+					id: "state-in-filtered-range",
+					name: "Running",
+					type: "RUNNING",
+					timestamp: new Date("2024-01-01T00:00:30.000Z"),
+				},
+				{
+					id: "state-after-filtered-range",
+					name: "Retrying",
+					type: "RUNNING",
+					timestamp: new Date("2024-01-01T00:02:00.000Z"),
+				},
+			],
+		});
+
+		const filtered = filterRunGraphDataByFlowRunAttempt(data, 1);
+
+		expect(filtered.end_time).toBeNull();
+		expect(filtered.states?.map((state) => state.id)).toEqual([
+			"state-in-filtered-range",
+		]);
 	});
 
 	it("filters nodes, edges, roots, states, and time range to the selected attempt", () => {

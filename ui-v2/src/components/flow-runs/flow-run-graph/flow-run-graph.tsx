@@ -28,6 +28,7 @@ import {
 	type RunGraphConfig,
 	type RunGraphNode,
 	type RunGraphStateEvent,
+	refreshRunData,
 	selectItem,
 	setConfig,
 	start,
@@ -90,6 +91,9 @@ export function FlowRunGraph({
 	const [selectedAttemptRunCount, setSelectedAttemptRunCount] = useState<
 		number | typeof ALL_ATTEMPTS | null
 	>(null);
+	const selectedAttemptRunCountRef = useRef<
+		number | typeof ALL_ATTEMPTS | null
+	>(null);
 	const { resolvedTheme } = useTheme();
 
 	const fullscreen = controlledFullscreen ?? internalFullscreen;
@@ -131,34 +135,34 @@ export function FlowRunGraph({
 		[onFullscreenChange],
 	);
 
-	const fetchGraph = useCallback(
-		async (id: string) => {
-			const data = await fetchFlowRunGraph(id);
-			const runCounts = getFlowRunAttemptRunCounts(data);
-			const fallbackAttempt =
-				runCounts.length > 1 ? runCounts[runCounts.length - 1] : ALL_ATTEMPTS;
-			const shouldUseFallback =
-				selectedAttemptRunCount === null ||
-				(selectedAttemptRunCount !== ALL_ATTEMPTS &&
-					!runCounts.includes(selectedAttemptRunCount));
-			const nextSelectedAttempt = shouldUseFallback
-				? fallbackAttempt
-				: selectedAttemptRunCount;
+	const fetchGraph = useCallback(async (id: string) => {
+		const data = await fetchFlowRunGraph(id);
+		const runCounts = getFlowRunAttemptRunCounts(data);
+		const selectedAttemptRunCount = selectedAttemptRunCountRef.current;
+		const fallbackAttempt =
+			runCounts.length > 1 ? runCounts[runCounts.length - 1] : ALL_ATTEMPTS;
+		const shouldUseFallback =
+			selectedAttemptRunCount === null ||
+			(selectedAttemptRunCount !== ALL_ATTEMPTS &&
+				!runCounts.includes(selectedAttemptRunCount));
+		const nextSelectedAttempt = shouldUseFallback
+			? fallbackAttempt
+			: selectedAttemptRunCount;
 
-			setAttemptRunCounts(runCounts);
-			if (
-				runCounts.length > 1 &&
-				nextSelectedAttempt !== selectedAttemptRunCount
-			) {
-				setSelectedAttemptRunCount(nextSelectedAttempt);
-			} else if (runCounts.length <= 1 && selectedAttemptRunCount !== null) {
-				setSelectedAttemptRunCount(null);
-			}
+		setAttemptRunCounts(runCounts);
+		if (
+			runCounts.length > 1 &&
+			nextSelectedAttempt !== selectedAttemptRunCount
+		) {
+			selectedAttemptRunCountRef.current = nextSelectedAttempt;
+			setSelectedAttemptRunCount(nextSelectedAttempt);
+		} else if (runCounts.length <= 1 && selectedAttemptRunCount !== null) {
+			selectedAttemptRunCountRef.current = null;
+			setSelectedAttemptRunCount(null);
+		}
 
-			return filterRunGraphDataByFlowRunAttempt(data, nextSelectedAttempt);
-		},
-		[selectedAttemptRunCount],
-	);
+		return filterRunGraphDataByFlowRunAttempt(data, nextSelectedAttempt);
+	}, []);
 
 	const config = useMemo<RunGraphConfig>(
 		() => ({
@@ -242,11 +246,14 @@ export function FlowRunGraph({
 					<Select
 						value={selectedAttemptRunCount.toString()}
 						onValueChange={(value) => {
-							setSelectedAttemptRunCount(
-								value === ALL_ATTEMPTS ? ALL_ATTEMPTS : Number(value),
-							);
+							const nextSelectedAttempt =
+								value === ALL_ATTEMPTS ? ALL_ATTEMPTS : Number(value);
+
+							selectedAttemptRunCountRef.current = nextSelectedAttempt;
+							setSelectedAttemptRunCount(nextSelectedAttempt);
 							setInternalSelected(undefined);
 							onSelectedChange?.(undefined);
+							refreshRunData();
 						}}
 					>
 						<SelectTrigger aria-label="Flow run attempt" className="bg-card">

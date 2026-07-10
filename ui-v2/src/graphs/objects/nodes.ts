@@ -8,6 +8,7 @@ import { waitForSettings } from "@/graphs/objects/settings";
 import { centerViewport, waitForViewport } from "@/graphs/objects/viewport";
 
 let stopData: (() => void) | null = null;
+let refreshData: (() => void) | null = null;
 let runGraphData: RunGraphData | null = null;
 let nodesContainer: Container | null = null;
 
@@ -44,6 +45,7 @@ export async function startNodes(): Promise<void> {
 
 	nodesContainer = element;
 	stopData = response.stop;
+	refreshData = response.refresh;
 
 	nodesContainer.once("rendered", () => centerAfterFirstRender());
 
@@ -55,8 +57,13 @@ export async function startNodes(): Promise<void> {
 export function stopNodes(): void {
 	stopData?.();
 	stopData = null;
+	refreshData = null;
 	nodesContainer = null;
 	runGraphData = null;
+}
+
+export function refreshRunData(): void {
+	refreshData?.();
 }
 
 export async function waitForRunData(): Promise<RunGraphData> {

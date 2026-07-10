@@ -30,9 +30,15 @@ export async function dataFactory(runId: string, callback: DataCallback) {
 		clearTimeout(interval);
 	}
 
+	function refresh(): void {
+		stop();
+		void start();
+	}
+
 	return {
 		start,
 		stop,
+		refresh,
 	};
 }
 
