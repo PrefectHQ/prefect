@@ -167,7 +167,7 @@ const TaskRunStartTime = ({ taskRun }: TaskRunStartTimeProps) => {
 			text = formatDate(start_time, "dateTimeNumeric");
 			tooltipText = new Date(start_time).toString();
 		} else if (expected_start_time) {
-			text = `Scheduled for ${formatDate(expected_start_time, "dateTimeNumeric")}`;
+			text = formatDate(expected_start_time, "dateTimeNumeric");
 			tooltipText = new Date(expected_start_time).toString();
 		}
 		return { text, tooltipText };

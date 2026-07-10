@@ -2,6 +2,107 @@
 title: 3.7
 ---
 
+## 3.7.8 - The flush must go on
+
+*Released on July 09, 2026*
+
+**Enhancements ➕➕**
+
+* Format server-side validation errors for concurrency slot acquisition by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22470](https://github.com/PrefectHQ/prefect/pull/22470)
+
+**Bug Fixes 🐞**
+
+* Keep `TaskRunRecorder` periodic flush alive when events are dropped by [@zzstoatzz](https://github.com/zzstoatzz) in [#22441](https://github.com/PrefectHQ/prefect/pull/22441)
+* Fix Windows permission error on `git pull` in runner storage by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22447](https://github.com/PrefectHQ/prefect/pull/22447)
+* Fix `RRULE` schedule anchor computed in UTC but interpreted as local time by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22456](https://github.com/PrefectHQ/prefect/pull/22456)
+* Reconnect events client from time-based checkpoint when connection is lost by [@ZaeemRiaz](https://github.com/ZaeemRiaz) in [#22451](https://github.com/PrefectHQ/prefect/pull/22451)
+* Reject `prefect api` requests passing both `--root` and `--account` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22462](https://github.com/PrefectHQ/prefect/pull/22462)
+* Differentiate HTTP 401 and 403 worker-channel upgrade failures by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22469](https://github.com/PrefectHQ/prefect/pull/22469)
+
+**Development & Tidiness 🧹**
+
+* Loop until suspended in external-suspension integration test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22466](https://github.com/PrefectHQ/prefect/pull/22466)
+* Add tests for untested functions in `utilities.math` by [@eeshsaxena](https://github.com/eeshsaxena) in [#22438](https://github.com/PrefectHQ/prefect/pull/22438)
+
+**Documentation 📓**
+
+* Replace legacy `PREFECT_API_DATABASE_*` examples with `PREFECT_SERVER_DATABASE_*` names by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22471](https://github.com/PrefectHQ/prefect/pull/22471)
+* Clarify AI contribution expectations by [@desertaxle](https://github.com/desertaxle) in [#22023](https://github.com/PrefectHQ/prefect/pull/22023)
+* Clarify pull steps run before `module-path` entrypoint imports by [@github-actions](https://github.com/github-actions)[bot] in [#22402](https://github.com/PrefectHQ/prefect/pull/22402)
+* Fix parameter name mismatches in docstrings by [@eeshsaxena](https://github.com/eeshsaxena) in [#22435](https://github.com/PrefectHQ/prefect/pull/22435)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.7.7...3.7.8
+
+
+---
+
+## 3.7.7 - Don't put that work pool configuration in your mouth. It's stale.
+
+*Released on July 02, 2026*
+
+**Enhancements ➕➕**
+
+* Accept a single step mapping in `prefect.yaml` action sections by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22403](https://github.com/PrefectHQ/prefect/pull/22403)
+
+**Bug Fixes 🐞**
+
+* Fix `set_working_directory` relative path resolution in workspace resolver by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22392](https://github.com/PrefectHQ/prefect/pull/22392)
+* Run pull steps for module-path entrypoints when loading flow from flow run by [@Abdulrehman-PIAIC80387](https://github.com/Abdulrehman-PIAIC80387) in [#22376](https://github.com/PrefectHQ/prefect/pull/22376)
+* Fix UI version redirect leaking internal host behind reverse proxy by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22406](https://github.com/PrefectHQ/prefect/pull/22406)
+* Reconcile stale work-pool snapshots on worker heartbeat by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22429](https://github.com/PrefectHQ/prefect/pull/22429)
+* Send workspace resolver pull step logs to the API by [@jakekaplan](https://github.com/jakekaplan) in [#22432](https://github.com/PrefectHQ/prefect/pull/22432)
+
+**Documentation 📓**
+
+* Fix typo in documentation about task result handling by [@alastairtree](https://github.com/alastairtree) in [#22389](https://github.com/PrefectHQ/prefect/pull/22389)
+* Align Docker deployment examples with current step contract by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22400](https://github.com/PrefectHQ/prefect/pull/22400)
+* Add contextual menu to `docs.json` for copy and view markdown by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22401](https://github.com/PrefectHQ/prefect/pull/22401)
+* Fix Airflow migration typo by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22416](https://github.com/PrefectHQ/prefect/pull/22416)
+* Clarify rate limit documentation based on community feedback by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22413](https://github.com/PrefectHQ/prefect/pull/22413)
+* Update security issue reporting instructions by [@desertaxle](https://github.com/desertaxle) in [#22356](https://github.com/PrefectHQ/prefect/pull/22356)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.7.6...3.7.7
+
+
+---
+
+## 3.7.6 - You can only be `Late` once
+
+*Released on June 25, 2026*
+
+**Bug Fixes 🐞**
+
+* Return `PrefectFutureList` from `Task.map` when `deferred=True` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22355](https://github.com/PrefectHQ/prefect/pull/22355)
+* Fix race condition in UI static directory creation with multiple workers by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22363](https://github.com/PrefectHQ/prefect/pull/22363)
+* Raise clear error when `FlowRun`/`TaskRun` passed as task argument by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22352](https://github.com/PrefectHQ/prefect/pull/22352)
+* Prevent duplicate `Late` state transitions in `MarkLateRuns` by [@Abdulrehman-PIAIC80387](https://github.com/Abdulrehman-PIAIC80387) in [#22316](https://github.com/PrefectHQ/prefect/pull/22316)
+* Quote `-q` and `-p` args separately in work-queue create output by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22350](https://github.com/PrefectHQ/prefect/pull/22350)
+
+**Development & Tidiness 🧹**
+
+* Widen timing tolerance in lease TTL test to prevent CI flakiness by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22328](https://github.com/PrefectHQ/prefect/pull/22328)
+* Fix flaky `test_dispatches_cleanup_message_and_sends_ack_result` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22347](https://github.com/PrefectHQ/prefect/pull/22347)
+
+**Documentation 📓**
+
+* Add deployment naming recommendations to concepts page by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22335](https://github.com/PrefectHQ/prefect/pull/22335)
+* Use canonical `PREFECT_SERVER_SERVICES_SCHEDULER_*` env vars in schedules page by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22337](https://github.com/PrefectHQ/prefect/pull/22337)
+* Bump `mdxify` to `>=0.2.42`, drop empty API-ref stubs by [@zzstoatzz](https://github.com/zzstoatzz) in [#22339](https://github.com/PrefectHQ/prefect/pull/22339)
+* Append `/api` to self-hosted `PREFECT_API_URL` in systemd guide by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22342](https://github.com/PrefectHQ/prefect/pull/22342)
+* Use canonical `PREFECT_SERVER_DATABASE_*` env vars in Windows guide by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22343](https://github.com/PrefectHQ/prefect/pull/22343)
+* Regenerate API refs with `mdxify` `>=0.2.45` (drop empty stubs) by [@zzstoatzz](https://github.com/zzstoatzz) in [#22344](https://github.com/PrefectHQ/prefect/pull/22344)
+* Add redirects for removed SDK stubs by [@zzstoatzz](https://github.com/zzstoatzz) in [#22349](https://github.com/PrefectHQ/prefect/pull/22349)
+* Use canonical `PREFECT_WORKER_*` defaults in healthchecks guide by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22351](https://github.com/PrefectHQ/prefect/pull/22351)
+* Document `CANCELLING` timeout that auto-transitions stuck flow runs to `CANCELLED` by [@github-actions](https://github.com/github-actions)[bot] in [#22305](https://github.com/PrefectHQ/prefect/pull/22305)
+* Note that Redis Cluster URLs are not yet supported in self-hosted setup by [@github-actions](https://github.com/github-actions)[bot] in [#22370](https://github.com/PrefectHQ/prefect/pull/22370)
+* Use `schedules` consistently in `prefect.yaml` guide and add deletion note by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22364](https://github.com/PrefectHQ/prefect/pull/22364)
+* Add dependent parameter form example by [@zzstoatzz](https://github.com/zzstoatzz) in [#22383](https://github.com/PrefectHQ/prefect/pull/22383)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.7.5...3.7.6
+
+
+---
+
 ## 3.7.5 - No run left `CANCELLING`
 
 *Released on June 18, 2026*

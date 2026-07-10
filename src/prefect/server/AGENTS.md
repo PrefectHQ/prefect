@@ -67,7 +67,7 @@ alembic_revision("description")      # Create a new migration
 
 ## UI Serving Architecture
 
-Both V1 and V2 UI bundles are served simultaneously when available: V1 at `PREFECT_UI_SERVE_BASE` (default `/`), V2 at `{base_url}/v2`. The `redirect_to_preferred_ui` middleware routes neutral entry points using the `prefect_ui_version` cookie. `PREFECT_SERVER_UI_V2_ENABLED` sets the *default* for browsers with no saved preference — it does not remove V1 or force all users to V2. Both bundles must be built before packaging (`PREFECT_REQUIRE_PACKAGED_UI_BUNDLES=1` enforces this via `hatch_build.py`).
+Both V1 and V2 UI bundles are served simultaneously when available: V1 at `PREFECT_UI_SERVE_BASE` (default `/`), V2 at `{base_url}/v2`. The `redirect_to_preferred_ui` middleware routes neutral entry points using the `prefect_ui_version` cookie. `PREFECT_SERVER_UI_V2_ENABLED` sets the *default* for browsers with no saved preference — it does not remove V1 or force all users to V2. Both bundles must be built before packaging (`PREFECT_REQUIRE_PACKAGED_UI_BUNDLES=1` enforces this via `hatch_build.py`). **The version-redirect `Location` header must be a relative path** — using `request.url.replace(...)` builds an absolute URL that embeds the internal Host behind a reverse proxy and leaks it to the client.
 
 ## Main Subsystems
 

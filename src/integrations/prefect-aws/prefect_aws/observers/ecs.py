@@ -894,23 +894,51 @@ async def mark_runs_as_crashed(event: dict[str, Any], tags: dict[str, str]):
                 )
 
         crash_proposal_rejected = False
-        if any(containers_with_non_zero_exit_codes):
-            container_identifiers = [
-                c.get("name") or c.get("containerArn")
-                for c in containers_with_non_zero_exit_codes
-            ]
-            handler_logger.info(
-                "The following containers stopped with a non-zero exit code: %s. Marking flow run %s as crashed",
-                container_identifiers,
-                flow_run_id,
-            )
+        # Propose Crashed when containers exited non-zero, OR when ECS
+        # stopped the task before any container could start (e.g.,
+        # TaskFailedToStart with an empty containers array).
+        task_failed_to_start = (
+            not containers
+            and event.get("detail", {}).get("stopCode") == "TaskFailedToStart"
+        )
+        should_crash = (
+            bool(any(containers_with_non_zero_exit_codes)) or task_failed_to_start
+        )
+
+        if should_crash:
+            if task_failed_to_start:
+                stop_reason = event.get("detail", {}).get(
+                    "stoppedReason", "unknown reason"
+                )
+                crash_message = (
+                    f"ECS task failed to start: {stop_reason}. "
+                    f"The capacity provider could not place the task."
+                )
+                handler_logger.info(
+                    "Task %s failed to start (%s). Marking flow run %s as crashed",
+                    task_arn,
+                    stop_reason,
+                    flow_run_id,
+                )
+            else:
+                container_identifiers = [
+                    c.get("name") or c.get("containerArn")
+                    for c in containers_with_non_zero_exit_codes
+                ]
+                crash_message = (
+                    f"The following containers stopped with a non-zero "
+                    f"exit code: {container_identifiers}"
+                )
+                handler_logger.info(
+                    "The following containers stopped with a non-zero exit code: %s. Marking flow run %s as crashed",
+                    container_identifiers,
+                    flow_run_id,
+                )
 
             try:
                 await propose_state(
                     client=orchestration_client,
-                    state=Crashed(
-                        message=f"The following containers stopped with a non-zero exit code: {container_identifiers}"
-                    ),
+                    state=Crashed(message=crash_message),
                     flow_run_id=uuid.UUID(flow_run_id),
                 )
             except Abort:

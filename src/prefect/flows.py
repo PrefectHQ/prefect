@@ -3212,19 +3212,11 @@ async def load_flow_from_flow_run(
         "PREFECT__STORAGE_BASE_PATH"
     )
 
-    # If there's no colon, assume it's a module path
-    if ":" not in deployment.entrypoint:
-        run_logger.debug(
-            f"Importing flow code from module path {deployment.entrypoint}"
-        )
-        flow = await run_sync_in_worker_thread(
-            load_flow_from_entrypoint,
-            deployment.entrypoint,
-            use_placeholder_flow=use_placeholder_flow,
-        )
-        return flow
+    # Module-path entrypoints (no colon) rely on pull steps to place the code on
+    # sys.path, so the import must run *after* pull steps — not before.
+    is_module_path = ":" not in deployment.entrypoint
 
-    if not ignore_storage and not deployment.pull_steps:
+    if not is_module_path and not ignore_storage and not deployment.pull_steps:
         sys.path.insert(0, ".")
         if deployment.storage_document_id:
             storage_document = await client.read_block_document(
@@ -3249,7 +3241,7 @@ async def load_flow_from_flow_run(
         run_logger.info(f"Downloading flow code from storage at {from_path!r}")
         await storage_block.get_directory(from_path=from_path, local_path=".")
 
-    if deployment.pull_steps:
+    if not ignore_storage and deployment.pull_steps:
         run_logger.info(f"Running {len(deployment.pull_steps)} deployment pull step(s)")
 
         from prefect.deployments.steps.core import StepExecutionError, run_steps
@@ -3270,6 +3262,17 @@ async def load_flow_from_flow_run(
         if output.get("directory"):
             run_logger.debug(f"Changing working directory to {output['directory']!r}")
             os.chdir(output["directory"])
+
+    if is_module_path:
+        run_logger.debug(
+            f"Importing flow code from module path {deployment.entrypoint}"
+        )
+        flow = await run_sync_in_worker_thread(
+            load_flow_from_entrypoint,
+            deployment.entrypoint,
+            use_placeholder_flow=use_placeholder_flow,
+        )
+        return flow
 
     import_path = relative_path_to_current_platform(deployment.entrypoint)
     run_logger.debug(f"Importing flow code from '{import_path}'")

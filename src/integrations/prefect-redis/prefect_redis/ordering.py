@@ -26,7 +26,7 @@ from prefect.server.events.ordering import (
 )
 from prefect.server.events.ordering.memory import EventBeingProcessed
 from prefect.server.events.schemas.events import Event, ReceivedEvent
-from prefect_redis.client import get_async_redis_client
+from prefect_redis.client import cluster_key_prefix, get_async_redis_client
 
 logger = get_logger(__name__)
 
@@ -83,12 +83,17 @@ return followers
 class CausalOrdering(_CausalOrdering):
     def __init__(self, scope: str):
         self.redis = get_async_redis_client()
+        self._cluster_key_prefix = cluster_key_prefix(
+            scope or "prefect:events:ordering"
+        )
         super().__init__(scope=scope)
 
     def _key(self, key: str) -> str:
         if not self.scope:
+            if self._cluster_key_prefix.startswith("{"):
+                return f"{self._cluster_key_prefix}:{key}"
             return key
-        return f"{self.scope}:{key}"
+        return f"{self._cluster_key_prefix}:{key}"
 
     async def record_event_as_processing(self, event: ReceivedEvent) -> bool:
         """
@@ -122,11 +127,9 @@ class CausalOrdering(_CausalOrdering):
         assert event.follows
 
         async with self.redis.pipeline() as p:
-            await p.set(self._key(f"event:{event.id}"), event.model_dump_json())
-            await p.sadd(self._key(f"followers:{event.follows}"), str(event.id))
-            await p.zadd(
-                self._key("waitlist"), {str(event.id): event.received.timestamp()}
-            )
+            p.set(self._key(f"event:{event.id}"), event.model_dump_json())
+            p.sadd(self._key(f"followers:{event.follows}"), str(event.id))
+            p.zadd(self._key("waitlist"), {str(event.id): event.received.timestamp()})
             await p.execute()
 
     async def forget_follower(self, follower: ReceivedEvent):
@@ -134,30 +137,30 @@ class CausalOrdering(_CausalOrdering):
         assert follower.follows
 
         async with self.redis.pipeline() as p:
-            await p.zrem(self._key("waitlist"), str(follower.id))
-            await p.srem(self._key(f"followers:{follower.follows}"), str(follower.id))
-            await p.delete(self._key(f"event:{follower.id}"))
+            p.zrem(self._key("waitlist"), str(follower.id))
+            p.srem(self._key(f"followers:{follower.follows}"), str(follower.id))
+            p.delete(self._key(f"event:{follower.id}"))
             await p.execute()
 
     async def get_lost_followers(self) -> list[ReceivedEvent]:
         """Returns events that were waiting on a leader event that never arrived"""
         async with self.redis.pipeline() as p:
-            temporary_set = str(uuid4())
+            temporary_set = self._key(f"lost-followers:{uuid4()}")
             earlier = (
                 datetime.now(timezone.utc) - PRECEDING_EVENT_LOOKBACK
             ).timestamp()
 
             # Move all of the events that are older than the lookback period into a
             # temporary set...
-            await p.zrangestore(
+            p.zrangestore(
                 temporary_set, self._key("waitlist"), 0, earlier, byscore=True
             )
             # Then remove them from the waitlist set...
-            await p.zremrangebyscore(self._key("waitlist"), 0, earlier)
+            p.zremrangebyscore(self._key("waitlist"), 0, earlier)
             # Then return them...
-            await p.zrange(temporary_set, 0, -1)
+            p.zrange(temporary_set, 0, -1)
             # And finally, remove the temporary set
-            await p.delete(temporary_set)
+            p.delete(temporary_set)
 
             _, _, follower_ids, _ = await p.execute()
 
@@ -169,7 +172,7 @@ class CausalOrdering(_CausalOrdering):
         """Returns the events with the given IDs, in the order they occurred"""
         async with self.redis.pipeline() as p:
             for follower_id in follower_ids:
-                await p.get(self._key(f"event:{follower_id}"))
+                p.get(self._key(f"event:{follower_id}"))
             follower_jsons: list[str] = await p.execute()
 
         return sorted(

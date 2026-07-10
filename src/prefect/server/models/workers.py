@@ -325,7 +325,7 @@ async def update_work_pool(
     Args:
         session (AsyncSession): A database session
         work_pool_id (UUID): a WorkPool id
-        worker: the work queue data
+        work_pool: the work pool data
         emit_status_change: function to call when work pool
             status is changed
         emit_update_event: whether to emit an event for updated non-status fields

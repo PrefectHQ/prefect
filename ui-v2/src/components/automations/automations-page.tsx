@@ -99,7 +99,7 @@ const NavHeader = ({ automation }: NavHeaderProps) => {
 					<BreadcrumbLink
 						to="/automations/automation/$id"
 						params={{ id: automation.id }}
-						className="text-lg truncate block"
+						className="text-lg text-foreground truncate block"
 						title={automation.name}
 					>
 						{automation.name}

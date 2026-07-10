@@ -4,6 +4,7 @@ import {
 	EditorView,
 	useCodeMirror,
 } from "@uiw/react-codemirror";
+import { useTheme } from "next-themes";
 import React, { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { cn } from "@/utils";
@@ -40,6 +41,7 @@ export const MarkdownInput = React.forwardRef<
 		forwardedRef,
 	) => {
 		const editor = useRef<HTMLDivElement | null>(null);
+		const { resolvedTheme } = useTheme();
 		// Setting `basicSetup` messes up the tab order. We only change the basic setup
 		// if the input is disabled, so we leave it undefined to maintain the tab order.
 		let basicSetup: BasicSetupOptions | undefined;
@@ -60,6 +62,7 @@ export const MarkdownInput = React.forwardRef<
 			indentWithTab: false,
 			editable: !disabled,
 			basicSetup,
+			theme: resolvedTheme === "dark" ? "dark" : "light",
 		});
 
 		useEffect(() => {
