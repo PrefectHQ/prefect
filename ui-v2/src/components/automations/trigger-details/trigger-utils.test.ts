@@ -446,6 +446,134 @@ describe("trigger-utils", () => {
 				expect(isFlowRunStateTrigger(trigger)).toBe(true);
 			});
 
+			it("should return true with deployment matchRelated", () => {
+				const trigger = createFlowRunStateTrigger({
+					match_related: {
+						"prefect.resource.role": "deployment",
+						"prefect.resource.id": "prefect.deployment.123",
+					},
+				});
+				expect(isFlowRunStateTrigger(trigger)).toBe(true);
+			});
+
+			it("should return true with mixed flow and deployment matchRelated", () => {
+				const trigger = createFlowRunStateTrigger({
+					match_related: [
+						{
+							"prefect.resource.role": "flow",
+							"prefect.resource.id": "prefect.flow.123",
+						},
+						{
+							"prefect.resource.role": "deployment",
+							"prefect.resource.id": "prefect.deployment.456",
+						},
+					],
+				});
+				expect(isFlowRunStateTrigger(trigger)).toBe(true);
+			});
+
+			it("should return true with mixed tag and deployment matchRelated", () => {
+				const trigger = createFlowRunStateTrigger({
+					match_related: [
+						{
+							"prefect.resource.role": "tag",
+							"prefect.resource.id": "prefect.tag.production",
+						},
+						{
+							"prefect.resource.role": "deployment",
+							"prefect.resource.id": "prefect.deployment.456",
+						},
+					],
+				});
+				expect(isFlowRunStateTrigger(trigger)).toBe(true);
+			});
+
+			it("should return false with separate conditions for the same resource type", () => {
+				const trigger = createFlowRunStateTrigger({
+					match_related: [
+						{
+							"prefect.resource.role": "flow",
+							"prefect.resource.id": "prefect.flow.123",
+						},
+						{
+							"prefect.resource.role": "flow",
+							"prefect.resource.id": "prefect.flow.456",
+						},
+					],
+				});
+				expect(isFlowRunStateTrigger(trigger)).toBe(false);
+			});
+
+			it("should return false when one condition mixes resource types", () => {
+				const trigger = createFlowRunStateTrigger({
+					match_related: {
+						"prefect.resource.role": "flow",
+						"prefect.resource.id": [
+							"prefect.flow.123",
+							"prefect.deployment.456",
+						],
+					},
+				});
+				expect(isFlowRunStateTrigger(trigger)).toBe(false);
+			});
+
+			it("should return false when a condition role does not match its resource ids", () => {
+				const trigger = createFlowRunStateTrigger({
+					match_related: {
+						"prefect.resource.role": "flow",
+						"prefect.resource.id": "prefect.deployment.456",
+					},
+				});
+				expect(isFlowRunStateTrigger(trigger)).toBe(false);
+			});
+
+			it("should return false when a condition contains unsupported labels", () => {
+				const trigger = createFlowRunStateTrigger({
+					match_related: {
+						"prefect.resource.role": "flow",
+						"prefect.resource.id": "prefect.flow.123",
+						"prefect.resource.name": "my-flow",
+					},
+				});
+				expect(isFlowRunStateTrigger(trigger)).toBe(false);
+			});
+
+			it("should return false with mixed flow and tag matchRelated", () => {
+				const trigger = createFlowRunStateTrigger({
+					match_related: [
+						{
+							"prefect.resource.role": "flow",
+							"prefect.resource.id": "prefect.flow.123",
+						},
+						{
+							"prefect.resource.role": "tag",
+							"prefect.resource.id": "prefect.tag.production",
+						},
+					],
+				});
+				expect(isFlowRunStateTrigger(trigger)).toBe(false);
+			});
+
+			it("should return false with mixed flow, tag, and deployment matchRelated", () => {
+				const trigger = createFlowRunStateTrigger({
+					match_related: [
+						{
+							"prefect.resource.role": "flow",
+							"prefect.resource.id": "prefect.flow.123",
+						},
+						{
+							"prefect.resource.role": "tag",
+							"prefect.resource.id": "prefect.tag.production",
+						},
+						{
+							"prefect.resource.role": "deployment",
+							"prefect.resource.id": "prefect.deployment.456",
+						},
+					],
+				});
+				expect(isFlowRunStateTrigger(trigger)).toBe(false);
+			});
+
 			it("should return false when match does not start with prefect.flow-run", () => {
 				const trigger = createFlowRunStateTrigger({
 					match: { "prefect.resource.id": "prefect.deployment.*" },
