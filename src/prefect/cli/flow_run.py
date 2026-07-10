@@ -9,7 +9,6 @@ from __future__ import annotations
 import logging
 import os
 import signal
-import sys
 import tempfile
 import threading
 import webbrowser
@@ -288,22 +287,11 @@ async def delete(
         list[UUID],
         cyclopts.Parameter(help="One or more flow run IDs."),
     ],
-    *,
-    stdin: Annotated[
-        bool,
-        cyclopts.Parameter("--stdin", help="Read flow run IDs from stdin."),
-    ] = False,
 ):
     """Delete a flow run by ID."""
     from prefect.cli._prompts import confirm
 
     flow_run_ids = list(ids)
-
-    if stdin:
-        for line in sys.stdin:
-            line = line.strip()
-            if line:
-                flow_run_ids.append(UUID(line))
 
     if not flow_run_ids:
         exit_with_error("No flow run IDs provided.")
@@ -334,20 +322,9 @@ async def cancel(
         list[UUID],
         cyclopts.Parameter(help="One or more flow run IDs."),
     ],
-    *,
-    stdin: Annotated[
-        bool,
-        cyclopts.Parameter("--stdin", help="Read flow run IDs from stdin."),
-    ] = False,
 ):
     """Cancel a flow run by ID."""
     flow_run_ids = list(ids)
-
-    if sys.stdin:
-        for line in sys.stdin:
-            line = line.strip()
-            if line:
-                flow_run_ids.append(UUID(line))
 
     if not flow_run_ids:
         exit_with_error("No flow run IDs provided.")
