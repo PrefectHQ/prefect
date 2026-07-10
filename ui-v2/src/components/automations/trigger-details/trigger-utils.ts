@@ -212,30 +212,56 @@ export function isDeploymentStatusTrigger(trigger: unknown): boolean {
 }
 
 // Helper functions for flow-run-state template validation
-function getTriggerMatchRelatedValue(
-	trigger: EventTrigger,
-	key: string,
-): string[] {
-	const matchRelated = trigger.match_related;
-	if (!matchRelated) {
-		return [];
+type FlowRunStateRelatedResource = "flow" | "tag" | "deployment";
+
+const FLOW_RUN_STATE_RELATED_RESOURCE_PREFIXES: Record<
+	FlowRunStateRelatedResource,
+	string
+> = {
+	flow: "prefect.flow.",
+	tag: "prefect.tag.",
+	deployment: "prefect.deployment.",
+};
+const FLOW_RUN_STATE_MATCH_RELATED_KEYS = new Set([
+	"prefect.resource.id",
+	"prefect.resource.role",
+]);
+
+function getFlowRunStateRelatedResource(
+	matchRelated: unknown,
+): FlowRunStateRelatedResource | null {
+	if (!isRecord(matchRelated)) {
+		return null;
 	}
 
-	// match_related can be a single object or an array of objects
-	const matchRelatedArray = Array.isArray(matchRelated)
-		? matchRelated
-		: [matchRelated];
-
-	const values: string[] = [];
-	for (const match of matchRelatedArray) {
-		if (match && typeof match === "object") {
-			const value = (match as Record<string, unknown>)[key];
-			if (value) {
-				values.push(...asArray(value as string | string[]));
-			}
-		}
+	if (
+		Object.keys(matchRelated).some(
+			(key) => !FLOW_RUN_STATE_MATCH_RELATED_KEYS.has(key),
+		)
+	) {
+		return null;
 	}
-	return values;
+
+	const role = matchRelated["prefect.resource.role"];
+	if (role !== "flow" && role !== "tag" && role !== "deployment") {
+		return null;
+	}
+
+	const resourceIdValue = matchRelated["prefect.resource.id"];
+	const resourceIds =
+		typeof resourceIdValue === "string"
+			? [resourceIdValue]
+			: Array.isArray(resourceIdValue) &&
+					resourceIdValue.every((value) => typeof value === "string")
+				? resourceIdValue
+				: [];
+
+	return resourceIds.length > 0 &&
+		resourceIds.every((resourceId) =>
+			resourceId.startsWith(FLOW_RUN_STATE_RELATED_RESOURCE_PREFIXES[role]),
+		)
+		? role
+		: null;
 }
 
 function isEmptyMatchRelated(trigger: EventTrigger): boolean {
@@ -250,33 +276,26 @@ function isEmptyMatchRelated(trigger: EventTrigger): boolean {
 }
 
 function isFlowRunStateTriggerMatchRelated(trigger: EventTrigger): boolean {
-	const prefectResourceIds = getTriggerMatchRelatedValue(
-		trigger,
-		"prefect.resource.id",
-	);
-
 	if (isEmptyMatchRelated(trigger)) {
 		return true;
 	}
 
-	if (prefectResourceIds.length === 0) {
-		return false;
+	const matchRelated = Array.isArray(trigger.match_related)
+		? trigger.match_related
+		: [trigger.match_related];
+	const relatedResources: FlowRunStateRelatedResource[] = [];
+
+	for (const match of matchRelated) {
+		const relatedResource = getFlowRunStateRelatedResource(match);
+		if (!relatedResource || relatedResources.includes(relatedResource)) {
+			return false;
+		}
+		relatedResources.push(relatedResource);
 	}
 
-	const hasFlow = prefectResourceIds.some((value) =>
-		value.startsWith("prefect.flow."),
+	return !(
+		relatedResources.includes("flow") && relatedResources.includes("tag")
 	);
-	const hasTag = prefectResourceIds.some((value) =>
-		value.startsWith("prefect.tag."),
-	);
-	const hasOnlySupportedResources = prefectResourceIds.every(
-		(value) =>
-			value.startsWith("prefect.flow.") ||
-			value.startsWith("prefect.tag.") ||
-			value.startsWith("prefect.deployment."),
-	);
-
-	return hasOnlySupportedResources && !(hasFlow && hasTag);
 }
 
 /**
@@ -287,7 +306,8 @@ function isFlowRunStateTriggerMatchRelated(trigger: EventTrigger): boolean {
  * - for_each contains 'prefect.resource.id'
  * - after events start with 'prefect.flow-run'
  * - expect events start with 'prefect.flow-run'
- * - matchRelated is empty OR contains flow/tag/deployment patterns
+ * - matchRelated can be represented by the flow/tag/deployment form without
+ *   changing the meaning of separate related-resource conditions
  * - threshold === 1
  */
 export function isFlowRunStateTrigger(trigger: unknown): boolean {
