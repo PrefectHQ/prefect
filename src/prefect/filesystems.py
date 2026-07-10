@@ -419,10 +419,25 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
                 )
 
         if netloc:
-            if (netloc != base_netloc) or not urlpath.startswith(base_urlpath):
+            if netloc != base_netloc:
                 raise ValueError(
                     f"Path {path!r} is outside of the base path {self.basepath!r}."
                 )
+
+            # Normalize the base path for containment checks so that sibling prefixes
+            # (e.g. base `/foo` vs path `/foobar`) are not treated as contained.
+            base_path = base_urlpath.rstrip("/")
+            normalized_path = urlpath.rstrip("/")
+
+            if normalized_path == base_path:
+                return f"{self.basepath.rstrip('/')}/"
+
+            if normalized_path.startswith(base_path + "/"):
+                return path
+
+            raise ValueError(
+                f"Path {path!r} is outside of the base path {self.basepath!r}."
+            )
 
         return f"{self.basepath.rstrip('/')}/{urlpath.lstrip('/')}"
 

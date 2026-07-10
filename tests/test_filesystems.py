@@ -424,6 +424,23 @@ class TestRemoteFileSystem:
         assert fs._resolve_path(f"{base}/subdir") == f"{base}/subdir"
         assert fs._resolve_path("subdirectory") == f"{base}/subdirectory"
 
+    async def test_resolve_path_nested_basepath(self):
+        base = "memory://root/prefix"
+        fs = RemoteFileSystem(basepath=base)
+
+        assert fs._resolve_path(base) == "memory://root/prefix/"
+        assert fs._resolve_path("memory://root/prefix/") == "memory://root/prefix/"
+        assert (
+            fs._resolve_path("memory://root/prefix/folder/test.txt")
+            == "memory://root/prefix/folder/test.txt"
+        )
+        assert fs._resolve_path("folder/test.txt") == f"{base}/folder/test.txt"
+
+    async def test_write_outside_of_basepath_sibling_prefix(self):
+        fs = RemoteFileSystem(basepath="memory://root/foo")
+        with pytest.raises(ValueError, match="is outside of the base path"):
+            await fs.write_path("memory://root/foobar/test.txt", content=b"hello")
+
     async def test_put_directory_flat(self):
         fs = RemoteFileSystem(basepath="memory://flat")
         await fs.put_directory(
