@@ -400,7 +400,7 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
         if not self.image_pull_policy:
             _, tag = parse_image_tag(self.image)
             if tag == "latest" or not tag:
-                return ImagePullPolicy.IF_POSSIBLE
+                return ImagePullPolicy.ALWAYS
             return ImagePullPolicy.IF_NOT_PRESENT
         return ImagePullPolicy(self.image_pull_policy)
 
