@@ -2377,6 +2377,58 @@ class TestUpdateDeployment:
         assert len(response.json()["schedules"]) == 1
         assert response.json()["schedules"][0]["active"] is False
 
+    async def test_update_interval_schedule_without_slug_preserves_paused_state(
+        self,
+        client,
+        flow,
+    ):
+        """A paused slug-less interval schedule stays paused on redeploy even
+        though its `anchor_date` is regenerated each time (#19302)."""
+        create_schedule = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(hours=1)
+        )
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=create_schedule, active=True
+                ),
+            ],
+            enforce_parameter_schema=False,
+        ).model_dump(mode="json")
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+        schedule_id = response.json()["schedules"][0]["id"]
+
+        response = await client.patch(
+            f"/deployments/{deployment_id}/schedules/{schedule_id}",
+            json={"active": False},
+        )
+        assert response.status_code == 204
+
+        # A fresh IntervalSchedule gets a new anchor_date, mirroring what the
+        # client builds on each redeploy.
+        redeploy_schedule = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(hours=1)
+        )
+        assert redeploy_schedule.anchor_date != create_schedule.anchor_date
+        update_data = schemas.actions.DeploymentUpdate(
+            schedules=[
+                schemas.actions.DeploymentScheduleUpdate(schedule=redeploy_schedule)
+            ],
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(f"/deployments/{deployment_id}", json=update_data)
+        assert response.status_code == 204, response.text
+
+        response = await client.get(f"/deployments/{deployment_id}")
+        assert response.status_code == 200
+        assert len(response.json()["schedules"]) == 1
+        assert response.json()["schedules"][0]["active"] is False
+
     async def test_update_changed_slugless_schedule_defaults_to_active(
         self,
         client,
