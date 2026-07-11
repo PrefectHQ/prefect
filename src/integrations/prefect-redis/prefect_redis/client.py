@@ -185,8 +185,8 @@ async def clear_cached_clients() -> None:
 
     Clients created on the current event loop are disconnected and closed
     before being dropped so their connections — including ones stuck
-    ``in_use`` on a dead socket — are reaped rather than lingering in the
-    pool forever (which otherwise causes a permanent ``MaxConnectionsError``).
+    `in_use` on a dead socket — are reaped rather than lingering in the
+    pool forever (which otherwise causes a permanent `MaxConnectionsError`).
     """
     current_loop = _running_loop()
 
