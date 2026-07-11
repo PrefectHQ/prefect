@@ -23,7 +23,7 @@ class PrefectOpenLineageListener:
     def __init__(
         self,
         client: client = None,
-        adapter: PrefectOpenLineageAdapter | None = None,
+        adapter: PrefectOpenLineageAdapter = None,
     ):
         self.client = client or get_client()
         self.ol_adapter = adapter or PrefectOpenLineageAdapter()
