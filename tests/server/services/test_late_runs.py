@@ -190,7 +190,11 @@ async def test_cancels_late_run_when_deployment_has_cancel_new_and_limit_is_full
     """When a deployment uses CANCEL_NEW and its concurrency limit is full,
     mark_flow_run_late should cancel the run instead of marking it Late.
 
-    Regression test for https://github.com/PrefectHQ/prefect/issues/21060
+    This is the path taken when worker or work-pool concurrency limits prevent
+    runs from reaching PENDING, so CANCEL_NEW never fires at SecureFlowConcurrencySlots.
+
+    Regression test for https://github.com/PrefectHQ/prefect/issues/16984
+    and https://github.com/PrefectHQ/prefect/issues/21060
     """
     # create a deployment with CANCEL_NEW, limit=1
     deployment = await models.deployments.create_deployment(
@@ -255,7 +259,8 @@ async def test_marks_late_not_cancelled_when_cancel_new_but_limit_not_full(
     """When a deployment uses CANCEL_NEW but the concurrency limit has
     available slots, runs should be marked Late normally (not cancelled).
 
-    Regression test for https://github.com/PrefectHQ/prefect/issues/21060
+    Regression test for https://github.com/PrefectHQ/prefect/issues/16984
+    and https://github.com/PrefectHQ/prefect/issues/21060
     """
     deployment = await models.deployments.create_deployment(
         session=session,
@@ -294,7 +299,8 @@ async def test_marks_late_when_deployment_has_enqueue_strategy(session, flow, db
     """Runs on ENQUEUE deployments should always be marked Late, even when
     the concurrency limit is full.
 
-    Regression test for https://github.com/PrefectHQ/prefect/issues/21060
+    Regression test for https://github.com/PrefectHQ/prefect/issues/16984
+    and https://github.com/PrefectHQ/prefect/issues/21060
     """
     deployment = await models.deployments.create_deployment(
         session=session,

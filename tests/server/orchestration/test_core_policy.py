@@ -30,6 +30,7 @@ from prefect.server.orchestration.core_policy import (
     CopyScheduledTime,
     CopyTaskParametersID,
     EnforceCancellingToCancelledTransition,
+    EnforceDeploymentConcurrencyOnLate,
     EnsureOnlyScheduledFlowsMarkedLate,
     HandleFlowTerminalStateTransitions,
     HandlePausingFlows,
@@ -1814,6 +1815,204 @@ class TestEnsureOnlyScheduledFlowMarkedLate:
             await ctx.validate_proposed_state()
 
         assert ctx.response_status == SetStateStatus.REJECT
+
+
+class TestEnforceDeploymentConcurrencyOnLate:
+    """Unit tests for CANCEL_NEW enforcement when marking runs Late.
+
+    CANCEL_NEW is normally enforced on * → PENDING by SecureFlowConcurrencySlots.
+    When a worker or work-pool concurrency limit prevents pickup, runs never reach
+    PENDING and would otherwise accumulate as Late. This rule cancels them instead
+    when the deployment concurrency limit is full.
+
+    Regression coverage for https://github.com/PrefectHQ/prefect/issues/16984
+    and https://github.com/PrefectHQ/prefect/issues/21060
+    """
+
+    late_transition = (StateType.SCHEDULED, StateType.SCHEDULED)
+
+    async def create_deployment_with_concurrency_limit(
+        self,
+        session,
+        limit,
+        flow,
+        collision_strategy: Optional[schemas.core.ConcurrencyLimitStrategy] = None,
+    ):
+        deployment_kwargs = {
+            "name": f"test-deployment-{uuid4()}",
+            "flow_id": flow.id,
+            "concurrency_limit": limit,
+        }
+        if collision_strategy is not None:
+            deployment_kwargs["concurrency_options"] = {
+                "collision_strategy": collision_strategy
+            }
+
+        deployment = await deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(**deployment_kwargs),
+        )
+        await session.flush()
+        return deployment
+
+    async def test_cancels_when_cancel_new_and_limit_is_full(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow, schemas.core.ConcurrencyLimitStrategy.CANCEL_NEW
+        )
+        await concurrency_limits_v2.bulk_increment_active_slots(
+            session=session,
+            concurrency_limit_ids=[deployment.concurrency_limit_id],
+            slots=1,
+        )
+        await session.commit()
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *self.late_transition,
+            proposed_state_name="Late",
+            deployment_id=deployment.id,
+        )
+
+        async with EnforceDeploymentConcurrencyOnLate(
+            ctx, *self.late_transition
+        ) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.proposed_state is not None
+        assert ctx.proposed_state.is_cancelled()
+        assert ctx.proposed_state.message == "Deployment concurrency limit reached."
+        assert "CANCEL_NEW" in ctx.response_details.reason
+
+    async def test_allows_late_when_cancel_new_but_slots_available(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow, schemas.core.ConcurrencyLimitStrategy.CANCEL_NEW
+        )
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *self.late_transition,
+            proposed_state_name="Late",
+            deployment_id=deployment.id,
+        )
+
+        async with EnforceDeploymentConcurrencyOnLate(
+            ctx, *self.late_transition
+        ) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.proposed_state is not None
+        assert ctx.proposed_state.name == "Late"
+
+    async def test_allows_late_when_enqueue_strategy_even_if_full(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow, schemas.core.ConcurrencyLimitStrategy.ENQUEUE
+        )
+        await concurrency_limits_v2.bulk_increment_active_slots(
+            session=session,
+            concurrency_limit_ids=[deployment.concurrency_limit_id],
+            slots=1,
+        )
+        await session.commit()
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *self.late_transition,
+            proposed_state_name="Late",
+            deployment_id=deployment.id,
+        )
+
+        async with EnforceDeploymentConcurrencyOnLate(
+            ctx, *self.late_transition
+        ) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.proposed_state is not None
+        assert ctx.proposed_state.name == "Late"
+
+    async def test_allows_late_when_no_deployment_concurrency(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        deployment = await deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name=f"no-limit-{uuid4()}",
+                flow_id=flow.id,
+            ),
+        )
+        await session.flush()
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *self.late_transition,
+            proposed_state_name="Late",
+            deployment_id=deployment.id,
+        )
+
+        async with EnforceDeploymentConcurrencyOnLate(
+            ctx, *self.late_transition
+        ) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.proposed_state is not None
+        assert ctx.proposed_state.name == "Late"
+
+    async def test_ignores_non_late_scheduled_transitions(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        """Non-Late Scheduled→Scheduled transitions (e.g. reschedule) are unaffected."""
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow, schemas.core.ConcurrencyLimitStrategy.CANCEL_NEW
+        )
+        await concurrency_limits_v2.bulk_increment_active_slots(
+            session=session,
+            concurrency_limit_ids=[deployment.concurrency_limit_id],
+            slots=1,
+        )
+        await session.commit()
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *self.late_transition,
+            proposed_state_name="AwaitingConcurrencySlot",
+            deployment_id=deployment.id,
+        )
+
+        async with EnforceDeploymentConcurrencyOnLate(
+            ctx, *self.late_transition
+        ) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
 
 
 @pytest.mark.parametrize("run_type", ["flow"])

@@ -1810,6 +1810,10 @@ class EnforceDeploymentConcurrencyOnLate(FlowRunOrchestrationRule):
     This closes the gap where CANCEL_NEW is normally enforced at the * -> PENDING
     transition (by SecureFlowConcurrencySlots), but runs that never reach PENDING
     because they go late would accumulate in a Late state instead of being cancelled.
+
+    That gap commonly appears when a worker or work-pool concurrency limit prevents
+    pickup: scheduled runs sit until MarkLateRuns proposes Late, and without this
+    rule they would pile up as Late even though the deployment uses CANCEL_NEW.
     """
 
     FROM_STATES = {StateType.SCHEDULED}
@@ -1852,6 +1856,11 @@ class EnforceDeploymentConcurrencyOnLate(FlowRunOrchestrationRule):
         limit = deployment.global_concurrency_limit
         if not limit:
             return
+
+        # Server sessions use expire_on_commit=False, and concurrency slot updates use
+        # synchronize_session=False. Refresh so we never decide on a stale active_slots
+        # value from the identity map (e.g. after earlier transitions in the same session).
+        await context.session.refresh(limit)
 
         if limit.active_slots >= limit.limit:
             await self.reject_transition(
