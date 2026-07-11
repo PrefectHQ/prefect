@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import abc
-import posixpath
 import urllib.parse
 from pathlib import Path
 from shutil import copytree
@@ -420,7 +419,7 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
                 )
 
         if netloc:
-            if netloc.lower() != base_netloc.lower():
+            if netloc != base_netloc:
                 raise ValueError(
                     f"Path {path!r} is outside of the base path {self.basepath!r}."
                 )
@@ -433,28 +432,25 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
             if not urlpath:
                 urlpath = "/"
 
-            # Decode percent-encoded and backslash separators so traversal checks
-            # see the resolved path shape; the returned URL is built from the raw
-            # urlpath to preserve safe object keys.
+            # Decode percent-encoded and backslash separators only for traversal
+            # checks. The containment check below uses the raw URL path so that
+            # prefix spoofs such as `pre%66ix` or `prefix%2Fchild` are rejected.
             decoded_path = urllib.parse.unquote(urlpath).replace("\\", "/")
             if any(segment == ".." for segment in decoded_path.split("/")):
                 raise ValueError(
                     f"Path {path!r} is outside of the base path {self.basepath!r}."
                 )
 
-            resolved_path = posixpath.normpath(decoded_path)
-
-            if resolved_path == base_path:
+            if urlpath == base_path or urlpath == base_output_path:
                 return urllib.parse.urlunsplit(
                     (base_scheme, base_netloc, base_output_path, "", "")
                 )
 
-            if (base_path and resolved_path.startswith(base_path + "/")) or (
-                not base_path and resolved_path.startswith("/")
+            if (base_path and urlpath.startswith(base_path + "/")) or (
+                not base_path and urlpath.startswith("/")
             ):
-                output_urlpath = posixpath.normpath(urlpath.replace("\\", "/"))
                 return urllib.parse.urlunsplit(
-                    (base_scheme, base_netloc, output_urlpath, "", "")
+                    (base_scheme, base_netloc, urlpath, "", "")
                 )
 
             raise ValueError(

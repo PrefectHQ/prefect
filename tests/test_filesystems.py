@@ -463,13 +463,51 @@ class TestRemoteFileSystem:
         with pytest.raises(ValueError, match="is outside of the base path"):
             await fs.write_path(path, content=b"hello")
 
-    async def test_write_path_with_backslash_separators(self):
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "memory://root/pre%66ix/escape.txt",
+            "memory://root/prefix%2Fchild.txt",
+            "memory://root/prefix%2Ffolder/escape.txt",
+            "memory://root/prefix%2e/escape.txt",
+            "memory://root/prefix%2e%2e/escape.txt",
+        ],
+    )
+    async def test_write_path_rejects_encoded_prefix_spoofs(self, path):
         fs = RemoteFileSystem(basepath="memory://root/prefix")
+        with pytest.raises(ValueError, match="is outside of the base path"):
+            await fs.write_path(path, content=b"hello")
+
+    async def test_write_path_encoded_base_prefix_roundtrip(self):
+        base = "memory://root/prefix%20space"
+        fs = RemoteFileSystem(basepath=base)
+
         path = await fs.write_path(
-            "memory://root/prefix\\folder\\test.txt", content=b"hello"
+            "memory://root/prefix%20space/folder/test.txt", content=b"hello"
         )
-        assert path == "memory://root/prefix/folder/test.txt"
+        assert path == "memory://root/prefix%20space/folder/test.txt"
         assert await fs.read_path("folder/test.txt") == b"hello"
+        assert (
+            await fs.read_path("memory://root/prefix%20space/folder/test.txt")
+            == b"hello"
+        )
+
+    async def test_write_path_distinct_keys_not_aliased(self):
+        fs = RemoteFileSystem(basepath="memory://root")
+        await fs.write_path("memory://root/a//b.txt", content=b"first")
+        await fs.write_path("memory://root/a/b.txt", content=b"second")
+        await fs.write_path("memory://root/a/./b.txt", content=b"third")
+        await fs.write_path("memory://root/a\\b.txt", content=b"fourth")
+
+        assert await fs.read_path("memory://root/a//b.txt") == b"first"
+        assert await fs.read_path("memory://root/a/b.txt") == b"second"
+        assert await fs.read_path("memory://root/a/./b.txt") == b"third"
+        assert await fs.read_path("memory://root/a\\b.txt") == b"fourth"
+
+    async def test_write_outside_of_basepath_case_different_netloc(self):
+        fs = RemoteFileSystem(basepath="memory://root/prefix")
+        with pytest.raises(ValueError, match="is outside of the base path"):
+            await fs.write_path("memory://ROOT/prefix/file.txt", content=b"hello")
 
     @pytest.mark.parametrize("char", ["\r", "\n", "\t"])
     async def test_write_path_with_control_characters(self, char):
