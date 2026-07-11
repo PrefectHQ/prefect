@@ -1,11 +1,14 @@
+import asyncio
 import warnings
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from prefect_redis.client import (
     RedisMessagingSettings,
     _client_cache,
+    _running_loop,
     async_redis_from_settings,
+    clear_cached_clients,
     close_all_cached_connections,
     cluster_key_prefix,
     get_async_redis_client,
@@ -15,6 +18,7 @@ from prefect_redis.client import (
 )
 from redis.asyncio import Redis
 from redis.cluster import key_slot
+from redis.exceptions import RedisError
 
 
 def test_redis_settings_defaults(isolated_redis_db_number: int):
@@ -266,10 +270,10 @@ async def test_async_redis_from_settings_with_cluster_url_raises():
 
 
 def test_redis_settings_connection_defaults():
-    """Settings default to socket_timeout=None, socket_connect_timeout=None, protocol=2."""
+    """Settings default to non-None socket timeouts so reads/connects fail fast."""
     settings = RedisMessagingSettings()
-    assert settings.socket_timeout is None
-    assert settings.socket_connect_timeout is None
+    assert settings.socket_timeout == 60.0
+    assert settings.socket_connect_timeout == 10.0
     assert settings.protocol == 2
 
 
@@ -285,12 +289,12 @@ def test_redis_settings_connection_from_env(monkeypatch: pytest.MonkeyPatch):
 
 
 async def test_get_async_redis_client_default_socket_timeout():
-    """Default clients have socket_timeout=None (no timeout) for redis-py 8 compat."""
+    """Default clients have non-None socket timeouts so the pool recovers after an outage."""
     _client_cache.clear()
     client = get_async_redis_client()
     conn_kwargs = client.connection_pool.connection_kwargs
-    assert conn_kwargs.get("socket_timeout") is None
-    assert conn_kwargs.get("socket_connect_timeout") is None
+    assert conn_kwargs.get("socket_timeout") == 60.0
+    assert conn_kwargs.get("socket_connect_timeout") == 10.0
     await client.aclose()
     _client_cache.clear()
 
@@ -321,8 +325,8 @@ async def test_get_async_redis_client_url_passes_socket_timeout():
     _client_cache.clear()
     client = get_async_redis_client(url="redis://localhost:6379/0")
     conn_kwargs = client.connection_pool.connection_kwargs
-    assert conn_kwargs.get("socket_timeout") is None
-    assert conn_kwargs.get("socket_connect_timeout") is None
+    assert conn_kwargs.get("socket_timeout") == 60.0
+    assert conn_kwargs.get("socket_connect_timeout") == 10.0
     assert conn_kwargs.get("protocol") == 2
     await client.aclose()
     _client_cache.clear()
@@ -347,8 +351,8 @@ async def test_async_redis_from_settings_passes_connection_defaults():
     settings = RedisMessagingSettings()
     client = async_redis_from_settings(settings)
     conn_kwargs = client.connection_pool.connection_kwargs
-    assert conn_kwargs.get("socket_timeout") is None
-    assert conn_kwargs.get("socket_connect_timeout") is None
+    assert conn_kwargs.get("socket_timeout") == 60.0
+    assert conn_kwargs.get("socket_connect_timeout") == 10.0
     assert conn_kwargs.get("protocol") == 2
     await client.aclose()
     _client_cache.clear()
@@ -372,7 +376,7 @@ async def test_async_redis_from_settings_url_with_connection_defaults():
     settings = RedisMessagingSettings(url="redis://localhost:6379/0")
     client = async_redis_from_settings(settings)
     conn_kwargs = client.connection_pool.connection_kwargs
-    assert conn_kwargs.get("socket_timeout") is None
+    assert conn_kwargs.get("socket_timeout") == 60.0
     assert conn_kwargs.get("protocol") == 2
     await client.aclose()
     _client_cache.clear()
@@ -394,3 +398,143 @@ def test_close_all_cached_connections(mock_cache):
 
     # Verify run_until_complete was called twice (for disconnect and close)
     assert mock_loop.run_until_complete.call_count == 2
+
+
+async def test_clear_cached_clients_disconnects_and_closes_current_loop_clients():
+    """clear_cached_clients reaps clients on the current loop and empties the cache."""
+    _client_cache.clear()
+
+    client = AsyncMock(spec=Redis)
+    client.connection_pool = MagicMock()
+    client.connection_pool.disconnect = AsyncMock()
+    key = (get_async_redis_client, (), (), _running_loop())
+    _client_cache[key] = client
+
+    await clear_cached_clients()
+
+    client.connection_pool.disconnect.assert_awaited_once_with(inuse_connections=True)
+    client.aclose.assert_awaited_once()
+    assert _client_cache == {}
+
+
+async def test_clear_cached_clients_skips_other_loop_clients():
+    """Clients bound to a different loop are dropped without being awaited."""
+    _client_cache.clear()
+
+    other_loop = asyncio.new_event_loop()
+    try:
+        client = AsyncMock(spec=Redis)
+        client.connection_pool = MagicMock()
+        client.connection_pool.disconnect = AsyncMock()
+        key = (get_async_redis_client, (), (), other_loop)
+        _client_cache[key] = client
+
+        await clear_cached_clients()
+
+        client.connection_pool.disconnect.assert_not_awaited()
+        client.aclose.assert_not_awaited()
+        assert _client_cache == {}
+    finally:
+        other_loop.close()
+
+
+class _BlackholeProxy:
+    """A TCP proxy that can stop relaying traffic to simulate a network partition."""
+
+    def __init__(self, upstream_host: str, upstream_port: int):
+        self.upstream = (upstream_host, upstream_port)
+        self.blackhole = asyncio.Event()
+        self._server: asyncio.AbstractServer | None = None
+
+    @property
+    def port(self) -> int:
+        assert self._server is not None
+        return self._server.sockets[0].getsockname()[1]
+
+    async def start(self) -> None:
+        self._server = await asyncio.start_server(self._handle, "127.0.0.1", 0)
+
+    async def stop(self) -> None:
+        if self._server is not None:
+            self._server.close()
+            await self._server.wait_closed()
+
+    async def _pump(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> None:
+        try:
+            while True:
+                data = await reader.read(65536)
+                if not data:
+                    break
+                while self.blackhole.is_set():
+                    await asyncio.sleep(0.05)
+                writer.write(data)
+                await writer.drain()
+        except Exception:
+            pass
+        finally:
+            try:
+                writer.close()
+            except Exception:
+                pass
+
+    async def _handle(
+        self, client_reader: asyncio.StreamReader, client_writer: asyncio.StreamWriter
+    ) -> None:
+        try:
+            upstream_reader, upstream_writer = await asyncio.open_connection(
+                *self.upstream
+            )
+        except Exception:
+            client_writer.close()
+            return
+        await asyncio.gather(
+            self._pump(client_reader, upstream_writer),
+            self._pump(upstream_reader, client_writer),
+        )
+
+
+async def test_pool_recovers_after_outage(isolated_redis_db_number: int):
+    """Regression test for OSS-8071 / #22478.
+
+    With a non-None socket_timeout, blocking reads against an unreachable broker
+    raise promptly (rather than hanging forever), so their connections are
+    released instead of being stuck ``in_use`` and permanently exhausting the
+    pool. The client must resume operating once the broker is reachable again
+    without a process restart.
+    """
+    settings = RedisMessagingSettings()
+    proxy = _BlackholeProxy(settings.host, settings.port)
+    await proxy.start()
+
+    client = get_async_redis_client(
+        url=f"redis://127.0.0.1:{proxy.port}/{isolated_redis_db_number}",
+        socket_timeout=2.0,
+        socket_connect_timeout=2.0,
+    )
+    try:
+        await client.ping()
+        pool = client.connection_pool
+
+        # Broker becomes unreachable mid-read.
+        proxy.blackhole.set()
+
+        # Without a socket_timeout these blocking reads would hang forever,
+        # leaving their connections stuck ``in_use``. They must instead fail
+        # fast so the connections are reaped.
+        reads = [
+            asyncio.create_task(client.xread({"oss8071:stream": "$"}, block=1000))
+            for _ in range(5)
+        ]
+        results = await asyncio.gather(*reads, return_exceptions=True)
+        assert all(isinstance(r, RedisError) for r in results)
+        assert len(pool._in_use_connections) == 0
+
+        # Broker recovers; operations resume without a process restart.
+        proxy.blackhole.clear()
+        assert await client.ping() is True
+    finally:
+        await client.aclose()
+        await proxy.stop()
+        _client_cache.clear()

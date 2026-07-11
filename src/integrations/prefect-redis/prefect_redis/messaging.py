@@ -40,6 +40,7 @@ from prefect.server.utilities.messaging import (
 from prefect.server.utilities.messaging import Publisher as _Publisher
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
 from prefect_redis.client import (
+    RedisMessagingSettings,
     clear_cached_clients,
     cluster_key_prefix,
     get_async_redis_client,
@@ -360,6 +361,24 @@ class Consumer(_Consumer):
         self.stream = _stream_key(topic)
         self.group = group or topic  # Use topic as default group name
         self.block = block if block is not None else settings.block
+
+        block_seconds = (
+            self.block.total_seconds()
+            if isinstance(self.block, timedelta)
+            else float(self.block)
+        )
+        socket_timeout = RedisMessagingSettings().socket_timeout
+        if socket_timeout is not None and block_seconds >= socket_timeout:
+            logger.warning(
+                "Consumer %s block interval (%.1fs) is >= the Redis socket_timeout "
+                "(%.1fs); idle blocking reads will time out and trigger spurious "
+                "reconnects. Set PREFECT_REDIS_MESSAGING_SOCKET_TIMEOUT above the "
+                "consumer block interval.",
+                self.name,
+                block_seconds,
+                socket_timeout,
+            )
+
         self.min_idle_time = (
             min_idle_time if min_idle_time is not None else settings.min_idle_time
         )

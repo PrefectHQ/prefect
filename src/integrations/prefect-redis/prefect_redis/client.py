@@ -8,10 +8,13 @@ from pydantic import Field, model_validator
 from redis.asyncio import Redis
 from typing_extensions import Self, TypeAlias
 
+from prefect.logging import get_logger
 from prefect.settings.base import (
     PrefectBaseSettings,
     build_settings_config,  # type: ignore[reportPrivateUsage]
 )
+
+logger = get_logger(__name__)
 
 _UNSET: Any = object()
 
@@ -57,17 +60,21 @@ class RedisMessagingSettings(PrefectBaseSettings):
         description="Whether to use SSL for the Redis connection",
     )
     socket_timeout: Optional[float] = Field(
-        default=None,
+        default=60.0,
         description=(
-            "Timeout in seconds for socket read operations. "
-            "None means no timeout (preserves pre-redis-py-8 behavior)."
+            "Timeout in seconds for socket read operations. Without a timeout a "
+            "read against an unreachable broker hangs forever, so the pool never "
+            "recovers after an outage. Must exceed the consumer `block` interval "
+            "(default 1s) to avoid timing out idle blocking reads. "
+            "None disables the timeout (pre-redis-py-8 behavior)."
         ),
     )
     socket_connect_timeout: Optional[float] = Field(
-        default=None,
+        default=10.0,
         description=(
-            "Timeout in seconds for socket connect operations. "
-            "None means no timeout (preserves pre-redis-py-8 behavior)."
+            "Timeout in seconds for socket connect operations. Without a timeout a "
+            "connect against an unreachable broker hangs forever, which can wedge "
+            "server startup. None disables the timeout (pre-redis-py-8 behavior)."
         ),
     )
     protocol: int = Field(
@@ -175,8 +182,25 @@ async def clear_cached_clients() -> None:
     This should be called when a connection error is detected to ensure
     subsequent calls to get_async_redis_client() return fresh clients
     rather than stale ones with broken connections.
+
+    Clients created on the current event loop are disconnected and closed
+    before being dropped so their connections — including ones stuck
+    ``in_use`` on a dead socket — are reaped rather than lingering in the
+    pool forever (which otherwise causes a permanent ``MaxConnectionsError``).
     """
-    global _client_cache
+    current_loop = _running_loop()
+
+    for (_, _, _, loop), client in list(_client_cache.items()):
+        if loop is not current_loop:
+            continue
+        try:
+            await client.connection_pool.disconnect(inuse_connections=True)
+            await client.aclose()
+        except Exception:
+            logger.debug(
+                "Error closing cached Redis client while clearing cache",
+                exc_info=True,
+            )
 
     _client_cache.clear()
 

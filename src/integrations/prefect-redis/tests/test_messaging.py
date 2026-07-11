@@ -706,6 +706,26 @@ class TestRedisMessagingSettings:
         assert settings.block == timedelta(seconds=10)
 
 
+def test_consumer_warns_when_block_exceeds_socket_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """A block interval >= socket_timeout causes idle reads to time out and
+    trigger spurious reconnects, so the consumer warns about the misconfig."""
+    monkeypatch.setenv("PREFECT_REDIS_MESSAGING_SOCKET_TIMEOUT", "5")
+    monkeypatch.setenv("PREFECT_REDIS_MESSAGING_CONSUMER_BLOCK", "10")
+    with patch("prefect_redis.messaging.logger") as mock_logger:
+        Consumer(topic="warn-topic")
+    assert mock_logger.warning.called
+    assert "block interval" in mock_logger.warning.call_args[0][0]
+
+
+def test_consumer_no_warning_with_default_block():
+    """Default block (1s) is well below the default socket_timeout (60s)."""
+    with patch("prefect_redis.messaging.logger") as mock_logger:
+        Consumer(topic="ok-topic")
+    assert not mock_logger.warning.called
+
+
 async def test_trimming_with_no_delivered_messages(redis: Redis):
     """Test that stream trimming handles the case where no messages have been delivered."""
 
