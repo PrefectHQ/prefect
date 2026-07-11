@@ -500,7 +500,7 @@ async def test_pool_recovers_after_outage(isolated_redis_db_number: int):
 
     With a non-None socket_timeout, blocking reads against an unreachable broker
     raise promptly (rather than hanging forever), so their connections are
-    released instead of being stuck ``in_use`` and permanently exhausting the
+    released instead of being stuck `in_use` and permanently exhausting the
     pool. The client must resume operating once the broker is reachable again
     without a process restart.
     """
@@ -521,7 +521,7 @@ async def test_pool_recovers_after_outage(isolated_redis_db_number: int):
         proxy.blackhole.set()
 
         # Without a socket_timeout these blocking reads would hang forever,
-        # leaving their connections stuck ``in_use``. They must instead fail
+        # leaving their connections stuck `in_use`. They must instead fail
         # fast so the connections are reaped.
         reads = [
             asyncio.create_task(client.xread({"oss8071:stream": "$"}, block=1000))
