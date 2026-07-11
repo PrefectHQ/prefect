@@ -22,7 +22,7 @@ logger: logging.Logger = logging.getLogger(__name__)
 class PrefectOpenLineageListener:
     def __init__(
         self,
-        client: client | None = None,
+        client: client = None,
         adapter: PrefectOpenLineageAdapter | None = None,
     ):
         self.client = client or get_client()
