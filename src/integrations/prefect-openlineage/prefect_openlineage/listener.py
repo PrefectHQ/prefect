@@ -11,8 +11,7 @@ from prefect.client.orchestration import get_client
 from prefect.events.clients import get_events_subscriber
 from prefect.events.filters import EventFilter, EventNameFilter
 from prefect.events.schemas.events import Event
-
-from .adapter import PrefectOpenLineageAdapter
+from prefect_openlineage.adapter import PrefectOpenLineageAdapter
 
 JOB_NAMESPACE: str = os.environ.get("OPENLINEAGE_NAMESPACE", "default")
 
