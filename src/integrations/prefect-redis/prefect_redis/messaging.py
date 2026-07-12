@@ -168,7 +168,9 @@ class Cache(_Cache):
     async def clear_recently_seen_messages(self) -> None:
         return
 
-    async def without_duplicates(self, attribute: str, messages: Iterable[M]) -> list[M]:
+    async def without_duplicates(
+        self, attribute: str, messages: Iterable[M]
+    ) -> list[M]:
         messages_with_attribute: list[M] = []
         messages_without_attribute: list[M] = []
         async with self._client.pipeline() as p:
@@ -194,7 +196,9 @@ class Cache(_Cache):
             m for i, m in enumerate(messages_with_attribute) if results[i]
         ] + messages_without_attribute
 
-    async def forget_duplicates(self, attribute: str, messages: Iterable[Message]) -> None:
+    async def forget_duplicates(
+        self, attribute: str, messages: Iterable[Message]
+    ) -> None:
         async with self._client.pipeline() as p:
             for m in messages:
                 if m.attributes is None or attribute not in m.attributes:
@@ -261,7 +265,9 @@ class Publisher(_Publisher):
         )
         self.batch_size = batch_size if batch_size is not None else settings.batch_size
         self.publish_every = (
-            publish_every if publish_every is not None else cast(timedelta, settings.publish_every)
+            publish_every
+            if publish_every is not None
+            else cast(timedelta, settings.publish_every)
         )
         self._periodic_task: Optional[asyncio.Task[None]] = None
 
@@ -363,7 +369,9 @@ class Consumer(_Consumer):
         self.group = group or topic  # Use topic as default group name
         self.block = block if block is not None else cast(timedelta, settings.block)
         self.min_idle_time = (
-            min_idle_time if min_idle_time is not None else cast(timedelta, settings.min_idle_time)
+            min_idle_time
+            if min_idle_time is not None
+            else cast(timedelta, settings.min_idle_time)
         )
         self.should_process_pending_messages = (
             should_process_pending_messages
@@ -380,7 +388,11 @@ class Consumer(_Consumer):
             if automatically_acknowledge is not None
             else settings.automatically_acknowledge
         )
-        self.trim_every = trim_every if trim_every is not None else cast(timedelta, settings.trim_every)
+        self.trim_every = (
+            trim_every
+            if trim_every is not None
+            else cast(timedelta, settings.trim_every)
+        )
 
         self.subscription = Subscription(
             max_retries=max_retries
@@ -758,7 +770,9 @@ async def _trim_stream_to_lowest_delivered_id(
     """
     redis_client: Redis = get_async_redis_client()
     settings = RedisMessagingConsumerSettings()
-    idle_threshold_ms = int(cast(timedelta, settings.trim_idle_threshold).total_seconds() * 1000)
+    idle_threshold_ms = int(
+        cast(timedelta, settings.trim_idle_threshold).total_seconds() * 1000
+    )
 
     delivered_ids = []
     if latest_delivered_id and latest_delivered_id != "0-0":

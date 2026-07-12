@@ -2,10 +2,10 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-from prefect.server.utilities.messaging import StopConsumer
 from prefect_redis.client import _client_cache, clear_cached_clients
 from prefect_redis.messaging import Consumer
+
+from prefect.server.utilities.messaging import StopConsumer
 
 
 @pytest.fixture(autouse=True)
@@ -42,7 +42,9 @@ async def test_clear_cached_clients_disconnects_pools():
 async def test_clear_cached_clients_handles_disconnect_errors():
     mock_client = MagicMock()
     mock_client.connection_pool = AsyncMock()
-    mock_client.connection_pool.disconnect.side_effect = Exception("failed to disconnect")
+    mock_client.connection_pool.disconnect.side_effect = Exception(
+        "failed to disconnect"
+    )
     mock_client.aclose = AsyncMock()
     mock_client.aclose.side_effect = Exception("failed to close")
 
@@ -74,11 +76,20 @@ async def test_consumer_retries_on_os_error():
             raise OSError("Simulated socket error")
         raise StopConsumer()
 
-    with patch("prefect_redis.messaging.get_async_redis_client", return_value=mock_client), \
-         patch.object(Consumer, "_ensure_stream_and_group", side_effect=mock_ensure_stream_and_group), \
-         patch("prefect_redis.messaging.exponential_backoff_with_jitter", return_value=0.01), \
-         patch("prefect_redis.messaging.clear_cached_clients") as mock_clear:
-
+    with (
+        patch(
+            "prefect_redis.messaging.get_async_redis_client", return_value=mock_client
+        ),
+        patch.object(
+            Consumer,
+            "_ensure_stream_and_group",
+            side_effect=mock_ensure_stream_and_group,
+        ),
+        patch(
+            "prefect_redis.messaging.exponential_backoff_with_jitter", return_value=0.01
+        ),
+        patch("prefect_redis.messaging.clear_cached_clients") as mock_clear,
+    ):
         mock_handler = AsyncMock()
 
         with pytest.raises(StopConsumer):
@@ -103,11 +114,20 @@ async def test_consumer_retries_on_connection_error():
             raise ConnectionError("Simulated connection error")
         raise StopConsumer()
 
-    with patch("prefect_redis.messaging.get_async_redis_client", return_value=mock_client), \
-         patch.object(Consumer, "_ensure_stream_and_group", side_effect=mock_ensure_stream_and_group), \
-         patch("prefect_redis.messaging.exponential_backoff_with_jitter", return_value=0.01), \
-         patch("prefect_redis.messaging.clear_cached_clients") as mock_clear:
-
+    with (
+        patch(
+            "prefect_redis.messaging.get_async_redis_client", return_value=mock_client
+        ),
+        patch.object(
+            Consumer,
+            "_ensure_stream_and_group",
+            side_effect=mock_ensure_stream_and_group,
+        ),
+        patch(
+            "prefect_redis.messaging.exponential_backoff_with_jitter", return_value=0.01
+        ),
+        patch("prefect_redis.messaging.clear_cached_clients") as mock_clear,
+    ):
         mock_handler = AsyncMock()
 
         with pytest.raises(StopConsumer):
