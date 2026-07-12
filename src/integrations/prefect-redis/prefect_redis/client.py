@@ -178,7 +178,10 @@ async def clear_cached_clients() -> None:
     """
     global _client_cache
 
-    for (_, _, _, loop), client in list(_client_cache.items()):
+    clients_to_cleanup = list(_client_cache.items())
+    _client_cache.clear()
+
+    for (_, _, _, loop), client in clients_to_cleanup:
         if loop and loop.is_closed():
             continue
         try:
@@ -190,8 +193,6 @@ async def clear_cached_clients() -> None:
             await client.aclose()
         except Exception:
             pass
-
-    _client_cache.clear()
 
 
 @cached
