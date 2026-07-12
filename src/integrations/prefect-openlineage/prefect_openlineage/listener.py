@@ -106,7 +106,7 @@ class PrefectOpenLineageListener:
         flow_run_start_time = flow_run.start_time
         return flow_run_start_time
 
-    async def get_artifacts_by_task_run(self, run_id: str) -> list[dict] | []:
+    async def get_artifacts_by_task_run(self, run_id: str) -> list[dict]:
         payload = {"artifacts": {"task_run_id": {"any_": [run_id]}}}
         response = await self.client._client.post("/artifacts/filter", json=payload)
         if response.status_code == 200:
@@ -128,7 +128,7 @@ class PrefectOpenLineageListener:
 
     async def get_parent_runs(
         self, payload: dict, prefect_task_run_id: str
-    ) -> list[dict] | []:
+    ) -> list[dict]:
         try:
             parent_runs = []
             task_parents = payload["task_run"]["task_inputs"]["__parents__"]

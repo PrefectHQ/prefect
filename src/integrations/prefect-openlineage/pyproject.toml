@@ -37,12 +37,14 @@ dev = [
     "mkdocs-material",
     "mkdocstrings[python]",
     "mypy",
+    "openlineage-python",
     "pillow",
     "pre-commit",
     "pytest>=8.3",
     "pytest-asyncio",
     "pytest-cov",
     "pytest-env",
+    "pytest-timeout>=2.3.1",
     "pytest-xdist",
 ]
 
@@ -51,6 +53,23 @@ Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/pref
 
 [project.entry-points."prefect.collections"]
 prefect_openlineage = "prefect_openlineage"
+
+[tool.uv.sources]
+prefect = { path = "../../../" }
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+asyncio_default_fixture_loop_scope = "session"
+asyncio_mode = "auto"
+env = ["PREFECT_TEST_MODE=1"]
+timeout = 30
+
+[tool.setuptools]
+packages = ["prefect_openlineage"]
+
+[tool.uv.workspace]
+members = ["integration_tests"]
 
 [tool.setuptools_scm]
 version_file = "prefect_openlineage/_version.py"
