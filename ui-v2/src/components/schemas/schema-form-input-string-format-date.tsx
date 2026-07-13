@@ -1,8 +1,9 @@
-import { format, parse, startOfToday } from "date-fns";
+import { format, isValid, parse, startOfToday } from "date-fns";
 import { Calendar as CalendarIcon } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Input } from "@/components/ui/input";
 import {
 	Popover,
 	PopoverContent,
@@ -27,10 +28,39 @@ export function SchemaFormInputStringFormatDate({
 		? parse(value, dateFormat, startOfToday())
 		: undefined;
 	const [date, setDate] = useState<Date | undefined>(initialDate);
+	const [inputValue, setInputValue] = useState(value ?? "");
+	const inputRef = useRef<HTMLInputElement>(null);
 
-	function handleDateChange(date: Date | undefined) {
-		setDate(date);
-		onValueChange(date ? format(date, dateFormat) : undefined);
+	useEffect(() => {
+		if (document.activeElement !== inputRef.current) {
+			setInputValue(value ?? "");
+		}
+	}, [value]);
+
+	function handleDateChange(nextDate: Date | undefined) {
+		setDate(nextDate);
+		setInputValue(nextDate ? format(nextDate, dateFormat) : "");
+		onValueChange(nextDate ? format(nextDate, dateFormat) : undefined);
+	}
+
+	function handleInputChange(event: React.ChangeEvent<HTMLInputElement>) {
+		const text = event.target.value;
+		setInputValue(text);
+
+		if (text.trim() === "") {
+			handleDateChange(undefined);
+			return;
+		}
+
+		const parsed = parse(text, dateFormat, startOfToday());
+		if (isValid(parsed)) {
+			setDate(parsed);
+			onValueChange(format(parsed, dateFormat));
+		}
+	}
+
+	function handleInputBlur() {
+		setInputValue(value ?? "");
 	}
 
 	return (
@@ -49,13 +79,25 @@ export function SchemaFormInputStringFormatDate({
 				</Button>
 			</PopoverTrigger>
 			<PopoverContent className="w-auto p-0">
-				<Calendar
-					mode="single"
-					selected={date}
-					onSelect={handleDateChange}
-					required={true}
-					autoFocus
-				/>
+				<div className="p-3 space-y-2">
+					<Input
+						ref={inputRef}
+						type="text"
+						placeholder={dateFormat}
+						value={inputValue}
+						onChange={handleInputChange}
+						onBlur={handleInputBlur}
+						aria-label="Date (yyyy-MM-dd)"
+					/>
+					<Calendar
+						className="p-0"
+						mode="single"
+						selected={date}
+						onSelect={handleDateChange}
+						required={true}
+						autoFocus
+					/>
+				</div>
 			</PopoverContent>
 		</Popover>
 	);

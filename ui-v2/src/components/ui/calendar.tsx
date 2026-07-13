@@ -1,5 +1,6 @@
 "use client";
 
+import { addYears, endOfYear, startOfYear } from "date-fns";
 import {
 	ChevronDownIcon,
 	ChevronLeftIcon,
@@ -14,19 +15,31 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/utils";
 
+const DEFAULT_START_MONTH = startOfYear(addYears(new Date(), -100));
+const DEFAULT_END_MONTH = endOfYear(addYears(new Date(), 100));
+
 function Calendar({
 	className,
 	classNames,
 	showOutsideDays = true,
 	fixedWeeks = true,
-	captionLayout = "label",
+	captionLayout = "dropdown",
 	buttonVariant = "ghost",
+	startMonth,
+	endMonth,
 	formatters,
 	components,
 	...props
 }: React.ComponentProps<typeof DayPicker> & {
 	buttonVariant?: React.ComponentProps<typeof Button>["variant"];
 }) {
+	const isDropdown = captionLayout?.startsWith("dropdown");
+	const effectiveStartMonth = isDropdown
+		? (startMonth ?? DEFAULT_START_MONTH)
+		: startMonth;
+	const effectiveEndMonth = isDropdown
+		? (endMonth ?? DEFAULT_END_MONTH)
+		: endMonth;
 	const defaultClassNames = getDefaultClassNames();
 
 	return (
@@ -40,6 +53,8 @@ function Calendar({
 				className,
 			)}
 			captionLayout={captionLayout}
+			startMonth={effectiveStartMonth}
+			endMonth={effectiveEndMonth}
 			formatters={{
 				formatMonthDropdown: (date) =>
 					date.toLocaleString("default", { month: "short" }),
