@@ -1,6 +1,6 @@
 import { createElement, Fragment, type ReactNode } from "react";
 
-const URL_REGEX = /(https?:\/\/[^\s/$.?#].[^\s)"(]*)/g;
+const URL_REGEX = /(https?:\/\/[^\s/$.?#].[^\s)"('[{<>}]*)/g;
 
 export function linkify(text: string): ReactNode {
 	const children: ReactNode[] = [];
@@ -20,20 +20,26 @@ export function linkify(text: string): ReactNode {
 			);
 		}
 
+		const { href, tail } = trimTrailing(url);
+
 		children.push(
 			createElement(
 				"a",
 				{
 					key: `link-${index}`,
-					href: url,
+					href,
 					target: "_blank",
 					rel: "noopener noreferrer",
 					className:
 						"text-link hover:text-link-hover hover:underline break-all",
 				},
-				url,
+				href,
 			),
 		);
+
+		if (tail.length > 0) {
+			children.push(createElement("span", { key: `tail-${index}` }, tail));
+		}
 
 		lastIndex = index + url.length;
 	}
@@ -49,4 +55,31 @@ export function linkify(text: string): ReactNode {
 	}
 
 	return createElement(Fragment, null, ...children);
+}
+
+const PUNCTUATION = /[.,;:!?]+/;
+
+function trimTrailing(url: string): { href: string; tail: string } {
+	let href = url;
+	let tail = "";
+
+	while (href.length > 0) {
+		const last = href[href.length - 1];
+
+		if (PUNCTUATION.test(last)) {
+			tail = last + tail;
+			href = href.slice(0, -1);
+			continue;
+		}
+
+		if (last === "]" && !href.includes("[")) {
+			tail = last + tail;
+			href = href.slice(0, -1);
+			continue;
+		}
+
+		break;
+	}
+
+	return { href, tail };
 }
