@@ -159,6 +159,10 @@ def _load_deploy_configs_and_actions(
         "build": model.build or [],
         "push": model.push or [],
         "pull": model.pull or [],
+        # Record whether the top-level `pull` was explicitly provided (even as null/empty)
+        # so an explicit empty `pull` can be honored rather than replaced with a default
+        # `set_working_directory` step (see cli/deploy/_core.py).
+        "_pull_explicitly_set": "pull" in model.model_fields_set,
     }
     # Convert Pydantic models to plain dicts for downstream consumption,
     # excluding keys that were not provided by users to preserve legacy semantics

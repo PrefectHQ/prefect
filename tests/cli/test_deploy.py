@@ -769,6 +769,44 @@ class TestProjectDeploy:
                 }
             ]
 
+        @pytest.mark.parametrize("empty_pull", [None, []], ids=["null", "empty-list"])
+        async def test_explicit_empty_pull_is_honored(
+            self,
+            empty_pull,
+            work_pool: WorkPool,
+            prefect_client: PrefectClient,
+            uninitialized_project_dir: Path,
+        ):
+            """An explicit empty top-level `pull` is honored as no pull steps rather than
+            defaulting to a `set_working_directory` step pointing at the deploying
+            machine's cwd.
+
+            Regression test for https://github.com/PrefectHQ/prefect/issues/22489
+            """
+            prefect_yaml = {
+                "pull": empty_pull,
+                "deployments": [
+                    {
+                        "name": "no-pull",
+                        "entrypoint": "flows/hello.py:my_flow",
+                        "work_pool": {"name": work_pool.name},
+                    }
+                ],
+            }
+            with open("prefect.yaml", "w") as f:
+                yaml.dump(prefect_yaml, f)
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command="deploy --all",
+                expected_code=0,
+            )
+
+            deployment = await prefect_client.read_deployment_by_name(
+                "An important name/no-pull"
+            )
+            assert deployment.pull_steps == []
+
         async def test_project_deploy_with_no_prefect_yaml_git_repo_no_remote(
             self,
             work_pool: WorkPool,

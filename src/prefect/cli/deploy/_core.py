@@ -254,19 +254,28 @@ async def _run_single_deploy(
         )
 
     # Prefer the originally captured pull_steps (taken before resolution) to
-    # preserve unresolved block placeholders in the deployment spec. Only fall
-    # back to the config/actions/default if no pull steps were provided.
-    pull_steps = (
-        pull_steps
-        or deploy_config.get("pull")
-        or actions.get("pull")
-        or await _generate_default_pull_action(
-            console,
-            deploy_config=deploy_config,
-            actions=actions,
-            is_interactive=is_interactive,
-        )
+    # preserve unresolved block placeholders in the deployment spec. Fall back to
+    # the config/actions, and only generate a default `set_working_directory` step
+    # when `pull` was not provided at all. An explicit empty `pull` (null/[]) is
+    # honored as "no pull steps" — e.g. for a worker whose command resolves code
+    # itself — rather than defaulting to the deploying machine's working directory.
+    pull_explicitly_provided = "pull" in deploy_config or actions.get(
+        "_pull_explicitly_set", False
     )
+    if not pull_steps:
+        if deploy_config.get("pull"):
+            pull_steps = deploy_config["pull"]
+        elif actions.get("pull"):
+            pull_steps = actions["pull"]
+        elif pull_explicitly_provided:
+            pull_steps = []
+        else:
+            pull_steps = await _generate_default_pull_action(
+                console,
+                deploy_config=deploy_config,
+                actions=actions,
+                is_interactive=is_interactive,
+            )
 
     ## RUN BUILD AND PUSH STEPS
     step_outputs: dict[str, Any] = {}
