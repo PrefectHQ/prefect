@@ -35,20 +35,23 @@ config_app: cyclopts.App = cyclopts.App(
 def _valid_logging_override_names() -> frozenset[str]:
     """Valid `PREFECT_LOGGING_*` override keys derived from the logging config file.
 
-    Lazily parses the logging configuration file (CLI-only, cached) so logging.yml
-    keys such as `PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL` can be set via
-    `prefect config set`.
+    Mirrors the runtime file selection in `setup_logging`: the custom logging config
+    file is used if it exists, otherwise the packaged default — the two are never
+    merged (see `prefect.logging.configuration.setup_logging`). Lazily parses that
+    single file (CLI-only, cached).
     """
     from prefect.logging.configuration import (
         DEFAULT_LOGGING_SETTINGS_PATH,
         get_valid_setting_overrides,
     )
 
-    names: set[str] = set(get_valid_setting_overrides(DEFAULT_LOGGING_SETTINGS_PATH))
     configured = get_current_settings().logging.config_path
-    if configured and Path(configured).exists():
-        names |= get_valid_setting_overrides(Path(configured))
-    return frozenset(names)
+    path = (
+        Path(configured)
+        if configured and Path(configured).exists()
+        else DEFAULT_LOGGING_SETTINGS_PATH
+    )
+    return get_valid_setting_overrides(path)
 
 
 def _logging_override_setting(name: str) -> Setting:
@@ -311,6 +314,25 @@ def view(
         source: Literal["prefect.toml", "pyproject.toml"],
     ):
         for key, value in settings.items():
+            if (
+                base_path == ["logging"]
+                and key == "overrides"
+                and isinstance(value, dict)
+            ):
+                # `[logging.overrides]` table — each entry is a custom PREFECT_LOGGING_*
+                # override key rather than a declared setting.
+                for override_key, override_value in cast(dict[str, Any], value).items():
+                    upper = override_key.upper()
+                    if upper in valid_setting_names or upper in processed_settings:
+                        continue
+                    if (
+                        upper in valid_logging_overrides
+                        or upper in profile_override_names
+                    ):
+                        _process_setting(
+                            _logging_override_setting(upper), override_value, source
+                        )
+                continue
             if isinstance(value, dict):
                 _process_toml_settings(
                     cast(dict[str, Any], value), base_path + [key], source

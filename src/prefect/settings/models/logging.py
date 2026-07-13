@@ -17,7 +17,10 @@ from pydantic_settings import (
 from typing_extensions import Self
 
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
-from prefect.settings.sources import LoggingOverridesSource
+from prefect.settings.sources import (
+    EnvLoggingOverridesSource,
+    ProfileLoggingOverridesSource,
+)
 from prefect.types import LogLevel, validate_set_T_from_delim_string
 
 from ._defaults import default_logging_config_path
@@ -178,4 +181,18 @@ class LoggingSettings(PrefectBaseSettings):
             dotenv_settings,
             file_secret_settings,
         )
-        return (*sources, LoggingOverridesSource(settings_cls))
+        # Collect PREFECT_LOGGING_* override keys at their matching precedence tiers so the
+        # `overrides` dict merges per key (via pydantic's deep_update) as
+        # env > prefect.toml > pyproject.toml > profile. prefect.toml / pyproject.toml
+        # overrides are handled natively by the TOML sources via `[logging.overrides]`.
+        # `sources` is ordered highest→lowest priority:
+        #   (init, env, dotenv, file_secret, prefect.toml, pyproject.toml, profile)
+        env_source = EnvLoggingOverridesSource(settings_cls)
+        profile_source = ProfileLoggingOverridesSource(settings_cls)
+        return (
+            sources[0],  # init
+            sources[1],  # env
+            env_source,  # env-tier logging overrides
+            *sources[2:],  # dotenv, file_secret, prefect.toml, pyproject.toml, profile
+            profile_source,  # profile-tier logging overrides (lowest)
+        )

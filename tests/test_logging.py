@@ -282,6 +282,44 @@ def test_collecting_overrides_does_not_parse_logging_config(
     spy.assert_not_called()
 
 
+def test_logging_overrides_env_takes_precedence_over_prefect_toml(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    """Logging overrides resolve per key as env > prefect.toml, with unique keys from
+    each source preserved (via pydantic's deep_update merge across sources)."""
+    (tmp_path / "prefect.toml").write_text(
+        "[logging.overrides]\n"
+        'PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL = "TOML"\n'
+        'PREFECT_LOGGING_LOGGERS_PREFECT_TASK_RUNS_LEVEL = "TOML_ONLY"\n'
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL", "ENV")
+
+    from prefect.settings import Settings
+
+    overrides = Settings().logging.overrides
+    assert overrides["PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL"] == "ENV"
+    assert overrides["PREFECT_LOGGING_LOGGERS_PREFECT_TASK_RUNS_LEVEL"] == "TOML_ONLY"
+
+
+def test_valid_logging_override_names_uses_custom_file_only(tmp_path: Path):
+    """Override-key validation mirrors runtime file selection: when a custom logging
+    config file is set, only its keys are valid — the default file is ignored, not merged.
+    """
+    custom = tmp_path / "logging.yml"
+    custom.write_text("loggers:\n  my.custom.logger:\n    level: INFO\n")
+
+    with temporary_settings({PREFECT_LOGGING_SETTINGS_PATH: custom}):
+        from prefect.cli.config import _valid_logging_override_names
+
+        names = _valid_logging_override_names()
+
+    # A key from the custom file is valid...
+    assert "PREFECT_LOGGING_LOGGERS_MY_CUSTOM_LOGGER_LEVEL" in names
+    # ...but a key only in the packaged default is not (runtime ignores the default).
+    assert "PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL" not in names
+
+
 def test_setup_logging_preserves_existing_root_logger_configuration(
     dictConfigMock: MagicMock,
 ):

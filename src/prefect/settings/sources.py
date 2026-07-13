@@ -3,7 +3,18 @@ import sys
 import warnings
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Type, get_origin
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    get_origin,
+)
 
 import dotenv
 from cachetools import TTLCache
@@ -360,17 +371,22 @@ def _declared_env_names(settings_cls: Type[BaseSettings]) -> frozenset[str]:
     return frozenset(names)
 
 
-class LoggingOverridesSource(PydanticBaseSettingsSource):
-    """Collect `PREFECT_LOGGING_*` keys that do not map to a declared field into the
-    `overrides` field.
+class _LoggingOverridesSource(PydanticBaseSettingsSource):
+    """Base source that collects `PREFECT_LOGGING_*` keys which do not map to a declared
+    field into the `overrides` field.
 
     This lets logging configuration file (logging.yml) paths such as
-    `PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL` be configured through the
-    settings system (environment variables and profiles) and show up in
-    `get_current_settings()` / `prefect config view`.
+    `PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL` be configured through the settings
+    system and show up in `get_current_settings()` / `prefect config view`.
 
-    Only cheap key filtering is performed here; the logging configuration file is
-    never read or parsed at this layer.
+    Subclasses provide the origin to read from. Each origin is a separate source so it can
+    be placed at the correct precedence tier (environment vs. profile); pydantic-settings
+    then merges the `overrides` dict per key via `deep_update`, giving environment values
+    precedence over `prefect.toml`/`pyproject.toml` (native `[logging.overrides]`) over the
+    profile — matching the standard settings precedence.
+
+    Only cheap key filtering is performed here; the logging configuration file is never read
+    or parsed at this layer.
     """
 
     def __init__(self, settings_cls: Type[BaseSettings]):
@@ -386,29 +402,34 @@ class LoggingOverridesSource(PydanticBaseSettingsSource):
     def _is_override_key(self, key: str) -> bool:
         return key.startswith("PREFECT_LOGGING_") and key not in self._declared
 
-    def _collect(self) -> Dict[str, str]:
+    def _items(self) -> Iterable[Tuple[str, Any]]:
+        """Return the (key, value) pairs from this source's origin."""
+        raise NotImplementedError
+
+    def __call__(self) -> Dict[str, Any]:
         overrides: Dict[str, str] = {}
-        # Lower priority: profile settings (config set writes here)
-        try:
-            profile_settings = ProfileSettingsTomlLoader(
-                self.settings_cls
-            ).profile_settings
-        except Exception:
-            profile_settings = {}
-        for key, value in profile_settings.items():
+        for key, value in self._items():
             upper = key.upper()
             if self._is_override_key(upper):
                 overrides[upper] = str(value)
-        # Higher priority: environment variables override profile values
-        for key, value in os.environ.items():
-            upper = key.upper()
-            if self._is_override_key(upper):
-                overrides[upper] = value
-        return overrides
-
-    def __call__(self) -> Dict[str, Any]:
-        overrides = self._collect()
         return {"overrides": overrides} if overrides else {}
+
+
+class EnvLoggingOverridesSource(_LoggingOverridesSource):
+    """Collect logging overrides from environment variables (environment priority tier)."""
+
+    def _items(self) -> Iterable[Tuple[str, Any]]:
+        return os.environ.items()
+
+
+class ProfileLoggingOverridesSource(_LoggingOverridesSource):
+    """Collect logging overrides from the active profile (profile priority tier)."""
+
+    def _items(self) -> Iterable[Tuple[str, Any]]:
+        try:
+            return ProfileSettingsTomlLoader(self.settings_cls).profile_settings.items()
+        except Exception:
+            return ()
 
 
 def _is_test_mode() -> bool:

@@ -240,6 +240,37 @@ def test_view_shows_logging_override_set_only_in_env(monkeypatch):
     )
 
 
+def test_view_shows_logging_override_from_prefect_toml(tmp_path):
+    """A logging override set in `prefect.toml [logging.overrides]` is shown by view."""
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+
+    with tmpchdir(tmp_path):
+        with open("prefect.toml", "w") as f:
+            f.write(f'[logging.overrides]\n{LOGGING_OVERRIDE_KEY} = "ERROR"\n')
+
+        res = invoke_and_assert(["--profile", "foo", "config", "view"])
+
+    assert f"{LOGGING_OVERRIDE_KEY}='ERROR'" in res.stdout
+    assert FROM_PREFECT_TOML in res.stdout
+
+
+def test_view_env_takes_precedence_over_prefect_toml_logging_override(
+    monkeypatch, tmp_path
+):
+    """When a logging override is in both the environment and `prefect.toml`, view shows
+    the environment value/source (matching runtime precedence: env > prefect.toml)."""
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+    monkeypatch.setenv(LOGGING_OVERRIDE_KEY, "FROM_ENV")
+
+    with tmpchdir(tmp_path):
+        with open("prefect.toml", "w") as f:
+            f.write(f'[logging.overrides]\n{LOGGING_OVERRIDE_KEY} = "FROM_TOML"\n')
+
+        res = invoke_and_assert(["--profile", "foo", "config", "view"])
+
+    assert f"{LOGGING_OVERRIDE_KEY}='FROM_ENV' {FROM_ENV}" in res.stdout
+
+
 def test_unset_logging_override():
     save_profiles(
         ProfilesCollection(
