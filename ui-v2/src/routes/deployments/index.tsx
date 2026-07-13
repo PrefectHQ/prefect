@@ -83,6 +83,9 @@ export const Route = createFileRoute("/deployments/")({
 			data: deploymentsPage,
 			isPending,
 			isPlaceholderData,
+			isError,
+			error: deploymentsPageError,
+			refetch: refetchDeploymentsPage,
 		} = useQuery(buildPaginateDeploymentsQuery(buildPaginationBody(search)));
 
 		const deployments = deploymentsPage?.results ?? [];
@@ -120,6 +123,25 @@ export const Route = createFileRoute("/deployments/")({
 				{ enabled: flowIds.length > 0 },
 			),
 		);
+
+		if (isError) {
+			const serverError = categorizeError(
+				deploymentsPageError,
+				"Failed to load deployments",
+			);
+
+			return (
+				<div className="flex flex-col gap-4">
+					<DeploymentsPageHeader />
+					<RouteErrorState
+						error={serverError}
+						onRetry={() => {
+							void refetchDeploymentsPage();
+						}}
+					/>
+				</div>
+			);
+		}
 
 		const deploymentsWithFlows = deployments.map((deployment) => ({
 			...deployment,
