@@ -18,6 +18,7 @@ type SchemaFormInputStringFormatDateProps = {
 };
 
 const dateFormat = "yyyy-MM-dd";
+const datePattern = /^\d{4}-\d{2}-\d{2}$/;
 
 export function SchemaFormInputStringFormatDate({
 	value,
@@ -49,6 +50,10 @@ export function SchemaFormInputStringFormatDate({
 
 		if (text.trim() === "") {
 			handleDateChange(undefined);
+			return;
+		}
+
+		if (!datePattern.test(text)) {
 			return;
 		}
 

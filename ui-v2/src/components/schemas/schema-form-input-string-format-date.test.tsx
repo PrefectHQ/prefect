@@ -71,7 +71,7 @@ describe("SchemaFormInputStringFormatDate", () => {
 		expect(onValueChange).toHaveBeenLastCalledWith("2024-01-15");
 	});
 
-	test("can select a date from the calendar", async () => {
+	test("does not emit values for dates that are not in yyyy-MM-dd format", async () => {
 		const user = userEvent.setup();
 		const onValueChange = vi.fn();
 
@@ -84,6 +84,46 @@ describe("SchemaFormInputStringFormatDate", () => {
 		);
 
 		await user.click(screen.getByRole("button", { name: /Pick a date/i }));
+
+		const input = screen.getByLabelText("Date (yyyy-MM-dd)");
+		await user.type(input, "2-12-12");
+
+		expect(onValueChange).not.toHaveBeenCalled();
+	});
+
+	test("does not emit values for invalid dates", async () => {
+		const user = userEvent.setup();
+		const onValueChange = vi.fn();
+
+		render(
+			<SchemaFormInputStringFormatDate
+				value={undefined}
+				onValueChange={onValueChange}
+				id="test-id"
+			/>,
+		);
+
+		await user.click(screen.getByRole("button", { name: /Pick a date/i }));
+
+		const input = screen.getByLabelText("Date (yyyy-MM-dd)");
+		await user.type(input, "2024-02-30");
+
+		expect(onValueChange).not.toHaveBeenCalled();
+	});
+
+	test("can select a date from the calendar", async () => {
+		const user = userEvent.setup();
+		const onValueChange = vi.fn();
+
+		render(
+			<SchemaFormInputStringFormatDate
+				value="2026-07-01"
+				onValueChange={onValueChange}
+				id="test-id"
+			/>,
+		);
+
+		await user.click(screen.getByRole("button", { name: /July 1st, 2026/i }));
 
 		await user.click(
 			screen.getByRole("button", { name: /wednesday, july 15th, 2026/i }),
