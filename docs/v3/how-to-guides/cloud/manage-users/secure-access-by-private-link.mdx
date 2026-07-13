@@ -2,12 +2,14 @@
 title: How to secure access over PrivateLink
 sidebarTitle: Secure access over PrivateLink
 description: Manage network access to Prefect Cloud accounts over PrivateLink.
-keywords: ["PrivateLink", "AWS PrivateLink", "private network", "VPC", "secure access"]
+keywords: ["PrivateLink", "AWS PrivateLink", "private network", "VPC", "secure access", "tenant authentication", "vpce-id", "VPC endpoint"]
 ---
 
 PrivateLink is an available upgrade to certain Enterprise plans.
 [PrivateLink](https://aws.amazon.com/privatelink/) enables account administrators to route API and UI traffic to Prefect Cloud through AWS, keeping it off the public internet.
 Traffic between your network and Prefect Cloud is encrypted end-to-end.
+
+You can also optionally require that access to your account come *only* over your PrivateLink connection — see [Enforce tenant authentication](#enforce-tenant-authentication-vpc-endpoint-binding).
 
 To learn more, please contact your account manager or the Prefect team at sales@prefect.io.
 
@@ -23,7 +25,7 @@ Provide the following information to Prefect so the connection can be accepted:
 - API VPC Endpoint ID
 - UI VPC Endpoint ID (if using the private UI)
 
-Prefect will review and accept the connection.
+Prefect will review and accept the connection. The VPC Endpoint IDs you provide are also what Prefect binds your account to if you later [enforce tenant authentication](#enforce-tenant-authentication-vpc-endpoint-binding).
 
 ## Enable Private DNS
 
@@ -69,6 +71,36 @@ prefect cloud workspace ls
 
 Workers and other Prefect clients running inside your VPC will use these endpoints automatically once configured.
 
+## Enforce tenant authentication (VPC endpoint binding)
+
+By default, an API key can authenticate to its Prefect Cloud account from any network. **PrivateLink tenant authentication** adds a network-level control: it binds your account to your own AWS VPC endpoint(s), so requests are only authorized when they arrive over your PrivateLink connection. A leaked or misused API key cannot then be used to reach your account from outside your network.
+
+### How it works
+
+Each request that arrives over PrivateLink carries the AWS **VPC endpoint ID** (`vpce-id`) it came through. Prefect associates your account with one or more trusted VPC endpoint IDs (`vpce-id`) — the endpoints you created in [Getting started](#getting-started). When enforcement is on, a request is allowed to authenticate as your account only if its `vpce-id` is in your account's trusted set; all other traffic, including public (non-PrivateLink) requests, is rejected with `403`.
+
+Enforcement is a single account-wide setting — it is not scoped per service. It is applied at the API layer, where authentication happens. The private UI is a static application whose data all comes from the API, so enabling enforcement covers both: the API directly, and the UI through the API calls it makes. There is no API-only or UI-only mode.
+
+Your trusted VPC endpoints are managed by Prefect and shown, read-only, on the PrivateLink settings page. To add or change a trusted endpoint (for example, a new VPC or region), contact your Prefect team.
+
+### Enable enforcement
+
+<Warning>
+Enable enforcement **while connected over PrivateLink** — with the UI open at `https://app.private.prefect.cloud` from inside your VPC. Prefect blocks enabling enforcement from a public connection so that you cannot lock yourself out of your account.
+</Warning>
+
+1. Open the private UI at `https://app.private.prefect.cloud` from within your VPC.
+2. Go to **Account settings > PrivateLink**.
+3. Confirm your trusted VPC endpoints are listed.
+4. Turn on **Enforce PrivateLink tenant authentication**.
+
+Once enabled:
+
+- Requests to your account are authorized only when they arrive over one of your trusted VPC endpoints.
+- The public API and UI (`app.prefect.cloud` / `api.prefect.cloud`) return `403` for your account — reach it through the private endpoints instead.
+
+To disable enforcement, turn the toggle back off from the same page.
+
 ## Troubleshooting
 
 ### DNS does not resolve (NXDOMAIN)
@@ -84,4 +116,12 @@ In the AWS console, navigate to VPC > Endpoints and check the **Status** column.
 - Confirm you are running commands from an instance inside the VPC that has the VPC Endpoints configured.
 - Verify the VPC Endpoint's security group allows outbound HTTPS (port 443) traffic.
 - Check that the subnet associated with the VPC Endpoint has a route to the instance you are testing from.
-- Run `nslookup api.private.prefect.cloud` or `nslookup app.private.prefect.cloud` to confirm DNS resolves. 
+- Run `nslookup api.private.prefect.cloud` or `nslookup app.private.prefect.cloud` to confirm DNS resolves.
+
+### 403 errors after enabling tenant authentication
+
+If your account returns `403` after you enable [tenant authentication](#enforce-tenant-authentication-vpc-endpoint-binding):
+
+- Confirm you are reaching Prefect through the private endpoints (`api.private.prefect.cloud` / `app.private.prefect.cloud`), not the public `*.prefect.cloud` URLs. Once enforcement is on, the public endpoints return `403` for your account by design.
+- Confirm the request originates from a VPC that has a trusted VPC Endpoint. If you added a new VPC, endpoint, or region, contact your Prefect team to add its `vpce-id` to your account's trusted set.
+- If you are locked out (for example, enforcement was enabled and access is no longer possible), contact your Prefect team to disable enforcement.
