@@ -231,7 +231,7 @@ const ResumeDialogWithInput = ({
 			</DialogHeader>
 
 			{description && (
-				<div className="prose prose-sm dark:prose-invert max-w-none py-2 px-3 bg-muted/50 rounded-md shrink-0">
+				<div className="prose prose-sm dark:prose-invert max-w-none max-h-48 overflow-y-auto py-2 px-3 bg-muted/50 rounded-md shrink-0">
 					<LazyMarkdown>{description}</LazyMarkdown>
 				</div>
 			)}
