@@ -36,6 +36,21 @@ Install `prefect-aws` as a dependency of Prefect. If you don't already have `pre
 pip install "prefect[aws]"
 ```
 
+### Docker images
+
+Pre-built Docker images with `prefect-aws` installed are available from:
+
+- **Docker Hub**: `prefecthq/prefect-aws`
+- **ECR Public Gallery**: `public.ecr.aws/prefecthq/prefect-aws`
+
+```bash
+# Pull from Docker Hub
+docker pull prefecthq/prefect-aws:latest
+
+# Pull from ECR Public Gallery
+docker pull public.ecr.aws/prefecthq/prefect-aws:latest
+```
+
 ## Blocks setup
 
 ### Credentials
