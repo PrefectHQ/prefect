@@ -488,6 +488,35 @@ describe("DeploymentsDataTable", () => {
 		});
 	});
 
+	it("keeps the search input visible and allows clearing filters when there are no matches", async () => {
+		const user = userEvent.setup();
+		const onClearFilters = vi.fn();
+
+		await waitFor(() =>
+			render(
+				<DeploymentsDataTableRouter
+					{...defaultProps}
+					deployments={[]}
+					currentDeploymentsCount={1}
+					filteredCount={0}
+					pageCount={0}
+					onClearFilters={onClearFilters}
+				/>,
+				{ wrapper: createWrapper() },
+			),
+		);
+
+		expect(
+			screen.getByPlaceholderText("Search deployments"),
+		).toBeInTheDocument();
+		expect(
+			screen.getByText("No deployments match your filters"),
+		).toBeInTheDocument();
+
+		await user.click(screen.getByRole("button", { name: "Clear filters" }));
+		expect(onClearFilters).toHaveBeenCalled();
+	});
+
 	it("calls onColumnFiltersChange on tags search", async () => {
 		const user = userEvent.setup();
 
