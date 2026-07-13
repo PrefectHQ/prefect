@@ -132,26 +132,74 @@ list of addresses without configuring a notification block. This action is only 
 
 ## Templating with Jinja
 
-You can access templated variables with automation actions through [Jinja](https://palletsprojects.com/p/jinja/) syntax.
-Templated variables enable you to dynamically include details from an automation trigger, such as a flow or pool name.
+Many automation action fields — notification bodies, deployment parameters, webhook payloads, and more — can be
+templated with [Jinja](https://palletsprojects.com/p/jinja/) so that each action includes details from the event and
+automation that triggered it. Jinja wraps a variable name in double curly brackets, like `{{ variable }}`.
 
-Jinja templated variable syntax wraps the variable name in double curly brackets, like this: `{{ variable }}`.
+Templates render in a sandboxed environment when the action runs, and they have access to two kinds of variables:
 
-You can access properties of the underlying flow run objects including:
+- **Standard context variables** are always available. They come straight from the automation and the event that
+  triggered it, captured at the moment the automation fired, and require no additional API calls.
+- **Dynamic shortcuts** (such as `flow_run` and `deployment`) are conveniences that fetch a fresh copy of a related
+  object from the API when you reference them. They are powerful, but come with the timing tradeoffs described
+  [below](#timing-and-freshness).
 
-- [flow_run](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.FlowRun)
-- [flow](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.Flow)
-- [deployment](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.Deployment)
-- [work_queue](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.WorkQueue)
-- [work_pool](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.WorkPool)
+### Standard context variables
 
-In addition to its native properties, each object includes an `id` along with `created` and `updated` timestamps.
+These variables are always in the template context:
 
-The `flow_run|ui_url` token returns the URL to view the flow run in the UI.
+| Variable | Type | Description |
+| --- | --- | --- |
+| `automation` | [`Automation`](https://app.prefect.cloud/api/docs#tag/Automations) | The automation that ran the action. Exposes fields such as `name`, `description`, `id`, and the configured `trigger`. |
+| `event` | `Event` (or `None`) | The event that triggered the automation. For reactive triggers this is the event that caused the trigger to fire; for proactive triggers it is the most recent matching event, and it may be `None` when a proactive trigger fires without one. Exposes `id`, `event` (the event name), `occurred`, `resource`, `related`, and `payload`. |
+| `labels` | `LabelDiver` | The subset of the triggering event's labels named in the trigger's `for_each`, accessed by attribute — for example, `{{ labels.prefect.resource.id }}`. Empty when the trigger has no `for_each`. |
+| `firing` | `Firing` (or `None`) | The specific trigger firing that prompted this action. Useful fields include `triggered` (when it fired) and `triggering_value` (for example, the value of a metric trigger's last evaluation). |
+| `firings` | list of `Firing` | Every firing that contributed to this action, including the child firings of compound and sequence triggers. |
+| `events` | list of `Event` | Every event across all of the firings above. |
 
-Use `{{ value | tojson }}` to serialize any template variable to a JSON string. The filter handles Pydantic model objects such as `flow_run`, `deployment`, and `event` directly — for example, `{{ flow_run | tojson(indent=2) }}` renders the full flow run as formatted JSON. The optional `indent` argument controls pretty-printing.
+Because these come directly from the triggering event, they always reflect exactly what the automation saw when it
+fired. For example, an automation can report on the automation, the triggering event, and its resources:
 
-Here's an example relevant to a flow run state-based notification:
+```
+Automation: {{ automation.name }}
+Description: {{ automation.description }}
+
+Event: {{ event.id }}
+Resource:
+{% for label, value in event.resource %}
+{{ label }}: {{ value }}
+{% endfor %}
+Related Resources:
+{% for related in event.related %}
+    Role: {{ related.role }}
+    {% for label, value in related %}
+    {{ label }}: {{ value }}
+    {% endfor %}
+{% endfor %}
+```
+
+This example also illustrates the ability to use Jinja features such as iteration and for-loop
+[control structures](https://jinja.palletsprojects.com/en/3.1.x/templates/#list-of-control-structures) when
+templating actions.
+
+### Dynamic shortcut variables
+
+When your template references one of the following names, Prefect looks for a matching resource in the triggering
+event and, if it finds one, fetches a fresh copy of that object from the API and makes it available under that name:
+
+| Variable | Resolved object | Matched event resource |
+| --- | --- | --- |
+| `deployment` | [`Deployment`](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.Deployment) | `prefect.deployment.*` |
+| `flow` | [`Flow`](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.Flow) | `prefect.flow.*` |
+| `flow_run` | [`FlowRun`](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.FlowRun) | `prefect.flow-run.*` |
+| `task_run` | [`TaskRun`](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.TaskRun) | `prefect.task-run.*` |
+| `work_pool` | [`WorkPool`](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.WorkPool) | `prefect.work-pool.*` |
+| `work_queue` | [`WorkQueue`](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.WorkQueue) (with status) | `prefect.work-queue.*` |
+| `concurrency_limit` | `ConcurrencyLimit` | `prefect.concurrency-limit.*` |
+| `variables` | Mapping of workspace [variables](/v3/concepts/variables) by name | (workspace-wide) |
+
+In addition to its native properties, each fetched object includes an `id` along with `created` and `updated`
+timestamps. For example, a flow-run state-based notification:
 
 ```
 Flow run {{ flow_run.name }} entered state {{ flow_run.state.name }}.
@@ -188,31 +236,52 @@ Name: {{ work_pool.name }}
 Last polled: {{ work_pool.last_polled }}
 ```
 
-In addition to those shortcuts for flows, deployments, and work pools, you have access to the automation and the
-event that triggered the automation. See the [Automations API](https://app.prefect.cloud/api/docs#tag/Automations)
-for additional details.
+#### Timing and freshness
 
-```
-Automation: {{ automation.name }}
-Description: {{ automation.description }}
+Shortcuts are convenient, but they behave differently from the standard context variables in ways worth understanding:
 
-Event: {{ event.id }}
-Resource:
-{% for label, value in event.resource %}
-{{ label }}: {{ value }}
-{% endfor %}
-Related Resources:
-{% for related in event.related %}
-    Role: {{ related.role }}
-    {% for label, value in related %}
-    {{ label }}: {{ value }}
-    {% endfor %}
-{% endfor %}
-```
+<Warning>
+A shortcut is fetched from the API **when the action runs**, not when the event occurred. Because an automation may
+run some time after its triggering event — and the underlying object may have changed states in the meantime — a
+shortcut reflects the object's **current** state, which can differ from its state at the moment the automation
+fired.
 
-Note that this example also illustrates the ability to use Jinja features such as iterator and for loop
-[control structures](https://jinja.palletsprojects.com/en/3.1.x/templates/#list-of-control-structures) when
-templating notifications.
+As a special case, the `state` of `flow_run` and `task_run` is rebuilt from the triggering event so that
+`{{ flow_run.state.name }}` matches the state change that fired the automation, while the run's other fields still
+reflect the latest API values.
+</Warning>
+
+Additional consequences of the fetch-on-demand behavior:
+
+- A shortcut is only resolved when the triggering event references a matching resource. If there is no triggering
+  event, or no resource of that kind, the variable is undefined and renders as an empty string rather than raising an
+  error.
+- Resolving a shortcut costs an extra API call and may return nothing if the object has since been deleted.
+
+When you need a value to reflect the exact moment the automation fired, prefer the standard `event` and `firing`
+variables, which carry the event payload as it was received. Use the shortcuts when you want the latest full object.
+
+### Filters
+
+In addition to Jinja's [built-in filters](https://jinja.palletsprojects.com/en/3.1.x/templates/#builtin-filters),
+templates can use the following Prefect-provided filters:
+
+| Filter | Description |
+| --- | --- |
+| `tojson` | Serialize any value — including Pydantic objects such as `flow_run`, `deployment`, and `event` — to a JSON string. Accepts an optional `indent` for pretty-printing, for example `{{ flow_run \| tojson(indent=2) }}`. |
+| `ui_url` | The Prefect UI URL for the given object, for example `{{ flow_run \| ui_url }}`. |
+| `ui_resource_events_url` | A UI link to the events page filtered to the given resource or object. |
+| `flow_run_id` | Extract a flow run ID from a string (such as a pull-request body or log line) that contains a `flow-run/<uuid>` path. |
+
+Human-friendly date and time rendering is also available through the
+[jinja2-humanize-extension](https://pypi.org/project/jinja2-humanize-extension/), which is enabled for automation
+templates.
+
+### Sandbox limits
+
+Automation templates run in a sandbox that blocks access to Python internals and caps a few looping constructs to
+keep rendering safe: `range()` is limited to 100 items, a template may contain at most 10 `for` loops, and loops may
+be nested no more than two deep.
 
 For more on the common use case of passing an upstream flow run's parameters to the flow run invoked by the automation, see the [Passing parameters to a flow run](/v3/how-to-guides/automations/access-parameters-in-templates/) guide.
 
