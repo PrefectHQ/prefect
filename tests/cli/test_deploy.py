@@ -769,6 +769,124 @@ class TestProjectDeploy:
                 }
             ]
 
+        @pytest.mark.usefixtures("project_dir")
+        async def test_project_deploy_empty_pull_disables_pull_steps(
+            self,
+            work_pool: WorkPool,
+            prefect_client: PrefectClient,
+        ):
+            prefect_file = Path("prefect.yaml")
+            config = yaml.safe_load(prefect_file.read_text())
+            config["pull"] = []
+            prefect_file.write_text(yaml.safe_dump(config))
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f" {work_pool.name} --interval 60"
+                ),
+                expected_code=0,
+                expected_output_does_not_contain=[
+                    "Your Prefect workers will attempt to load your flow from:"
+                ],
+            )
+
+            deployment = await prefect_client.read_deployment_by_name(
+                "An important name/test-name"
+            )
+            assert deployment.pull_steps == []
+
+        @pytest.mark.usefixtures("interactive_console", "project_dir")
+        async def test_project_deploy_empty_pull_does_not_prompt_storage(
+            self,
+            work_pool: WorkPool,
+        ):
+            prefect_file = Path("prefect.yaml")
+            config = yaml.safe_load(prefect_file.read_text())
+            config["pull"] = []
+            prefect_file.write_text(yaml.safe_dump(config))
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f" {work_pool.name} --version 1.0.0 -jv env=prod -t foo-bar"
+                    " --interval 60"
+                ),
+                # don't save the deployment configuration
+                user_input="n" + readchar.key.ENTER,
+                expected_code=0,
+                expected_output_does_not_contain=[
+                    "Would you like your workers to pull your flow code from a remote"
+                    " storage location when running this flow?"
+                ],
+            )
+
+        @pytest.mark.usefixtures("project_dir")
+        async def test_project_deploy_deployment_empty_pull_overrides_global(
+            self,
+            work_pool: WorkPool,
+            prefect_client: PrefectClient,
+        ):
+            prefect_file = Path("prefect.yaml")
+            config = yaml.safe_load(prefect_file.read_text())
+            config["pull"] = [
+                {
+                    "prefect.deployments.steps.git_clone": {
+                        "repository": "https://example.com/org/repo.git",
+                    }
+                }
+            ]
+            config["deployments"][0]["pull"] = []
+            prefect_file.write_text(yaml.safe_dump(config))
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f" {work_pool.name} --interval 60"
+                ),
+                expected_code=0,
+            )
+
+            deployment = await prefect_client.read_deployment_by_name(
+                "An important name/test-name"
+            )
+            assert deployment.pull_steps == []
+
+        @pytest.mark.usefixtures("project_dir")
+        async def test_project_deploy_null_pull_generates_default_action(
+            self,
+            work_pool: WorkPool,
+            prefect_client: PrefectClient,
+            project_dir: Path,
+        ):
+            prefect_file = Path("prefect.yaml")
+            config = yaml.safe_load(prefect_file.read_text())
+            config["pull"] = None
+            prefect_file.write_text(yaml.safe_dump(config))
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f" {work_pool.name} --interval 60"
+                ),
+                expected_code=0,
+            )
+
+            deployment = await prefect_client.read_deployment_by_name(
+                "An important name/test-name"
+            )
+            assert deployment.pull_steps == [
+                {
+                    "prefect.deployments.steps.set_working_directory": {
+                        "directory": str(project_dir)
+                    }
+                }
+            ]
+
         async def test_project_deploy_with_no_prefect_yaml_git_repo_no_remote(
             self,
             work_pool: WorkPool,
