@@ -39,7 +39,11 @@ from prefect.server.utilities.messaging import (
 )
 from prefect.server.utilities.messaging import Publisher as _Publisher
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
-from prefect_redis.client import clear_cached_clients, get_async_redis_client
+from prefect_redis.client import (
+    clear_cached_clients,
+    cluster_key_prefix,
+    get_async_redis_client,
+)
 
 logger = get_logger(__name__)
 
@@ -122,6 +126,38 @@ class RedisMessagingConsumerSettings(PrefectBaseSettings):
 MESSAGE_DEDUPLICATION_LOOKBACK = timedelta(minutes=5)
 
 
+def _topic_key_prefix(topic: str) -> str:
+    return cluster_key_prefix(f"message:{topic}")
+
+
+def _stream_key(topic: str) -> str:
+    prefix = _topic_key_prefix(topic)
+    if prefix.startswith("{"):
+        return f"{prefix}:stream"
+    return topic
+
+
+def _deduplication_key(topic: str, attribute_value: Any) -> str:
+    prefix = _topic_key_prefix(topic)
+    if prefix.startswith("{"):
+        return f"{prefix}:dedupe:{attribute_value}"
+    return f"message:{topic}:{attribute_value}"
+
+
+def _dlq_key(topic: str) -> str:
+    prefix = _topic_key_prefix(topic)
+    if prefix.startswith("{"):
+        return f"{prefix}:dlq"
+    return "dlq"
+
+
+def _dlq_message_key(topic: str) -> str:
+    prefix = _topic_key_prefix(topic)
+    if prefix.startswith("{"):
+        return f"{prefix}:dlq:{uuid.uuid4().hex}"
+    return f"dlq:{uuid.uuid4().hex}"
+
+
 class Cache(_Cache):
     def __init__(self, topic: str = "messaging-cache"):
         self.topic = topic
@@ -144,7 +180,7 @@ class Cache(_Cache):
                     messages_without_attribute.append(m)
                     continue
                 p.set(
-                    f"message:{self.topic}:{m.attributes[attribute]}",
+                    _deduplication_key(self.topic, m.attributes[attribute]),
                     "1",
                     nx=True,
                     ex=MESSAGE_DEDUPLICATION_LOOKBACK,
@@ -166,7 +202,7 @@ class Cache(_Cache):
                         extra={"event_message": m},
                     )
                     continue
-                p.delete(f"message:{self.topic}:{m.attributes[attribute]}")
+                p.delete(_deduplication_key(self.topic, m.attributes[attribute]))
             await p.execute()
 
 
@@ -215,7 +251,8 @@ class Publisher(_Publisher):
     ):
         settings = RedisMessagingPublisherSettings()
 
-        self.stream = topic  # Use topic as stream name
+        self.topic = topic
+        self.stream = _stream_key(topic)
         self.cache = cache
         self.deduplicate_by = (
             deduplicate_by if deduplicate_by is not None else settings.deduplicate_by
@@ -314,11 +351,13 @@ class Consumer(_Consumer):
         max_retries: Optional[int] = None,
         trim_every: Optional[timedelta] = None,
         read_batch_size: Optional[int] = 1,
+        use_consumer_group: bool = True,
     ):
         settings = RedisMessagingConsumerSettings()
 
+        self.topic = topic
         self.name = name or topic
-        self.stream = topic  # Use topic as stream name
+        self.stream = _stream_key(topic)
         self.group = group or topic  # Use topic as default group name
         self.block = block if block is not None else settings.block
         self.min_idle_time = (
@@ -342,12 +381,16 @@ class Consumer(_Consumer):
         self.trim_every = trim_every if trim_every is not None else settings.trim_every
 
         self.subscription = Subscription(
-            max_retries=max_retries if max_retries is not None else settings.max_retries
+            max_retries=max_retries
+            if max_retries is not None
+            else settings.max_retries,
+            dlq_key=_dlq_key(topic),
         )
         self._retry_counts: dict[str, int] = {}
 
         self._last_trimmed: Optional[float] = None
         self._read_batch_size: Optional[int] = read_batch_size
+        self.use_consumer_group = use_consumer_group
 
     async def _ensure_stream_and_group(self, redis_client: Redis) -> None:
         """Ensure the stream and consumer group exist."""
@@ -360,6 +403,49 @@ class Consumer(_Consumer):
             if "BUSYGROUP Consumer Group name already exists" not in str(e):
                 raise
             logger.debug("Consumer group already exists: %s", e)
+
+    async def _run_without_consumer_group(
+        self, handler: MessageHandler, redis_client: Redis
+    ) -> None:
+        last_id = self.starting_message_id
+
+        while True:
+            stream_entries = await redis_client.xread(
+                streams={self.stream: last_id},
+                count=self._read_batch_size,
+                block=int(self.block.total_seconds() * 1000),
+            )
+
+            if not stream_entries:
+                await self._trim_stream_if_necessary(last_id)
+                continue
+
+            for _, messages in stream_entries:
+                for message_id, message in messages:
+                    last_id = (
+                        message_id.decode()
+                        if isinstance(message_id, bytes)
+                        else message_id
+                    )
+                    self.starting_message_id = last_id
+                    try:
+                        await self._handle_message(
+                            message_id,
+                            message,
+                            handler,
+                            _noop_ack,
+                        )
+                    except StopConsumer:
+                        await self._trim_stream_if_necessary(last_id)
+                        return
+                    except Exception:
+                        logger.exception(
+                            "Error handling message %s in consumer %s, continuing",
+                            message_id,
+                            self.name,
+                        )
+
+            await self._trim_stream_if_necessary(last_id)
 
     async def process_pending_messages(
         self,
@@ -426,6 +512,10 @@ class Consumer(_Consumer):
         while True:  # Outer loop for connection resilience
             try:
                 redis_client: Redis = get_async_redis_client()
+
+                if not self.use_consumer_group:
+                    await self._run_without_consumer_group(handler, redis_client)
+                    return
 
                 # Ensure stream and group exist before processing messages
                 await self._ensure_stream_and_group(redis_client)
@@ -580,18 +670,22 @@ class Consumer(_Consumer):
         }
 
         # Store in Redis as a hash
-        message_id = f"dlq:{uuid.uuid4().hex}"
+        message_id = _dlq_message_key(self.topic)
         await redis_client.hset(message_id, mapping={"data": json.dumps(dlq_message)})
         # Add to a Redis set for easy retrieval
         await redis_client.sadd(self.subscription.dlq_key, message_id)
 
-    async def _trim_stream_if_necessary(self) -> None:
+    async def _trim_stream_if_necessary(
+        self, latest_delivered_id: Optional[str] = None
+    ) -> None:
         now = time.monotonic()
         if self._last_trimmed is None:
             self._last_trimmed = now
 
         if now - self._last_trimmed > self.trim_every.total_seconds():
-            await _trim_stream_to_lowest_delivered_id(self.stream)
+            await _trim_stream_to_lowest_delivered_id(
+                self.stream, latest_delivered_id=latest_delivered_id
+            )
             await _cleanup_empty_consumer_groups(self.stream)
             self._last_trimmed = now
 
@@ -601,16 +695,31 @@ async def ephemeral_subscription(
     topic: str, source: Optional[str] = None, group: Optional[str] = None
 ) -> AsyncGenerator[dict[str, Any], None]:
     source = source or topic
-    group_name = group or f"ephemeral-{socket.gethostname()}-{uuid.uuid4().hex}"
+    source_stream = _stream_key(source)
+    name = group or f"ephemeral-{socket.gethostname()}-{uuid.uuid4().hex}"
     redis_client: Redis = get_async_redis_client()
 
-    await redis_client.xgroup_create(source, group_name, id="0", mkstream=True)
-
     try:
-        # Return only the arguments that the Consumer expects.
-        yield {"topic": topic, "name": topic, "group": group_name}
-    finally:
-        await redis_client.xgroup_destroy(source, group_name)
+        stream_info = await redis_client.xinfo_stream(source_stream)
+        starting_message_id = stream_info["last-generated-id"]
+    except ResponseError as exc:
+        if "no such key" not in str(exc).lower():
+            raise
+        starting_message_id = "0-0"
+
+    # Ephemeral subscribers only need live messages from this point forward; they do
+    # not need durable consumer-group state. Using XREAD avoids leaking Redis
+    # consumer groups when a process is killed before context manager cleanup runs.
+    yield {
+        "topic": source,
+        "name": name,
+        "starting_message_id": starting_message_id,
+        "use_consumer_group": False,
+    }
+
+
+async def _noop_ack(*args: Any, **kwargs: Any) -> int:
+    return 0
 
 
 @asynccontextmanager
@@ -626,14 +735,16 @@ async def break_topic():
         yield
 
 
-async def _trim_stream_to_lowest_delivered_id(stream_name: str) -> None:
+async def _trim_stream_to_lowest_delivered_id(
+    stream_name: str, latest_delivered_id: Optional[str] = None
+) -> None:
     """
-    Trims a Redis stream by removing all messages that have been delivered to and
-    acknowledged by all consumer groups.
+    Trims a Redis stream by removing messages that have been delivered to all
+    active consumers.
 
     This function finds the lowest last-delivered-id across all consumer groups and
-    trims the stream up to that point, as we know all consumers have processed those
-    messages.
+    any non-consumer-group reader, then trims the stream up to that point, as we
+    know all consumers have processed those messages.
 
     Consumer groups with all consumers idle beyond the configured threshold are
     excluded from the trimming calculation to prevent inactive groups from blocking
@@ -641,19 +752,25 @@ async def _trim_stream_to_lowest_delivered_id(stream_name: str) -> None:
 
     Args:
         stream_name: The name of the Redis stream to trim
+        latest_delivered_id: The latest ID delivered to a non-consumer-group reader.
     """
     redis_client: Redis = get_async_redis_client()
     settings = RedisMessagingConsumerSettings()
     idle_threshold_ms = int(settings.trim_idle_threshold.total_seconds() * 1000)
 
+    delivered_ids = []
+    if latest_delivered_id and latest_delivered_id != "0-0":
+        delivered_ids.append(latest_delivered_id)
+
     # Get information about all consumer groups for this stream
     groups = await redis_client.xinfo_groups(stream_name)
     if not groups:
         logger.debug(f"No consumer groups found for stream {stream_name}")
-        return
+        if not delivered_ids:
+            return
 
     # Find the lowest last-delivered-id across all active groups
-    group_ids = []
+    group_ids = delivered_ids
     for group in groups:
         if group["last-delivered-id"] == "0-0":
             # Skip groups that haven't consumed anything

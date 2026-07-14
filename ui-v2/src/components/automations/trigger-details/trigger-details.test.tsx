@@ -9,7 +9,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
-import { createFakeFlow } from "@/mocks";
+import { createFakeDeployment, createFakeFlow } from "@/mocks";
 import { TriggerDetails } from "./trigger-details";
 import type { AutomationTrigger } from "./trigger-utils";
 
@@ -68,6 +68,30 @@ const flowRunStateTriggerWithFlow: AutomationTrigger = {
 		"prefect.resource.role": "flow",
 		"prefect.resource.id": "prefect.flow.my-flow-id",
 	},
+	after: [],
+	expect: ["prefect.flow-run.Completed"],
+	for_each: ["prefect.resource.id"],
+	posture: "Reactive",
+	threshold: 1,
+	within: 0,
+};
+
+const flowRunStateTriggerWithFlowAndDeployment: AutomationTrigger = {
+	type: "event",
+	id: "trigger-1",
+	match: {
+		"prefect.resource.id": "prefect.flow-run.*",
+	},
+	match_related: [
+		{
+			"prefect.resource.role": "flow",
+			"prefect.resource.id": "prefect.flow.my-flow-id",
+		},
+		{
+			"prefect.resource.role": "deployment",
+			"prefect.resource.id": "prefect.deployment.my-deployment-id",
+		},
+	],
 	after: [],
 	expect: ["prefect.flow-run.Completed"],
 	for_each: ["prefect.resource.id"],
@@ -246,6 +270,45 @@ describe("TriggerDetails", () => {
 
 			await waitFor(() => {
 				expect(screen.getByText("My Test Flow")).toBeInTheDocument();
+			});
+		});
+
+		it("renders flow run state trigger with deployment filter", async () => {
+			const mockFlow = createFakeFlow({
+				id: "my-flow-id",
+				name: "My Test Flow",
+			});
+			const mockDeployment = createFakeDeployment({
+				id: "my-deployment-id",
+				name: "My Test Deployment",
+			});
+
+			server.use(
+				http.get(buildApiUrl("/flows/:id"), () => {
+					return HttpResponse.json(mockFlow);
+				}),
+				http.get(buildApiUrl("/deployments/:id"), () => {
+					return HttpResponse.json(mockDeployment);
+				}),
+			);
+
+			await waitFor(() =>
+				render(
+					<TriggerDetailsRouter
+						trigger={flowRunStateTriggerWithFlowAndDeployment}
+					/>,
+					{
+						wrapper: createWrapper(),
+					},
+				),
+			);
+
+			expect(screen.getByText("of flow")).toBeInTheDocument();
+			expect(screen.getByText("of deployment")).toBeInTheDocument();
+
+			await waitFor(() => {
+				expect(screen.getByText("My Test Flow")).toBeInTheDocument();
+				expect(screen.getByText("My Test Deployment")).toBeInTheDocument();
 			});
 		});
 	});

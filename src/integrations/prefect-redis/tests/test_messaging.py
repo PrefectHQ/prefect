@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 import uuid
 from datetime import datetime, timedelta, timezone
 from functools import partial
@@ -16,11 +17,17 @@ from prefect_redis.messaging import (
     Publisher,
     RedisMessagingConsumerSettings,
     RedisMessagingPublisherSettings,
+    RedisStreamsMessage,
     StopConsumer,
     _cleanup_empty_consumer_groups,
+    _deduplication_key,
+    _dlq_key,
+    _dlq_message_key,
+    _stream_key,
     _trim_stream_to_lowest_delivered_id,
 )
-from redis.asyncio import Redis
+from redis.asyncio import Redis, RedisCluster
+from redis.cluster import key_slot
 from redis.exceptions import ConnectionError as RedisConnectionError
 
 from prefect.server.events import Event
@@ -119,6 +126,109 @@ async def drain_one(consumer: Consumer) -> Optional[Message]:
         await consumer.run(handler)
 
     return captured_messages[0] if captured_messages else None
+
+
+def test_messaging_keys_share_cluster_hash_slot(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setenv(
+        "PREFECT_REDIS_MESSAGING_URL", "redis+cluster://redis.example.com:6379"
+    )
+
+    topic = "message-tests"
+    dlq_message_key = _dlq_message_key(topic)
+    keys = [
+        _stream_key(topic),
+        _deduplication_key(topic, "dedupe-id"),
+        _dlq_key(topic),
+        dlq_message_key,
+    ]
+
+    assert keys[:3] == [
+        "{message:message-tests}:stream",
+        "{message:message-tests}:dedupe:dedupe-id",
+        "{message:message-tests}:dlq",
+    ]
+    assert dlq_message_key.startswith("{message:message-tests}:dlq:")
+    assert len({key_slot(key.encode()) for key in keys}) == 1
+
+
+def test_messaging_keys_preserve_standalone_names(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("PREFECT_REDIS_MESSAGING_URL", raising=False)
+
+    topic = "message-tests"
+    assert _stream_key(topic) == topic
+    assert _deduplication_key(topic, "dedupe-id") == "message:message-tests:dedupe-id"
+    assert _dlq_key(topic) == "dlq"
+    assert _dlq_message_key(topic).startswith("dlq:")
+
+
+@pytest.mark.skipif(
+    not os.environ.get("PREFECT_REDIS_CLUSTER_TEST_URL"),
+    reason="requires PREFECT_REDIS_CLUSTER_TEST_URL",
+)
+async def test_messaging_runs_against_real_redis_cluster(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    cluster_url = os.environ["PREFECT_REDIS_CLUSTER_TEST_URL"]
+    client_url = cluster_url.replace("redis+cluster://", "redis://", 1).replace(
+        "rediss+cluster://", "rediss://", 1
+    )
+    settings_url = cluster_url
+    if settings_url.startswith("redis://"):
+        settings_url = settings_url.replace("redis://", "redis+cluster://", 1)
+    elif settings_url.startswith("rediss://"):
+        settings_url = settings_url.replace("rediss://", "rediss+cluster://", 1)
+
+    redis_client = RedisCluster.from_url(client_url, decode_responses=True)
+    await redis_client.flushall()
+    try:
+        monkeypatch.setenv("PREFECT_REDIS_MESSAGING_URL", settings_url)
+        monkeypatch.setattr(
+            "prefect_redis.messaging.get_async_redis_client",
+            lambda: redis_client,
+        )
+
+        topic = f"cluster-message-tests-{uuid.uuid4()}"
+        cache = Cache(topic=topic)
+        publisher = Publisher(
+            topic,
+            cache=cache,
+            deduplicate_by="message-id",
+            batch_size=1,
+            publish_every=None,
+        )
+        consumer = Consumer(topic, group=f"group-{uuid.uuid4()}")
+        captured_messages: list[Message] = []
+
+        async def handler(message: Message):
+            captured_messages.append(message)
+            raise StopConsumer(ack=True)
+
+        async with publisher as p:
+            await p.publish_data(b"hello", {"message-id": "A"})
+            await p.publish_data(b"duplicate", {"message-id": "A"})
+
+        await consumer.run(handler)
+
+        assert [message.data for message in captured_messages] == ["hello"]
+        assert await redis_client.xlen(_stream_key(topic)) == 1
+        assert await redis_client.scard(_dlq_key(topic)) == 0
+
+        failed_message = RedisStreamsMessage(
+            data="failed",
+            attributes={"message-id": "B"},
+            acker=lambda: asyncio.sleep(0),
+        )
+        await consumer._send_to_dlq(failed_message, retry_count=4)
+
+        dlq_message_ids = await redis_client.smembers(_dlq_key(topic))
+        assert len(dlq_message_ids) == 1
+        dlq_message_key = next(iter(dlq_message_ids))
+        assert dlq_message_key.startswith(f"{{message:{topic}}}:dlq:")
+        dlq_data = await redis_client.hget(dlq_message_key, "data")
+        assert json.loads(dlq_data)["data"] == "failed"
+    finally:
+        await redis_client.flushall()
+        await redis_client.aclose()
 
 
 async def test_publishing_and_consuming_a_single_message(
@@ -331,16 +441,116 @@ async def test_ephemeral_subscription(broker: str, publisher: Publisher):
 
 
 async def test_verify_ephemeral_cleanup(redis: Redis, broker: str):
-    """Verify that ephemeral subscriptions clean up after themselves."""
+    """Verify that ephemeral subscriptions do not create consumer groups."""
     async with ephemeral_subscription("message-tests") as consumer_kwargs:
-        group_name = consumer_kwargs["group"]
-        # Verify group exists
-        groups = await redis.xinfo_groups("message-tests")
-        assert any(g["name"] == group_name for g in groups)
+        assert consumer_kwargs["use_consumer_group"] is False
+        assert "group" not in consumer_kwargs
 
-    # Verify group is cleaned up
+        async with create_publisher("message-tests") as p:
+            await p.publish_data(b"hello, world", {"howdy": "partner"})
+
+        groups = await redis.xinfo_groups("message-tests")
+        assert groups == []
+
     groups = await redis.xinfo_groups("message-tests")
-    assert not any(g["name"] == group_name for g in groups)
+    assert groups == []
+
+
+async def test_ephemeral_subscription_does_not_replay_old_messages(
+    broker: str, publisher: Publisher
+):
+    """Ephemeral subscriptions should receive live messages, not stream history."""
+    captured_messages: list[Message] = []
+
+    async with publisher as p:
+        await p.publish_data(b"old", {"message": "old"})
+
+    async def handler(message: Message):
+        captured_messages.append(message)
+        raise StopConsumer(ack=True)
+
+    async with ephemeral_subscription("message-tests") as consumer_kwargs:
+        consumer = create_consumer(**consumer_kwargs)
+        consumer_task = asyncio.create_task(consumer.run(handler))
+
+        try:
+            async with publisher as p:
+                await p.publish_data(b"new", {"message": "new"})
+        finally:
+            await consumer_task
+
+    assert len(captured_messages) == 1
+    assert captured_messages[0].data == "new"
+    assert captured_messages[0].attributes == {"message": "new"}
+
+
+async def test_ephemeral_subscription_does_not_skip_messages_received_during_handler(
+    broker: str,
+):
+    """Ephemeral XREAD consumers should advance from the last seen ID after startup."""
+    captured_messages: list[Message] = []
+    second_message_published = asyncio.Event()
+
+    async def handler(message: Message):
+        captured_messages.append(message)
+
+        if len(captured_messages) == 1:
+            async with create_publisher("message-tests") as p:
+                await p.publish_data(b"second", {"message": "second"})
+            second_message_published.set()
+            await asyncio.sleep(0.1)
+            return
+
+        raise StopConsumer(ack=True)
+
+    async with ephemeral_subscription("message-tests") as consumer_kwargs:
+        consumer = create_consumer(**consumer_kwargs)
+        consumer_task = asyncio.create_task(consumer.run(handler))
+
+        try:
+            async with create_publisher("message-tests") as p:
+                await p.publish_data(b"first", {"message": "first"})
+            await second_message_published.wait()
+        finally:
+            await consumer_task
+
+    assert [message.data for message in captured_messages] == ["first", "second"]
+
+
+async def test_ephemeral_subscription_trims_stream_without_consumer_groups(
+    redis: Redis, broker: str, publisher: Publisher
+):
+    """Ephemeral XREAD consumers should still periodically trim their stream."""
+    captured_messages: list[Message] = []
+
+    async with publisher as p:
+        for i in range(5):
+            await p.publish_data(b"old", {"message": f"old-{i}"})
+
+    assert await redis.xlen("message-tests") == 5
+
+    async def handler(message: Message):
+        captured_messages.append(message)
+        if len(captured_messages) == 2:
+            raise StopConsumer(ack=True)
+
+    async with ephemeral_subscription("message-tests") as consumer_kwargs:
+        consumer = create_consumer(**consumer_kwargs, trim_every=timedelta(seconds=0))
+        consumer_task = asyncio.create_task(consumer.run(handler))
+
+        try:
+            async with publisher as p:
+                await p.publish_data(b"new", {"message": "new-1"})
+                await p.publish_data(b"new", {"message": "new-2"})
+        finally:
+            await consumer_task
+
+    assert [message.attributes["message"] for message in captured_messages] == [
+        "new-1",
+        "new-2",
+    ]
+    assert await redis.xinfo_groups("message-tests") == []
+    assert await redis.xlen("message-tests") < 7
 
 
 @pytest.mark.parametrize("batch_size", [1, 5])

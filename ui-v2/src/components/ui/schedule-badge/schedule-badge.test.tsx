@@ -33,6 +33,34 @@ describe("ScheduleBadge", () => {
 		expect(tooltip).toHaveTextContent("At 12:00 AM (UTC)");
 	});
 
+	it("renders a diverging cron schedule using the raw cron string", async () => {
+		const user = userEvent.setup();
+		const schedule = {
+			id: "test-id",
+			created: new Date().toISOString(),
+			updated: new Date().toISOString(),
+			active: true,
+			schedule: {
+				cron: "0 0 * * SAT/2",
+				timezone: "UTC",
+				day_or: false,
+			},
+		};
+
+		render(<ScheduleBadge schedule={schedule} />);
+
+		expect(screen.getByText("Active")).toBeInTheDocument();
+		expect(screen.getByText("0 0 * * SAT/2")).toBeInTheDocument();
+		expect(screen.queryByText(/at 12:00 am/i)).not.toBeInTheDocument();
+		await user.hover(screen.getByText("0 0 * * SAT/2"));
+		await waitFor(() => {
+			expect(screen.getByRole("tooltip")).toBeVisible();
+		});
+		expect(screen.getByRole("tooltip")).toHaveTextContent(
+			"0 0 * * SAT/2 (UTC)",
+		);
+	});
+
 	it("renders a paused cron schedule correctly", async () => {
 		const user = userEvent.setup();
 		const schedule = {

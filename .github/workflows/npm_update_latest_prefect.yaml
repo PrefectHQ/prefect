@@ -20,7 +20,7 @@
         # required for `gh pr create`
         pull-requests: write
       steps:
-        - uses: actions/checkout@v6
+        - uses: actions/checkout@v7
 
         - name: Configure Git
           run: |

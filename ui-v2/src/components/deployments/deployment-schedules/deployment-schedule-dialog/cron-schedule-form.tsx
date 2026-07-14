@@ -10,7 +10,7 @@ import {
 	useUpdateDeploymentSchedule,
 } from "@/api/deployments";
 import { Button } from "@/components/ui/button";
-import { CronInput } from "@/components/ui/cron-input";
+import { CronInput, divergesFromServerCron } from "@/components/ui/cron-input";
 import {
 	Dialog,
 	DialogContent,
@@ -34,7 +34,7 @@ import { TimezoneSelect } from "@/components/ui/timezone-select";
 const verifyCronValue = (cronValue: string) => {
 	try {
 		CronExpressionParser.parse(cronValue);
-		return true;
+		return !divergesFromServerCron(cronValue);
 	} catch {
 		return false;
 	}
@@ -44,7 +44,7 @@ const formSchema = z.object({
 	active: z.boolean(),
 	schedule: z.object({
 		cron: z.string().refine(verifyCronValue),
-		timezone: z.string().default("Etc/UTC"),
+		timezone: z.string().default("UTC"),
 		day_or: z.boolean().default(true),
 	}),
 });
@@ -54,7 +54,7 @@ const DEFAULT_VALUES = {
 	active: true,
 	schedule: {
 		cron: "* * * * *",
-		timezone: "Etc/UTC",
+		timezone: "UTC",
 		day_or: true,
 	},
 } satisfies FormSchema;
@@ -93,7 +93,7 @@ export const CronScheduleForm = ({
 					schedule: {
 						cron,
 						day_or,
-						timezone: timezone ?? "Etc/UTC",
+						timezone: timezone ?? "UTC",
 					},
 				});
 			}

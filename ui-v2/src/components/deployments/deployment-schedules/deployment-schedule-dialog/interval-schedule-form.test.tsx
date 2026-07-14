@@ -17,7 +17,15 @@ const IntervalScheduleFormTest = (props: IntervalScheduleFormProps) => (
 	</>
 );
 
-describe("CronScheduleForm", () => {
+const baseSchedule = {
+	active: true,
+	created: "0",
+	deployment_id: "0",
+	id: "123",
+	updated: "0",
+};
+
+describe("IntervalScheduleForm", () => {
 	beforeAll(mockPointerEvents);
 
 	it("is able to create a new interval schedule", async () => {
@@ -48,15 +56,11 @@ describe("CronScheduleForm", () => {
 	it("is able to edit an interval schedule", () => {
 		// Setup
 		const MOCK_SCHEDULE = {
-			active: true,
-			created: "0",
-			deployment_id: "0",
-			id: "123",
-			updated: "0",
+			...baseSchedule,
 			schedule: {
 				interval: 3600,
 				anchor_date: new Date().toISOString(),
-				timezone: '"Etc/UTC"',
+				timezone: "Etc/UTC",
 			},
 		};
 
@@ -73,5 +77,36 @@ describe("CronScheduleForm", () => {
 
 		expect(screen.getByLabelText(/active/i)).toBeChecked();
 		expect(screen.getByLabelText(/value/i)).toHaveValue("1");
+		expect(screen.getByLabelText(/select timezone/i)).toHaveTextContent("UTC");
+	});
+
+	it("defaults to UTC for new schedules", () => {
+		render(<IntervalScheduleFormTest deployment_id="0" onSubmit={vi.fn()} />, {
+			wrapper: createWrapper(),
+		});
+
+		expect(screen.getByLabelText(/select timezone/i)).toHaveTextContent("UTC");
+	});
+
+	it("displays UTC when editing a schedule stored as UTC", () => {
+		const MOCK_SCHEDULE = {
+			...baseSchedule,
+			schedule: {
+				interval: 3600,
+				anchor_date: new Date().toISOString(),
+				timezone: "UTC",
+			},
+		};
+
+		render(
+			<IntervalScheduleFormTest
+				deployment_id="0"
+				onSubmit={vi.fn()}
+				scheduleToEdit={MOCK_SCHEDULE}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		expect(screen.getByLabelText(/select timezone/i)).toHaveTextContent("UTC");
 	});
 });

@@ -15,7 +15,7 @@ class TestDatabricksCredentialsPATAuth:
         ).get_client()
         assert isinstance(client, AsyncClient)
         assert client.headers["authorization"] == "Bearer token_value"
-        assert client.headers["user-agent"] == "prefect+prefect-databricks"
+        assert client.headers["user-agent"].startswith("Prefect_PrefectDatabricks/")
 
     def test_backward_compatibility_with_token(self):
         """Test backward compatibility - existing PAT-based credentials work unchanged."""
@@ -49,10 +49,24 @@ class TestDatabricksCredentialsPATAuth:
         client = credentials.get_client()
         assert isinstance(client, AsyncClient)
         assert client.headers["authorization"] == "Bearer token_value"
-        assert (
-            client.headers["user-agent"]
-            == "custom-client/1.0 prefect+prefect-databricks"
-        )
+        user_agent = client.headers["user-agent"]
+        assert user_agent.startswith("custom-client/1.0 Prefect_PrefectDatabricks/")
+
+    def test_partner_user_agent_matches_databricks_format(self):
+        """The partner identifier must follow Databricks' required telemetry
+        attribution format: `<isv-name_product-name>/<product-version>`.
+
+        See https://databrickslabs.github.io/partner-architecture/isv-partners/telemetry-attribution
+        """
+        from prefect_databricks._version import __version__
+        from prefect_databricks.credentials import _DATABRICKS_PARTNER_USER_AGENT
+
+        identifier, _, version = _DATABRICKS_PARTNER_USER_AGENT.partition("/")
+        # underscore separates the (consistent) ISV name from the product name
+        assert identifier == "Prefect_PrefectDatabricks"
+        assert "_" in identifier
+        # version segment is present and tracks the package version
+        assert version == __version__
 
 
 class TestDatabricksCredentialsServicePrincipalAuth:
@@ -145,6 +159,7 @@ class TestDatabricksCredentialsServicePrincipalAuth:
 
         assert isinstance(client, AsyncClient)
         assert client.headers["authorization"] == "Bearer oauth-access-token"
+        assert client.headers["user-agent"].startswith("Prefect_PrefectDatabricks/")
 
         mock_client_instance.post.assert_called_once()
         call_args = mock_client_instance.post.call_args

@@ -8,6 +8,7 @@ from pydantic import Field
 from pydantic.types import SecretStr
 from redis.asyncio.connection import parse_url
 
+from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.filesystems import WritableFileSystem
 
 DEFAULT_PORT = 6379
@@ -24,6 +25,8 @@ class RedisDatabase(WritableFileSystem):
         username: The username to use when connecting to the Redis server
         password: The password to use when connecting to the Redis server
         ssl: Whether to use SSL when connecting to the Redis server
+        key_ttl: Optional per-key TTL in seconds applied to every written key
+            (`SET ... EX`); `None` (default) means keys never expire
 
     Example:
         Create a new block from hostname, username and password:
@@ -59,6 +62,17 @@ class RedisDatabase(WritableFileSystem):
     username: Optional[SecretStr] = Field(default=None, description="Redis username")
     password: Optional[SecretStr] = Field(default=None, description="Redis password")
     ssl: bool = Field(default=False, description="Whether to use SSL")
+    key_ttl: Optional[int] = Field(
+        default=None,
+        gt=0,
+        description=(
+            "Optional per-key time-to-live in seconds, applied to every written "
+            "key (Redis `SET ... EX`). Must be positive; when `None` (the "
+            "default) keys never expire. Useful when using the block as "
+            "`result_storage`/cache on a Redis with a `maxmemory` + "
+            "`volatile-lru` eviction policy."
+        ),
+    )
 
     def block_initialization(self) -> None:
         """Validate parameters"""
@@ -68,7 +82,7 @@ class RedisDatabase(WritableFileSystem):
         if self.username and not self.password:
             raise ValueError("Missing password")
 
-    async def read_path(self, path: str) -> bytes:
+    async def aread_path(self, path: str) -> bytes:
         """Read a redis key
 
         Args:
@@ -76,25 +90,79 @@ class RedisDatabase(WritableFileSystem):
 
         Returns:
             Contents at key as bytes
+
+        Examples:
+            Read a key:
+                ```python
+                content = await block.aread_path("my-key")
+                ```
         """
         client = self.get_async_client()
-        ret = await client.get(path)
+        try:
+            return await client.get(path)
+        finally:
+            await client.aclose()
 
-        await client.close()
-        return ret
+    @async_dispatch(aread_path)
+    def read_path(self, path: str) -> bytes:
+        """Read a redis key
 
-    async def write_path(self, path: str, content: bytes) -> None:
+        Args:
+            path: Redis key to read from
+
+        Returns:
+            Contents at key as bytes
+
+        Examples:
+            Read a key:
+                ```python
+                content = block.read_path("my-key")
+                ```
+        """
+        client = self.get_client()
+        try:
+            return client.get(path)
+        finally:
+            client.close()
+
+    async def awrite_path(self, path: str, content: bytes) -> bool:
         """Write to a redis key
 
         Args:
             path: Redis key to write to
             content: Binary object to write
+
+        Examples:
+            Write a key:
+                ```python
+                await block.awrite_path("my-key", b"contents")
+                ```
         """
         client = self.get_async_client()
-        ret = await client.set(path, content)
+        try:
+            return await client.set(path, content, ex=self.key_ttl) is True
+        finally:
+            await client.aclose()
 
-        await client.close()
-        return ret
+    @async_dispatch(awrite_path)
+    def write_path(self, path: str, content: bytes) -> bool:
+        """Write to a redis key
+
+        Args:
+            path: Redis key to write to
+            content: Binary object to write
+
+        Examples:
+            Write a key:
+                ```python
+                block.write_path("my-key", b"contents")
+                ```
+        """
+        client = self.get_client()
+        try:
+            return client.set(path, content, ex=self.key_ttl) is True
+        finally:
+            client.close()
 
     def get_client(self) -> redis.Redis:
         """Get Redis Client
@@ -163,6 +231,8 @@ class RedisDatabase(WritableFileSystem):
         """
         data = self.model_dump()
         data.pop("block_type_slug", None)
+        # `key_ttl` governs write behavior, not the connection — never a client kwarg.
+        data.pop("key_ttl", None)
         # Unwrap SecretStr fields
         if self.username is not None:
             data["username"] = self.username.get_secret_value()

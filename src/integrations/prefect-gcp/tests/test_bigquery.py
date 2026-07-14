@@ -2,10 +2,12 @@ import os
 from unittest.mock import MagicMock
 
 import pytest
-from google.cloud.bigquery import ExternalConfig, SchemaField
+from google.cloud.bigquery import ExternalConfig, LoadJobConfig, SchemaField
 from google.cloud.bigquery.dbapi.connection import Connection
+from google.cloud.bigquery.format_options import ParquetOptions
 from prefect_gcp.bigquery import (
     BigQueryWarehouse,
+    _build_load_job_config,
     bigquery_create_table,
     bigquery_insert_stream,
     bigquery_load_cloud_storage,
@@ -151,6 +153,92 @@ def test_bigquery_load_file(gcp_credentials):
     assert result.output == "file"
     assert result._client is None
     assert result._completion_lock is None
+
+
+class TestBuildLoadJobConfig:
+    def test_defaults_autodetect_true(self):
+        config = _build_load_job_config(None)
+        assert isinstance(config, LoadJobConfig)
+        assert config.autodetect is True
+
+    def test_respects_explicit_autodetect_false(self):
+        config = _build_load_job_config({"autodetect": False})
+        assert config.autodetect is False
+
+    def test_passes_through_plain_job_config(self):
+        config = _build_load_job_config(
+            {"source_format": "PARQUET", "autodetect": True}
+        )
+        assert config.source_format == "PARQUET"
+        assert config.autodetect is True
+
+    def test_converts_dict_parquet_options(self):
+        config = _build_load_job_config(
+            {
+                "source_format": "PARQUET",
+                "autodetect": False,
+                "parquet_options": {"enableListInference": True},
+            }
+        )
+        assert isinstance(config.parquet_options, ParquetOptions)
+        assert config.parquet_options.enable_list_inference is True
+        assert config.autodetect is False
+
+    def test_preserves_parquet_options_object(self):
+        opts = ParquetOptions.from_api_repr({"enableListInference": True})
+        config = _build_load_job_config({"parquet_options": opts})
+        assert isinstance(config.parquet_options, ParquetOptions)
+        assert config.parquet_options.enable_list_inference is True
+
+    def test_applies_schema(self):
+        schema = [SchemaField("id", "INTEGER")]
+        config = _build_load_job_config(None, schema=schema)
+        assert config.schema == schema
+
+    def test_does_not_mutate_input_dict(self):
+        original = {"source_format": "PARQUET"}
+        _build_load_job_config(original)
+        assert "autodetect" not in original
+
+
+def test_bigquery_load_cloud_storage_with_parquet_options(gcp_credentials):
+    @flow
+    def test_flow():
+        return bigquery_load_cloud_storage(
+            "dataset",
+            "table",
+            "uri",
+            gcp_credentials,
+            job_config={
+                "source_format": "PARQUET",
+                "autodetect": False,
+                "parquet_options": {"enableListInference": True},
+            },
+        )
+
+    result = test_flow()
+    assert result.output == "uri"
+
+
+def test_bigquery_load_file_with_parquet_options(gcp_credentials):
+    path = os.path.abspath(__file__)
+
+    @flow
+    def test_flow():
+        return bigquery_load_file(
+            "dataset",
+            "table",
+            path,
+            gcp_credentials,
+            job_config={
+                "source_format": "PARQUET",
+                "autodetect": False,
+                "parquet_options": {"enableListInference": True},
+            },
+        )
+
+    result = test_flow()
+    assert result.output == "file"
 
 
 class TestBigQueryWarehouse:

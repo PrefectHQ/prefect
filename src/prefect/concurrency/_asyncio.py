@@ -43,6 +43,51 @@ class AcquireConcurrencySlotTimeoutError(TimeoutError):
 logger: logging.Logger = get_logger("concurrency")
 
 
+def _format_http_status_error(exc: httpx.HTTPStatusError) -> str:
+    """Format an HTTP status error from the server into a compact string.
+
+    Handles both Prefect API payloads (`exception_detail`) and raw FastAPI
+    payloads (`detail`), extracting Pydantic-style validation errors and
+    dropping the leading `body` location component.
+    """
+    status_code = exc.response.status_code
+    reason = exc.response.reason_phrase
+    status_text = f"{status_code} {reason}" if reason else str(status_code)
+
+    try:
+        body = exc.response.json()
+    except Exception:
+        body = None
+
+    messages: list[str] = []
+    if isinstance(body, dict):
+        errors = body.get("exception_detail") or body.get("detail")
+        if isinstance(errors, list):
+            for error in errors:
+                if not isinstance(error, dict):
+                    continue
+                msg = error.get("msg")
+                if not isinstance(msg, str):
+                    continue
+                loc = error.get("loc")
+                if isinstance(loc, (list, tuple)) and loc:
+                    if loc[0] == "body":
+                        loc = loc[1:]
+                    field = ".".join(str(part) for part in loc)
+                else:
+                    field = ""
+                if field:
+                    messages.append(f"{field}: {msg}")
+                else:
+                    messages.append(msg)
+        elif isinstance(errors, str):
+            messages.append(errors)
+
+    if messages:
+        return f"{status_text}: {'; '.join(messages)}"
+    return status_text
+
+
 async def aacquire_concurrency_slots(
     names: list[str],
     slots: int,
@@ -59,6 +104,11 @@ async def aacquire_concurrency_slots(
         raise AcquireConcurrencySlotTimeoutError(
             f"Attempt to acquire concurrency slots timed out after {timeout_seconds} second(s)"
         ) from timeout
+    except httpx.HTTPStatusError as exc:
+        raise ConcurrencySlotAcquisitionError(
+            f"Unable to acquire concurrency slots on {names!r}: "
+            f"{_format_http_status_error(exc)}"
+        ) from exc
     except Exception as exc:
         raise ConcurrencySlotAcquisitionError(
             f"Unable to acquire concurrency slots on {names!r}"
@@ -104,6 +154,11 @@ async def aacquire_concurrency_slots_with_lease(
         raise AcquireConcurrencySlotTimeoutError(
             f"Attempt to acquire concurrency slots timed out after {timeout_seconds} second(s)"
         ) from timeout
+    except httpx.HTTPStatusError as exc:
+        raise ConcurrencySlotAcquisitionError(
+            f"Unable to acquire concurrency slots on {names!r}: "
+            f"{_format_http_status_error(exc)}"
+        ) from exc
     except Exception as exc:
         raise ConcurrencySlotAcquisitionError(
             f"Unable to acquire concurrency slots on {names!r}"

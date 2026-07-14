@@ -20,6 +20,7 @@ from prefect.server.worker_communication.cleanup_queue import (
     CleanupQueueWakeup,
     record_cleanup_queue_dead_letter,
     record_cleanup_queue_lease_expiry_result,
+    record_cleanup_queue_operation,
 )
 from prefect.server.worker_communication.cleanup_queue import (
     WorkerCleanupQueue as _WorkerCleanupQueue,
@@ -125,6 +126,13 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                     and existing.message_id not in self._reservations
                 )
                 result = _copy_model(existing)
+                record_cleanup_queue_operation(
+                    "enqueue",
+                    status="duplicate",
+                    work_pool_id=work_pool_id,
+                    message_id=message_id,
+                    cleanup_kind=str(kind),
+                )
             else:
                 message = CleanupQueueMessage(
                     message_id=message_id,
@@ -141,6 +149,13 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                 self._idempotency_keys[(work_pool_id, idempotency_key)] = message_id
                 result = _copy_model(message)
                 should_wake = True
+                record_cleanup_queue_operation(
+                    "enqueue",
+                    status="accepted",
+                    work_pool_id=work_pool_id,
+                    message_id=message_id,
+                    cleanup_kind=str(kind),
+                )
 
         if should_wake:
             await self.wake_dispatchers(work_pool_id)
@@ -227,6 +242,15 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
             await self.wake_dispatchers(wake_work_pool_id)
         record_cleanup_queue_lease_expiry_result(expiry_result)
 
+        if result is not None:
+            record_cleanup_queue_operation(
+                "reserve",
+                status="accepted",
+                work_pool_id=work_pool_id,
+                message_id=result.message_id,
+                cleanup_kind=str(result.kind),
+            )
+
         return result
 
     async def ack(
@@ -268,6 +292,12 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                     status="accepted",
                 )
 
+        record_cleanup_queue_operation(
+            "ack",
+            status=result.status,
+            work_pool_id=work_pool_id,
+            message_id=message_id,
+        )
         if wake_work_pool_id is not None:
             await self.wake_dispatchers(wake_work_pool_id)
         return result
@@ -330,6 +360,12 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                         status="accepted",
                     )
 
+        record_cleanup_queue_operation(
+            "release",
+            status=result.status,
+            work_pool_id=work_pool_id,
+            message_id=message_id,
+        )
         if wake_work_pool_id is not None:
             await self.wake_dispatchers(wake_work_pool_id)
         return result
@@ -378,6 +414,12 @@ class WorkerCleanupQueue(_WorkerCleanupQueue):
                     lease_expires_at=lease_expires_at,
                 )
 
+        record_cleanup_queue_operation(
+            "renew",
+            status=result.status,
+            work_pool_id=work_pool_id,
+            message_id=message_id,
+        )
         if wake_work_pool_id is not None:
             await self.wake_dispatchers(wake_work_pool_id)
         return result

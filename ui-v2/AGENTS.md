@@ -159,6 +159,15 @@ Tailwind's `prose` class (`@tailwindcss/typography`) does **not** automatically 
 <div className="prose dark:prose-invert">...</div>
 ```
 
+### CodeMirror Editors
+
+`@uiw/react-codemirror` does not follow the app theme automatically. Any component using `useCodeMirror` must explicitly read and pass the theme:
+
+```tsx
+const { resolvedTheme } = useTheme(); // from "next-themes"
+useCodeMirror({ theme: resolvedTheme === "dark" ? "dark" : "light", ... });
+```
+
 ### Avoid Hardcoded Colors
 
 Never use hardcoded gray scale colors (e.g., `bg-gray-100`, `text-gray-500`) as these will not adapt to dark mode and can make text unreadable or create jarring visual contrast.
