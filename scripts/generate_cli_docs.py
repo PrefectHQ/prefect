@@ -93,11 +93,6 @@ def get_examples(docstring_object: str) -> list[str]:
     ]
 
 
-def _parameter_is_hidden(meta: cyclopts.Parameter | None) -> bool:
-    """Return True if a Cyclopts Parameter is explicitly hidden."""
-    return meta is not None and meta.show is False
-
-
 def _parameter_is_option(meta: cyclopts.Parameter | None) -> bool:
     """Return True if the parameter should be rendered as an option."""
     return meta is not None and bool(meta.name) and meta.name[0].startswith("-")
@@ -115,21 +110,21 @@ def _positional_display_name(
 
 def _extract_command_params(
     app: cyclopts.App,
-) -> tuple[list[Any], list[Any], list[str], bool]:
+) -> tuple[list[Any], list[Any], list[str], list[str]]:
     """Extract options, arguments, and usage hints from a Cyclopts App command.
 
     Returns:
         A tuple of (options, arguments, required_positional_names,
-        has_optional_positional).
+        optional_positional_names).
 
     """
     options: list[Any] = []
     arguments: list[Any] = []
     required_positional: list[str] = []
-    has_optional_positional = False
+    optional_positional: list[str] = []
 
     if app.default_command is None:
-        return options, arguments, required_positional, has_optional_positional
+        return options, arguments, required_positional, optional_positional
 
     signature = inspect.signature(app.default_command)
     try:
@@ -155,9 +150,10 @@ def _extract_command_params(
                     meta = item
                     break
 
-        if _parameter_is_hidden(meta):
-            continue
-
+        # Public positional arguments hidden from `--help` (e.g. the `name`
+        # argument to `prefect automation inspect`) are still accepted and
+        # should be documented. Internal parameters such as the root `*tokens`
+        # argument are filtered by kind above.
         help_text = (meta.help if meta is not None and meta.help else "") or ""
 
         if _parameter_is_option(meta):
@@ -180,9 +176,9 @@ def _extract_command_params(
             if is_required:
                 required_positional.append(display_name)
             else:
-                has_optional_positional = True
+                optional_positional.append(display_name)
 
-    return options, arguments, required_positional, has_optional_positional
+    return options, arguments, required_positional, optional_positional
 
 
 def build_docs_context(
@@ -211,7 +207,7 @@ def build_docs_context(
     else:
         docstring = app.help or ""
 
-    options, arguments, required_positional, has_optional_positional = (
+    options, arguments, required_positional, optional_positional = (
         _extract_command_params(app)
     )
 
@@ -220,8 +216,7 @@ def build_docs_context(
     elif app.default_command is not None:
         usage_pieces = ["[OPTIONS]"]
         usage_pieces.extend(required_positional)
-        if has_optional_positional:
-            usage_pieces.append("[ARGS]")
+        usage_pieces.extend(f"[{name}]" for name in optional_positional)
     else:
         usage_pieces = ["[OPTIONS]"]
 

@@ -2,6 +2,7 @@
 
 import runpy
 from pathlib import Path
+from typing import Callable
 
 import pytest
 
@@ -12,14 +13,14 @@ def script_path(tests_dir: Path) -> Path:
 
 
 @pytest.fixture(scope="module")
-def generate_cli_docs(script_path: Path):
+def generate_cli_docs(script_path: Path) -> Callable[[str], None]:
     """Load the generate_cli_docs function from the script."""
     globals_ = runpy.run_path(str(script_path))
     return globals_["generate_cli_docs"]
 
 
 def test_generate_cli_docs_produces_experimental_without_stale_safe_mode(
-    generate_cli_docs,
+    generate_cli_docs: Callable[[str], None],
     tmp_path: Path,
 ):
     output_dir = tmp_path / "cli"

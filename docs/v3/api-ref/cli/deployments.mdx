@@ -166,7 +166,7 @@ Delete a deployment schedule.
 
 
 ```command
-prefect deployments schedule pause [OPTIONS] [ARGS]
+prefect deployments schedule pause [OPTIONS] [DEPLOYMENT_NAME] [SCHEDULE_ID]
 ```
 
 
@@ -209,7 +209,7 @@ Pause deployment schedules.
 
 
 ```command
-prefect deployments schedule resume [OPTIONS] [ARGS]
+prefect deployments schedule resume [OPTIONS] [DEPLOYMENT_NAME] [SCHEDULE_ID]
 ```
 
 
@@ -375,7 +375,7 @@ View details about a deployment.
 
 
 ```command
-prefect deployments ls [OPTIONS] [ARGS]
+prefect deployments ls [OPTIONS] [FLOW_NAME]
 ```
 
 
@@ -421,7 +421,7 @@ View all deployments or deployments for specific flows.
 
 
 ```command
-prefect deployments run [OPTIONS] [ARGS]
+prefect deployments run [OPTIONS] [NAME]
 ```
 
 
@@ -508,7 +508,7 @@ starts. To watch the flow run until it reaches a terminal state, use the
 
 
 ```command
-prefect deployments delete [OPTIONS] [ARGS]
+prefect deployments delete [OPTIONS] [NAME]
 ```
 
 

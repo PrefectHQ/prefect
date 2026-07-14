@@ -94,7 +94,9 @@ async def ls():
 @automation_app.command(name="inspect")
 @with_cli_exception_handling
 async def inspect(
-    name: Annotated[Optional[str], cyclopts.Parameter(show=False)] = None,
+    name: Annotated[
+        Optional[str], cyclopts.Parameter(show=False, help="An automation's name.")
+    ] = None,
     *,
     id: Annotated[
         Optional[str],
@@ -172,7 +174,9 @@ async def inspect(
 @automation_app.command(name="resume", alias="enable")
 @with_cli_exception_handling
 async def resume(
-    name: Annotated[Optional[str], cyclopts.Parameter(show=False)] = None,
+    name: Annotated[
+        Optional[str], cyclopts.Parameter(show=False, help="An automation's name.")
+    ] = None,
     *,
     id: Annotated[
         Optional[str],
@@ -223,7 +227,9 @@ async def resume(
 @automation_app.command(name="pause", alias="disable")
 @with_cli_exception_handling
 async def pause(
-    name: Annotated[Optional[str], cyclopts.Parameter(show=False)] = None,
+    name: Annotated[
+        Optional[str], cyclopts.Parameter(show=False, help="An automation's name.")
+    ] = None,
     *,
     id: Annotated[
         Optional[str],
@@ -274,7 +280,9 @@ async def pause(
 @automation_app.command(name="delete")
 @with_cli_exception_handling
 async def delete(
-    name: Annotated[Optional[str], cyclopts.Parameter(show=False)] = None,
+    name: Annotated[
+        Optional[str], cyclopts.Parameter(show=False, help="An automation's name.")
+    ] = None,
     *,
     id: Annotated[
         Optional[str],
