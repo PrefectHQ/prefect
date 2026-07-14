@@ -255,13 +255,13 @@ See all the optional keyword arguments for the [`DockerImage` class](https://doc
 <Tip>
 **Default Docker namespace**
 
-    You can set the `PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE` setting to append a default Docker namespace to all images
+    You can set the `PREFECT_DEPLOYMENTS_DEFAULT_DOCKER_BUILD_NAMESPACE` setting to append a default Docker namespace to all images
     you build with `.deploy`. This is helpful if you use a private registry to store your images.
 
     To set a default Docker namespace for your current profile run:
 
     ```bash
-    prefect config set PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE=<docker-registry-url>/<organization-or-username>
+    prefect config set PREFECT_DEPLOYMENTS_DEFAULT_DOCKER_BUILD_NAMESPACE=<docker-registry-url>/<organization-or-username>
     ```
 
     Once set, you can omit the namespace from your image name when creating a deployment:
@@ -276,7 +276,7 @@ See all the optional keyword arguments for the [`DockerImage` class](https://doc
     ```
 
     The above code builds an image with the format `<docker-registry-url>/<organization-or-username>/my_image:my_image_tag`
-    when `PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE` is set.
+    when `PREFECT_DEPLOYMENTS_DEFAULT_DOCKER_BUILD_NAMESPACE` is set.
 </Tip>
 
 ### Store your code in git-based cloud storage

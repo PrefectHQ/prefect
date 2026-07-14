@@ -39,7 +39,7 @@ There are four categories of configuration for result persistence:
 - [whether to persist results at all](#enabling-result-persistence): this is configured through
 various keyword arguments, the `PREFECT_RESULTS_PERSIST_BY_DEFAULT` setting, and the `PREFECT_TASKS_DEFAULT_PERSIST_RESULT` setting for tasks specifically.
 - [what filesystem to persist results to](#result-storage): this is configured through the `result_storage`
-keyword, the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting, or a server-side default result storage block. A configured default result storage block also enables result persistence by default.
+keyword, the `PREFECT_RESULTS_DEFAULT_STORAGE_BLOCK` setting, or a server-side default result storage block. A configured default result storage block also enables result persistence by default.
 - [how to serialize and deserialize results](#result-serialization): this is configured through
 the `result_serializer` keyword and the `PREFECT_RESULTS_DEFAULT_SERIALIZER` setting.
 - [what filename to use](#result-filenames): this is configured through one of
@@ -54,10 +54,10 @@ result storage configuration is activated.
 If you enable result persistence and don't specify a filesystem block, your results will be stored locally.
 By default, results are persisted to `~/.prefect/storage/`.
 
-You can configure the location of these results through the `PREFECT_LOCAL_STORAGE_PATH` setting.
+You can configure the location of these results through the `PREFECT_RESULTS_LOCAL_STORAGE_PATH` setting.
 
 ```bash
-prefect config set PREFECT_LOCAL_STORAGE_PATH='~/.my-results/'
+prefect config set PREFECT_RESULTS_LOCAL_STORAGE_PATH='~/.my-results/'
 ```
 
 <Warning>
@@ -169,13 +169,13 @@ def my_flow():
 
 #### Specifying a default filesystem
 
-Alternatively, you can specify a different filesystem through the `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting.
+Alternatively, you can specify a different filesystem through the `PREFECT_RESULTS_DEFAULT_STORAGE_BLOCK` setting.
 Specifying a block document slug here configures the filesystem Prefect uses when result persistence is enabled.
 
 For example:
 
 ```bash
-prefect config set PREFECT_DEFAULT_RESULT_STORAGE_BLOCK='s3-bucket/my-prod-block'
+prefect config set PREFECT_RESULTS_DEFAULT_STORAGE_BLOCK='s3-bucket/my-prod-block'
 ```
 
 <Info>
@@ -310,7 +310,7 @@ After this is configured, a deployment that uses the same Prefect API and does n
 
 <Info>
 More specific configuration still wins. Explicit `result_storage` on a flow or task overrides the
-server-side default. A local `PREFECT_DEFAULT_RESULT_STORAGE_BLOCK` setting also overrides the
+server-side default. A local `PREFECT_RESULTS_DEFAULT_STORAGE_BLOCK` setting also overrides the
 server-side default for that profile.
 </Info>
 

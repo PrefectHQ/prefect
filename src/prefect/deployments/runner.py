@@ -98,7 +98,7 @@ from prefect.exceptions import (
 from prefect.runner.storage import RunnerStorage
 from prefect.schedules import Schedule
 from prefect.settings import (
-    PREFECT_DEFAULT_WORK_POOL_NAME,
+    PREFECT_DEPLOYMENTS_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
 )
 from prefect.types import ListOfNonEmptyStrings
@@ -1446,7 +1446,7 @@ async def adeploy(
     Args:
         *deployments: A list of deployments to deploy.
         work_pool_name: The name of the work pool to use for these deployments. Defaults to
-            the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
+            the value of `PREFECT_DEPLOYMENTS_DEFAULT_WORK_POOL_NAME`.
         image: The name of the Docker image to build, including the registry and
             repository. Pass a DockerImage instance to customize the Dockerfile used
             and build arguments.
@@ -1483,7 +1483,9 @@ async def adeploy(
             )
         ```
     """
-    work_pool_name = work_pool_name or PREFECT_DEFAULT_WORK_POOL_NAME.value()
+    work_pool_name = (
+        work_pool_name or PREFECT_DEPLOYMENTS_DEFAULT_WORK_POOL_NAME.value()
+    )
 
     if not image and not all(
         d.storage or d.entrypoint_type == EntrypointType.MODULE_PATH
@@ -1498,7 +1500,7 @@ async def adeploy(
         raise ValueError(
             "A work pool name must be provided when deploying a deployment. Either"
             " provide a work pool name when calling `deploy` or set"
-            " `PREFECT_DEFAULT_WORK_POOL_NAME` in your profile."
+            " `PREFECT_DEPLOYMENTS_DEFAULT_WORK_POOL_NAME` in your profile."
         )
 
     if image and isinstance(image, str):
@@ -1685,7 +1687,7 @@ def deploy(
     Args:
         *deployments: A list of deployments to deploy.
         work_pool_name: The name of the work pool to use for these deployments. Defaults to
-            the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
+            the value of `PREFECT_DEPLOYMENTS_DEFAULT_WORK_POOL_NAME`.
         image: The name of the Docker image to build, including the registry and
             repository. Pass a DockerImage instance to customize the Dockerfile used
             and build arguments.
@@ -1722,7 +1724,9 @@ def deploy(
             )
         ```
     """
-    work_pool_name = work_pool_name or PREFECT_DEFAULT_WORK_POOL_NAME.value()
+    work_pool_name = (
+        work_pool_name or PREFECT_DEPLOYMENTS_DEFAULT_WORK_POOL_NAME.value()
+    )
 
     if not image and not all(
         d.storage or d.entrypoint_type == EntrypointType.MODULE_PATH
@@ -1737,7 +1741,7 @@ def deploy(
         raise ValueError(
             "A work pool name must be provided when deploying a deployment. Either"
             " provide a work pool name when calling `deploy` or set"
-            " `PREFECT_DEFAULT_WORK_POOL_NAME` in your profile."
+            " `PREFECT_DEPLOYMENTS_DEFAULT_WORK_POOL_NAME` in your profile."
         )
 
     if image and isinstance(image, str):

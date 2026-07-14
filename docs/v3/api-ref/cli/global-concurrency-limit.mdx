@@ -84,7 +84,6 @@ Inspect a global concurrency limit.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="NAME" type="string" required>
-    The name of the global concurrency limit to inspect.  \[required]
 </ResponseField>
 </Accordion>
 
@@ -130,7 +129,6 @@ Delete a global concurrency limit.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="NAME" type="string" required>
-    The name of the global concurrency limit to delete.  \[required]
 </ResponseField>
 </Accordion>
 
@@ -164,7 +162,6 @@ Enable a global concurrency limit.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="NAME" type="string" required>
-    The name of the global concurrency limit to enable.  \[required]
 </ResponseField>
 </Accordion>
 
@@ -198,7 +195,6 @@ Disable a global concurrency limit.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="NAME" type="string" required>
-    The name of the global concurrency limit to disable.  \[required]
 </ResponseField>
 </Accordion>
 
@@ -232,7 +228,6 @@ Update a global concurrency limit.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="NAME" type="string" required>
-    The name of the global concurrency limit to update.  \[required]
 </ResponseField>
 </Accordion>
 
@@ -265,18 +260,6 @@ Update a global concurrency limit.
 </AccordionGroup>
 
 
-<Note>
-**Example:**
-
-$ prefect global-concurrency-limit update my-gcl --limit 10
-$ prefect gcl update my-gcl --active-slots 5
-$ prefect gcl update my-gcl --slot-decay-per-second 0.5
-$ prefect gcl update my-gcl --enable
-$ prefect gcl update my-gcl --disable --limit 5
-</Note>
-
-
-
 
 ## `prefect global-concurrency-limit create`
 
@@ -290,28 +273,6 @@ prefect global-concurrency-limit create [OPTIONS] NAME
 
 <Info>
 Create a global concurrency limit.
-
-Arguments:
-
-    name (str): The name of the global concurrency limit to create.
-
-    limit (int): The limit of the global concurrency limit.
-
-    disable (Optional[bool]): Create an inactive global concurrency limit.
-
-    active_slots (Optional[int]): The number of active slots.
-
-    slot_decay_per_second (Optional[float]): The slot decay per second.
-
-Examples:
-
-    \$ prefect global-concurrency-limit create my-gcl --limit 10
-
-    \$ prefect gcl create my-gcl --limit 5 --active-slots 3
-
-    \$ prefect gcl create my-gcl --limit 5 --active-slots 3 --slot-decay-per-second 0.5
-
-    \$ prefect gcl create my-gcl --limit 5 --inactive
 </Info>
 
 
@@ -324,7 +285,6 @@ Examples:
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="NAME" type="string" required>
-    The name of the global concurrency limit to create.  \[required]
 </ResponseField>
 </Accordion>
 

@@ -41,6 +41,7 @@ from prefect.settings import (
     PREFECT_SERVER_API_HOST,
     PREFECT_SERVER_API_PORT,
     PREFECT_SERVER_DATABASE_CONNECTION_URL,
+    PREFECT_SERVER_EPHEMERAL_ENABLED,
     PREFECT_SERVER_LOGGING_LEVEL,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
     PREFECT_TEST_MODE,
@@ -2210,7 +2211,7 @@ class TestLoadProfiles:
         expected = {
             "ephemeral": {
                 PREFECT_API_KEY: "foo",
-                PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: "true",  # default value
+                PREFECT_SERVER_EPHEMERAL_ENABLED: "true",  # default value
             },
             "bar": {PREFECT_API_KEY: "bar"},
         }
@@ -2221,7 +2222,7 @@ class TestLoadProfiles:
     def test_load_profile_ephemeral(self):
         assert load_profile("ephemeral") == Profile(
             name="ephemeral",
-            settings={PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: "true"},
+            settings={PREFECT_SERVER_EPHEMERAL_ENABLED: "true"},
             source=DEFAULT_PROFILES_PATH,
         )
 

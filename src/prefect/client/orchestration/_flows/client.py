@@ -129,7 +129,7 @@ class FlowClient(BaseClient):
             work_queue_filter: filter criteria for work pool queues
             sort: sort criteria for the flows
             limit: maximum number of flows to return. When `None`, the server
-                applies `PREFECT_API_DEFAULT_LIMIT` (200 by default).
+                applies `PREFECT_SERVER_API_DEFAULT_LIMIT` (200 by default).
             offset: an offset for the flow query.
 
         Returns:
@@ -289,7 +289,7 @@ class FlowAsyncClient(BaseAsyncClient):
             work_queue_filter: filter criteria for work pool queues
             sort: sort criteria for the flows
             limit: maximum number of flows to return. When `None`, the server
-                applies `PREFECT_API_DEFAULT_LIMIT` (200 by default).
+                applies `PREFECT_SERVER_API_DEFAULT_LIMIT` (200 by default).
             offset: an offset for the flow query.
 
         Returns:

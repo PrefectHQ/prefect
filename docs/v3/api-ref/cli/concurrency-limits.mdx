@@ -36,9 +36,6 @@ prefect concurrency-limits create [OPTIONS] TAG CONCURRENCY_LIMIT
 
 <Info>
 Create a concurrency limit against a tag.
-
-This limit controls how many task runs with that tag may simultaneously be in a
-Running state.
 </Info>
 
 
@@ -51,10 +48,8 @@ Running state.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="TAG" type="string" required>
-    \[required]
 </ResponseField>
 <ResponseField name="CONCURRENCY_LIMIT" type="string" required>
-    \[required]
 </ResponseField>
 </Accordion>
 
@@ -75,8 +70,7 @@ prefect concurrency-limits inspect [OPTIONS] TAG
 
 
 <Info>
-View details about a concurrency limit. `active_slots` shows a list of TaskRun IDs
-which are currently using a concurrency slot.
+View details about a concurrency limit.
 </Info>
 
 
@@ -89,7 +83,6 @@ which are currently using a concurrency slot.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="TAG" type="string" required>
-    \[required]
 </ResponseField>
 </Accordion>
 
@@ -134,11 +127,15 @@ View all concurrency limits.
 <Accordion title="Options" defaultOpen>
 
 <ResponseField name="--limit">
-    
+    Maximum number of limits to list.
 </ResponseField>
 
 <ResponseField name="--offset">
-    
+    Offset for pagination.
+</ResponseField>
+
+<ResponseField name="--output">
+    Specify an output format. Currently supports: json
 </ResponseField>
 
 </Accordion>
@@ -171,7 +168,6 @@ Resets the concurrency limit slots set on the specified tag.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="TAG" type="string" required>
-    \[required]
 </ResponseField>
 </Accordion>
 
@@ -205,7 +201,6 @@ Delete the concurrency limit set on the specified tag.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="TAG" type="string" required>
-    \[required]
 </ResponseField>
 </Accordion>
 

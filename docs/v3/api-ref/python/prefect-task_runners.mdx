@@ -83,7 +83,7 @@ A task runner that executes tasks in a separate thread pool.
 
 **Attributes:**
 - `max_workers`: The maximum number of threads to use for executing tasks.
-Defaults to `PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS` or `sys.maxsize`.
+Defaults to `PREFECT_TASKS_RUNNER_THREAD_POOL_MAX_WORKERS` or `sys.maxsize`.
 
 **Examples:**
 
@@ -131,7 +131,7 @@ Configure max workers via settings:
 
 ```python
 # Set via environment variable
-# export PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS=8
+# export PREFECT_TASKS_RUNNER_THREAD_POOL_MAX_WORKERS=8
 
 from prefect import flow
 from prefect.task_runners import ThreadPoolTaskRunner

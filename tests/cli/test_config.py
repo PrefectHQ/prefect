@@ -15,7 +15,7 @@ from prefect.settings import (
     PREFECT_CLIENT_RETRY_EXTRA_CODES,
     PREFECT_LOGGING_TO_API_MAX_LOG_SIZE,
     PREFECT_PROFILES_PATH,
-    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
+    PREFECT_SERVER_EPHEMERAL_ENABLED,
     PREFECT_TEST_SETTING,
     Profile,
     ProfilesCollection,
@@ -76,7 +76,7 @@ def test_set_using_default_profile():
     assert "ephemeral" in profiles
     assert profiles["ephemeral"].settings == {
         PREFECT_TEST_SETTING: "DEBUG",
-        PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: "true",
+        PREFECT_SERVER_EPHEMERAL_ENABLED: "true",
     }
 
 

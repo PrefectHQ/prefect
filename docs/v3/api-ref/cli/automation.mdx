@@ -50,34 +50,13 @@ List all automations.
 
 
 ```command
-prefect automation inspect [OPTIONS] [NAME]
+prefect automation inspect [OPTIONS]
 ```
 
 
 
 <Info>
 Inspect an automation.
-
-Arguments:
-
-    name: the name of the automation to inspect
-
-    id: the id of the automation to inspect
-
-    yaml: output as YAML
-
-    json: output as JSON
-
-Examples:
-
-    `$ prefect automation inspect "my-automation"`
-
-    `$ prefect automation inspect --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
-
-    `$ prefect automation inspect "my-automation" --yaml`
-
-    `$ prefect automation inspect "my-automation" --output json`
-    `$ prefect automation inspect "my-automation" --output yaml`
 </Info>
 
 
@@ -87,12 +66,6 @@ Examples:
 
 <AccordionGroup>
 
-
-<Accordion title="Arguments" defaultOpen>
-<ResponseField name="NAME" type="string">
-    An automation's name
-</ResponseField>
-</Accordion>
 
 
 
@@ -125,25 +98,13 @@ Examples:
 
 
 ```command
-prefect automation resume [OPTIONS] [NAME]
+prefect automation resume [OPTIONS]
 ```
 
 
 
 <Info>
 Resume an automation.
-
-Arguments:
-
-        name: the name of the automation to resume
-
-        id: the id of the automation to resume
-
-Examples:
-
-        `$ prefect automation resume "my-automation"`
-
-        `$ prefect automation resume --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
 </Info>
 
 
@@ -153,12 +114,6 @@ Examples:
 
 <AccordionGroup>
 
-
-<Accordion title="Arguments" defaultOpen>
-<ResponseField name="NAME" type="string">
-    An automation's name
-</ResponseField>
-</Accordion>
 
 
 
@@ -179,25 +134,13 @@ Examples:
 
 
 ```command
-prefect automation enable [OPTIONS] [NAME]
+prefect automation enable [OPTIONS]
 ```
 
 
 
 <Info>
 Resume an automation.
-
-Arguments:
-
-        name: the name of the automation to resume
-
-        id: the id of the automation to resume
-
-Examples:
-
-        `$ prefect automation resume "my-automation"`
-
-        `$ prefect automation resume --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
 </Info>
 
 
@@ -207,12 +150,6 @@ Examples:
 
 <AccordionGroup>
 
-
-<Accordion title="Arguments" defaultOpen>
-<ResponseField name="NAME" type="string">
-    An automation's name
-</ResponseField>
-</Accordion>
 
 
 
@@ -233,25 +170,13 @@ Examples:
 
 
 ```command
-prefect automation pause [OPTIONS] [NAME]
+prefect automation pause [OPTIONS]
 ```
 
 
 
 <Info>
 Pause an automation.
-
-Arguments:
-
-        name: the name of the automation to pause
-
-        id: the id of the automation to pause
-
-Examples:
-
-    `$ prefect automation pause "my-automation"`
-
-    `$ prefect automation pause --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
 </Info>
 
 
@@ -261,12 +186,6 @@ Examples:
 
 <AccordionGroup>
 
-
-<Accordion title="Arguments" defaultOpen>
-<ResponseField name="NAME" type="string">
-    An automation's name
-</ResponseField>
-</Accordion>
 
 
 
@@ -287,25 +206,13 @@ Examples:
 
 
 ```command
-prefect automation disable [OPTIONS] [NAME]
+prefect automation disable [OPTIONS]
 ```
 
 
 
 <Info>
 Pause an automation.
-
-Arguments:
-
-        name: the name of the automation to pause
-
-        id: the id of the automation to pause
-
-Examples:
-
-    `$ prefect automation pause "my-automation"`
-
-    `$ prefect automation pause --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
 </Info>
 
 
@@ -315,12 +222,6 @@ Examples:
 
 <AccordionGroup>
 
-
-<Accordion title="Arguments" defaultOpen>
-<ResponseField name="NAME" type="string">
-    An automation's name
-</ResponseField>
-</Accordion>
 
 
 
@@ -341,7 +242,7 @@ Examples:
 
 
 ```command
-prefect automation delete [OPTIONS] [NAME]
+prefect automation delete [OPTIONS]
 ```
 
 
@@ -358,12 +259,6 @@ Delete an automation.
 <AccordionGroup>
 
 
-<Accordion title="Arguments" defaultOpen>
-<ResponseField name="NAME" type="string">
-    An automation's name
-</ResponseField>
-</Accordion>
-
 
 
 <Accordion title="Options" defaultOpen>
@@ -379,16 +274,6 @@ Delete an automation.
 </Accordion>
 
 </AccordionGroup>
-
-
-<Note>
-**Example:**
-
-`$ prefect automation delete "my-automation"`
-`$ prefect automation delete --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"`
-`$ prefect automation delete --all`
-</Note>
-
 
 
 
@@ -429,17 +314,6 @@ Create one or more automations from a file or JSON string.
 </Accordion>
 
 </AccordionGroup>
-
-
-<Note>
-**Example:**
-
-`$ prefect automation create --from-file automation.yaml`
-`$ prefect automation create -f automation.json`
-`$ prefect automation create --from-json '{"name": "my-automation", "trigger": {...}, "actions": [...]}'`
-`$ prefect automation create -j '[{"name": "auto1", ...}, {"name": "auto2", ...}]'`
-</Note>
-
 
 
 
@@ -484,13 +358,3 @@ Update an existing automation from a file or JSON string.
 </Accordion>
 
 </AccordionGroup>
-
-
-<Note>
-**Example:**
-
-`$ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" --from-file automation.yaml`
-`$ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" -f automation.json`
-`$ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" --from-json '{"name": "updated-automation", "trigger": {...}, "actions": [...]}'`
-</Note>
-

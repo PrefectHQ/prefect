@@ -10,8 +10,8 @@ from prefect.client.orchestration import get_client
 from prefect.server import schemas
 from prefect.server.api.server import SubprocessASGIServer
 from prefect.settings import (
-    PREFECT_API_DATABASE_CONNECTION_URL,
     PREFECT_API_URL,
+    PREFECT_SERVER_DATABASE_CONNECTION_URL,
     PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS,
 )
 from prefect.testing.utilities import assert_does_not_warn, prefect_test_harness
@@ -64,7 +64,7 @@ async def test_prefect_test_harness():
         test_task()
         return "foo"
 
-    existing_db_url = PREFECT_API_DATABASE_CONNECTION_URL.value()
+    existing_db_url = PREFECT_SERVER_DATABASE_CONNECTION_URL.value()
     existing_api_url = PREFECT_API_URL.value()
 
     with prefect_test_harness():
@@ -87,7 +87,7 @@ async def test_prefect_test_harness():
     assert PREFECT_API_URL.value() == existing_api_url
 
     # database connection should be reset
-    assert PREFECT_API_DATABASE_CONNECTION_URL.value() == existing_db_url
+    assert PREFECT_SERVER_DATABASE_CONNECTION_URL.value() == existing_db_url
 
     # outside the context, none of the test runs should not persist
     async with get_client() as client:

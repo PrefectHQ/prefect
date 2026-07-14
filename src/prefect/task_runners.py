@@ -245,7 +245,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
 
     Attributes:
         max_workers: The maximum number of threads to use for executing tasks.
-            Defaults to `PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS` or `sys.maxsize`.
+            Defaults to `PREFECT_TASKS_RUNNER_THREAD_POOL_MAX_WORKERS` or `sys.maxsize`.
 
     Note:
         This runner uses `contextvars.copy_context()` for thread-safe context propagation.
@@ -301,7 +301,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
 
         ```python
         # Set via environment variable
-        # export PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS=8
+        # export PREFECT_TASKS_RUNNER_THREAD_POOL_MAX_WORKERS=8
 
         from prefect import flow
         from prefect.task_runners import ThreadPoolTaskRunner
@@ -381,7 +381,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
         if wait_for and task.tags and (self._max_workers <= len(task.tags)):
             self.logger.warning(
                 f"Task {task.name} has {len(task.tags)} tags but only {self._max_workers} workers available"
-                "This may lead to dead-locks. Consider increasing the value of `PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS` or `max_workers`."
+                "This may lead to dead-locks. Consider increasing the value of `PREFECT_TASKS_RUNNER_THREAD_POOL_MAX_WORKERS` or `max_workers`."
             )
 
         self._warn_if_nested_submit_would_deadlock(task)
@@ -472,7 +472,7 @@ class ThreadPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[R]]):
             f"ThreadPoolTaskRunner while all {self._max_workers} worker threads "
             "are busy. If the parent task blocks on the child's result this will "
             "deadlock, because no worker is free to run the child. Increase "
-            "`max_workers` (or `PREFECT_TASK_RUNNER_THREAD_POOL_MAX_WORKERS`) "
+            "`max_workers` (or `PREFECT_TASKS_RUNNER_THREAD_POOL_MAX_WORKERS`) "
             "above the deepest synchronous nesting level, restructure the flow "
             "to submit children at the flow level, or run the children via "
             "`.delay()` against a task worker. See "

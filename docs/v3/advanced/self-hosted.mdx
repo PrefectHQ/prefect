@@ -141,7 +141,6 @@ To use Azure managed identity (Microsoft Entra ID) authentication for your Postg
 
 3. **Enable plugins and managed identity authentication**:
    ```bash
-   # on Prefect < 3.7 use PREFECT_EXPERIMENTS_PLUGINS_ENABLED=true instead
    export PREFECT_PLUGINS_ENABLED=true
    export PREFECT_INTEGRATIONS_AZURE_POSTGRES_MANAGED_IDENTITY_ENABLED=true
    # Optional: export PREFECT_INTEGRATIONS_AZURE_POSTGRES_MANAGED_IDENTITY_CLIENT_ID=<client-id>
@@ -157,8 +156,8 @@ To use Azure managed identity (Microsoft Entra ID) authentication for your Postg
 Configure Redis as your server's message broker, cache, and lease storage:
 
 ```bash
-export PREFECT_MESSAGING_BROKER="prefect_redis.messaging"
-export PREFECT_MESSAGING_CACHE="prefect_redis.messaging"
+export PREFECT_SERVER_EVENTS_MESSAGING_BROKER="prefect_redis.messaging"
+export PREFECT_SERVER_EVENTS_MESSAGING_CACHE="prefect_redis.messaging"
 export PREFECT_SERVER_EVENTS_CAUSAL_ORDERING="prefect_redis.ordering"
 export PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE="prefect_redis.lease_storage"
 export PREFECT_REDIS_MESSAGING_HOST="redis-host"
@@ -383,8 +382,8 @@ server {
 
 When self-hosting the UI behind a proxy:
 
-- `PREFECT_UI_API_URL`: Connection URL from UI to API
-- `PREFECT_UI_SERVE_BASE`: Base URL path to serve the UI
+- `PREFECT_SERVER_UI_API_URL`: Connection URL from UI to API
+- `PREFECT_SERVER_UI_SERVE_BASE`: Base URL path to serve the UI
 - `PREFECT_UI_URL`: URL for clients to access the UI
 
 #### SSL certificates
@@ -460,8 +459,8 @@ services:
     environment:
       PREFECT_SERVER_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
       PREFECT_SERVER_DATABASE_MIGRATE_ON_START: "false"
-      PREFECT_MESSAGING_BROKER: prefect_redis.messaging
-      PREFECT_MESSAGING_CACHE: prefect_redis.messaging
+      PREFECT_SERVER_EVENTS_MESSAGING_BROKER: prefect_redis.messaging
+      PREFECT_SERVER_EVENTS_MESSAGING_CACHE: prefect_redis.messaging
       PREFECT_SERVER_EVENTS_CAUSAL_ORDERING: prefect_redis.ordering
       PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: prefect_redis.lease_storage
       PREFECT_REDIS_MESSAGING_HOST: redis
@@ -485,8 +484,8 @@ services:
     environment:
       PREFECT_SERVER_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
       PREFECT_SERVER_DATABASE_MIGRATE_ON_START: "false"
-      PREFECT_MESSAGING_BROKER: prefect_redis.messaging
-      PREFECT_MESSAGING_CACHE: prefect_redis.messaging
+      PREFECT_SERVER_EVENTS_MESSAGING_BROKER: prefect_redis.messaging
+      PREFECT_SERVER_EVENTS_MESSAGING_CACHE: prefect_redis.messaging
       PREFECT_SERVER_EVENTS_CAUSAL_ORDERING: prefect_redis.ordering
       PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: prefect_redis.lease_storage
       PREFECT_REDIS_MESSAGING_HOST: redis

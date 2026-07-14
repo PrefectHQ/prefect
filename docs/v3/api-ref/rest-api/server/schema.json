@@ -13530,7 +13530,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -13564,7 +13564,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -13687,7 +13687,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -13768,7 +13768,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -13839,7 +13839,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -13900,7 +13900,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -13917,7 +13917,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -13953,7 +13953,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -13984,7 +13984,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -14048,7 +14048,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -14075,7 +14075,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -14112,7 +14112,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -14129,7 +14129,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -14272,7 +14272,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -14415,7 +14415,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -14451,7 +14451,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -14487,7 +14487,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -14518,7 +14518,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -14535,7 +14535,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -14642,7 +14642,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -14690,7 +14690,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -14715,7 +14715,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -14742,7 +14742,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -14759,7 +14759,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -14776,7 +14776,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -14796,7 +14796,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -14823,7 +14823,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",
@@ -14850,7 +14850,7 @@
                     "limit": {
                         "type": "integer",
                         "title": "Limit",
-                        "description": "Defaults to PREFECT_API_DEFAULT_LIMIT if not provided."
+                        "description": "Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided."
                     }
                 },
                 "type": "object",

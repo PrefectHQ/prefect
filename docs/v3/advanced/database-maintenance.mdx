@@ -245,7 +245,7 @@ The following settings control vacuum behavior:
 | `PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS` | `3600` (1 hour) | How often the vacuum cycle runs, in seconds. |
 | `PREFECT_SERVER_SERVICES_DB_VACUUM_RETENTION_PERIOD` | `7776000` (90 days) | How old a flow run must be (based on end time) before it is eligible for deletion. Accepts seconds. Must be greater than 1 hour. |
 | `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE` | `200` | Number of records to delete per database transaction. |
-| `PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES` | `{"prefect.flow-run.heartbeat": 604800}` | Per-event-type retention period overrides in seconds. Event types not listed fall back to `PREFECT_EVENTS_RETENTION_PERIOD`. Each override is capped by the global events retention period. |
+| `PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES` | `{"prefect.flow-run.heartbeat": 604800}` | Per-event-type retention period overrides in seconds. Event types not listed fall back to `PREFECT_SERVER_EVENTS_RETENTION_PERIOD`. Each override is capped by the global events retention period. |
 
 Example configuration for a weekly vacuum cycle with a 30-day retention period:
 
@@ -271,7 +271,7 @@ Each vacuum cycle schedules independent cleanup tasks:
 ### Event vacuum (when `events` is enabled)
 
 1. **Delete events with retention overrides**: For each event type listed in `PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES`, deletes events and their associated resources older than the configured per-type retention period.
-2. **Delete old events**: Removes all events and event resources older than `PREFECT_EVENTS_RETENTION_PERIOD`.
+2. **Delete old events**: Removes all events and event resources older than `PREFECT_SERVER_EVENTS_RETENTION_PERIOD`.
 </Steps>
 
 <Note>
@@ -426,10 +426,10 @@ The default retention period is 7 days. For high-volume deployments running many
 
 ```bash
 # Set retention to 2 days (as environment variable)
-export PREFECT_EVENTS_RETENTION_PERIOD="2d"
+export PREFECT_SERVER_EVENTS_RETENTION_PERIOD="2d"
 
 # Or in your prefect configuration
-prefect config set PREFECT_EVENTS_RETENTION_PERIOD="2d"
+prefect config set PREFECT_SERVER_EVENTS_RETENTION_PERIOD="2d"
 ```
 
 The event trimmer runs automatically as part of the background services. If you're running in a [scaled deployment](/v3/advanced/self-hosted) with separate API servers and background services, ensure the background services pod is running to enable automatic trimming.

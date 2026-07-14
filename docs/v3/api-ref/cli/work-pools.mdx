@@ -1,14 +1,14 @@
 ---
 title: " "
-sidebarTitle: prefect work-pool
+sidebarTitle: prefect work-pools
 ---
 
-# `prefect work-pool`
+# `prefect work-pools`
 
 
 
 ```command
-prefect work-pool [OPTIONS] COMMAND [ARGS]...
+prefect work-pools [OPTIONS] COMMAND [ARGS]...
 ```
 
 
@@ -24,12 +24,12 @@ Manage work pools.
 
 
 
-## `prefect work-pool storage`
+## `prefect work-pools storage`
 
 
 
 ```command
-prefect work-pool storage [OPTIONS] COMMAND [ARGS]...
+prefect work-pools storage [OPTIONS] COMMAND [ARGS]...
 ```
 
 
@@ -45,12 +45,12 @@ EXPERIMENTAL: Manage work pool storage.
 
 
 
-### `prefect work-pool storage configure`
+### `prefect work-pools storage configure`
 
 
 
 ```command
-prefect work-pool storage configure [OPTIONS] COMMAND [ARGS]...
+prefect work-pools storage configure [OPTIONS] COMMAND [ARGS]...
 ```
 
 
@@ -66,12 +66,12 @@ EXPERIMENTAL: Configure work pool storage.
 
 
 
-#### `prefect work-pool storage configure s3`
+#### `prefect work-pools storage configure s3`
 
 
 
 ```command
-prefect work-pool storage configure s3 [OPTIONS] WORK_POOL_NAME
+prefect work-pools storage configure s3 [OPTIONS] WORK_POOL_NAME
 ```
 
 
@@ -136,12 +136,12 @@ EXPERIMENTAL: Configure AWS S3 storage for a work pool.
 
 
 
-#### `prefect work-pool storage configure gcs`
+#### `prefect work-pools storage configure gcs`
 
 
 
 ```command
-prefect work-pool storage configure gcs [OPTIONS] WORK_POOL_NAME
+prefect work-pools storage configure gcs [OPTIONS] WORK_POOL_NAME
 ```
 
 
@@ -206,12 +206,12 @@ EXPERIMENTAL: Configure Google Cloud storage for a work pool.
 
 
 
-#### `prefect work-pool storage configure azure-blob-storage`
+#### `prefect work-pools storage configure azure-blob-storage`
 
 
 
 ```command
-prefect work-pool storage configure azure-blob-storage [OPTIONS] WORK_POOL_NAME
+prefect work-pools storage configure azure-blob-storage [OPTIONS] WORK_POOL_NAME
 ```
 
 
@@ -276,12 +276,12 @@ EXPERIMENTAL: Configure Azure Blob Storage for a work pool.
 
 
 
-### `prefect work-pool storage inspect`
+### `prefect work-pools storage inspect`
 
 
 
 ```command
-prefect work-pool storage inspect [OPTIONS] WORK_POOL_NAME
+prefect work-pools storage inspect [OPTIONS] WORK_POOL_NAME
 ```
 
 
@@ -318,12 +318,12 @@ EXPERIMENTAL: Inspect the storage configuration for a work pool.
 
 
 
-## `prefect work-pool create`
+## `prefect work-pools create`
 
 
 
 ```command
-prefect work-pool create [OPTIONS] NAME
+prefect work-pools create [OPTIONS] NAME
 ```
 
 
@@ -380,12 +380,12 @@ Create a new work pool or update an existing one.
 
 
 
-## `prefect work-pool ls`
+## `prefect work-pools ls`
 
 
 
 ```command
-prefect work-pool ls [OPTIONS]
+prefect work-pools ls [OPTIONS]
 ```
 
 
@@ -420,12 +420,12 @@ List work pools.
 
 
 
-## `prefect work-pool inspect`
+## `prefect work-pools inspect`
 
 
 
 ```command
-prefect work-pool inspect [OPTIONS] NAME
+prefect work-pools inspect [OPTIONS] NAME
 ```
 
 
@@ -462,12 +462,12 @@ Inspect a work pool.
 
 
 
-## `prefect work-pool slots`
+## `prefect work-pools slots`
 
 
 
 ```command
-prefect work-pool slots [OPTIONS] NAME
+prefect work-pools slots [OPTIONS] NAME
 ```
 
 
@@ -504,12 +504,12 @@ Show concurrency slot utilization for a work pool.
 
 
 
-## `prefect work-pool pause`
+## `prefect work-pools pause`
 
 
 
 ```command
-prefect work-pool pause [OPTIONS] NAME
+prefect work-pools pause [OPTIONS] NAME
 ```
 
 
@@ -538,12 +538,12 @@ Pause a work pool.
 
 
 
-## `prefect work-pool resume`
+## `prefect work-pools resume`
 
 
 
 ```command
-prefect work-pool resume [OPTIONS] NAME
+prefect work-pools resume [OPTIONS] NAME
 ```
 
 
@@ -572,12 +572,12 @@ Resume a work pool.
 
 
 
-## `prefect work-pool update`
+## `prefect work-pools update`
 
 
 
 ```command
-prefect work-pool update [OPTIONS] NAME
+prefect work-pools update [OPTIONS] NAME
 ```
 
 
@@ -622,12 +622,12 @@ Update a work pool.
 
 
 
-## `prefect work-pool provision-infrastructure`
+## `prefect work-pools provision-infrastructure`
 
 
 
 ```command
-prefect work-pool provision-infrastructure [OPTIONS] NAME
+prefect work-pools provision-infrastructure [OPTIONS] NAME
 ```
 
 
@@ -656,12 +656,12 @@ Provision infrastructure for a work pool.
 
 
 
-## `prefect work-pool provision-infra`
+## `prefect work-pools provision-infra`
 
 
 
 ```command
-prefect work-pool provision-infra [OPTIONS] NAME
+prefect work-pools provision-infra [OPTIONS] NAME
 ```
 
 
@@ -690,12 +690,12 @@ Provision infrastructure for a work pool.
 
 
 
-## `prefect work-pool delete`
+## `prefect work-pools delete`
 
 
 
 ```command
-prefect work-pool delete [OPTIONS] NAME
+prefect work-pools delete [OPTIONS] NAME
 ```
 
 
@@ -724,12 +724,12 @@ Delete a work pool.
 
 
 
-## `prefect work-pool set-concurrency-limit`
+## `prefect work-pools set-concurrency-limit`
 
 
 
 ```command
-prefect work-pool set-concurrency-limit [OPTIONS] NAME CONCURRENCY_LIMIT
+prefect work-pools set-concurrency-limit [OPTIONS] NAME CONCURRENCY_LIMIT
 ```
 
 
@@ -761,12 +761,12 @@ Set the concurrency limit for a work pool.
 
 
 
-## `prefect work-pool clear-concurrency-limit`
+## `prefect work-pools clear-concurrency-limit`
 
 
 
 ```command
-prefect work-pool clear-concurrency-limit [OPTIONS] NAME
+prefect work-pools clear-concurrency-limit [OPTIONS] NAME
 ```
 
 
@@ -795,12 +795,12 @@ Clear the concurrency limit for a work pool.
 
 
 
-## `prefect work-pool get-default-base-job-template`
+## `prefect work-pools get-default-base-job-template`
 
 
 
 ```command
-prefect work-pool get-default-base-job-template [OPTIONS]
+prefect work-pools get-default-base-job-template [OPTIONS]
 ```
 
 
@@ -835,12 +835,12 @@ Get the default base job template for a given work pool type.
 
 
 
-## `prefect work-pool preview`
+## `prefect work-pools preview`
 
 
 
 ```command
-prefect work-pool preview [OPTIONS] [ARGS]
+prefect work-pools preview [OPTIONS] [ARGS]
 ```
 
 
