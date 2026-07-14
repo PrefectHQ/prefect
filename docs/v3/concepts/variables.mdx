@@ -1,6 +1,6 @@
 ---
 title: Variables
-description: Variables are dynamically-named, mutable string values that can be used to store and reuse non-sensitive bits of data.
+description: Variables are dynamically-named, mutable JSON values that can be used to store and reuse non-sensitive bits of data.
 keywords: ["variable", "configuration", "dynamic", "key-value", "reusable"]
 ---
 
@@ -29,10 +29,10 @@ Create, read, edit, and delete variables through the Prefect UI, Python SDK, API
 Names must adhere to these traditional variable naming conventions:
 
 - Have no more than 255 characters
-- Only contain lowercase alphanumeric characters ([a-z], [0-9]) or underscores (_). Spaces are not allowed.
+- Only contain lowercase letters, numbers, underscores (_), or dashes (-). Spaces are not allowed.
 - Be unique
 
-Values must have less than or equal to 5000 characters.
+Values can be any JSON-serializable value and must serialize to 5000 characters or fewer.
 
 Optionally, you can add tags to a variable.
 
