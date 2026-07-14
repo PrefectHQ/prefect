@@ -452,7 +452,9 @@ async def _run_single_deploy(
                 deploy_config_before_templating,
                 build_steps=build_steps or None,
                 push_steps=push_steps or None,
-                pull_steps=pull_steps or None,
+                # Preserve an explicit empty `pull: []` when saving so the
+                # no-pull setting survives; otherwise collapse falsey pull to None.
+                pull_steps=pull_steps if explicit_no_pull else (pull_steps or None),
                 triggers=trigger_specs or None,
                 sla=sla_specs or None,
                 prefect_file=prefect_file,

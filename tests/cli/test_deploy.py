@@ -887,6 +887,36 @@ class TestProjectDeploy:
                 }
             ]
 
+        @pytest.mark.usefixtures("interactive_console", "project_dir")
+        async def test_project_deploy_empty_pull_preserved_when_saved(
+            self,
+            work_pool: WorkPool,
+        ):
+            prefect_file = Path("prefect.yaml")
+            config = yaml.safe_load(prefect_file.read_text())
+            config["pull"] = []
+            prefect_file.write_text(yaml.safe_dump(config))
+
+            await run_sync_in_worker_thread(
+                invoke_and_assert,
+                command=(
+                    "deploy ./flows/hello.py:my_flow -n test-name -p"
+                    f" {work_pool.name} --interval 60"
+                ),
+                # save the deployment configuration
+                user_input="y" + readchar.key.ENTER,
+                expected_code=0,
+            )
+
+            saved = yaml.safe_load(prefect_file.read_text())
+            assert saved["pull"] == []
+            saved_deployment = next(
+                d for d in saved["deployments"] if d.get("name") == "test-name"
+            )
+            # An explicit empty pull must not be saved back as null, which would
+            # regenerate the default set_working_directory step on redeploy.
+            assert saved_deployment.get("pull", []) == []
+
         async def test_project_deploy_with_no_prefect_yaml_git_repo_no_remote(
             self,
             work_pool: WorkPool,
