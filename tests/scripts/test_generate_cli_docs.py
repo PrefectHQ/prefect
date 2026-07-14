@@ -33,3 +33,20 @@ def test_generate_cli_docs_produces_experimental_without_stale_safe_mode(
     assert "prefect experimental" in content
     assert "prefect experimental plugins diagnose" in content
     assert "PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE" not in content
+
+    api_path = output_dir / "api.mdx"
+    assert api_path.exists(), "api.mdx should be generated"
+    api_content = api_path.read_text()
+    assert "HTTP method" in api_content, "api METHOD description should be present"
+    assert "API path" in api_content, "api PATH description should be present"
+    assert "$ prefect api GET /flows" in api_content, "api examples should be present"
+
+    plugins_path = output_dir / "plugins.mdx"
+    assert plugins_path.exists(), "plugins.mdx should be generated"
+    plugins_content = plugins_path.read_text()
+    assert "prefect plugins" in plugins_content, "plugins command should be documented"
+
+    automation_path = output_dir / "automation.mdx"
+    assert automation_path.exists(), "automation.mdx should be generated"
+    automation_content = automation_path.read_text()
+    assert "An automation's name." in automation_content, "automation NAME argument help should be present"

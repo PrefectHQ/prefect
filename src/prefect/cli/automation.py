@@ -293,7 +293,15 @@ async def delete(
         cyclopts.Parameter("--all", help="Delete all automations"),
     ] = False,
 ):
-    """Delete an automation."""
+    """Delete an automation.
+
+    Examples:
+        ```bash
+        $ prefect automation delete "my-automation"
+        $ prefect automation delete --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        $ prefect automation delete --all
+        ```
+    """
     from prefect.client.orchestration import get_client
 
     async with get_client() as client:

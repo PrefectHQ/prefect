@@ -350,7 +350,20 @@ async def create(
         ),
     ] = False,
 ):
-    """Create a new work pool or update an existing one."""
+    """Create a new work pool or update an existing one.
+
+    Examples:
+        ```bash
+        # Create a Kubernetes work pool in a paused state
+        $ prefect work-pool create "my-pool" --type kubernetes --paused
+
+        # Create a Docker work pool with a custom base job template
+        $ prefect work-pool create "my-pool" --type docker --base-job-template ./base-job-template.json
+
+        # Update an existing work pool
+        $ prefect work-pool create "existing-pool" --base-job-template ./base-job-template.json --overwrite
+        ```
+    """
     from prefect.cli._prompts import prompt_select_from_table
     from prefect.client.collections import get_collections_metadata_client
     from prefect.client.orchestration import get_client
@@ -1173,7 +1186,14 @@ async def storage_inspect(
         ),
     ] = None,
 ):
-    """EXPERIMENTAL: Inspect the storage configuration for a work pool."""
+    """EXPERIMENTAL: Inspect the storage configuration for a work pool.
+
+    Examples:
+        ```bash
+        $ prefect work-pool storage inspect "my-pool"
+        $ prefect work-pool storage inspect "my-pool" --output json
+        ```
+    """
     from rich.panel import Panel
 
     from prefect.client.orchestration import get_client

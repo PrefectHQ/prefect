@@ -149,7 +149,46 @@ async def inspect(
         ),
     ] = None,
 ):
-    """View details about a deployment."""
+    """View details about a deployment.
+
+    Examples:
+        `$ prefect deployment inspect "hello-world/my-deployment"`
+
+        ```python
+        {
+            'id': '610df9c3-0fb4-4856-b330-67f588d20201',
+            'created': '2022-08-01T18:36:25.192102+00:00',
+            'updated': '2022-08-01T18:36:25.188166+00:00',
+            'name': 'my-deployment',
+            'description': None,
+            'flow_id': 'b57b0aa2-ef3a-479e-be49-381fb0483b4e',
+            'schedules': None,
+            'parameters': {'name': 'Marvin'},
+            'tags': ['test'],
+            'parameter_openapi_schema': {
+                'title': 'Parameters',
+                'type': 'object',
+                'properties': {
+                    'name': {
+                        'title': 'name',
+                        'type': 'string'
+                    }
+                },
+                'required': ['name']
+            },
+            'storage_document_id': '63ef008f-1e5d-4e07-a0d4-4535731adb32',
+            'infrastructure_document_id': '6702c598-7094-42c8-9785-338d2ec3a028',
+            'infrastructure': {
+                'type': 'process',
+                'env': {},
+                'labels': {},
+                'name': None,
+                'command': ['python', '-m', 'prefect.engine'],
+                'stream_output': True
+            }
+        }
+        ```
+    """
     from asyncio import iscoroutine
 
     from prefect.blocks.core import Block
@@ -1008,7 +1047,17 @@ async def pause_schedule(
         ),
     ] = False,
 ):
-    """Pause deployment schedules."""
+    """Pause deployment schedules.
+
+    Examples:
+        ```bash
+        # Pause a specific schedule
+        $ prefect deployment schedule pause my-flow/my-deployment abc123-...
+
+        # Pause all schedules
+        $ prefect deployment schedule pause --all
+        ```
+    """
     await _set_schedule_activation(deployment_name, schedule_id, _all, activate=False)
 
 
@@ -1036,7 +1085,17 @@ async def resume_schedule(
         ),
     ] = False,
 ):
-    """Resume deployment schedules."""
+    """Resume deployment schedules.
+
+    Examples:
+        ```bash
+        # Resume a specific schedule
+        $ prefect deployment schedule resume my-flow/my-deployment abc123-...
+
+        # Resume all schedules
+        $ prefect deployment schedule resume --all
+        ```
+    """
     await _set_schedule_activation(deployment_name, schedule_id, _all, activate=True)
 
 

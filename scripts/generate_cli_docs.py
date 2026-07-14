@@ -348,7 +348,7 @@ def write_command_docs(
     # 3. Write out to disk
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     with Path.open(filepath, mode="w", encoding="utf-8") as f:
-        f.write(rendered)
+        f.write(rendered.rstrip() + "\n")
 
     # 4. Recursively render subcommands in the same manner
     for sub_ctx in command_context["subcommands"]:
@@ -406,7 +406,7 @@ def write_subcommand_docs(
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     with Path.open(file_path, "w", encoding="utf-8") as f:
-        f.write(content)
+        f.write(content.rstrip() + "\n")
 
 
 def generate_cli_docs(output_dir: str = "./docs/v3/api-ref/cli") -> None:

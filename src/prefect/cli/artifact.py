@@ -122,7 +122,40 @@ async def inspect(
         ),
     ] = None,
 ):
-    """View details about an artifact."""
+    """View details about an artifact.
+
+    Examples:
+        `$ prefect artifact inspect "my-artifact"`
+
+        ```json
+        [
+          {
+            "id": "ba1d67be-0bd7-452e-8110-247fe5e6d8cc",
+            "created": "2023-03-21T21:40:09.895910+00:00",
+            "updated": "2023-03-21T21:40:09.895910+00:00",
+            "key": "my-artifact",
+            "type": "markdown",
+            "description": null,
+            "data": "my markdown",
+            "metadata_": null,
+            "flow_run_id": "8dc54b6f-6e24-4586-a05c-e98c6490cb98",
+            "task_run_id": null
+          },
+          {
+            "id": "57f235b5-2576-45a5-bd93-c829c2900966",
+            "created": "2023-03-27T23:16:15.536434+00:00",
+            "updated": "2023-03-27T23:16:15.536434+00:00",
+            "key": "my-artifact",
+            "type": "markdown",
+            "description": "my-artifact-description",
+            "data": "my markdown",
+            "metadata_": null,
+            "flow_run_id": "ffa91051-f249-48c1-ae0f-4754fcb7eb29",
+            "task_run_id": null
+          }
+        ]
+        ```
+    """
     import orjson
     from rich.pretty import Pretty
 
@@ -166,7 +199,13 @@ async def delete(
         cyclopts.Parameter("--id", help="The ID of the artifact to delete."),
     ] = None,
 ):
-    """Delete an artifact."""
+    """Delete an artifact.
+
+    Examples:
+        ```bash
+        $ prefect artifact delete "my-artifact"
+        ```
+    """
     from prefect.cli._prompts import confirm
     from prefect.client.orchestration import get_client
     from prefect.client.schemas.filters import ArtifactFilter, ArtifactFilterKey

@@ -317,6 +317,17 @@ EXPERIMENTAL: Inspect the storage configuration for a work pool.
 </AccordionGroup>
 
 
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool storage inspect "my-pool"
+$ prefect work-pool storage inspect "my-pool" --output json
+```
+</Note>
+
+
+
 
 ## `prefect work-pools create`
 
@@ -377,6 +388,23 @@ Create a new work pool or update an existing one.
 </Accordion>
 
 </AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+# Create a Kubernetes work pool in a paused state
+$ prefect work-pool create "my-pool" --type kubernetes --paused
+
+# Create a Docker work pool with a custom base job template
+$ prefect work-pool create "my-pool" --type docker --base-job-template ./base-job-template.json
+
+# Update an existing work pool
+$ prefect work-pool create "existing-pool" --base-job-template ./base-job-template.json --overwrite
+```
+</Note>
+
 
 
 
