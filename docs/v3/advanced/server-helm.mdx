@@ -178,12 +178,22 @@ The Prefect server exposes two HTTP endpoints for monitoring:
 | `/api/health` | HTTP server is running | `200` when the process is up |
 | `/api/ready` | Database connectivity | `200` when Postgres is reachable; `503` when it is not |
 
-The [prefect-server Helm chart](https://github.com/PrefectHQ/prefect-helm/blob/main/charts/prefect-server/values.yaml) uses `/api/health` for the **liveness** probe and `/api/ready` for the **readiness** probe by default. This means Kubernetes stops routing traffic when the database is down, but it does **not** automatically restart the pod after the database recovers—the process may keep running in a broken state until you restart it manually.
+The [prefect-server Helm chart](https://github.com/PrefectHQ/prefect-helm/blob/main/charts/prefect-server/values.yaml) supports optional liveness and readiness probes, but both are disabled by default. Enable them in your server values:
+
+```yaml
+server:
+  livenessProbe:
+    enabled: true
+  readinessProbe:
+    enabled: true
+```
+
+When enabled, the liveness probe uses `/api/health` and the readiness probe uses `/api/ready`. Kubernetes then stops routing traffic when the database is down, but it does **not** restart the pod. If the server does not recover after Postgres becomes available, restart it manually.
 
 If you need the pod to restart after sustained database failure, point the liveness probe at `/api/ready` instead. Be aware that transient database blips can trigger restarts, so tune `periodSeconds` and `failureThreshold` accordingly.
 
 <Note>
-The chart currently exposes probe **timing** settings (for example `periodSeconds`) but not probe **paths**. To customize paths today, patch the generated Deployment manifest or open an issue on [prefect-helm](https://github.com/PrefectHQ/prefect-helm).
+The current chart exposes probe **timing** settings (for example `periodSeconds`) but not probe **paths**. Follow [prefect-helm#635](https://github.com/PrefectHQ/prefect-helm/pull/635) for configurable probe paths. Until that change is available in a released chart, patch the generated Deployment manifest to customize the paths.
 </Note>
 
 For load balancer and reverse-proxy health checks, see [Load balancer configuration](/v3/advanced/self-hosted#load-balancer-configuration) in the self-hosted guide.
