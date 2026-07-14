@@ -10,11 +10,6 @@ from pydantic import Field, PrivateAttr, SecretStr, model_validator
 from prefect.blocks.core import Block
 from prefect_databricks._version import __version__
 
-# Databricks partner telemetry attribution. The format
-# `<isv-name_product-name>/<product-version>` (underscore between company and
-# product) is required so Databricks can attribute API usage to Prefect across
-# all connectors and languages.
-# See https://databrickslabs.github.io/partner-architecture/isv-partners/telemetry-attribution
 _DATABRICKS_PARTNER_USER_AGENT = f"Prefect_PrefectDatabricks/{__version__}"
 
 
@@ -120,7 +115,6 @@ class DatabricksCredentials(Block):
         client_id = values.get("client_id")
         client_secret = values.get("client_secret")
 
-        # Guard against both None and empty strings
         has_token = token is not None and token != ""
         has_client_id = client_id is not None and client_id != ""
         has_client_secret = client_secret is not None and client_secret != ""
@@ -173,14 +167,12 @@ class DatabricksCredentials(Block):
             return self._cached_token
 
         if self.tenant_id is not None:
-            # Azure AD (Microsoft Entra ID) authentication
             token_url = (
                 f"https://login.microsoftonline.com/{self.tenant_id}/oauth2/v2.0/token"
             )
             headers = {
                 "Content-Type": "application/x-www-form-urlencoded",
             }
-            # Azure Databricks resource ID
             azure_databricks_resource_id = "2ff814a6-3304-4ab8-85cb-cd0e6f879c1d"
             data = {
                 "grant_type": "client_credentials",
@@ -189,7 +181,6 @@ class DatabricksCredentials(Block):
                 "scope": f"{azure_databricks_resource_id}/.default",
             }
         else:
-            # Databricks-managed service principal authentication
             token_url = f"https://{self.databricks_instance}/oidc/v1/token"
             credentials = f"{self.client_id}:{self.client_secret.get_secret_value()}"
             encoded_credentials = base64.b64encode(credentials.encode()).decode()
