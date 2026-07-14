@@ -300,9 +300,12 @@ prefect server database upgrade -y
 
 Configure health checks for your load balancer:
 
-- **Health endpoint**: `/api/health`
-- **Expected response**: HTTP 200 with JSON `{"status": "healthy"}`
+- **Health endpoint**: `/api/health` — verifies the HTTP server is running
+- **Readiness endpoint**: `/api/ready` — verifies database connectivity (returns `503` when Postgres is unreachable)
+- **Expected response**: HTTP 200 with JSON `{"status": "healthy"}` from `/api/health`
 - **Check interval**: 5-10 seconds
+
+Use `/api/health` for liveness-style checks where you only need to confirm the process is up. Use `/api/ready` when the check should fail if the database is unavailable—for example, to stop routing traffic during a Postgres outage. See [Kubernetes health and readiness probes](/v3/advanced/server-helm#kubernetes-health-and-readiness-probes) for probe configuration on Kubernetes.
 
 Example NGINX configuration:
 

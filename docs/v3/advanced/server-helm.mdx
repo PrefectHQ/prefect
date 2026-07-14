@@ -169,7 +169,35 @@ helm uninstall prefect-worker
 helm uninstall prefect-server
 ```
 
+## Kubernetes health and readiness probes
+
+The Prefect server exposes two HTTP endpoints for monitoring:
+
+| Endpoint | Checks | Typical HTTP status |
+| --- | --- | --- |
+| `/api/health` | HTTP server is running | `200` when the process is up |
+| `/api/ready` | Database connectivity | `200` when Postgres is reachable; `503` when it is not |
+
+The [prefect-server Helm chart](https://github.com/PrefectHQ/prefect-helm/blob/main/charts/prefect-server/values.yaml) uses `/api/health` for the **liveness** probe and `/api/ready` for the **readiness** probe by default. This means Kubernetes stops routing traffic when the database is down, but it does **not** automatically restart the pod after the database recovers—the process may keep running in a broken state until you restart it manually.
+
+If you need the pod to restart after sustained database failure, point the liveness probe at `/api/ready` instead. Be aware that transient database blips can trigger restarts, so tune `periodSeconds` and `failureThreshold` accordingly.
+
+<Note>
+The chart currently exposes probe **timing** settings (for example `periodSeconds`) but not probe **paths**. To customize paths today, patch the generated Deployment manifest or open an issue on [prefect-helm](https://github.com/PrefectHQ/prefect-helm).
+</Note>
+
+For load balancer and reverse-proxy health checks, see [Load balancer configuration](/v3/advanced/self-hosted#load-balancer-configuration) in the self-hosted guide.
+
 ## Troubleshooting
+
+<Expandable title="Server stays unhealthy after database recovery">
+If Postgres recovers but the Prefect server still returns connection errors, check whether the liveness probe is hitting `/api/health` only. That endpoint does not verify database connectivity, so Kubernetes may consider the pod healthy even when API requests fail.
+
+1. Confirm readiness failures with `kubectl describe pod <prefect-server-pod>`.
+2. Test endpoints directly: `kubectl exec -it <pod> -- curl -s -o /dev/null -w "%{http_code}" localhost:4200/api/ready`.
+3. Restart the server pod if it did not recover automatically: `kubectl rollout restart deployment/prefect-server`.
+4. Consider using `/api/ready` for liveness if automatic restart after DB outages is required (see [Kubernetes health and readiness probes](#kubernetes-health-and-readiness-probes)).
+</Expandable>
 
 <Expandable title="Container creation error">
 If you see this error:
