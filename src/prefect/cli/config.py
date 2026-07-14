@@ -121,23 +121,25 @@ def unset(
     settings_context = prefect.context.get_settings_context()
     profiles = prefect.settings.load_profiles()
     profile = profiles[settings_context.profile.name]
-    parsed: set[Setting] = set()
+    parsed: dict[str, Setting] = {}
 
-    for setting_name in setting_names:
+    for setting_name in dict.fromkeys(setting_names):
         if setting_name not in valid_setting_names:
             exit_with_error(f"Unknown setting name {setting_name!r}.")
-        parsed.add(_get_settings_fields(Settings)[setting_name])
+        parsed[setting_name] = _get_settings_fields(Settings)[setting_name]
 
-    for setting in parsed:
+    for setting_name, setting in parsed.items():
         if setting not in profile.settings:
-            exit_with_error(f"{setting.name!r} is not set in profile {profile.name!r}.")
+            exit_with_error(
+                f"{setting_name!r} is not set in profile {profile.name!r}."
+            )
 
     if not yes and _cli.is_interactive():
         from rich.prompt import Confirm
 
         if not Confirm.ask(
             f"Are you sure you want to unset the following setting(s): "
-            f"{listrepr(setting_names)}?",
+            f"{listrepr(parsed.keys())}?",
             console=_cli.console,
         ):
             exit_with_error("Unset aborted.")
@@ -146,7 +148,7 @@ def unset(
         name=profile.name, settings={setting_name: None for setting_name in parsed}
     )
 
-    for setting_name in setting_names:
+    for setting_name in parsed:
         _cli.console.print(f"Unset {setting_name!r}.")
         if setting_name in os.environ:
             _cli.console.print(
@@ -288,7 +290,7 @@ def view(
         setting = _get_settings_fields(Settings)[setting_name]
         if setting.name in processed_settings:
             continue
-        if (env_value := os.getenv(setting.name)) is None:
+        if (env_value := os.getenv(setting_name)) is None:
             continue
         _process_setting(setting, env_value, "env")
 
