@@ -130,9 +130,7 @@ def unset(
 
     for setting_name, setting in parsed.items():
         if setting not in profile.settings:
-            exit_with_error(
-                f"{setting_name!r} is not set in profile {profile.name!r}."
-            )
+            exit_with_error(f"{setting_name!r} is not set in profile {profile.name!r}.")
 
     if not yes and _cli.is_interactive():
         from rich.prompt import Confirm

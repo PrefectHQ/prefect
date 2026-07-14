@@ -49,4 +49,6 @@ def test_generate_cli_docs_produces_experimental_without_stale_safe_mode(
     automation_path = output_dir / "automation.mdx"
     assert automation_path.exists(), "automation.mdx should be generated"
     automation_content = automation_path.read_text()
-    assert "An automation's name." in automation_content, "automation NAME argument help should be present"
+    assert "An automation's name." in automation_content, (
+        "automation NAME argument help should be present"
+    )

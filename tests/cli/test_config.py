@@ -585,7 +585,9 @@ def test_view_with_hide_sources_excludes_sources(monkeypatch, command):
     ],
 )
 def test_view_obfuscates_secrets(monkeypatch, command):
-    monkeypatch.setenv("PREFECT_SERVER_DATABASE_CONNECTION_URL", "secret-connection-url")
+    monkeypatch.setenv(
+        "PREFECT_SERVER_DATABASE_CONNECTION_URL", "secret-connection-url"
+    )
 
     with prefect.context.use_profile(
         prefect.settings.Profile(
@@ -614,7 +616,9 @@ def test_view_obfuscates_secrets(monkeypatch, command):
     ],
 )
 def test_view_shows_secrets(monkeypatch, command):
-    monkeypatch.setenv("PREFECT_SERVER_DATABASE_CONNECTION_URL", "secret-connection-url")
+    monkeypatch.setenv(
+        "PREFECT_SERVER_DATABASE_CONNECTION_URL", "secret-connection-url"
+    )
 
     with prefect.context.use_profile(
         prefect.settings.Profile(

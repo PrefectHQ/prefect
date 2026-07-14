@@ -140,7 +140,9 @@ def _get_settings_fields(
                 if accessor_prefix is None
                 else f"{accessor_prefix}.{field_name}"
             )
-            canonical_name = f"{settings.model_config.get('env_prefix')}{field_name.upper()}"
+            canonical_name = (
+                f"{settings.model_config.get('env_prefix')}{field_name.upper()}"
+            )
             setting = Setting(
                 name=canonical_name,
                 default=field.default,
