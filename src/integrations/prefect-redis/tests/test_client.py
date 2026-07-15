@@ -18,7 +18,9 @@ from prefect_redis.client import (
 )
 from redis.asyncio import Redis
 from redis.cluster import key_slot
+from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import RedisError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 
 def test_redis_settings_defaults(isolated_redis_db_number: int):
@@ -382,6 +384,55 @@ async def test_async_redis_from_settings_url_with_connection_defaults():
     _client_cache.clear()
 
 
+@pytest.mark.parametrize(
+    "make_client",
+    [
+        pytest.param(lambda: get_async_redis_client(), id="host_port"),
+        pytest.param(
+            lambda: get_async_redis_client(url="redis://localhost:6379/0"),
+            id="from_url",
+        ),
+        pytest.param(
+            lambda: async_redis_from_settings(RedisMessagingSettings()),
+            id="from_settings",
+        ),
+    ],
+)
+async def test_client_uses_bounded_retry_on_both_construction_paths(make_client):
+    """Every construction path bounds retries and does not retry read timeouts.
+
+    redis-py 8 defaults commands to 10 retries and holds the connection across
+    all of them (so a dead broker occupies a pool slot for ~11 socket timeouts),
+    while `Redis.from_url` gets a different policy. Both paths must instead use
+    the same small bounded retry that only covers connection errors so blocking
+    reads fail fast into the consumer's reconnect loop (OSS-8071 / #22478).
+    """
+    _client_cache.clear()
+    client = make_client()
+    try:
+        retry = client.connection_pool.connection_kwargs.get("retry")
+        assert retry is not None
+        assert retry.get_retries() == RedisMessagingSettings().retries == 3
+        supported = set(retry._supported_errors)
+        assert RedisConnectionError in supported
+        assert RedisTimeoutError not in supported
+    finally:
+        await client.aclose()
+        _client_cache.clear()
+
+
+async def test_client_retries_setting_is_configurable(monkeypatch: pytest.MonkeyPatch):
+    """The bounded retry count is driven by the PREFECT_REDIS_MESSAGING_RETRIES setting."""
+    monkeypatch.setenv("PREFECT_REDIS_MESSAGING_RETRIES", "1")
+    _client_cache.clear()
+    client = get_async_redis_client()
+    try:
+        assert client.connection_pool.connection_kwargs["retry"].get_retries() == 1
+    finally:
+        await client.aclose()
+        _client_cache.clear()
+
+
 @patch("prefect_redis.client._client_cache")
 def test_close_all_cached_connections(mock_cache):
     """Test that close_all_cached_connections properly closes all clients"""
@@ -418,7 +469,7 @@ async def test_clear_cached_clients_disconnects_and_closes_current_loop_clients(
 
 
 async def test_clear_cached_clients_skips_other_loop_clients():
-    """Clients bound to a different loop are dropped without being awaited."""
+    """Clients bound to a different loop are left untouched (not awaited)."""
     _client_cache.clear()
 
     other_loop = asyncio.new_event_loop()
@@ -433,9 +484,42 @@ async def test_clear_cached_clients_skips_other_loop_clients():
 
         client.connection_pool.disconnect.assert_not_awaited()
         client.aclose.assert_not_awaited()
-        assert _client_cache == {}
+        # The other loop's entry is left in place; it can only be reaped safely
+        # from its own loop.
+        assert _client_cache.get(key) is client
     finally:
+        _client_cache.clear()
         other_loop.close()
+
+
+async def test_clear_cached_clients_preserves_concurrent_replacement():
+    """A client cached for the same key while we await must survive (P1b race).
+
+    clear_cached_clients detaches the entries it will close before the first
+    await, then clears only that snapshot. A replacement inserted during the
+    disconnect/close await is therefore kept open rather than dropped, which
+    would otherwise orphan the freshly recovered pool.
+    """
+    _client_cache.clear()
+    key = (get_async_redis_client, (), (), _running_loop())
+
+    replacement = AsyncMock(spec=Redis)
+
+    async def insert_replacement(*args: object, **kwargs: object) -> None:
+        _client_cache[key] = replacement
+
+    old = AsyncMock(spec=Redis)
+    old.connection_pool = MagicMock()
+    old.connection_pool.disconnect = AsyncMock(side_effect=insert_replacement)
+    _client_cache[key] = old
+
+    await clear_cached_clients()
+
+    old.connection_pool.disconnect.assert_awaited_once_with(inuse_connections=True)
+    old.aclose.assert_awaited_once()
+    assert _client_cache.get(key) is replacement
+    replacement.aclose.assert_not_awaited()
+    _client_cache.clear()
 
 
 class _BlackholeProxy:
@@ -495,24 +579,38 @@ class _BlackholeProxy:
         )
 
 
-async def test_pool_recovers_after_outage(isolated_redis_db_number: int):
+@pytest.mark.parametrize("construction", ["host_port", "from_url"])
+async def test_pool_recovers_after_outage(
+    isolated_redis_db_number: int, construction: str
+):
     """Regression test for OSS-8071 / #22478.
 
-    With a non-None socket_timeout, blocking reads against an unreachable broker
-    raise promptly (rather than hanging forever), so their connections are
-    released instead of being stuck `in_use` and permanently exhausting the
+    With a non-None socket_timeout and a bounded retry policy, blocking reads
+    against an unreachable broker raise promptly (rather than hanging forever or
+    being retried ~10 times while holding the connection), so their connections
+    are released instead of being stuck `in_use` and permanently exhausting the
     pool. The client must resume operating once the broker is reachable again
-    without a process restart.
+    without a process restart. Both the host/port `Redis(...)` path used in
+    production and the `Redis.from_url` path are exercised.
     """
     settings = RedisMessagingSettings()
     proxy = _BlackholeProxy(settings.host, settings.port)
     await proxy.start()
 
-    client = get_async_redis_client(
-        url=f"redis://127.0.0.1:{proxy.port}/{isolated_redis_db_number}",
-        socket_timeout=2.0,
-        socket_connect_timeout=2.0,
-    )
+    if construction == "host_port":
+        client = get_async_redis_client(
+            host="127.0.0.1",
+            port=proxy.port,
+            db=isolated_redis_db_number,
+            socket_timeout=2.0,
+            socket_connect_timeout=2.0,
+        )
+    else:
+        client = get_async_redis_client(
+            url=f"redis://127.0.0.1:{proxy.port}/{isolated_redis_db_number}",
+            socket_timeout=2.0,
+            socket_connect_timeout=2.0,
+        )
     try:
         await client.ping()
         pool = client.connection_pool

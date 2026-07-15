@@ -40,7 +40,6 @@ from prefect.server.utilities.messaging import (
 from prefect.server.utilities.messaging import Publisher as _Publisher
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
 from prefect_redis.client import (
-    RedisMessagingSettings,
     clear_cached_clients,
     cluster_key_prefix,
     get_async_redis_client,
@@ -63,6 +62,34 @@ TimeDelta = Annotated[
     Union[str, timedelta],
     BeforeValidator(_interpret_string_as_timedelta_seconds),
 ]
+
+
+def _warn_if_block_exceeds_socket_timeout(
+    name: str, block: timedelta | str, socket_timeout: float | None
+) -> None:
+    """Warn when a consumer's block interval will out-live the socket timeout.
+
+    `socket_timeout` is the effective timeout of the client the consumer will
+    actually use (read from its connection kwargs), so URL query overrides are
+    respected rather than the settings default. Redis treats `BLOCK 0` as
+    "block indefinitely", which always out-lives any finite socket timeout, so a
+    zero block is flagged even though its numeric value is 0.
+    """
+    if socket_timeout is None:
+        return
+
+    block_seconds = _interpret_string_as_timedelta_seconds(block).total_seconds()
+    blocks_forever = block_seconds == 0
+    if blocks_forever or block_seconds >= socket_timeout:
+        logger.warning(
+            "Consumer %s block interval (%s) is >= the Redis socket_timeout "
+            "(%.1fs); idle blocking reads will time out and trigger spurious "
+            "reconnects. Set PREFECT_REDIS_MESSAGING_SOCKET_TIMEOUT above the "
+            "consumer block interval.",
+            name,
+            "infinite (BLOCK 0)" if blocks_forever else f"{block_seconds:.1f}s",
+            socket_timeout,
+        )
 
 
 class RedisMessagingPublisherSettings(PrefectBaseSettings):
@@ -362,23 +389,6 @@ class Consumer(_Consumer):
         self.group = group or topic  # Use topic as default group name
         self.block = block if block is not None else settings.block
 
-        block_seconds = (
-            self.block.total_seconds()
-            if isinstance(self.block, timedelta)
-            else float(self.block)
-        )
-        socket_timeout = RedisMessagingSettings().socket_timeout
-        if socket_timeout is not None and block_seconds >= socket_timeout:
-            logger.warning(
-                "Consumer %s block interval (%.1fs) is >= the Redis socket_timeout "
-                "(%.1fs); idle blocking reads will time out and trigger spurious "
-                "reconnects. Set PREFECT_REDIS_MESSAGING_SOCKET_TIMEOUT above the "
-                "consumer block interval.",
-                self.name,
-                block_seconds,
-                socket_timeout,
-            )
-
         self.min_idle_time = (
             min_idle_time if min_idle_time is not None else settings.min_idle_time
         )
@@ -527,6 +537,14 @@ class Consumer(_Consumer):
         attempt = 0
         base_delay = 1.0
         max_delay = 60.0
+
+        _warn_if_block_exceeds_socket_timeout(
+            self.name,
+            self.block,
+            get_async_redis_client().connection_pool.connection_kwargs.get(
+                "socket_timeout"
+            ),
+        )
 
         while True:  # Outer loop for connection resilience
             try:

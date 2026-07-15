@@ -6,6 +6,9 @@ from urllib.parse import urlparse, urlunparse
 
 from pydantic import Field, model_validator
 from redis.asyncio import Redis
+from redis.asyncio.retry import Retry
+from redis.backoff import ExponentialWithJitterBackoff
+from redis.exceptions import ConnectionError as RedisConnectionError
 from typing_extensions import Self, TypeAlias
 
 from prefect.logging import get_logger
@@ -84,6 +87,19 @@ class RedisMessagingSettings(PrefectBaseSettings):
             "with older Redis servers and proxies."
         ),
     )
+    retries: int = Field(
+        default=3,
+        ge=0,
+        description=(
+            "Number of times redis-py retries a command on a transient "
+            "connection error before giving up. redis-py 8 defaults this to 10, "
+            "and it keeps the connection checked out across every attempt, so a "
+            "dead broker can hold a pool slot for many multiples of the socket "
+            "timeout before the consumer's reconnect loop ever sees the error. "
+            "Bounding it keeps the pool from staying saturated after an outage. "
+            "Read timeouts are not retried so blocking reads fail fast."
+        ),
+    )
 
     _DISCRETE_FIELDS: frozenset[str] = frozenset(
         {"host", "port", "db", "username", "password", "ssl"}
@@ -98,6 +114,21 @@ class RedisMessagingSettings(PrefectBaseSettings):
                 f"{', '.join(sorted(conflicting))}",
             )
         return self
+
+
+def _bounded_retry(retries: int) -> Retry:
+    """Build a bounded retry policy shared by every client construction path.
+
+    redis-py 8 defaults commands to 10 retries and holds the connection across
+    all of them, so a dead broker can occupy a pool slot for many multiples of
+    the socket timeout. We bound the attempts and only retry connection errors —
+    read timeouts fail fast so the consumer's reconnect loop can recover the pool.
+    """
+    return Retry(
+        backoff=ExponentialWithJitterBackoff(base=0.01, cap=1),
+        retries=retries,
+        supported_errors=(RedisConnectionError,),
+    )
 
 
 CacheKey: TypeAlias = tuple[
@@ -187,12 +218,22 @@ async def clear_cached_clients() -> None:
     before being dropped so their connections — including ones stuck
     `in_use` on a dead socket — are reaped rather than lingering in the
     pool forever (which otherwise causes a permanent `MaxConnectionsError`).
+
+    Only the matching entries are detached (before any await) and closed; the
+    cache is not cleared wholesale. A replacement client inserted concurrently
+    while we await disconnect/close therefore survives instead of being dropped
+    without being closed. Clients bound to other event loops are left untouched
+    since they cannot be awaited safely from here.
     """
     current_loop = _running_loop()
 
-    for (_, _, _, loop), client in list(_client_cache.items()):
-        if loop is not current_loop:
-            continue
+    detached = [
+        (key, _client_cache.pop(key))
+        for key in list(_client_cache)
+        if key[3] is current_loop
+    ]
+
+    for _, client in detached:
         try:
             await client.connection_pool.disconnect(inuse_connections=True)
             await client.aclose()
@@ -201,8 +242,6 @@ async def clear_cached_clients() -> None:
                 "Error closing cached Redis client while clearing cache",
                 exc_info=True,
             )
-
-    _client_cache.clear()
 
 
 @cached
@@ -256,6 +295,7 @@ def get_async_redis_client(
         else socket_connect_timeout
     )
     resolved_protocol = protocol if protocol is not None else settings.protocol
+    retry = _bounded_retry(settings.retries)
 
     url = url or settings.url
     if url:
@@ -269,6 +309,8 @@ def get_async_redis_client(
             socket_timeout=resolved_socket_timeout,
             socket_connect_timeout=resolved_socket_connect_timeout,
             protocol=resolved_protocol,
+            retry=retry,
+            retry_on_error=[RedisConnectionError],
         )
 
     return Redis(
@@ -283,6 +325,8 @@ def get_async_redis_client(
         socket_timeout=resolved_socket_timeout,
         socket_connect_timeout=resolved_socket_connect_timeout,
         protocol=resolved_protocol,
+        retry=retry,
+        retry_on_error=[RedisConnectionError],
     )
 
 
@@ -295,6 +339,8 @@ def async_redis_from_settings(
         "socket_timeout": settings.socket_timeout,
         "socket_connect_timeout": settings.socket_connect_timeout,
         "protocol": settings.protocol,
+        "retry": _bounded_retry(settings.retries),
+        "retry_on_error": [RedisConnectionError],
         **options,
     }
 
