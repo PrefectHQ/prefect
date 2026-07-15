@@ -71,7 +71,7 @@ Both V1 and V2 UI bundles are served simultaneously when available: V1 at `PREFE
 
 ## Main Subsystems
 
-- `api/` — FastAPI REST endpoints
+- `api/` — FastAPI REST endpoints. `api/collections.py` serves flow/worker/block metadata for the UI/CLI from the external `prefect-collection-registry` GitHub repo; the `collections_data/views/*.json` files are read only as an offline fallback when that fetch fails, and are not auto-generated — update them by hand when a built-in worker's job configuration schema changes (e.g. a new enum value), or the fallback silently drifts from the real schema.
 - `database/` — Connections, ORM models, and Alembic migrations
 - `orchestration/` — State transition rules and policies
 - `services/` — Background services (scheduler, event services, task queue)
