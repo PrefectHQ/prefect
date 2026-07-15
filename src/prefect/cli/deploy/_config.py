@@ -158,7 +158,9 @@ def _load_deploy_configs_and_actions(
     actions: dict[str, Any] = {
         "build": model.build or [],
         "push": model.push or [],
-        "pull": model.pull or [],
+        # Preserve the distinction between an omitted/`null` pull (auto-generate a
+        # default pull action) and an explicit empty `pull: []` (no pull steps).
+        "pull": model.pull,
     }
     # Convert Pydantic models to plain dicts for downstream consumption,
     # excluding keys that were not provided by users to preserve legacy semantics
