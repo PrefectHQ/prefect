@@ -13,6 +13,7 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Any, Union, cast
 
+import sqlalchemy as sa
 from packaging.version import Version
 
 import prefect.server.models as models
@@ -120,15 +121,21 @@ class EnsureStateTimestampIsMonotonic(
     ]
 ):
     """
-    Prevents a run's consecutive states from sharing a timestamp.
+    Prevents a run's states from sharing a timestamp.
 
     State timestamps are minted server-side from the wall clock. On platforms with
-    coarse clock resolution (notably Windows, ~15.6ms) two states written for the
+    coarse clock resolution (notably Windows, ~15.6ms) several states written for the
     same run within a single clock tick can receive identical timestamps, violating
     the unique `(run_id, timestamp)` constraint and surfacing as a 409 IntegrityError.
-    When the proposed state's timestamp collides with the run's current state, nudge
-    it forward by a microsecond. Explicitly backdated states (an older timestamp) are
-    left untouched.
+    When the proposed timestamp would collide with a state already persisted for the
+    run, nudge it just past the run's most recent state. Explicitly backdated states
+    (an older timestamp that does not collide) are left untouched.
+
+    A fast path skips the collision check whenever the proposed timestamp is already
+    strictly newer than the run's current state, so normal forward transitions incur
+    no extra query. This handles runs of collisions (e.g. `t -> t -> t`): each state
+    is bumped past the previous one rather than only deduping against the immediately
+    preceding state.
 
     This transform must run before the transforms that read `proposed_state.timestamp`
     (e.g. `SetRunStateTimestamp`, `SetStartTime`, `SetEndTime`, `IncrementRunTime`) so
@@ -142,13 +149,41 @@ class EnsureStateTimestampIsMonotonic(
         if self.nullified_transition():
             return
 
-        if (
-            context.proposed_state is not None
-            and context.initial_state is not None
-            and context.proposed_state.timestamp == context.initial_state.timestamp
-        ):
-            context.proposed_state.timestamp = (
-                context.initial_state.timestamp + timedelta(microseconds=1)
+        proposed_state = context.proposed_state
+        initial_state = context.initial_state
+        if proposed_state is None or initial_state is None:
+            return
+
+        # Normal forward transitions already advance the timestamp; only the rare
+        # coarse-clock collision and explicitly backdated cases need inspection.
+        if proposed_state.timestamp > initial_state.timestamp:
+            return
+
+        if isinstance(context, FlowOrchestrationContext):
+            timestamp_column = orm_models.FlowRunState.timestamp
+            run_id_column = orm_models.FlowRunState.flow_run_id
+        elif isinstance(context, TaskOrchestrationContext):
+            timestamp_column = orm_models.TaskRunState.timestamp
+            run_id_column = orm_models.TaskRunState.task_run_id
+        else:
+            return
+
+        existing_timestamps = (
+            (
+                await context.session.execute(
+                    sa.select(timestamp_column).where(run_id_column == context.run.id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+        # Only intervene when the proposed timestamp would actually collide with a
+        # state already persisted for this run. Non-colliding backdated timestamps
+        # are preserved so historical run bookkeeping stays accurate.
+        if proposed_state.timestamp in existing_timestamps:
+            proposed_state.timestamp = max(existing_timestamps) + timedelta(
+                microseconds=1
             )
 
 

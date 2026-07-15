@@ -339,8 +339,8 @@ class TestGlobalPolicyRules:
         intended_transition = (states.StateType.PENDING, states.StateType.RUNNING)
         ctx = await initialize_orchestration(session, run_type, *intended_transition)
 
-        collision = now("UTC")
-        ctx.initial_state.timestamp = collision
+        # collide with the run's persisted initial state timestamp
+        collision = ctx.initial_state.timestamp
         ctx.proposed_state.timestamp = collision
 
         async with EnsureStateTimestampIsMonotonic(ctx, *intended_transition) as ctx:
@@ -356,9 +356,8 @@ class TestGlobalPolicyRules:
         intended_transition = (states.StateType.PENDING, states.StateType.RUNNING)
         ctx = await initialize_orchestration(session, run_type, *intended_transition)
 
-        current_time = now("UTC")
-        backdated = current_time - datetime.timedelta(seconds=5)
-        ctx.initial_state.timestamp = current_time
+        # older than the current state but not colliding with any persisted state
+        backdated = ctx.initial_state.timestamp - datetime.timedelta(seconds=5)
         ctx.proposed_state.timestamp = backdated
 
         async with EnsureStateTimestampIsMonotonic(ctx, *intended_transition) as ctx:
@@ -372,9 +371,7 @@ class TestGlobalPolicyRules:
         intended_transition = (states.StateType.PENDING, states.StateType.RUNNING)
         ctx = await initialize_orchestration(session, run_type, *intended_transition)
 
-        current_time = now("UTC")
-        later = current_time + datetime.timedelta(seconds=5)
-        ctx.initial_state.timestamp = current_time
+        later = ctx.initial_state.timestamp + datetime.timedelta(seconds=5)
         ctx.proposed_state.timestamp = later
 
         async with EnsureStateTimestampIsMonotonic(ctx, *intended_transition) as ctx:
@@ -402,8 +399,7 @@ class TestGlobalPolicyRules:
         intended_transition = (states.StateType.PENDING, states.StateType.RUNNING)
         ctx = await initialize_orchestration(session, run_type, *intended_transition)
 
-        collision = now("UTC")
-        ctx.initial_state.timestamp = collision
+        collision = ctx.initial_state.timestamp
         ctx.proposed_state.timestamp = collision
 
         async with EnsureStateTimestampIsMonotonic(ctx, *intended_transition) as ctx:

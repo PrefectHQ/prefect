@@ -19,7 +19,14 @@ from prefect.server.orchestration.rules import (
     BaseOrchestrationRule,
     OrchestrationContext,
 )
-from prefect.server.schemas.states import Failed, Pending, Running, Scheduled, StateType
+from prefect.server.schemas.states import (
+    Completed,
+    Failed,
+    Pending,
+    Running,
+    Scheduled,
+    StateType,
+)
 from prefect.types._datetime import now
 
 pytestmark = pytest.mark.clear_db
@@ -169,6 +176,34 @@ class TestSetFlowRunState:
         assert flow_run.state_timestamp == collision + datetime.timedelta(
             microseconds=1
         )
+
+    async def test_repeated_duplicate_server_timestamps_are_made_monotonic(
+        self, flow_run, session
+    ):
+        # Regression test for https://github.com/PrefectHQ/prefect/issues/22511.
+        # More than two states can land in a single coarse clock tick; each must be
+        # nudged past the previous one so none collide with an earlier persisted
+        # state under the (flow_run_id, timestamp) unique constraint.
+        collision = now("UTC")
+
+        results = []
+        for state in (
+            Pending(timestamp=collision),
+            Running(timestamp=collision),
+            Completed(timestamp=collision),
+        ):
+            results.append(
+                await models.flow_runs.set_flow_run_state(
+                    session=session,
+                    flow_run_id=flow_run.id,
+                    state=state,
+                )
+            )
+
+        assert all(r.status == schemas.responses.SetStateStatus.ACCEPT for r in results)
+        timestamps = [r.state.timestamp for r in results]
+        assert timestamps == sorted(timestamps)
+        assert len(set(timestamps)) == len(timestamps)
 
 
 class TestCreateFlowRunState:
