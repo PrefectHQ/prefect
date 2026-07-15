@@ -3,8 +3,10 @@ from uuid import uuid4
 
 import anyio
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
+from prefect.server.database import orm_models
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.orchestration.core_policy import PreventPendingTransitions
 from prefect.server.orchestration.dependencies import (
@@ -147,43 +149,10 @@ class TestSetFlowRunState:
             tg.start_soon(session_1)
             tg.start_soon(session_2)
 
-    async def test_duplicate_server_timestamp_is_made_monotonic(
-        self, flow_run, session
+    async def test_repeated_duplicate_server_timestamps_are_made_unique(
+        self, flow_run: orm_models.FlowRun, session: AsyncSession
     ):
         # Regression test for https://github.com/PrefectHQ/prefect/issues/22511.
-        # On coarse-resolution clocks (e.g. Windows) the server can mint identical
-        # timestamps for consecutive states of a run, previously violating the
-        # (flow_run_id, timestamp) unique constraint and surfacing as a 409.
-        collision = now("UTC")
-
-        await models.flow_runs.set_flow_run_state(
-            session=session,
-            flow_run_id=flow_run.id,
-            state=Pending(timestamp=collision),
-        )
-
-        result = await models.flow_runs.set_flow_run_state(
-            session=session,
-            flow_run_id=flow_run.id,
-            state=Running(timestamp=collision),
-        )
-
-        assert result.status == schemas.responses.SetStateStatus.ACCEPT
-        assert result.state.type == StateType.RUNNING
-        assert result.state.timestamp == collision + datetime.timedelta(microseconds=1)
-
-        await session.refresh(flow_run)
-        assert flow_run.state_timestamp == collision + datetime.timedelta(
-            microseconds=1
-        )
-
-    async def test_repeated_duplicate_server_timestamps_are_made_monotonic(
-        self, flow_run, session
-    ):
-        # Regression test for https://github.com/PrefectHQ/prefect/issues/22511.
-        # More than two states can land in a single coarse clock tick; each must be
-        # nudged past the previous one so none collide with an earlier persisted
-        # state under the (flow_run_id, timestamp) unique constraint.
         collision = now("UTC")
 
         results = []
@@ -201,9 +170,56 @@ class TestSetFlowRunState:
             )
 
         assert all(r.status == schemas.responses.SetStateStatus.ACCEPT for r in results)
-        timestamps = [r.state.timestamp for r in results]
-        assert timestamps == sorted(timestamps)
-        assert len(set(timestamps)) == len(timestamps)
+        assert [result.state.timestamp for result in results] == [
+            collision,
+            collision + datetime.timedelta(microseconds=1),
+            collision + datetime.timedelta(microseconds=2),
+        ]
+
+        await session.refresh(flow_run)
+        assert flow_run.state_timestamp == collision + datetime.timedelta(
+            microseconds=2
+        )
+        assert flow_run.start_time == collision + datetime.timedelta(microseconds=1)
+        assert flow_run.end_time == collision + datetime.timedelta(microseconds=2)
+        assert flow_run.total_run_time == datetime.timedelta(microseconds=1)
+
+    async def test_collision_with_older_state_after_backdated_transition(
+        self, flow_run: orm_models.FlowRun, session: AsyncSession
+    ):
+        collision = now("UTC")
+        backdated = collision - datetime.timedelta(seconds=10)
+
+        pending_result = await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=Pending(timestamp=collision),
+        )
+        running_result = await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=Running(timestamp=backdated),
+        )
+        completed_result = await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=Completed(timestamp=collision),
+        )
+
+        assert pending_result.status == schemas.responses.SetStateStatus.ACCEPT
+        assert running_result.status == schemas.responses.SetStateStatus.ACCEPT
+        assert running_result.state.timestamp == backdated
+        assert completed_result.status == schemas.responses.SetStateStatus.ACCEPT
+        assert completed_result.state.timestamp == collision + datetime.timedelta(
+            microseconds=1
+        )
+
+        await session.refresh(flow_run)
+        assert flow_run.state_timestamp == collision + datetime.timedelta(
+            microseconds=1
+        )
+        assert flow_run.start_time == backdated
+        assert flow_run.end_time == collision + datetime.timedelta(microseconds=1)
 
 
 class TestCreateFlowRunState:

@@ -41,7 +41,6 @@ def COMMON_GLOBAL_TRANSFORMS() -> list[
     ]
 ]:
     return [
-        EnsureStateTimestampIsMonotonic,
         SetRunStateType,
         SetRunStateName,
         SetRunStateTimestamp,
@@ -69,22 +68,32 @@ class GlobalFlowPolicy(BaseOrchestrationPolicy[orm_models.FlowRun, core.FlowRunP
             type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
         ]
     ]:
-        return cast(
-            list[
-                Union[
-                    type[
-                        BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]
-                    ],
-                    type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
-                ]
-            ],
-            COMMON_GLOBAL_TRANSFORMS(),
-        ) + [
-            UpdateSubflowParentTask,
-            UpdateSubflowStateDetails,
-            IncrementFlowRunCount,
-            RemoveResumingIndicator,
-        ]
+        return (
+            [EnsureFlowRunStateTimestampIsUnique]
+            + cast(
+                list[
+                    Union[
+                        type[
+                            BaseUniversalTransform[
+                                orm_models.FlowRun, core.FlowRunPolicy
+                            ]
+                        ],
+                        type[
+                            BaseOrchestrationRule[
+                                orm_models.FlowRun, core.FlowRunPolicy
+                            ]
+                        ],
+                    ]
+                ],
+                COMMON_GLOBAL_TRANSFORMS(),
+            )
+            + [
+                UpdateSubflowParentTask,
+                UpdateSubflowStateDetails,
+                IncrementFlowRunCount,
+                RemoveResumingIndicator,
+            ]
+        )
 
 
 class GlobalTaskPolicy(BaseOrchestrationPolicy[orm_models.TaskRun, core.TaskRunPolicy]):
@@ -115,27 +124,18 @@ class GlobalTaskPolicy(BaseOrchestrationPolicy[orm_models.TaskRun, core.TaskRunP
         ) + [IncrementTaskRunCount]
 
 
-class EnsureStateTimestampIsMonotonic(
-    BaseUniversalTransform[
-        orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
-    ]
+class EnsureFlowRunStateTimestampIsUnique(
+    FlowRunUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]
 ):
     """
-    Prevents a run's states from sharing a timestamp.
+    Prevents a flow run's states from sharing a timestamp.
 
     State timestamps are minted server-side from the wall clock. On platforms with
     coarse clock resolution (notably Windows, ~15.6ms) several states written for the
-    same run within a single clock tick can receive identical timestamps, violating
-    the unique `(run_id, timestamp)` constraint and surfacing as a 409 IntegrityError.
-    When the proposed timestamp would collide with a state already persisted for the
-    run, nudge it just past the run's most recent state. Explicitly backdated states
-    (an older timestamp that does not collide) are left untouched.
-
-    A fast path skips the collision check whenever the proposed timestamp is already
-    strictly newer than the run's current state, so normal forward transitions incur
-    no extra query. This handles runs of collisions (e.g. `t -> t -> t`): each state
-    is bumped past the previous one rather than only deduping against the immediately
-    preceding state.
+    same flow run within a single clock tick can receive identical timestamps,
+    violating the unique `(flow_run_id, timestamp)` constraint. When the proposed
+    timestamp collides with any persisted state, nudge it just past the latest state.
+    Explicitly backdated states that do not collide are left untouched.
 
     This transform must run before the transforms that read `proposed_state.timestamp`
     (e.g. `SetRunStateTimestamp`, `SetStartTime`, `SetEndTime`, `IncrementRunTime`) so
@@ -144,47 +144,35 @@ class EnsureStateTimestampIsMonotonic(
     """
 
     async def before_transition(
-        self, context: GenericOrchestrationContext[orm_models.Run, Any]
+        self, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]
     ) -> None:
         if self.nullified_transition():
             return
 
         proposed_state = context.proposed_state
-        initial_state = context.initial_state
-        if proposed_state is None or initial_state is None:
+        if proposed_state is None:
             return
 
-        # Normal forward transitions already advance the timestamp; only the rare
-        # coarse-clock collision and explicitly backdated cases need inspection.
-        if proposed_state.timestamp > initial_state.timestamp:
-            return
-
-        if isinstance(context, FlowOrchestrationContext):
-            timestamp_column = orm_models.FlowRunState.timestamp
-            run_id_column = orm_models.FlowRunState.flow_run_id
-        elif isinstance(context, TaskOrchestrationContext):
-            timestamp_column = orm_models.TaskRunState.timestamp
-            run_id_column = orm_models.TaskRunState.task_run_id
-        else:
-            return
-
-        existing_timestamps = (
-            (
-                await context.session.execute(
-                    sa.select(timestamp_column).where(run_id_column == context.run.id)
-                )
+        colliding_timestamp = await context.session.scalar(
+            sa.select(orm_models.FlowRunState.timestamp)
+            .where(
+                orm_models.FlowRunState.flow_run_id == context.run.id,
+                orm_models.FlowRunState.timestamp == proposed_state.timestamp,
             )
-            .scalars()
-            .all()
+            .limit(1)
         )
+        if colliding_timestamp is None:
+            return
 
-        # Only intervene when the proposed timestamp would actually collide with a
-        # state already persisted for this run. Non-colliding backdated timestamps
-        # are preserved so historical run bookkeeping stays accurate.
-        if proposed_state.timestamp in existing_timestamps:
-            proposed_state.timestamp = max(existing_timestamps) + timedelta(
-                microseconds=1
-            )
+        latest_timestamp = await context.session.scalar(
+            sa.select(orm_models.FlowRunState.timestamp)
+            .where(orm_models.FlowRunState.flow_run_id == context.run.id)
+            .order_by(orm_models.FlowRunState.timestamp.desc())
+            .limit(1)
+        )
+        assert latest_timestamp is not None
+
+        proposed_state.timestamp = latest_timestamp + timedelta(microseconds=1)
 
 
 class SetRunStateType(

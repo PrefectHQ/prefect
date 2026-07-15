@@ -4,7 +4,6 @@ import pytest
 
 from prefect.server import models
 from prefect.server.orchestration.global_policy import (
-    EnsureStateTimestampIsMonotonic,
     IncrementFlowRunCount,
     IncrementRunTime,
     IncrementTaskRunCount,
@@ -332,83 +331,6 @@ class TestGlobalPolicyRules:
             await ctx.validate_proposed_state()
 
         assert run.total_run_time == datetime.timedelta(0)
-
-    async def test_monotonic_transform_bumps_equal_timestamp(
-        self, session, run_type, initialize_orchestration
-    ):
-        intended_transition = (states.StateType.PENDING, states.StateType.RUNNING)
-        ctx = await initialize_orchestration(session, run_type, *intended_transition)
-
-        # collide with the run's persisted initial state timestamp
-        collision = ctx.initial_state.timestamp
-        ctx.proposed_state.timestamp = collision
-
-        async with EnsureStateTimestampIsMonotonic(ctx, *intended_transition) as ctx:
-            pass
-
-        assert ctx.proposed_state.timestamp == collision + datetime.timedelta(
-            microseconds=1
-        )
-
-    async def test_monotonic_transform_leaves_backdated_timestamp_unchanged(
-        self, session, run_type, initialize_orchestration
-    ):
-        intended_transition = (states.StateType.PENDING, states.StateType.RUNNING)
-        ctx = await initialize_orchestration(session, run_type, *intended_transition)
-
-        # older than the current state but not colliding with any persisted state
-        backdated = ctx.initial_state.timestamp - datetime.timedelta(seconds=5)
-        ctx.proposed_state.timestamp = backdated
-
-        async with EnsureStateTimestampIsMonotonic(ctx, *intended_transition) as ctx:
-            pass
-
-        assert ctx.proposed_state.timestamp == backdated
-
-    async def test_monotonic_transform_leaves_newer_timestamp_unchanged(
-        self, session, run_type, initialize_orchestration
-    ):
-        intended_transition = (states.StateType.PENDING, states.StateType.RUNNING)
-        ctx = await initialize_orchestration(session, run_type, *intended_transition)
-
-        later = ctx.initial_state.timestamp + datetime.timedelta(seconds=5)
-        ctx.proposed_state.timestamp = later
-
-        async with EnsureStateTimestampIsMonotonic(ctx, *intended_transition) as ctx:
-            pass
-
-        assert ctx.proposed_state.timestamp == later
-
-    async def test_monotonic_transform_noop_without_initial_state(
-        self, session, run_type, initialize_orchestration
-    ):
-        intended_transition = (None, states.StateType.SCHEDULED)
-        ctx = await initialize_orchestration(session, run_type, *intended_transition)
-
-        assert ctx.initial_state is None
-        original_timestamp = ctx.proposed_state.timestamp
-
-        async with EnsureStateTimestampIsMonotonic(ctx, *intended_transition) as ctx:
-            pass
-
-        assert ctx.proposed_state.timestamp == original_timestamp
-
-    async def test_monotonic_transform_keeps_run_state_timestamp_consistent(
-        self, session, run_type, initialize_orchestration
-    ):
-        intended_transition = (states.StateType.PENDING, states.StateType.RUNNING)
-        ctx = await initialize_orchestration(session, run_type, *intended_transition)
-
-        collision = ctx.initial_state.timestamp
-        ctx.proposed_state.timestamp = collision
-
-        async with EnsureStateTimestampIsMonotonic(ctx, *intended_transition) as ctx:
-            async with SetRunStateTimestamp(ctx, *intended_transition) as ctx:
-                pass
-
-        adjusted = collision + datetime.timedelta(microseconds=1)
-        assert ctx.proposed_state.timestamp == adjusted
-        assert ctx.run.state_timestamp == adjusted
 
     @pytest.mark.parametrize("proposed_state_type", TERMINAL_STATES)
     async def test_rule_sets_end_time_when_when_run_ends(
