@@ -656,7 +656,19 @@ class TestFlowRunSuspendingObserver:
 
             callback.assert_called_once_with(flow_run_id, suspended_state)
 
-    async def test_clean_event_consumer_completion_starts_polling(self):
+    async def test_polling_runs_as_safety_net_when_websocket_connects(self):
+        callback = MagicMock()
+        observer = FlowRunSuspendingObserver(on_suspended=callback)
+
+        async with observer:
+            # The websocket consumer provides low-latency detection, but polling
+            # must also run so a dropped Suspended event cannot go unnoticed.
+            assert observer._events_subscriber is not None
+            assert observer._consumer_task is not None
+            assert observer._polling_task is not None
+            assert not observer._polling_task.done()
+
+    async def test_consumer_completion_ensures_polling(self):
         callback = MagicMock()
         observer = FlowRunSuspendingObserver(on_suspended=callback)
 
@@ -673,7 +685,7 @@ class TestFlowRunSuspendingObserver:
             "prefect._internal.observers.critical_service_loop",
             AsyncMock(side_effect=never_finish),
         ) as critical_service_loop:
-            observer._start_polling_task(consumer_task)
+            observer._handle_consumer_task_done(consumer_task)
             await asyncio.sleep(0)
 
             assert observer._polling_task is not None
@@ -705,7 +717,7 @@ class TestFlowRunSuspendingObserver:
         with patch(
             "prefect._internal.observers.critical_service_loop"
         ) as critical_service_loop:
-            observer._start_polling_task(consumer_task)
+            observer._handle_consumer_task_done(consumer_task)
 
         assert observer._polling_task is None
         critical_service_loop.assert_not_called()
