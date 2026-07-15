@@ -113,22 +113,28 @@ async def assess_reactive_automation():
         )
         await listening.wait()
 
-        async with get_events_client() as events:
-            for i in range(5):
-                await events.emit(
-                    Event(
-                        event="integration.example.event",
-                        resource=expected_resource,
-                        payload={"iteration": i},
-                    )
-                )
-
-        # Wait until we see the automation triggered event, or fail if it takes longer
-        # than 60 seconds.  The reactive trigger should fire almost immediately.
+        # A newly created automation isn't necessarily loaded into the trigger
+        # services the instant the API call returns; it's picked up via a
+        # Postgres NOTIFY or a periodic reconcile.  A reactive trigger only
+        # counts events that arrive *after* it's loaded, so a single burst
+        # emitted before the automation is ready would be silently dropped and
+        # the automation would never fire.  Keep emitting until we observe it
+        # trigger (bounded by the timeout below) instead of relying on a fixed
+        # wait being long enough.
         try:
             with anyio.fail_after(60):
-                await listener
-        except asyncio.TimeoutError:
+                async with get_events_client() as events:
+                    while not listener.done():
+                        for i in range(5):
+                            await events.emit(
+                                Event(
+                                    event="integration.example.event",
+                                    resource=expected_resource,
+                                    payload={"iteration": i},
+                                )
+                            )
+                        await asyncio.wait({listener}, timeout=2)
+        except TimeoutError:
             raise Exception("Reactive automation did not trigger in 60s")
 
 
