@@ -32,20 +32,44 @@ from prefect.utilities.collections import set_in_dict
 def _cast_settings(
     settings: dict[str | Setting, Any] | Any,
 ) -> dict[Setting, Any]:
-    """For backwards compatibility, allow either Settings objects as keys or string references to settings."""
+    """For backwards compatibility, allow either Settings objects as keys or string references to settings.
+
+    Canonical setting names take precedence over legacy aliases. If both a canonical
+    name and an alias are present for the same setting, the canonical value is used.
+    """
     if not isinstance(settings, dict):
         raise ValueError("Settings must be a dictionary.")
-    casted_settings = {}
+
+    casted_settings: dict[Setting, Any] = {}
+    canonical_keys: set[Setting] = set()
+
+    def _resolve_key(k: str | Setting) -> tuple[Setting, bool]:
+        if isinstance(k, Setting):
+            return k, True
+        setting = _get_settings_fields(Settings)[k]
+        return setting, k == setting.name or k == setting.accessor
+
+    # First pass: canonical keys win over aliases regardless of input order.
     for k, value in settings.items():
         try:
-            if isinstance(k, str):
-                setting = _get_settings_fields(Settings)[k]
-            else:
-                setting = k
-            casted_settings[setting] = value
+            setting, is_canonical = _resolve_key(k)
         except KeyError as e:
             warnings.warn(f"Setting {e} is not recognized")
             continue
+        if is_canonical:
+            casted_settings[setting] = value
+            canonical_keys.add(setting)
+
+    # Second pass: keep alias values only when no canonical key was provided.
+    for k, value in settings.items():
+        try:
+            setting, is_canonical = _resolve_key(k)
+        except KeyError:
+            continue
+        if is_canonical or setting in canonical_keys:
+            continue
+        casted_settings[setting] = value
+
     return casted_settings
 
 

@@ -141,6 +141,7 @@ To use Azure managed identity (Microsoft Entra ID) authentication for your Postg
 
 3. **Enable plugins and managed identity authentication**:
    ```bash
+   # on Prefect < 3.7 use PREFECT_EXPERIMENTS_PLUGINS_ENABLED=true instead
    export PREFECT_PLUGINS_ENABLED=true
    export PREFECT_INTEGRATIONS_AZURE_POSTGRES_MANAGED_IDENTITY_ENABLED=true
    # Optional: export PREFECT_INTEGRATIONS_AZURE_POSTGRES_MANAGED_IDENTITY_CLIENT_ID=<client-id>

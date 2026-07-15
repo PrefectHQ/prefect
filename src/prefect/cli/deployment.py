@@ -627,7 +627,14 @@ async def delete(
         ),
     ] = False,
 ):
-    """Delete a deployment."""
+    """Delete a deployment.
+
+    Examples:
+        ```bash
+        $ prefect deployment delete test_flow/test_deployment
+        $ prefect deployment delete --id dfd3e220-a130-4149-9af6-8d487e02fea6
+        ```
+    """
     from prefect.cli._prompts import confirm
 
     async with get_client() as client:

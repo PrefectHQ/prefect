@@ -201,6 +201,16 @@ def view(
         exit_with_error("Only 'json' output format is supported.")
 
     valid_setting_names = _get_valid_setting_names(Settings)
+    settings_fields = _get_settings_fields(Settings)
+
+    # Group valid names by their canonical Setting, with the canonical name first.
+    setting_names_by_setting: dict[Setting, list[str]] = {}
+    for name in sorted(valid_setting_names):
+        setting = settings_fields[name]
+        setting_names_by_setting.setdefault(setting, []).append(name)
+    for setting, names in setting_names_by_setting.items():
+        names.sort(key=lambda n: (n != setting.name, n))
+    settings_order = sorted(setting_names_by_setting, key=lambda setting: setting.name)
 
     if show_secrets:
         dump_context = dict(include_secrets=True)
@@ -284,21 +294,24 @@ def view(
                     _process_setting(setting, value, source)
 
     # Environment variables
-    for setting_name in valid_setting_names:
-        setting = _get_settings_fields(Settings)[setting_name]
+    for setting in settings_order:
         if setting.name in processed_settings:
             continue
-        if (env_value := os.getenv(setting_name)) is None:
-            continue
-        _process_setting(setting, env_value, "env")
+        for setting_name in setting_names_by_setting[setting]:
+            if (env_value := os.getenv(setting_name)) is not None:
+                _process_setting(setting, env_value, "env")
+                break
 
     # .env file
-    for key, value in (dotenv_values(".env") if Path(".env").is_file() else {}).items():
-        if key in valid_setting_names:
-            setting = _get_settings_fields(Settings)[key]
-            if setting.name in processed_settings or value is None:
-                continue
-            _process_setting(setting, value, ".env file")
+    dotenv = dotenv_values(".env") if Path(".env").is_file() else {}
+    for setting in settings_order:
+        if setting.name in processed_settings:
+            continue
+        for setting_name in setting_names_by_setting[setting]:
+            value = dotenv.get(setting_name)
+            if value is not None:
+                _process_setting(setting, value, ".env file")
+                break
 
     # prefect.toml
     if Path("prefect.toml").exists():

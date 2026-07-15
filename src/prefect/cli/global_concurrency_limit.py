@@ -350,7 +350,16 @@ async def create(
         ),
     ] = 0.0,
 ):
-    """Create a global concurrency limit."""
+    """Create a global concurrency limit.
+
+    Examples:
+        ```bash
+        $ prefect global-concurrency-limit create my-gcl --limit 10
+        $ prefect gcl create my-gcl --limit 5 --active-slots 3
+        $ prefect gcl create my-gcl --limit 5 --active-slots 3 --slot-decay-per-second 0.5
+        $ prefect gcl create my-gcl --limit 5 --disable
+        ```
+    """
     from pydantic import ValidationError
 
     from prefect.client.orchestration import get_client

@@ -125,7 +125,7 @@ async def inspect(
     """View details about an artifact.
 
     Examples:
-        `$ prefect artifact inspect "my-artifact"`
+        `$ prefect artifact inspect "my-artifact" --output json`
 
         ```json
         [

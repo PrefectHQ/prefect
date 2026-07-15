@@ -119,7 +119,16 @@ async def inspect(
         ),
     ] = None,
 ):
-    """Inspect an automation."""
+    """Inspect an automation.
+
+    Examples:
+        ```bash
+        $ prefect automation inspect "my-automation"
+        $ prefect automation inspect --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        $ prefect automation inspect "my-automation" --output json
+        $ prefect automation inspect "my-automation" --output yaml
+        ```
+    """
     import orjson
     import yaml as pyyaml
     from pydantic import BaseModel
@@ -183,7 +192,14 @@ async def resume(
         cyclopts.Parameter("--id", help="An automation's id"),
     ] = None,
 ):
-    """Resume an automation."""
+    """Resume an automation.
+
+    Examples:
+        ```bash
+        $ prefect automation resume "my-automation"
+        $ prefect automation resume --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        ```
+    """
     from prefect.client.orchestration import get_client
     from prefect.exceptions import PrefectHTTPStatusError
 
@@ -236,7 +252,14 @@ async def pause(
         cyclopts.Parameter("--id", help="An automation's id"),
     ] = None,
 ):
-    """Pause an automation."""
+    """Pause an automation.
+
+    Examples:
+        ```bash
+        $ prefect automation pause "my-automation"
+        $ prefect automation pause --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        ```
+    """
     from prefect.client.orchestration import get_client
     from prefect.exceptions import PrefectHTTPStatusError
 
@@ -402,7 +425,16 @@ async def create(
         ),
     ] = None,
 ):
-    """Create one or more automations from a file or JSON string."""
+    """Create one or more automations from a file or JSON string.
+
+    Examples:
+        ```bash
+        $ prefect automation create --from-file automation.yaml
+        $ prefect automation create -f automation.json
+        $ prefect automation create --from-json '{"name": "my-automation", "trigger": {...}, "actions": [...]}'
+        $ prefect automation create -j '[{"name": "auto1", ...}, {"name": "auto2", ...}]'
+        ```
+    """
     import orjson
     import yaml as pyyaml
 
@@ -502,7 +534,15 @@ async def update(
         ),
     ] = None,
 ):
-    """Update an existing automation from a file or JSON string."""
+    """Update an existing automation from a file or JSON string.
+
+    Examples:
+        ```bash
+        $ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" --from-file automation.yaml
+        $ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" -f automation.json
+        $ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" --from-json '{"name": "updated-automation", "trigger": {...}, "actions": [...]}'
+        ```
+    """
     import orjson
     import yaml as pyyaml
 

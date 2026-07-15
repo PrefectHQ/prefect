@@ -182,7 +182,16 @@ async def ls(
         ),
     ] = None,
 ):
-    """View recent flow runs or flow runs for specific flows."""
+    """View recent flow runs or flow runs for specific flows.
+
+    Examples:
+        ```bash
+        $ prefect flow-runs ls --state Running
+        $ prefect flow-runs ls --state Running --state late
+        $ prefect flow-runs ls --state-type RUNNING
+        $ prefect flow-runs ls --state-type RUNNING --state-type FAILED
+        ```
+    """
     if output and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
 
@@ -340,7 +349,22 @@ async def retry(
         ),
     ] = None,
 ):
-    """Retry a failed or completed flow run."""
+    """Retry a failed or completed flow run.
+
+    The flow run can be specified by either its UUID or its name. If multiple
+    flow runs have the same name, you must use the UUID to disambiguate.
+
+    If the flow run has an associated deployment, it will be scheduled for retry
+    and a worker will pick it up. If there is no deployment, you must provide
+    an --entrypoint to the flow code, and the flow will execute locally.
+
+    Examples:
+        ```bash
+        $ prefect flow-run retry abc123-def456-7890-...
+        $ prefect flow-run retry my-flow-run-name
+        $ prefect flow-run retry abc123 --entrypoint ./flows/my_flow.py:my_flow
+        ```
+    """
     from prefect.flow_engine import run_flow
     from prefect.flows import InfrastructureBoundFlow, load_flow_from_entrypoint
     from prefect.states import Scheduled

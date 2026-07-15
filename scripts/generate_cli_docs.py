@@ -157,6 +157,8 @@ def _extract_command_params(
         help_text = (meta.help if meta is not None and meta.help else "") or ""
 
         if _parameter_is_option(meta):
+            if meta is not None and meta.show is False:
+                continue
             options.append(
                 SimpleNamespace(
                     opts=meta.name,

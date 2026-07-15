@@ -135,6 +135,16 @@ EXPERIMENTAL: Configure AWS S3 storage for a work pool.
 </AccordionGroup>
 
 
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool storage configure s3 "my-pool" --bucket my-bucket --aws-credentials-block-name my-credentials
+```
+</Note>
+
+
+
 
 #### `prefect work-pool storage configure gcs`
 
@@ -205,6 +215,16 @@ EXPERIMENTAL: Configure Google Cloud storage for a work pool.
 </AccordionGroup>
 
 
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool storage configure gcs "my-pool" --bucket my-bucket --gcp-credentials-block-name my-credentials
+```
+</Note>
+
+
+
 
 #### `prefect work-pool storage configure azure-blob-storage`
 
@@ -273,6 +293,16 @@ EXPERIMENTAL: Configure Azure Blob Storage for a work pool.
 </Accordion>
 
 </AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool storage configure azure-blob-storage "my-pool" --container my-container --azure-blob-storage-credentials-block-name my-credentials
+```
+</Note>
+
 
 
 
@@ -447,6 +477,16 @@ List work pools.
 </AccordionGroup>
 
 
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool ls
+```
+</Note>
+
+
+
 
 ## `prefect work-pool inspect`
 
@@ -487,6 +527,17 @@ Inspect a work pool.
 </Accordion>
 
 </AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool inspect "my-pool"
+$ prefect work-pool inspect "my-pool" --output json
+```
+</Note>
+
 
 
 
@@ -565,6 +616,16 @@ Pause a work pool.
 </AccordionGroup>
 
 
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool pause "my-pool"
+```
+</Note>
+
+
+
 
 ## `prefect work-pool resume`
 
@@ -597,6 +658,16 @@ Resume a work pool.
 
 
 </AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool resume "my-pool"
+```
+</Note>
+
 
 
 
@@ -649,6 +720,16 @@ Update a work pool.
 </AccordionGroup>
 
 
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool update "my-pool"
+```
+</Note>
+
+
+
 
 ## `prefect work-pool provision-infrastructure`
 
@@ -681,6 +762,17 @@ Provision infrastructure for a work pool.
 
 
 </AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool provision-infrastructure "my-pool"
+$ prefect work-pool provision-infra "my-pool"
+```
+</Note>
+
 
 
 
@@ -717,6 +809,17 @@ Provision infrastructure for a work pool.
 </AccordionGroup>
 
 
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool provision-infrastructure "my-pool"
+$ prefect work-pool provision-infra "my-pool"
+```
+</Note>
+
+
+
 
 ## `prefect work-pool delete`
 
@@ -749,6 +852,16 @@ Delete a work pool.
 
 
 </AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool delete "my-pool"
+```
+</Note>
+
 
 
 
@@ -788,6 +901,16 @@ Set the concurrency limit for a work pool.
 </AccordionGroup>
 
 
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool set-concurrency-limit "my-pool" 10
+```
+</Note>
+
+
+
 
 ## `prefect work-pool clear-concurrency-limit`
 
@@ -820,6 +943,16 @@ Clear the concurrency limit for a work pool.
 
 
 </AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool clear-concurrency-limit "my-pool"
+```
+</Note>
+
 
 
 
@@ -860,6 +993,16 @@ Get the default base job template for a given work pool type.
 </Accordion>
 
 </AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool get-default-base-job-template --type kubernetes
+```
+</Note>
+
 
 
 
@@ -906,3 +1049,12 @@ Preview the work pool's scheduled work for all queues.
 </Accordion>
 
 </AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool preview "my-pool" --hours 24
+```
+</Note>

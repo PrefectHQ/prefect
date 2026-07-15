@@ -534,7 +534,13 @@ async def ls(
         ),
     ] = None,
 ):
-    """List work pools."""
+    """List work pools.
+
+    Examples:
+        ```bash
+        $ prefect work-pool ls
+        ```
+    """
     from prefect.client.orchestration import get_client
     from prefect.client.schemas.objects import WorkPool
     from prefect.types._datetime import now as now_fn
@@ -608,7 +614,14 @@ async def inspect(
         ),
     ] = None,
 ):
-    """Inspect a work pool."""
+    """Inspect a work pool.
+
+    Examples:
+        ```bash
+        $ prefect work-pool inspect "my-pool"
+        $ prefect work-pool inspect "my-pool" --output json
+        ```
+    """
     from prefect.client.orchestration import get_client
     from prefect.exceptions import ObjectNotFound
 
@@ -746,7 +759,13 @@ async def pause(
         str, cyclopts.Parameter(help="The name of the work pool to pause.")
     ],
 ):
-    """Pause a work pool."""
+    """Pause a work pool.
+
+    Examples:
+        ```bash
+        $ prefect work-pool pause "my-pool"
+        ```
+    """
     from prefect.client.orchestration import get_client
     from prefect.client.schemas.actions import WorkPoolUpdate
     from prefect.exceptions import ObjectNotFound
@@ -770,7 +789,13 @@ async def resume(
         str, cyclopts.Parameter(help="The name of the work pool to resume.")
     ],
 ):
-    """Resume a work pool."""
+    """Resume a work pool.
+
+    Examples:
+        ```bash
+        $ prefect work-pool resume "my-pool"
+        ```
+    """
     from prefect.client.orchestration import get_client
     from prefect.client.schemas.actions import WorkPoolUpdate
     from prefect.exceptions import ObjectNotFound
@@ -825,7 +850,13 @@ async def update(
         ),
     ] = None,
 ):
-    """Update a work pool."""
+    """Update a work pool.
+
+    Examples:
+        ```bash
+        $ prefect work-pool update "my-pool"
+        ```
+    """
     from prefect.client.orchestration import get_client
     from prefect.client.schemas.actions import WorkPoolUpdate
     from prefect.exceptions import ObjectNotFound
@@ -861,7 +892,14 @@ async def provision_infrastructure_cmd(
         ),
     ],
 ):
-    """Provision infrastructure for a work pool."""
+    """Provision infrastructure for a work pool.
+
+    Examples:
+        ```bash
+        $ prefect work-pool provision-infrastructure "my-pool"
+        $ prefect work-pool provision-infra "my-pool"
+        ```
+    """
     from prefect.client.orchestration import get_client
     from prefect.client.schemas.actions import WorkPoolUpdate
     from prefect.exceptions import ObjectNotFound
@@ -924,7 +962,13 @@ async def delete(
         str, cyclopts.Parameter(help="The name of the work pool to delete.")
     ],
 ):
-    """Delete a work pool."""
+    """Delete a work pool.
+
+    Examples:
+        ```bash
+        $ prefect work-pool delete "my-pool"
+        ```
+    """
     from prefect.cli._prompts import confirm
     from prefect.client.orchestration import get_client
     from prefect.exceptions import ObjectNotFound
@@ -955,7 +999,13 @@ async def set_concurrency_limit(
         int, cyclopts.Parameter(help="The new concurrency limit for the work pool.")
     ],
 ):
-    """Set the concurrency limit for a work pool."""
+    """Set the concurrency limit for a work pool.
+
+    Examples:
+        ```bash
+        $ prefect work-pool set-concurrency-limit "my-pool" 10
+        ```
+    """
     from prefect.client.orchestration import get_client
     from prefect.client.schemas.actions import WorkPoolUpdate
     from prefect.exceptions import ObjectNotFound
@@ -981,7 +1031,13 @@ async def clear_concurrency_limit(
         str, cyclopts.Parameter(help="The name of the work pool to update.")
     ],
 ):
-    """Clear the concurrency limit for a work pool."""
+    """Clear the concurrency limit for a work pool.
+
+    Examples:
+        ```bash
+        $ prefect work-pool clear-concurrency-limit "my-pool"
+        ```
+    """
     from prefect.client.orchestration import get_client
     from prefect.client.schemas.actions import WorkPoolUpdate
     from prefect.exceptions import ObjectNotFound
@@ -1019,7 +1075,13 @@ async def get_default_base_job_template(
         ),
     ] = None,
 ):
-    """Get the default base job template for a given work pool type."""
+    """Get the default base job template for a given work pool type.
+
+    Examples:
+        ```bash
+        $ prefect work-pool get-default-base-job-template --type kubernetes
+        ```
+    """
     from prefect.workers.utilities import (
         get_available_work_pool_types,
         get_default_base_job_template_for_infrastructure_type,
@@ -1067,7 +1129,13 @@ async def preview(
         ),
     ] = None,
 ):
-    """Preview the work pool's scheduled work for all queues."""
+    """Preview the work pool's scheduled work for all queues.
+
+    Examples:
+        ```bash
+        $ prefect work-pool preview "my-pool" --hours 24
+        ```
+    """
     from prefect.client.orchestration import get_client
     from prefect.client.schemas.objects import FlowRun
     from prefect.exceptions import ObjectNotFound
@@ -1350,7 +1418,13 @@ async def storage_configure_s3(
     execution_launcher: ExecutionLauncherOption = None,
     execution_launcher_arg: ExecutionLauncherArgOption = None,
 ):
-    """EXPERIMENTAL: Configure AWS S3 storage for a work pool."""
+    """EXPERIMENTAL: Configure AWS S3 storage for a work pool.
+
+    Examples:
+        ```bash
+        $ prefect work-pool storage configure s3 "my-pool" --bucket my-bucket --aws-credentials-block-name my-credentials
+        ```
+    """
     from prefect.client.orchestration import get_client
     from prefect.client.schemas.actions import WorkPoolUpdate
     from prefect.client.schemas.objects import WorkPoolStorageConfiguration
@@ -1489,7 +1563,13 @@ async def storage_configure_gcs(
     execution_launcher: ExecutionLauncherOption = None,
     execution_launcher_arg: ExecutionLauncherArgOption = None,
 ):
-    """EXPERIMENTAL: Configure Google Cloud storage for a work pool."""
+    """EXPERIMENTAL: Configure Google Cloud storage for a work pool.
+
+    Examples:
+        ```bash
+        $ prefect work-pool storage configure gcs "my-pool" --bucket my-bucket --gcp-credentials-block-name my-credentials
+        ```
+    """
     from prefect.client.orchestration import get_client
     from prefect.client.schemas.actions import WorkPoolUpdate
     from prefect.client.schemas.objects import WorkPoolStorageConfiguration
@@ -1631,7 +1711,13 @@ async def storage_configure_azure_blob_storage(
     execution_launcher: ExecutionLauncherOption = None,
     execution_launcher_arg: ExecutionLauncherArgOption = None,
 ):
-    """EXPERIMENTAL: Configure Azure Blob Storage for a work pool."""
+    """EXPERIMENTAL: Configure Azure Blob Storage for a work pool.
+
+    Examples:
+        ```bash
+        $ prefect work-pool storage configure azure-blob-storage "my-pool" --container my-container --azure-blob-storage-credentials-block-name my-credentials
+        ```
+    """
     from prefect.client.orchestration import get_client
     from prefect.client.schemas.actions import WorkPoolUpdate
     from prefect.client.schemas.objects import WorkPoolStorageConfiguration
