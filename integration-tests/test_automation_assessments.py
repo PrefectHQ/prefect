@@ -134,6 +134,9 @@ async def assess_reactive_automation():
                                 )
                             )
                         await asyncio.wait({listener}, timeout=2)
+                # Surface any error from the subscriber (e.g. a disconnect) rather
+                # than passing just because the listener task finished.
+                await listener
         except TimeoutError:
             raise Exception("Reactive automation did not trigger in 60s")
 
