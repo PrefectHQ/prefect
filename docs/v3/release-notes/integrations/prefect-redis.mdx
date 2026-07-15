@@ -2,6 +2,26 @@
 title: prefect-redis
 ---
 
+## 0.2.13
+
+_Released on July 15, 2026_
+
+**Features**
+
+- Add optional `key_ttl` to `RedisDatabase` [#22395](https://github.com/PrefectHQ/prefect/pull/22395) by [@brks-rssll](https://github.com/brks-rssll)
+- Add Redis Cluster URL and key groundwork [#22211](https://github.com/PrefectHQ/prefect/pull/22211) by [@zzstoatzz](https://github.com/zzstoatzz)
+- Add backend observability for worker channel and cleanup queue [#22310](https://github.com/PrefectHQ/prefect/pull/22310) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+
+**Bug Fixes 🐞**
+
+- Use `XREAD` for Redis ephemeral subscriptions [#22201](https://github.com/PrefectHQ/prefect/pull/22201) by [@zzstoatzz](https://github.com/zzstoatzz)
+
+**Documentation 📝**
+
+- Regenerate API refs with mdxify `>=0.2.45` (drop empty stubs) [#22344](https://github.com/PrefectHQ/prefect/pull/22344) by [@zzstoatzz](https://github.com/zzstoatzz)
+
+---
+
 ## 0.2.12
 
 _Released on June 05, 2026_
@@ -13,7 +33,7 @@ _Released on June 05, 2026_
 
 **Bug Fixes 🐞**
 
-- Add redis-py 8 compatible connection defaults [#22189](https://github.com/PrefectHQ/prefect/pull/22189) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Add redis-py 8 compatible connection defaults [#22189](https://github.com/PrefectHQ/prefect/pull/22189) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
 
 **Maintenance**
 
