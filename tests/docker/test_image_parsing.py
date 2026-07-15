@@ -1,6 +1,5 @@
 import packaging.version
 import pytest
-
 from prefect.utilities.dockerutils import (
     format_outlier_version_name,
     parse_image_tag,

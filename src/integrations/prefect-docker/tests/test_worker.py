@@ -9,6 +9,7 @@ import docker.models.containers
 import pytest
 from docker import DockerClient
 from docker.models.containers import Container
+from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect_docker.credentials import DockerRegistryCredentials
 from prefect_docker.types import VolumeStr
 from prefect_docker.worker import (
@@ -30,7 +31,6 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.testing.utilities import assert_does_not_warn
-from prefect.utilities.dockerutils import get_prefect_image_name
 
 FAKE_CONTAINER_ID = "fake-id"
 FAKE_BASE_URL = "my-url"

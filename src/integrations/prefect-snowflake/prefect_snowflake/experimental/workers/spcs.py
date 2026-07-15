@@ -16,6 +16,7 @@ import anyio
 import dateutil
 import snowflake.connector
 import yaml
+from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect_snowflake import SnowflakeCredentials
 from pydantic import Field
 from slugify import slugify
@@ -37,7 +38,6 @@ import prefect
 from prefect.client.schemas.objects import FlowRun
 from prefect.states import InfrastructurePending
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.engine import propose_state
 from prefect.workers.base import (
     BaseJobConfiguration,

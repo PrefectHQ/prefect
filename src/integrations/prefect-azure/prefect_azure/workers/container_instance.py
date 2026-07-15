@@ -89,6 +89,7 @@ from azure.mgmt.resource.resources.models import (
     DeploymentMode,
     DeploymentProperties,
 )
+from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect_docker.credentials import DockerRegistryCredentials
 from pydantic import Field, SecretStr
 from slugify import slugify
@@ -96,7 +97,6 @@ from slugify import slugify
 from prefect.client.orchestration import get_client
 from prefect.exceptions import InfrastructureNotFound
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.processutils import command_from_string
 from prefect.workers.base import (
     BaseJobConfiguration,

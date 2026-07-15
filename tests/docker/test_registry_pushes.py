@@ -6,14 +6,14 @@ from uuid import uuid4
 
 import pytest
 from _pytest.capture import CaptureFixture
-
-from prefect.types._datetime import DateTime, now
 from prefect.utilities.dockerutils import (
     ImageBuilder,
     PushError,
     push_image,
     silence_docker_warnings,
 )
+
+from prefect.types._datetime import DateTime, now
 from prefect.utilities.slugify import slugify
 
 with silence_docker_warnings():

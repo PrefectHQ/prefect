@@ -136,6 +136,7 @@ from kubernetes_asyncio.client.models import (
     V1ObjectMeta,
     V1Secret,
 )
+from prefect.utilities.dockerutils import get_prefect_image_name
 from pydantic import Field, field_validator, model_validator
 from tenacity import AsyncRetrying, stop_after_attempt, wait_fixed, wait_random
 from typing_extensions import Literal, Self
@@ -146,7 +147,6 @@ from prefect.exceptions import (
     InfrastructureError,
     InfrastructureNotFound,
 )
-from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.processutils import command_from_string
 from prefect.utilities.templating import find_placeholders
 from prefect.workers.base import (

@@ -3,9 +3,9 @@ import sys
 from typing import Optional
 
 import pytest
+from prefect.utilities.dockerutils import get_prefect_image_name
 
 from prefect import __version_info__
-from prefect.utilities.dockerutils import get_prefect_image_name
 
 # Get the short SHA from git, with fallback to version info
 try:

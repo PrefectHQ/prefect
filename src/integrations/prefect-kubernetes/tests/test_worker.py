@@ -20,6 +20,7 @@ from kubernetes_asyncio.client.models import (
     V1Secret,
 )
 from kubernetes_asyncio.config import ConfigException
+from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect_kubernetes import KubernetesWorker
 from prefect_kubernetes.utilities import (
     KeepAliveClientRequest,
@@ -46,7 +47,6 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.types._datetime import now
-from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.processutils import command_to_string
 
 FAKE_CLUSTER = "fake-cluster"

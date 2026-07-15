@@ -66,6 +66,7 @@ from uuid import UUID
 import anyio
 import anyio.abc
 import yaml
+from prefect.utilities.dockerutils import get_prefect_image_name
 from pydantic import BaseModel, Field, model_validator
 from slugify import slugify
 from tenacity import (
@@ -80,7 +81,6 @@ from typing_extensions import Literal, Self
 from prefect.client.schemas.objects import FlowRun
 from prefect.exceptions import InfrastructureNotFound
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.processutils import command_from_string
 from prefect.utilities.templating import find_placeholders
 from prefect.workers.base import (

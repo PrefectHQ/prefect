@@ -7,6 +7,7 @@ from unittest.mock import Mock
 import googleapiclient.errors
 import pydantic
 import pytest
+from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect_gcp.credentials import GcpCredentials
 from prefect_gcp.models.cloud_run_v2 import SecretKeySelector
 from prefect_gcp.utilities import Execution, slugify_name
@@ -20,7 +21,6 @@ from prefect.client.schemas.objects import FlowRun
 from prefect.exceptions import InfrastructureNotFound
 from prefect.logging.loggers import PrefectLogAdapter
 from prefect.server.schemas.actions import DeploymentCreate
-from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.schema_tools.validation import (
     ValidationError as PrefectValidationError,
 )

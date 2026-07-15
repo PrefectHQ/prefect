@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from googleapiclient.errors import HttpError
+from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect_gcp.credentials import GcpCredentials
 from prefect_gcp.models.cloud_run_v2 import ExecutionV2, SecretKeySelector
 from prefect_gcp.utilities import slugify_name
@@ -14,7 +15,6 @@ from prefect_gcp.workers.cloud_run_v2 import (
 
 from prefect.exceptions import InfrastructureNotFound
 from prefect.logging.loggers import PrefectLogAdapter
-from prefect.utilities.dockerutils import get_prefect_image_name
 
 
 @pytest.fixture

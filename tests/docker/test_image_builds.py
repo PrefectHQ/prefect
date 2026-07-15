@@ -6,8 +6,6 @@ from textwrap import dedent
 
 import pytest
 from _pytest.capture import CaptureFixture
-
-import prefect
 from prefect.utilities.dockerutils import (
     BuildError,
     ImageBuilder,
@@ -16,6 +14,8 @@ from prefect.utilities.dockerutils import (
     get_prefect_image_name,
     silence_docker_warnings,
 )
+
+import prefect
 
 with silence_docker_warnings():
     from docker import DockerClient

@@ -23,6 +23,7 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 import anyio
 import pytest
 import uv
+from prefect.utilities.dockerutils import parse_image_tag
 from starlette import status
 
 import prefect.runner
@@ -72,7 +73,6 @@ from prefect.states import Cancelling, Crashed
 from prefect.types._datetime import now
 from prefect.utilities import processutils
 from prefect.utilities.annotations import freeze
-from prefect.utilities.dockerutils import parse_image_tag
 from prefect.utilities.filesystem import tmpchdir
 from prefect.utilities.processutils import command_to_string
 from prefect.utilities.slugify import slugify

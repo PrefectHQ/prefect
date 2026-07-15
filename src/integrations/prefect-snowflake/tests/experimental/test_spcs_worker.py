@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 import snowflake.connector
+from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect_snowflake import SnowflakeCredentials
 from prefect_snowflake.experimental.workers.spcs import (
     SPCSServiceTemplateVariables,
@@ -15,7 +16,6 @@ from prefect_snowflake.experimental.workers.spcs import (
 
 from prefect.client.schemas import FlowRun
 from prefect.server.schemas.core import Flow
-from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.workers.base import BaseWorker
 
 

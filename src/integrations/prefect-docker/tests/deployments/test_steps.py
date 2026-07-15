@@ -10,16 +10,16 @@ import docker
 import docker.errors
 import docker.models.containers
 import docker.models.images
+import prefect.utilities.dockerutils
 import pytest
+from prefect.utilities.dockerutils import BuildError
 from prefect_docker.deployments.steps import (
     build_docker_image,
     push_docker_image,
 )
 
 import prefect
-import prefect.utilities.dockerutils
 from prefect.settings import PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE, temporary_settings
-from prefect.utilities.dockerutils import BuildError
 
 FAKE_CONTAINER_ID = "fake-id"
 FAKE_BASE_URL = "my-url"
