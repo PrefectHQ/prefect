@@ -41,6 +41,7 @@ from prefect.settings import (
     PREFECT_SERVER_API_HOST,
     PREFECT_SERVER_API_PORT,
     PREFECT_SERVER_DATABASE_CONNECTION_URL,
+    PREFECT_SERVER_DATABASE_TIMEOUT,
     PREFECT_SERVER_EPHEMERAL_ENABLED,
     PREFECT_SERVER_LOGGING_LEVEL,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
@@ -2376,6 +2377,29 @@ class TestProfile:
         )
         # Should not raise
         profile.validate_settings()
+
+    @pytest.mark.parametrize(
+        "settings",
+        [
+            {
+                "PREFECT_SERVER_DATABASE_TIMEOUT": 99,
+                "PREFECT_API_DATABASE_TIMEOUT": 42,
+            },
+            {
+                "PREFECT_API_DATABASE_TIMEOUT": 42,
+                "PREFECT_SERVER_DATABASE_TIMEOUT": 99,
+            },
+        ],
+    )
+    def test_canonical_name_takes_precedence_over_alias(
+        self, settings: dict[str | Setting, int]
+    ):
+        profile = Profile(name="test", settings=settings)
+        assert profile.settings == {PREFECT_SERVER_DATABASE_TIMEOUT: 99}
+
+    def test_alias_casts_to_canonical_setting_when_canonical_missing(self):
+        profile = Profile(name="test", settings={"PREFECT_API_DATABASE_TIMEOUT": 42})
+        assert profile.settings == {PREFECT_SERVER_DATABASE_TIMEOUT: 42}
 
 
 class TestProfilesCollection:

@@ -2,6 +2,7 @@ import json
 import os
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 import toml
@@ -98,6 +99,40 @@ def test_set_legacy_alias_overrides_canonical_default_in_profile():
     env_vars = profiles["ephemeral"].to_environment_variables()
     assert "PREFECT_SERVER_ALLOW_EPHEMERAL_MODE" not in env_vars
     assert env_vars.get("PREFECT_SERVER_EPHEMERAL_ENABLED") == "false"
+
+
+@pytest.mark.parametrize(
+    "profile_settings",
+    [
+        'PREFECT_SERVER_DATABASE_TIMEOUT = "99"\nPREFECT_API_DATABASE_TIMEOUT = "42"\n',
+        'PREFECT_API_DATABASE_TIMEOUT = "42"\nPREFECT_SERVER_DATABASE_TIMEOUT = "99"\n',
+    ],
+)
+def test_validate_preserves_canonical_value_when_alias_present_in_profile(
+    monkeypatch: pytest.MonkeyPatch,
+    temporary_profiles_path: Path,
+    profile_settings: str,
+):
+    """Canonical setting values take precedence over legacy aliases in profiles."""
+    for key in list(os.environ):
+        if key.startswith("PREFECT_"):
+            monkeypatch.delenv(key, raising=False)
+
+    temporary_profiles_path.write_text(
+        f'active = "foo"\n\n[profiles.foo]\n{profile_settings}'
+    )
+
+    with prefect.context.use_profile("foo"):
+        result = invoke_and_assert(["config", "validate"])
+
+    assert result.exit_code == 0
+    assert "Configuration valid!" in result.stdout
+
+    profiles = load_profiles(include_defaults=False)
+    assert profiles["foo"].settings == {PREFECT_SERVER_DATABASE_TIMEOUT: "99"}
+    assert (
+        "PREFECT_API_DATABASE_TIMEOUT" not in profiles["foo"].to_environment_variables()
+    )
 
 
 def test_set_using_profile_flag():
@@ -780,6 +815,77 @@ def test_view_with_pyproject_toml_file_and_profile(tmp_path):
 
         assert "PREFECT_CLIENT_RETRY_EXTRA_CODES='300'" in res.stdout
         assert FROM_PYPROJECT_TOML in res.stdout
+
+
+def test_view_prefers_canonical_env_var_over_alias(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    monkeypatch.setenv("PREFECT_SERVER_DATABASE_TIMEOUT", "99")
+    monkeypatch.setenv("PREFECT_API_DATABASE_TIMEOUT", "42")
+
+    with tmpchdir(tmp_path):
+        with prefect.context.use_profile(
+            prefect.settings.Profile(name="foo", settings={}),
+            include_current_context=False,
+        ):
+            result = invoke_and_assert(["config", "view", "--output", "json"])
+
+    payload = json.loads(result.stdout)
+    by_name = {setting["name"]: setting for setting in payload["settings"]}
+    assert by_name["PREFECT_SERVER_DATABASE_TIMEOUT"]["value"] == "99"
+    assert by_name["PREFECT_SERVER_DATABASE_TIMEOUT"]["source"] == "env"
+    assert "PREFECT_API_DATABASE_TIMEOUT" not in by_name
+
+
+def test_view_prefers_canonical_dot_env_value_over_alias(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    for key in list(os.environ):
+        if key.startswith("PREFECT_"):
+            monkeypatch.delenv(key, raising=False)
+
+    with tmpchdir(tmp_path):
+        with open(".env", "w") as f:
+            f.write("PREFECT_SERVER_DATABASE_TIMEOUT=99\n")
+            f.write("PREFECT_API_DATABASE_TIMEOUT=42\n")
+
+        with prefect.context.use_profile(
+            prefect.settings.Profile(name="foo", settings={}),
+            include_current_context=False,
+        ):
+            result = invoke_and_assert(["config", "view", "--output", "json"])
+
+    payload = json.loads(result.stdout)
+    by_name = {setting["name"]: setting for setting in payload["settings"]}
+    assert by_name["PREFECT_SERVER_DATABASE_TIMEOUT"]["value"] == "99"
+    assert by_name["PREFECT_SERVER_DATABASE_TIMEOUT"]["source"] == ".env file"
+    assert "PREFECT_API_DATABASE_TIMEOUT" not in by_name
+
+
+def test_view_uses_alias_from_dot_env_when_canonical_missing(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    for key in list(os.environ):
+        if key.startswith("PREFECT_"):
+            monkeypatch.delenv(key, raising=False)
+
+    with tmpchdir(tmp_path):
+        with open(".env", "w") as f:
+            f.write("PREFECT_API_DATABASE_TIMEOUT=42\n")
+
+        with prefect.context.use_profile(
+            prefect.settings.Profile(name="foo", settings={}),
+            include_current_context=False,
+        ):
+            result = invoke_and_assert(["config", "view", "--output", "json"])
+
+    payload = json.loads(result.stdout)
+    by_name = {setting["name"]: setting for setting in payload["settings"]}
+    assert by_name["PREFECT_SERVER_DATABASE_TIMEOUT"]["value"] == "42"
+    assert by_name["PREFECT_SERVER_DATABASE_TIMEOUT"]["source"] == ".env file"
 
 
 def test_invalid_prefect_toml(tmp_path):
