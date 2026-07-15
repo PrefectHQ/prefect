@@ -10,6 +10,7 @@ state database, they should be the most deeply nested contexts in orchestration 
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Any, Union, cast
 
 from packaging.version import Version
@@ -39,6 +40,7 @@ def COMMON_GLOBAL_TRANSFORMS() -> list[
     ]
 ]:
     return [
+        EnsureStateTimestampIsMonotonic,
         SetRunStateType,
         SetRunStateName,
         SetRunStateTimestamp,
@@ -110,6 +112,44 @@ class GlobalTaskPolicy(BaseOrchestrationPolicy[orm_models.TaskRun, core.TaskRunP
             ],
             COMMON_GLOBAL_TRANSFORMS(),
         ) + [IncrementTaskRunCount]
+
+
+class EnsureStateTimestampIsMonotonic(
+    BaseUniversalTransform[
+        orm_models.Run, Union[core.FlowRunPolicy, core.TaskRunPolicy]
+    ]
+):
+    """
+    Prevents a run's consecutive states from sharing a timestamp.
+
+    State timestamps are minted server-side from the wall clock. On platforms with
+    coarse clock resolution (notably Windows, ~15.6ms) two states written for the
+    same run within a single clock tick can receive identical timestamps, violating
+    the unique `(run_id, timestamp)` constraint and surfacing as a 409 IntegrityError.
+    When the proposed state's timestamp collides with the run's current state, nudge
+    it forward by a microsecond. Explicitly backdated states (an older timestamp) are
+    left untouched.
+
+    This transform must run before the transforms that read `proposed_state.timestamp`
+    (e.g. `SetRunStateTimestamp`, `SetStartTime`, `SetEndTime`, `IncrementRunTime`) so
+    the adjusted timestamp is reflected consistently in the persisted state, the run's
+    denormalized timestamps, and its runtime accounting.
+    """
+
+    async def before_transition(
+        self, context: GenericOrchestrationContext[orm_models.Run, Any]
+    ) -> None:
+        if self.nullified_transition():
+            return
+
+        if (
+            context.proposed_state is not None
+            and context.initial_state is not None
+            and context.proposed_state.timestamp == context.initial_state.timestamp
+        ):
+            context.proposed_state.timestamp = (
+                context.initial_state.timestamp + timedelta(microseconds=1)
+            )
 
 
 class SetRunStateType(

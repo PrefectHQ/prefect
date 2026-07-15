@@ -17,7 +17,13 @@ from prefect.server.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
     BaseOrchestrationRule,
 )
-from prefect.server.schemas.states import Failed, Running, Scheduled, StateType
+from prefect.server.schemas.states import (
+    Completed,
+    Failed,
+    Running,
+    Scheduled,
+    StateType,
+)
 from prefect.types._datetime import now
 
 pytestmark = pytest.mark.clear_db
@@ -35,6 +41,30 @@ class TestCreateTaskRunState:
         assert task_run_state.name == "Running"
         assert task_run_state.type == StateType.RUNNING
         assert task_run_state.state_details.task_run_id == task_run.id
+
+    async def test_duplicate_server_timestamp_is_made_monotonic(
+        self, task_run, session
+    ):
+        # Regression test for https://github.com/PrefectHQ/prefect/issues/22511.
+        # The shared monotonic-timestamp transform hardens the task path against the
+        # same server-side (task_run_id, timestamp) unique constraint collision.
+        collision = now("UTC")
+
+        await models.task_runs.set_task_run_state(
+            session=session,
+            task_run_id=task_run.id,
+            state=Running(timestamp=collision),
+        )
+
+        result = await models.task_runs.set_task_run_state(
+            session=session,
+            task_run_id=task_run.id,
+            state=Completed(timestamp=collision),
+        )
+
+        assert result.status == schemas.responses.SetStateStatus.ACCEPT
+        assert result.state.type == StateType.COMPLETED
+        assert result.state.timestamp == collision + datetime.timedelta(microseconds=1)
 
     async def test_run_details_are_updated_entering_running(self, task_run, session):
         await models.task_runs.set_task_run_state(
