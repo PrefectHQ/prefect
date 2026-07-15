@@ -2994,11 +2994,11 @@ Whether or not to serve the Prefect UI.
 `PREFECT_SERVER_UI_ENABLED`, `PREFECT_UI_ENABLED`
 
 ### `v2_enabled`
-Whether neutral UI entry points should default to the experimental V2 UI instead of V1 when the browser has no saved UI preference.
+Whether neutral UI entry points should default to the V2 UI instead of V1 when the browser has no saved UI preference. Set to false to restore V1 as the default for browsers without a saved preference.
 
 **Type**: `boolean`
 
-**Default**: `False`
+**Default**: `True`
 
 **TOML dotted key path**: `server.ui.v2_enabled`
 

@@ -10,9 +10,9 @@ describe("UiVersionSwitchCard", () => {
 
 		render(<UiVersionSwitchCard onSwitch={onSwitch} />);
 
-		expect(screen.getByText("Current UI")).toBeInTheDocument();
+		expect(screen.getByText("V1 UI")).toBeInTheDocument();
 		const button = screen.getByRole("button", {
-			name: "Switch back to current UI",
+			name: "Switch to V1 UI",
 		});
 		expect(button).toBeInTheDocument();
 
