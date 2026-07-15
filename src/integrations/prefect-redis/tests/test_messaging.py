@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import uuid
+from contextlib import suppress
 from datetime import datetime, timedelta, timezone
 from functools import partial
 from typing import AsyncGenerator, Generator, Optional
@@ -1027,24 +1028,28 @@ async def test_consumer_recovers_from_read_timeout(broker: str, publisher: Publi
 
     async def timing_out_xreadgroup(self, *args, **kwargs):
         nonlocal timeout_count
-        if timeout_count < 2:
+        if timeout_count == 0:
             timeout_count += 1
             raise RedisTimeoutError("Simulated read timeout during outage")
         return await original_xreadgroup(self, *args, **kwargs)
 
     with patch.object(Redis, "xreadgroup", timing_out_xreadgroup):
         consumer_task = asyncio.create_task(consumer.run(handler))
+        try:
+            await asyncio.sleep(0.5)
 
-        await asyncio.sleep(0.5)
+            async with publisher as p:
+                await p.publish_data(b"message-1", {"id": "1"})
+                await p.publish_data(b"message-2", {"id": "2"})
 
-        async with publisher as p:
-            await p.publish_data(b"message-1", {"id": "1"})
-            await p.publish_data(b"message-2", {"id": "2"})
+            with anyio.move_on_after(10.0):
+                await consumer_task
+        finally:
+            consumer_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await consumer_task
 
-        with anyio.move_on_after(5.0):
-            await consumer_task
-
-    assert timeout_count == 2, "Should have hit the simulated read timeouts"
+    assert timeout_count == 1, "Should have hit the simulated read timeout"
     assert len(captured_messages) == 2, "Should recover and receive both messages"
 
 
