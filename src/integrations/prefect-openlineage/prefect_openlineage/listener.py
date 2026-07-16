@@ -327,4 +327,5 @@ async def main():
     await PrefectOpenLineageListener().collect_and_process_runs()
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())
