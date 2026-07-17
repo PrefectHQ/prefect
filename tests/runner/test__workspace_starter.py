@@ -429,7 +429,7 @@ async def test_load_flow_from_prepared_workspace_preserves_stdlib_imports(
 
 
 class TestWorkspaceEnvironmentPythonpathFiltering:
-    def test_excludes_stdlib_from_pythonpath(self, tmp_path: Path) -> None:
+    def test_excludes_interpreter_paths_from_pythonpath(self, tmp_path: Path) -> None:
         workspace = _prepared_workspace(tmp_path)
         stdlib = sysconfig.get_paths()["stdlib"]
         lib_dynload = os.path.join(stdlib, "lib-dynload")
@@ -463,13 +463,14 @@ class TestWorkspaceEnvironmentPythonpathFiltering:
         assert resolved_stdlib_zip not in pythonpath_entries
 
         resolved_site = str(Path(site_packages).resolve())
-        assert resolved_site in pythonpath_entries
+        assert resolved_site not in pythonpath_entries
         assert str(adjacent_user_zip) in pythonpath_entries
         assert str(app_zip) in pythonpath_entries
 
     def test_filters_stdlib_from_inherited_pythonpath(self, tmp_path: Path) -> None:
         workspace = _prepared_workspace(tmp_path)
         stdlib = sysconfig.get_paths()["stdlib"]
+        site_packages = sysconfig.get_paths()["purelib"]
         stdlib_zip = (
             Path(stdlib).parent
             / f"python{sys.version_info.major}{sys.version_info.minor}.zip"
@@ -477,15 +478,17 @@ class TestWorkspaceEnvironmentPythonpathFiltering:
         app_zip = tmp_path / "python_deps.zip"
         workspace.sys_path = ["/app"]
         workspace.environment["PYTHONPATH"] = os.pathsep.join(
-            [stdlib, str(stdlib_zip), str(app_zip), "/extra"]
+            [stdlib, site_packages, str(stdlib_zip), str(app_zip), "/extra"]
         )
 
         env = workspace_environment(workspace)
         pythonpath_entries = env["PYTHONPATH"].split(os.pathsep)
 
         resolved_stdlib = str(Path(stdlib).resolve())
+        resolved_site_packages = str(Path(site_packages).resolve())
         resolved_stdlib_zip = str(stdlib_zip.resolve())
         assert resolved_stdlib not in pythonpath_entries
+        assert resolved_site_packages not in pythonpath_entries
         assert resolved_stdlib_zip not in pythonpath_entries
         assert str(app_zip) in pythonpath_entries
         assert "/extra" in pythonpath_entries
