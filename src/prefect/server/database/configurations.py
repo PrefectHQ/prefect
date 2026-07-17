@@ -11,6 +11,7 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from contextvars import ContextVar
 from functools import partial
 from typing import Any, Optional
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import sqlalchemy as sa
 from sqlalchemy import AdaptedConnection, event
@@ -269,6 +270,35 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 server_settings["application_name"] = self.connection_app_name
             if self.search_path is not None:
                 server_settings["search_path"] = self.search_path
+
+            # asyncpg treats connection-URI query parameters like
+            # `default_transaction_isolation` as startup server settings, but
+            # SQLAlchemy's asyncpg dialect forwards URL query parameters as plain
+            # keyword arguments. Move any such settings into the `server_settings`
+            # connect argument so they are applied at connection startup.
+            engine_url = self.connection_url
+            url_parts = urlsplit(self.connection_url)
+            if url_parts.query:
+                query_params = parse_qsl(url_parts.query)
+                url_server_settings: dict[str, str] = {}
+                remaining_params: list[tuple[str, str]] = []
+                for key, value in query_params:
+                    if key == "default_transaction_isolation":
+                        url_server_settings[key] = value
+                    else:
+                        remaining_params.append((key, value))
+                if url_server_settings:
+                    server_settings.update(url_server_settings)
+                    engine_url = urlunsplit(
+                        (
+                            url_parts.scheme,
+                            url_parts.netloc,
+                            url_parts.path,
+                            urlencode(remaining_params),
+                            url_parts.fragment,
+                        )
+                    )
+
             if server_settings:
                 connect_args["server_settings"] = server_settings
 
@@ -332,8 +362,14 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 kwargs["max_overflow"] = self.sqlalchemy_max_overflow
 
             engine = create_async_engine(
-                self.connection_url,
+                engine_url,
                 echo=self.echo,
+                # Prefect's conditional concurrency-counter updates depend on
+                # PostgreSQL's READ COMMITTED behavior: a waiting writer re-reads
+                # the latest committed row and re-evaluates its predicate before
+                # applying the change. Enforce the isolation level explicitly so
+                # correctness does not depend on database or role defaults.
+                isolation_level="READ COMMITTED",
                 # "pre-ping" connections upon checkout to ensure they have not been
                 # closed on the server side
                 pool_pre_ping=True,

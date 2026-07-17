@@ -105,6 +105,10 @@ export PREFECT_SERVER_DATABASE_CONNECTION_URL="postgresql+asyncpg://user:passwor
 PostgreSQL version 14.9 or higher is required for multi-server deployments. SQLite does not support the features needed for state synchronization across multiple servers.
 </Warning>
 
+<Note>
+Prefect server PostgreSQL connections always execute transactions at `READ COMMITTED`, even when the database or role default is stronger. This guarantees that conditional concurrency-counter updates wait and re-evaluate their predicates against the latest committed row.
+</Note>
+
 ### AWS RDS IAM Authentication
 
 To use AWS IAM authentication for your PostgreSQL database (experimental):
