@@ -476,9 +476,19 @@ class TestWorkspaceEnvironmentPythonpathFiltering:
             / f"python{sys.version_info.major}{sys.version_info.minor}.zip"
         )
         app_zip = tmp_path / "python_deps.zip"
+        site_packages_app = Path(site_packages) / "my_app"
+        site_packages_vendor_zip = Path(site_packages) / "vendor.zip"
         workspace.sys_path = ["/app"]
         workspace.environment["PYTHONPATH"] = os.pathsep.join(
-            [stdlib, site_packages, str(stdlib_zip), str(app_zip), "/extra"]
+            [
+                stdlib,
+                site_packages,
+                str(stdlib_zip),
+                str(app_zip),
+                str(site_packages_app),
+                str(site_packages_vendor_zip),
+                "/extra",
+            ]
         )
 
         env = workspace_environment(workspace)
@@ -486,9 +496,13 @@ class TestWorkspaceEnvironmentPythonpathFiltering:
 
         resolved_stdlib = str(Path(stdlib).resolve())
         resolved_site_packages = str(Path(site_packages).resolve())
+        resolved_site_packages_app = str(site_packages_app.resolve())
+        resolved_site_packages_vendor_zip = str(site_packages_vendor_zip.resolve())
         resolved_stdlib_zip = str(stdlib_zip.resolve())
         assert resolved_stdlib not in pythonpath_entries
         assert resolved_site_packages not in pythonpath_entries
         assert resolved_stdlib_zip not in pythonpath_entries
         assert str(app_zip) in pythonpath_entries
+        assert resolved_site_packages_app in pythonpath_entries
+        assert resolved_site_packages_vendor_zip in pythonpath_entries
         assert "/extra" in pythonpath_entries

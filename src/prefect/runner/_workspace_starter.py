@@ -162,9 +162,11 @@ def _is_interpreter_path(entry: str) -> bool:
     resolved_path = Path(entry).resolve()
     resolved = str(resolved_path)
 
-    for sp in _site_packages_dirs():
-        if resolved == sp or resolved.startswith(sp + os.sep):
-            return True
+    site_packages_dirs = _site_packages_dirs()
+    if resolved in site_packages_dirs:
+        return True
+    if any(resolved.startswith(sp + os.sep) for sp in site_packages_dirs):
+        return False
 
     for root in _stdlib_prefixes():
         if resolved == root or resolved.startswith(root + os.sep):
