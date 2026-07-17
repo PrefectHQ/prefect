@@ -221,6 +221,43 @@ class TestSetFlowRunState:
         assert flow_run.start_time == backdated
         assert flow_run.end_time == collision + datetime.timedelta(microseconds=1)
 
+    async def test_backdated_collision_uses_nearest_available_timestamp(
+        self, flow_run: orm_models.FlowRun, session: AsyncSession
+    ):
+        collision = now("UTC")
+        later = collision + datetime.timedelta(seconds=10)
+
+        results = []
+        for timestamp in (collision, later, collision):
+            results.append(
+                await models.flow_runs.set_flow_run_state(
+                    session=session,
+                    flow_run_id=flow_run.id,
+                    state=Pending(timestamp=timestamp),
+                )
+            )
+
+        assert all(r.status == schemas.responses.SetStateStatus.ACCEPT for r in results)
+        assert [result.state.timestamp for result in results] == [
+            collision,
+            later,
+            collision + datetime.timedelta(microseconds=1),
+        ]
+
+        states = await models.flow_run_states.read_flow_run_states(
+            session=session, flow_run_id=flow_run.id
+        )
+        assert [state.timestamp for state in states] == [
+            collision,
+            collision + datetime.timedelta(microseconds=1),
+            later,
+        ]
+
+        await session.refresh(flow_run)
+        assert flow_run.state_timestamp == collision + datetime.timedelta(
+            microseconds=1
+        )
+
 
 class TestCreateFlowRunState:
     async def test_create_flow_run_state_succeeds(self, flow_run, session):

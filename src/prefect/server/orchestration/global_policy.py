@@ -134,8 +134,9 @@ class EnsureFlowRunStateTimestampIsUnique(
     coarse clock resolution (notably Windows, ~15.6ms) several states written for the
     same flow run within a single clock tick can receive identical timestamps,
     violating the unique `(flow_run_id, timestamp)` constraint. When the proposed
-    timestamp collides with any persisted state, nudge it just past the latest state.
-    Explicitly backdated states that do not collide are left untouched.
+    timestamp collides with a persisted state, advance it to the first available
+    microsecond after the collision. This handles repeated collisions while keeping
+    explicitly backdated states near their intended timestamp.
 
     This transform must run before the transforms that read `proposed_state.timestamp`
     (e.g. `SetRunStateTimestamp`, `SetStartTime`, `SetEndTime`, `IncrementRunTime`) so
@@ -153,26 +154,21 @@ class EnsureFlowRunStateTimestampIsUnique(
         if proposed_state is None:
             return
 
-        colliding_timestamp = await context.session.scalar(
-            sa.select(orm_models.FlowRunState.timestamp)
-            .where(
-                orm_models.FlowRunState.flow_run_id == context.run.id,
-                orm_models.FlowRunState.timestamp == proposed_state.timestamp,
+        candidate_timestamp = proposed_state.timestamp
+        while (
+            await context.session.scalar(
+                sa.select(orm_models.FlowRunState.timestamp)
+                .where(
+                    orm_models.FlowRunState.flow_run_id == context.run.id,
+                    orm_models.FlowRunState.timestamp == candidate_timestamp,
+                )
+                .limit(1)
             )
-            .limit(1)
-        )
-        if colliding_timestamp is None:
-            return
+            is not None
+        ):
+            candidate_timestamp += timedelta(microseconds=1)
 
-        latest_timestamp = await context.session.scalar(
-            sa.select(orm_models.FlowRunState.timestamp)
-            .where(orm_models.FlowRunState.flow_run_id == context.run.id)
-            .order_by(orm_models.FlowRunState.timestamp.desc())
-            .limit(1)
-        )
-        assert latest_timestamp is not None
-
-        proposed_state.timestamp = latest_timestamp + timedelta(microseconds=1)
+        proposed_state.timestamp = candidate_timestamp
 
 
 class SetRunStateType(
