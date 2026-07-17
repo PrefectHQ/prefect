@@ -10,8 +10,10 @@ state database, they should be the most deeply nested contexts in orchestration 
 
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Any, Union, cast
 
+import sqlalchemy as sa
 from packaging.version import Version
 
 import prefect.server.models as models
@@ -66,22 +68,32 @@ class GlobalFlowPolicy(BaseOrchestrationPolicy[orm_models.FlowRun, core.FlowRunP
             type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
         ]
     ]:
-        return cast(
-            list[
-                Union[
-                    type[
-                        BaseUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]
-                    ],
-                    type[BaseOrchestrationRule[orm_models.FlowRun, core.FlowRunPolicy]],
-                ]
-            ],
-            COMMON_GLOBAL_TRANSFORMS(),
-        ) + [
-            UpdateSubflowParentTask,
-            UpdateSubflowStateDetails,
-            IncrementFlowRunCount,
-            RemoveResumingIndicator,
-        ]
+        return (
+            [EnsureFlowRunStateTimestampIsUnique]
+            + cast(
+                list[
+                    Union[
+                        type[
+                            BaseUniversalTransform[
+                                orm_models.FlowRun, core.FlowRunPolicy
+                            ]
+                        ],
+                        type[
+                            BaseOrchestrationRule[
+                                orm_models.FlowRun, core.FlowRunPolicy
+                            ]
+                        ],
+                    ]
+                ],
+                COMMON_GLOBAL_TRANSFORMS(),
+            )
+            + [
+                UpdateSubflowParentTask,
+                UpdateSubflowStateDetails,
+                IncrementFlowRunCount,
+                RemoveResumingIndicator,
+            ]
+        )
 
 
 class GlobalTaskPolicy(BaseOrchestrationPolicy[orm_models.TaskRun, core.TaskRunPolicy]):
@@ -110,6 +122,53 @@ class GlobalTaskPolicy(BaseOrchestrationPolicy[orm_models.TaskRun, core.TaskRunP
             ],
             COMMON_GLOBAL_TRANSFORMS(),
         ) + [IncrementTaskRunCount]
+
+
+class EnsureFlowRunStateTimestampIsUnique(
+    FlowRunUniversalTransform[orm_models.FlowRun, core.FlowRunPolicy]
+):
+    """
+    Prevents a flow run's states from sharing a timestamp.
+
+    State timestamps are minted server-side from the wall clock. On platforms with
+    coarse clock resolution (notably Windows, ~15.6ms) several states written for the
+    same flow run within a single clock tick can receive identical timestamps,
+    violating the unique `(flow_run_id, timestamp)` constraint. When the proposed
+    timestamp collides with a persisted state, advance it to the first available
+    microsecond after the collision. This handles repeated collisions while keeping
+    explicitly backdated states near their intended timestamp.
+
+    This transform must run before the transforms that read `proposed_state.timestamp`
+    (e.g. `SetRunStateTimestamp`, `SetStartTime`, `SetEndTime`, `IncrementRunTime`) so
+    the adjusted timestamp is reflected consistently in the persisted state, the run's
+    denormalized timestamps, and its runtime accounting.
+    """
+
+    async def before_transition(
+        self, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]
+    ) -> None:
+        if self.nullified_transition():
+            return
+
+        proposed_state = context.proposed_state
+        if proposed_state is None:
+            return
+
+        candidate_timestamp = proposed_state.timestamp
+        while (
+            await context.session.scalar(
+                sa.select(orm_models.FlowRunState.timestamp)
+                .where(
+                    orm_models.FlowRunState.flow_run_id == context.run.id,
+                    orm_models.FlowRunState.timestamp == candidate_timestamp,
+                )
+                .limit(1)
+            )
+            is not None
+        ):
+            candidate_timestamp += timedelta(microseconds=1)
+
+        proposed_state.timestamp = candidate_timestamp
 
 
 class SetRunStateType(
