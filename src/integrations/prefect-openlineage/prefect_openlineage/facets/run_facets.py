@@ -18,7 +18,7 @@ class PrefectDeploymentRunFacet(BaseFacet):
 
     @staticmethod
     def _get_schema() -> str:
-        return "https://raw.githubusercontent.com/OpenLineage/OpenLineage/main/spec/OpenLineage.json#/definitions/BaseFacet"  # TODO
+        return "https://raw.githubusercontent.com/PrefectHQ/prefect/main/src/integrations/prefect-openlineage/prefect_openlineage/facets/PrefectDeploymentRunFacet.json"
 
     @staticmethod
     def _get_producer() -> str:
