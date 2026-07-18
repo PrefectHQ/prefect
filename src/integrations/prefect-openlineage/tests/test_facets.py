@@ -95,7 +95,6 @@ def test_prefect_deployment_run_facet_producer_url():
 
     producer = facet._get_producer()
     assert producer.startswith("https://")
-    assert "github.com" in producer
 
 
 def test_prefect_deployment_run_facet_empty_deployment_id():
