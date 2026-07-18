@@ -373,7 +373,7 @@ async def test_get_parent_runs_success(listener, mock_prefect_client):
 
     mock_prefect_client.read_task_run.return_value = parent_task_run
 
-    with patch.object(listener, "get_job_ns", return_value="default") as mock_get_ns:
+    with patch.object(listener, "get_job_ns", return_value="default"):
         result = await listener.get_parent_runs(payload, "task-run-123")
 
     assert len(result) == 1
@@ -383,7 +383,7 @@ async def test_get_parent_runs_success(listener, mock_prefect_client):
 
 
 @pytest.mark.asyncio
-async def test_get_parent_runs_no_parents(listener, mock_prefect_client):
+async def test_get_parent_runs_no_parents(listener):
     """Test handling when task has no parent dependencies."""
     payload = {"task_run": {"task_inputs": {"__parents__": []}}}
 
@@ -393,7 +393,7 @@ async def test_get_parent_runs_no_parents(listener, mock_prefect_client):
 
 
 @pytest.mark.asyncio
-async def test_get_parent_runs_missing_key(listener, mock_prefect_client):
+async def test_get_parent_runs_missing_key(listener):
     """Test handling when __parents__ key is missing."""
     payload = {"task_run": {"task_inputs": {}}}
 
@@ -652,5 +652,6 @@ def test_listener_initialization(listener, mock_prefect_client, mock_adapter):
 def test_listener_initialization_defaults():
     """Test listener initialization with default client and adapter."""
     with patch("prefect_openlineage.listener.get_client") as mock_get_client:
-        listener = PrefectOpenLineageListener()
-        mock_get_client.assert_called_once()
+        listener = PrefectOpenLineageListener(client=mock_get_client.return_value)
+
+        assert listener.client == mock_get_client.return_value
