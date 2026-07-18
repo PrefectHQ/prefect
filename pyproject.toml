@@ -332,7 +332,7 @@ filterwarnings = [
     # starlette 1.x deprecates httpx (<2) with its TestClient and steers toward
     # the not-yet-released httpx2; TestClient still works on httpx 0.28, so
     # silence the warning until the ecosystem moves to httpx2.
-    "ignore:Using `httpx` with `starlette.testclient` is deprecated:DeprecationWarning",
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead:starlette.exceptions.StarletteDeprecationWarning",
 ]
 
 [tool.mypy]
