@@ -5,6 +5,10 @@ from typing import Generator
 
 import pytest
 import requests
+
+import prefect
+from prefect.logging import get_logger
+from prefect.testing.cli import CycloptsCliRunner
 from prefect.utilities.dockerutils import (
     CONTAINER_LABELS,
     IMAGE_LABELS,
@@ -12,10 +16,6 @@ from prefect.utilities.dockerutils import (
     get_prefect_image_name,
     silence_docker_warnings,
 )
-
-import prefect
-from prefect.logging import get_logger
-from prefect.testing.cli import CycloptsCliRunner
 
 with silence_docker_warnings():
     from docker import DockerClient

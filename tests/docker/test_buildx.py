@@ -6,12 +6,12 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from prefect.utilities.dockerutils import IMAGE_LABELS, BuildError
 
 from prefect._internal.buildx import (
     buildx_build_image,
     buildx_push_image,
 )
+from prefect.utilities.dockerutils import IMAGE_LABELS, BuildError
 
 
 class TestBuildxBuildImage:

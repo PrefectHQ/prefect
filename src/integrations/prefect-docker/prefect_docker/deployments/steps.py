@@ -36,6 +36,10 @@ from zoneinfo import ZoneInfo
 
 import docker.errors
 from docker.models.images import Image
+from typing_extensions import ParamSpec, TypedDict
+
+from prefect.logging.loggers import get_logger
+from prefect.settings import PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE
 from prefect.utilities.dockerutils import (
     IMAGE_LABELS,
     BuildError,
@@ -43,10 +47,6 @@ from prefect.utilities.dockerutils import (
     get_prefect_image_name,
     split_repository_path,
 )
-from typing_extensions import ParamSpec, TypedDict
-
-from prefect.logging.loggers import get_logger
-from prefect.settings import PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE
 from prefect.utilities.slugify import slugify
 
 P = ParamSpec("P")

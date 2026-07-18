@@ -24,7 +24,6 @@ from googleapiclient import discovery
 from googleapiclient.discovery import Resource
 from googleapiclient.errors import HttpError
 from jsonpatch import JsonPatch
-from prefect.utilities.dockerutils import get_prefect_image_name
 from pydantic import Field, PrivateAttr, field_validator
 from tenacity import (
     Retrying,
@@ -36,6 +35,7 @@ from tenacity import (
 from prefect.exceptions import InfrastructureNotFound
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
+from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect.utilities.processutils import command_from_string
 from prefect.workers.base import (
     BaseJobConfiguration,

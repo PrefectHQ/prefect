@@ -12,7 +12,6 @@ from anyio.abc import TaskStatus
 from azure.core.exceptions import HttpResponseError, ResourceNotFoundError
 from azure.identity import ClientSecretCredential
 from azure.mgmt.resource import ResourceManagementClient
-from prefect.utilities.dockerutils import get_prefect_image_name
 from prefect_azure import AzureContainerInstanceCredentials
 from prefect_azure.container_instance import ACRManagedIdentity
 from prefect_azure.workers.container_instance import (
@@ -33,6 +32,7 @@ from prefect.client.schemas import FlowRun
 from prefect.exceptions import InfrastructureNotFound
 from prefect.server.schemas.core import Flow
 from prefect.settings import get_current_settings
+from prefect.utilities.dockerutils import get_prefect_image_name
 
 
 # Helper functions

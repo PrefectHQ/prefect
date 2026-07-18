@@ -61,12 +61,6 @@ except ImportError:
         get_launcher_for_side,
         resolve_bundle_step_with_launcher,
     )
-from prefect.utilities.dockerutils import (
-    format_outlier_version_name,
-    get_prefect_image_name,
-    parse_image_tag,
-)
-
 from prefect.client.orchestration import ServerType, get_client
 from prefect.client.schemas.objects import (
     Flow as APIFlow,
@@ -78,6 +72,11 @@ from prefect.settings import PREFECT_API_URL
 from prefect.states import Pending
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.collections import get_from_dict
+from prefect.utilities.dockerutils import (
+    format_outlier_version_name,
+    get_prefect_image_name,
+    parse_image_tag,
+)
 from prefect.utilities.processutils import command_to_string
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
 from prefect_docker.credentials import DockerRegistryCredentials
