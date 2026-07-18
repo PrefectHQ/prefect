@@ -1,6 +1,6 @@
 ---
 description: Reproduce a bug in the Prefect codebase.
-argument-hint: [the gh issue link or issue number]
+argument-hint: "[the gh issue link or issue number]"
 ---
 
 use `gh` to read and understand the following github issue: $1.

@@ -102,6 +102,8 @@ class ImagePullPolicy(enum.Enum):
 
     IF_NOT_PRESENT = "IfNotPresent"
     ALWAYS = "Always"
+    # tries to pull the image, but if not possible it still continues
+    IF_POSSIBLE = "IfPossible"
     NEVER = "Never"
 
 
@@ -152,7 +154,9 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
         description="Credentials for logging into a Docker registry to pull"
         " images from.",
     )
-    image_pull_policy: Optional[Literal["IfNotPresent", "Always", "Never"]] = Field(
+    image_pull_policy: Optional[
+        Literal["IfNotPresent", "Always", "IfPossible", "Never"]
+    ] = Field(
         default=None,
         description="The image pull policy to use when pulling images.",
     )
@@ -392,7 +396,7 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
            a tag other than "latest", use ImagePullPolicy.if_not_present.
 
         This logic matches the behavior of Kubernetes.
-        See:https://kubernetes.io/docs/concepts/containers/images/#imagepullpolicy-defaulting
+        See: https://kubernetes.io/docs/concepts/containers/images/#imagepullpolicy-defaulting
         """
         if not self.image_pull_policy:
             _, tag = parse_image_tag(self.image)
@@ -785,19 +789,51 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
         )
 
         if self._should_pull_image(docker_client, configuration=configuration):
-            # Only authenticate to the registry when we actually need to pull an image.
-            # This prevents unnecessary authentication attempts when the image already
-            # exists locally, improving resilience when registries are unavailable.
-            if configuration.registry_credentials:
-                self._logger.info("Logging into Docker registry...")
-                docker_client.login(
-                    username=configuration.registry_credentials.username,
-                    password=configuration.registry_credentials.password.get_secret_value(),
-                    registry=configuration.registry_credentials.registry_url,
-                    reauth=configuration.registry_credentials.reauth,
-                )
-            self._logger.info(f"Pulling image {configuration.image!r}...")
-            self._pull_image(docker_client, configuration)
+            try:
+                # Only authenticate to the registry when we actually need to pull an image.
+                # This prevents unnecessary authentication attempts when the image already
+                # exists locally, improving resilience when registries are unavailable.
+                if configuration.registry_credentials:
+                    self._logger.info("Logging into Docker registry...")
+                    docker_client.login(
+                        username=configuration.registry_credentials.username,
+                        password=configuration.registry_credentials.password.get_secret_value(),
+                        registry=configuration.registry_credentials.registry_url,
+                        reauth=configuration.registry_credentials.reauth,
+                    )
+                self._logger.info(f"Pulling image {configuration.image!r}...")
+
+                self._pull_image(docker_client, configuration)
+            except Exception as exc:
+                image_pull_policy = configuration._determine_image_pull_policy()
+                if image_pull_policy is not ImagePullPolicy.IF_POSSIBLE:
+                    raise exc
+                else:
+                    self._logger.warning(
+                        f"We could not pull the image {configuration.image!r}. But because ImagePullPolicy is set to '{ImagePullPolicy.IF_POSSIBLE}' we still continue. Maybe we have an local one."
+                        f"\nPulling failed with:\n{exc}"
+                    )
+                    # if pull policy is if_possible, we check if a local image exists. If yes this will be used, otherwise it will raise a detailed exception
+                    try:
+                        docker_client.images.get(configuration.image)
+                    except docker.errors.ImageNotFound as exc_image_not_found:
+                        # this fail results from different exceptions
+                        """
+                        # if we use one day python >=3.11
+                        docker_errors = [exc, exc_image_not_found]
+                        raise ExceptionGroup(
+                            f"Docker image {configuration.image!r} could neither be pulled online nor found locally.",
+                            docker_errors,
+                        )
+                        """
+                        error_message = (
+                            f"Docker operation completely failed for {configuration.image!r}:\n"
+                            f"-> [1. Login/Pull Error]: {exc}\n\n"
+                            f"-> [2. Local Error]: {exc_image_not_found}\n\n"
+                            f"-> NOTE: Because ImagePullPolicy was set to '{ImagePullPolicy.IF_POSSIBLE}', "
+                            f"a local fallback was attempted after the pull failed, but the image could not be found locally either."
+                        )
+                        raise RuntimeError(error_message) from exc_image_not_found
 
         try:
             self._logger.info(
@@ -922,7 +958,10 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
         """
         image_pull_policy = configuration._determine_image_pull_policy()
 
-        if image_pull_policy is ImagePullPolicy.ALWAYS:
+        if image_pull_policy in (
+            ImagePullPolicy.ALWAYS,
+            ImagePullPolicy.IF_POSSIBLE,
+        ):
             return True
         elif image_pull_policy is ImagePullPolicy.NEVER:
             return False
