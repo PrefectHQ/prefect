@@ -4,7 +4,7 @@ Unit tests for prefect_openlineage facets module.
 Tests cover custom Prefect deployment facet definition and properties.
 """
 
-from prefect_openlineage.facets import PrefectDeploymentRunFacet
+from prefect_openlineage.facets.run_facets import PrefectDeploymentRunFacet
 
 # ========== Tests for PrefectDeploymentRunFacet initialization ==========
 
