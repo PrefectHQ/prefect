@@ -603,7 +603,6 @@ def test_adapter_initialization_without_client():
         adapter = PrefectOpenLineageAdapter()
 
         assert adapter.client == mock_client_class()
-        # mock_client_class.assert_called_once()
 
 
 def test_producer_constant():
