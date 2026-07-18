@@ -40,7 +40,7 @@ jobs:
         id: cache-key
         run: echo "key=${{ runner.os }}-node-modules-ui-v2-${{ hashFiles('ui-v2/package-lock.json') }}" >> $GITHUB_OUTPUT
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: "ui-v2/.nvmrc"
           cache: "npm"
@@ -66,7 +66,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: "ui-v2/.nvmrc"
 
@@ -103,7 +103,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: "ui-v2/.nvmrc"
 
@@ -135,7 +135,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: "ui-v2/.nvmrc"
 
