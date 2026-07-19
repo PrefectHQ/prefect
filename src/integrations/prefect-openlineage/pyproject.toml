@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 dependencies = [
     "prefect>=3.7.0",
-    "openlineage-python>=1.0.0",
+    "openlineage-python>=1.27.0",
 ]
 name = "prefect-openlineage"
 description = "Prefect integrations with the OpenLineage specification."
