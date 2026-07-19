@@ -38,6 +38,7 @@ class PrefectOpenLineageListener:
         )
 
     async def get_deployment_and_flow_info(self, flow_run_id: str) -> tuple:
+        """Get deployment and flow information for a given flow run ID."""
         flow_run = await self.client.read_flow_run(flow_run_id)
         deployment = await self.client.read_deployment(flow_run.deployment_id)
         flow_id = flow_run.flow_id
@@ -65,6 +66,7 @@ class PrefectOpenLineageListener:
         )
 
     async def get_prefect_version(self) -> str | None:
+        """Get the Prefect version from the Prefect API."""
         try:
             response = await self.client._client.get("/admin/version")
             version = response.json()
@@ -75,9 +77,7 @@ class PrefectOpenLineageListener:
             )
 
     async def get_flow_ns(self, flow_run_id: str) -> str:
-        """
-        Looks for OPENLINEAGE_NAMESPACE job env variable in deployment.
-        """
+        """Get the namespace for a given flow run ID."""
         flow_run = await self.client.read_flow_run(flow_run_id)
         deployment = await self.client.read_deployment(flow_run.deployment_id)
         try:
@@ -94,18 +94,18 @@ class PrefectOpenLineageListener:
         return ns
 
     async def get_job_ns(self, task_run_id: str) -> str:
-        """
-        Looks for OPENLINEAGE_NAMESPACE job env variable in parent deployment.
-        """
+        """Get the namespace for a given task run ID."""
         task_run = await self.client.read_task_run(task_run_id)
         return await self.get_flow_ns(task_run.flow_run_id)
 
     async def get_flow_run_start_time(self, flow_run_id: str) -> datetime:
+        """Get the start time for a given flow run ID."""
         flow_run = await self.client.read_flow_run(flow_run_id)
         flow_run_start_time = flow_run.start_time
         return flow_run_start_time
 
     async def get_artifacts_by_task_run(self, run_id: str) -> list[dict]:
+        """Get artifacts for a given task run ID."""
         payload = {"artifacts": {"task_run_id": {"any_": [run_id]}}}
         response = await self.client._client.post("/artifacts/filter", json=payload)
         if response.status_code == 200:
@@ -128,6 +128,7 @@ class PrefectOpenLineageListener:
     async def get_parent_runs(
         self, payload: dict, prefect_task_run_id: str
     ) -> list[dict]:
+        """Get parent runs for a given task run ID."""
         try:
             parent_runs = []
             task_parents = payload["task_run"]["task_inputs"]["__parents__"]
@@ -157,6 +158,7 @@ class PrefectOpenLineageListener:
     async def collect_and_process_flow_runs(
         self, prefect_version: str, event: Event, event_state: str
     ) -> None:
+        """Collect and process flow run events."""
         for res in event.related:
             if res["prefect.resource.role"] == "flow":
                 flow_run_name = event.resource.name
@@ -203,6 +205,7 @@ class PrefectOpenLineageListener:
     async def collect_and_process_task_runs(
         self, prefect_version: str, event: Event, event_state: str
     ) -> None:
+        """Collect and process task run events."""
         task_name = event.resource.name.split("-")[0]
         event_time = datetime.fromisoformat(event.resource["prefect.state-timestamp"])
         expected_start_time = event.payload["task_run"]["expected_start_time"]
@@ -279,6 +282,7 @@ class PrefectOpenLineageListener:
             )
 
     async def collect_and_process_runs(self) -> None:
+        """Collect and process Prefect flow and task runs, emitting OpenLineage events."""
         try:
             os.environ.get("PREFECT_API_URL")
         except TypeError:

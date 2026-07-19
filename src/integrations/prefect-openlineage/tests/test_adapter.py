@@ -152,7 +152,7 @@ def test_create_and_emit_flow_event_has_deployment_facet(
     event = adapter.client.emit.call_args[0][0]
 
     assert "prefectDeployment" in event.run.facets
-    assert event.run.facets["prefectDeployment"].deployment_id == "dep-123"
+    assert event.run.facets["prefectDeployment"].deploymentId == "dep-123"
     assert event.run.facets["prefectDeployment"].name == "test_deploy"
 
 
@@ -494,7 +494,7 @@ def test_create_and_emit_task_event_has_deployment_facet(
     event = adapter.client.emit.call_args[0][0]
 
     assert "prefectDeployment" in event.run.facets
-    assert event.run.facets["prefectDeployment"].deployment_id == "dep-123"
+    assert event.run.facets["prefectDeployment"].deploymentId == "dep-123"
     assert event.run.facets["prefectDeployment"].name == "test_deploy"
 
 

@@ -37,6 +37,7 @@ class PrefectOpenLineageAdapter:
         deploymentUpdated: str = None,
         deploymentName: str = None,
     ) -> RunEvent:
+        """Create and emit a flow-level OpenLineage event."""
 
         match eventType:
             case "START":
@@ -48,7 +49,7 @@ class PrefectOpenLineageAdapter:
 
         run_facets = {
             "prefectDeployment": PrefectDeploymentRunFacet(
-                deployment_id=deploymentId,
+                deploymentId=deploymentId,
                 created=deploymentCreated,
                 updated=deploymentUpdated,
                 name=deploymentName,
@@ -97,6 +98,7 @@ class PrefectOpenLineageAdapter:
         inputDatasets: list = [],
         outputDatasets: list = [],
     ) -> RunEvent:
+        """Create and emit a task-level OpenLineage event."""
 
         match eventType:
             case "START":
@@ -112,7 +114,7 @@ class PrefectOpenLineageAdapter:
                 run={"runId": flowRunId}, job={"namespace": namespace, "name": flowName}
             ),
             "prefectDeployment": PrefectDeploymentRunFacet(
-                deployment_id=deploymentId,
+                deploymentId=deploymentId,
                 created=deploymentCreated,
                 updated=deploymentUpdated,
                 name=deploymentName,
