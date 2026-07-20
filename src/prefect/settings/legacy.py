@@ -160,3 +160,23 @@ def _get_settings_fields(
                     settings_fields[alias.upper()] = setting
 
     return settings_fields
+
+
+@cache
+def _get_legacy_setting(name: str) -> "Setting":
+    """
+    Return a Setting object for the given env var name.
+
+    Canonical names and accessors resolve to the canonical Setting. Legacy aliases
+    resolve to a distinct Setting whose `.name` is the alias while its `.accessor`
+    points to the canonical setting path.
+    """
+    canonical = _get_settings_fields(Settings)[name]
+    if name == canonical.name or name == canonical.accessor:
+        return canonical
+    return Setting(
+        name=name,
+        default=canonical.default(),
+        type_=canonical._type,
+        accessor=canonical.accessor,
+    )

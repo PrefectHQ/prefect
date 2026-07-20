@@ -24,6 +24,7 @@ from prefect.settings import (
     PREFECT_API_DATABASE_NAME,
     PREFECT_API_DATABASE_PASSWORD,
     PREFECT_API_DATABASE_PORT,
+    PREFECT_API_DATABASE_TIMEOUT,
     PREFECT_API_DATABASE_USER,
     PREFECT_API_KEY,
     PREFECT_API_URL,
@@ -83,6 +84,7 @@ from prefect.settings.models.server.database import (
     ServerDatabaseSettings,
     SQLAlchemySettings,
 )
+from prefect.settings.profiles import _cast_settings
 from prefect.settings.sources import (
     PrefectTomlConfigSettingsSource,
     PyprojectTomlConfigSettingsSource,
@@ -2400,6 +2402,35 @@ class TestProfile:
     def test_alias_casts_to_canonical_setting_when_canonical_missing(self):
         profile = Profile(name="test", settings={"PREFECT_API_DATABASE_TIMEOUT": 42})
         assert profile.settings == {PREFECT_SERVER_DATABASE_TIMEOUT: 42}
+
+
+class TestCastSettings:
+    def test_canonical_setting_wins_over_legacy_setting_object_in_both_orders(self):
+        assert _cast_settings(
+            {PREFECT_SERVER_DATABASE_TIMEOUT: 99, PREFECT_API_DATABASE_TIMEOUT: 42}
+        ) == {PREFECT_SERVER_DATABASE_TIMEOUT: 99}
+        assert _cast_settings(
+            {PREFECT_API_DATABASE_TIMEOUT: 42, PREFECT_SERVER_DATABASE_TIMEOUT: 99}
+        ) == {PREFECT_SERVER_DATABASE_TIMEOUT: 99}
+
+    def test_legacy_setting_object_maps_to_canonical_key(self):
+        assert _cast_settings({PREFECT_API_DATABASE_TIMEOUT: 42}) == {
+            PREFECT_SERVER_DATABASE_TIMEOUT: 42
+        }
+
+    def test_profile_canonicalizes_legacy_setting_object(self):
+        profile = Profile(name="test", settings={PREFECT_API_DATABASE_TIMEOUT: 42})
+        assert profile.settings == {PREFECT_SERVER_DATABASE_TIMEOUT: 42}
+
+    def test_profile_prefers_canonical_setting_object_over_legacy(self):
+        profile = Profile(
+            name="test",
+            settings={
+                PREFECT_SERVER_DATABASE_TIMEOUT: 99,
+                PREFECT_API_DATABASE_TIMEOUT: 42,
+            },
+        )
+        assert profile.settings == {PREFECT_SERVER_DATABASE_TIMEOUT: 99}
 
 
 class TestProfilesCollection:

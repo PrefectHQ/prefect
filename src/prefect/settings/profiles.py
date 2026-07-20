@@ -43,10 +43,14 @@ def _cast_settings(
     casted_settings: dict[Setting, Any] = {}
     canonical_keys: set[Setting] = set()
 
+    settings_fields = _get_settings_fields(Settings)
+
     def _resolve_key(k: str | Setting) -> tuple[Setting, bool]:
         if isinstance(k, Setting):
-            return k, True
-        setting = _get_settings_fields(Settings)[k]
+            canonical = settings_fields.get(k.name, settings_fields[k.accessor])
+            is_canonical = k.name == canonical.name
+            return canonical, is_canonical
+        setting = settings_fields[k]
         return setting, k == setting.name or k == setting.accessor
 
     # First pass: canonical keys win over aliases regardless of input order.
