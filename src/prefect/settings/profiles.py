@@ -37,7 +37,7 @@ class _SettingsDict(dict):
     allowing lookup via legacy Setting aliases.
 
     Canonical names are used for persistence and export; legacy keys transparently
-    resolve to the canonical entry for ``__getitem__``, ``get``, ``__contains__``,
+    resolve to the canonical entry for `__getitem__`, `get`, `__contains__`,
     and equality checks.
     """
 
