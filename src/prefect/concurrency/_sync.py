@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from typing import Generator, Literal, Optional
 from uuid import UUID
 
-from prefect._internal.concurrency.cancellation import CancelledError
+from prefect._internal.concurrency.cancellation import CancelledError, shield
 from prefect.client.schemas.objects import ConcurrencyLeaseHolder
 from prefect.client.schemas.responses import (
     ConcurrencyLimitWithLeaseResponse,
@@ -21,6 +21,7 @@ from prefect.concurrency._events import (
 )
 from prefect.concurrency._leases import maintain_concurrency_lease
 from prefect.concurrency.context import ConcurrencyContext
+from prefect.events import Event
 from prefect.utilities.asyncutils import run_coro_as_sync
 
 
@@ -126,28 +127,38 @@ def concurrency(
 
     names = names if isinstance(names, list) else [names]
 
-    acquisition_response = acquire_concurrency_slots_with_lease(
-        names,
-        occupy,
-        timeout_seconds=timeout_seconds,
-        strict=strict,
-        lease_duration=lease_duration,
-        max_retries=max_retries,
-        holder=holder,
-        suppress_warnings=suppress_warnings,
-    )
-
-    if not acquisition_response.limits:
-        yield
-        return
-
-    emitted_events = emit_concurrency_acquisition_events(
-        acquisition_response.limits, occupy
-    )
-
+    lease_id: UUID | None = None
+    limits: list[MinimalConcurrencyLimitResponse] = []
+    emitted_events: dict[UUID, Optional[Event]] = {}
     try:
+        # Acquire the slots under a shield so an injected cancellation (e.g. a
+        # timeout expiring at the moment the server grants the lease) cannot land
+        # between acquisition and the release logic below. Recording the lease id
+        # and emitting the acquisition events here keeps them atomic with the
+        # acquisition; otherwise the lease could leak until server-side lease
+        # expiry, or the release events could reference unrecorded acquisitions.
+        with shield():
+            acquisition_response = acquire_concurrency_slots_with_lease(
+                names,
+                occupy,
+                timeout_seconds=timeout_seconds,
+                strict=strict,
+                lease_duration=lease_duration,
+                max_retries=max_retries,
+                holder=holder,
+                suppress_warnings=suppress_warnings,
+            )
+            limits = acquisition_response.limits
+            lease_id = acquisition_response.lease_id
+            if limits:
+                emitted_events = emit_concurrency_acquisition_events(limits, occupy)
+
+        if not limits:
+            yield
+            return
+
         with maintain_concurrency_lease(
-            acquisition_response.lease_id,
+            lease_id,
             lease_duration,
             raise_on_lease_renewal_failure=raise_on_lease_renewal_failure
             if raise_on_lease_renewal_failure is not None
@@ -156,15 +167,14 @@ def concurrency(
         ):
             yield
     finally:
-        try:
-            release_concurrency_slots_with_lease(acquisition_response.lease_id)
-        except CancelledError:
-            # The task was cancelled before it could release the lease. Add the
-            # lease ID to the cleanup list so it can be released when the
-            # concurrency context is exited.
-            if ctx := ConcurrencyContext.get():
-                ctx.cleanup_lease_ids.append(acquisition_response.lease_id)
+        if lease_id is not None and limits:
+            try:
+                release_concurrency_slots_with_lease(lease_id)
+            except CancelledError:
+                # The task was cancelled before it could release the lease. Add
+                # the lease ID to the cleanup list so it can be released when the
+                # concurrency context is exited.
+                if ctx := ConcurrencyContext.get():
+                    ctx.cleanup_lease_ids.append(lease_id)
 
-        emit_concurrency_release_events(
-            acquisition_response.limits, occupy, emitted_events
-        )
+            emit_concurrency_release_events(limits, occupy, emitted_events)

@@ -9,6 +9,7 @@ from uuid import UUID
 import anyio
 import httpx
 
+from prefect._internal.concurrency.cancellation import shield
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.responses import (
     ConcurrencyLimitWithLeaseResponse,
@@ -20,6 +21,7 @@ from prefect.concurrency._events import (
 )
 from prefect.concurrency._leases import amaintain_concurrency_lease
 from prefect.concurrency.context import ConcurrencyContext
+from prefect.events import Event
 from prefect.logging import get_logger
 from prefect.logging.loggers import get_run_logger
 
@@ -267,26 +269,38 @@ async def concurrency(
 
     names = names if isinstance(names, list) else [names]
 
-    response = await aacquire_concurrency_slots_with_lease(
-        names=names,
-        slots=occupy,
-        timeout_seconds=timeout_seconds,
-        max_retries=max_retries,
-        lease_duration=lease_duration,
-        strict=strict,
-        holder=holder,
-        suppress_warnings=suppress_warnings,
-    )
-
-    if not response.limits:
-        yield
-        return
-
-    emitted_events = emit_concurrency_acquisition_events(response.limits, occupy)
-
+    lease_id: UUID | None = None
+    limits: list[MinimalConcurrencyLimitResponse] = []
+    emitted_events: dict[UUID, Optional[Event]] = {}
     try:
+        # Acquire the slots under a shield so a cancellation (e.g. a timeout
+        # expiring at the moment the server grants the lease) cannot land between
+        # acquisition and the release logic below. Recording the lease id and
+        # emitting the acquisition events here keeps them atomic with the
+        # acquisition; otherwise the lease could leak until server-side lease
+        # expiry, or the release events could reference unrecorded acquisitions.
+        with shield():
+            response = await aacquire_concurrency_slots_with_lease(
+                names=names,
+                slots=occupy,
+                timeout_seconds=timeout_seconds,
+                max_retries=max_retries,
+                lease_duration=lease_duration,
+                strict=strict,
+                holder=holder,
+                suppress_warnings=suppress_warnings,
+            )
+            limits = response.limits
+            lease_id = response.lease_id
+            if limits:
+                emitted_events = emit_concurrency_acquisition_events(limits, occupy)
+
+        if not limits:
+            yield
+            return
+
         async with amaintain_concurrency_lease(
-            response.lease_id,
+            lease_id,
             lease_duration,
             raise_on_lease_renewal_failure=raise_on_lease_renewal_failure
             if raise_on_lease_renewal_failure is not None
@@ -295,15 +309,16 @@ async def concurrency(
         ):
             yield
     finally:
-        try:
-            await arelease_concurrency_slots_with_lease(
-                lease_id=response.lease_id,
-            )
-        except anyio.get_cancelled_exc_class():
-            # The task was cancelled before it could release the lease. Add the
-            # lease ID to the cleanup list so it can be released when the
-            # concurrency context is exited.
-            if ctx := ConcurrencyContext.get():
-                ctx.cleanup_lease_ids.append(response.lease_id)
+        if lease_id is not None and limits:
+            try:
+                await arelease_concurrency_slots_with_lease(
+                    lease_id=lease_id,
+                )
+            except anyio.get_cancelled_exc_class():
+                # The task was cancelled before it could release the lease. Add
+                # the lease ID to the cleanup list so it can be released when the
+                # concurrency context is exited.
+                if ctx := ConcurrencyContext.get():
+                    ctx.cleanup_lease_ids.append(lease_id)
 
-        emit_concurrency_release_events(response.limits, occupy, emitted_events)
+            emit_concurrency_release_events(limits, occupy, emitted_events)
