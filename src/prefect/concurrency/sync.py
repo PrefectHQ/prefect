@@ -22,9 +22,9 @@ T = TypeVar("T")
 def concurrency(
     names: Union[str, list[str]],
     occupy: int = 1,
-    timeout_seconds: Optional[float] = None,
-    max_retries: Optional[int] = None,
-    lease_duration: float = 300,
+    timeout_seconds: Optional[float] = 30.0,
+    max_retries: Optional[int] = 3,
+    lease_duration: float = 60.0,
     strict: bool = False,
     holder: "Optional[ConcurrencyLeaseHolder]" = None,
     raise_on_lease_renewal_failure: Optional[bool] = None,
