@@ -7,11 +7,11 @@ from prefect.utilities.names import obfuscate
 
 class _RedactedString(str):
     """
-    A ``str`` subclass that stores a separate ``repr`` value.
+    A `str` subclass that stores a separate `repr` value.
 
-    This allows logging's ``%r`` and ``%a`` conversions to use a redacted
-    representation while ``%s`` and JSON serialization use the redacted
-    ``str`` value.
+    This allows logging's `%r` and `%a` conversions to use a redacted
+    representation while `%s` and JSON serialization use the redacted
+    `str` value.
     """
 
     __slots__ = ("_repr",)
@@ -32,12 +32,12 @@ def redact_substr(obj: Any, substr: str) -> Any:
     """
     Redact a string from a potentially nested object.
 
-    Standard collections (list, tuple, set, dict, and other ``Mapping``
+    Standard collections (list, tuple, set, dict, and other `Mapping`
     instances) are traversed recursively and have their string values redacted
     while preserving shape. Non-container objects are redacted by replacing
-    their ``str`` and ``repr`` values with obfuscated versions, avoiding the
+    their `str` and `repr` values with obfuscated versions, avoiding the
     need to reconstruct arbitrary user objects (e.g. dataclasses with
-    ``init=False`` fields or Pydantic models).
+    `init=False` fields or Pydantic models).
 
     Args:
         obj: The object to redact the string from
@@ -70,13 +70,13 @@ def redact_substr(obj: Any, substr: str) -> Any:
         ):
             return obj
         # Return a plain dict so that arbitrary Mapping types (e.g. ChainMap)
-        # can still be formatted by logging's ``%`` operator and serialized as
+        # can still be formatted by logging's `%` operator and serialized as
         # JSON without reconstructing the original mapping type.
         return dict(items)
 
     # For opaque objects, redact their rendered string representations.  This
     # handles exceptions, dataclasses, Pydantic models, and other lazy logging
-    # arguments whose ``__str__`` or ``__repr__`` may contain the secret.
+    # arguments whose `__str__` or `__repr__` may contain the secret.
     str_value = str(obj)
     repr_value = repr(obj)
     redacted_str = str_value.replace(substr, obfuscate(substr))
