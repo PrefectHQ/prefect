@@ -164,6 +164,150 @@ def test_set_setting_with_equal_sign_in_value():
     assert profiles["foo"].settings == {PREFECT_API_KEY: "foo=bar"}
 
 
+LOGGING_OVERRIDE_KEY = "PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL"
+
+
+def test_set_logging_override():
+    """Custom logging.yml override keys can be set via `config set` (closes #18666)."""
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+
+    invoke_and_assert(
+        ["--profile", "foo", "config", "set", f"{LOGGING_OVERRIDE_KEY}=ERROR"],
+        expected_output=f"""
+            Set '{LOGGING_OVERRIDE_KEY}' to 'ERROR'.
+            Updated profile 'foo'.
+            """,
+    )
+
+    profiles = load_profiles()
+    stored = {
+        setting.name: value for setting, value in profiles["foo"].settings.items()
+    }
+    assert stored.get(LOGGING_OVERRIDE_KEY) == "ERROR"
+
+
+def test_set_logging_override_rejects_unknown_key():
+    """A `PREFECT_LOGGING_*` key not present in logging.yml is rejected."""
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+
+    invoke_and_assert(
+        ["--profile", "foo", "config", "set", "PREFECT_LOGGING_NOT_A_REAL_KEY=ERROR"],
+        expected_output_contains="Unknown setting name 'PREFECT_LOGGING_NOT_A_REAL_KEY'.",
+        expected_code=1,
+    )
+
+
+def test_view_shows_logging_override():
+    """`config view` renders a logging override without crashing (regression for #18670)."""
+    save_profiles(
+        ProfilesCollection(
+            [Profile(name="foo", settings={LOGGING_OVERRIDE_KEY: "ERROR"})], active=None
+        )
+    )
+
+    invoke_and_assert(
+        ["--profile", "foo", "config", "view"],
+        expected_output_contains=f"{LOGGING_OVERRIDE_KEY}='ERROR'",
+    )
+
+
+def test_view_shows_env_precedence_for_logging_override(monkeypatch):
+    """When a logging override is set in both the profile and the environment,
+    `config view` shows the environment value and source, matching runtime precedence.
+    """
+    save_profiles(
+        ProfilesCollection(
+            [Profile(name="foo", settings={LOGGING_OVERRIDE_KEY: "WARNING"})],
+            active=None,
+        )
+    )
+    monkeypatch.setenv(LOGGING_OVERRIDE_KEY, "ERROR")
+
+    invoke_and_assert(
+        ["--profile", "foo", "config", "view"],
+        expected_output_contains=f"{LOGGING_OVERRIDE_KEY}='ERROR' (from env)",
+    )
+
+
+def test_view_shows_logging_override_set_only_in_env(monkeypatch):
+    """A logging override present only in the environment is shown by `config view`."""
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+    monkeypatch.setenv(LOGGING_OVERRIDE_KEY, "ERROR")
+
+    invoke_and_assert(
+        ["--profile", "foo", "config", "view"],
+        expected_output_contains=f"{LOGGING_OVERRIDE_KEY}='ERROR' (from env)",
+    )
+
+
+def test_view_shows_logging_override_from_prefect_toml(tmp_path):
+    """A logging override set in `prefect.toml [logging.overrides]` is shown by view."""
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+
+    with tmpchdir(tmp_path):
+        with open("prefect.toml", "w") as f:
+            f.write(f'[logging.overrides]\n{LOGGING_OVERRIDE_KEY} = "ERROR"\n')
+
+        res = invoke_and_assert(["--profile", "foo", "config", "view"])
+
+    assert f"{LOGGING_OVERRIDE_KEY}='ERROR'" in res.stdout
+    assert FROM_PREFECT_TOML in res.stdout
+
+
+def test_view_env_takes_precedence_over_prefect_toml_logging_override(
+    monkeypatch, tmp_path
+):
+    """When a logging override is in both the environment and `prefect.toml`, view shows
+    the environment value/source (matching runtime precedence: env > prefect.toml)."""
+    save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
+    monkeypatch.setenv(LOGGING_OVERRIDE_KEY, "FROM_ENV")
+
+    with tmpchdir(tmp_path):
+        with open("prefect.toml", "w") as f:
+            f.write(f'[logging.overrides]\n{LOGGING_OVERRIDE_KEY} = "FROM_TOML"\n')
+
+        res = invoke_and_assert(["--profile", "foo", "config", "view"])
+
+    assert f"{LOGGING_OVERRIDE_KEY}='FROM_ENV' {FROM_ENV}" in res.stdout
+
+
+def test_unset_logging_override():
+    save_profiles(
+        ProfilesCollection(
+            [Profile(name="foo", settings={LOGGING_OVERRIDE_KEY: "ERROR"})], active=None
+        )
+    )
+
+    invoke_and_assert(
+        ["--profile", "foo", "config", "unset", LOGGING_OVERRIDE_KEY, "-y"],
+        expected_output_contains=f"Unset '{LOGGING_OVERRIDE_KEY}'.",
+    )
+
+    profiles = load_profiles()
+    assert all(
+        setting.name != LOGGING_OVERRIDE_KEY for setting in profiles["foo"].settings
+    )
+
+
+def test_unset_stored_logging_override_that_is_no_longer_valid():
+    """A stored logging override can always be removed, even if it is no longer a valid
+    override key (e.g. the logging config file changed)."""
+    stale_key = "PREFECT_LOGGING_LOGGERS_SOME_REMOVED_LOGGER_LEVEL"
+    save_profiles(
+        ProfilesCollection(
+            [Profile(name="foo", settings={stale_key: "ERROR"})], active=None
+        )
+    )
+
+    invoke_and_assert(
+        ["--profile", "foo", "config", "unset", stale_key, "-y"],
+        expected_output_contains=f"Unset '{stale_key}'.",
+    )
+
+    profiles = load_profiles()
+    assert all(setting.name != stale_key for setting in profiles["foo"].settings)
+
+
 def test_set_multiple_settings():
     save_profiles(ProfilesCollection([Profile(name="foo", settings={})], active=None))
 

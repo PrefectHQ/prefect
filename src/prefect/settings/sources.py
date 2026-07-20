@@ -1,8 +1,20 @@
 import os
 import sys
 import warnings
+from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Type, get_origin
+from typing import (
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    get_origin,
+)
 
 import dotenv
 from cachetools import TTLCache
@@ -332,6 +344,92 @@ class PyprojectTomlConfigSettingsSource(TomlConfigSettingsSourceBase):
         )
         for key in self.toml_table_header:
             self.toml_data: dict[str, Any] = self.toml_data.get(key, {})
+
+
+@lru_cache(maxsize=None)
+def _declared_env_names(settings_cls: Type[BaseSettings]) -> frozenset[str]:
+    """Environment variable names that map to declared fields of a settings model.
+
+    Walks nested settings models so that, e.g., `LoggingToAPISettings` fields are
+    included. Used to distinguish declared logging settings from arbitrary
+    `PREFECT_LOGGING_*` override keys. Cached per settings class since the field set
+    is static.
+    """
+    names: set[str] = set()
+    prefix = settings_cls.model_config.get("env_prefix", "") or ""
+    for field_name, field in settings_cls.model_fields.items():
+        annotation = field.annotation
+        if isinstance(annotation, type) and issubclass(annotation, BaseSettings):
+            names |= _declared_env_names(annotation)
+            continue
+        names.add(f"{prefix}{field_name}".upper())
+        alias = field.validation_alias
+        if isinstance(alias, AliasChoices):
+            for choice in alias.choices:
+                if isinstance(choice, str):
+                    names.add(choice.upper())
+    return frozenset(names)
+
+
+class _LoggingOverridesSource(PydanticBaseSettingsSource):
+    """Base source that collects `PREFECT_LOGGING_*` keys which do not map to a declared
+    field into the `overrides` field.
+
+    This lets logging configuration file (logging.yml) paths such as
+    `PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL` be configured through the settings
+    system and show up in `get_current_settings()` / `prefect config view`.
+
+    Subclasses provide the origin to read from. Each origin is a separate source so it can
+    be placed at the correct precedence tier (environment vs. profile); pydantic-settings
+    then merges the `overrides` dict per key via `deep_update`, giving environment values
+    precedence over `prefect.toml`/`pyproject.toml` (native `[logging.overrides]`) over the
+    profile — matching the standard settings precedence.
+
+    Only cheap key filtering is performed here; the logging configuration file is never read
+    or parsed at this layer.
+    """
+
+    def __init__(self, settings_cls: Type[BaseSettings]):
+        super().__init__(settings_cls)
+        self.settings_cls = settings_cls
+        self._declared = _declared_env_names(settings_cls)
+
+    def get_field_value(
+        self, field: FieldInfo, field_name: str
+    ) -> Tuple[Any, str, bool]:
+        return None, field_name, False
+
+    def _is_override_key(self, key: str) -> bool:
+        return key.startswith("PREFECT_LOGGING_") and key not in self._declared
+
+    def _items(self) -> Iterable[Tuple[str, Any]]:
+        """Return the (key, value) pairs from this source's origin."""
+        raise NotImplementedError
+
+    def __call__(self) -> Dict[str, Any]:
+        overrides: Dict[str, str] = {}
+        for key, value in self._items():
+            upper = key.upper()
+            if self._is_override_key(upper):
+                overrides[upper] = str(value)
+        return {"overrides": overrides} if overrides else {}
+
+
+class EnvLoggingOverridesSource(_LoggingOverridesSource):
+    """Collect logging overrides from environment variables (environment priority tier)."""
+
+    def _items(self) -> Iterable[Tuple[str, Any]]:
+        return os.environ.items()
+
+
+class ProfileLoggingOverridesSource(_LoggingOverridesSource):
+    """Collect logging overrides from the active profile (profile priority tier)."""
+
+    def _items(self) -> Iterable[Tuple[str, Any]]:
+        try:
+            return ProfileSettingsTomlLoader(self.settings_cls).profile_settings.items()
+        except Exception:
+            return ()
 
 
 def _is_test_mode() -> bool:

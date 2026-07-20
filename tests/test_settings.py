@@ -308,6 +308,9 @@ SUPPORTED_SETTINGS = {
     "PREFECT_LOGGING_LEVEL": {"test_value": "INFO"},
     "PREFECT_LOGGING_LOG_PRINTS": {"test_value": True},
     "PREFECT_LOGGING_MARKUP": {"test_value": True},
+    "PREFECT_LOGGING_OVERRIDES": {
+        "test_value": {"PREFECT_LOGGING_LOGGERS_PREFECT_FLOW_RUNS_LEVEL": "ERROR"}
+    },
     "PREFECT_LOGGING_SERVER_LEVEL": {"test_value": "INFO", "legacy": True},
     "PREFECT_LOGGING_SETTINGS_PATH": {
         "test_value": Path("/path/to/settings.toml"),
@@ -2726,6 +2729,10 @@ class TestSettingValues:
         setting, value, expected_value = setting_and_value_and_expected_value
         if setting == "PREFECT_PROFILES_PATH":
             pytest.skip("Profiles path cannot be set via a profile")
+        if setting == "PREFECT_LOGGING_OVERRIDES":
+            # Derived field populated from individual PREFECT_LOGGING_* keys, not set
+            # directly as a dict via a profile.
+            pytest.skip("PREFECT_LOGGING_OVERRIDES is not set directly via a profile")
         if (
             setting == "PREFECT_TEST_SETTING"
             or setting == "PREFECT_TESTING_TEST_SETTING"
