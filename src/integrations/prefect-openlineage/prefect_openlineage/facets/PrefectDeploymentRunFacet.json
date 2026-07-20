@@ -10,7 +10,7 @@
         {
           "type": "object",
           "properties": {
-            "deployment_id": {
+            "deploymentId": {
               "description": "The ID of the Prefect deployment",
               "type": "string"
             },
