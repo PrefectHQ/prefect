@@ -2,6 +2,22 @@
 title: prefect-aws
 ---
 
+## 0.7.10
+
+_Released on July 15, 2026_
+
+**Bug Fixes**
+
+- Fix ECS observer leaving runs `PENDING` when capacity provider can't place task [#22417](https://github.com/PrefectHQ/prefect/pull/22417) by [@goingforstudying-ctrl](https://github.com/goingforstudying-ctrl)
+
+**Documentation**
+
+- Replace legacy `PREFECT_API_DATABASE_*` examples with `PREFECT_SERVER_DATABASE_*` names [#22471](https://github.com/PrefectHQ/prefect/pull/22471) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+- Regenerate API refs with mdxify `>=0.2.45` (drop empty stubs) [#22344](https://github.com/PrefectHQ/prefect/pull/22344) by [@zzstoatzz](https://github.com/zzstoatzz)
+- Document CDK-generated ECS templates and regeneration workflow in `prefect-aws` `AGENTS.md` [#21980](https://github.com/PrefectHQ/prefect/pull/21980) by [@github-actions](https://github.com/apps/github-actions)
+
+---
+
 ## 0.7.9
 
 _Released on May 15, 2026_
@@ -34,8 +50,8 @@ _Released on March 30, 2026_
 
 **Enhancements**
 
-- Add exponential backoff retries for ECS task definition registration [#21354](https://github.com/PrefectHQ/prefect/pull/21354) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
-- Log ECS task ARN after task creation [#21342](https://github.com/PrefectHQ/prefect/pull/21342) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Add exponential backoff retries for ECS task definition registration [#21354](https://github.com/PrefectHQ/prefect/pull/21354) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+- Log ECS task ARN after task creation [#21342](https://github.com/PrefectHQ/prefect/pull/21342) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
 
 **Maintenance**
 
@@ -56,16 +72,16 @@ _Released on March 19, 2026_
 
 **Enhancements**
 
-- Make ECS worker task creation retry settings configurable [#20846](https://github.com/PrefectHQ/prefect/pull/20846) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Make ECS worker task creation retry settings configurable [#20846](https://github.com/PrefectHQ/prefect/pull/20846) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
 
 **Bug Fixes**
 
 - Fix S3 bucket folder double prefix with tasks executed on Ray workers [#20702](https://github.com/PrefectHQ/prefect/pull/20702) by [@toro-berlin](https://github.com/toro-berlin)
-- Fix ECS observer incorrectly crashing suspended flow runs [#20682](https://github.com/PrefectHQ/prefect/pull/20682) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Fix ECS observer incorrectly crashing suspended flow runs [#20682](https://github.com/PrefectHQ/prefect/pull/20682) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
 
 **Documentation**
 
-- Set up automatic `prefect-aws` API reference docs via mdxify [#20679](https://github.com/PrefectHQ/prefect/pull/20679) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Set up automatic `prefect-aws` API reference docs via mdxify [#20679](https://github.com/PrefectHQ/prefect/pull/20679) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
 
 **Maintenance**
 
@@ -86,7 +102,7 @@ _Released on February 12, 2026_
 **Maintenance**
 
 - Bump `prefect` lower bound to `>=3.6.17` [#20659](https://github.com/PrefectHQ/prefect/pull/20659) by [@desertaxle](https://github.com/desertaxle)
-- Replace `skipif(sys.platform != 'win32')` with `[@pytest](https://github.com/pytest).mark.windows` and remove `skipif(sys.platform == 'win32')` [#20327](https://github.com/PrefectHQ/prefect/pull/20327) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Replace `skipif(sys.platform != 'win32')` with `[@pytest](https://github.com/pytest).mark.windows` and remove `skipif(sys.platform == 'win32')` [#20327](https://github.com/PrefectHQ/prefect/pull/20327) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
 
 ---
 

@@ -144,6 +144,48 @@ class TestGenerateDefaultPullActionNoImage:
         ]
 
 
+class TestGenerateDefaultPullActionModulePathEntrypoint:
+    """Module-path style entrypoints (no colon) should not raise a ValueError
+    and should fall through to the local cwd behavior."""
+
+    @pytest.mark.asyncio
+    async def test_module_path_entrypoint_uses_local_cwd(self, console: MagicMock):
+        deploy_config = _make_deploy_config(entrypoint="my_package.my_flow")
+        actions = {"build": []}
+
+        result = await _generate_default_pull_action(
+            console,
+            deploy_config=deploy_config,
+            actions=actions,
+            is_interactive=lambda: False,
+        )
+
+        expected_dir = str(Path.cwd().absolute().resolve())
+        assert result == [
+            {
+                "prefect.deployments.steps.set_working_directory": {
+                    "directory": expected_dir
+                }
+            }
+        ]
+
+    @pytest.mark.asyncio
+    async def test_module_path_entrypoint_prints_cwd(self, console: MagicMock):
+        deploy_config = _make_deploy_config(entrypoint="my_package.my_flow")
+        actions = {"build": []}
+
+        await _generate_default_pull_action(
+            console,
+            deploy_config=deploy_config,
+            actions=actions,
+            is_interactive=lambda: False,
+        )
+
+        console.print.assert_called_once()
+        printed = console.print.call_args[0][0]
+        assert str(Path.cwd().absolute().resolve()) in printed
+
+
 class TestGenerateDefaultPullActionBuildDockerStep:
     """When a build_docker_image step exists, the existing behavior should
     be preserved."""

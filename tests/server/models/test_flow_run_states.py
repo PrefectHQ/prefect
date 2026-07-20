@@ -3,8 +3,10 @@ from uuid import uuid4
 
 import anyio
 import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server import models, schemas
+from prefect.server.database import orm_models
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.orchestration.core_policy import PreventPendingTransitions
 from prefect.server.orchestration.dependencies import (
@@ -19,7 +21,14 @@ from prefect.server.orchestration.rules import (
     BaseOrchestrationRule,
     OrchestrationContext,
 )
-from prefect.server.schemas.states import Failed, Pending, Running, Scheduled, StateType
+from prefect.server.schemas.states import (
+    Completed,
+    Failed,
+    Pending,
+    Running,
+    Scheduled,
+    StateType,
+)
 from prefect.types._datetime import now
 
 pytestmark = pytest.mark.clear_db
@@ -139,6 +148,115 @@ class TestSetFlowRunState:
         async with anyio.create_task_group() as tg:
             tg.start_soon(session_1)
             tg.start_soon(session_2)
+
+    async def test_repeated_duplicate_server_timestamps_are_made_unique(
+        self, flow_run: orm_models.FlowRun, session: AsyncSession
+    ):
+        # Regression test for https://github.com/PrefectHQ/prefect/issues/22511.
+        collision = now("UTC")
+
+        results = []
+        for state in (
+            Pending(timestamp=collision),
+            Running(timestamp=collision),
+            Completed(timestamp=collision),
+        ):
+            results.append(
+                await models.flow_runs.set_flow_run_state(
+                    session=session,
+                    flow_run_id=flow_run.id,
+                    state=state,
+                )
+            )
+
+        assert all(r.status == schemas.responses.SetStateStatus.ACCEPT for r in results)
+        assert [result.state.timestamp for result in results] == [
+            collision,
+            collision + datetime.timedelta(microseconds=1),
+            collision + datetime.timedelta(microseconds=2),
+        ]
+
+        await session.refresh(flow_run)
+        assert flow_run.state_timestamp == collision + datetime.timedelta(
+            microseconds=2
+        )
+        assert flow_run.start_time == collision + datetime.timedelta(microseconds=1)
+        assert flow_run.end_time == collision + datetime.timedelta(microseconds=2)
+        assert flow_run.total_run_time == datetime.timedelta(microseconds=1)
+
+    async def test_collision_with_older_state_after_backdated_transition(
+        self, flow_run: orm_models.FlowRun, session: AsyncSession
+    ):
+        collision = now("UTC")
+        backdated = collision - datetime.timedelta(seconds=10)
+
+        pending_result = await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=Pending(timestamp=collision),
+        )
+        running_result = await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=Running(timestamp=backdated),
+        )
+        completed_result = await models.flow_runs.set_flow_run_state(
+            session=session,
+            flow_run_id=flow_run.id,
+            state=Completed(timestamp=collision),
+        )
+
+        assert pending_result.status == schemas.responses.SetStateStatus.ACCEPT
+        assert running_result.status == schemas.responses.SetStateStatus.ACCEPT
+        assert running_result.state.timestamp == backdated
+        assert completed_result.status == schemas.responses.SetStateStatus.ACCEPT
+        assert completed_result.state.timestamp == collision + datetime.timedelta(
+            microseconds=1
+        )
+
+        await session.refresh(flow_run)
+        assert flow_run.state_timestamp == collision + datetime.timedelta(
+            microseconds=1
+        )
+        assert flow_run.start_time == backdated
+        assert flow_run.end_time == collision + datetime.timedelta(microseconds=1)
+
+    async def test_backdated_collision_uses_nearest_available_timestamp(
+        self, flow_run: orm_models.FlowRun, session: AsyncSession
+    ):
+        collision = now("UTC")
+        later = collision + datetime.timedelta(seconds=10)
+
+        results = []
+        for timestamp in (collision, later, collision):
+            results.append(
+                await models.flow_runs.set_flow_run_state(
+                    session=session,
+                    flow_run_id=flow_run.id,
+                    state=Pending(timestamp=timestamp),
+                )
+            )
+
+        assert all(r.status == schemas.responses.SetStateStatus.ACCEPT for r in results)
+        assert [result.state.timestamp for result in results] == [
+            collision,
+            later,
+            collision + datetime.timedelta(microseconds=1),
+        ]
+
+        states = await models.flow_run_states.read_flow_run_states(
+            session=session, flow_run_id=flow_run.id
+        )
+        assert [state.timestamp for state in states] == [
+            collision,
+            collision + datetime.timedelta(microseconds=1),
+            later,
+        ]
+
+        await session.refresh(flow_run)
+        assert flow_run.state_timestamp == collision + datetime.timedelta(
+            microseconds=1
+        )
 
 
 class TestCreateFlowRunState:

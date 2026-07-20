@@ -205,7 +205,7 @@ export function AppSidebar() {
 					{canSwitchToV1 && (
 						<SidebarMenuItem>
 							<SidebarMenuButton onClick={() => setIsSwitchDialogOpen(true)}>
-								<span>Switch back to current UI</span>
+								<span>Switch to V1 UI</span>
 							</SidebarMenuButton>
 						</SidebarMenuItem>
 					)}

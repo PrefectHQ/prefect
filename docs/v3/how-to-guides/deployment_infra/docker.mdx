@@ -337,7 +337,8 @@ The values passed in override default values in the specified work pool's
 [base job template](/v3/deploy/infrastructure-concepts/work-pools/#base-job-template).
 
 You can override environment variables, such as `image_pull_policy` and `image`, for a specific deployment with the `job_variables`
-argument.
+argument. Valid values for `image_pull_policy` are `IfNotPresent`, `Always`, `IfPossible`, and `Never`. `IfPossible` always attempts to
+pull the image, but falls back to a local copy if the pull fails instead of raising an error.
 
 ```python job_var_image_pull.py
 if __name__ == "__main__":

@@ -64,7 +64,7 @@ def test_app_exposes_ui_settings(
         "csrf_enabled": PREFECT_SERVER_CSRF_PROTECTION_ENABLED.value(),
         "auth": "BASIC" if PREFECT_SERVER_API_AUTH_STRING.value() else None,
         "flags": [],
-        "default_ui": "v1",
+        "default_ui": "v2",
         "available_uis": ["v1", "v2"],
         "v1_base_url": "/",
         "v2_base_url": "/v2",

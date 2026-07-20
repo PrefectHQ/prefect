@@ -139,7 +139,6 @@ render_swagger = "prefect.utilities.render_swagger:SwaggerPlugin"
 [dependency-groups]
 dev = [
     "cairosvg>=2.7.1; python_version<'3.14'",
-    "codespell>=2.2.6",
     "ipython",
     "jinja2>=3.1.6",
     "moto>=5",
@@ -174,8 +173,8 @@ dev = [
     "watchfiles>=1.0.4",
     "yamllint>=1.35.1",
     "respx>=0.22.0",
-    "codespell==2.4.2",
-    "ruff==0.15.20",
+    "codespell==2.4.3",
+    "ruff==0.15.21",
     "mypy==1.19.1",
     "types-cachetools>=5.3.1",
     "types-PyYAML>=6.0.12",

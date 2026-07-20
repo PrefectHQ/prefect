@@ -420,7 +420,9 @@
                       "integrations/prefect-azure/api-ref/prefect_azure-credentials",
                       "integrations/prefect-azure/api-ref/prefect_azure-decorators",
                       "integrations/prefect-azure/api-ref/prefect_azure-ml_datastore",
+                      "integrations/prefect-azure/api-ref/prefect_azure-plugins",
                       "integrations/prefect-azure/api-ref/prefect_azure-repository",
+                      "integrations/prefect-azure/api-ref/prefect_azure-settings",
                       {
                         "group": "prefect_azure.bundles",
                         "pages": [

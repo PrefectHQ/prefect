@@ -278,6 +278,16 @@ There are three main types of steps that typically show up in a `pull` section:
 - `git_clone`: this step clones the provided repository on the provided branch
 - `pull_from_{cloud}`: this step pulls the working directory from a Cloud storage location (for example, S3)
 
+<Note>
+**Omitted `pull` versus empty `pull`**
+
+    An omitted or `null` `pull` section causes `prefect deploy` to auto-generate a default pull
+    action (a `set_working_directory` step pointing at the deploying machine's current working
+    directory). If your worker prepares the flow's code itself (for example, a custom job command
+    that clones code at runtime), set `pull: []` to explicitly disable pull steps so no
+    `set_working_directory` step is generated.
+</Note>
+
 <Tip>
 **Use block and variable references**
 

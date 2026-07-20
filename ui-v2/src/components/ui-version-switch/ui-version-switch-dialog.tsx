@@ -95,9 +95,9 @@ export const UiVersionSwitchDialog = ({
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="max-h-[85vh] overflow-y-auto overflow-x-hidden sm:max-w-xl">
 				<DialogHeader>
-					<DialogTitle>Switch back to the current UI</DialogTitle>
+					<DialogTitle>Switch to the V1 UI</DialogTitle>
 					<DialogDescription>
-						Tell us what brought you back so we can improve the updated UI.
+						Tell us what brought you back so we can improve the V2 UI.
 					</DialogDescription>
 				</DialogHeader>
 				<Form {...form}>
