@@ -21,15 +21,31 @@ updates:
       eslint:
         patterns:
           - "@eslint*"
+          - "@tanstack/eslint-plugin-*"
           - "eslint*"
+          - "typescript"
           - "typescript-eslint"
+      biome:
+        patterns:
+          - "@biomejs/biome"
       ui-v2-dependencies:
         patterns:
-          - "*" 
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
         exclude-patterns:
+          - "@biomejs/biome"
           - "@eslint*"
+          - "@tanstack/eslint-plugin-*"
           - "eslint*"
+          - "typescript"
           - "typescript-eslint"
+    # Remove or raise the bound when the lint stack's peer ranges support it.
+    ignore:
+      - dependency-name: "typescript"
+        versions:
+          - ">=6.1.0"
 
   - package-ecosystem: "github-actions"
     directory: "/"
