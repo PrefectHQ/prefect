@@ -103,7 +103,7 @@
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",
-    "@biomejs/biome": "^2.5.3",
+    "@biomejs/biome": "^2.5.4",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.61.1",
     "@storybook/addon-docs": "^10.5.2",

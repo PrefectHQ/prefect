@@ -427,34 +427,34 @@ describe("FlowRunDetailsPage", () => {
 		expect(screen.queryByTestId("flow-run-graph")).not.toBeInTheDocument();
 	});
 
-	it.each([
-		"Submitting",
-		"InfrastructurePending",
-	] as const)("hides FlowRunGraph when flow run state is %s", async (stateName) => {
-		const pendingFlowRun = createFakeFlowRun({
-			name: `${stateName}-flow-run`,
-			state_type: "PENDING",
-			state_name: stateName,
-			state: createFakeState({
-				type: "PENDING",
-				name: stateName,
-			}),
-		});
+	it.each(["Submitting", "InfrastructurePending"] as const)(
+		"hides FlowRunGraph when flow run state is %s",
+		async (stateName) => {
+			const pendingFlowRun = createFakeFlowRun({
+				name: `${stateName}-flow-run`,
+				state_type: "PENDING",
+				state_name: stateName,
+				state: createFakeState({
+					type: "PENDING",
+					name: stateName,
+				}),
+			});
 
-		server.use(
-			http.get(buildApiUrl("/flow_runs/:id"), () => {
-				return HttpResponse.json(pendingFlowRun);
-			}),
-		);
+			server.use(
+				http.get(buildApiUrl("/flow_runs/:id"), () => {
+					return HttpResponse.json(pendingFlowRun);
+				}),
+			);
 
-		renderFlowRunDetailsPage();
+			renderFlowRunDetailsPage();
 
-		await waitFor(() => {
-			expect(screen.getByText(`${stateName}-flow-run`)).toBeInTheDocument();
-		});
+			await waitFor(() => {
+				expect(screen.getByText(`${stateName}-flow-run`)).toBeInTheDocument();
+			});
 
-		expect(screen.queryByTestId("flow-run-graph")).not.toBeInTheDocument();
-	});
+			expect(screen.queryByTestId("flow-run-graph")).not.toBeInTheDocument();
+		},
+	);
 
 	it("hides FlowRunGraph and execution tabs when flow run state is SCHEDULED", async () => {
 		const scheduledFlowRun = createFakeFlowRun({
@@ -554,44 +554,44 @@ describe("FlowRunDetailsPage", () => {
 		).not.toBeInTheDocument();
 	});
 
-	it.each([
-		"Submitting",
-		"InfrastructurePending",
-	] as const)("hides execution tabs for %s flow runs", async (stateName) => {
-		const pendingFlowRun = createFakeFlowRun({
-			name: `${stateName}-tabs-flow-run`,
-			state_type: "PENDING",
-			state_name: stateName,
-			state: createFakeState({
-				type: "PENDING",
-				name: stateName,
-			}),
-		});
+	it.each(["Submitting", "InfrastructurePending"] as const)(
+		"hides execution tabs for %s flow runs",
+		async (stateName) => {
+			const pendingFlowRun = createFakeFlowRun({
+				name: `${stateName}-tabs-flow-run`,
+				state_type: "PENDING",
+				state_name: stateName,
+				state: createFakeState({
+					type: "PENDING",
+					name: stateName,
+				}),
+			});
 
-		server.use(
-			http.get(buildApiUrl("/flow_runs/:id"), () => {
-				return HttpResponse.json(pendingFlowRun);
-			}),
-		);
+			server.use(
+				http.get(buildApiUrl("/flow_runs/:id"), () => {
+					return HttpResponse.json(pendingFlowRun);
+				}),
+			);
 
-		renderFlowRunDetailsPage();
+			renderFlowRunDetailsPage();
 
-		await waitFor(() => {
+			await waitFor(() => {
+				expect(
+					screen.getByText(`${stateName}-tabs-flow-run`),
+				).toBeInTheDocument();
+			});
+
 			expect(
-				screen.getByText(`${stateName}-tabs-flow-run`),
-			).toBeInTheDocument();
-		});
-
-		expect(
-			screen.queryByRole("tab", { name: "Task Runs" }),
-		).not.toBeInTheDocument();
-		expect(
-			screen.queryByRole("tab", { name: "Subflow Runs" }),
-		).not.toBeInTheDocument();
-		expect(
-			screen.queryByRole("tab", { name: "Artifacts" }),
-		).not.toBeInTheDocument();
-	});
+				screen.queryByRole("tab", { name: "Task Runs" }),
+			).not.toBeInTheDocument();
+			expect(
+				screen.queryByRole("tab", { name: "Subflow Runs" }),
+			).not.toBeInTheDocument();
+			expect(
+				screen.queryByRole("tab", { name: "Artifacts" }),
+			).not.toBeInTheDocument();
+		},
+	);
 
 	it("renders FlowRunGraph for FAILED flow runs", async () => {
 		const failedFlowRun = createFakeFlowRun({
