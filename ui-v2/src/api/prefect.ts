@@ -11551,7 +11551,7 @@ export interface components {
          * @description Defines task run sorting options.
          * @enum {string}
          */
-        TaskRunSort: "ID_DESC" | "EXPECTED_START_TIME_ASC" | "EXPECTED_START_TIME_DESC" | "NAME_ASC" | "NAME_DESC" | "NEXT_SCHEDULED_START_TIME_ASC" | "END_TIME_DESC";
+        TaskRunSort: "ID_DESC" | "START_TIME_ASC" | "START_TIME_DESC" | "EXPECTED_START_TIME_ASC" | "EXPECTED_START_TIME_DESC" | "NAME_ASC" | "NAME_DESC" | "NEXT_SCHEDULED_START_TIME_ASC" | "END_TIME_DESC";
         /**
          * TaskRunUpdate
          * @description Data used by the Prefect REST API to update a task run
