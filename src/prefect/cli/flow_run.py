@@ -37,7 +37,7 @@ from prefect.client.schemas.filters import FlowFilter, FlowRunFilter, LogFilter
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.responses import SetStateStatus
 from prefect.client.schemas.sorting import FlowRunSort, LogSort
-from prefect.exceptions import Abort, ObjectNotFound
+from prefect.exceptions import Abort, FlowRunWatchError, ObjectNotFound
 from prefect.logging import get_logger
 from prefect.runner._flow_run_executor import FlowRunExecutorContext
 from prefect.runner._workspace_starter import WorkspaceResolvingEngineCommandStarter
@@ -679,7 +679,10 @@ async def watch(
             exit_with_success(f"Flow run already finished in {state.name!r}.")
         exit_with_error(f"Flow run already finished in state {state.name!r}.", code=1)
 
-    finished = await watch_flow_run(id, _cli.console, timeout=timeout)
+    try:
+        finished = await watch_flow_run(id, _cli.console, timeout=timeout)
+    except FlowRunWatchError as exc:
+        exit_with_error(str(exc))
     state = finished.state
     if state is None:
         exit_with_error("Flow run finished in an unknown state.")

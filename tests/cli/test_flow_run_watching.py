@@ -6,11 +6,14 @@ import asyncio
 
 import pytest
 from rich.console import Console
+from typing_extensions import Self
 
+import prefect.events.subscribers
 from prefect import flow
 from prefect.cli.flow_runs_watching import watch_flow_run
 from prefect.client.orchestration import PrefectClient
-from prefect.exceptions import FlowRunWaitTimeout
+from prefect.events import Event
+from prefect.exceptions import FlowRunWaitTimeout, FlowRunWatchError
 from prefect.flow_engine import run_flow_async
 from prefect.states import Completed
 
@@ -103,3 +106,55 @@ async def test_watch_flow_run_timeout(prefect_client: PrefectClient):
 
     with pytest.raises(FlowRunWaitTimeout, match="exceeded watch timeout"):
         await watch_flow_run(flow_run.id, console, timeout=1)
+
+
+async def test_watch_flow_run_raises_when_stream_dies_before_completion(
+    prefect_client: PrefectClient, monkeypatch
+):
+    """watch_flow_run must not report a non-terminal run as finished when the
+    events/logs websocket dies before a terminal state is observed."""
+    # A scheduled (non-terminal) flow run that is never actually executed.
+    flow_run = await prefect_client.create_flow_run(flow=slow_flow)
+    assert flow_run.state is not None and not flow_run.state.is_final()
+
+    class DyingEventSubscriber:
+        async def __aenter__(self) -> Self:
+            return self
+
+        async def __aexit__(self, *args) -> None:
+            pass
+
+        def __aiter__(self) -> Self:
+            return self
+
+        async def __anext__(self) -> Event:
+            raise ConnectionError("events websocket died")
+
+    class EmptyLogsSubscriber:
+        async def __aenter__(self) -> Self:
+            return self
+
+        async def __aexit__(self, *args) -> None:
+            pass
+
+        def __aiter__(self) -> Self:
+            return self
+
+        async def __anext__(self):
+            raise StopAsyncIteration
+
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_events_subscriber",
+        lambda *args, **kwargs: DyingEventSubscriber(),
+    )
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_logs_subscriber",
+        lambda *args, **kwargs: EmptyLogsSubscriber(),
+    )
+
+    console = Console()
+
+    with pytest.raises(FlowRunWatchError, match="before it reached a terminal state"):
+        await watch_flow_run(flow_run.id, console)

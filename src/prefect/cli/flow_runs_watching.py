@@ -15,7 +15,7 @@ from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import Log, StateType
 from prefect.events import Event
 from prefect.events.subscribers import FlowRunSubscriber
-from prefect.exceptions import FlowRunWaitTimeout
+from prefect.exceptions import FlowRunWaitTimeout, FlowRunWatchError
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
@@ -52,12 +52,15 @@ async def watch_flow_run(
 
     Raises:
         FlowRunWaitTimeout: If the flow run exceeds the timeout
+        FlowRunWatchError: If the events/logs stream closes before the flow run
+            reaches a terminal state
     """
     formatter = FlowRunFormatter()
+    subscriber = FlowRunSubscriber(flow_run_id=flow_run_id)
 
     if timeout is not None:
         with anyio.move_on_after(timeout) as cancel_scope:
-            async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
+            async with subscriber:
                 async for item in subscriber:
                     console.print(formatter.format(item))
 
@@ -66,12 +69,25 @@ async def watch_flow_run(
                 f"Flow run with ID {flow_run_id} exceeded watch timeout of {timeout} seconds"
             )
     else:
-        async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
+        async with subscriber:
             async for item in subscriber:
                 console.print(formatter.format(item))
 
     async with get_client() as client:
-        return await client.read_flow_run(flow_run_id)
+        flow_run = await client.read_flow_run(flow_run_id)
+
+    # The stream only ends on its own when a terminal event is observed. If it
+    # ended for any other reason (e.g. the events/logs websocket died) and the
+    # flow run is not actually in a terminal state, surface that failure
+    # instead of returning a non-terminal flow run as if the watch succeeded.
+    state = flow_run.state
+    if not subscriber.flow_completed and (state is None or not state.is_final()):
+        raise FlowRunWatchError(
+            f"Stopped watching flow run {flow_run_id} before it reached a terminal "
+            "state; the events and logs stream closed unexpectedly."
+        ) from subscriber.error
+
+    return flow_run
 
 
 class FlowRunFormatter:

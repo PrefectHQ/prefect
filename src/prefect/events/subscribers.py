@@ -57,6 +57,7 @@ class FlowRunSubscriber:
     _logs_subscriber: PrefectLogsSubscriber | Any
     _events_subscriber: PrefectEventSubscriber | Any
     _sentinels_received: int
+    _error: Optional[Exception]
 
     def __init__(
         self,
@@ -79,6 +80,7 @@ class FlowRunSubscriber:
         self._tasks = []
         self._flow_completed = False
         self._sentinels_received = 0
+        self._error = None
 
         self._log_filter = LogFilter(flow_run_id=LogFilterFlowRunId(any_=[flow_run_id]))
         self._event_filter = EventFilter(
@@ -122,6 +124,30 @@ class FlowRunSubscriber:
         await self._logs_subscriber.__aexit__(exc_type, exc_val, exc_tb)
         await self._events_subscriber.__aexit__(exc_type, exc_val, exc_tb)
 
+    @property
+    def flow_completed(self) -> bool:
+        """Whether a terminal state event was observed for the flow run.
+
+        When this is ``False`` after the stream has been exhausted, the
+        subscription ended before the flow run reached a terminal state (e.g.
+        the events/logs websocket died) rather than because the run finished.
+        """
+        return self._flow_completed
+
+    @property
+    def error(self) -> Optional[Exception]:
+        """The first error raised by a consumer task, if any.
+
+        A consumer records an error here when its underlying websocket dies
+        instead of raising, so callers can distinguish a clean end of stream
+        from a connection failure.
+        """
+        return self._error
+
+    def _record_error(self, exc: Exception) -> None:
+        if self._error is None:
+            self._error = exc
+
     def __aiter__(self) -> Self:
         """Return self as an async iterator"""
         return self
@@ -154,8 +180,8 @@ class FlowRunSubscriber:
                 await self._queue.put(log)
         except asyncio.CancelledError:
             pass
-        except Exception:
-            pass
+        except Exception as exc:
+            self._record_error(exc)
         finally:
             await self._queue.put(None)
 
@@ -180,7 +206,9 @@ class FlowRunSubscriber:
                                 break
                         except ValueError:
                             pass
-        except Exception:
+        except asyncio.CancelledError:
             pass
+        except Exception as exc:
+            self._record_error(exc)
         finally:
             await self._queue.put(None)

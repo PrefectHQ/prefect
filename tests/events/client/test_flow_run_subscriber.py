@@ -355,6 +355,79 @@ async def test_flow_run_subscriber_context_manager_cleanup(
     assert logs_exited
 
 
+async def test_flow_run_subscriber_records_error_when_events_stream_dies(
+    flow_run_id: UUID, monkeypatch
+):
+    """A websocket failure in the events consumer is recorded, not swallowed"""
+
+    class DyingEventSubscriber:
+        async def __aenter__(self) -> Self:
+            return self
+
+        async def __aexit__(self, *args) -> None:
+            pass
+
+        def __aiter__(self) -> Self:
+            return self
+
+        async def __anext__(self) -> Event:
+            raise ConnectionError("events websocket died")
+
+    mock_events = DyingEventSubscriber()
+    mock_logs = MockLogsSubscriber([])
+
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_events_subscriber",
+        lambda *args, **kwargs: mock_events,
+    )
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_logs_subscriber",
+        lambda *args, **kwargs: mock_logs,
+    )
+
+    items: list[Log | Event] = []
+    async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
+        async for item in subscriber:
+            items.append(item)
+
+    assert items == []
+    assert subscriber.flow_completed is False
+    assert isinstance(subscriber.error, ConnectionError)
+    assert str(subscriber.error) == "events websocket died"
+
+
+async def test_flow_run_subscriber_no_error_on_clean_completion(
+    flow_run_id: UUID,
+    sample_event1: Event,
+    setup_mocks,
+):
+    """A clean run that reaches a terminal state records no error"""
+    terminal_event = Event(
+        id=uuid4(),
+        occurred=datetime.now(timezone.utc) + timedelta(seconds=3),
+        event="prefect.flow-run.Completed",
+        resource=Resource(
+            root={
+                "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
+                "prefect.state-type": "COMPLETED",
+            }
+        ),
+        payload={},
+    )
+    setup_mocks([sample_event1, terminal_event], [])
+
+    async with FlowRunSubscriber(
+        flow_run_id=flow_run_id, straggler_timeout=1
+    ) as subscriber:
+        async for _ in subscriber:
+            pass
+
+    assert subscriber.flow_completed is True
+    assert subscriber.error is None
+
+
 async def test_flow_run_subscriber_only_terminal_events_stop_consumption(
     flow_run_id: UUID, setup_mocks
 ):
