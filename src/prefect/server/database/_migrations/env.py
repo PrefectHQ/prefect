@@ -2,6 +2,7 @@
 # https://alembic.sqlalchemy.org/en/latest/tutorial.html#creating-an-environment
 
 import contextlib
+import copy
 from typing import Optional
 
 import sqlalchemy
@@ -11,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine
 from prefect.server.database.configurations import SQLITE_BEGIN_MODE
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.utilities.database import get_dialect
+from prefect.settings import get_current_settings
 from prefect.utilities.asyncutils import run_async_from_worker_thread
 
 db_interface = provide_database_interface()
@@ -179,11 +181,27 @@ def disable_sqlite_foreign_keys(context):
         context.execute("BEGIN IMMEDIATE")
 
 
+async def migration_engine() -> AsyncEngine:
+    """
+    Build an engine for running migrations.
+
+    Migrations use a dedicated statement timeout
+    (`server.database.migration_timeout`) instead of the application default
+    (`server.database.timeout`). Schema changes such as concurrent index builds
+    on large tables can take far longer than an ordinary API query; being killed
+    by the API timeout would fail startup migrations and can leave an invalid
+    index behind.
+    """
+    database_config = copy.copy(db_interface.database_config)
+    database_config.timeout = get_current_settings().server.database.migration_timeout
+    return await database_config.engine()
+
+
 async def apply_migrations() -> None:
     """
     Apply migrations to the database.
     """
-    engine = await db_interface.engine()
+    engine = await migration_engine()
     context.script.version_locations = [db_interface.orm.versions_dir]
 
     async with engine.connect() as connection:

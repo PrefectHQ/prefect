@@ -1466,6 +1466,22 @@
                         "PREFECT_API_DATABASE_CONNECTION_TIMEOUT"
                     ],
                     "title": "Connection Timeout"
+                },
+                "migration_timeout": {
+                    "anyOf": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "A statement timeout, in seconds, applied to database migrations. Schema changes such as concurrent index builds on large tables can take much longer than an ordinary API query, so migrations are not bound by `server.database.timeout`. Defaults to `None` (no timeout); set a value to bound migration statement duration.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_DATABASE_MIGRATION_TIMEOUT"
+                    ],
+                    "title": "Migration Timeout"
                 }
             },
             "title": "ServerDatabaseSettings",
