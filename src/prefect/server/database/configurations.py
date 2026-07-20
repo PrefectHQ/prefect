@@ -11,12 +11,12 @@ from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from contextvars import ContextVar
 from functools import partial
 from typing import Any, Optional
-from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import sqlalchemy as sa
 from sqlalchemy import AdaptedConnection, event
 from sqlalchemy.dialects.sqlite import aiosqlite
 from sqlalchemy.engine.interfaces import DBAPIConnection
+from sqlalchemy.engine.url import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncConnection,
     AsyncEngine,
@@ -276,28 +276,22 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
             # SQLAlchemy's asyncpg dialect forwards URL query parameters as plain
             # keyword arguments. Move any such settings into the `server_settings`
             # connect argument so they are applied at connection startup.
-            engine_url = self.connection_url
-            url_parts = urlsplit(self.connection_url)
-            if url_parts.query:
-                query_params = parse_qsl(url_parts.query)
-                url_server_settings: dict[str, str] = {}
-                remaining_params: list[tuple[str, str]] = []
-                for key, value in query_params:
-                    if key == "default_transaction_isolation":
-                        url_server_settings[key] = value
-                    else:
-                        remaining_params.append((key, value))
-                if url_server_settings:
-                    server_settings.update(url_server_settings)
-                    engine_url = urlunsplit(
-                        (
-                            url_parts.scheme,
-                            url_parts.netloc,
-                            url_parts.path,
-                            urlencode(remaining_params),
-                            url_parts.fragment,
-                        )
+            engine_url = make_url(self.connection_url)
+            if "default_transaction_isolation" in engine_url.query:
+                server_settings["default_transaction_isolation"] = (
+                    engine_url.query["default_transaction_isolation"][-1]
+                    if isinstance(
+                        engine_url.query["default_transaction_isolation"], tuple
                     )
+                    else engine_url.query["default_transaction_isolation"]
+                )
+                engine_url = engine_url.set(
+                    query={
+                        k: v
+                        for k, v in engine_url.query.items()
+                        if k != "default_transaction_isolation"
+                    }
+                )
 
             if server_settings:
                 connect_args["server_settings"] = server_settings
