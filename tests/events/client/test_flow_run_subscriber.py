@@ -398,6 +398,64 @@ async def test_flow_run_subscriber_records_error_when_events_stream_dies(
     assert str(subscriber.error) == "events websocket died"
 
 
+async def test_flow_run_subscriber_stops_when_events_die_and_logs_stay_open(
+    flow_run_id: UUID, monkeypatch
+):
+    """If one consumer dies before completion, the subscriber must not hang
+    waiting on a sibling stream that stays open but idle."""
+
+    class DyingEventSubscriber:
+        async def __aenter__(self) -> Self:
+            return self
+
+        async def __aexit__(self, *args) -> None:
+            pass
+
+        def __aiter__(self) -> Self:
+            return self
+
+        async def __anext__(self) -> Event:
+            raise ConnectionError("events websocket died")
+
+    class HangingLogsSubscriber:
+        """A logs stream that stays connected but never yields or ends."""
+
+        async def __aenter__(self) -> Self:
+            return self
+
+        async def __aexit__(self, *args) -> None:
+            pass
+
+        def __aiter__(self) -> Self:
+            return self
+
+        async def __anext__(self) -> Log:
+            await asyncio.Event().wait()  # never returns
+            raise AssertionError("unreachable")
+
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_events_subscriber",
+        lambda *args, **kwargs: DyingEventSubscriber(),
+    )
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_logs_subscriber",
+        lambda *args, **kwargs: HangingLogsSubscriber(),
+    )
+
+    items: list[Log | Event] = []
+    async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
+        # Should terminate promptly rather than blocking on the hanging logs
+        # stream. pytest-timeout guards against a regression here.
+        async for item in subscriber:
+            items.append(item)
+
+    assert items == []
+    assert subscriber.flow_completed is False
+    assert isinstance(subscriber.error, ConnectionError)
+
+
 async def test_flow_run_subscriber_no_error_on_clean_completion(
     flow_run_id: UUID,
     sample_event1: Event,

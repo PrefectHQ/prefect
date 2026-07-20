@@ -128,7 +128,7 @@ class FlowRunSubscriber:
     def flow_completed(self) -> bool:
         """Whether a terminal state event was observed for the flow run.
 
-        When this is ``False`` after the stream has been exhausted, the
+        When this is `False` after the stream has been exhausted, the
         subscription ended before the flow run reached a terminal state (e.g.
         the events/logs websocket died) rather than because the run finished.
         """
@@ -155,6 +155,13 @@ class FlowRunSubscriber:
     async def __anext__(self) -> Union[Log, Event]:
         """Get the next log or event from the interleaved stream"""
         while self._sentinels_received < len(self._tasks):
+            # A consumer failed before the flow reached a terminal state. Stop
+            # instead of blocking on a sibling stream that may stay open and
+            # idle indefinitely; the failure is surfaced by the caller. The
+            # failed consumer's sentinel unblocks any pending queue.get() so we
+            # re-enter the loop and hit this check.
+            if self._error is not None and not self._flow_completed:
+                raise StopAsyncIteration
             if self._flow_completed:
                 try:
                     item = await asyncio.wait_for(
