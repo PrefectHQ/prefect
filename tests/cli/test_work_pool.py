@@ -26,7 +26,7 @@ from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
 from prefect.infrastructure import provisioners
 from prefect.server.schemas.actions import BlockDocumentCreate, BlockDocumentUpdate
 from prefect.settings import (
-    PREFECT_DEPLOYMENTS_DEFAULT_WORK_POOL_NAME,
+    PREFECT_DEFAULT_WORK_POOL_NAME,
     PREFECT_UI_URL,
     load_profile,
     temporary_settings,
@@ -302,9 +302,7 @@ class TestCreate:
     async def test_create_set_as_default(self, prefect_client):
         settings_context = get_settings_context()
         assert (
-            settings_context.profile.settings.get(
-                PREFECT_DEPLOYMENTS_DEFAULT_WORK_POOL_NAME
-            )
+            settings_context.profile.settings.get(PREFECT_DEFAULT_WORK_POOL_NAME)
             is None
         )
         pool_name = "my-pool"
@@ -327,10 +325,7 @@ class TestCreate:
 
         # reload the profile to pick up change
         profile = load_profile(settings_context.profile.name)
-        assert (
-            profile.settings.get(PREFECT_DEPLOYMENTS_DEFAULT_WORK_POOL_NAME)
-            == pool_name
-        )
+        assert profile.settings.get(PREFECT_DEFAULT_WORK_POOL_NAME) == pool_name
 
     @pytest.mark.usefixtures("mock_collection_registry")
     async def test_create_with_provision_infra(self, monkeypatch):

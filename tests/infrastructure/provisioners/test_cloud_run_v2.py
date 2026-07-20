@@ -12,7 +12,7 @@ from prefect.blocks.core import Block
 from prefect.client.orchestration import PrefectClient
 from prefect.infrastructure.provisioners.cloud_run import CloudRunPushProvisioner
 from prefect.settings import (
-    PREFECT_DEPLOYMENTS_DEFAULT_DOCKER_BUILD_NAMESPACE,
+    PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE,
     load_current_profile,
 )
 from prefect.types import SecretDict
@@ -308,9 +308,7 @@ async def test_provision(mock_run_process, prefect_client: PrefectClient):
     assert block_doc.name == "test-push-pool-credentials"
     assert block_doc.data == {"service_account_info": {"private_key": "test-key"}}
     assert (
-        load_current_profile().settings[
-            PREFECT_DEPLOYMENTS_DEFAULT_DOCKER_BUILD_NAMESPACE
-        ]
+        load_current_profile().settings[PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE]
         == "us-central1-docker.pkg.dev/test-project/prefect-images"
     )
 

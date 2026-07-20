@@ -18,7 +18,6 @@ from prefect.settings import (
     PREFECT_SERVER_DATABASE_TIMEOUT,
     PREFECT_SERVER_EPHEMERAL_ENABLED,
     PREFECT_TEST_SETTING,
-    PREFECT_TESTING_TEST_SETTING,
     Profile,
     ProfilesCollection,
     load_profiles,
@@ -77,7 +76,7 @@ def test_set_using_default_profile():
     profiles = load_profiles()
     assert "ephemeral" in profiles
     assert profiles["ephemeral"].settings == {
-        PREFECT_TESTING_TEST_SETTING: "DEBUG",
+        PREFECT_TEST_SETTING: "DEBUG",
         PREFECT_SERVER_EPHEMERAL_ENABLED: "true",
     }
 
@@ -149,7 +148,7 @@ def test_set_using_profile_flag():
 
     profiles = load_profiles()
     assert "foo" in profiles
-    assert profiles["foo"].settings == {PREFECT_TESTING_TEST_SETTING: "DEBUG"}
+    assert profiles["foo"].settings == {PREFECT_TEST_SETTING: "DEBUG"}
 
 
 def test_set_with_unknown_setting():
@@ -242,7 +241,7 @@ def test_set_multiple_settings():
     profiles = load_profiles()
     assert "foo" in profiles
     assert profiles["foo"].settings == {
-        PREFECT_TESTING_TEST_SETTING: "DEBUG",
+        PREFECT_TEST_SETTING: "DEBUG",
         PREFECT_API_KEY: "FOO",
     }
 
@@ -280,7 +279,7 @@ def test_unset_retains_other_keys():
 
     profiles = load_profiles()
     assert "foo" in profiles
-    assert profiles["foo"].settings == {PREFECT_TESTING_TEST_SETTING: "DEBUG"}
+    assert profiles["foo"].settings == {PREFECT_TEST_SETTING: "DEBUG"}
 
 
 def test_unset_warns_if_present_in_environment(monkeypatch):

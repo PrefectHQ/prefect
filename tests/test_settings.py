@@ -2432,6 +2432,24 @@ class TestCastSettings:
         )
         assert profile.settings == {PREFECT_SERVER_DATABASE_TIMEOUT: 99}
 
+    def test_legacy_setting_key_looks_up_canonical_entry(self):
+        profile = Profile(name="test", settings={PREFECT_SERVER_DATABASE_TIMEOUT: 99})
+        assert profile.settings[PREFECT_API_DATABASE_TIMEOUT] == 99
+        assert profile.settings.get(PREFECT_API_DATABASE_TIMEOUT) == 99
+        assert PREFECT_API_DATABASE_TIMEOUT in profile.settings
+        assert profile.settings == {PREFECT_API_DATABASE_TIMEOUT: 99}
+        assert profile.to_environment_variables() == {
+            "PREFECT_SERVER_DATABASE_TIMEOUT": "99"
+        }
+
+    def test_legacy_setting_key_setitem_canonicalizes(self):
+        profile = Profile(name="test", settings={})
+        profile.settings[PREFECT_API_DATABASE_TIMEOUT] = 42
+        assert profile.settings == {PREFECT_SERVER_DATABASE_TIMEOUT: 42}
+        assert profile.to_environment_variables() == {
+            "PREFECT_SERVER_DATABASE_TIMEOUT": "42"
+        }
+
 
 class TestProfilesCollection:
     def test_init_stores_single_profile(self):
