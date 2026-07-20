@@ -278,6 +278,10 @@ async def vacuum_events_with_retention_overrides(
         retention_cutoff = now("UTC") - retention
 
         # Delete event resources first (no FK cascade)
+        # The subquery finds event IDs matching the event type and age;
+        # the outer filter uses EventResource.occurred (already indexed)
+        # as a pre-filter and EventResource.event_id (newly indexed) for
+        # the join, avoiding the full table scan described in #22535.
         event_ids = (
             sa.select(db.Event.id)
             .where(
@@ -289,7 +293,10 @@ async def vacuum_events_with_retention_overrides(
         resources_deleted = await _batch_delete(
             db,
             db.EventResource,
-            db.EventResource.event_id.in_(event_ids),
+            sa.and_(
+                db.EventResource.occurred < retention_cutoff,
+                db.EventResource.event_id.in_(event_ids),
+            ),
             batch_size,
         )
 
