@@ -19,8 +19,8 @@ from pydantic import (
     ConfigDict,
     Field,
     ValidationError,
-    model_validator,
 )
+from typing_extensions import Self
 
 from prefect._internal.compatibility.backports import tomllib
 from prefect.exceptions import ProfileSettingsValidationError
@@ -38,7 +38,7 @@ class _SettingsDict(dict):
 
     Canonical names are used for persistence and export; legacy keys transparently
     resolve to the canonical entry for `__getitem__`, `get`, `__contains__`,
-    and equality checks.
+    assignment, union, and equality checks.
     """
 
     def _canonical_key(self, key: Any) -> Any:
@@ -94,12 +94,35 @@ class _SettingsDict(dict):
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Mapping):
             return NotImplemented
-        if len(self) != len(other):
-            return False
-        for key, value in other.items():
-            if self.get(key) != value:
-                return False
-        return True
+        return dict(self) == {self._canonical_key(k): v for k, v in other.items()}
+
+    def __ne__(self, other: object) -> bool:
+        eq = self.__eq__(other)
+        if eq is NotImplemented:
+            return NotImplemented
+        return not eq
+
+    def __ior__(self, other: Any) -> Self:
+        if not isinstance(other, Mapping):
+            return NotImplemented
+        self.update(other)
+        return self
+
+    def __or__(self, other: Any) -> "_SettingsDict":
+        if not isinstance(other, Mapping):
+            return NotImplemented
+        result = _SettingsDict()
+        result.update(self)
+        result.update(other)
+        return result
+
+    def __ror__(self, other: Any) -> "_SettingsDict":
+        if not isinstance(other, Mapping):
+            return NotImplemented
+        result = _SettingsDict()
+        result.update(other)
+        result.update(self)
+        return result
 
 
 def _cast_settings(
@@ -169,11 +192,9 @@ class Profile(BaseModel):
     )
     source: Optional[Path] = None
 
-    @model_validator(mode="after")
-    def _wrap_settings(self) -> "Profile":
+    def model_post_init(self, __context: Any) -> None:
         if not isinstance(self.settings, _SettingsDict):
-            self.settings = _SettingsDict(self.settings)
-        return self
+            self.__dict__["settings"] = _SettingsDict(self.settings)
 
     def to_environment_variables(self) -> dict[str, str]:
         """Convert the profile settings to a dictionary of environment variables."""

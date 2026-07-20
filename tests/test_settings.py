@@ -2450,6 +2450,44 @@ class TestCastSettings:
             "PREFECT_SERVER_DATABASE_TIMEOUT": "42"
         }
 
+    def test_settings_equality_with_legacy_keys(self):
+        profile = Profile(name="test", settings={PREFECT_SERVER_DATABASE_TIMEOUT: 99})
+        assert profile.settings == {PREFECT_API_DATABASE_TIMEOUT: 99}
+        assert profile.settings != {PREFECT_API_DATABASE_TIMEOUT: 100}
+        assert not (profile.settings != {PREFECT_API_DATABASE_TIMEOUT: 99})
+        assert profile.settings != {PREFECT_LOGGING_LEVEL: None}
+
+    def test_settings_union_canonicalizes_legacy_keys(self):
+        profile = Profile(name="test", settings={PREFECT_SERVER_DATABASE_TIMEOUT: 99})
+        profile.settings |= {PREFECT_API_DATABASE_TIMEOUT: 42}
+        assert profile.settings == {PREFECT_SERVER_DATABASE_TIMEOUT: 42}
+        assert profile.to_environment_variables() == {
+            "PREFECT_SERVER_DATABASE_TIMEOUT": "42"
+        }
+
+        profile2 = Profile(name="test", settings={PREFECT_SERVER_DATABASE_TIMEOUT: 99})
+        profile2.settings |= {"PREFECT_API_DATABASE_TIMEOUT": 42}
+        assert profile2.settings == {PREFECT_SERVER_DATABASE_TIMEOUT: 42}
+
+    def test_settings_or_returns_canonical_keys(self):
+        profile = Profile(name="test", settings={PREFECT_SERVER_DATABASE_TIMEOUT: 99})
+        merged = profile.settings | {PREFECT_API_DATABASE_TIMEOUT: 42}
+        assert merged == {PREFECT_SERVER_DATABASE_TIMEOUT: 42}
+        assert PREFECT_SERVER_DATABASE_TIMEOUT in merged
+        assert PREFECT_API_DATABASE_TIMEOUT in merged
+
+        reversed = {PREFECT_API_DATABASE_TIMEOUT: 42} | profile.settings
+        assert reversed == {PREFECT_SERVER_DATABASE_TIMEOUT: 99}
+
+    def test_default_settings_not_marked_as_set(self):
+        profile = Profile(name="test")
+        assert "settings" not in profile.model_dump(exclude_unset=True)
+
+        profile_with_settings = Profile(
+            name="test", settings={PREFECT_SERVER_DATABASE_TIMEOUT: 99}
+        )
+        assert "settings" in profile_with_settings.model_dump(exclude_unset=True)
+
 
 class TestProfilesCollection:
     def test_init_stores_single_profile(self):
