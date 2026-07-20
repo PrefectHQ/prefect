@@ -59,7 +59,7 @@ export PREFECT_INTEGRATIONS_AZURE_POSTGRES_MANAGED_IDENTITY_ENABLED=true
 export PREFECT_INTEGRATIONS_AZURE_POSTGRES_MANAGED_IDENTITY_CLIENT_ID=<client-id>
 
 # Provide a password-less connection URL (the plugin supplies the token)
-export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://<entra-principal>@<host>:5432/<db>"
+export PREFECT_SERVER_DATABASE_CONNECTION_URL="postgresql+asyncpg://<entra-principal>@<host>:5432/<db>"
 ```
 
 The Postgres server must have Microsoft Entra authentication enabled and the

@@ -119,8 +119,8 @@ before starting. See the configuration example below for the full set of require
 prefect config set PREFECT_SERVER_DATABASE_CONNECTION_URL="postgresql+asyncpg://postgres:password@localhost:5432/prefect"
 
 # Configure Redis-backed messaging, event ordering, and lease storage
-prefect config set PREFECT_MESSAGING_BROKER="prefect_redis.messaging"
-prefect config set PREFECT_MESSAGING_CACHE="prefect_redis.messaging"
+prefect config set PREFECT_SERVER_EVENTS_MESSAGING_BROKER="prefect_redis.messaging"
+prefect config set PREFECT_SERVER_EVENTS_MESSAGING_CACHE="prefect_redis.messaging"
 prefect config set PREFECT_SERVER_EVENTS_CAUSAL_ORDERING="prefect_redis.ordering"
 prefect config set PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE="prefect_redis.lease_storage"
 

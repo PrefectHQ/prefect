@@ -48,7 +48,7 @@ Create a work queue.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="NAME" type="string" required>
-    The unique name to assign this work queue  \[required]
+    The unique name to assign this work queue
 </ResponseField>
 </Accordion>
 
@@ -56,15 +56,15 @@ Create a work queue.
 
 <Accordion title="Options" defaultOpen>
 
-<ResponseField name="-l">
+<ResponseField name="--limit">
     The concurrency limit to set on the queue.
 </ResponseField>
 
-<ResponseField name="-p">
+<ResponseField name="--pool">
     The name of the work pool to create the work queue in.
 </ResponseField>
 
-<ResponseField name="-q">
+<ResponseField name="--priority">
     The associated priority for the created work queue
 </ResponseField>
 
@@ -98,10 +98,10 @@ Set a concurrency limit on a work queue.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="NAME" type="string" required>
-    The name or ID of the work queue  \[required]
+    The name or ID of the work queue
 </ResponseField>
 <ResponseField name="LIMIT" type="string" required>
-    The concurrency limit to set on the queue.  \[required]
+    The concurrency limit to set on the queue.
 </ResponseField>
 </Accordion>
 
@@ -109,7 +109,7 @@ Set a concurrency limit on a work queue.
 
 <Accordion title="Options" defaultOpen>
 
-<ResponseField name="-p">
+<ResponseField name="--pool">
     The name of the work pool that the work queue belongs to.
 </ResponseField>
 
@@ -143,7 +143,7 @@ Clear any concurrency limits from a work queue.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="NAME" type="string" required>
-    The name or ID of the work queue to clear  \[required]
+    The name or ID of the work queue to clear
 </ResponseField>
 </Accordion>
 
@@ -151,7 +151,7 @@ Clear any concurrency limits from a work queue.
 
 <Accordion title="Options" defaultOpen>
 
-<ResponseField name="-p">
+<ResponseField name="--pool">
     The name of the work pool that the work queue belongs to.
 </ResponseField>
 
@@ -185,7 +185,7 @@ Pause a work queue.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="NAME" type="string" required>
-    The name or ID of the work queue to pause  \[required]
+    The name or ID of the work queue to pause
 </ResponseField>
 </Accordion>
 
@@ -193,7 +193,7 @@ Pause a work queue.
 
 <Accordion title="Options" defaultOpen>
 
-<ResponseField name="-p">
+<ResponseField name="--pool">
     The name of the work pool that the work queue belongs to.
 </ResponseField>
 
@@ -227,7 +227,7 @@ Resume a paused work queue.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="NAME" type="string" required>
-    The name or ID of the work queue to resume  \[required]
+    The name or ID of the work queue to resume
 </ResponseField>
 </Accordion>
 
@@ -235,7 +235,7 @@ Resume a paused work queue.
 
 <Accordion title="Options" defaultOpen>
 
-<ResponseField name="-p">
+<ResponseField name="--pool">
     The name of the work pool that the work queue belongs to.
 </ResponseField>
 
@@ -250,7 +250,7 @@ Resume a paused work queue.
 
 
 ```command
-prefect work-queue inspect [OPTIONS] [NAME]
+prefect work-queue inspect [OPTIONS] NAME
 ```
 
 
@@ -268,7 +268,7 @@ Inspect a work queue by ID.
 
 
 <Accordion title="Arguments" defaultOpen>
-<ResponseField name="NAME" type="string">
+<ResponseField name="NAME" type="string" required>
     The name or ID of the work queue to inspect
 </ResponseField>
 </Accordion>
@@ -277,7 +277,53 @@ Inspect a work queue by ID.
 
 <Accordion title="Options" defaultOpen>
 
-<ResponseField name="-p">
+<ResponseField name="--pool">
+    The name of the work pool that the work queue belongs to.
+</ResponseField>
+
+<ResponseField name="--output">
+    Specify an output format. Currently supports: json
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect work-queue slots`
+
+
+
+```command
+prefect work-queue slots [OPTIONS] NAME
+```
+
+
+
+<Info>
+Show concurrency slot utilization for a work queue.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name or ID of the work queue.
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--pool">
     The name of the work pool that the work queue belongs to.
 </ResponseField>
 
@@ -325,8 +371,12 @@ View all work queues.
     Will match work queues with names that start with the specified prefix string
 </ResponseField>
 
-<ResponseField name="-p">
+<ResponseField name="--pool">
     The name of the work pool containing the work queues to list.
+</ResponseField>
+
+<ResponseField name="--output">
+    Specify an output format. Currently supports: json
 </ResponseField>
 
 </Accordion>
@@ -340,7 +390,7 @@ View all work queues.
 
 
 ```command
-prefect work-queue preview [OPTIONS] [NAME]
+prefect work-queue preview [OPTIONS] NAME
 ```
 
 
@@ -358,7 +408,7 @@ Preview a work queue.
 
 
 <Accordion title="Arguments" defaultOpen>
-<ResponseField name="NAME" type="string">
+<ResponseField name="NAME" type="string" required>
     The name or ID of the work queue to preview
 </ResponseField>
 </Accordion>
@@ -367,12 +417,16 @@ Preview a work queue.
 
 <Accordion title="Options" defaultOpen>
 
-<ResponseField name="-h">
+<ResponseField name="--hours">
     The number of hours to look ahead; defaults to 1 hour
 </ResponseField>
 
-<ResponseField name="-p">
+<ResponseField name="--pool">
     The name of the work pool that the work queue belongs to.
+</ResponseField>
+
+<ResponseField name="--output">
+    Specify an output format. Currently supports: json
 </ResponseField>
 
 </Accordion>
@@ -405,7 +459,7 @@ Delete a work queue by ID.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="NAME" type="string" required>
-    The name or ID of the work queue to delete  \[required]
+    The name or ID of the work queue to delete
 </ResponseField>
 </Accordion>
 
@@ -413,7 +467,7 @@ Delete a work queue by ID.
 
 <Accordion title="Options" defaultOpen>
 
-<ResponseField name="-p">
+<ResponseField name="--pool">
     The name of the work pool containing the work queue to delete.
 </ResponseField>
 
@@ -434,8 +488,9 @@ prefect work-queue read-runs [OPTIONS] NAME
 
 
 <Info>
-Get runs in a work queue. Note that this will trigger an artificial poll of
-the work queue.
+Get runs in a work queue.
+
+Note that this will trigger an artificial poll of the work queue.
 </Info>
 
 
@@ -448,7 +503,7 @@ the work queue.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="NAME" type="string" required>
-    The name or ID of the work queue to poll  \[required]
+    The name or ID of the work queue to poll
 </ResponseField>
 </Accordion>
 
@@ -456,7 +511,7 @@ the work queue.
 
 <Accordion title="Options" defaultOpen>
 
-<ResponseField name="-p">
+<ResponseField name="--pool">
     The name of the work pool containing the work queue to poll.
 </ResponseField>
 

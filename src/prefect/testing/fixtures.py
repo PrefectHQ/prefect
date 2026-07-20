@@ -34,8 +34,8 @@ from prefect.server.api.server import SubprocessASGIServer
 from prefect.server.events.pipeline import EventsPipeline
 from prefect.settings import (
     PREFECT_API_URL,
-    PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
     PREFECT_SERVER_CSRF_PROTECTION_ENABLED,
+    PREFECT_SERVER_EPHEMERAL_ENABLED,
     get_current_settings,
     temporary_settings,
 )
@@ -194,11 +194,11 @@ def enable_ephemeral_server(
     disable_hosted_api_server: None,
 ) -> Generator[None, None, None]:
     """
-    Enables the ephemeral server by setting `PREFECT_SERVER_ALLOW_EPHEMERAL_MODE` to `True`.
+    Enables the ephemeral server by setting `PREFECT_SERVER_EPHEMERAL_ENABLED` to `True`.
     """
     with temporary_settings(
         {
-            PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: True,
+            PREFECT_SERVER_EPHEMERAL_ENABLED: True,
         }
     ):
         yield

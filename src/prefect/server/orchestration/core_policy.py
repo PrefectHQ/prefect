@@ -314,7 +314,7 @@ class SecureTaskConcurrencySlots(TaskRunOrchestrationRule):
     TaskRun. If so, a concurrency slot will be secured against each concurrency limit
     before being allowed to transition into a running state. If a concurrency limit has
     been reached, the client will be instructed to delay the transition for the duration
-    specified by the "PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS" setting
+    specified by the "PREFECT_SERVER_TASKS_TAG_CONCURRENCY_SLOT_WAIT_SECONDS" setting
     before trying again. If the concurrency limit set on a tag is 0, the transition will
     be aborted to prevent deadlocks.
     """
@@ -458,7 +458,7 @@ class SecureTaskConcurrencySlots(TaskRunOrchestrationRule):
                         delay_seconds=int(
                             settings.server.tasks.tag_concurrency_slot_wait_seconds
                         ),
-                        # PREFECT_TASK_RUN_TAG_CONCURRENCY_SLOT_WAIT_SECONDS.value(),
+                        # PREFECT_SERVER_TASKS_TAG_CONCURRENCY_SLOT_WAIT_SECONDS.value(),
                         reason=f"Concurrency limit for the {tag} tag has been reached",
                     )
                 else:

@@ -1,4 +1,4 @@
-"""Generate CLI documentation."""  # noqa: INP001
+"""Generate CLI documentation."""
 
 from __future__ import annotations
 
@@ -6,17 +6,18 @@ import inspect
 import logging
 import warnings
 from pathlib import Path
-from typing import TypedDict
+from types import SimpleNamespace
+from typing import Any, TypedDict
 
-import click
-import typer
-from click import Command, MultiCommand, Parameter
+import cyclopts
 from griffe import (
     Docstring,
     DocstringSection,
     DocstringSectionExamples,
 )
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+
+from prefect.cli._app import _app
 
 logging.getLogger("griffe.docstrings.google").setLevel(logging.ERROR)
 
@@ -44,13 +45,11 @@ class BuildDocsContext(TypedDict):
     help: list[DocstringSection]
     usage_pieces: list[str]
     args: list[ArgumentDict]
-    # Storing "option" params. If you don't need them typed as click.Option,
-    # "Parameter" is enough to capture both options/arguments in general.
-    opts: list[Parameter]
+    opts: list[Any]
     examples: list[str]
     epilog: str | None
     commands: list[CommandSummaryDict]
-    subcommands: list[BuildDocsContext]
+    subcommands: list["BuildDocsContext"]
 
 
 def get_help_text(docstring_object: str) -> list[DocstringSection]:
@@ -94,95 +93,161 @@ def get_examples(docstring_object: str) -> list[str]:
     ]
 
 
-def build_docs_context(
-    *,
-    obj: Command,
-    ctx: click.Context,
-    indent: int = 0,
-    name: str = "",
-    call_prefix: str = "",
-) -> BuildDocsContext:
-    """Build a command context for documentation generation.
+def _parameter_is_option(meta: cyclopts.Parameter | None) -> bool:
+    """Return True if the parameter should be rendered as an option."""
+    return meta is not None and bool(meta.name) and meta.name[0].startswith("-")
 
-    Args:
-        obj: The Click command object to document
-        ctx: The Click context
-        indent: Indentation level for nested commands
-        name: Override name for the command
-        call_prefix: Prefix to add to command name
+
+def _positional_display_name(
+    param_name: str,
+    meta: cyclopts.Parameter | None,
+) -> str:
+    """Derive the display name for a positional argument."""
+    if meta is not None and meta.name and not meta.name[0].startswith("-"):
+        return meta.name[0].upper()
+    return param_name.upper()
+
+
+def _extract_command_params(
+    app: cyclopts.App,
+) -> tuple[list[Any], list[Any], list[str], list[str]]:
+    """Extract options, arguments, and usage hints from a Cyclopts App command.
 
     Returns:
-        A BuildDocsContext object
+        A tuple of (options, arguments, required_positional_names,
+        optional_positional_names).
 
     """
-    # Command name can be empty, so ensure we always end up with a string
-    if call_prefix:
-        command_name = f"{call_prefix} {obj.name or ''}".strip()
-    else:
-        command_name = name if name else (obj.name or "")
+    options: list[Any] = []
+    arguments: list[Any] = []
+    required_positional: list[str] = []
+    optional_positional: list[str] = []
 
-    title: str = f"`{command_name}`" if command_name else "CLI"
-    usage_pieces: list[str] = obj.collect_usage_pieces(ctx)
+    if app.default_command is None:
+        return options, arguments, required_positional, optional_positional
 
-    args_list: list[ArgumentDict] = []
-    opts_list: list[Parameter] = []
+    signature = inspect.signature(app.default_command)
+    try:
+        type_hints = inspect.get_annotations(
+            app.default_command,
+            eval_str=True,
+        )
+    except Exception:
+        type_hints = {}
 
-    # Collect arguments vs. options (skip the built-in help option)
-    for param in obj.get_params(ctx):
-        # If the parameter is an Option and its opts include '--help', skip it.
-        if isinstance(param, click.Option) and "--help" in param.opts:
+    for param_name, param in signature.parameters.items():
+        if param.kind in (
+            inspect.Parameter.VAR_POSITIONAL,
+            inspect.Parameter.VAR_KEYWORD,
+        ):
             continue
 
-        help_record = param.get_help_record(ctx)  # Optional[tuple[str, str]]
-        if help_record is not None:
-            param_name, param_help = help_record
-            if getattr(param, "param_type_name", "") == "argument":
-                args_list.append({"name": param_name, "help": param_help})
-            elif getattr(param, "param_type_name", "") == "option":
-                opts_list.append(param)
+        annotation = type_hints.get(param_name, param.annotation)
+        meta: cyclopts.Parameter | None = None
+        if hasattr(annotation, "__metadata__"):
+            for item in annotation.__metadata__:
+                if isinstance(item, cyclopts.Parameter):
+                    meta = item
+                    break
+
+        # Public positional arguments hidden from `--help` (e.g. the `name`
+        # argument to `prefect automation inspect`) are still accepted and
+        # should be documented. Internal parameters such as the root `*tokens`
+        # argument are filtered by kind above.
+        help_text = (meta.help if meta is not None and meta.help else "") or ""
+
+        if _parameter_is_option(meta):
+            if meta is not None and meta.show is False:
+                continue
+            options.append(
+                SimpleNamespace(
+                    opts=meta.name,
+                    help=help_text,
+                )
+            )
+        else:
+            display_name = _positional_display_name(param_name, meta)
+            is_required = param.default is inspect.Parameter.empty
+            arguments.append(
+                SimpleNamespace(
+                    name=display_name,
+                    help=help_text,
+                    required=is_required,
+                )
+            )
+            if is_required:
+                required_positional.append(display_name)
+            else:
+                optional_positional.append(display_name)
+
+    return options, arguments, required_positional, optional_positional
+
+
+def build_docs_context(
+    app: cyclopts.App,
+    name: str,
+    call_prefix: str = "",
+    indent: int = 1,
+) -> BuildDocsContext:
+    """Build a command context for documentation generation from a Cyclopts App.
+
+    Args:
+        app: The Cyclopts App to document.
+        name: The command name to use for this level (e.g. the alias key).
+        call_prefix: The parent command path used to build the full command name.
+        indent: The Markdown heading level for this command.
+
+    Returns:
+        A BuildDocsContext object.
+
+    """
+    command_name = f"{call_prefix} {name}".strip()
+    title = f"`{command_name}`" if command_name else "CLI"
+
+    if app.default_command is not None and app.default_command.__doc__:
+        docstring = app.default_command.__doc__
+    else:
+        docstring = app.help or ""
+
+    options, arguments, required_positional, optional_positional = (
+        _extract_command_params(app)
+    )
+
+    if app._registered_commands:
+        usage_pieces = ["[OPTIONS]", "COMMAND", "[ARGS]..."]
+    elif app.default_command is not None:
+        usage_pieces = ["[OPTIONS]"]
+        usage_pieces.extend(required_positional)
+        usage_pieces.extend(f"[{name}]" for name in optional_positional)
+    else:
+        usage_pieces = ["[OPTIONS]"]
 
     commands_list: list[CommandSummaryDict] = []
     subcommands: list[BuildDocsContext] = []
 
-    # Only MultiCommand objects have subcommands
-    if isinstance(obj, MultiCommand):
-        all_commands: list[str] = obj.list_commands(ctx)
-        # Filter out help commands and blocked commands
-        blocked_commands = {"help", "--help", "deploy", "cloud"}
-        filtered_commands: list[str] = [
-            cmd for cmd in all_commands if cmd not in blocked_commands
-        ]
-        for command in filtered_commands:
-            command_obj = obj.get_command(ctx, command)
-            assert command_obj, f"Command {command} not found in {obj.name}"  # noqa: S101
-            # Prepare a short "summary" for listing
-            cmd_name = command_obj.name or ""
-            cmd_help = command_obj.get_short_help_str()
-            commands_list.append({"name": cmd_name, "help": cmd_help})
-
-        # Recursively build docs for each subcommand
-        for command in filtered_commands:
-            command_obj = obj.get_command(ctx, command)
-            assert command_obj  # noqa: S101
-            sub_ctx = build_docs_context(
-                obj=command_obj,
-                ctx=ctx,
-                indent=indent + 1,
-                name="",  # Let the function pick the name from command_obj
+    for sub_name, sub_app in app._registered_commands.items():
+        commands_list.append(
+            {"name": sub_name, "help": sub_app.help or ""},
+        )
+        subcommands.append(
+            build_docs_context(
+                sub_app,
+                name=sub_name,
                 call_prefix=command_name,
+                indent=indent + 1,
             )
-            subcommands.append(sub_ctx)
+        )
 
     return BuildDocsContext(
         indent=indent,
         command_name=command_name,
         title=title,
-        help=get_help_text(obj.help or ""),
-        examples=get_examples(obj.help or ""),
+        help=get_help_text(docstring),
+        examples=get_examples(docstring),
         usage_pieces=usage_pieces,
-        args=args_list,
-        opts=opts_list,
-        epilog=obj.epilog,  # Optional[str]
+        args=arguments,
+        opts=options,
+        epilog=None,
         commands=commands_list,
         subcommands=subcommands,
     )
@@ -206,7 +271,7 @@ def escape_mdx(text: str) -> str:
     code_blocks = []
     code_block_pattern = r"```[\s\S]*?```"
 
-    def store_code_block(match):
+    def store_code_block(match: re.Match[str]) -> str:
         code_blocks.append(match.group(0))
         return f"__CODE_BLOCK_{len(code_blocks) - 1}__"
 
@@ -216,7 +281,7 @@ def escape_mdx(text: str) -> str:
     inline_code = []
     inline_code_pattern = r"`[^`]+`"
 
-    def store_inline_code(match):
+    def store_inline_code(match: re.Match[str]) -> str:
         inline_code.append(match.group(0))
         return f"__INLINE_CODE_{len(inline_code) - 1}__"
 
@@ -285,7 +350,7 @@ def write_command_docs(
     # 3. Write out to disk
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     with Path.open(filepath, mode="w", encoding="utf-8") as f:
-        f.write(rendered)
+        f.write(rendered.rstrip() + "\n")
 
     # 4. Recursively render subcommands in the same manner
     for sub_ctx in command_context["subcommands"]:
@@ -343,63 +408,25 @@ def write_subcommand_docs(
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     with Path.open(file_path, "w", encoding="utf-8") as f:
-        f.write(content)
+        f.write(content.rstrip() + "\n")
 
 
-def get_docs_for_click(
-    *,
-    obj: click.Command,
-    ctx: click.Context,
-    indent: int = 0,
-    name: str = "",
-    call_prefix: str = "",
-) -> str:
-    """Build the top-level docs context & generate one MDX file per subcommand.
-
-    Args:
-        obj: The Click command object to document
-        ctx: The Click context
-        indent: Indentation level for nested commands
-        name: Override name for the command
-        call_prefix: Prefix to add to command name
-        title: Override title for the command
-
-    Returns:
-        Empty string (files are written to disk)
-
-    """
-    docs_context = build_docs_context(
-        obj=obj,
-        ctx=ctx,
-        indent=indent,
-        name=name,
-        call_prefix=call_prefix,
-    )
-
-    # Create the Jinja environment
+def generate_cli_docs(output_dir: str = "./docs/v3/api-ref/cli") -> None:
+    """Generate MDX CLI documentation for the Prefect Cyclopts application."""
     env = Environment(
         loader=FileSystemLoader("./scripts/templates"),
         autoescape=select_autoescape(["html", "xml"]),
     )
     env.filters["escape_mdx"] = escape_mdx
 
-    # Where to store the generated MDX files
-    cli_dir = "./docs/v3/api-ref/cli"
-
-    # The top-level context is for "prefect" itself,
-    # so docs_context["subcommands"] are each top-level subcommand.
-    for sub_ctx in docs_context["subcommands"]:
-        write_subcommand_docs(sub_ctx, env, cli_dir)
-
-    return ""
+    blocked_commands = {"--help", "deploy", "cloud"}
+    for name, app in _app.resolved_commands().items():
+        if name in blocked_commands:
+            continue
+        top_ctx = build_docs_context(app, name=name, call_prefix="", indent=1)
+        write_subcommand_docs(top_ctx, env, output_dir)
 
 
 if __name__ == "__main__":
     with warnings.catch_warnings():
-        from prefect.cli.root import app
-
-        # Convert a Typer app to a Click command object.
-        click_obj: click.Command = typer.main.get_command(app)
-        # Create a click.Context for it.
-        main_ctx: click.Context = click.Context(click_obj)
-        get_docs_for_click(obj=click_obj, ctx=main_ctx)
+        generate_cli_docs()

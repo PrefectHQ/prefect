@@ -17,7 +17,7 @@ from starlette.requests import Request
 
 from prefect._internal.compatibility.starlette import status
 from prefect.server import schemas
-from prefect.settings import PREFECT_API_DEFAULT_LIMIT
+from prefect.settings import PREFECT_SERVER_API_DEFAULT_LIMIT
 
 
 def provide_request_api_version(
@@ -111,10 +111,10 @@ def LimitBody() -> Any:
     def get_limit(
         limit: int = Body(
             None,
-            description="Defaults to PREFECT_API_DEFAULT_LIMIT if not provided.",
+            description="Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.",
         ),
     ):
-        default_limit = PREFECT_API_DEFAULT_LIMIT.value()
+        default_limit = PREFECT_SERVER_API_DEFAULT_LIMIT.value()
         limit = limit if limit is not None else default_limit
         if not limit >= 0:
             raise HTTPException(

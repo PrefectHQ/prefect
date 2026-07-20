@@ -140,28 +140,43 @@ def _get_settings_fields(
                 if accessor_prefix is None
                 else f"{accessor_prefix}.{field_name}"
             )
+            canonical_name = (
+                f"{settings.model_config.get('env_prefix')}{field_name.upper()}"
+            )
+            setting = Setting(
+                name=canonical_name,
+                default=field.default,
+                type_=field.annotation,
+                accessor=accessor,
+            )
+            settings_fields[canonical_name] = setting
+            settings_fields[accessor] = setting
             if field.validation_alias and isinstance(
                 field.validation_alias, AliasChoices
             ):
                 for alias in field.validation_alias.choices:
                     if not isinstance(alias, str):
                         continue
-                    setting = Setting(
-                        name=alias.upper(),
-                        default=field.default,
-                        type_=field.annotation,
-                        accessor=accessor,
-                    )
-                    settings_fields[setting.name] = setting
-                    settings_fields[setting.accessor] = setting
-            else:
-                setting = Setting(
-                    name=f"{settings.model_config.get('env_prefix')}{field_name.upper()}",
-                    default=field.default,
-                    type_=field.annotation,
-                    accessor=accessor,
-                )
-                settings_fields[setting.name] = setting
-                settings_fields[setting.accessor] = setting
+                    settings_fields[alias.upper()] = setting
 
     return settings_fields
+
+
+@cache
+def _get_legacy_setting(name: str) -> "Setting":
+    """
+    Return a Setting object for the given env var name.
+
+    Canonical names and accessors resolve to the canonical Setting. Legacy aliases
+    resolve to a distinct Setting whose `.name` is the alias while its `.accessor`
+    points to the canonical setting path.
+    """
+    canonical = _get_settings_fields(Settings)[name]
+    if name == canonical.name or name == canonical.accessor:
+        return canonical
+    return Setting(
+        name=name,
+        default=canonical.default(),
+        type_=canonical._type,
+        accessor=canonical.accessor,
+    )

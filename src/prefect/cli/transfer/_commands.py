@@ -60,6 +60,11 @@ async def transfer(
 
     Automatically handles dependencies between resources and transfers them
     in the correct order.
+
+    Examples:
+        ```bash
+        $ prefect transfer --from staging --to prod
+        ```
     """
     from prefect.cli._prompts import confirm
     from prefect.cli.transfer._dag import TransferDAG

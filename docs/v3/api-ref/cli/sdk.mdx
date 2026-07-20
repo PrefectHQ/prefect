@@ -39,18 +39,7 @@ prefect sdk generate [OPTIONS]
 
 The generated SDK provides IDE autocomplete and type checking for your deployments.
 Requires an active Prefect API connection (use `prefect cloud login` or configure
-PREFECT_API_URL).
-
-
-Examples:
-    Generate SDK for all deployments:
-        \$ prefect sdk generate --output ./my_sdk.py
-
-    Generate SDK for specific flows:
-        \$ prefect sdk generate --output ./my_sdk.py --flow my-etl-flow
-
-    Generate SDK for specific deployments:
-        \$ prefect sdk generate --output ./my_sdk.py --deployment my-flow/production
+`PREFECT_API_URL`).
 </Info>
 
 
@@ -80,3 +69,14 @@ Examples:
 </Accordion>
 
 </AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect sdk generate --output ./my_sdk.py
+$ prefect sdk generate --output ./my_sdk.py --flow my-etl-flow
+$ prefect sdk generate --output ./my_sdk.py --deployment my-flow/production
+```
+</Note>
