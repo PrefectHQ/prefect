@@ -50,7 +50,7 @@ describe("AppSidebar", () => {
 			});
 
 			await waitFor(() => {
-				expect(screen.getByText("Switch back to current UI")).toBeTruthy();
+				expect(screen.getByText("Switch to V1 UI")).toBeTruthy();
 			});
 		});
 
@@ -80,7 +80,7 @@ describe("AppSidebar", () => {
 				expect(screen.getByText("Dashboard")).toBeTruthy();
 			});
 
-			expect(screen.queryByText("Switch back to current UI")).toBeNull();
+			expect(screen.queryByText("Switch to V1 UI")).toBeNull();
 		});
 
 		it("keeps analytics disabled until server settings have loaded", async () => {
@@ -111,10 +111,10 @@ describe("AppSidebar", () => {
 			});
 
 			await waitFor(() => {
-				expect(screen.getByText("Switch back to current UI")).toBeTruthy();
+				expect(screen.getByText("Switch to V1 UI")).toBeTruthy();
 			});
 
-			await user.click(screen.getByText("Switch back to current UI"));
+			await user.click(screen.getByText("Switch to V1 UI"));
 			await user.click(screen.getByText("Skip feedback and switch"));
 
 			expect(switchToV1UiSpy).toHaveBeenCalledWith(
