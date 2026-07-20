@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import dataclasses
 import json
 import logging
 import sys
 import time
 import uuid
+from collections import ChainMap
 from contextlib import nullcontext
 from datetime import datetime
 from functools import partial
@@ -1976,6 +1978,73 @@ class TestObfuscateApiKeyFilter:
                 lineno=1,
                 msg="api_key=%(api_key)s",
                 args=({"api_key": test_api_key},),
+                exc_info=None,
+            )
+
+            filter.filter(record)
+
+        assert test_api_key not in record.getMessage()
+        assert obfuscate(test_api_key) in record.getMessage()
+
+    def test_filters_current_api_key_from_non_dict_mapping_args(self):
+        test_api_key = "lazy-chainmap-api-key"
+        with temporary_settings({PREFECT_API_KEY: test_api_key}):
+            filter = ObfuscateApiKeyFilter()
+            record = logging.LogRecord(
+                name="Test Log",
+                level=1,
+                pathname="/path/file.py",
+                lineno=1,
+                msg="api_key=%(api_key)s",
+                args=(ChainMap({"api_key": test_api_key}),),
+                exc_info=None,
+            )
+
+            filter.filter(record)
+
+        assert test_api_key not in record.getMessage()
+        assert obfuscate(test_api_key) in record.getMessage()
+
+    def test_filters_current_api_key_from_exception_arg(self):
+        test_api_key = "lazy-exception-api-key"
+
+        class CustomException(Exception):
+            pass
+
+        with temporary_settings({PREFECT_API_KEY: test_api_key}):
+            filter = ObfuscateApiKeyFilter()
+            record = logging.LogRecord(
+                name="Test Log",
+                level=1,
+                pathname="/path/file.py",
+                lineno=1,
+                msg="api_key=%s",
+                args=(CustomException(test_api_key),),
+                exc_info=None,
+            )
+
+            filter.filter(record)
+
+        assert test_api_key not in record.getMessage()
+        assert obfuscate(test_api_key) in record.getMessage()
+
+    def test_filters_current_api_key_from_dataclass_arg(self):
+        test_api_key = "lazy-dataclass-api-key"
+
+        @dataclasses.dataclass
+        class Credentials:
+            api_key: str
+            other: str = dataclasses.field(init=False, default="other")
+
+        with temporary_settings({PREFECT_API_KEY: test_api_key}):
+            filter = ObfuscateApiKeyFilter()
+            record = logging.LogRecord(
+                name="Test Log",
+                level=1,
+                pathname="/path/file.py",
+                lineno=1,
+                msg="api_key=%s",
+                args=(Credentials(api_key=test_api_key),),
                 exc_info=None,
             )
 
