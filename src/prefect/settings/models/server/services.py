@@ -145,8 +145,8 @@ class ServerServicesDBVacuumSettings(ServicesBaseSetting):
         dict[str, SecondsTimeDelta],
         AfterValidator(_validate_retention_overrides),
     ] = Field(
-        default={},
-        description="Per-event-type retention period overrides. Keys are event type strings (e.g. 'prefect.flow-run.heartbeat'), values are retention periods in seconds. Event types not listed fall back to server.events.retention_period. Each override is capped by the global events retention period. Empty by default; set an override only when a type should be retained for less time than the global period.",
+        default={"prefect.flow-run.heartbeat": timedelta(days=7)},
+        description="Per-event-type retention period overrides. Keys are event type strings (e.g. 'prefect.flow-run.heartbeat'), values are retention periods in seconds. Event types not listed fall back to server.events.retention_period. Each override is capped by the global events retention period.",
     )
 
 

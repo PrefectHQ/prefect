@@ -2089,11 +2089,11 @@ The number of records to delete per database transaction. Defaults to `200`.
 `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE`
 
 ### `event_retention_overrides`
-Per-event-type retention period overrides. Keys are event type strings (e.g. 'prefect.flow-run.heartbeat'), values are retention periods in seconds. Event types not listed fall back to server.events.retention_period. Each override is capped by the global events retention period. Empty by default; set an override only when a type should be retained for less time than the global period.
+Per-event-type retention period overrides. Keys are event type strings (e.g. 'prefect.flow-run.heartbeat'), values are retention periods in seconds. Event types not listed fall back to server.events.retention_period. Each override is capped by the global events retention period.
 
 **Type**: `object`
 
-**Default**: `{}`
+**Default**: `{'prefect.flow-run.heartbeat': 'P7D'}`
 
 **TOML dotted key path**: `server.services.db_vacuum.event_retention_overrides`
 
