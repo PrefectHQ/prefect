@@ -12,7 +12,7 @@ import prefect.events.subscribers
 from prefect import flow
 from prefect.cli.flow_runs_watching import watch_flow_run
 from prefect.client.orchestration import PrefectClient
-from prefect.events import Event
+from prefect.events import Event, Resource
 from prefect.exceptions import FlowRunWaitTimeout, FlowRunWatchError
 from prefect.flow_engine import run_flow_async
 from prefect.states import Completed
@@ -112,10 +112,23 @@ async def test_watch_flow_run_raises_when_stream_dies_before_completion(
     prefect_client: PrefectClient, monkeypatch
 ):
     """watch_flow_run must not report a non-terminal run as finished when the
-    events/logs websocket dies before a terminal state is observed."""
+    events/logs websocket dies and contact with the server is lost before a
+    terminal state is observed."""
     # A scheduled (non-terminal) flow run that is never actually executed.
     flow_run = await prefect_client.create_flow_run(flow=slow_flow)
     assert flow_run.state is not None and not flow_run.state.is_final()
+
+    # Simulate the subscriber being unable to reach the server to check the
+    # run's state, so it gives up resuming and records the error instead of
+    # retrying forever.
+    async def _server_unreachable(self) -> None:
+        return None
+
+    monkeypatch.setattr(
+        prefect.events.subscribers.FlowRunSubscriber,
+        "_flow_run_is_terminal",
+        _server_unreachable,
+    )
 
     class DyingEventSubscriber:
         async def __aenter__(self) -> Self:
@@ -158,3 +171,92 @@ async def test_watch_flow_run_raises_when_stream_dies_before_completion(
 
     with pytest.raises(FlowRunWatchError, match="before it reached a terminal state"):
         await watch_flow_run(flow_run.id, console)
+
+
+async def test_watch_flow_run_resumes_after_stream_drop(
+    prefect_client: PrefectClient, monkeypatch
+):
+    """watch_flow_run resumes a dropped stream while the run is still active
+    and completes once the terminal event is recovered."""
+    flow_run = await prefect_client.create_flow_run(flow=slow_flow)
+
+    # Force the subscriber to treat the run as still active so it resumes the
+    # dropped stream instead of giving up.
+    async def _still_running(self) -> bool:
+        return False
+
+    monkeypatch.setattr(
+        prefect.events.subscribers.FlowRunSubscriber,
+        "_flow_run_is_terminal",
+        _still_running,
+    )
+
+    terminal_event = Event(
+        id=flow_run.id,
+        occurred=flow_run.created,
+        event="prefect.flow-run.Completed",
+        resource=Resource(
+            root={
+                "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
+                "prefect.state-type": "COMPLETED",
+            }
+        ),
+        payload={},
+    )
+
+    class ResumingEventSubscriber:
+        """Drops the stream once, then delivers the terminal event on resume."""
+
+        def __init__(self):
+            self._passes = [ConnectionError("events websocket died"), None]
+            self._pass_index = -1
+            self._delivered = False
+
+        async def __aenter__(self) -> Self:
+            return self
+
+        async def __aexit__(self, *args) -> None:
+            pass
+
+        def __aiter__(self) -> Self:
+            self._pass_index += 1
+            return self
+
+        async def __anext__(self) -> Event:
+            terminator = self._passes[self._pass_index]
+            if terminator is not None:
+                raise terminator
+            if not self._delivered:
+                self._delivered = True
+                return terminal_event
+            raise StopAsyncIteration
+
+    class HangingLogsSubscriber:
+        async def __aenter__(self) -> Self:
+            return self
+
+        async def __aexit__(self, *args) -> None:
+            pass
+
+        def __aiter__(self) -> Self:
+            return self
+
+        async def __anext__(self):
+            await asyncio.Event().wait()
+            raise AssertionError("unreachable")
+
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_events_subscriber",
+        lambda *args, **kwargs: ResumingEventSubscriber(),
+    )
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_logs_subscriber",
+        lambda *args, **kwargs: HangingLogsSubscriber(),
+    )
+
+    console = Console()
+
+    result = await watch_flow_run(flow_run.id, console)
+    assert result.id == flow_run.id

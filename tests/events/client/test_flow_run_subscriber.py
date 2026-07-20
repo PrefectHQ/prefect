@@ -165,6 +165,31 @@ def setup_mocks(monkeypatch):
     return create_mocks
 
 
+@pytest.fixture(autouse=True)
+def default_run_finished(monkeypatch):
+    """By default, treat the flow run as finished so streams end instead of
+    resuming (which would otherwise require a live server). Tests that exercise
+    resume/failure behavior override this."""
+
+    async def _finished(self) -> bool:
+        return True
+
+    monkeypatch.setattr(FlowRunSubscriber, "_flow_run_is_terminal", _finished)
+
+
+def patch_run_terminal_state(monkeypatch, value: bool | None) -> None:
+    """Force `_flow_run_is_terminal` to a fixed result for a test.
+
+    `True` = finished, `False` = still running (resume), `None` = server
+    unreachable (give up and record the error).
+    """
+
+    async def _terminal(self) -> bool | None:
+        return value
+
+    monkeypatch.setattr(FlowRunSubscriber, "_flow_run_is_terminal", _terminal)
+
+
 async def test_flow_run_subscriber_basic_interleaving(
     flow_run_id: UUID,
     sample_log1: Log,
@@ -358,7 +383,9 @@ async def test_flow_run_subscriber_context_manager_cleanup(
 async def test_flow_run_subscriber_records_error_when_events_stream_dies(
     flow_run_id: UUID, monkeypatch
 ):
-    """A websocket failure in the events consumer is recorded, not swallowed"""
+    """A websocket failure that persists while the server is unreachable is
+    recorded, not swallowed."""
+    patch_run_terminal_state(monkeypatch, None)
 
     class DyingEventSubscriber:
         async def __aenter__(self) -> Self:
@@ -401,8 +428,9 @@ async def test_flow_run_subscriber_records_error_when_events_stream_dies(
 async def test_flow_run_subscriber_stops_when_events_die_and_logs_stay_open(
     flow_run_id: UUID, monkeypatch
 ):
-    """If one consumer dies before completion, the subscriber must not hang
-    waiting on a sibling stream that stays open but idle."""
+    """If one consumer dies while the server is unreachable, the subscriber
+    must not hang waiting on a sibling stream that stays open but idle."""
+    patch_run_terminal_state(monkeypatch, None)
 
     class DyingEventSubscriber:
         async def __aenter__(self) -> Self:
@@ -565,3 +593,142 @@ async def test_flow_run_subscriber_terminal_event_for_different_flow_run(
             items.append(item)
 
     assert len(items) == 3
+
+
+class ScriptedEventSubscriber:
+    """Yields events in scripted passes. Each pass ends by raising its
+    terminator (`StopAsyncIteration` for a clean close, or another exception
+    for a hard failure). Re-iterating advances to the next pass, mirroring how
+    `FlowRunSubscriber` resumes a dropped subscription."""
+
+    def __init__(self, passes: list[tuple[list[Event], BaseException]]):
+        self._passes = passes
+        self._pass_index = -1
+        self._item_index = 0
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *args) -> None:
+        pass
+
+    def __aiter__(self) -> Self:
+        self._pass_index += 1
+        self._item_index = 0
+        return self
+
+    async def __anext__(self) -> Event:
+        if self._pass_index >= len(self._passes):
+            raise StopAsyncIteration
+        items, terminator = self._passes[self._pass_index]
+        if self._item_index < len(items):
+            event = items[self._item_index]
+            self._item_index += 1
+            return event
+        raise terminator
+
+
+class HangingLogsSubscriber:
+    """A logs stream that stays connected but never yields or ends."""
+
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *args) -> None:
+        pass
+
+    def __aiter__(self) -> Self:
+        return self
+
+    async def __anext__(self) -> Log:
+        await asyncio.Event().wait()  # never returns
+        raise AssertionError("unreachable")
+
+
+async def test_flow_run_subscriber_resumes_after_stream_drop(
+    flow_run_id: UUID,
+    sample_event1: Event,
+    monkeypatch,
+):
+    """A dropped stream is resumed while the run is active, recovering the
+    terminal event that was missed when the websocket died."""
+    patch_run_terminal_state(monkeypatch, False)  # run still active -> resume
+
+    terminal_event = Event(
+        id=uuid4(),
+        occurred=datetime.now(timezone.utc) + timedelta(seconds=3),
+        event="prefect.flow-run.Completed",
+        resource=Resource(
+            root={
+                "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
+                "prefect.state-type": "COMPLETED",
+            }
+        ),
+        payload={},
+    )
+
+    events = ScriptedEventSubscriber(
+        [
+            ([sample_event1], ConnectionError("events websocket died")),
+            ([terminal_event], StopAsyncIteration()),
+        ]
+    )
+
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_events_subscriber",
+        lambda *args, **kwargs: events,
+    )
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_logs_subscriber",
+        lambda *args, **kwargs: HangingLogsSubscriber(),
+    )
+
+    items: list[Log | Event] = []
+    async with FlowRunSubscriber(
+        flow_run_id=flow_run_id, straggler_timeout=1
+    ) as subscriber:
+        async for item in subscriber:
+            items.append(item)
+
+    assert subscriber.flow_completed is True
+    assert subscriber.error is None
+    assert [item.event for item in items if isinstance(item, Event)] == [
+        "prefect.flow-run.Running",
+        "prefect.flow-run.Completed",
+    ]
+
+
+async def test_flow_run_subscriber_stops_without_error_when_run_finished(
+    flow_run_id: UUID,
+    sample_event1: Event,
+    monkeypatch,
+):
+    """If a stream ends without a terminal event but the server reports the
+    run as finished, the subscriber stops cleanly without an error."""
+    patch_run_terminal_state(monkeypatch, True)  # run already finished
+
+    events = ScriptedEventSubscriber([([sample_event1], StopAsyncIteration())])
+
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_events_subscriber",
+        lambda *args, **kwargs: events,
+    )
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_logs_subscriber",
+        lambda *args, **kwargs: MockLogsSubscriber([]),
+    )
+
+    items: list[Log | Event] = []
+    async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
+        async for item in subscriber:
+            items.append(item)
+
+    assert subscriber.flow_completed is False
+    assert subscriber.error is None
+    assert [item.event for item in items if isinstance(item, Event)] == [
+        "prefect.flow-run.Running",
+    ]

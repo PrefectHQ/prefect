@@ -22,6 +22,9 @@ if TYPE_CHECKING:
     from prefect.events.clients import PrefectEventSubscriber
     from prefect.logging.clients import PrefectLogsSubscriber
 
+# Cap on the backoff between attempts to resume a dropped subscription.
+MAX_RESUME_BACKOFF_SECONDS = 30
+
 
 class FlowRunSubscriber:
     """
@@ -148,6 +151,42 @@ class FlowRunSubscriber:
         if self._error is None:
             self._error = exc
 
+    def _is_terminal_event(self, event: Event) -> bool:
+        """Whether an event marks the flow run reaching a terminal state"""
+        if event.resource.id != f"prefect.flow-run.{self._flow_run_id}":
+            return False
+
+        state_type_str = event.resource.get("prefect.state-type")
+        if not state_type_str and "validated_state" in event.payload:
+            state_type_str = event.payload["validated_state"].get("type")
+        if not state_type_str:
+            return False
+
+        try:
+            return StateType(state_type_str) in TERMINAL_STATES
+        except ValueError:
+            return False
+
+    async def _flow_run_is_terminal(self) -> Optional[bool]:
+        """Read the flow run's current state from the server.
+
+        Returns `True`/`False` for a terminal/non-terminal state, or `None` if
+        the server could not be reached. Used to decide whether a dropped
+        subscription should be resumed (the run is still active) or allowed to
+        end (the run has finished).
+        """
+        # Imported here to avoid a circular import: `prefect.events` is
+        # imported while `prefect.client.orchestration` is initializing.
+        from prefect.client.orchestration import get_client
+
+        try:
+            async with get_client() as client:
+                flow_run = await client.read_flow_run(self._flow_run_id)
+        except Exception:
+            return None
+        state = flow_run.state
+        return state is not None and state.is_final()
+
     def __aiter__(self) -> Self:
         """Return self as an async iterator"""
         return self
@@ -181,41 +220,75 @@ class FlowRunSubscriber:
         raise StopAsyncIteration
 
     async def _consume_logs(self) -> None:
-        """Background task to consume logs and put them in the queue"""
+        """Background task to consume logs and put them in the queue.
+
+        Resumes the subscription if it drops while the flow run is still
+        active, so a transient websocket failure does not truncate the logs.
+        """
+        backoff = 0.0
         try:
-            async for log in self._logs_subscriber:
-                await self._queue.put(log)
+            while not self._flow_completed:
+                stream_error: Optional[Exception] = None
+                try:
+                    async for log in self._logs_subscriber:
+                        backoff = 0.0
+                        await self._queue.put(log)
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    stream_error = exc
+
+                if not await self._should_resume(stream_error):
+                    break
+                backoff = min(backoff + 1, MAX_RESUME_BACKOFF_SECONDS)
+                await asyncio.sleep(backoff)
         except asyncio.CancelledError:
             pass
-        except Exception as exc:
-            self._record_error(exc)
         finally:
             await self._queue.put(None)
 
     async def _consume_events(self) -> None:
-        """Background task to consume events and put them in the queue"""
+        """Background task to consume events and put them in the queue.
+
+        Resumes the subscription if it drops before a terminal event is
+        observed and the flow run is still active on the server.
+        """
+        backoff = 0.0
         try:
-            async for event in self._events_subscriber:
-                await self._queue.put(event)
+            while not self._flow_completed:
+                stream_error: Optional[Exception] = None
+                try:
+                    async for event in self._events_subscriber:
+                        backoff = 0.0
+                        await self._queue.put(event)
+                        if self._is_terminal_event(event):
+                            self._flow_completed = True
+                            break
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    stream_error = exc
 
-                # Check if this is a terminal state event for our flow run
-                if event.resource.id == f"prefect.flow-run.{self._flow_run_id}":
-                    # Get state type from event resource or payload
-                    state_type_str = event.resource.get("prefect.state-type")
-                    if not state_type_str and "validated_state" in event.payload:
-                        state_type_str = event.payload["validated_state"].get("type")
-
-                    if state_type_str:
-                        try:
-                            state_type = StateType(state_type_str)
-                            if state_type in TERMINAL_STATES:
-                                self._flow_completed = True
-                                break
-                        except ValueError:
-                            pass
+                if self._flow_completed or not await self._should_resume(stream_error):
+                    break
+                backoff = min(backoff + 1, MAX_RESUME_BACKOFF_SECONDS)
+                await asyncio.sleep(backoff)
         except asyncio.CancelledError:
             pass
-        except Exception as exc:
-            self._record_error(exc)
         finally:
             await self._queue.put(None)
+
+    async def _should_resume(self, stream_error: Optional[Exception]) -> bool:
+        """Decide whether to resume a subscription whose stream just ended.
+
+        Resumes only while the flow run is still active on the server. If the
+        run has finished, stops without error. If the server is unreachable,
+        stops and records `stream_error` (if any) so the caller can surface
+        the failure instead of reporting the run as finished.
+        """
+        terminal = await self._flow_run_is_terminal()
+        if terminal is False:
+            return True
+        if terminal is None and stream_error is not None:
+            self._record_error(stream_error)
+        return False
