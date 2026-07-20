@@ -20,6 +20,7 @@ from prefect_kubernetes.observer import (
 
 from prefect.client.schemas.objects import FlowRun, State
 from prefect.events.schemas.events import RelatedResource, Resource
+from prefect.exceptions import Abort
 from prefect.types import DateTime
 
 
@@ -1250,6 +1251,43 @@ class TestMarkFlowRunAsCrashed:
             m.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
             await _mark_flow_run_as_crashed(**base_kwargs)
             mock_propose.assert_not_called()
+
+    async def test_abort_on_crash_proposal_is_noop(
+        self,
+        mock_orchestration_client: AsyncMock,
+        flow_run_id,
+        base_kwargs,
+        monkeypatch,
+    ):
+        """A concurrent transition to a terminal state makes propose_state raise
+        Abort. It must be swallowed so it does not escape the handler and stop
+        the kopf Jobs watcher for the worker process."""
+        running_run = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="RUNNING", name="Running"),
+        )
+        mock_orchestration_client.read_flow_run.return_value = running_run
+
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_k8s_jobs",
+            AsyncMock(return_value=[]),
+        )
+        mock_send = MagicMock()
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._send_crashed_pod_logs", mock_send
+        )
+        mock_propose = AsyncMock(
+            side_effect=Abort("Run is already in terminal state COMPLETED.")
+        )
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+
+        # Must not raise, otherwise kopf stops the Jobs watcher.
+        await _mark_flow_run_as_crashed(**base_kwargs)
+
+        mock_propose.assert_called_once()
+        mock_send.assert_not_called()
 
 
 class TestFetchCrashedPodLogs:

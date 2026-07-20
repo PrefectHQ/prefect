@@ -739,11 +739,23 @@ async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
             f"Job {name} has failed and no other active jobs found for flow run {flow_run_id}, marking as crashed"
         )
 
-        result_state = await propose_state(
-            client=orchestration_client,
-            state=Crashed(message="No active or succeeded pods found for any job"),
-            flow_run_id=uuid.UUID(flow_run_id),
-        )
+        # A concurrent transition (another worker replica or an API call) may
+        # move the run to a terminal state between our checks and this proposal,
+        # in which case the server rejects the Crashed transition with an Abort.
+        # Swallow it (and any other proposal error) so the exception does not
+        # escape the handler and stop the kopf Jobs watcher for this process.
+        try:
+            result_state = await propose_state(
+                client=orchestration_client,
+                state=Crashed(message="No active or succeeded pods found for any job"),
+                flow_run_id=uuid.UUID(flow_run_id),
+            )
+        except (Abort, Exception):
+            logger.debug(
+                f"Failed to propose Crashed for flow run {flow_run_id}",
+                exc_info=True,
+            )
+            return
 
         # Only forward pod logs if the crash transition was accepted.
         # If the run advanced beyond Pending (e.g. to Running) during the
