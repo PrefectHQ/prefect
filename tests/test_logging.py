@@ -1946,6 +1946,44 @@ class TestObfuscateApiKeyFilter:
         assert test_api_key not in record.getMessage()
         assert obfuscate(test_api_key) in record.getMessage()
 
+    def test_filters_current_api_key_from_positional_args(self):
+        test_api_key = "lazy-positional-api-key"
+        with temporary_settings({PREFECT_API_KEY: test_api_key}):
+            filter = ObfuscateApiKeyFilter()
+            record = logging.LogRecord(
+                name="Test Log",
+                level=1,
+                pathname="/path/file.py",
+                lineno=1,
+                msg="api_key=%s",
+                args=(test_api_key,),
+                exc_info=None,
+            )
+
+            filter.filter(record)
+
+        assert test_api_key not in record.getMessage()
+        assert obfuscate(test_api_key) in record.getMessage()
+
+    def test_filters_current_api_key_from_mapping_args(self):
+        test_api_key = "lazy-mapping-api-key"
+        with temporary_settings({PREFECT_API_KEY: test_api_key}):
+            filter = ObfuscateApiKeyFilter()
+            record = logging.LogRecord(
+                name="Test Log",
+                level=1,
+                pathname="/path/file.py",
+                lineno=1,
+                msg="api_key=%(api_key)s",
+                args=({"api_key": test_api_key},),
+                exc_info=None,
+            )
+
+            filter.filter(record)
+
+        assert test_api_key not in record.getMessage()
+        assert obfuscate(test_api_key) in record.getMessage()
+
     def test_current_api_key_is_not_logged(self, caplog):
         test_api_key = "hot-dog-theres-a-logger-this-is-my-big-chance-for-stardom"
         with temporary_settings({PREFECT_API_KEY: test_api_key}):
