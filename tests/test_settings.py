@@ -2814,6 +2814,18 @@ class TestSettingValues:
 
         self.check_setting_value(setting, value, expected_value)
 
+    def test_db_vacuum_event_retention_overrides_default_empty(self):
+        """The default retention overrides are empty.
+
+        A non-empty default would force every deployment to run the
+        per-type retention delete, which lacks a supporting index and
+        duplicates work already done by the global events retention path.
+        """
+        assert (
+            get_current_settings().server.services.db_vacuum.event_retention_overrides
+            == {}
+        )
+
     def test_db_vacuum_event_retention_overrides_via_toml(
         self,
         tmp_path: Path,

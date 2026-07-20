@@ -10107,10 +10107,8 @@ export interface components {
             batch_size: number;
             /**
              * Event Retention Overrides
-             * @description Per-event-type retention period overrides. Keys are event type strings (e.g. 'prefect.flow-run.heartbeat'), values are retention periods in seconds. Event types not listed fall back to server.events.retention_period. Each override is capped by the global events retention period.
-             * @default {
-             *       "prefect.flow-run.heartbeat": "P7D"
-             *     }
+             * @description Per-event-type retention period overrides. Keys are event type strings (e.g. 'prefect.flow-run.heartbeat'), values are retention periods in seconds. Event types not listed fall back to server.events.retention_period. Each override is capped by the global events retention period. Empty by default; set an override only when a type should be retained for less time than the global period.
+             * @default {}
              */
             event_retention_overrides: {
                 [key: string]: string;

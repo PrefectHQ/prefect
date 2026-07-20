@@ -477,6 +477,19 @@ class TestVacuumArtifactCollections:
 
 
 class TestVacuumHeartbeatEvents:
+    @pytest.fixture(autouse=True)
+    def heartbeat_override(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Configure a heartbeat retention override.
+
+        The default `event_retention_overrides` is empty, so these tests set
+        an explicit override to exercise the per-type retention path.
+        """
+        monkeypatch.setattr(
+            get_current_settings().server.services.db_vacuum,
+            "event_retention_overrides",
+            {"prefect.flow-run.heartbeat": timedelta(days=7)},
+        )
+
     async def test_deletes_old_heartbeat_events(self):
         """Old heartbeat events and their resources should be deleted."""
         db = provide_database_interface()
