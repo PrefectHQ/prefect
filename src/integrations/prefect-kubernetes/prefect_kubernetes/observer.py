@@ -742,17 +742,18 @@ async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
         # A concurrent transition (another worker replica or an API call) may
         # move the run to a terminal state between our checks and this proposal,
         # in which case the server rejects the Crashed transition with an Abort.
-        # Swallow it (and any other proposal error) so the exception does not
-        # escape the handler and stop the kopf Jobs watcher for this process.
+        # Abort inherits from BaseException, so it bypasses kopf's Exception
+        # handling and stops the Jobs watcher for this process. Treat it as an
+        # expected no-op; let ordinary exceptions surface for kopf to retry.
         try:
             result_state = await propose_state(
                 client=orchestration_client,
                 state=Crashed(message="No active or succeeded pods found for any job"),
                 flow_run_id=uuid.UUID(flow_run_id),
             )
-        except (Abort, Exception):
+        except Abort:
             logger.debug(
-                f"Failed to propose Crashed for flow run {flow_run_id}",
+                f"Crash proposal for flow run {flow_run_id} aborted; run is already terminal",
                 exc_info=True,
             )
             return
