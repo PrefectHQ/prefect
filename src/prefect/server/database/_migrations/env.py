@@ -185,16 +185,25 @@ async def migration_engine() -> AsyncEngine:
     """
     Build an engine for running migrations.
 
-    Migrations use a dedicated statement timeout
+    On PostgreSQL, migrations use a dedicated statement timeout
     (`server.database.migration_timeout`) instead of the application default
-    (`server.database.timeout`). Schema changes such as concurrent index builds
-    on large tables can take far longer than an ordinary API query; being killed
-    by the API timeout would fail startup migrations and can leave an invalid
-    index behind.
+    (`server.database.timeout`), which is applied as asyncpg's
+    `command_timeout`. Schema changes such as concurrent index builds on large
+    tables can take far longer than an ordinary API query; being killed by the
+    API timeout would fail startup migrations and can leave an invalid index
+    behind.
+
+    SQLite's timeout is a connection busy-wait rather than a statement timeout,
+    and its in-memory databases only live for the lifetime of a single engine,
+    so we reuse the shared application engine there.
     """
-    database_config = copy.copy(db_interface.database_config)
-    database_config.timeout = get_current_settings().server.database.migration_timeout
-    return await database_config.engine()
+    database_config = db_interface.database_config
+    if get_dialect(database_config.connection_url).name != "postgresql":
+        return await db_interface.engine()
+
+    migration_config = copy.copy(database_config)
+    migration_config.timeout = get_current_settings().server.database.migration_timeout
+    return await migration_config.engine()
 
 
 async def apply_migrations() -> None:
