@@ -125,6 +125,11 @@ if TYPE_CHECKING:
 
 __all__ = ["RunnerDeployment"]
 
+_DEPLOYMENT_PARAMETER_SERIALIZER = TypeAdapter(
+    dict[str, Any],
+    config=ConfigDict(ser_json_timedelta="float"),
+)
+
 
 def _extract_concurrency_options(
     concurrency_limit: Union[int, ConcurrencyLimitConfig, None],
@@ -304,9 +309,9 @@ class RunnerDeployment(BaseModel):
     def full_name(self) -> str:
         return f"{self.flow_name}/{self.name}"
 
-    @field_validator("parameters", mode="before")
+    @field_validator("parameters", "schedules", mode="before")
     @classmethod
-    def validate_block_parameters(cls, parameters: dict[str, Any]) -> dict[str, Any]:
+    def validate_block_parameters(cls, value: Any) -> Any:
         def ensure_block_is_saved(value: Any) -> Any:
             if isinstance(value, Block):
                 if value._block_document_id is None:
@@ -317,16 +322,33 @@ class RunnerDeployment(BaseModel):
                 raise StopVisiting()
             return value
 
-        visit_collection(parameters, ensure_block_is_saved)
-        return parameters
+        visit_collection(value, ensure_block_is_saved)
+        return value
 
     @field_serializer("parameters", when_used="json")
     def serialize_block_parameters(self, parameters: dict[str, Any]) -> dict[str, Any]:
-        return TypeAdapter(dict[str, Any]).dump_python(
+        return _DEPLOYMENT_PARAMETER_SERIALIZER.dump_python(
             parameters,
             mode="json",
             context={"serialize_blocks_as_references": True},
         )
+
+    def _schedules_with_serialized_block_parameters(
+        self,
+    ) -> Optional[List[Union[DeploymentScheduleCreate, DeploymentScheduleUpdate]]]:
+        if self.schedules is None:
+            return None
+
+        return [
+            schedule.model_copy(
+                update={
+                    "parameters": self.serialize_block_parameters(schedule.parameters)
+                }
+            )
+            if schedule.parameters
+            else schedule
+            for schedule in self.schedules
+        ]
 
     def _get_deployment_version_info(
         self, version_type: Optional[VersionType] = None
@@ -411,6 +433,7 @@ class RunnerDeployment(BaseModel):
             )
 
         parameters = self.model_dump(mode="json", include={"parameters"})["parameters"]
+        schedules = self._schedules_with_serialized_block_parameters()
 
         async with get_client() as client:
             flow_id = await client.create_flow_from_name(self.flow_name)
@@ -423,7 +446,7 @@ class RunnerDeployment(BaseModel):
                 version=self.version,
                 version_info=version_info,
                 paused=self.paused,
-                schedules=self.schedules,
+                schedules=schedules,
                 concurrency_limit=self.concurrency_limit,
                 concurrency_options=self.concurrency_options,
                 parameters=parameters,
@@ -516,6 +539,7 @@ class RunnerDeployment(BaseModel):
             )
 
         parameters = self.model_dump(mode="json", include={"parameters"})["parameters"]
+        schedules = self._schedules_with_serialized_block_parameters()
 
         with get_client(sync_client=True) as client:
             flow_id = client.create_flow_from_name(self.flow_name)
@@ -528,7 +552,7 @@ class RunnerDeployment(BaseModel):
                 version=self.version,
                 version_info=version_info,
                 paused=self.paused,
-                schedules=self.schedules,
+                schedules=schedules,
                 concurrency_limit=self.concurrency_limit,
                 concurrency_options=self.concurrency_options,
                 parameters=parameters,
@@ -615,7 +639,7 @@ class RunnerDeployment(BaseModel):
         if self.schedules:
             update_payload["schedules"] = [
                 schedule.model_dump(mode="json", exclude_unset=True)
-                for schedule in self.schedules
+                for schedule in self._schedules_with_serialized_block_parameters() or []
             ]
 
         await client.update_deployment(
@@ -667,7 +691,7 @@ class RunnerDeployment(BaseModel):
         if self.schedules:
             update_payload["schedules"] = [
                 schedule.model_dump(mode="json", exclude_unset=True)
-                for schedule in self.schedules
+                for schedule in self._schedules_with_serialized_block_parameters() or []
             ]
 
         client.update_deployment(
