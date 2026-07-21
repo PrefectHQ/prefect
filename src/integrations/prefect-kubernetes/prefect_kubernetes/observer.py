@@ -293,6 +293,10 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
         "prefect.resource.name": name,
         "kubernetes.namespace": namespace,
     }
+    # Expose the failure category so automations can match on the specific
+    # cause (e.g. distinguish an unschedulable pod from a slow-to-start one).
+    if diagnosis:
+        resource["kubernetes.diagnosis"] = diagnosis.category.value
     # Add eviction reason if the pod was evicted for debugging purposes
     if event_type == "MODIFIED" and phase == "Failed":
         for container_status in status.get("containerStatuses", []):
