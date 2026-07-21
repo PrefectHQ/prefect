@@ -106,12 +106,19 @@ describe("FlowRunHeader", () => {
 			component: () => <div>Flow Run Page</div>,
 		});
 
+		const deploymentRunRoute = createRoute({
+			path: "/deployments/deployment/$id/run",
+			getParentRoute: () => rootRoute,
+			component: () => <div>Run Deployment Page</div>,
+		});
+
 		const routeTree = rootRoute.addChildren([
 			runsRoute,
 			flowRoute,
 			deploymentRoute,
 			workPoolRoute,
 			flowRunRoute,
+			deploymentRunRoute,
 		]);
 
 		const router = createRouter({
@@ -205,6 +212,46 @@ describe("FlowRunHeader", () => {
 				screen.getByText("Copied flow run ID to clipboard"),
 			).toBeInTheDocument();
 		});
+	});
+
+	it("shows 'Copy to new run' link to the deployment run page with parameters", async () => {
+		renderFlowRunHeader({ parameters: { foo: "bar" } });
+		const user = userEvent.setup();
+
+		await waitFor(() => {
+			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+		});
+
+		const moreButton = screen.getByRole("button", { expanded: false });
+		await user.click(moreButton);
+
+		const copyToNewRunLink = await screen.findByRole("menuitem", {
+			name: "Copy to new run",
+		});
+		expect(copyToNewRunLink).toHaveAttribute(
+			"href",
+			`/deployments/deployment/test-deployment-id/run?parameters=${encodeURIComponent(
+				JSON.stringify({ foo: "bar" }),
+			)}`,
+		);
+	});
+
+	it("does not show 'Copy to new run' when deployment_id is not present", async () => {
+		renderFlowRunHeader({ deployment_id: null });
+		const user = userEvent.setup();
+
+		await waitFor(() => {
+			expect(screen.getByText("test-flow-run")).toBeInTheDocument();
+		});
+
+		const moreButton = screen.getByRole("button", { expanded: false });
+		await user.click(moreButton);
+
+		await waitFor(() => {
+			expect(screen.getByText("Copy ID")).toBeInTheDocument();
+		});
+
+		expect(screen.queryByText("Copy to new run")).not.toBeInTheDocument();
 	});
 
 	it("opens delete confirmation dialog when Delete is clicked", async () => {
