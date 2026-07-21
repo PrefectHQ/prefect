@@ -16,16 +16,23 @@ import { RouteErrorState } from "@/components/ui/route-error-state";
  * Schema for validating URL search parameters for the create automation page.
  * @property actions used designate how to pre-populate the fields
  */
-const searchParams = z
-	.object({ parameters: z.record(z.unknown()).optional() })
-	.optional();
+const searchParams = z.object({
+	parameters: z.record(z.unknown()).optional(),
+	additionalOptions: z.record(z.unknown()).optional(),
+});
 
 export const Route = createFileRoute("/deployments/deployment_/$id/run")({
 	validateSearch: zodValidator(searchParams),
 	component: function RouteComponent() {
 		const { id } = Route.useParams();
-		const search = Route.useSearch();
-		return <CustomRunPage id={id} overrideParameters={search?.parameters} />;
+		const { parameters, additionalOptions } = Route.useSearch();
+		return (
+			<CustomRunPage
+				id={id}
+				overrideParameters={parameters}
+				additionalOptions={additionalOptions}
+			/>
+		);
 	},
 	loader: async ({ params, context: { queryClient } }) => {
 		// ---- Critical data

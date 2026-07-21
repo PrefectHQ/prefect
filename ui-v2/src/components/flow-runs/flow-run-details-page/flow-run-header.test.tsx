@@ -214,8 +214,21 @@ describe("FlowRunHeader", () => {
 		});
 	});
 
-	it("shows 'Copy to new run' link to the deployment run page with parameters", async () => {
-		renderFlowRunHeader({ parameters: { foo: "bar" } });
+	it("shows 'Copy to new run' link to the deployment run page with parameters and additional options", async () => {
+		renderFlowRunHeader({
+			parameters: { foo: "bar" },
+			state: createFakeState({ message: "hello" }),
+			tags: ["tag1"],
+			work_queue_name: "test-work-queue",
+			empirical_policy: {
+				max_retries: 0,
+				retry_delay_seconds: 0,
+				resuming: false,
+				retries: 3,
+				retry_delay: 5,
+			},
+			job_variables: { image: "my-ecr-uri" },
+		});
 		const user = userEvent.setup();
 
 		await waitFor(() => {
@@ -228,12 +241,30 @@ describe("FlowRunHeader", () => {
 		const copyToNewRunLink = await screen.findByRole("menuitem", {
 			name: "Copy to new run",
 		});
-		expect(copyToNewRunLink).toHaveAttribute(
-			"href",
-			`/deployments/deployment/test-deployment-id/run?parameters=${encodeURIComponent(
-				JSON.stringify({ foo: "bar" }),
-			)}`,
-		);
+		const href = copyToNewRunLink.getAttribute("href");
+		if (!href) {
+			throw new Error("Copy to new run link missing href");
+		}
+
+		const url = new URL(href, "http://localhost");
+		expect(url.pathname).toBe("/deployments/deployment/test-deployment-id/run");
+		expect(
+			JSON.parse(
+				decodeURIComponent(url.searchParams.get("parameters") ?? "null"),
+			),
+		).toEqual({ foo: "bar" });
+		expect(
+			JSON.parse(
+				decodeURIComponent(url.searchParams.get("additionalOptions") ?? "null"),
+			),
+		).toEqual({
+			message: "hello",
+			tags: ["tag1"],
+			work_queue_name: "test-work-queue",
+			retries: 3,
+			retry_delay: 5,
+			job_variables: { image: "my-ecr-uri" },
+		});
 	});
 
 	it("does not show 'Copy to new run' when deployment_id is not present", async () => {

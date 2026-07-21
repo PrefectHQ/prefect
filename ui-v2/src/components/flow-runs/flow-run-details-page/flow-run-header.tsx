@@ -133,6 +133,26 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 	});
 	const parentFlowRun = parentFlowRuns?.[0];
 
+	const additionalOptions = Object.fromEntries(
+		Object.entries({
+			message: flowRun.state?.message || undefined,
+			tags: flowRun.tags && flowRun.tags.length > 0 ? flowRun.tags : undefined,
+			work_queue_name: flowRun.work_queue_name ?? undefined,
+			retries: flowRun.empirical_policy?.retries ?? undefined,
+			retry_delay: flowRun.empirical_policy?.retry_delay ?? undefined,
+			job_variables:
+				flowRun.job_variables && Object.keys(flowRun.job_variables).length > 0
+					? flowRun.job_variables
+					: undefined,
+		}).filter(([, value]) => value !== undefined),
+	);
+	const copyToNewRunSearch = {
+		parameters: flowRun.parameters,
+		...(Object.keys(additionalOptions).length > 0 && {
+			additionalOptions,
+		}),
+	};
+
 	const formatTaskRunCount = (count: number | undefined) => {
 		if (count === undefined) return "...";
 		if (count === 0) return "None";
@@ -260,7 +280,7 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 							<Link
 								to="/deployments/deployment/$id/run"
 								params={{ id: flowRun.deployment_id }}
-								search={{ parameters: flowRun.parameters }}
+								search={copyToNewRunSearch}
 							>
 								Copy to new run
 							</Link>
