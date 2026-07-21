@@ -255,6 +255,17 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent>
+					{flowRun.deployment_id && (
+						<DropdownMenuItem asChild>
+							<Link
+								to="/deployments/deployment/$id/run"
+								params={{ id: flowRun.deployment_id }}
+								search={{ parameters: flowRun.parameters }}
+							>
+								Copy to new run
+							</Link>
+						</DropdownMenuItem>
+					)}
 					{canCancel && (
 						<DropdownMenuItem onClick={() => setIsCancelOpen(true)}>
 							Cancel
