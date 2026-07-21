@@ -2,10 +2,24 @@
 
 import pytest
 from prefect_kubernetes.diagnostics import (
+    DiagnosisCategory,
     DiagnosisLevel,
     InfrastructureDiagnosis,
     diagnose_k8s_pod,
 )
+
+
+def _unschedulable(message: str) -> dict:
+    return {
+        "conditions": [
+            {
+                "type": "PodScheduled",
+                "status": "False",
+                "reason": "Unschedulable",
+                "message": message,
+            }
+        ]
+    }
 
 
 class TestDiagnoseKubernetesPod:
@@ -291,6 +305,7 @@ class TestDiagnoseKubernetesPod:
     def test_diagnosis_is_frozen(self):
         d = InfrastructureDiagnosis(
             level=DiagnosisLevel.ERROR,
+            category=DiagnosisCategory.CRASH_LOOP_BACK_OFF,
             summary="test",
             detail="test",
             resolution="test",
@@ -301,14 +316,87 @@ class TestDiagnoseKubernetesPod:
     def test_diagnosis_equality(self):
         a = InfrastructureDiagnosis(
             level=DiagnosisLevel.ERROR,
+            category=DiagnosisCategory.CRASH_LOOP_BACK_OFF,
             summary="s",
             detail="d",
             resolution="r",
         )
         b = InfrastructureDiagnosis(
             level=DiagnosisLevel.ERROR,
+            category=DiagnosisCategory.CRASH_LOOP_BACK_OFF,
             summary="s",
             detail="d",
             resolution="r",
         )
         assert a == b
+
+    # --- Diagnosis category -----------------------------------------------
+
+    @pytest.mark.parametrize(
+        "status,expected",
+        [
+            (
+                {
+                    "containerStatuses": [
+                        {"state": {"waiting": {"reason": "ErrImagePull"}}}
+                    ]
+                },
+                DiagnosisCategory.IMAGE_PULL_BACK_OFF,
+            ),
+            (
+                {
+                    "containerStatuses": [
+                        {"state": {"waiting": {"reason": "CrashLoopBackOff"}}}
+                    ]
+                },
+                DiagnosisCategory.CRASH_LOOP_BACK_OFF,
+            ),
+            (
+                {
+                    "containerStatuses": [
+                        {"state": {"terminated": {"reason": "OOMKilled"}}}
+                    ]
+                },
+                DiagnosisCategory.OOM_KILLED,
+            ),
+            ({"reason": "Evicted"}, DiagnosisCategory.EVICTED),
+            (
+                _unschedulable("3 pod has unbound immediate PersistentVolumeClaims."),
+                DiagnosisCategory.UNSCHEDULABLE_VOLUME,
+            ),
+            (
+                _unschedulable("10 Insufficient cpu, 10 Insufficient memory."),
+                DiagnosisCategory.UNSCHEDULABLE_INSUFFICIENT_RESOURCES,
+            ),
+            (
+                _unschedulable("4 node(s) had untolerated taint."),
+                DiagnosisCategory.UNSCHEDULABLE_TAINT,
+            ),
+            (
+                _unschedulable("8 node(s) didn't match Pod's node affinity/selector."),
+                DiagnosisCategory.UNSCHEDULABLE_NODE_AFFINITY,
+            ),
+            (
+                _unschedulable("something unrecognized."),
+                DiagnosisCategory.UNSCHEDULABLE,
+            ),
+            # Several causes at once: volume takes precedence.
+            (
+                _unschedulable(
+                    "4 Insufficient cpu, 2 had volume node affinity conflict."
+                ),
+                DiagnosisCategory.UNSCHEDULABLE_VOLUME,
+            ),
+            # Unresolvable cause (taint) beats resolvable capacity (insufficient).
+            (
+                _unschedulable(
+                    "33 Insufficient memory, 4 node(s) had untolerated taint(s)."
+                ),
+                DiagnosisCategory.UNSCHEDULABLE_TAINT,
+            ),
+        ],
+    )
+    def test_diagnosis_category(self, status: dict, expected: DiagnosisCategory):
+        result = diagnose_k8s_pod(status)
+        assert result is not None
+        assert result.category is expected

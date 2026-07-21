@@ -172,9 +172,13 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                     metadata["creationTimestamp"].replace("Z", "+00:00")
                 )
 
+    diagnosis = diagnose_k8s_pod(status)
+
     # Create a deterministic event ID based on the pod's ID, phase, and restart count.
     # This ensures that the event ID is the same for the same pod in the same phase and restart count
     # and Prefect's event system will be able to deduplicate events.
+    # The diagnosis category is included so a condition that appears mid-phase (e.g.
+    # Unschedulable while Pending) is not deduplicated against the earlier event.
     event_id = uuid.uuid5(
         uuid.NAMESPACE_URL,
         json.dumps(
@@ -185,6 +189,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                     cs.get("restartCount", 0)
                     for cs in status.get("containerStatuses", [])
                 ),
+                **({"diagnosis": diagnosis.category.value} if diagnosis else {}),
             },
             sort_keys=True,
         ),
@@ -272,7 +277,6 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     # Only log when the diagnosis changes to avoid spamming on repeated
     # MODIFIED events for the same failure condition.  Clear the cache
     # entry when the pod recovers so a recurrence is logged again.
-    diagnosis = diagnose_k8s_pod(status)
     if diagnosis and flow_run_id:
         last_diagnosis = _last_diagnosis_cache.get(uid)
         if diagnosis != last_diagnosis:
@@ -293,6 +297,8 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
         "prefect.resource.name": name,
         "kubernetes.namespace": namespace,
     }
+    if diagnosis is not None:
+        resource["kubernetes.diagnosis"] = diagnosis.category.value
     # Add eviction reason if the pod was evicted for debugging purposes
     if event_type == "MODIFIED" and phase == "Failed":
         for container_status in status.get("containerStatuses", []):

@@ -307,6 +307,7 @@ class TestReplicatePodEvent:
                 "prefect.resource.name": "test",
                 "kubernetes.namespace": "test",
                 "kubernetes.reason": "OOMKilled",
+                "kubernetes.diagnosis": "oom_killed",
             },
         )
 
@@ -648,6 +649,49 @@ class TestReplicatePodEvent:
 
         mock_child.log.assert_called_once()
         assert mock_child.log.call_args[0][0] == logging.WARNING
+
+    async def test_unschedulable_pending_event_is_labeled_and_distinct(
+        self, mock_events_client: AsyncMock
+    ):
+        uid = str(uuid.uuid4())
+
+        # Plain Pending (pod just created, not yet scheduled): no diagnosis.
+        await _replicate_pod_event(
+            event={"type": "ADDED"},
+            uid=uid,
+            name="test",
+            namespace="test",
+            labels={},
+            status={"phase": "Pending"},
+            logger=MagicMock(),
+        )
+        plain_event = mock_events_client.emit.call_args[1]["event"]
+        assert "kubernetes.diagnosis" not in plain_event.resource
+        mock_events_client.emit.reset_mock()
+
+        # Same pod, same phase, now Unschedulable on a volume.
+        await _replicate_pod_event(
+            event={"type": "MODIFIED"},
+            uid=uid,
+            name="test",
+            namespace="test",
+            labels={},
+            status={
+                "phase": "Pending",
+                "conditions": [
+                    {
+                        "type": "PodScheduled",
+                        "status": "False",
+                        "reason": "Unschedulable",
+                        "message": "3 pod has unbound immediate PersistentVolumeClaims.",
+                    }
+                ],
+            },
+            logger=MagicMock(),
+        )
+        event = mock_events_client.emit.call_args[1]["event"]
+        assert event.resource["kubernetes.diagnosis"] == "unschedulable_volume"
+        assert event.id != plain_event.id
 
     async def test_no_diagnosis_for_healthy_pod(
         self,

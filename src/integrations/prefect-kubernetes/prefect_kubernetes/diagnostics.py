@@ -20,11 +20,37 @@ class DiagnosisLevel(str, enum.Enum):
     INFO = "info"
 
 
+class DiagnosisCategory(str, enum.Enum):
+    """Category of an infrastructure diagnosis, for matching in automations.
+
+    Values mirror the container-status `reason` strings Kubernetes sets
+    (kubernetes/kubernetes v1.36.2):
+
+    - image pull: https://github.com/kubernetes/kubernetes/blob/v1.36.2/pkg/kubelet/images/types.go
+    - CrashLoopBackOff: https://github.com/kubernetes/kubernetes/blob/v1.36.2/pkg/kubelet/container/sync_result.go
+    - OOMKilled: https://github.com/kubernetes/kubernetes/blob/v1.36.2/pkg/kubelet/kuberuntime/helpers.go
+    - Evicted: https://github.com/kubernetes/kubernetes/blob/v1.36.2/pkg/kubelet/eviction/helpers.go
+
+    Unschedulable comes from the scheduler; see `_classify_unschedulable`.
+    """
+
+    IMAGE_PULL_BACK_OFF = "image_pull_back_off"
+    CRASH_LOOP_BACK_OFF = "crash_loop_back_off"
+    OOM_KILLED = "oom_killed"
+    EVICTED = "evicted"
+    UNSCHEDULABLE_VOLUME = "unschedulable_volume"
+    UNSCHEDULABLE_INSUFFICIENT_RESOURCES = "unschedulable_insufficient_resources"
+    UNSCHEDULABLE_NODE_AFFINITY = "unschedulable_node_affinity"
+    UNSCHEDULABLE_TAINT = "unschedulable_taint"
+    UNSCHEDULABLE = "unschedulable"
+
+
 @dataclasses.dataclass(frozen=True)
 class InfrastructureDiagnosis:
     """A structured diagnosis of a Kubernetes pod failure."""
 
     level: DiagnosisLevel
+    category: DiagnosisCategory
     summary: str
     detail: str
     resolution: str
@@ -72,6 +98,7 @@ def _check_container_waiting(
         if reason in ("ImagePullBackOff", "ErrImagePull"):
             return InfrastructureDiagnosis(
                 level=DiagnosisLevel.ERROR,
+                category=DiagnosisCategory.IMAGE_PULL_BACK_OFF,
                 summary=f"Image pull failed for container '{container_name}'",
                 detail=(
                     f"Kubernetes cannot pull the container image. "
@@ -88,6 +115,7 @@ def _check_container_waiting(
         if reason == "CrashLoopBackOff":
             return InfrastructureDiagnosis(
                 level=DiagnosisLevel.ERROR,
+                category=DiagnosisCategory.CRASH_LOOP_BACK_OFF,
                 summary=(f"Container '{container_name}' is crash-looping"),
                 detail=(
                     f"The container repeatedly crashes after starting. "
@@ -116,6 +144,7 @@ def _check_container_terminated(
         if reason == "OOMKilled":
             return InfrastructureDiagnosis(
                 level=DiagnosisLevel.ERROR,
+                category=DiagnosisCategory.OOM_KILLED,
                 summary=(
                     f"Container '{container_name}' was killed due to "
                     f"out-of-memory (OOMKilled)"
@@ -135,6 +164,7 @@ def _check_container_terminated(
         if reason == "Evicted":
             return InfrastructureDiagnosis(
                 level=DiagnosisLevel.WARNING,
+                category=DiagnosisCategory.EVICTED,
                 summary=f"Container '{container_name}' was evicted",
                 detail=(
                     "The pod was evicted, likely due to node resource "
@@ -151,6 +181,36 @@ def _check_container_terminated(
     return None
 
 
+def _classify_unschedulable(message: str) -> DiagnosisCategory:
+    """Map an `Unschedulable` message to a cause.
+
+    The cause appears only as free text in the condition message, produced by
+    the scheduler plugins (kubernetes/kubernetes v1.36.2:
+    https://github.com/kubernetes/kubernetes/tree/v1.36.2/pkg/scheduler/framework/plugins),
+    so we match characteristic substrings. A message can list several causes,
+    so checks run in a deliberate order: the plugins that report
+    `UnschedulableAndUnresolvable` (no node will fit without a config change)
+    before the resolvable `Unschedulable` capacity case (which the cluster
+    autoscaler may fix). Volume leads because a "volume node affinity conflict"
+    message also contains "affinity".
+      - "volume"              -> volumebinding    (unresolvable)
+      - "affinity"/"selector" -> nodeaffinity     (unresolvable)
+      - "taint"               -> tainttoleration  (unresolvable)
+      - "insufficient"        -> noderesources    (resolvable capacity)
+    Anything else maps to `UNSCHEDULABLE`.
+    """
+    m = message.lower()
+    if "volume" in m:
+        return DiagnosisCategory.UNSCHEDULABLE_VOLUME
+    if "affinity" in m or "selector" in m:
+        return DiagnosisCategory.UNSCHEDULABLE_NODE_AFFINITY
+    if "taint" in m:
+        return DiagnosisCategory.UNSCHEDULABLE_TAINT
+    if "insufficient" in m:
+        return DiagnosisCategory.UNSCHEDULABLE_INSUFFICIENT_RESOURCES
+    return DiagnosisCategory.UNSCHEDULABLE
+
+
 def _check_unschedulable(
     status: dict[str, Any],
 ) -> InfrastructureDiagnosis | None:
@@ -163,6 +223,7 @@ def _check_unschedulable(
             message = condition.get("message", "")
             return InfrastructureDiagnosis(
                 level=DiagnosisLevel.WARNING,
+                category=_classify_unschedulable(message),
                 summary="Pod is unschedulable",
                 detail=(
                     f"Kubernetes cannot find a suitable node to run "
@@ -187,6 +248,7 @@ def _check_evicted(
         message = status.get("message", "")
         return InfrastructureDiagnosis(
             level=DiagnosisLevel.WARNING,
+            category=DiagnosisCategory.EVICTED,
             summary="Pod was evicted",
             detail=(f"The pod was evicted from its node. {message}".strip()),
             resolution=(
