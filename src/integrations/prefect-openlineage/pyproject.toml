@@ -68,6 +68,9 @@ timeout = 30
 [tool.setuptools]
 packages = ["prefect_openlineage"]
 
+[tool.setuptools.packages.find]
+exclude = ["tests*"]
+
 [tool.uv.workspace]
 members = ["integration_tests"]
 
@@ -77,3 +80,14 @@ root = "../../.."
 tag_regex = "^prefect-openlineage-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
 fallback_version = "0.0.0"
 git_describe_command = 'git describe --dirty --tags --long --match "prefect-openlineage-*[0-9]*"'
+
+[tool.interrogate]
+ignore-init-module = true
+ignore_init_method = true
+exclude = ["prefect_openlineage/_version.py", "tests"]
+fail-under = 95
+omit-covered-files = true
+
+[tool.coverage.run]
+omit = ["tests/*", "prefect_openlineage/_version.py"]
+
