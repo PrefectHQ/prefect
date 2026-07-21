@@ -22,6 +22,8 @@ Follow this layering order:
 
 The `variables` endpoints are a good canonical example of this pattern for simple CRUD.
 
+**`paginate_*` routes must guard the `pages` calculation against `limit=0`.** `limit=0` is a valid request (count-only, no results) across every `paginate_*` endpoint in `api/`; each computes `pages` inline as `(count + limit - 1) // limit if limit > 0 else 0` rather than through a shared helper, so new paginate endpoints must repeat this guard explicitly or they raise `ZeroDivisionError`.
+
 **Singleton server settings** (not tied to a specific run or resource) skip a dedicated table — store them as JSON in the `Configuration` key-value store via `models/configuration.py`. Define a string key constant in the wrapping module (see `models/storage_defaults.py` for the pattern).
 
 ## Object Lifecycle Events
