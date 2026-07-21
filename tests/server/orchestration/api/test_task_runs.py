@@ -720,6 +720,18 @@ class TestPaginateTaskRuns:
         # estimated_start_time_delta should be 5 seconds (start_time - expected_start_time)
         assert result["estimated_start_time_delta"] == 5.0
 
+    async def test_paginate_task_runs_zero_limit(self, task_run, client):
+        response = await client.post("/task_runs/paginate", json=dict(limit=0))
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+
+        assert data["results"] == []
+        assert data["count"] == 1
+        assert data["limit"] == 0
+        assert data["pages"] == 0
+        assert data["page"] == 1
+
 
 class TestDeleteTaskRuns:
     async def test_delete_task_runs(self, task_run, hosted_api_client, session):

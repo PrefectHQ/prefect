@@ -264,7 +264,7 @@ async def paginate_task_runs(
             results=runs,
             count=total_count,
             limit=limit,
-            pages=(total_count + limit - 1) // limit,
+            pages=(total_count + limit - 1) // limit if limit > 0 else 0,
             page=page,
         )
     )
