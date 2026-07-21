@@ -7,11 +7,13 @@ import { DeploymentLinks } from "./deployment-links";
 type CustomRunPageProps = {
 	id: string;
 	overrideParameters: Record<string, unknown> | undefined;
+	additionalOptions?: Record<string, unknown>;
 };
 
 export const CustomRunPage = ({
 	id,
 	overrideParameters,
+	additionalOptions,
 }: CustomRunPageProps) => {
 	const { data } = useSuspenseQuery(buildDeploymentDetailsQuery(id));
 
@@ -25,6 +27,7 @@ export const CustomRunPage = ({
 				key={data.id}
 				deployment={data}
 				overrideParameters={overrideParameters}
+				overrideAdditionalOptions={additionalOptions}
 			/>
 		</div>
 	);
