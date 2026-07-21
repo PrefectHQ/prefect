@@ -264,6 +264,7 @@ function createPayload(
 				...formValues.state.state_details,
 			},
 		},
+		tags: formValues.tags,
 		job_variables: jobVariablesPayload,
 		enforce_parameter_schema: formValues.enforce_parameter_schema,
 		parameters: parameterValues,

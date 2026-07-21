@@ -6,11 +6,12 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { act, render, waitFor } from "@testing-library/react";
-import { createWrapper } from "@tests/utils";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
+import { HttpResponse, http } from "msw";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
 import type { Deployment } from "@/api/deployments";
-import { createFakeDeployment } from "@/mocks";
+import { createFakeDeployment, createFakeFlowRun } from "@/mocks";
 import {
 	type AdditionalOptionsOverrides,
 	useCreateFlowRunForm,
@@ -203,5 +204,31 @@ describe("useCreateFlowRunForm", () => {
 		expect(result.current.form.getValues("job_variables")).toBe(
 			'{"image":"my-ecr-uri"}',
 		);
+	});
+
+	it("includes copied tags in the create flow run payload", async () => {
+		const deployment = createFakeDeployment({ parameters: {} });
+		let requestBody: Record<string, unknown> = {};
+		server.use(
+			http.post(
+				buildApiUrl("/deployments/:id/create_flow_run"),
+				async ({ request }) => {
+					requestBody = (await request.json()) as Record<string, unknown>;
+					return HttpResponse.json(createFakeFlowRun({ id: "new-run-id" }));
+				},
+			),
+		);
+
+		const { result } = await renderUseCreateFlowRunForm(deployment, undefined, {
+			tags: ["copied-tag"],
+		});
+
+		await act(async () => {
+			await result.current.form.handleSubmit(result.current.onCreate)();
+		});
+
+		await waitFor(() => {
+			expect(requestBody.tags).toEqual(["copied-tag"]);
+		});
 	});
 });
