@@ -57,6 +57,9 @@ prefect_openlineage = "prefect_openlineage"
 [tool.uv.sources]
 prefect = { path = "../../../" }
 
+[tool.uv.workspace]
+members = ["integration_tests"]
+
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
@@ -64,22 +67,6 @@ asyncio_default_fixture_loop_scope = "session"
 asyncio_mode = "auto"
 env = ["PREFECT_TEST_MODE=1", "PREFECT_API_URL=http://127.0.0.1:4200/api"]
 timeout = 30
-
-[tool.setuptools]
-packages = ["prefect_openlineage"]
-
-[tool.setuptools.packages.find]
-exclude = ["tests*"]
-
-[tool.uv.workspace]
-members = ["integration_tests"]
-
-[tool.setuptools_scm]
-version_file = "prefect_openlineage/_version.py"
-root = "../../.."
-tag_regex = "^prefect-openlineage-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
-fallback_version = "0.0.0"
-git_describe_command = 'git describe --dirty --tags --long --match "prefect-openlineage-*[0-9]*"'
 
 [tool.interrogate]
 ignore-init-module = true
@@ -91,3 +78,14 @@ omit-covered-files = true
 [tool.coverage.run]
 omit = ["tests/*", "prefect_openlineage/_version.py"]
 
+[tool.setuptools]
+
+[tool.setuptools.packages.find]
+exclude = ["tests*"]
+
+[tool.setuptools_scm]
+version_file = "prefect_openlineage/_version.py"
+root = "../../.."
+tag_regex = "^prefect-openlineage-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
+fallback_version = "0.0.0"
+git_describe_command = 'git describe --dirty --tags --long --match "prefect-openlineage-*[0-9]*"'
