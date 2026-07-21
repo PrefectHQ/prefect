@@ -4330,7 +4330,7 @@ requires-dist = [
     { name = "opentelemetry-test-utils", marker = "extra == 'otel'", specifier = ">=0.48b0,<1.0.0" },
     { name = "orjson", specifier = ">=3.7,<4.0" },
     { name = "packaging", specifier = ">=21.3,<26.3" },
-    { name = "pathspec", specifier = ">=0.8.0" },
+    { name = "pathspec", specifier = ">=0.10.1" },
     { name = "pendulum", marker = "python_full_version < '3.13'", specifier = ">=3.1.0,<4" },
     { name = "pluggy", specifier = ">=1.6.0" },
     { name = "prefect-aws", marker = "extra == 'aws'", specifier = ">=0.5.8" },
