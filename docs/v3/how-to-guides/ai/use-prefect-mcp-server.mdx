@@ -2,10 +2,10 @@
 title: How to use the Prefect MCP server
 sidebarTitle: Use the Prefect MCP server
 description: Connect AI assistants to Prefect using the Model Context Protocol.
-keywords: ["MCP server", "Model Context Protocol", "AI assistant", "Claude", "integration"]
+keywords: ["MCP server", "Model Context Protocol", "AI assistant", "Claude", "Codex", "release notes", "integration"]
 ---
 
-The Prefect MCP server enables AI assistants to interact with your Prefect workflows and infrastructure through the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/). This integration allows AI tools like Claude Code, Cursor, and Codex CLI to help you monitor deployments, debug flow runs, query infrastructure, and more.
+The Prefect MCP server enables AI assistants to interact with your Prefect workflows and infrastructure through the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/). This integration allows AI tools like Claude Code, Cursor, and Codex to help you monitor deployments, debug flow runs, query infrastructure, and more.
 
 <Warning>
 The Prefect MCP server is currently in beta. APIs, features, and behaviors may change without notice. We encourage you to try it out and provide feedback through [GitHub issues](https://github.com/PrefectHQ/prefect-mcp-server/issues).
@@ -26,7 +26,7 @@ The MCP tools are primarily designed for reading data and monitoring your Prefec
 The Prefect MCP server provides **read-only access** to your Prefect instance. It can only access information available to the account you authenticate with—it cannot access data outside those bounds.
 
 <Warning>
-**Important:** The MCP server does not operate in isolation. MCP clients (such as Claude Code, Cursor, or Codex CLI) may have additional capabilities beyond the MCP server's read-only tools. For example, an AI assistant with terminal access could execute destructive CLI commands like `prefect deployment delete` independently of the MCP server.
+**Important:** The MCP server does not operate in isolation. MCP clients (such as Claude Code, Cursor, or Codex) may have additional capabilities beyond the MCP server's read-only tools. For example, an AI assistant with terminal access could execute destructive CLI commands like `prefect deployment delete` independently of the MCP server.
 
 When using AI agents autonomously, consider the Prefect Role associated with your API key and what actions the agent could take through other means (CLI, SDK, etc.).
 </Warning>
@@ -161,9 +161,29 @@ To use explicit credentials, add an `env` section:
 
 </Accordion>
 
-<Accordion title="Codex CLI">
+<Accordion title="Codex">
 
-Add the Prefect MCP server to Codex using the CLI:
+**Marketplace install (recommended)**
+
+The easiest way to get started with Codex is through the plugin marketplace:
+
+```bash
+# Add from marketplace
+codex plugin marketplace add prefecthq/prefect-mcp-server
+
+# Install the plugin
+codex plugin add prefect@prefect
+```
+
+This installs both the MCP server (for read-only diagnostics, documentation, and release notes) and a CLI skill (for mutations like triggering deployments or cancelling runs).
+
+<Note>
+The plugin uses your local Prefect configuration from `~/.prefect/profiles.toml`. For explicit credentials, use the manual setup below.
+</Note>
+
+**Manual setup**
+
+Alternatively, add the Prefect MCP server to Codex using the CLI:
 
 ```bash
 # Minimal setup - inherits from local Prefect profile
@@ -179,12 +199,12 @@ codex mcp add prefect \
 Alternatively, edit `~/.codex/config.toml` directly:
 
 ```toml
-[mcp.prefect]
+[mcp_servers.prefect]
 command = "uvx"
 args = ["--from", "prefect-mcp", "prefect-mcp-server"]
 
 # For explicit credentials, add:
-[mcp.prefect.env]
+[mcp_servers.prefect.env]
 PREFECT_API_URL = "https://api.prefect.cloud/api/accounts/[ACCOUNT_ID]/workspaces/[WORKSPACE_ID]"
 PREFECT_API_KEY = "your-cloud-api-key"
 ```
@@ -324,6 +344,7 @@ The MCP server includes a built-in docs proxy that provides AI assistants with u
 
 - Look up current API syntax and usage patterns
 - Find the correct `prefect` CLI commands for creating and updating resources
+- Review the latest Prefect release notes
 - Access the latest best practices and examples
 
 ### Mutations via CLI or SDK
@@ -350,6 +371,7 @@ The integrated docs proxy gives your assistant access to current Prefect documen
 **Example prompts:**
 - "Look up the latest syntax for creating a work pool"
 - "Find documentation on how to configure Docker work pools"
+- "What changed in the latest Prefect release?"
 - "What are the current best practices for deployment configuration?"
 
 ### Ask diagnostic questions
