@@ -129,11 +129,11 @@ class FlowRunSubscriber:
 
     @property
     def flow_completed(self) -> bool:
-        """Whether a terminal state event was observed for the flow run.
+        """Whether the flow run was observed in a terminal state.
 
         When this is `False` after the stream has been exhausted, the
-        subscription ended before the flow run reached a terminal state (e.g.
-        the events/logs websocket died) rather than because the run finished.
+        subscription ended before a terminal event was received or the API
+        confirmed that the run finished.
         """
         return self._flow_completed
 
@@ -282,11 +282,15 @@ class FlowRunSubscriber:
         """Decide whether to resume a subscription whose stream just ended.
 
         Resumes only while the flow run is still active on the server. If the
-        run has finished, stops without error. If the server is unreachable,
-        stops and records `stream_error` (if any) so the caller can surface
-        the failure instead of reporting the run as finished.
+        run has finished, marks the shared subscriber complete and stops
+        without error. If the server is unreachable, stops and records
+        `stream_error` (if any) so the caller can surface the failure instead
+        of reporting the run as finished.
         """
         terminal = await self._flow_run_is_terminal()
+        if terminal is True:
+            self._flow_completed = True
+            return False
         if terminal is False:
             return True
         if terminal is None and stream_error is not None:

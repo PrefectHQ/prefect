@@ -4,6 +4,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
+import anyio
 import pytest
 from typing_extensions import Self
 
@@ -166,15 +167,16 @@ def setup_mocks(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def default_run_finished(monkeypatch):
-    """By default, treat the flow run as finished so streams end instead of
-    resuming (which would otherwise require a live server). Tests that exercise
-    resume/failure behavior override this."""
+def default_run_terminal_state_unknown(monkeypatch: pytest.MonkeyPatch) -> None:
+    """By default, stop when a mock stream ends without marking the run terminal.
 
-    async def _finished(self) -> bool:
-        return True
+    Tests that exercise resume, completion, or failure behavior override this.
+    """
 
-    monkeypatch.setattr(FlowRunSubscriber, "_flow_run_is_terminal", _finished)
+    async def _unknown(self) -> None:
+        return None
+
+    monkeypatch.setattr(FlowRunSubscriber, "_flow_run_is_terminal", _unknown)
 
 
 def patch_run_terminal_state(monkeypatch, value: bool | None) -> None:
@@ -703,7 +705,7 @@ async def test_flow_run_subscriber_resumes_after_stream_drop(
 async def test_flow_run_subscriber_stops_without_error_when_run_finished(
     flow_run_id: UUID,
     sample_event1: Event,
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ):
     """If a stream ends without a terminal event but the server reports the
     run as finished, the subscriber stops cleanly without an error."""
@@ -719,15 +721,18 @@ async def test_flow_run_subscriber_stops_without_error_when_run_finished(
     monkeypatch.setattr(
         prefect.events.subscribers,
         "get_logs_subscriber",
-        lambda *args, **kwargs: MockLogsSubscriber([]),
+        lambda *args, **kwargs: HangingLogsSubscriber(),
     )
 
     items: list[Log | Event] = []
-    async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
-        async for item in subscriber:
-            items.append(item)
+    with anyio.fail_after(2):
+        async with FlowRunSubscriber(
+            flow_run_id=flow_run_id, straggler_timeout=1
+        ) as subscriber:
+            async for item in subscriber:
+                items.append(item)
 
-    assert subscriber.flow_completed is False
+    assert subscriber.flow_completed is True
     assert subscriber.error is None
     assert [item.event for item in items if isinstance(item, Event)] == [
         "prefect.flow-run.Running",

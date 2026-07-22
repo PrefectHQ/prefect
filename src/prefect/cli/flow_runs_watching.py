@@ -78,9 +78,9 @@ async def watch_flow_run(
 
     # The subscriber resumes a dropped stream while the run is still active, so
     # it only stops early when it can no longer reach the server. If it stopped
-    # before observing a terminal event and the run is still not in a terminal
-    # state, surface that failure instead of returning a non-terminal flow run
-    # as if the watch succeeded.
+    # before confirming a terminal state and the run is still not terminal,
+    # surface that failure instead of returning a non-terminal flow run as if
+    # the watch succeeded.
     state = flow_run.state
     if not subscriber.flow_completed and (state is None or not state.is_final()):
         raise FlowRunWatchError(
