@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import shlex
 import subprocess
 import sys
@@ -196,10 +197,15 @@ def _run_worker_in_background(
 
     logger.debug("Opening worker process with command: %s", shlex.join(command))
 
+    # Detach from the CLI process (own session, output to DEVNULL) so the worker
+    # survives the parent exiting instead of dying on a broken pipe once the CLI
+    # closes the pipe read ends.
     process = subprocess.Popen(
         command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=(os.name != "nt"),
+        creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
     )
     pid_file.write_text(str(process.pid))
 

@@ -291,7 +291,14 @@ async def stop():
 
     if not pid_file.exists():
         exit_with_success("No worker running in the background.")
-    pid = int(pid_file.read_text())
+
+    pid_text = pid_file.read_text().strip()
+    if not pid_text.isdigit():
+        pid_file.unlink(missing_ok=True)
+        exit_with_success(
+            "The worker PID file was empty or invalid. Cleaning up stale PID file."
+        )
+    pid = int(pid_text)
     try:
         os.kill(pid, signal.SIGTERM)
     except ProcessLookupError:

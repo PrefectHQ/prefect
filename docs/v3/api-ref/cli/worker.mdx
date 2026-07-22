@@ -94,6 +94,26 @@ Start a worker process to poll a work pool for flow runs.
     Create the work pool if it does not exist. Set to false when the work pool is managed externally (e.g. via Terraform or another provisioning tool).
 </ResponseField>
 
+<ResponseField name="--background">
+    Run the worker in the background.
+</ResponseField>
+
 </Accordion>
 
 </AccordionGroup>
+
+
+
+## `prefect worker stop`
+
+
+
+```command
+prefect worker stop [OPTIONS]
+```
+
+
+
+<Info>
+Stop a Prefect worker running in the background.
+</Info>

@@ -1,5 +1,6 @@
 import os
 import signal
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -1061,6 +1062,14 @@ def test_worker_start_background_spawns_detached_process(monkeypatch, worker_pid
     assert worker_pid_file.exists()
     assert worker_pid_file.read_text() == "12345"
 
+    # The process is detached so it survives the CLI exiting: output goes to
+    # DEVNULL (no undrained pipes) and it runs in its own session/process group.
+    kwargs = popen.call_args.kwargs
+    assert kwargs["stdout"] is subprocess.DEVNULL
+    assert kwargs["stderr"] is subprocess.DEVNULL
+    if os.name != "nt":
+        assert kwargs["start_new_session"] is True
+
 
 def test_worker_start_background_rejects_second_worker(monkeypatch, worker_pid_file):
     """A second background start is rejected while one is already tracked."""
@@ -1113,6 +1122,19 @@ def test_worker_stop_cleans_up_stale_pid_file(monkeypatch, worker_pid_file):
         raise ProcessLookupError()
 
     monkeypatch.setattr(os, "kill", fake_kill)
+
+    invoke_and_assert(
+        command=["worker", "stop"],
+        expected_code=0,
+        expected_output_contains="Cleaning up stale PID file",
+        expected_output_does_not_contain="Worker stopped!",
+    )
+    assert not worker_pid_file.exists()
+
+
+def test_worker_stop_cleans_up_corrupt_pid_file(worker_pid_file):
+    """`worker stop` cleans up a PID file whose contents are empty or non-numeric."""
+    worker_pid_file.write_text("")
 
     invoke_and_assert(
         command=["worker", "stop"],
