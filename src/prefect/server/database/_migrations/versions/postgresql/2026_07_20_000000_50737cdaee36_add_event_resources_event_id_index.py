@@ -11,7 +11,10 @@ table on every batch, timing out under the API statement timeout on large
 deployments and silently deleting nothing.
 
 Uses CREATE INDEX CONCURRENTLY so the migration does not hold an exclusive
-lock on the table (which can be very large on affected deployments).
+lock on the table (which can be very large on affected deployments). A build
+that is cancelled or interrupted can leave an `INVALID` index behind; the plain
+`IF NOT EXISTS` would then skip creation and permanently leave the vacuum query
+without a usable index, so any invalid leftover is dropped and rebuilt first.
 """
 
 from alembic import op
@@ -25,6 +28,21 @@ depends_on = None
 
 def upgrade():
     with op.get_context().autocommit_block():
+        invalid_index = (
+            op.get_bind()
+            .exec_driver_sql(
+                """
+                SELECT 1
+                FROM pg_class c
+                JOIN pg_index i ON i.indexrelid = c.oid
+                WHERE c.relname = 'ix_event_resources__event_id'
+                AND NOT i.indisvalid
+                """
+            )
+            .scalar()
+        )
+        if invalid_index:
+            op.execute("DROP INDEX CONCURRENTLY IF EXISTS ix_event_resources__event_id")
         op.execute(
             """
             CREATE INDEX CONCURRENTLY IF NOT EXISTS

@@ -1277,6 +1277,15 @@ class TestDatabaseSettings:
         assert settings.server.database.migration_timeout is None
         assert settings.server.database.timeout == 10.0
 
+    @pytest.mark.parametrize("value", [0, -1.0])
+    def test_migration_timeout_rejects_non_positive(self, value: float):
+        """asyncpg's `command_timeout` requires a positive value, so a `0` or
+        negative migration timeout must be rejected up front rather than failing
+        every PostgreSQL migration connection at server startup.
+        """
+        with pytest.raises(pydantic.ValidationError):
+            ServerDatabaseSettings(migration_timeout=value)
+
     def test_database_connection_url_templates_password(self):
         with temporary_settings(
             {

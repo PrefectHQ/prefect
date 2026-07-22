@@ -282,7 +282,8 @@ class ServerDatabaseSettings(PrefectBaseSettings):
 
     migration_timeout: Optional[float] = Field(
         default=None,
-        description="A statement timeout, in seconds, applied to database migrations. Schema changes such as concurrent index builds on large tables can take much longer than an ordinary API query, so migrations are not bound by `server.database.timeout`. Defaults to `None` (no timeout); set a value to bound migration statement duration.",
+        gt=0,
+        description="A statement timeout, in seconds, applied to database migrations. Schema changes such as concurrent index builds on large tables can take much longer than an ordinary API query, so migrations are not bound by `server.database.timeout`. Defaults to `None` (no timeout); set a positive value to bound migration statement duration.",
     )
 
     # handle deprecated fields

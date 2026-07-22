@@ -9,7 +9,7 @@ import sqlalchemy
 from alembic import context
 from sqlalchemy.ext.asyncio import AsyncEngine
 
-from prefect.server.database.configurations import SQLITE_BEGIN_MODE
+from prefect.server.database.configurations import ENGINES, SQLITE_BEGIN_MODE
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.utilities.database import get_dialect
 from prefect.settings import get_current_settings
@@ -213,8 +213,22 @@ async def apply_migrations() -> None:
     engine = await migration_engine()
     context.script.version_locations = [db_interface.orm.versions_dir]
 
-    async with engine.connect() as connection:
-        await connection.run_sync(do_run_migrations)
+    # `migration_engine` may build a dedicated engine (PostgreSQL, when the
+    # migration timeout differs from the application timeout) that is otherwise
+    # cached until the event loop shuts down. Dispose it once migrations finish so
+    # a long-lived server process does not retain an idle pooled connection for
+    # its entire lifetime. The shared application engine is left untouched.
+    dedicated_engine = engine is not await db_interface.engine()
+    try:
+        async with engine.connect() as connection:
+            await connection.run_sync(do_run_migrations)
+    finally:
+        if dedicated_engine:
+            for cache_key, cached_engine in list(ENGINES.items()):
+                if cached_engine is engine:
+                    del ENGINES[cache_key]
+                    break
+            await engine.dispose()
 
 
 if context.is_offline_mode():

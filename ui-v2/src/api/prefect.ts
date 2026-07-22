@@ -9826,7 +9826,7 @@ export interface components {
             connection_timeout: number | null;
             /**
              * Migration Timeout
-             * @description A statement timeout, in seconds, applied to database migrations. Schema changes such as concurrent index builds on large tables can take much longer than an ordinary API query, so migrations are not bound by `server.database.timeout`. Defaults to `None` (no timeout); set a value to bound migration statement duration.
+             * @description A statement timeout, in seconds, applied to database migrations. Schema changes such as concurrent index builds on large tables can take much longer than an ordinary API query, so migrations are not bound by `server.database.timeout`. Defaults to `None` (no timeout); set a positive value to bound migration statement duration.
              */
             migration_timeout?: number | null;
         };
