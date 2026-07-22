@@ -670,6 +670,26 @@ class TestFlowRunSuspendingObserver:
             assert observer._polling_task is not None
             assert not observer._polling_task.done()
 
+    async def test_polling_task_done_ignores_cancelled_task(self):
+        # The always-on polling task is cancelled on shutdown; the done callback
+        # must not call task.exception() on it (which would raise CancelledError).
+        on_failure = MagicMock()
+        observer = FlowRunSuspendingObserver(
+            on_suspended=MagicMock(), on_failure=on_failure
+        )
+
+        async def never_finish():
+            await asyncio.Event().wait()
+
+        task = asyncio.create_task(never_finish())
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+
+        # Must not raise.
+        observer._handle_polling_task_done(task)
+        on_failure.assert_not_called()
+
     @pytest.mark.parametrize("task_state", ["completed", "cancelled"])
     async def test_consumer_task_done_does_not_start_additional_polling(
         self, task_state: str
