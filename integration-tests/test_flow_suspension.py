@@ -122,11 +122,20 @@ def test_external_suspension_stops_flow_run_at_next_task_boundary(tmp_path: Path
             flow_run_id = flow_run.id
 
         execution_log = execution_log_path.open("w")
+        # Run the flow-run executor in the project's synced environment rather
+        # than a fresh `uv run --isolated` one. `--isolated` rebuilds an
+        # ephemeral venv on every invocation, which forces Python to recompile
+        # prefect's bytecode from scratch; under the parallel, resource-starved
+        # `prefect-client` compatibility job that cold import roughly doubles the
+        # subprocess start-up time and pushed the whole test (start-up +
+        # external suspension + clean exit) past the 90s pytest-timeout. Reusing
+        # the already-synced environment keeps a separate process (so the
+        # cross-process suspension behaviour is still exercised) while dropping
+        # the redundant per-run recompilation.
         execution_process = subprocess.Popen(
             [
                 uv.find_uv_bin(),
                 "run",
-                "--isolated",
                 "prefect",
                 "flow-run",
                 "execute",
