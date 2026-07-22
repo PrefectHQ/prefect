@@ -45,7 +45,7 @@ def filter_files(
 
     The specification matches that of [.gitignore files](https://git-scm.com/docs/gitignore).
     """
-    spec = pathspec.PathSpec.from_lines("gitwildmatch", ignore_patterns or [])
+    spec = pathspec.GitIgnoreSpec.from_lines(ignore_patterns or [])
     ignored_files = {p.path for p in spec.match_tree_entries(root)}
     if include_dirs:
         all_files = {p.path for p in pathspec.util.iter_tree_entries(root)}

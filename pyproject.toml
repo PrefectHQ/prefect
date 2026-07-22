@@ -42,7 +42,7 @@ dependencies = [
     # Client dependencies
     # If you modify this list, make the same modification in client/pyproject.toml
     "amplitude-analytics>=1.2.1,<2.0.0",
-    "anyio>=4.4.0,<5.0.0",
+    "anyio>=4.4.0,<5.0.0,!=4.14.2",
     "asgi-lifespan>=1.0,<3.0",
     "cachetools>=5.3,<8.0",
     "cloudpickle>=2.0,<4.0",
@@ -60,7 +60,7 @@ dependencies = [
     "opentelemetry-api>=1.27.0,<2.0.0",
     "orjson>=3.7,<4.0",
     "packaging>=21.3,<26.3",
-    "pathspec>=0.8.0",
+    "pathspec>=0.10.1",
     "pendulum>=3.1.0,<4; python_version<'3.13'",
     "prometheus-client>=0.20.0",
     "pydantic>=2.10.1,<3.0.0,!=2.11.0,!=2.11.1,!=2.11.2,!=2.11.3,!=2.11.4",
@@ -174,8 +174,8 @@ dev = [
     "yamllint>=1.35.1",
     "respx>=0.22.0",
     "codespell==2.4.3",
-    "ruff==0.15.21",
-    "mypy==1.19.1",
+    "ruff==0.15.22",
+    "mypy==2.3.0",
     "types-cachetools>=5.3.1",
     "types-PyYAML>=6.0.12",
     "types-dateparser>=1.2.0",
