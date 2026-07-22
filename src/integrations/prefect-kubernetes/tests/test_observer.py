@@ -715,6 +715,56 @@ class TestReplicatePodEvent:
         emitted_event = mock_events_client.emit.call_args[1]["event"]
         assert "kubernetes.diagnosis" not in emitted_event.resource
 
+    async def test_diagnosis_change_produces_distinct_event_id(
+        self,
+        mock_events_client: AsyncMock,
+    ):
+        """A Pending pod that becomes Unschedulable emits a distinct event.
+
+        The diagnosis must participate in the deterministic event ID so the
+        diagnosed event is not deduplicated away by the server (which would
+        otherwise happen since phase and restart count are unchanged).
+        """
+        pod_id = uuid.uuid4()
+        labels = {
+            "prefect.io/flow-run-id": str(uuid.uuid4()),
+            "prefect.io/flow-run-name": "test-run",
+        }
+
+        await _replicate_pod_event(
+            event={"type": "ADDED"},
+            uid=str(pod_id),
+            name="test",
+            namespace="test",
+            labels=labels,
+            status={"phase": "Pending"},
+            logger=MagicMock(),
+        )
+        undiagnosed_id = mock_events_client.emit.call_args[1]["event"].id
+
+        await _replicate_pod_event(
+            event={"type": "MODIFIED"},
+            uid=str(pod_id),
+            name="test",
+            namespace="test",
+            labels=labels,
+            status={
+                "phase": "Pending",
+                "conditions": [
+                    {
+                        "type": "PodScheduled",
+                        "status": "False",
+                        "reason": "Unschedulable",
+                        "message": "0/3 nodes are available: 3 insufficient cpu.",
+                    }
+                ],
+            },
+            logger=MagicMock(),
+        )
+        diagnosed_id = mock_events_client.emit.call_args[1]["event"].id
+
+        assert undiagnosed_id != diagnosed_id
+
     async def test_no_diagnosis_for_healthy_pod(
         self,
         mock_events_client: AsyncMock,

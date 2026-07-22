@@ -171,6 +171,10 @@ class TestDiagnoseKubernetesPod:
                 DiagnosisCategory.UNSCHEDULABLE_NODE_AFFINITY,
             ),
             (
+                "0/3 nodes are available: 3 node(s) didn't match pod topology spread constraints.",
+                DiagnosisCategory.UNSCHEDULABLE,
+            ),
+            (
                 "0/3 nodes are available for some unknown reason.",
                 DiagnosisCategory.UNSCHEDULABLE,
             ),

@@ -185,7 +185,10 @@ def _categorize_unschedulable(message: str) -> DiagnosisCategory:
     text = message.lower()
     if "taint" in text:
         return DiagnosisCategory.UNSCHEDULABLE_TAINT
-    if "affinity" in text or "node selector" in text or "didn't match" in text:
+    # Match affinity/selector wording explicitly rather than a generic
+    # "didn't match", which would also catch unrelated reasons such as
+    # "didn't match pod topology spread constraints".
+    if "affinity" in text or "node selector" in text:
         return DiagnosisCategory.UNSCHEDULABLE_NODE_AFFINITY
     if "insufficient" in text:
         return DiagnosisCategory.UNSCHEDULABLE_INSUFFICIENT_RESOURCES
