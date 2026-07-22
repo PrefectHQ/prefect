@@ -371,7 +371,9 @@ class FlowRunSuspendingObserver:
                 )
 
     def _ensure_polling_task(self) -> None:
-        if self._polling_task is not None or self._is_shutting_down:
+        if self._is_shutting_down:
+            return
+        if self._polling_task is not None and not self._polling_task.done():
             return
 
         self._polling_task = asyncio.create_task(
