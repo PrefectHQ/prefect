@@ -78,7 +78,7 @@ prefect worker start --pool my-docker-pool --type docker
 </Tip>
 
 Keep this terminal session active for the worker to continue to pick up jobs.
-Since you are running this worker locally, the worker will if you close the terminal.
+Since you are running this worker locally, the worker will stop if you close the terminal.
 In a production setting this worker should run as a [daemonized or managed process](/v3/deploy/daemonize-processes/).
 
 ## Create the deployment
@@ -336,7 +336,7 @@ The `job_variables` parameter allows you to fine-tune the infrastructure setting
 The values passed in override default values in the specified work pool's
 [base job template](/v3/deploy/infrastructure-concepts/work-pools/#base-job-template).
 
-You can override environment variables, such as `image_pull_policy` and `image`, for a specific deployment with the `job_variables`
+You can override job variables, such as `image_pull_policy` and `image`, for a specific deployment with the `job_variables`
 argument. Valid values for `image_pull_policy` are `IfNotPresent`, `Always`, `IfPossible`, and `Never`. `IfPossible` always attempts to
 pull the image, but falls back to a local copy if the pull fails instead of raising an error.
 
