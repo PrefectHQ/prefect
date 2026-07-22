@@ -218,6 +218,9 @@ async def test_watch_flow_run_resumes_after_stream_drop(
         async def __aexit__(self, *args) -> None:
             pass
 
+        async def _reconnect(self) -> None:
+            pass
+
         def __aiter__(self) -> Self:
             self._pass_index += 1
             return self

@@ -139,10 +139,10 @@ class FlowRunSubscriber:
 
     @property
     def error(self) -> Optional[Exception]:
-        """The first error raised by a consumer task, if any.
+        """The first error encountered by a consumer task, if any.
 
-        A consumer records an error here when its underlying websocket dies
-        instead of raising, so callers can distinguish a clean end of stream
+        A consumer records an error here when its underlying websocket dies or
+        closes before completion, so callers can distinguish a completed watch
         from a connection failure.
         """
         return self._error
@@ -226,10 +226,13 @@ class FlowRunSubscriber:
         active, so a transient websocket failure does not truncate the logs.
         """
         backoff = 0.0
+        reconnect = False
         try:
             while not self._flow_completed:
                 stream_error: Optional[Exception] = None
                 try:
+                    if reconnect:
+                        await self._logs_subscriber._reconnect()
                     async for log in self._logs_subscriber:
                         backoff = 0.0
                         await self._queue.put(log)
@@ -238,10 +241,17 @@ class FlowRunSubscriber:
                 except Exception as exc:
                     stream_error = exc
 
+                if self._flow_completed:
+                    break
+                if stream_error is None:
+                    stream_error = ConnectionError(
+                        "Flow run logs stream closed unexpectedly"
+                    )
                 if not await self._should_resume(stream_error):
                     break
                 backoff = min(backoff + 1, MAX_RESUME_BACKOFF_SECONDS)
                 await asyncio.sleep(backoff)
+                reconnect = True
         except asyncio.CancelledError:
             pass
         finally:
@@ -254,10 +264,13 @@ class FlowRunSubscriber:
         observed and the flow run is still active on the server.
         """
         backoff = 0.0
+        reconnect = False
         try:
             while not self._flow_completed:
                 stream_error: Optional[Exception] = None
                 try:
+                    if reconnect:
+                        await self._events_subscriber._reconnect()
                     async for event in self._events_subscriber:
                         backoff = 0.0
                         await self._queue.put(event)
@@ -269,10 +282,17 @@ class FlowRunSubscriber:
                 except Exception as exc:
                     stream_error = exc
 
-                if self._flow_completed or not await self._should_resume(stream_error):
+                if self._flow_completed:
+                    break
+                if stream_error is None:
+                    stream_error = ConnectionError(
+                        "Flow run events stream closed unexpectedly"
+                    )
+                if not await self._should_resume(stream_error):
                     break
                 backoff = min(backoff + 1, MAX_RESUME_BACKOFF_SECONDS)
                 await asyncio.sleep(backoff)
+                reconnect = True
         except asyncio.CancelledError:
             pass
         finally:
