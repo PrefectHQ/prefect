@@ -7,6 +7,7 @@ Start and interact with workers.
 import asyncio
 import json
 import os
+import signal
 from enum import Enum
 from pathlib import Path
 from typing import Annotated, Optional
@@ -16,6 +17,7 @@ import cyclopts
 import prefect.cli._app as _cli
 from prefect.cli._utilities import (
     exit_with_error,
+    exit_with_success,
     with_cli_exception_handling,
 )
 
@@ -111,6 +113,12 @@ async def start(
             ),
         ),
     ] = True,
+    background: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--background", alias="-b", help="Run the worker in the background."
+        ),
+    ] = False,
 ):
     """Start a worker process to poll a work pool for flow runs."""
     from prefect.cli._prompts import confirm
@@ -209,6 +217,40 @@ async def start(
             " installed to run your desired worker type."
         )
 
+    # Only background after validation passes, so a misconfigured worker fails here
+    # instead of reporting success (matches `prefect server start`).
+    if background:
+        from prefect.cli._worker_utils import (
+            WORKER_PID_FILE_NAME,
+            _run_worker_in_background,
+        )
+        from prefect.settings import PREFECT_HOME
+
+        pid_file = Path(PREFECT_HOME.value()) / WORKER_PID_FILE_NAME
+        try:
+            pid_file.touch(mode=0o600, exist_ok=False)
+        except FileExistsError:
+            exit_with_error(
+                "A worker is already running in the background. To stop it, run"
+                " `prefect worker stop`."
+            )
+        _run_worker_in_background(
+            _cli.console,
+            pid_file,
+            work_pool_name=work_pool_name,
+            worker_name=worker_name,
+            work_queues=work_queues,
+            worker_type=worker_type,
+            limit=limit,
+            prefetch_seconds=prefetch_seconds,
+            run_once=run_once,
+            with_healthcheck=with_healthcheck,
+            install_policy=install_policy.value,
+            base_job_template=base_job_template,
+            create_pool_if_not_found=create_pool_if_not_found,
+        )
+        return
+
     worker_process_id = os.getpid()
     setup_signal_handlers_worker(
         worker_process_id, f"the {worker_type} worker", _cli.console.print
@@ -236,3 +278,26 @@ async def start(
         )
     except asyncio.CancelledError:
         _cli.console.print(f"Worker {worker.name!r} stopped!", style="yellow")
+
+
+@worker_app.command()
+@with_cli_exception_handling
+async def stop():
+    """Stop a Prefect worker running in the background."""
+    from prefect.cli._worker_utils import WORKER_PID_FILE_NAME
+    from prefect.settings import PREFECT_HOME
+
+    pid_file = Path(PREFECT_HOME.value()) / WORKER_PID_FILE_NAME
+
+    if not pid_file.exists():
+        exit_with_success("No worker running in the background.")
+    pid = int(pid_file.read_text())
+    try:
+        os.kill(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        exit_with_success(
+            "The worker process is not running. Cleaning up stale PID file."
+        )
+    finally:
+        pid_file.unlink(missing_ok=True)
+    _cli.console.print("Worker stopped!")

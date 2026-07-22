@@ -1023,3 +1023,216 @@ class TestWorkerSignalForwarding:
             "When sending two SIGTERM shortly after each other, the main process should"
             f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
         )
+
+
+@pytest.fixture
+def worker_pid_file():
+    """Provide a clean worker PID file path around background and stop tests."""
+    from prefect.cli._worker_utils import WORKER_PID_FILE_NAME
+    from prefect.settings import PREFECT_HOME
+
+    pid_file = Path(PREFECT_HOME.value()) / WORKER_PID_FILE_NAME
+    pid_file.unlink(missing_ok=True)
+    yield pid_file
+    pid_file.unlink(missing_ok=True)
+
+
+def test_worker_start_background_spawns_detached_process(monkeypatch, worker_pid_file):
+    """`worker start --background` spawns a detached process and records its PID."""
+    fake_process = MagicMock()
+    fake_process.pid = 12345
+    popen = MagicMock(return_value=fake_process)
+    monkeypatch.setattr("subprocess.Popen", popen)
+
+    invoke_and_assert(
+        command=["worker", "start", "--pool", "test-pool", "--background"],
+        expected_code=0,
+        expected_output_contains="running in the background",
+    )
+
+    assert popen.call_count == 1
+    reconstructed = popen.call_args.args[0]
+    assert reconstructed[0] == sys.executable
+    assert reconstructed[1:5] == ["-m", "prefect", "worker", "start"]
+    assert "--pool" in reconstructed
+    assert "test-pool" in reconstructed
+    assert "--background" not in reconstructed
+    assert "-b" not in reconstructed
+    assert worker_pid_file.exists()
+    assert worker_pid_file.read_text() == "12345"
+
+
+def test_worker_start_background_rejects_second_worker(monkeypatch, worker_pid_file):
+    """A second background start is rejected while one is already tracked."""
+    popen = MagicMock()
+    monkeypatch.setattr("subprocess.Popen", popen)
+    worker_pid_file.touch()
+
+    invoke_and_assert(
+        command=["worker", "start", "--pool", "test-pool", "--background"],
+        expected_code=1,
+        expected_output_contains="already running in the background",
+    )
+    assert popen.call_count == 0
+
+
+def test_worker_stop_when_none_running(worker_pid_file):
+    """`worker stop` reports nothing to stop when no PID file exists."""
+    invoke_and_assert(
+        command=["worker", "stop"],
+        expected_code=0,
+        expected_output_contains="No worker running in the background.",
+    )
+
+
+def test_worker_stop_terminates_running_worker(monkeypatch, worker_pid_file):
+    """`worker stop` sends SIGTERM to the recorded PID and clears the file."""
+    worker_pid_file.write_text("4321")
+    killed = {}
+
+    def fake_kill(pid, sig):
+        killed["pid"] = pid
+        killed["sig"] = sig
+
+    monkeypatch.setattr(os, "kill", fake_kill)
+
+    invoke_and_assert(
+        command=["worker", "stop"],
+        expected_code=0,
+        expected_output_contains="Worker stopped!",
+    )
+    assert killed == {"pid": 4321, "sig": signal.SIGTERM}
+    assert not worker_pid_file.exists()
+
+
+def test_worker_stop_cleans_up_stale_pid_file(monkeypatch, worker_pid_file):
+    """`worker stop` cleans up a PID file that points at a dead process."""
+    worker_pid_file.write_text("99999")
+
+    def fake_kill(pid, sig):
+        raise ProcessLookupError()
+
+    monkeypatch.setattr(os, "kill", fake_kill)
+
+    invoke_and_assert(
+        command=["worker", "stop"],
+        expected_code=0,
+        expected_output_contains="Cleaning up stale PID file",
+        expected_output_does_not_contain="Worker stopped!",
+    )
+    assert not worker_pid_file.exists()
+
+
+def test_worker_start_background_forwards_all_options(monkeypatch, worker_pid_file):
+    """The reconstructed background command forwards every provided option."""
+    fake_process = MagicMock()
+    fake_process.pid = 777
+    popen = MagicMock(return_value=fake_process)
+    monkeypatch.setattr("subprocess.Popen", popen)
+
+    template = Path(__file__).parent / "base-job-templates" / "process-worker.json"
+    invoke_and_assert(
+        command=[
+            "worker",
+            "start",
+            "--pool",
+            "my-pool",
+            "--name",
+            "w1",
+            "--type",
+            "process",
+            "--work-queue",
+            "a",
+            "--work-queue",
+            "b",
+            "--limit",
+            "3",
+            "--prefetch-seconds",
+            "7",
+            "--run-once",
+            "--with-healthcheck",
+            "--base-job-template",
+            str(template),
+            "--no-create-pool-if-not-found",
+            "--background",
+        ],
+        expected_code=0,
+        expected_output_contains="running in the background",
+    )
+
+    argv = popen.call_args.args[0]
+
+    def has_pair(flag, value):
+        return any(
+            argv[i] == flag and argv[i + 1] == value for i in range(len(argv) - 1)
+        )
+
+    assert has_pair("--pool", "my-pool")
+    assert has_pair("--name", "w1")
+    assert has_pair("--type", "process")
+    assert argv.count("--work-queue") == 2
+    assert has_pair("--work-queue", "a")
+    assert has_pair("--work-queue", "b")
+    assert has_pair("--limit", "3")
+    assert has_pair("--prefetch-seconds", "7")
+    assert "--run-once" in argv
+    assert "--with-healthcheck" in argv
+    assert "--base-job-template" in argv
+    assert "process-worker.json" in argv[argv.index("--base-job-template") + 1]
+    assert has_pair("--install-policy", "prompt")
+    assert "--no-create-pool-if-not-found" in argv
+    assert "--background" not in argv
+    assert "-b" not in argv
+
+
+async def test_worker_start_background_validates_before_spawning_push_pool(
+    push_work_pool, worker_pid_file, monkeypatch
+):
+    """`worker start --background` validates in the parent, so a push pool is rejected before any background process is spawned."""
+    popen = MagicMock()
+    monkeypatch.setattr("subprocess.Popen", popen)
+
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "worker",
+            "start",
+            "--pool",
+            push_work_pool.name,
+            "--background",
+        ],
+        expected_code=1,
+        expected_output_contains="Workers are not required for push work pools",
+        expected_output_does_not_contain="running in the background",
+    )
+    assert popen.call_count == 0
+    assert not worker_pid_file.exists()
+
+
+async def test_worker_start_background_validates_before_spawning_bad_type(
+    process_work_pool, worker_pid_file, monkeypatch
+):
+    """`worker start --background` rejects an uninstallable worker type in the parent before spawning."""
+    popen = MagicMock()
+    monkeypatch.setattr("subprocess.Popen", popen)
+
+    await run_sync_in_worker_thread(
+        invoke_and_assert,
+        command=[
+            "worker",
+            "start",
+            "--pool",
+            process_work_pool.name,
+            "--type",
+            "not-a-real-type",
+            "--background",
+        ],
+        expected_code=1,
+        expected_output_contains=(
+            "Unable to start worker. Please ensure you have the necessary"
+            " dependencies installed to run your desired worker type."
+        ),
+        expected_output_does_not_contain="running in the background",
+    )
+    assert popen.call_count == 0
+    assert not worker_pid_file.exists()
