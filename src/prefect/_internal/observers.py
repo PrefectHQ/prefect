@@ -370,19 +370,9 @@ class FlowRunSuspendingObserver:
                     event.resource["prefect.resource.id"],
                 )
 
-    def _start_polling_task(self, task: asyncio.Task[None]):
-        if task.cancelled() or self._is_shutting_down:
+    def _ensure_polling_task(self) -> None:
+        if self._polling_task is not None or self._is_shutting_down:
             return
-
-        if exc := task.exception():
-            self.logger.warning(
-                "The FlowRunSuspendingObserver websocket failed with an exception. Switching to polling mode.",
-                exc_info=exc,
-            )
-        else:
-            self.logger.warning(
-                "The FlowRunSuspendingObserver websocket closed. Switching to polling mode.",
-            )
 
         self._polling_task = asyncio.create_task(
             critical_service_loop(
@@ -393,7 +383,25 @@ class FlowRunSuspendingObserver:
         )
         self._polling_task.add_done_callback(self._handle_polling_task_done)
 
+    def _start_polling_task(self, task: asyncio.Task[None]):
+        if task.cancelled() or self._is_shutting_down:
+            return
+
+        if exc := task.exception():
+            self.logger.warning(
+                "The FlowRunSuspendingObserver websocket failed with an exception. Relying on the polling safety net.",
+                exc_info=exc,
+            )
+        else:
+            self.logger.warning(
+                "The FlowRunSuspendingObserver websocket closed. Relying on the polling safety net.",
+            )
+
+        self._ensure_polling_task()
+
     def _handle_polling_task_done(self, task: asyncio.Task[None]):
+        if task.cancelled():
+            return
         if task.exception():
             self.logger.error(
                 "Suspension polling task failed. Execution will continue, but external flow run suspension will fail.",
@@ -455,15 +463,13 @@ class FlowRunSuspendingObserver:
         if self._events_subscriber is not None:
             self._consumer_task = asyncio.create_task(self._consume_events())
             self._consumer_task.add_done_callback(self._start_polling_task)
-        else:
-            self._polling_task = asyncio.create_task(
-                critical_service_loop(
-                    workload=self._check_for_suspended_flow_runs,
-                    interval=self.polling_interval,
-                    jitter_range=0.3,
-                )
-            )
-            self._polling_task.add_done_callback(self._handle_polling_task_done)
+
+        # Always run the polling loop as a safety net alongside the websocket.
+        # External suspension is only enforced once this observer notices the
+        # Suspended state; a websocket that stays open but silently drops or
+        # delays the Suspended event would otherwise leave the running flow
+        # executing indefinitely instead of stopping at the next task boundary.
+        self._ensure_polling_task()
 
         return self
 

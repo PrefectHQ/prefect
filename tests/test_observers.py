@@ -583,6 +583,38 @@ class TestFlowRunSuspendingObserver:
             callback.assert_called_once_with(flow_run_id, state)
             assert flow_run_id in observer._suspended_flow_run_ids
 
+    async def test_polling_safety_net_runs_alongside_websocket(self):
+        """The polling loop must run even when the websocket subscriber is
+        connected, so a dropped or delayed Suspended event cannot leave a
+        running flow un-suspended."""
+        callback = MagicMock()
+        observer = FlowRunSuspendingObserver(
+            on_suspended=callback, polling_interval=0.1
+        )
+
+        flow_run_id = uuid.uuid4()
+        state = Suspended()
+        mock_flow_run = mock.MagicMock()
+        mock_flow_run.id = flow_run_id
+        mock_flow_run.state = state
+
+        async with observer:
+            # The websocket subscriber is connected, but no Suspended event is
+            # ever delivered over it; the polling safety net must still fire.
+            assert observer._events_subscriber is not None
+            assert observer._polling_task is not None
+
+            observer.add_in_flight_flow_run_id(flow_run_id)
+
+            with patch.object(
+                observer._client, "read_flow_runs", return_value=[mock_flow_run]
+            ):
+                async for attempt in retry_asserts(max_attempts=20, delay=0.1):
+                    with attempt:
+                        callback.assert_called_once_with(flow_run_id, state)
+
+        assert flow_run_id in observer._suspended_flow_run_ids
+
     async def test_watch_flow_run_id_checks_current_state(self):
         callback = MagicMock()
         observer = FlowRunSuspendingObserver(on_suspended=callback)
