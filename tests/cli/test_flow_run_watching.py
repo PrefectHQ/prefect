@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 import asyncio
+from typing import NoReturn
+from uuid import UUID
 
 import pytest
 from rich.console import Console
 from typing_extensions import Self
 
+import prefect.cli.flow_runs_watching as flow_runs_watching
 import prefect.events.subscribers
 from prefect import flow
 from prefect.cli.flow_runs_watching import watch_flow_run
 from prefect.client.orchestration import PrefectClient
-from prefect.events import Event, Resource
+from prefect.client.schemas.objects import Log
+from prefect.events import Event
 from prefect.exceptions import FlowRunWaitTimeout, FlowRunWatchError
 from prefect.flow_engine import run_flow_async
 from prefect.states import Completed
@@ -36,6 +40,35 @@ async def failing_flow():
 async def slow_flow():
     """Simple flow that takes a long time"""
     await asyncio.sleep(10)
+
+
+class DyingEventSubscriber:
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *args) -> None:
+        pass
+
+    def __aiter__(self) -> Self:
+        return self
+
+    async def __anext__(self) -> Event:
+        raise ConnectionError("events websocket died")
+
+
+class HangingLogsSubscriber:
+    async def __aenter__(self) -> Self:
+        return self
+
+    async def __aexit__(self, *args) -> None:
+        pass
+
+    def __aiter__(self) -> Self:
+        return self
+
+    async def __anext__(self) -> Log:
+        await asyncio.Event().wait()
+        raise AssertionError("unreachable")
 
 
 async def test_watch_flow_run_exits_after_successful_completion(
@@ -112,49 +145,10 @@ async def test_watch_flow_run_raises_when_stream_dies_before_completion(
     prefect_client: PrefectClient, monkeypatch
 ):
     """watch_flow_run must not report a non-terminal run as finished when the
-    events/logs websocket dies and contact with the server is lost before a
-    terminal state is observed."""
+    events/logs websocket dies before a terminal state is observed."""
     # A scheduled (non-terminal) flow run that is never actually executed.
     flow_run = await prefect_client.create_flow_run(flow=slow_flow)
     assert flow_run.state is not None and not flow_run.state.is_final()
-
-    # Simulate the subscriber being unable to reach the server to check the
-    # run's state, so it gives up resuming and records the error instead of
-    # retrying forever.
-    async def _server_unreachable(self) -> None:
-        return None
-
-    monkeypatch.setattr(
-        prefect.events.subscribers.FlowRunSubscriber,
-        "_flow_run_is_terminal",
-        _server_unreachable,
-    )
-
-    class DyingEventSubscriber:
-        async def __aenter__(self) -> Self:
-            return self
-
-        async def __aexit__(self, *args) -> None:
-            pass
-
-        def __aiter__(self) -> Self:
-            return self
-
-        async def __anext__(self) -> Event:
-            raise ConnectionError("events websocket died")
-
-    class EmptyLogsSubscriber:
-        async def __aenter__(self) -> Self:
-            return self
-
-        async def __aexit__(self, *args) -> None:
-            pass
-
-        def __aiter__(self) -> Self:
-            return self
-
-        async def __anext__(self):
-            raise StopAsyncIteration
 
     monkeypatch.setattr(
         prefect.events.subscribers,
@@ -164,7 +158,7 @@ async def test_watch_flow_run_raises_when_stream_dies_before_completion(
     monkeypatch.setattr(
         prefect.events.subscribers,
         "get_logs_subscriber",
-        lambda *args, **kwargs: EmptyLogsSubscriber(),
+        lambda *args, **kwargs: HangingLogsSubscriber(),
     )
 
     console = Console()
@@ -173,85 +167,16 @@ async def test_watch_flow_run_raises_when_stream_dies_before_completion(
         await watch_flow_run(flow_run.id, console)
 
 
-async def test_watch_flow_run_resumes_after_stream_drop(
+async def test_watch_flow_run_returns_terminal_state_after_stream_dies(
     prefect_client: PrefectClient, monkeypatch
 ):
-    """watch_flow_run resumes a dropped stream while the run is still active
-    and completes once the terminal event is recovered."""
-    flow_run = await prefect_client.create_flow_run(flow=slow_flow)
-
-    # Force the subscriber to treat the run as still active so it resumes the
-    # dropped stream instead of giving up.
-    async def _still_running(self) -> bool:
-        return False
-
-    monkeypatch.setattr(
-        prefect.events.subscribers.FlowRunSubscriber,
-        "_flow_run_is_terminal",
-        _still_running,
-    )
-
-    terminal_event = Event(
-        id=flow_run.id,
-        occurred=flow_run.created,
-        event="prefect.flow-run.Completed",
-        resource=Resource(
-            root={
-                "prefect.resource.id": f"prefect.flow-run.{flow_run.id}",
-                "prefect.state-type": "COMPLETED",
-            }
-        ),
-        payload={},
-    )
-
-    class ResumingEventSubscriber:
-        """Drops the stream once, then delivers the terminal event on resume."""
-
-        def __init__(self):
-            self._passes = [ConnectionError("events websocket died"), None]
-            self._pass_index = -1
-            self._delivered = False
-
-        async def __aenter__(self) -> Self:
-            return self
-
-        async def __aexit__(self, *args) -> None:
-            pass
-
-        async def _reconnect(self) -> None:
-            pass
-
-        def __aiter__(self) -> Self:
-            self._pass_index += 1
-            return self
-
-        async def __anext__(self) -> Event:
-            terminator = self._passes[self._pass_index]
-            if terminator is not None:
-                raise terminator
-            if not self._delivered:
-                self._delivered = True
-                return terminal_event
-            raise StopAsyncIteration
-
-    class HangingLogsSubscriber:
-        async def __aenter__(self) -> Self:
-            return self
-
-        async def __aexit__(self, *args) -> None:
-            pass
-
-        def __aiter__(self) -> Self:
-            return self
-
-        async def __anext__(self):
-            await asyncio.Event().wait()
-            raise AssertionError("unreachable")
+    """A final server read wins if the run finished as a stream died."""
+    flow_run = await prefect_client.create_flow_run(flow=slow_flow, state=Completed())
 
     monkeypatch.setattr(
         prefect.events.subscribers,
         "get_events_subscriber",
-        lambda *args, **kwargs: ResumingEventSubscriber(),
+        lambda *args, **kwargs: DyingEventSubscriber(),
     )
     monkeypatch.setattr(
         prefect.events.subscribers,
@@ -263,3 +188,43 @@ async def test_watch_flow_run_resumes_after_stream_drop(
 
     result = await watch_flow_run(flow_run.id, console)
     assert result.id == flow_run.id
+    assert result.state is not None and result.state.is_completed()
+
+
+async def test_watch_flow_run_translates_final_read_failure(
+    prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+):
+    """A final API failure after stream termination is surfaced consistently."""
+    flow_run = await prefect_client.create_flow_run(flow=slow_flow)
+
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_events_subscriber",
+        lambda *args, **kwargs: DyingEventSubscriber(),
+    )
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_logs_subscriber",
+        lambda *args, **kwargs: HangingLogsSubscriber(),
+    )
+
+    class UnreachableClient:
+        async def __aenter__(self) -> Self:
+            return self
+
+        async def __aexit__(self, *args) -> None:
+            pass
+
+        async def read_flow_run(self, flow_run_id: UUID) -> NoReturn:
+            raise ConnectionError("Prefect API unavailable")
+
+    monkeypatch.setattr(flow_runs_watching, "get_client", lambda: UnreachableClient())
+
+    with pytest.raises(
+        FlowRunWatchError,
+        match="the final state could not be read",
+    ) as exc_info:
+        await watch_flow_run(flow_run.id, Console())
+
+    assert isinstance(exc_info.value.__cause__, ConnectionError)
+    assert str(exc_info.value.__cause__) == "events websocket died"

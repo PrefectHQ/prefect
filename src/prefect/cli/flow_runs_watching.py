@@ -73,19 +73,25 @@ async def watch_flow_run(
             async for item in subscriber:
                 console.print(formatter.format(item))
 
-    async with get_client() as client:
-        flow_run = await client.read_flow_run(flow_run_id)
+    try:
+        async with get_client() as client:
+            flow_run = await client.read_flow_run(flow_run_id)
+    except Exception:
+        if subscriber.error is not None:
+            raise FlowRunWatchError(
+                f"Stopped watching flow run {flow_run_id} before it reached a "
+                "terminal state; the events or logs stream closed unexpectedly "
+                "and the final state could not be read."
+            ) from subscriber.error
+        raise
 
-    # The subscriber resumes a dropped stream while the run is still active, so
-    # it only stops early when it can no longer reach the server. If it stopped
-    # before confirming a terminal state and the run is still not terminal,
-    # surface that failure instead of returning a non-terminal flow run as if
-    # the watch succeeded.
+    # A stream may terminate just as the run finishes, so reconcile against the
+    # server before deciding whether the watch failed.
     state = flow_run.state
-    if not subscriber.flow_completed and (state is None or not state.is_final()):
+    if state is None or not state.is_final():
         raise FlowRunWatchError(
             f"Stopped watching flow run {flow_run_id} before it reached a terminal "
-            "state; lost contact with the Prefect API while streaming events and logs."
+            "state because the events or logs stream closed unexpectedly."
         ) from subscriber.error
 
     return flow_run

@@ -22,9 +22,6 @@ if TYPE_CHECKING:
     from prefect.events.clients import PrefectEventSubscriber
     from prefect.logging.clients import PrefectLogsSubscriber
 
-# Cap on the backoff between attempts to resume a dropped subscription.
-MAX_RESUME_BACKOFF_SECONDS = 30
-
 
 class FlowRunSubscriber:
     """
@@ -128,22 +125,11 @@ class FlowRunSubscriber:
         await self._events_subscriber.__aexit__(exc_type, exc_val, exc_tb)
 
     @property
-    def flow_completed(self) -> bool:
-        """Whether the flow run was observed in a terminal state.
-
-        When this is `False` after the stream has been exhausted, the
-        subscription ended before a terminal event was received or the API
-        confirmed that the run finished.
-        """
-        return self._flow_completed
-
-    @property
     def error(self) -> Optional[Exception]:
-        """The first error encountered by a consumer task, if any.
+        """The first error that ended a consumer task, if any.
 
         A consumer records an error here when its underlying websocket dies or
-        closes before completion, so callers can distinguish a completed watch
-        from a connection failure.
+        closes before completion so callers can surface the failure.
         """
         return self._error
 
@@ -166,26 +152,6 @@ class FlowRunSubscriber:
             return StateType(state_type_str) in TERMINAL_STATES
         except ValueError:
             return False
-
-    async def _flow_run_is_terminal(self) -> Optional[bool]:
-        """Read the flow run's current state from the server.
-
-        Returns `True`/`False` for a terminal/non-terminal state, or `None` if
-        the server could not be reached. Used to decide whether a dropped
-        subscription should be resumed (the run is still active) or allowed to
-        end (the run has finished).
-        """
-        # Imported here to avoid a circular import: `prefect.events` is
-        # imported while `prefect.client.orchestration` is initializing.
-        from prefect.client.orchestration import get_client
-
-        try:
-            async with get_client() as client:
-                flow_run = await client.read_flow_run(self._flow_run_id)
-        except Exception:
-            return None
-        state = flow_run.state
-        return state is not None and state.is_final()
 
     def __aiter__(self) -> Self:
         """Return self as an async iterator"""
@@ -220,99 +186,38 @@ class FlowRunSubscriber:
         raise StopAsyncIteration
 
     async def _consume_logs(self) -> None:
-        """Background task to consume logs and put them in the queue.
-
-        Resumes the subscription if it drops while the flow run is still
-        active, so a transient websocket failure does not truncate the logs.
-        """
-        backoff = 0.0
-        reconnect = False
+        """Background task to consume logs and put them in the queue"""
         try:
-            while not self._flow_completed:
-                stream_error: Optional[Exception] = None
-                try:
-                    if reconnect:
-                        await self._logs_subscriber._reconnect()
-                    async for log in self._logs_subscriber:
-                        backoff = 0.0
-                        await self._queue.put(log)
-                except asyncio.CancelledError:
-                    raise
-                except Exception as exc:
-                    stream_error = exc
-
-                if self._flow_completed:
-                    break
-                if stream_error is None:
-                    stream_error = ConnectionError(
-                        "Flow run logs stream closed unexpectedly"
-                    )
-                if not await self._should_resume(stream_error):
-                    break
-                backoff = min(backoff + 1, MAX_RESUME_BACKOFF_SECONDS)
-                await asyncio.sleep(backoff)
-                reconnect = True
+            async for log in self._logs_subscriber:
+                await self._queue.put(log)
         except asyncio.CancelledError:
             pass
+        except Exception as exc:
+            self._record_error(exc)
+        else:
+            if not self._flow_completed:
+                self._record_error(
+                    ConnectionError("Flow run logs stream closed unexpectedly")
+                )
         finally:
             await self._queue.put(None)
 
     async def _consume_events(self) -> None:
-        """Background task to consume events and put them in the queue.
-
-        Resumes the subscription if it drops before a terminal event is
-        observed and the flow run is still active on the server.
-        """
-        backoff = 0.0
-        reconnect = False
+        """Background task to consume events and put them in the queue"""
         try:
-            while not self._flow_completed:
-                stream_error: Optional[Exception] = None
-                try:
-                    if reconnect:
-                        await self._events_subscriber._reconnect()
-                    async for event in self._events_subscriber:
-                        backoff = 0.0
-                        await self._queue.put(event)
-                        if self._is_terminal_event(event):
-                            self._flow_completed = True
-                            break
-                except asyncio.CancelledError:
-                    raise
-                except Exception as exc:
-                    stream_error = exc
-
-                if self._flow_completed:
+            async for event in self._events_subscriber:
+                await self._queue.put(event)
+                if self._is_terminal_event(event):
+                    self._flow_completed = True
                     break
-                if stream_error is None:
-                    stream_error = ConnectionError(
-                        "Flow run events stream closed unexpectedly"
-                    )
-                if not await self._should_resume(stream_error):
-                    break
-                backoff = min(backoff + 1, MAX_RESUME_BACKOFF_SECONDS)
-                await asyncio.sleep(backoff)
-                reconnect = True
         except asyncio.CancelledError:
             pass
+        except Exception as exc:
+            self._record_error(exc)
+        else:
+            if not self._flow_completed:
+                self._record_error(
+                    ConnectionError("Flow run events stream closed unexpectedly")
+                )
         finally:
             await self._queue.put(None)
-
-    async def _should_resume(self, stream_error: Optional[Exception]) -> bool:
-        """Decide whether to resume a subscription whose stream just ended.
-
-        Resumes only while the flow run is still active on the server. If the
-        run has finished, marks the shared subscriber complete and stops
-        without error. If the server is unreachable, stops and records
-        `stream_error` (if any) so the caller can surface the failure instead
-        of reporting the run as finished.
-        """
-        terminal = await self._flow_run_is_terminal()
-        if terminal is True:
-            self._flow_completed = True
-            return False
-        if terminal is False:
-            return True
-        if terminal is None and stream_error is not None:
-            self._record_error(stream_error)
-        return False
