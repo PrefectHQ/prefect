@@ -553,14 +553,34 @@ def test_subscriber_auth_token_missing_error():
         # The actual connection would fail with ValueError during _reconnect()
 
 
-async def test_subscriber_reconnects_on_clean_disconnect(
+async def test_subscriber_stops_on_clean_disconnect_by_default():
+    from websockets.exceptions import ConnectionClosedOK
+
+    from prefect.logging.clients import PrefectLogsSubscriber
+
+    subscriber = PrefectLogsSubscriber("http://example.com")
+    subscriber._websocket = AsyncMock()
+    subscriber._websocket.recv.side_effect = ConnectionClosedOK(None, None, None)
+    subscriber._reconnect = AsyncMock()
+
+    with pytest.raises(StopAsyncIteration):
+        await subscriber.__anext__()
+
+    subscriber._reconnect.assert_not_awaited()
+
+
+async def test_subscriber_reconnects_on_clean_disconnect_when_configured(
     example_log_1: Log,
 ):
     from websockets.exceptions import ConnectionClosedOK
 
     from prefect.logging.clients import PrefectLogsSubscriber
 
-    subscriber = PrefectLogsSubscriber("http://example.com", reconnection_attempts=1)
+    subscriber = PrefectLogsSubscriber(
+        "http://example.com",
+        reconnection_attempts=3,
+        reconnect_on_clean_close=True,
+    )
     subscriber._websocket = AsyncMock()
     subscriber._websocket.recv.side_effect = ConnectionClosedOK(None, None, None)
 

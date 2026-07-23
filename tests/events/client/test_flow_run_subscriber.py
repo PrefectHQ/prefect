@@ -386,6 +386,38 @@ async def test_flow_run_subscriber_context_manager_cleanup(
     assert logs_exited
 
 
+async def test_flow_run_subscriber_reconnects_lower_level_streams_on_clean_close(
+    flow_run_id: UUID, monkeypatch: pytest.MonkeyPatch
+):
+    event_kwargs: dict[str, object] = {}
+    log_kwargs: dict[str, object] = {}
+
+    def mock_get_events_subscriber(*args, **kwargs):
+        event_kwargs.update(kwargs)
+        return MockEventSubscriber([])
+
+    def mock_get_logs_subscriber(*args, **kwargs):
+        log_kwargs.update(kwargs)
+        return MockLogsSubscriber([])
+
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_events_subscriber",
+        mock_get_events_subscriber,
+    )
+    monkeypatch.setattr(
+        prefect.events.subscribers,
+        "get_logs_subscriber",
+        mock_get_logs_subscriber,
+    )
+
+    async with FlowRunSubscriber(flow_run_id=flow_run_id):
+        pass
+
+    assert event_kwargs["reconnect_on_clean_close"] is True
+    assert log_kwargs["reconnect_on_clean_close"] is True
+
+
 async def test_flow_run_subscriber_propagates_non_connection_error(
     flow_run_id: UUID, monkeypatch
 ):

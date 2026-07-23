@@ -94,10 +94,14 @@ class FlowRunSubscriber:
     async def __aenter__(self) -> Self:
         """Enter the async context manager"""
         self._logs_subscriber = get_logs_subscriber(
-            filter=self._log_filter, reconnection_attempts=self._reconnection_attempts
+            filter=self._log_filter,
+            reconnection_attempts=self._reconnection_attempts,
+            reconnect_on_clean_close=True,
         )
         self._events_subscriber = get_events_subscriber(
-            filter=self._event_filter, reconnection_attempts=self._reconnection_attempts
+            filter=self._event_filter,
+            reconnection_attempts=self._reconnection_attempts,
+            reconnect_on_clean_close=True,
         )
 
         await self._logs_subscriber.__aenter__()

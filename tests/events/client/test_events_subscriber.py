@@ -297,13 +297,29 @@ async def test_subscriber_reconnects_on_hard_disconnects(
     assert recorder.events == [example_event_1, example_event_2]
 
 
-async def test_subscriber_reconnects_on_clean_disconnect(
+async def test_subscriber_stops_on_clean_disconnect_by_default(
+    Subscriber: Type[PrefectEventSubscriber],
+    socket_path: str,
+    token: Optional[str],
+):
+    subscriber = Subscriber()
+    subscriber._websocket = AsyncMock()
+    subscriber._websocket.recv.side_effect = ConnectionClosedOK(None, None, None)
+    subscriber._reconnect = AsyncMock()
+
+    with pytest.raises(StopAsyncIteration):
+        await subscriber.__anext__()
+
+    subscriber._reconnect.assert_not_awaited()
+
+
+async def test_subscriber_reconnects_on_clean_disconnect_when_configured(
     Subscriber: Type[PrefectEventSubscriber],
     socket_path: str,
     token: Optional[str],
     example_event_1: Event,
 ):
-    subscriber = Subscriber(reconnection_attempts=1)
+    subscriber = Subscriber(reconnection_attempts=1, reconnect_on_clean_close=True)
     subscriber._websocket = AsyncMock()
     subscriber._websocket.recv.side_effect = ConnectionClosedOK(None, None, None)
 
@@ -318,6 +334,25 @@ async def test_subscriber_reconnects_on_clean_disconnect(
     subscriber._reconnect = reconnect
 
     assert await subscriber.__anext__() == example_event_1
+
+
+async def test_subscriber_limits_consecutive_clean_disconnects(
+    Subscriber: Type[PrefectEventSubscriber],
+    socket_path: str,
+    token: Optional[str],
+):
+    subscriber = Subscriber(reconnection_attempts=1, reconnect_on_clean_close=True)
+    subscriber._websocket = AsyncMock()
+    subscriber._websocket.recv.side_effect = ConnectionClosedOK(None, None, None)
+
+    async def reconnect() -> None:
+        subscriber._websocket = AsyncMock()
+        subscriber._websocket.recv.side_effect = ConnectionClosedOK(None, None, None)
+
+    subscriber._reconnect = reconnect
+
+    with pytest.raises(ConnectionClosedOK):
+        await subscriber.__anext__()
 
 
 async def test_subscriber_gives_up_after_so_many_attempts(
