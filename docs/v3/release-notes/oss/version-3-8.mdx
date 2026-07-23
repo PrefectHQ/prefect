@@ -36,6 +36,10 @@ title: 3.8
 * Fix `as_completed` timeout enforcement in worker threads and on Windows by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22607](https://github.com/PrefectHQ/prefect/pull/22607)
 * Enforce `READ COMMITTED` isolation for PostgreSQL server transactions by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22531](https://github.com/PrefectHQ/prefect/pull/22531)
 
+**Integrations & Dependencies 🤝**
+
+* Add `IfPossible` Docker image pull policy option by [@MrJack91](https://github.com/MrJack91) in [#22154](https://github.com/PrefectHQ/prefect/pull/22154)
+
 **Development & Tidiness 🧹**
 
 * Quote argument-hint YAML values so Copilot CLI `≥1.0.65` loads all skills by [@thejesh23](https://github.com/thejesh23) in [#22484](https://github.com/PrefectHQ/prefect/pull/22484)
@@ -52,6 +56,7 @@ title: 3.8
 * Make minor fixes in Docker workflow documentation by [@uinstinct](https://github.com/uinstinct) in [#22585](https://github.com/PrefectHQ/prefect/pull/22585)
 * Update migration timeout guidance to reference `PREFECT_SERVER_DATABASE_MIGRATION_TIMEOUT` by [@github-actions](https://github.com/github-actions)[bot] in [#22610](https://github.com/PrefectHQ/prefect/pull/22610)
 * Document `initializer`/`initargs` support in `ProcessPoolTaskRunner` by [@github-actions](https://github.com/github-actions)[bot] in [#22595](https://github.com/PrefectHQ/prefect/pull/22595)
+* Document new `IfPossible` Docker image pull policy option by [@github-actions](https://github.com/github-actions)[bot] in [#22515](https://github.com/PrefectHQ/prefect/pull/22515)
 
 **Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.7.8...3.8.0
 
