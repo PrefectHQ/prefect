@@ -175,6 +175,20 @@ class TestUtilityFunctions:
         assert isinstance(caught[0], TimeoutError)
         assert caught[0].args[0] == "1 (of 1) futures unfinished"
 
+    @pytest.mark.timeout(method="thread")
+    def test_as_completed_with_zero_timeout_yields_completed_future(self):
+        """
+        A zero timeout is a non-blocking poll: futures whose wrapped future has
+        already completed (but whose `_final_state` has not yet been populated)
+        must still be yielded before the timeout is enforced.
+        """
+        completed_future = Future()
+        completed_future.set_result(Completed(data=42))
+        future = PrefectConcurrentFuture(uuid.uuid4(), completed_future)
+
+        results = [f.result() for f in as_completed([future], timeout=0)]
+        assert results == [42]
+
     @pytest.mark.usefixtures("use_hosted_api_server")
     def test_as_completed_yields_correct_order(self):
         @task

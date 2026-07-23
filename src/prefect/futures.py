@@ -637,9 +637,7 @@ def as_completed(
                 else:
                     assert deadline is not None
                     remaining = deadline - time.monotonic()
-                    if remaining <= 0:
-                        raise TimeoutError
-                    if not finished_event.wait(timeout=remaining):
+                    if not finished_event.wait(timeout=max(remaining, 0.0)):
                         raise TimeoutError
 
                 with finished_lock:
