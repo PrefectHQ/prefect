@@ -61,6 +61,7 @@ Before committing any changes, always run:
 2. **Additional linting**: `npm run lint` (ESLint rules)
 3. **Build verification**: `npm run build` (ensure no build errors)
 4. **Test verification**: `npm test` (run relevant tests)
+5. **Generated files**: after building, `git status ui-v2/` must be clean — CI fails if adding/renaming a route leaves `src/routeTree.gen.ts` (or other generated files) stale and uncommitted
 
 ### Performance Tips
 
