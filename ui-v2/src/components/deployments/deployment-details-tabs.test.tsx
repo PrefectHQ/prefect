@@ -104,7 +104,7 @@ const renderDeploymentDetailsTabs = ({
 };
 
 describe("DeploymentDetailsTabs", () => {
-	const originalMatchMedia = window.matchMedia;
+	const originalMatchMedia = window.matchMedia.bind(window);
 	let matchMediaMock: MatchMediaMock;
 
 	beforeEach(() => {
