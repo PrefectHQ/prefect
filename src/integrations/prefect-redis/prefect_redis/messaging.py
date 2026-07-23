@@ -15,6 +15,8 @@ from typing import (
     AsyncGenerator,
     Awaitable,
     Callable,
+    Iterable,
+    Mapping,
     Optional,
     Type,
     TypeVar,
@@ -166,7 +168,9 @@ class Cache(_Cache):
     async def clear_recently_seen_messages(self) -> None:
         return
 
-    async def without_duplicates(self, attribute: str, messages: list[M]) -> list[M]:
+    async def without_duplicates(
+        self, attribute: str, messages: Iterable[M]
+    ) -> list[M]:
         messages_with_attribute: list[M] = []
         messages_without_attribute: list[M] = []
         async with self._client.pipeline() as p:
@@ -192,7 +196,9 @@ class Cache(_Cache):
             m for i, m in enumerate(messages_with_attribute) if results[i]
         ] + messages_without_attribute
 
-    async def forget_duplicates(self, attribute: str, messages: list[M]) -> None:
+    async def forget_duplicates(
+        self, attribute: str, messages: Iterable[Message]
+    ) -> None:
         async with self._client.pipeline() as p:
             for m in messages:
                 if m.attributes is None or attribute not in m.attributes:
@@ -259,7 +265,9 @@ class Publisher(_Publisher):
         )
         self.batch_size = batch_size if batch_size is not None else settings.batch_size
         self.publish_every = (
-            publish_every if publish_every is not None else settings.publish_every
+            publish_every
+            if publish_every is not None
+            else cast(timedelta, settings.publish_every)
         )
         self._periodic_task: Optional[asyncio.Task[None]] = None
 
@@ -297,11 +305,11 @@ class Publisher(_Publisher):
                 await self.cache.forget_duplicates(self.deduplicate_by, self._batch)
             raise
 
-    async def publish_data(self, data: bytes, attributes: dict[str, Any]):
+    async def publish_data(self, data: bytes, attributes: Mapping[str, str]) -> None:
         if not hasattr(self, "_batch"):
             raise RuntimeError("Use this publisher as an async context manager")
 
-        self._batch.append(RedisStreamsMessage(data=data, attributes=attributes))
+        self._batch.append(RedisStreamsMessage(data=data, attributes=dict(attributes)))
         if len(self._batch) >= self.batch_size:
             await asyncio.shield(self._publish_current_batch())
 
@@ -359,9 +367,11 @@ class Consumer(_Consumer):
         self.name = name or topic
         self.stream = _stream_key(topic)
         self.group = group or topic  # Use topic as default group name
-        self.block = block if block is not None else settings.block
+        self.block = block if block is not None else cast(timedelta, settings.block)
         self.min_idle_time = (
-            min_idle_time if min_idle_time is not None else settings.min_idle_time
+            min_idle_time
+            if min_idle_time is not None
+            else cast(timedelta, settings.min_idle_time)
         )
         self.should_process_pending_messages = (
             should_process_pending_messages
@@ -378,7 +388,11 @@ class Consumer(_Consumer):
             if automatically_acknowledge is not None
             else settings.automatically_acknowledge
         )
-        self.trim_every = trim_every if trim_every is not None else settings.trim_every
+        self.trim_every = (
+            trim_every
+            if trim_every is not None
+            else cast(timedelta, settings.trim_every)
+        )
 
         self.subscription = Subscription(
             max_retries=max_retries
@@ -451,7 +465,7 @@ class Consumer(_Consumer):
         self,
         handler: MessageHandler,
         redis_client: Redis,
-        message_batch_size: int,
+        message_batch_size: Optional[int],
         start_id: str = "0-0",
     ):
         acker = partial(redis_client.xack, self.stream, self.group)
@@ -590,7 +604,7 @@ class Consumer(_Consumer):
 
                     await self._trim_stream_if_necessary()
 
-            except RedisError as e:
+            except (RedisError, OSError) as e:
                 # Connection lost or Redis error - log and retry with backoff
                 delay = exponential_backoff_with_jitter(attempt, base_delay, max_delay)
                 logger.warning(
@@ -666,7 +680,7 @@ class Consumer(_Consumer):
             "attributes": msg.attributes,
             "retry_count": retry_count,
             "timestamp": str(asyncio.get_event_loop().time()),
-            "message_id": str(uuid.uuid4().hex),
+            "message_id": uuid.uuid4().hex,
         }
 
         # Store in Redis as a hash
@@ -682,7 +696,7 @@ class Consumer(_Consumer):
         if self._last_trimmed is None:
             self._last_trimmed = now
 
-        if now - self._last_trimmed > self.trim_every.total_seconds():
+        if now - self._last_trimmed >= self.trim_every.total_seconds():
             await _trim_stream_to_lowest_delivered_id(
                 self.stream, latest_delivered_id=latest_delivered_id
             )
@@ -756,7 +770,9 @@ async def _trim_stream_to_lowest_delivered_id(
     """
     redis_client: Redis = get_async_redis_client()
     settings = RedisMessagingConsumerSettings()
-    idle_threshold_ms = int(settings.trim_idle_threshold.total_seconds() * 1000)
+    idle_threshold_ms = int(
+        cast(timedelta, settings.trim_idle_threshold).total_seconds() * 1000
+    )
 
     delivered_ids = []
     if latest_delivered_id and latest_delivered_id != "0-0":
