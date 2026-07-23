@@ -1,3 +1,4 @@
+import inspect
 from unittest.mock import MagicMock
 
 import pytest
@@ -108,19 +109,53 @@ def test__get_job_run(aws_credentials, glue_job_client):
         assert response["JobRun"]["JobRunState"] == "SUCCEEDED"
 
 
-async def test_trigger(aws_credentials, glue_job_client):
-    glue_job_client.create_job(
-        Name="test_job_name", Role="test-role", Command={}, DefaultArguments={}
-    )
+async def test_atrigger(aws_credentials, glue_job_client):
     glue_job = GlueJobBlock(
         job_name="test_job_name",
         arguments={"arg1": "value1"},
-        aws_credential=aws_credentials,
+        aws_credentials=aws_credentials,
     )
     glue_job._get_client = MagicMock(side_effect=[glue_job_client])
     glue_job._start_job = MagicMock(side_effect=["test_job_id"])
-    glue_job_run = await glue_job.trigger()
+    glue_job_run = await glue_job.atrigger()
     assert isinstance(glue_job_run, GlueJobRun)
+    assert glue_job_run.client is glue_job_client
+
+
+def test_trigger(aws_credentials, glue_job_client):
+    glue_job = GlueJobBlock(
+        job_name="test_job_name",
+        arguments={"arg1": "value1"},
+        aws_credentials=aws_credentials,
+    )
+    glue_job._get_client = MagicMock(side_effect=[glue_job_client])
+    glue_job._start_job = MagicMock(side_effect=["test_job_id"])
+    glue_job_client.get_job_run = MagicMock(
+        side_effect=[
+            {
+                "JobRun": {
+                    "JobName": "test_job_name",
+                    "JobRunState": "RUNNING",
+                }
+            },
+            {
+                "JobRun": {
+                    "JobName": "test_job_name",
+                    "JobRunState": "SUCCEEDED",
+                }
+            },
+        ]
+    )
+    glue_job_run = glue_job.trigger()
+    assert isinstance(glue_job_run, GlueJobRun)
+    assert not inspect.isawaitable(glue_job_run)
+    assert glue_job_run.client is glue_job_client
+
+    glue_job_run.job_watch_poll_interval = 0.1
+    glue_job_run.wait_for_completion()
+    glue_job_client.get_job_run.assert_called_with(
+        JobName="test_job_name", RunId="test_job_id"
+    )
 
 
 def test_start_job(aws_credentials, glue_job_client):
