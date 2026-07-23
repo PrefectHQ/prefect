@@ -1,4 +1,4 @@
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from redis import Redis
 from redis.asyncio import Redis as AsyncRedis
@@ -6,6 +6,7 @@ from redis.asyncio.lock import Lock as AsyncLock
 from redis.lock import Lock
 
 from prefect.locking.protocol import LockManager
+from prefect_redis.connection import build_redis_client, parse_redis_url
 
 
 class RedisLockManager(LockManager):
@@ -19,6 +20,12 @@ class RedisLockManager(LockManager):
         username: The username to use when connecting to the Redis server
         password: The password to use when connecting to the Redis server
         ssl: Whether to use SSL when connecting to the Redis server
+        connection_url: Full Redis connection URL, authoritative over the scalar
+            connection fields when set. Supports the redis://, rediss://,
+            redis+sentinel:// and rediss+sentinel:// schemes; the Sentinel schemes
+            resolve the current master through the listed Sentinel daemons and follow
+            failover automatically (e.g.
+            redis+sentinel://sentinel-a:26379,sentinel-b:26379/mymaster).
         client: The Redis client used to communicate with the Redis server
         async_client: The asynchronous Redis client used to communicate with the Redis server
 
@@ -58,6 +65,7 @@ class RedisLockManager(LockManager):
         username: Optional[str] = None,
         password: Optional[str] = None,
         ssl: bool = False,
+        connection_url: Optional[str] = None,
     ) -> None:
         self.host = host
         self.port = port
@@ -65,6 +73,7 @@ class RedisLockManager(LockManager):
         self.username = username
         self.password = password
         self.ssl = ssl
+        self.connection_url = connection_url
         # Clients are initialized by _init_clients
         self.client: Redis
         self.async_client: AsyncRedis
@@ -75,10 +84,21 @@ class RedisLockManager(LockManager):
     def __getstate__(self) -> dict[str, Any]:
         return {
             k: getattr(self, k)
-            for k in ("host", "port", "db", "username", "password", "ssl")
+            for k in (
+                "host",
+                "port",
+                "db",
+                "username",
+                "password",
+                "ssl",
+                "connection_url",
+            )
         }
 
     def __setstate__(self, state: dict[str, Any]) -> None:
+        # Lock managers pickled by pre-connection_url versions of prefect-redis
+        # carry no "connection_url" key; default it so _init_clients can run.
+        state.setdefault("connection_url", None)
         self.__dict__.update(state)
         self._init_clients()  # Re-initialize clients here
         self._locks = {}
@@ -86,6 +106,15 @@ class RedisLockManager(LockManager):
     # ------------------------------------
 
     def _init_clients(self) -> None:
+        # A connection URL is authoritative over the scalar fields and selects single-node
+        # or Sentinel mode from its scheme; Sentinel connections follow master failover.
+        if self.connection_url is not None:
+            config = parse_redis_url(self.connection_url)
+            self.client = cast(Redis, build_redis_client(config, asynchronous=False))
+            self.async_client = cast(
+                AsyncRedis, build_redis_client(config, asynchronous=True)
+            )
+            return
         self.client = Redis(
             host=self.host,
             port=self.port,
