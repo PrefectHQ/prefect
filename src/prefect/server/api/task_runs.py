@@ -34,11 +34,7 @@ from prefect.server.schemas.responses import (
     OrchestrationResult,
     TaskRunPaginationResponse,
 )
-from prefect.server.task_delivery import (
-    TaskRunDelivery,
-    TaskRunDeliveryManager,
-    TaskRunSubscription,
-)
+from prefect.server.task_delivery import TaskRunDeliveryManager
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
@@ -406,9 +402,7 @@ async def scheduled_task_subscription(websocket: WebSocket) -> None:
             try:
                 await websocket.send_json(delivery.task_run.model_dump(mode="json"))
 
-                acknowledgement = await _receive_task_run_acknowledgement(
-                    websocket, task_subscription, delivery
-                )
+                acknowledgement = await websocket.receive_json()
                 ack_type = acknowledgement.get("type")
                 if ack_type != "ack":
                     if ack_type == "quit":
@@ -429,24 +423,3 @@ async def scheduled_task_subscription(websocket: WebSocket) -> None:
                 return
             finally:
                 await models.task_workers.forget_worker(client_id)
-
-
-async def _receive_task_run_acknowledgement(
-    websocket: WebSocket,
-    subscription: TaskRunSubscription,
-    delivery: TaskRunDelivery,
-) -> dict[str, Any]:
-    receive = asyncio.create_task(websocket.receive_json())
-    try:
-        while True:
-            done, _ = await asyncio.wait(
-                {receive},
-                timeout=subscription.renewal_interval,
-            )
-            if done:
-                return receive.result()
-            await subscription.renew()
-    finally:
-        if not receive.done():
-            receive.cancel()
-            await asyncio.gather(receive, return_exceptions=True)

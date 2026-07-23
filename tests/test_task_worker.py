@@ -730,6 +730,8 @@ class TestTaskWorkerLimit:
 
         assert await task_worker._acquire_token(task_run_id) is True
         assert await task_worker._acquire_token(task_run_id) is False
+        assert task_worker._release_token(task_run_id) is True
+        assert await task_worker._acquire_token(task_run_id) is True
 
     async def test_task_worker_limiter_gracefully_handles_same_task_run(
         self, prefect_client, events_pipeline

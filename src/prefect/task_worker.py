@@ -15,7 +15,6 @@ from uuid import UUID
 import anyio
 import anyio.abc
 import uvicorn
-from cachetools import TTLCache
 from exceptiongroup import BaseExceptionGroup  # novermin
 from fastapi import FastAPI
 from typing_extensions import ParamSpec, Self, TypeVar
@@ -130,9 +129,7 @@ class TaskWorker:
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
         self._executor = ThreadPoolExecutor(max_workers=limit if limit else None)
         self._limiter = anyio.CapacityLimiter(limit) if limit else None
-        self._accepted_task_runs: TTLCache[UUID, bool] = TTLCache(
-            maxsize=10_000, ttl=900
-        )
+        self._accepted_task_runs: set[UUID] = set()
 
         self.in_flight_task_runs: dict[str, dict[UUID, DateTime]] = {
             task_key: {} for task_key in self.task_keys
@@ -250,10 +247,11 @@ class TaskWorker:
             logger.debug(f"Token already acquired for task run: {task_run_id!r}")
             return False
 
-        self._accepted_task_runs[task_run_id] = True
+        self._accepted_task_runs.add(task_run_id)
         return True
 
     def _release_token(self, task_run_id: UUID) -> bool:
+        self._accepted_task_runs.discard(task_run_id)
         try:
             if self._limiter:
                 self._limiter.release_on_behalf_of(task_run_id)

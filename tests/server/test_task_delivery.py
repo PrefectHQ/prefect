@@ -4,11 +4,14 @@ from uuid import uuid4
 
 import pytest
 from docket import Docket, Worker
+from redis.exceptions import ConnectionError as RedisConnectionError
 
 from prefect.server.schemas.core import TaskRun
 from prefect.server.task_delivery import (
     TaskDeliveryUnavailable,
     TaskRunDeliveryManager,
+    TaskRunSubscription,
+    _stream_key,
     publish_task_run,
     task_run_delivery_lifespan,
 )
@@ -77,6 +80,50 @@ async def test_subscription_receives_from_many_task_keys() -> None:
         }
 
 
+async def test_delivery_stream_uses_docket_key_namespace() -> None:
+    docket = Docket(
+        name="background-tasks",
+        url="redis+cluster://localhost:6379/0",
+    )
+
+    assert _stream_key(docket, "example.task").startswith(
+        "{background-tasks}:task-runs:stream:"
+    )
+
+
+async def test_subscription_reconnects_after_redis_connection_loss(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("prefect.server.task_delivery._RECONNECTION_DELAY", 0)
+
+    async with Docket(name=f"test-{uuid4()}", url="memory://") as docket:
+        manager = TaskRunDeliveryManager(docket, timedelta(seconds=1))
+        task_run = make_task_run()
+        subscription = manager.subscribe([task_run.task_key], "worker-1")
+        original_read_one = subscription._read_one
+        attempts = 0
+
+        async def fail_first_read(stream: str):
+            nonlocal attempts
+            attempts += 1
+            if attempts == 1:
+                raise RedisConnectionError("simulated Redis failover")
+            return await original_read_one(stream)
+
+        monkeypatch.setattr(
+            TaskRunSubscription,
+            "_read_one",
+            lambda self, stream: fail_first_read(stream),
+        )
+
+        async with subscription:
+            await manager.publish(task_run)
+            delivery = await subscription.receive()
+
+        assert delivery.task_run.id == task_run.id
+        assert attempts >= 2
+
+
 async def test_redelivers_after_visibility_timeout() -> None:
     async with Docket(name=f"test-{uuid4()}", url="memory://") as docket:
         manager = TaskRunDeliveryManager(docket, timedelta(milliseconds=10))
@@ -99,21 +146,25 @@ async def test_renewal_prevents_redelivery_while_worker_is_connected() -> None:
         manager = TaskRunDeliveryManager(docket, timedelta(milliseconds=30))
         task_run = make_task_run()
 
-        async with (
-            manager.subscribe([task_run.task_key], "worker-1") as first,
-            manager.subscribe([task_run.task_key], "worker-2") as second,
-        ):
-            await manager.publish(task_run)
-            delivery = await first.receive()
-            await asyncio.sleep(0.02)
-            await first.renew()
-            await asyncio.sleep(0.02)
+        first = manager.subscribe([task_run.task_key], "worker-1")
+        await first.__aenter__()
+        first_closed = False
+        try:
+            async with manager.subscribe([task_run.task_key], "worker-2") as second:
+                await manager.publish(task_run)
+                delivery = await first.receive()
+                await asyncio.sleep(0.04)
 
-            with pytest.raises(asyncio.TimeoutError):
-                await second.receive(timeout=0.005)
+                with pytest.raises(asyncio.TimeoutError):
+                    await second.receive(timeout=0.005)
 
-            await asyncio.sleep(0.02)
-            redelivery = await second.receive()
+                await first.__aexit__(None, None, None)
+                first_closed = True
+                await asyncio.sleep(0.04)
+                redelivery = await second.receive()
+        finally:
+            if not first_closed:
+                await first.__aexit__(None, None, None)
 
         assert redelivery.message_id == delivery.message_id
 
