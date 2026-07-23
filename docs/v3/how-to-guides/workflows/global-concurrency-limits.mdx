@@ -150,7 +150,7 @@ Before running these examples, create an **active** global concurrency limit tha
 prefect gcl create database --limit 1
 ```
 
-If the limit does not exist or is inactive, non-strict mode (the default) logs a warning and execution continues without blocking. Use `strict=True` when you need concurrency enforcement to fail fast instead of silently proceeding.
+If the limit does not exist, the default behavior is to log a warning and continue execution without blocking. Use `strict=True` when you need concurrency enforcement to fail fast when the specified limit does not exist instead of silently proceeding.
 </Note>
 
 ### Using strict mode
