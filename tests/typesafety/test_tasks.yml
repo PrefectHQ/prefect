@@ -8,7 +8,7 @@
         return 42
     reveal_type(foo)
   out_mypy: "main:5: note: Revealed type is \"\
-      prefect.tasks.Task[[bar: builtins.str], builtins.int]\
+      prefect.tasks.Task[[bar: str], int]\
     \""
 
 - case: prefect_task_decorator_call_with_no_args
@@ -20,7 +20,7 @@
         return 42
     reveal_type(foo)
   out_mypy: "main:5: note: Revealed type is \"\
-      prefect.tasks.Task[[bar: builtins.str], builtins.int]\
+      prefect.tasks.Task[[bar: str], int]\
     \""
 
 - case: prefect_task_decorator_with_name_arg
@@ -32,7 +32,7 @@
         return 42
     reveal_type(foo)
   out_mypy: "main:5: note: Revealed type is \"\
-      prefect.tasks.Task[[bar: builtins.str], builtins.int]\
+      prefect.tasks.Task[[bar: str], int]\
     \""
 
 - case: prefect_task_decorator_with_retry_condition_fn_as_none_arg
@@ -44,7 +44,7 @@
         return 42
     reveal_type(foo)
   out_mypy: "main:5: note: Revealed type is \"\
-      prefect.tasks.Task[[bar: builtins.str], builtins.int]\
+      prefect.tasks.Task[[bar: str], int]\
     \""
 
 - case: prefect_task_decorator_with_retry_condition_fn_arg
@@ -60,7 +60,7 @@
         return 42
     reveal_type(foo)
   out_mypy: "main:9: note: Revealed type is \"\
-      prefect.tasks.Task[[bar: builtins.str], builtins.int]\
+      prefect.tasks.Task[[bar: str], int]\
     \""
 
 - case: prefect_task_decorator_with_async_retry_condition_fn_arg
@@ -76,7 +76,7 @@
         return 42
     reveal_type(foo)
   out_mypy: "main:9: note: Revealed type is \"\
-      prefect.tasks.Task[[bar: builtins.str], typing.Coroutine[Any, Any, builtins.int]]\
+      prefect.tasks.Task[[bar: str], typing.Coroutine[Any, Any, int]]\
     \""
 
 - case: prefect_task_call
@@ -89,7 +89,7 @@
     ret = foo(bar="baz")
     reveal_type(ret)
   out_mypy: "main:6: note: Revealed type is \"\
-      builtins.int\
+      int\
     \""
 
 - case: prefect_task_async_call
@@ -104,7 +104,7 @@
       ret = await foo(bar="baz")
       reveal_type(ret)
   out_mypy: "main:8: note: Revealed type is \"\
-      builtins.int\
+      int\
     \""
 
 - case: prefect_task_async_call_wrong_args

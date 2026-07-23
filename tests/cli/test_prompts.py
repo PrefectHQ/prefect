@@ -1,3 +1,4 @@
+import logging
 import shutil
 from pathlib import Path
 
@@ -93,6 +94,10 @@ class TestDiscoverFlows:
     async def test_find_flow_functions_in_file_returns_empty_list_on_file_error(
         self, caplog: pytest.LogCaptureFixture
     ):
+        # Force the `prefect` logger to DEBUG so the debug-mode message is
+        # captured regardless of the ambient log level left by other tests;
+        # otherwise the record is filtered out and caplog is empty.
+        caplog.set_level(logging.DEBUG, logger="prefect")
         with temporary_settings({PREFECT_DEBUG_MODE: True}):
             assert await find_flow_functions_in_file(AnyioPath("foo.py")) == []
             assert "Could not open foo.py" in caplog.text
