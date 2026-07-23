@@ -6,6 +6,7 @@ Intended for internal use by the Prefect REST API.
 from __future__ import annotations
 
 import datetime
+import json
 import logging
 from collections.abc import Iterable, Sequence
 from typing import TYPE_CHECKING, Any, Optional, TypeVar, cast
@@ -272,6 +273,45 @@ async def create_deployment(
     return result_deployment
 
 
+def _schedule_match_key(slug: Optional[str], schedule: Any) -> str:
+    """Build a stable key for matching an updated schedule to an existing one.
+
+    Schedules carry a slug; slug-less schedules are matched on their
+    recurrence definition so an unchanged schedule can be recognized across a
+    redeploy. The match ignores fields Prefect regenerates during schedule
+    construction — an `IntervalSchedule`'s `anchor_date` and the `DTSTART`
+    injected into rrule strings (#21362) both drift over time even when the
+    user's schedule is unchanged.
+    """
+    if slug:
+        return f"slug:{slug}"
+    if schedule is None:
+        return "schedule:null"
+    definition = schedule.model_dump(mode="json", exclude={"anchor_date"})
+    rrule = definition.get("rrule")
+    if isinstance(rrule, str):
+        definition["rrule"] = "\n".join(
+            line for line in rrule.splitlines() if not line.startswith("DTSTART")
+        )
+    return f"schedule:{json.dumps(definition, sort_keys=True)}"
+
+
+def _resolve_schedule_active(
+    schedule: "schemas.actions.DeploymentScheduleUpdate",
+    existing_active: dict[str, bool],
+) -> bool:
+    """Determine the active state for a schedule being recreated on update.
+
+    An explicit `active` always wins. When it's omitted, inherit the matching
+    existing schedule's state, falling back to active for a new schedule.
+    """
+    if schedule.active is not None:
+        return schedule.active
+    return existing_active.get(
+        _schedule_match_key(schedule.slug, schedule.schedule), True
+    )
+
+
 @db_injector
 async def update_deployment(
     db: PrefectDBInterface,
@@ -383,7 +423,15 @@ async def update_deployment(
 
     if should_update_schedules:
         # If schedules were provided, remove the existing schedules and
-        # replace them with the new ones.
+        # replace them with the new ones. An update that doesn't specify
+        # `active` should keep a matching schedule's current active state
+        # rather than silently re-activating one that was paused.
+        existing_active = {
+            _schedule_match_key(s.slug, s.schedule): s.active
+            for s in await read_deployment_schedules(
+                session=session, deployment_id=deployment_id
+            )
+        }
         await delete_schedules_for_deployment(
             session=session, deployment_id=deployment_id
         )
@@ -393,7 +441,7 @@ async def update_deployment(
             schedules=[
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schedule.schedule,
-                    active=schedule.active if schedule.active is not None else True,
+                    active=_resolve_schedule_active(schedule, existing_active),
                     parameters=schedule.parameters,
                     slug=schedule.slug,
                 )

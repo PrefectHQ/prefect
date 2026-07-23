@@ -2342,6 +2342,141 @@ class TestUpdateDeployment:
         assert len(response.json()["schedules"]) == 1
         assert response.json()["schedules"][0]["active"] is True
 
+    async def test_update_schedule_without_slug_preserves_paused_state(
+        self,
+        client,
+        flow,
+    ):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/19302.
+
+        A slug-less schedule that has been paused stays paused when the
+        deployment is redeployed without an explicit `active` value.
+        """
+        schedule = schemas.schedules.CronSchedule(cron="10 * * * *")
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule, active=True
+                ),
+            ],
+            enforce_parameter_schema=False,
+        ).model_dump(mode="json")
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+        schedule_id = response.json()["schedules"][0]["id"]
+
+        # The user turns the schedule off, e.g. from the UI.
+        response = await client.patch(
+            f"/deployments/{deployment_id}/schedules/{schedule_id}",
+            json={"active": False},
+        )
+        assert response.status_code == 204
+
+        # Re-deploying with the same schedule and no `active` keeps it off.
+        update_data = schemas.actions.DeploymentUpdate(
+            schedules=[schemas.actions.DeploymentScheduleUpdate(schedule=schedule)],
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(f"/deployments/{deployment_id}", json=update_data)
+        assert response.status_code == 204, response.text
+
+        response = await client.get(f"/deployments/{deployment_id}")
+        assert response.status_code == 200
+        assert len(response.json()["schedules"]) == 1
+        assert response.json()["schedules"][0]["active"] is False
+
+    async def test_update_interval_schedule_without_slug_preserves_paused_state(
+        self,
+        client,
+        flow,
+    ):
+        """A paused slug-less interval schedule stays paused on redeploy even
+        though its `anchor_date` is regenerated each time (#19302)."""
+        create_schedule = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(hours=1)
+        )
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=create_schedule, active=True
+                ),
+            ],
+            enforce_parameter_schema=False,
+        ).model_dump(mode="json")
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+        schedule_id = response.json()["schedules"][0]["id"]
+
+        response = await client.patch(
+            f"/deployments/{deployment_id}/schedules/{schedule_id}",
+            json={"active": False},
+        )
+        assert response.status_code == 204
+
+        # A fresh IntervalSchedule gets a new anchor_date, mirroring what the
+        # client builds on each redeploy.
+        redeploy_schedule = schemas.schedules.IntervalSchedule(
+            interval=datetime.timedelta(hours=1)
+        )
+        assert redeploy_schedule.anchor_date != create_schedule.anchor_date
+        update_data = schemas.actions.DeploymentUpdate(
+            schedules=[
+                schemas.actions.DeploymentScheduleUpdate(schedule=redeploy_schedule)
+            ],
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(f"/deployments/{deployment_id}", json=update_data)
+        assert response.status_code == 204, response.text
+
+        response = await client.get(f"/deployments/{deployment_id}")
+        assert response.status_code == 200
+        assert len(response.json()["schedules"]) == 1
+        assert response.json()["schedules"][0]["active"] is False
+
+    async def test_update_changed_slugless_schedule_defaults_to_active(
+        self,
+        client,
+        flow,
+    ):
+        """A slug-less schedule whose definition changes is treated as new and
+        defaults to active, even if the previous one was paused (#19302)."""
+        schedule1 = schemas.schedules.CronSchedule(cron="10 * * * *")
+        schedule2 = schemas.schedules.CronSchedule(cron="20 * * * *")
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule1, active=False
+                ),
+            ],
+            enforce_parameter_schema=False,
+        ).model_dump(mode="json")
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+
+        update_data = schemas.actions.DeploymentUpdate(
+            schedules=[schemas.actions.DeploymentScheduleUpdate(schedule=schedule2)],
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(f"/deployments/{deployment_id}", json=update_data)
+        assert response.status_code == 204, response.text
+
+        response = await client.get(f"/deployments/{deployment_id}")
+        assert response.status_code == 200
+        assert len(response.json()["schedules"]) == 1
+        assert response.json()["schedules"][0]["active"] is True
+
     async def test_update_deployment_with_multiple_schedules_and_existing_slugs_422(
         self,
         client,

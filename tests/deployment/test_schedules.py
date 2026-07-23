@@ -28,6 +28,35 @@ def test_create_deployment_schedule_create(active: Optional[bool], expected: boo
     assert schedule.active is expected
 
 
+def test_create_deployment_schedule_create_leaves_active_unset_by_default():
+    # When `active` isn't provided, it must stay out of the serialized update
+    # payload so a redeploy doesn't re-activate a paused schedule (#19302).
+    schedule = create_deployment_schedule_create(
+        schedule=CronSchedule(cron="0 0 * * *")
+    )
+    assert "active" not in schedule.model_fields_set
+    assert "active" not in schedule.model_dump(exclude_unset=True)
+
+
+@pytest.mark.parametrize("active", [True, False])
+def test_create_deployment_schedule_create_keeps_explicit_active(active: bool):
+    schedule = create_deployment_schedule_create(
+        schedule=CronSchedule(cron="0 0 * * *"), active=active
+    )
+    assert schedule.model_dump(exclude_unset=True)["active"] is active
+
+
+@pytest.mark.parametrize("active", [None, True, False])
+def test_normalize_schedule_wrapper_active(active: Optional[bool]):
+    from prefect.schedules import Cron
+
+    (normalized,) = normalize_to_deployment_schedule([Cron("0 0 * * *", active=active)])
+    if active is None:
+        assert "active" not in normalized.model_fields_set
+    else:
+        assert normalized.model_dump(exclude_unset=True)["active"] is active
+
+
 def test_normalize_none_returns_empty_list():
     assert normalize_to_deployment_schedule(None) == []
 
