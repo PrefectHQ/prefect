@@ -1,3 +1,4 @@
+import asyncio
 from contextlib import contextmanager
 from typing import Optional
 
@@ -6,6 +7,11 @@ from prefect._internal.concurrency.cancellation import (
     cancel_async_after,
     cancel_sync_after,
 )
+
+# If Python < 3.11, ensure asyncio.TimeoutError is a subclass of TimeoutError
+# In Python 3.11+, asyncio.TimeoutError is already an alias to TimeoutError
+if not issubclass(asyncio.TimeoutError, TimeoutError):
+    TimeoutError = asyncio.TimeoutError  # type: ignore[misc]
 
 
 def fail_if_not_timeout_error(timeout_exc_type: type[Exception]) -> None:
