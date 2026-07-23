@@ -74,13 +74,13 @@ const useDeploymentParametersToTable = (
 	deployment: Deployment,
 ): Array<ParametersTableColumns> =>
 	useMemo(() => {
-		if (!deployment.parameter_openapi_schema) {
+		const parameterOpenApiSchema = deployment.parameter_openapi_schema
+			?.properties as Record<string, ParameterOpenApiSchema> | undefined;
+		if (!parameterOpenApiSchema) {
 			return [];
 		}
 
-		const parameterOpenApiSchema = deployment.parameter_openapi_schema
-			.properties as Record<string, ParameterOpenApiSchema>;
-		const parameters = deployment.parameters as Record<string, unknown>;
+		const parameters = (deployment.parameters ?? {}) as Record<string, unknown>;
 		return Object.keys(parameterOpenApiSchema)
 			.sort((a, b) => {
 				return (
