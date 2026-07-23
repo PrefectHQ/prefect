@@ -7,7 +7,7 @@ sidebarTitle: filters
 
 ## Functions
 
-### `redact_substr` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/filters.py#L8" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `redact_substr` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/filters.py#L31" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 redact_substr(obj: Any, substr: str) -> Any
@@ -15,6 +15,13 @@ redact_substr(obj: Any, substr: str) -> Any
 
 
 Redact a string from a potentially nested object.
+
+Standard collections (list, tuple, set, dict, and other `Mapping`
+instances) are traversed recursively and have their string values redacted
+while preserving shape. Non-container objects are redacted by replacing
+their `str` and `repr` values with obfuscated versions, avoiding the
+need to reconstruct arbitrary user objects (e.g. dataclasses with
+`init=False` fields or Pydantic models).
 
 **Args:**
 - `obj`: The object to redact the string from
@@ -26,7 +33,7 @@ Redact a string from a potentially nested object.
 
 ## Classes
 
-### `ObfuscateApiKeyFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/filters.py#L29" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ObfuscateApiKeyFilter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/filters.py#L90" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A logging filter that obfuscates any string that matches the obfuscate_string function.
@@ -34,7 +41,7 @@ A logging filter that obfuscates any string that matches the obfuscate_string fu
 
 **Methods:**
 
-#### `filter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/filters.py#L34" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `filter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/filters.py#L95" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 filter(self, record: logging.LogRecord) -> bool
