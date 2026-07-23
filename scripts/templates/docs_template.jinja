@@ -35,8 +35,10 @@ prefect {{ cmd.usage_pieces | join(' ') | escape_mdx }}
 {% if cmd.args %}
 <Accordion title="Arguments" defaultOpen>
 {%- for arg in cmd.args %}
-<ResponseField name="{{ arg.name.replace('[', '').replace(']', '') }}" type="string"{% if '[required]' in arg.help %} required{% endif %}>
+<ResponseField name="{{ arg.name.replace('[', '').replace(']', '') }}" type="string"{% if arg.required %} required{% endif %}>
+{%- if arg.help %}
     {{ arg.help | escape_mdx }}
+{%- endif %}
 </ResponseField>
 {%- endfor %}
 </Accordion>
@@ -46,7 +48,9 @@ prefect {{ cmd.usage_pieces | join(' ') | escape_mdx }}
 <Accordion title="Options" defaultOpen>
 {% for opt in filtered_opts %}
 <ResponseField name="{{ opt.opts[0] }}">
+{%- if opt.help %}
     {{ opt.help | escape_mdx }}
+{%- endif %}
 </ResponseField>
 {% endfor %}
 </Accordion>

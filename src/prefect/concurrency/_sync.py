@@ -11,6 +11,7 @@ from prefect.client.schemas.responses import (
     MinimalConcurrencyLimitResponse,
 )
 from prefect.concurrency._asyncio import (
+    _discard_cleanup_lease,
     aacquire_concurrency_slots,
     aacquire_concurrency_slots_with_lease,
     arelease_concurrency_slots_with_lease,
@@ -20,7 +21,6 @@ from prefect.concurrency._events import (
     emit_concurrency_release_events,
 )
 from prefect.concurrency._leases import maintain_concurrency_lease
-from prefect.concurrency.context import ConcurrencyContext
 from prefect.utilities.asyncutils import run_coro_as_sync
 
 
@@ -159,11 +159,12 @@ def concurrency(
         try:
             release_concurrency_slots_with_lease(acquisition_response.lease_id)
         except CancelledError:
-            # The task was cancelled before it could release the lease. Add the
-            # lease ID to the cleanup list so it can be released when the
-            # concurrency context is exited.
-            if ctx := ConcurrencyContext.get():
-                ctx.cleanup_lease_ids.append(acquisition_response.lease_id)
+            # The task was cancelled before it could release the lease. Leave the
+            # lease ID in the cleanup list (recorded at acquisition) so it is
+            # released when the concurrency context is exited.
+            pass
+        else:
+            _discard_cleanup_lease(acquisition_response.lease_id)
 
         emit_concurrency_release_events(
             acquisition_response.limits, occupy, emitted_events

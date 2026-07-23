@@ -150,10 +150,10 @@ Profiles are stored in a [TOML](https://toml.io/en/) file located at `~/.prefect
 
 One and only one profile can be active at any time.
 
-Immediately after installation, the `ephemeral` profile will be used, which only has `PREFECT_SERVER_ALLOW_EPHEMERAL_MODE` configured:
+Immediately after installation, the `ephemeral` profile will be used, which only has `PREFECT_SERVER_EPHEMERAL_ENABLED` configured:
 
 <Tip>
-**What is `PREFECT_SERVER_ALLOW_EPHEMERAL_MODE`?**
+**What is `PREFECT_SERVER_EPHEMERAL_ENABLED`?**
 
 This setting allows a Prefect server to be run ephemerally as needed without explicitly starting a server process.
 </Tip>

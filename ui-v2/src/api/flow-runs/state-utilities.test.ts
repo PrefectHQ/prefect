@@ -11,23 +11,19 @@ import {
 
 describe("state-utilities", () => {
 	describe("isStuckState", () => {
-		it.each([
-			"RUNNING",
-			"SCHEDULED",
-			"PENDING",
-			"PAUSED",
-		] as const)("returns true for %s", (state) => {
-			expect(isStuckState(state)).toBe(true);
-		});
+		it.each(["RUNNING", "SCHEDULED", "PENDING", "PAUSED"] as const)(
+			"returns true for %s",
+			(state) => {
+				expect(isStuckState(state)).toBe(true);
+			},
+		);
 
-		it.each([
-			"COMPLETED",
-			"FAILED",
-			"CANCELLED",
-			"CRASHED",
-		] as const)("returns false for terminal state %s", (state) => {
-			expect(isStuckState(state)).toBe(false);
-		});
+		it.each(["COMPLETED", "FAILED", "CANCELLED", "CRASHED"] as const)(
+			"returns false for terminal state %s",
+			(state) => {
+				expect(isStuckState(state)).toBe(false);
+			},
+		);
 
 		it("returns false for null", () => {
 			expect(isStuckState(null)).toBe(false);
@@ -43,15 +39,12 @@ describe("state-utilities", () => {
 			expect(isRunningState("RUNNING")).toBe(true);
 		});
 
-		it.each([
-			"SCHEDULED",
-			"PENDING",
-			"PAUSED",
-			"COMPLETED",
-			"FAILED",
-		] as const)("returns false for %s", (state) => {
-			expect(isRunningState(state)).toBe(false);
-		});
+		it.each(["SCHEDULED", "PENDING", "PAUSED", "COMPLETED", "FAILED"] as const)(
+			"returns false for %s",
+			(state) => {
+				expect(isRunningState(state)).toBe(false);
+			},
+		);
 	});
 
 	describe("isPausedState", () => {
@@ -59,44 +52,37 @@ describe("state-utilities", () => {
 			expect(isPausedState("PAUSED")).toBe(true);
 		});
 
-		it.each([
-			"RUNNING",
-			"SCHEDULED",
-			"COMPLETED",
-			"FAILED",
-		] as const)("returns false for %s", (state) => {
-			expect(isPausedState(state)).toBe(false);
-		});
+		it.each(["RUNNING", "SCHEDULED", "COMPLETED", "FAILED"] as const)(
+			"returns false for %s",
+			(state) => {
+				expect(isPausedState(state)).toBe(false);
+			},
+		);
 	});
 
 	describe("isTerminalState", () => {
-		it.each([
-			"COMPLETED",
-			"FAILED",
-			"CANCELLED",
-			"CRASHED",
-		] as const)("returns true for %s", (state) => {
-			expect(isTerminalState(state)).toBe(true);
-		});
+		it.each(["COMPLETED", "FAILED", "CANCELLED", "CRASHED"] as const)(
+			"returns true for %s",
+			(state) => {
+				expect(isTerminalState(state)).toBe(true);
+			},
+		);
 
-		it.each([
-			"RUNNING",
-			"SCHEDULED",
-			"PENDING",
-			"PAUSED",
-		] as const)("returns false for non-terminal state %s", (state) => {
-			expect(isTerminalState(state)).toBe(false);
-		});
+		it.each(["RUNNING", "SCHEDULED", "PENDING", "PAUSED"] as const)(
+			"returns false for non-terminal state %s",
+			(state) => {
+				expect(isTerminalState(state)).toBe(false);
+			},
+		);
 	});
 
 	describe("isPendingLikeState", () => {
-		it.each([
-			"Pending",
-			"Submitting",
-			"InfrastructurePending",
-		] as const)("returns true for PENDING/%s", (stateName) => {
-			expect(isPendingLikeState("PENDING", stateName)).toBe(true);
-		});
+		it.each(["Pending", "Submitting", "InfrastructurePending"] as const)(
+			"returns true for PENDING/%s",
+			(stateName) => {
+				expect(isPendingLikeState("PENDING", stateName)).toBe(true);
+			},
+		);
 
 		it("returns true for Scheduled", () => {
 			expect(isPendingLikeState("SCHEDULED", "Scheduled")).toBe(true);

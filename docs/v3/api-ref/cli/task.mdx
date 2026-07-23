@@ -29,14 +29,13 @@ Work with task scheduling.
 
 
 ```command
-prefect task serve [OPTIONS] [ENTRYPOINTS]...
+prefect task serve [OPTIONS] [ENTRYPOINTS]
 ```
 
 
 
 <Info>
-Serve the provided tasks so that their runs may be submitted to and
-executed in the engine.
+Serve the provided tasks so that their runs may be submitted to and executed in the engine.
 </Info>
 
 
@@ -48,7 +47,7 @@ executed in the engine.
 
 
 <Accordion title="Arguments" defaultOpen>
-<ResponseField name="ENTRYPOINTS..." type="string">
+<ResponseField name="ENTRYPOINTS" type="string">
     The paths to one or more tasks, in the form of `./path/to/file.py:task_func_name`.
 </ResponseField>
 </Accordion>

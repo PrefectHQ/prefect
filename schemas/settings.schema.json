@@ -2621,8 +2621,8 @@
                     "type": "boolean"
                 },
                 "v2_enabled": {
-                    "default": false,
-                    "description": "Whether neutral UI entry points should default to the experimental V2 UI instead of V1 when the browser has no saved UI preference.",
+                    "default": true,
+                    "description": "Whether neutral UI entry points should default to the V2 UI instead of V1 when the browser has no saved UI preference. Set to false to restore V1 as the default for browsers without a saved preference.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_UI_V2_ENABLED"
                     ],

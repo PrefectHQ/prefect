@@ -27,10 +27,10 @@ Make a direct request to the Prefect API.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="METHOD" type="string" required>
-    HTTP method (GET, POST, PUT, PATCH, DELETE)  \[required]
+    HTTP method (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS)
 </ResponseField>
 <ResponseField name="PATH" type="string" required>
-    API path (e.g., /flows, /flows/filter)  \[required]
+    API path (e.g., /flows, /flows/filter)
 </ResponseField>
 </Accordion>
 
@@ -89,4 +89,3 @@ $ prefect api GET /workspaces --account
 $ prefect api GET /me --root
 ```
 </Note>
-

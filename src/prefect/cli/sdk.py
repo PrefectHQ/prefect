@@ -62,7 +62,19 @@ async def generate(
         ),
     ] = None,
 ) -> None:
-    """(beta) Generate a typed Python SDK from workspace deployments."""
+    """(beta) Generate a typed Python SDK from workspace deployments.
+
+    The generated SDK provides IDE autocomplete and type checking for your deployments.
+    Requires an active Prefect API connection (use `prefect cloud login` or configure
+    `PREFECT_API_URL`).
+
+    Examples:
+        ```bash
+        $ prefect sdk generate --output ./my_sdk.py
+        $ prefect sdk generate --output ./my_sdk.py --flow my-etl-flow
+        $ prefect sdk generate --output ./my_sdk.py --deployment my-flow/production
+        ```
+    """
     from prefect._sdk.generator import (
         APIConnectionError,
         AuthenticationError,

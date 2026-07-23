@@ -61,7 +61,7 @@ When you enter the `prefect_test_harness` context manager, the following happens
 
 ### Create a temporary database
 
-A temporary directory is created and `PREFECT_API_DATABASE_CONNECTION_URL` is overridden
+A temporary directory is created and `PREFECT_SERVER_DATABASE_CONNECTION_URL` is overridden
 to point at a new SQLite file inside it. The database interface is reset through
 `temporary_database_interface()` so the server uses this temporary database instead of
 any previously configured one.

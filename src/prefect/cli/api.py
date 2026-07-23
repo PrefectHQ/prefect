@@ -128,8 +128,16 @@ def _get_exit_code(error: Exception) -> int:
 @api_app.default
 @with_cli_exception_handling
 async def api_request(
-    method: str,
-    path: str,
+    method: Annotated[
+        str,
+        cyclopts.Parameter(
+            help="HTTP method (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS)"
+        ),
+    ],
+    path: Annotated[
+        str,
+        cyclopts.Parameter(help="API path (e.g., /flows, /flows/filter)"),
+    ],
     *,
     data: Annotated[
         Optional[str],
@@ -156,7 +164,32 @@ async def api_request(
         cyclopts.Parameter("--account", help="Access account level (Cloud only)"),
     ] = False,
 ):
-    """Make a direct request to the Prefect API."""
+    """Make a direct request to the Prefect API.
+
+    Examples:
+        ```bash
+        # GET request
+        $ prefect api GET /flows/abc-123
+
+        # POST request with data
+        $ prefect api POST /flows/filter --data '{"limit": 10}'
+
+        # POST to filter endpoint (defaults to empty object)
+        $ prefect api POST /flows/filter
+
+        # Custom headers
+        $ prefect api POST /flows/filter -H "X-Custom: value" --data '{}'
+
+        # Verbose output
+        $ prefect api GET /flows --verbose
+
+        # Account-level operation (Cloud)
+        $ prefect api GET /workspaces --account
+
+        # API root level (Cloud only)
+        $ prefect api GET /me --root
+        ```
+    """
     import httpx
     from rich.console import Console
     from rich.syntax import Syntax

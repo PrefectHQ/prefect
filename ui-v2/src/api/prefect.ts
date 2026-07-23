@@ -10577,8 +10577,8 @@ export interface components {
             enabled: boolean;
             /**
              * V2 Enabled
-             * @description Whether neutral UI entry points should default to the experimental V2 UI instead of V1 when the browser has no saved UI preference.
-             * @default false
+             * @description Whether neutral UI entry points should default to the V2 UI instead of V1 when the browser has no saved UI preference. Set to false to restore V1 as the default for browsers without a saved preference.
+             * @default true
              */
             v2_enabled: boolean;
             /**

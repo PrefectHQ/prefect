@@ -5,7 +5,9 @@ on:
   pull_request:
     paths:
       - "pyproject.toml"
+      - "src/prefect/futures.py"
       - "src/prefect/testing/**/*.py"
+      - "tests/test_futures.py"
       - "tests/testing/**/*.py"
       - "src/prefect/utilities/processutils/**/*.py"
       - "src/prefect/cli/work_pool.py"
@@ -68,6 +70,12 @@ jobs:
         run: |
           # Only run tests marked with @pytest.mark.windows
           uv run pytest tests -vv -m windows --durations=25
+
+      - name: Run futures tests
+        run: |
+          # Run the complete futures module on Windows for full coverage of
+          # as_completed / PrefectFutureList timeout behavior.
+          uv run pytest tests/test_futures.py -vv --durations=25
 
   test-unc-paths:
     name: Test Windows UNC Paths

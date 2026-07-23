@@ -3,8 +3,10 @@ from __future__ import annotations
 import copy
 import json
 import os
+import sys
 import textwrap
 import warnings
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Callable, Generator
@@ -12,6 +14,7 @@ from typing import Any, Callable, Generator
 import pydantic
 import pytest
 import toml
+from cachetools import TTLCache
 from pydantic_core import to_jsonable_python
 from sqlalchemy import make_url
 
@@ -24,6 +27,7 @@ from prefect.settings import (
     PREFECT_API_DATABASE_NAME,
     PREFECT_API_DATABASE_PASSWORD,
     PREFECT_API_DATABASE_PORT,
+    PREFECT_API_DATABASE_TIMEOUT,
     PREFECT_API_DATABASE_USER,
     PREFECT_API_KEY,
     PREFECT_API_URL,
@@ -41,6 +45,8 @@ from prefect.settings import (
     PREFECT_SERVER_API_HOST,
     PREFECT_SERVER_API_PORT,
     PREFECT_SERVER_DATABASE_CONNECTION_URL,
+    PREFECT_SERVER_DATABASE_TIMEOUT,
+    PREFECT_SERVER_EPHEMERAL_ENABLED,
     PREFECT_SERVER_LOGGING_LEVEL,
     PREFECT_TASK_DEFAULT_RETRY_DELAY_SECONDS,
     PREFECT_TEST_MODE,
@@ -81,9 +87,11 @@ from prefect.settings.models.server.database import (
     ServerDatabaseSettings,
     SQLAlchemySettings,
 )
+from prefect.settings.profiles import _cast_settings
 from prefect.settings.sources import (
     PrefectTomlConfigSettingsSource,
     PyprojectTomlConfigSettingsSource,
+    _read_toml_file,
 )
 from prefect.utilities.collections import get_from_dict, set_in_dict
 from prefect.utilities.filesystem import tmpchdir
@@ -544,7 +552,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_UI_SERVE_BASE": {"test_value": "/base"},
     "PREFECT_SERVER_UI_SHOW_PROMOTIONAL_CONTENT": {"test_value": False},
     "PREFECT_SERVER_UI_STATIC_DIRECTORY": {"test_value": "/path/to/static"},
-    "PREFECT_SERVER_UI_V2_ENABLED": {"test_value": True},
+    "PREFECT_SERVER_UI_V2_ENABLED": {"test_value": False},
     "PREFECT_SILENCE_API_URL_MISCONFIGURATION": {"test_value": True},
     "PREFECT_SQLALCHEMY_MAX_OVERFLOW": {"test_value": 10, "legacy": True},
     "PREFECT_SQLALCHEMY_POOL_SIZE": {"test_value": 10, "legacy": True},
@@ -925,6 +933,47 @@ class TestSettingsClass:
 
         with pytest.warns(UserWarning, match="Failed to load profiles from"):
             assert Settings().testing.test_setting == "FOO"
+
+    def test_read_toml_file_is_thread_safe(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Regression test for concurrent access to the TTLCache in
+        `_read_toml_file`. `TTLCache` is not thread-safe: `__setitem__` calls
+        `expire()`, which walks the cache's internal linked list. Concurrent
+        mutation corrupts that list and raises a spurious `KeyError` on a key
+        that was just present (see OSS-8092).
+
+        A near-zero TTL forces entries to expire on every access so `expire()`
+        actually deletes links, and a tiny thread switch interval makes the GIL
+        hand off inside those walks, which is what surfaces the race.
+        """
+        # replace the module-level cache with one that expires immediately so
+        # every access exercises the expire()/mutate race
+        monkeypatch.setattr(
+            "prefect.settings.sources._file_cache",
+            TTLCache(maxsize=100, ttl=0.0),
+        )
+        original_switch_interval = sys.getswitchinterval()
+        sys.setswitchinterval(1e-9)
+
+        paths: list[Path] = []
+        for i in range(50):
+            path = tmp_path / f"profiles_{i}.toml"
+            path.write_text(f"[profiles.test]\nvalue = {i}\n")
+            paths.append(path)
+
+        def read_all() -> None:
+            for _ in range(50):
+                for path in paths:
+                    _read_toml_file(path)
+
+        try:
+            with ThreadPoolExecutor(max_workers=16) as executor:
+                futures = [executor.submit(read_all) for _ in range(16)]
+                for future in futures:
+                    future.result()
+        finally:
+            sys.setswitchinterval(original_switch_interval)
 
     def test_valid_setting_names_matches_supported_settings(self):
         assert set(_get_valid_setting_names(Settings)) == set(
@@ -2210,7 +2259,7 @@ class TestLoadProfiles:
         expected = {
             "ephemeral": {
                 PREFECT_API_KEY: "foo",
-                PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: "true",  # default value
+                PREFECT_SERVER_EPHEMERAL_ENABLED: "true",  # default value
             },
             "bar": {PREFECT_API_KEY: "bar"},
         }
@@ -2221,7 +2270,7 @@ class TestLoadProfiles:
     def test_load_profile_ephemeral(self):
         assert load_profile("ephemeral") == Profile(
             name="ephemeral",
-            settings={PREFECT_SERVER_ALLOW_EPHEMERAL_MODE: "true"},
+            settings={PREFECT_SERVER_EPHEMERAL_ENABLED: "true"},
             source=DEFAULT_PROFILES_PATH,
         )
 
@@ -2375,6 +2424,114 @@ class TestProfile:
         )
         # Should not raise
         profile.validate_settings()
+
+    @pytest.mark.parametrize(
+        "settings",
+        [
+            {
+                "PREFECT_SERVER_DATABASE_TIMEOUT": 99,
+                "PREFECT_API_DATABASE_TIMEOUT": 42,
+            },
+            {
+                "PREFECT_API_DATABASE_TIMEOUT": 42,
+                "PREFECT_SERVER_DATABASE_TIMEOUT": 99,
+            },
+        ],
+    )
+    def test_canonical_name_takes_precedence_over_alias(
+        self, settings: dict[str | Setting, int]
+    ):
+        profile = Profile(name="test", settings=settings)
+        assert profile.settings == {PREFECT_SERVER_DATABASE_TIMEOUT: 99}
+
+    def test_alias_casts_to_canonical_setting_when_canonical_missing(self):
+        profile = Profile(name="test", settings={"PREFECT_API_DATABASE_TIMEOUT": 42})
+        assert profile.settings == {PREFECT_SERVER_DATABASE_TIMEOUT: 42}
+
+
+class TestCastSettings:
+    def test_canonical_setting_wins_over_legacy_setting_object_in_both_orders(self):
+        assert _cast_settings(
+            {PREFECT_SERVER_DATABASE_TIMEOUT: 99, PREFECT_API_DATABASE_TIMEOUT: 42}
+        ) == {PREFECT_SERVER_DATABASE_TIMEOUT: 99}
+        assert _cast_settings(
+            {PREFECT_API_DATABASE_TIMEOUT: 42, PREFECT_SERVER_DATABASE_TIMEOUT: 99}
+        ) == {PREFECT_SERVER_DATABASE_TIMEOUT: 99}
+
+    def test_legacy_setting_object_maps_to_canonical_key(self):
+        assert _cast_settings({PREFECT_API_DATABASE_TIMEOUT: 42}) == {
+            PREFECT_SERVER_DATABASE_TIMEOUT: 42
+        }
+
+    def test_profile_canonicalizes_legacy_setting_object(self):
+        profile = Profile(name="test", settings={PREFECT_API_DATABASE_TIMEOUT: 42})
+        assert profile.settings == {PREFECT_SERVER_DATABASE_TIMEOUT: 42}
+
+    def test_profile_prefers_canonical_setting_object_over_legacy(self):
+        profile = Profile(
+            name="test",
+            settings={
+                PREFECT_SERVER_DATABASE_TIMEOUT: 99,
+                PREFECT_API_DATABASE_TIMEOUT: 42,
+            },
+        )
+        assert profile.settings == {PREFECT_SERVER_DATABASE_TIMEOUT: 99}
+
+    def test_legacy_setting_key_looks_up_canonical_entry(self):
+        profile = Profile(name="test", settings={PREFECT_SERVER_DATABASE_TIMEOUT: 99})
+        assert profile.settings[PREFECT_API_DATABASE_TIMEOUT] == 99
+        assert profile.settings.get(PREFECT_API_DATABASE_TIMEOUT) == 99
+        assert PREFECT_API_DATABASE_TIMEOUT in profile.settings
+        assert profile.settings == {PREFECT_API_DATABASE_TIMEOUT: 99}
+        assert profile.to_environment_variables() == {
+            "PREFECT_SERVER_DATABASE_TIMEOUT": "99"
+        }
+
+    def test_legacy_setting_key_setitem_canonicalizes(self):
+        profile = Profile(name="test", settings={})
+        profile.settings[PREFECT_API_DATABASE_TIMEOUT] = 42
+        assert profile.settings == {PREFECT_SERVER_DATABASE_TIMEOUT: 42}
+        assert profile.to_environment_variables() == {
+            "PREFECT_SERVER_DATABASE_TIMEOUT": "42"
+        }
+
+    def test_settings_equality_with_legacy_keys(self):
+        profile = Profile(name="test", settings={PREFECT_SERVER_DATABASE_TIMEOUT: 99})
+        assert profile.settings == {PREFECT_API_DATABASE_TIMEOUT: 99}
+        assert profile.settings != {PREFECT_API_DATABASE_TIMEOUT: 100}
+        assert not (profile.settings != {PREFECT_API_DATABASE_TIMEOUT: 99})
+        assert profile.settings != {PREFECT_LOGGING_LEVEL: None}
+
+    def test_settings_union_canonicalizes_legacy_keys(self):
+        profile = Profile(name="test", settings={PREFECT_SERVER_DATABASE_TIMEOUT: 99})
+        profile.settings |= {PREFECT_API_DATABASE_TIMEOUT: 42}
+        assert profile.settings == {PREFECT_SERVER_DATABASE_TIMEOUT: 42}
+        assert profile.to_environment_variables() == {
+            "PREFECT_SERVER_DATABASE_TIMEOUT": "42"
+        }
+
+        profile2 = Profile(name="test", settings={PREFECT_SERVER_DATABASE_TIMEOUT: 99})
+        profile2.settings |= {"PREFECT_API_DATABASE_TIMEOUT": 42}
+        assert profile2.settings == {PREFECT_SERVER_DATABASE_TIMEOUT: 42}
+
+    def test_settings_or_returns_canonical_keys(self):
+        profile = Profile(name="test", settings={PREFECT_SERVER_DATABASE_TIMEOUT: 99})
+        merged = profile.settings | {PREFECT_API_DATABASE_TIMEOUT: 42}
+        assert merged == {PREFECT_SERVER_DATABASE_TIMEOUT: 42}
+        assert PREFECT_SERVER_DATABASE_TIMEOUT in merged
+        assert PREFECT_API_DATABASE_TIMEOUT in merged
+
+        reversed = {PREFECT_API_DATABASE_TIMEOUT: 42} | profile.settings
+        assert reversed == {PREFECT_SERVER_DATABASE_TIMEOUT: 99}
+
+    def test_default_settings_not_marked_as_set(self):
+        profile = Profile(name="test")
+        assert "settings" not in profile.model_dump(exclude_unset=True)
+
+        profile_with_settings = Profile(
+            name="test", settings={PREFECT_SERVER_DATABASE_TIMEOUT: 99}
+        )
+        assert "settings" in profile_with_settings.model_dump(exclude_unset=True)
 
 
 class TestProfilesCollection:

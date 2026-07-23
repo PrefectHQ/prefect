@@ -76,7 +76,7 @@ def start(
         Optional[bool],
         cyclopts.Parameter(
             "--scheduler",
-            help="Enable scheduler. [from PREFECT_API_SERVICES_SCHEDULER_ENABLED]",
+            help="Enable scheduler. [from PREFECT_SERVER_SERVICES_SCHEDULER_ENABLED]",
         ),
     ] = None,
     analytics: Annotated[
@@ -91,12 +91,14 @@ def start(
         Optional[bool],
         cyclopts.Parameter(
             "--late-runs",
-            help="Enable late runs. [from PREFECT_API_SERVICES_LATE_RUNS_ENABLED]",
+            help="Enable late runs. [from PREFECT_SERVER_SERVICES_LATE_RUNS_ENABLED]",
         ),
     ] = None,
     ui: Annotated[
         Optional[bool],
-        cyclopts.Parameter("--ui", help="Enable the UI. [from PREFECT_UI_ENABLED]"),
+        cyclopts.Parameter(
+            "--ui", help="Enable the UI. [from PREFECT_SERVER_UI_ENABLED]"
+        ),
     ] = None,
     no_services: Annotated[
         bool,
@@ -126,8 +128,6 @@ def start(
         prestart_check,
     )
     from prefect.settings import (
-        PREFECT_API_SERVICES_LATE_RUNS_ENABLED,
-        PREFECT_API_SERVICES_SCHEDULER_ENABLED,
         PREFECT_HOME,
         PREFECT_SERVER_ANALYTICS_ENABLED,
         PREFECT_SERVER_API_HOST,
@@ -136,7 +136,9 @@ def start(
         PREFECT_SERVER_API_WEBSOCKET_PING_INTERVAL,
         PREFECT_SERVER_API_WEBSOCKET_PING_TIMEOUT,
         PREFECT_SERVER_LOGGING_LEVEL,
-        PREFECT_UI_ENABLED,
+        PREFECT_SERVER_SERVICES_LATE_RUNS_ENABLED,
+        PREFECT_SERVER_SERVICES_SCHEDULER_ENABLED,
+        PREFECT_SERVER_UI_ENABLED,
     )
 
     # Resolve settings-backed defaults
@@ -154,11 +156,11 @@ def start(
     if analytics is None:
         analytics = PREFECT_SERVER_ANALYTICS_ENABLED.value()
     if scheduler is None:
-        scheduler = PREFECT_API_SERVICES_SCHEDULER_ENABLED.value()
+        scheduler = PREFECT_SERVER_SERVICES_SCHEDULER_ENABLED.value()
     if late_runs is None:
-        late_runs = PREFECT_API_SERVICES_LATE_RUNS_ENABLED.value()
+        late_runs = PREFECT_SERVER_SERVICES_LATE_RUNS_ENABLED.value()
     if ui is None:
-        ui = PREFECT_UI_ENABLED.value()
+        ui = PREFECT_SERVER_UI_ENABLED.value()
 
     base_url = f"http://{_format_host_for_url(host)}:{port}"
 
@@ -173,10 +175,10 @@ def start(
     _validate_multi_worker(workers, exit_with_error)
 
     server_settings = {
-        "PREFECT_API_SERVICES_SCHEDULER_ENABLED": str(scheduler),
+        "PREFECT_SERVER_SERVICES_SCHEDULER_ENABLED": str(scheduler),
         "PREFECT_SERVER_ANALYTICS_ENABLED": str(analytics),
-        "PREFECT_API_SERVICES_LATE_RUNS_ENABLED": str(late_runs),
-        "PREFECT_UI_ENABLED": str(ui),
+        "PREFECT_SERVER_SERVICES_LATE_RUNS_ENABLED": str(late_runs),
+        "PREFECT_SERVER_UI_ENABLED": str(ui),
         "PREFECT_SERVER_LOGGING_LEVEL": log_level,
     }
 

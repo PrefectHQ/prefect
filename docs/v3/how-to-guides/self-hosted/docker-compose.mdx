@@ -51,11 +51,11 @@ services:
       redis:
         condition: service_healthy
     environment:
-      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
+      PREFECT_SERVER_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
       PREFECT_SERVER_API_HOST: 0.0.0.0
       PREFECT_SERVER_UI_API_URL: http://localhost:4200/api
-      PREFECT_MESSAGING_BROKER: prefect_redis.messaging
-      PREFECT_MESSAGING_CACHE: prefect_redis.messaging
+      PREFECT_SERVER_EVENTS_MESSAGING_BROKER: prefect_redis.messaging
+      PREFECT_SERVER_EVENTS_MESSAGING_CACHE: prefect_redis.messaging
       PREFECT_REDIS_MESSAGING_HOST: redis
       PREFECT_REDIS_MESSAGING_PORT: 6379
       PREFECT_REDIS_MESSAGING_DB: 0
@@ -75,9 +75,9 @@ services:
       prefect-server:
         condition: service_healthy
     environment:
-      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
-      PREFECT_MESSAGING_BROKER: prefect_redis.messaging
-      PREFECT_MESSAGING_CACHE: prefect_redis.messaging
+      PREFECT_SERVER_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
+      PREFECT_SERVER_EVENTS_MESSAGING_BROKER: prefect_redis.messaging
+      PREFECT_SERVER_EVENTS_MESSAGING_CACHE: prefect_redis.messaging
       PREFECT_REDIS_MESSAGING_HOST: redis
       PREFECT_REDIS_MESSAGING_PORT: 6379
       PREFECT_REDIS_MESSAGING_DB: 0
