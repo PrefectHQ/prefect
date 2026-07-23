@@ -31,7 +31,7 @@ redis.call('XACK', KEYS[1], ARGV[1], ARGV[2])
 redis.call('XDEL', KEYS[1], ARGV[2])
 return 1
 """
-logger = get_logger(__name__)
+_logger = get_logger(__name__)
 
 
 class TaskDeliveryUnavailable(RuntimeError):
@@ -107,7 +107,7 @@ class TaskRunSubscription:
             try:
                 delivery = await self._read_one(stream)
             except RedisConnectionError:
-                logger.warning(
+                _logger.warning(
                     "Lost the Redis connection while reading task deliveries; "
                     "retrying in %.1f seconds",
                     _RECONNECTION_DELAY,
@@ -121,7 +121,7 @@ class TaskRunSubscription:
                 try:
                     await self._ensure_group(stream)
                 except RedisConnectionError:
-                    logger.warning(
+                    _logger.warning(
                         "Lost the Redis connection while recreating a task "
                         "delivery consumer group; retrying in %.1f seconds",
                         _RECONNECTION_DELAY,
@@ -209,7 +209,7 @@ class TaskRunSubscription:
             try:
                 await self._renew()
             except Exception:
-                logger.warning(
+                _logger.warning(
                     "Failed to renew task delivery leases",
                     exc_info=True,
                 )
