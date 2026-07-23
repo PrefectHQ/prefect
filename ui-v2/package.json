@@ -113,7 +113,7 @@
     "@tailwindcss/postcss": "^4.3.3",
     "@tailwindcss/typography": "^0.5.20",
     "@tailwindcss/vite": "^4.3.3",
-    "@tanstack/eslint-plugin-query": "^5.101.3",
+    "@tanstack/eslint-plugin-query": "^5.101.4",
     "@tanstack/eslint-plugin-router": "^1.162.0",
     "@tanstack/router-devtools": "^1.167.0",
     "@tanstack/router-plugin": "^1.168.23",
@@ -148,7 +148,7 @@
     "storybook": "^10.5.3",
     "tailwindcss": "^4.0.8",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.64.0",
+    "typescript-eslint": "^8.65.0",
     "vite": "^8.1.5",
     "vitest": "^4.1.10"
   },
