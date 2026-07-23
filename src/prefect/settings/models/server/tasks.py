@@ -16,32 +16,6 @@ class ServerTasksSchedulingSettings(PrefectBaseSettings):
         ("server", "tasks", "scheduling")
     )
 
-    max_scheduled_queue_size: int = Field(
-        default=1000,
-        description=(
-            "Deprecated. Docket-backed task delivery does not use a process-local "
-            "scheduled queue limit."
-        ),
-        validation_alias=AliasChoices(
-            AliasPath("max_scheduled_queue_size"),
-            "prefect_server_tasks_scheduling_max_scheduled_queue_size",
-            "prefect_task_scheduling_max_scheduled_queue_size",
-        ),
-    )
-
-    max_retry_queue_size: int = Field(
-        default=100,
-        description=(
-            "Deprecated. Docket-backed task delivery does not use a process-local "
-            "retry queue limit."
-        ),
-        validation_alias=AliasChoices(
-            AliasPath("max_retry_queue_size"),
-            "prefect_server_tasks_scheduling_max_retry_queue_size",
-            "prefect_task_scheduling_max_retry_queue_size",
-        ),
-    )
-
     pending_task_timeout: timedelta = Field(
         default=timedelta(0),
         description="How long before a PENDING task are made available to another task worker.",
@@ -52,21 +26,12 @@ class ServerTasksSchedulingSettings(PrefectBaseSettings):
         ),
     )
 
-    docket_redelivery_timeout: timedelta = Field(
+    delivery_visibility_timeout: timedelta = Field(
         default=timedelta(seconds=30),
         gt=timedelta(0),
         description=(
-            "How long a deferred task run may remain unacknowledged by an API "
-            "server before Docket makes it available to another server replica."
-        ),
-    )
-
-    docket_concurrency: int = Field(
-        default=100,
-        gt=0,
-        description=(
-            "The maximum number of deferred task deliveries each API server may "
-            "hold open while awaiting task-worker acknowledgement."
+            "How long a deferred task delivery may remain unacknowledged before "
+            "another TaskWorker can claim it."
         ),
     )
 

@@ -13,7 +13,7 @@ from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
 from prefect.filesystems import LocalFileSystem
 from prefect.results import ResultStore, get_or_create_default_task_scheduling_storage
-from prefect.server.api.task_runs import TaskQueue
+from prefect.server.orchestration import core_policy
 from prefect.settings import (
     PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
     temporary_settings,
@@ -189,7 +189,7 @@ async def test_scheduled_tasks_are_enqueued_server_side(
     # TODO: Add ways to inspect the task queue via the REST API
     monkeypatch.setattr(prefect.tasks, "get_client", lambda: in_memory_prefect_client)
     enqueue = mock.AsyncMock()
-    monkeypatch.setattr(TaskQueue, "enqueue", enqueue)
+    monkeypatch.setattr(core_policy, "schedule_task_run_delivery", enqueue)
 
     task_run_future = foo_task_with_result_storage.apply_async((42,))
     task_run = await in_memory_prefect_client.read_task_run(task_run_future.task_run_id)
@@ -232,7 +232,7 @@ async def test_tasks_are_not_enqueued_server_side_when_executed_directly(
     # where executing a task would cause it to be enqueue server-side
     # and executed twice.
     enqueue = mock.AsyncMock()
-    monkeypatch.setattr(TaskQueue, "enqueue", enqueue)
+    monkeypatch.setattr(core_policy, "schedule_task_run_delivery", enqueue)
 
     foo_task(x=42)
     assert all(

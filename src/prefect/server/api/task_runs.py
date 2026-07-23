@@ -34,7 +34,11 @@ from prefect.server.schemas.responses import (
     OrchestrationResult,
     TaskRunPaginationResponse,
 )
-from prefect.server.task_queue import TaskDeliveryUnavailable, TaskQueue
+from prefect.server.task_delivery import (
+    TaskRunDelivery,
+    TaskRunDeliveryManager,
+    TaskRunSubscription,
+)
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
@@ -385,54 +389,64 @@ async def scheduled_task_subscription(websocket: WebSocket) -> None:
     logger.info(f"Task worker {client_id!r} subscribed to task keys {task_keys!r}")
     await models.task_workers.observe_worker(task_keys, client_id)
 
-    async with TaskQueue.subscribe(task_keys, client_id) as task_subscription:
-        delivery = None
-        try:
-            while True:
-                # Observe here so workers with idle WebSockets remain visible.
-                await models.task_workers.observe_worker(task_keys, client_id)
-                try:
-                    delivery = await asyncio.wait_for(
-                        task_subscription.deliveries.get(), timeout=1
-                    )
-                except asyncio.TimeoutError:
-                    if not await subscriptions.still_connected(websocket):
-                        await models.task_workers.forget_worker(client_id)
-                        return
-                    continue
-
-                try:
-                    await websocket.send_json(delivery.task_run.model_dump(mode="json"))
-
-                    acknowledgement = await websocket.receive_json()
-                    ack_type = acknowledgement.get("type")
-                    if ack_type != "ack":
-                        if ack_type == "quit":
-                            if not delivery.acknowledged.done():
-                                delivery.acknowledged.set_result(None)
-                            delivery = None
-                            return await websocket.close()
-
-                        raise WebSocketDisconnect(
-                            code=4001,
-                            reason="Protocol violation: expected 'ack' message",
-                        )
-
-                    if not delivery.acknowledged.done():
-                        delivery.acknowledged.set_result(None)
-                    await models.task_workers.observe_worker(
-                        [delivery.task_run.task_key], client_id
-                    )
-                    delivery = None
-
-                except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS as exc:
-                    if not delivery.acknowledged.done():
-                        delivery.acknowledged.set_exception(exc)
+    async with TaskRunDeliveryManager.active().subscribe(
+        task_keys, client_id
+    ) as task_subscription:
+        while True:
+            # Observe here so workers with idle WebSockets remain visible.
+            await models.task_workers.observe_worker(task_keys, client_id)
+            try:
+                delivery = await task_subscription.receive(timeout=1)
+            except asyncio.TimeoutError:
+                if not await subscriptions.still_connected(websocket):
+                    await models.task_workers.forget_worker(client_id)
                     return
-        finally:
-            if delivery is not None and not delivery.acknowledged.done():
-                delivery.acknowledged.set_exception(
-                    TaskDeliveryUnavailable(
-                        f"Task worker {client_id!r} disconnected before acknowledgement"
-                    )
+                continue
+
+            try:
+                await websocket.send_json(delivery.task_run.model_dump(mode="json"))
+
+                acknowledgement = await _receive_task_run_acknowledgement(
+                    websocket, task_subscription, delivery
                 )
+                ack_type = acknowledgement.get("type")
+                if ack_type != "ack":
+                    if ack_type == "quit":
+                        await task_subscription.acknowledge(delivery)
+                        return await websocket.close()
+
+                    raise WebSocketDisconnect(
+                        code=4001,
+                        reason="Protocol violation: expected 'ack' message",
+                    )
+
+                await task_subscription.acknowledge(delivery)
+                await models.task_workers.observe_worker(
+                    [delivery.task_run.task_key], client_id
+                )
+
+            except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
+                return
+            finally:
+                await models.task_workers.forget_worker(client_id)
+
+
+async def _receive_task_run_acknowledgement(
+    websocket: WebSocket,
+    subscription: TaskRunSubscription,
+    delivery: TaskRunDelivery,
+) -> dict[str, Any]:
+    receive = asyncio.create_task(websocket.receive_json())
+    try:
+        while True:
+            done, _ = await asyncio.wait(
+                {receive},
+                timeout=subscription.renewal_interval,
+            )
+            if done:
+                return receive.result()
+            await subscription.renew(delivery)
+    finally:
+        if not receive.done():
+            receive.cancel()
+            await asyncio.gather(receive, return_exceptions=True)

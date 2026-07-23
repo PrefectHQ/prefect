@@ -30,6 +30,7 @@ from prefect.server.services.perpetual_services import (
     register_and_schedule_perpetual_services,
 )
 from prefect.server.services.repossessor import revoke_expired_lease
+from prefect.server.task_delivery import publish_task_run
 
 logger: Logger = get_logger(__name__)
 
@@ -40,6 +41,7 @@ task_functions: list[Callable[..., Any]] = [
     mark_deployments_ready,
     delete_task_run_logs,
     delete_flow_run_logs,
+    publish_task_run,
     # Find-and-flood pattern tasks used by perpetual services
     handle_cancelling_timeout,
     cancel_child_task_runs,

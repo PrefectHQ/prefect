@@ -56,24 +56,6 @@ multiply.delay(1, 4)
 serve(add, multiply) # start a task worker listening for both `add` and `multiply`
 ```
 
-### Run background tasks with multiple server replicas
-
-For a highly available self-hosted deployment, configure every Prefect API server replica to use the same external Redis instance for Docket:
-
-```bash
-export PREFECT_SERVER_DOCKET_URL="redis://redis.example.com:6379/0"
-```
-
-Prefect uses Docket to retain a background task delivery until a task worker acknowledges it. If the API server that owns the task worker's WebSocket disconnects, another API server replica can reclaim and redeliver the task.
-
-The default `memory://` Docket URL is process-local and does not provide durable or cross-replica delivery. Use a highly available Redis deployment when the Prefect server itself must be highly available. See the [`server.tasks.scheduling` settings](/v3/api-ref/settings-ref#servertasksschedulingsettings) to tune delivery concurrency and failover timeout.
-
-Set task workers' `PREFECT_API_URL` to the load-balanced API endpoint, rather than an individual server replica, so state updates and subscription reconnects survive replica failure.
-
-<Note>
-Docket coordinates task delivery; it does not replace Prefect result storage. Task parameters and return values continue to use the task's configured Prefect result storage. Configure shared result storage when task submitters and task workers do not share a filesystem.
-</Note>
-
 ### Submit multiple background tasks
 
 To submit multiple background tasks, call `.map()` on the task with `deferred=True`.
@@ -117,5 +99,6 @@ add.serve()
 
 ### Further reading
 
+- [Configure a highly available self-hosted server](/v3/advanced/self-hosted#docket-url-for-background-services)
 - [How to deploy a web application with Prefect background tasks](/v3/advanced/background-tasks)
 - [Prefect Background Task Examples](https://github.com/PrefectHQ/prefect-background-task-examples) repository for reference implementations of applications leveraging background tasks.
