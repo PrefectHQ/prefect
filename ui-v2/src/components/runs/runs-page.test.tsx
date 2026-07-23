@@ -462,7 +462,7 @@ describe("Runs page", () => {
 				expect(currentSearch.tags).toBeFalsy();
 				// V1 behavior: also clears flow-run-specific filters
 				expect(currentSearch["flow-run-search"]).toBeFalsy();
-				expect(currentSearch["hide-subflows"]).toBeFalsy();
+				expect(currentSearch["hide-subflows"]).toBe(true);
 			});
 		});
 	});

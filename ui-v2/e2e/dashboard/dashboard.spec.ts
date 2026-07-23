@@ -166,29 +166,30 @@ test.describe("Dashboard Page", () => {
 			await page.goto("/dashboard");
 			await waitForDashboardReady(page);
 
-			// --- VERIFY: Hide subflows toggle is visible and unchecked by default ---
+			// --- VERIFY: Hide subflows toggle is visible and checked by default ---
 			const hideSubflowsSwitch = page.getByLabel("Hide subflows");
 			await expect(hideSubflowsSwitch).toBeVisible();
-			await expect(hideSubflowsSwitch).not.toBeChecked();
-
-			// --- ACTION: Toggle hide subflows ON ---
-			await hideSubflowsSwitch.click();
-
-			// --- VERIFY: URL updates with hideSubflows parameter ---
-			await expect(page).toHaveURL(/hideSubflows=true/);
-			// Wait for the switch to reflect checked state before toggling again
 			await expect(hideSubflowsSwitch).toBeChecked();
-
-			// The dashboard should refresh and filter out subflows
-			// This is verified by the URL param change and the component re-rendering
 
 			// --- ACTION: Toggle hide subflows OFF ---
 			await hideSubflowsSwitch.click();
 
-			// --- VERIFY: Switch is unchecked and URL no longer has hideSubflows=true ---
+			// --- VERIFY: URL updates with hideSubflows=false parameter ---
+			await expect(page).toHaveURL(/hideSubflows=false/);
+			// Wait for the switch to reflect unchecked state before toggling again
 			await expect(hideSubflowsSwitch).not.toBeChecked();
-			// When false/default, the param should be removed or set to false
-			await expect(page).not.toHaveURL(/hideSubflows=true/, { timeout: 10000 });
+
+			// The dashboard should refresh and show subflows
+			// This is verified by the URL param change and the component re-rendering
+
+			// --- ACTION: Toggle hide subflows ON ---
+			await hideSubflowsSwitch.click();
+
+			// --- VERIFY: Switch is checked and URL no longer has hideSubflows=false ---
+			await expect(hideSubflowsSwitch).toBeChecked();
+			await expect(page).not.toHaveURL(/hideSubflows=false/, {
+				timeout: 10000,
+			});
 		});
 
 		test("should persist date range selection in URL and filter dashboard data", async ({

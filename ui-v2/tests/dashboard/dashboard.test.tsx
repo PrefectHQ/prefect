@@ -97,5 +97,20 @@ describe("Dashboard page", () => {
 				expect(screen.getByLabelText("Hide subflows")).toBeVisible();
 			});
 		});
+
+		it("should default hide subflows toggle to checked when flow runs exist", async () => {
+			server.use(
+				http.post(buildApiUrl("/flow_runs/count"), () => {
+					return HttpResponse.json(5);
+				}),
+			);
+
+			await renderDashboardPage();
+
+			await waitFor(() => {
+				const switchEl = screen.getByLabelText("Hide subflows");
+				expect(switchEl).toBeChecked();
+			});
+		});
 	});
 });
