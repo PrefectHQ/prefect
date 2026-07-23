@@ -1,0 +1,60 @@
+---
+title: 3.8
+---
+
+## 3.8.0 - A new view on orchestration
+
+*Released on July 23, 2026*
+
+**Enhancements ➕➕**
+
+* Add deployment filters to flow run triggers by [@samiat4911](https://github.com/samiat4911) in [#22319](https://github.com/PrefectHQ/prefect/pull/22319)
+* Make the V2 UI the default for self-hosted servers by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22519](https://github.com/PrefectHQ/prefect/pull/22519)
+* Copy additional options when using "Copy to new run" in the V2 UI by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22567](https://github.com/PrefectHQ/prefect/pull/22567)
+* Add "Copy to new run" to the flow run menu in the V2 UI by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22565](https://github.com/PrefectHQ/prefect/pull/22565)
+* Make URLs in run logs clickable in the V2 UI by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22496](https://github.com/PrefectHQ/prefect/pull/22496)
+* Allow year/month selection and manual typing in date inputs in the V2 UI by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22495](https://github.com/PrefectHQ/prefect/pull/22495)
+* Add composable worker initializer to `ProcessPoolTaskRunner` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22591](https://github.com/PrefectHQ/prefect/pull/22591)
+* Canonicalize legacy setting names across settings handling and documentation generators by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22503](https://github.com/PrefectHQ/prefect/pull/22503)
+
+**Bug Fixes 🐞**
+
+* Harden `RemoteFileSystem` path resolution containment and rebuild absolute URLs by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22476](https://github.com/PrefectHQ/prefect/pull/22476)
+* Handle `module-path` entrypoints when generating default pull step by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22493](https://github.com/PrefectHQ/prefect/pull/22493)
+* Preserve empty `pull: []` in `prefect deploy` instead of forcing `set_working_directory` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22490](https://github.com/PrefectHQ/prefect/pull/22490)
+* Prevent duplicate server-minted flow-run state timestamps by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22512](https://github.com/PrefectHQ/prefect/pull/22512)
+* Keep flow run watch alive across stream disconnects by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22550](https://github.com/PrefectHQ/prefect/pull/22550)
+* Fix `db_vacuum` retention-override full scan of `event_resources` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22536](https://github.com/PrefectHQ/prefect/pull/22536)
+* Record lease at acquisition so a cancelled acquire can't leak a slot by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22542](https://github.com/PrefectHQ/prefect/pull/22542)
+* Fix deployment search empty state blocking typing in the V2 UI by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22497](https://github.com/PrefectHQ/prefect/pull/22497)
+* Guard deployment Parameters tab against missing schema properties by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22604](https://github.com/PrefectHQ/prefect/pull/22604)
+* Give `TaskRunFilterState.type` and `TaskRunFilterState.name` a default of `None` by [@chuenchen309](https://github.com/chuenchen309) in [#22526](https://github.com/PrefectHQ/prefect/pull/22526)
+* Preserve stdlib precedence in flow runs by [@AkhilTrivediX](https://github.com/AkhilTrivediX) in [#22529](https://github.com/PrefectHQ/prefect/pull/22529)
+* Make zero-limit behavior consistent for core pagination endpoints by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22566](https://github.com/PrefectHQ/prefect/pull/22566)
+* Redact API key from lazy logging args in `ObfuscateApiKeyFilter` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22552](https://github.com/PrefectHQ/prefect/pull/22552)
+* Guard non-thread-safe `TTLCache` in `_read_toml_file` with a lock by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22571](https://github.com/PrefectHQ/prefect/pull/22571)
+* Fix `as_completed` timeout enforcement in worker threads and on Windows by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22607](https://github.com/PrefectHQ/prefect/pull/22607)
+* Enforce `READ COMMITTED` isolation for PostgreSQL server transactions by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22531](https://github.com/PrefectHQ/prefect/pull/22531)
+
+**Development & Tidiness 🧹**
+
+* Quote argument-hint YAML values so Copilot CLI `≥1.0.65` loads all skills by [@thejesh23](https://github.com/thejesh23) in [#22484](https://github.com/PrefectHQ/prefect/pull/22484)
+* Remove `cw` from CODEOWNERS by [@zzstoatzz](https://github.com/zzstoatzz) in [#22540](https://github.com/PrefectHQ/prefect/pull/22540)
+* Prevent recurring UI dependency PR failures by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22541](https://github.com/PrefectHQ/prefect/pull/22541)
+* Cover `truncated_to` in `utilities.text` by [@eeshsaxena](https://github.com/eeshsaxena) in [#22532](https://github.com/PrefectHQ/prefect/pull/22532)
+* Stabilize flaky cleanup renewal and flow-discovery log tests by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22572](https://github.com/PrefectHQ/prefect/pull/22572)
+
+**Documentation 📓**
+
+* Clarify `/api/health` vs `/api/ready` for Kubernetes probes by [@br413](https://github.com/br413) in [#22500](https://github.com/PrefectHQ/prefect/pull/22500)
+* Document PrivateLink tenant authentication (`vpce-id` binding) by [@jimid27](https://github.com/jimid27) in [#22498](https://github.com/PrefectHQ/prefect/pull/22498)
+* Update variables concept docs to reflect JSON values and dash support by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22501](https://github.com/PrefectHQ/prefect/pull/22501)
+* Fix title in run background tasks documentation by [@uinstinct](https://github.com/uinstinct) in [#22561](https://github.com/PrefectHQ/prefect/pull/22561)
+* Make minor fixes in Docker workflow documentation by [@uinstinct](https://github.com/uinstinct) in [#22585](https://github.com/PrefectHQ/prefect/pull/22585)
+* Update migration timeout guidance to reference `PREFECT_SERVER_DATABASE_MIGRATION_TIMEOUT` by [@github-actions](https://github.com/github-actions)[bot] in [#22610](https://github.com/PrefectHQ/prefect/pull/22610)
+* Document `initializer`/`initargs` support in `ProcessPoolTaskRunner` by [@github-actions](https://github.com/github-actions)[bot] in [#22595](https://github.com/PrefectHQ/prefect/pull/22595)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.7.8...3.8.0
+
+
+---
