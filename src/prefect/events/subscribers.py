@@ -33,6 +33,9 @@ class FlowRunSubscriber:
     is received, the event subscription stops but log subscription continues for a
     configurable timeout to catch any straggler logs.
 
+    The underlying event and log subscribers own reconnection behavior. If either
+    exhausts its retries or fails for another reason, that error is propagated.
+
     Example:
         ```python
         from prefect.events.subscribers import FlowRunSubscriber
@@ -47,7 +50,7 @@ class FlowRunSubscriber:
     """
 
     _flow_run_id: UUID
-    _queue: asyncio.Queue[Union[Log, Event, None]]
+    _queue: asyncio.Queue[Union[Log, Event, Exception, None]]
     _tasks: list[asyncio.Task[None]]
     _flow_completed: bool
     _straggler_timeout: int
@@ -91,10 +94,14 @@ class FlowRunSubscriber:
     async def __aenter__(self) -> Self:
         """Enter the async context manager"""
         self._logs_subscriber = get_logs_subscriber(
-            filter=self._log_filter, reconnection_attempts=self._reconnection_attempts
+            filter=self._log_filter,
+            reconnection_attempts=self._reconnection_attempts,
+            reconnect_on_clean_close=True,
         )
         self._events_subscriber = get_events_subscriber(
-            filter=self._event_filter, reconnection_attempts=self._reconnection_attempts
+            filter=self._event_filter,
+            reconnection_attempts=self._reconnection_attempts,
+            reconnect_on_clean_close=True,
         )
 
         await self._logs_subscriber.__aenter__()
@@ -122,6 +129,22 @@ class FlowRunSubscriber:
         await self._logs_subscriber.__aexit__(exc_type, exc_val, exc_tb)
         await self._events_subscriber.__aexit__(exc_type, exc_val, exc_tb)
 
+    def _is_terminal_event(self, event: Event) -> bool:
+        """Whether an event marks the flow run reaching a terminal state"""
+        if event.resource.id != f"prefect.flow-run.{self._flow_run_id}":
+            return False
+
+        state_type_str = event.resource.get("prefect.state-type")
+        if not state_type_str and "validated_state" in event.payload:
+            state_type_str = event.payload["validated_state"].get("type")
+        if not state_type_str:
+            return False
+
+        try:
+            return StateType(state_type_str) in TERMINAL_STATES
+        except ValueError:
+            return False
+
     def __aiter__(self) -> Self:
         """Return self as an async iterator"""
         return self
@@ -142,6 +165,8 @@ class FlowRunSubscriber:
             if item is None:
                 self._sentinels_received += 1
                 continue
+            if isinstance(item, Exception):
+                raise item
 
             return item
 
@@ -154,8 +179,13 @@ class FlowRunSubscriber:
                 await self._queue.put(log)
         except asyncio.CancelledError:
             pass
-        except Exception:
-            pass
+        except Exception as exc:
+            await self._queue.put(exc)
+        else:
+            if not self._flow_completed:
+                await self._queue.put(
+                    ConnectionError("Flow run logs stream closed unexpectedly")
+                )
         finally:
             await self._queue.put(None)
 
@@ -164,23 +194,17 @@ class FlowRunSubscriber:
         try:
             async for event in self._events_subscriber:
                 await self._queue.put(event)
-
-                # Check if this is a terminal state event for our flow run
-                if event.resource.id == f"prefect.flow-run.{self._flow_run_id}":
-                    # Get state type from event resource or payload
-                    state_type_str = event.resource.get("prefect.state-type")
-                    if not state_type_str and "validated_state" in event.payload:
-                        state_type_str = event.payload["validated_state"].get("type")
-
-                    if state_type_str:
-                        try:
-                            state_type = StateType(state_type_str)
-                            if state_type in TERMINAL_STATES:
-                                self._flow_completed = True
-                                break
-                        except ValueError:
-                            pass
-        except Exception:
+                if self._is_terminal_event(event):
+                    self._flow_completed = True
+                    break
+        except asyncio.CancelledError:
             pass
+        except Exception as exc:
+            await self._queue.put(exc)
+        else:
+            if not self._flow_completed:
+                await self._queue.put(
+                    ConnectionError("Flow run events stream closed unexpectedly")
+                )
         finally:
             await self._queue.put(None)

@@ -15,7 +15,7 @@ from prefect.client.orchestration import get_client
 from prefect.client.schemas.objects import Log, StateType
 from prefect.events import Event
 from prefect.events.subscribers import FlowRunSubscriber
-from prefect.exceptions import FlowRunWaitTimeout
+from prefect.exceptions import FlowRunWaitTimeout, FlowRunWatchError
 
 if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
@@ -52,26 +52,64 @@ async def watch_flow_run(
 
     Raises:
         FlowRunWaitTimeout: If the flow run exceeds the timeout
+        FlowRunWatchError: If the events/logs stream closes before the flow run
+            reaches a terminal state
     """
     formatter = FlowRunFormatter()
+    subscriber = FlowRunSubscriber(flow_run_id=flow_run_id)
+
+    async def consume() -> Exception | None:
+        entered_subscriber = False
+        try:
+            async with subscriber:
+                entered_subscriber = True
+                while True:
+                    try:
+                        item = await anext(subscriber)
+                    except StopAsyncIteration:
+                        return None
+                    except Exception as exc:
+                        return exc
+
+                    console.print(formatter.format(item))
+        except Exception as exc:
+            if entered_subscriber:
+                raise
+            return exc
 
     if timeout is not None:
         with anyio.move_on_after(timeout) as cancel_scope:
-            async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
-                async for item in subscriber:
-                    console.print(formatter.format(item))
+            stream_error = await consume()
 
         if cancel_scope.cancelled_caught:
             raise FlowRunWaitTimeout(
                 f"Flow run with ID {flow_run_id} exceeded watch timeout of {timeout} seconds"
             )
     else:
-        async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
-            async for item in subscriber:
-                console.print(formatter.format(item))
+        stream_error = await consume()
 
-    async with get_client() as client:
-        return await client.read_flow_run(flow_run_id)
+    try:
+        async with get_client() as client:
+            flow_run = await client.read_flow_run(flow_run_id)
+    except Exception:
+        if stream_error is not None:
+            raise FlowRunWatchError(
+                f"Stopped watching flow run {flow_run_id} before it reached a "
+                "terminal state; the events or logs stream closed unexpectedly "
+                "and the final state could not be read."
+            ) from stream_error
+        raise
+
+    # A stream may terminate just as the run finishes, so reconcile against the
+    # server before deciding whether the watch failed.
+    state = flow_run.state
+    if state is None or not state.is_final():
+        raise FlowRunWatchError(
+            f"Stopped watching flow run {flow_run_id} before it reached a terminal "
+            "state because the events or logs stream closed unexpectedly."
+        ) from stream_error
+
+    return flow_run
 
 
 class FlowRunFormatter:

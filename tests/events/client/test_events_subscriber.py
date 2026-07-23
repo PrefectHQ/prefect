@@ -1,9 +1,14 @@
+from datetime import timedelta
 from typing import Optional, Type
 from unittest.mock import AsyncMock
 
 import orjson
 import pytest
-from websockets.exceptions import ConnectionClosed, ConnectionClosedError
+from websockets.exceptions import (
+    ConnectionClosed,
+    ConnectionClosedError,
+    ConnectionClosedOK,
+)
 
 from prefect.events import Event, get_events_subscriber
 from prefect.events.clients import (
@@ -130,8 +135,8 @@ async def test_subscriber_can_connect_with_defaults(
     puppeteer.outgoing_events = [example_event_1, example_event_2]
 
     async with Subscriber() as subscriber:
-        async for event in subscriber:
-            recorder.events.append(event)
+        for _ in range(2):
+            recorder.events.append(await anext(subscriber))
 
     assert recorder.connections == 1
     assert recorder.path == socket_path
@@ -173,8 +178,8 @@ async def test_subscriber_can_connect_and_receive_one_event(
         filter=filter,
         reconnection_attempts=0,
     ) as subscriber:
-        async for event in subscriber:
-            recorder.events.append(event)
+        for _ in range(2):
+            recorder.events.append(await anext(subscriber))
 
     assert recorder.connections == 1
     assert recorder.path == socket_path
@@ -286,11 +291,104 @@ async def test_subscriber_reconnects_on_hard_disconnects(
         filter=filter,
         reconnection_attempts=2,
     ) as subscriber:
-        async for event in subscriber:
-            recorder.events.append(event)
+        for _ in range(2):
+            recorder.events.append(await anext(subscriber))
 
     assert recorder.connections == 2
     assert recorder.events == [example_event_1, example_event_2]
+
+
+async def test_subscriber_retains_replay_cursor_across_long_reconnect(
+    Subscriber: Type[PrefectEventSubscriber],
+    socket_path: str,
+    token: Optional[str],
+    example_event_1: Event,
+    example_event_2: Event,
+    recorder: Recorder,
+    puppeteer: Puppeteer,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    puppeteer.token = token
+    puppeteer.outgoing_events = [example_event_1, example_event_2]
+    puppeteer.hard_disconnect_after = example_event_1.id
+
+    current_time = example_event_1.occurred + timedelta(seconds=10)
+    monkeypatch.setattr(
+        "prefect.types._datetime.now",
+        lambda tz: current_time,
+    )
+
+    async with Subscriber(
+        filter=EventFilter(event=EventNameFilter(name=["example.event"])),
+        reconnection_attempts=2,
+    ) as subscriber:
+        assert await anext(subscriber) == example_event_1
+
+        current_time += timedelta(minutes=2)
+
+        assert await anext(subscriber) == example_event_2
+
+    assert recorder.connections == 2
+    assert recorder.filter is not None
+    assert recorder.filter.occurred.since <= example_event_1.occurred
+
+
+async def test_subscriber_stops_on_clean_disconnect_by_default(
+    Subscriber: Type[PrefectEventSubscriber],
+    socket_path: str,
+    token: Optional[str],
+):
+    subscriber = Subscriber()
+    subscriber._websocket = AsyncMock()
+    subscriber._websocket.recv.side_effect = ConnectionClosedOK(None, None, None)
+    subscriber._reconnect = AsyncMock()
+
+    with pytest.raises(StopAsyncIteration):
+        await subscriber.__anext__()
+
+    subscriber._reconnect.assert_not_awaited()
+
+
+async def test_subscriber_reconnects_on_clean_disconnect_when_configured(
+    Subscriber: Type[PrefectEventSubscriber],
+    socket_path: str,
+    token: Optional[str],
+    example_event_1: Event,
+):
+    subscriber = Subscriber(reconnection_attempts=1, reconnect_on_clean_close=True)
+    subscriber._websocket = AsyncMock()
+    subscriber._websocket.recv.side_effect = ConnectionClosedOK(None, None, None)
+
+    reconnected_websocket = AsyncMock()
+    reconnected_websocket.recv.return_value = orjson.dumps(
+        {"type": "event", "event": example_event_1.model_dump(mode="json")}
+    )
+
+    async def reconnect() -> None:
+        subscriber._websocket = reconnected_websocket
+
+    subscriber._reconnect = reconnect
+
+    assert await subscriber.__anext__() == example_event_1
+
+
+async def test_subscriber_limits_consecutive_clean_disconnects(
+    Subscriber: Type[PrefectEventSubscriber],
+    socket_path: str,
+    token: Optional[str],
+):
+    subscriber = Subscriber(reconnection_attempts=1, reconnect_on_clean_close=True)
+    subscriber._websocket = AsyncMock()
+    subscriber._websocket.recv.side_effect = ConnectionClosedOK(None, None, None)
+
+    async def reconnect() -> None:
+        subscriber._websocket = AsyncMock()
+        subscriber._websocket.recv.side_effect = ConnectionClosedOK(None, None, None)
+
+    subscriber._reconnect = reconnect
+
+    with pytest.raises(ConnectionClosedOK):
+        await subscriber.__anext__()
 
 
 async def test_subscriber_gives_up_after_so_many_attempts(
@@ -313,9 +411,9 @@ async def test_subscriber_gives_up_after_so_many_attempts(
             filter=filter,
             reconnection_attempts=4,
         ) as subscriber:
-            async for event in subscriber:
-                puppeteer.refuse_any_further_connections = True
-                recorder.events.append(event)
+            recorder.events.append(await anext(subscriber))
+            puppeteer.refuse_any_further_connections = True
+            await anext(subscriber)
 
     assert recorder.connections == 1 + 4
 
@@ -335,8 +433,8 @@ async def test_subscriber_skips_duplicate_events(
     filter = EventFilter(event=EventNameFilter(name=["example.event"]))
 
     async with Subscriber(filter=filter) as subscriber:
-        async for event in subscriber:
-            recorder.events.append(event)
+        for _ in range(2):
+            recorder.events.append(await anext(subscriber))
 
     assert recorder.events == [example_event_1, example_event_2]
 
@@ -379,8 +477,8 @@ async def test_subscriber_retries_on_connection_closed_during_initial_connection
     subscriber._reconnect = mock_reconnect
 
     async with subscriber:
-        async for event in subscriber:
-            recorder.events.append(event)
+        for _ in range(2):
+            recorder.events.append(await anext(subscriber))
 
     assert call_count == 3  # Failed twice, succeeded on third attempt
     assert recorder.events == [example_event_1, example_event_2]
@@ -420,8 +518,8 @@ async def test_subscriber_retries_on_timeout_error_during_initial_connection(
     subscriber._reconnect = mock_reconnect
 
     async with subscriber:
-        async for event in subscriber:
-            recorder.events.append(event)
+        for _ in range(2):
+            recorder.events.append(await anext(subscriber))
 
     assert call_count == 3  # Failed twice, succeeded on third attempt
     assert recorder.events == [example_event_1, example_event_2]
