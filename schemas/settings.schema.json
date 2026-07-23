@@ -2543,7 +2543,7 @@
             "properties": {
                 "max_scheduled_queue_size": {
                     "default": 1000,
-                    "description": "The maximum number of scheduled tasks to queue for submission.",
+                    "description": "Deprecated. Docket-backed task delivery does not use a process-local scheduled queue limit.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_TASKS_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE",
                         "PREFECT_TASK_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE"
@@ -2553,7 +2553,7 @@
                 },
                 "max_retry_queue_size": {
                     "default": 100,
-                    "description": "The maximum number of retries to queue for submission.",
+                    "description": "Deprecated. Docket-backed task delivery does not use a process-local retry queue limit.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_TASKS_SCHEDULING_MAX_RETRY_QUEUE_SIZE",
                         "PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE"
@@ -2571,6 +2571,26 @@
                     ],
                     "title": "Pending Task Timeout",
                     "type": "string"
+                },
+                "docket_redelivery_timeout": {
+                    "default": "PT30S",
+                    "description": "How long a deferred task run may remain unacknowledged by an API server before Docket makes it available to another server replica.",
+                    "format": "duration",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_TASKS_SCHEDULING_DOCKET_REDELIVERY_TIMEOUT"
+                    ],
+                    "title": "Docket Redelivery Timeout",
+                    "type": "string"
+                },
+                "docket_concurrency": {
+                    "default": 100,
+                    "description": "The maximum number of deferred task deliveries each API server may hold open while awaiting task-worker acknowledgement.",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_TASKS_SCHEDULING_DOCKET_CONCURRENCY"
+                    ],
+                    "title": "Docket Concurrency",
+                    "type": "integer"
                 }
             },
             "title": "ServerTasksSchedulingSettings",

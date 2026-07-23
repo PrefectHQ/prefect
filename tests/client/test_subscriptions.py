@@ -1,6 +1,9 @@
 import ssl
+from unittest.mock import AsyncMock
+from uuid import uuid4
 
 import pytest
+from websockets.exceptions import ConnectionClosedError
 
 from prefect.client.schemas import TaskRun
 from prefect.client.subscriptions import Subscription
@@ -11,6 +14,53 @@ from prefect.settings import (
 )
 
 pytestmark = pytest.mark.clear_db
+
+
+async def test_subscription_acknowledges_after_caller_accepts_message():
+    subscription = Subscription(
+        model=TaskRun,
+        path="/api/task_runs/subscriptions/scheduled",
+        keys=["test.task"],
+        base_url="http://localhost:4200",
+    )
+    task_run = TaskRun(
+        id=uuid4(),
+        flow_run_id=None,
+        task_key="test.task",
+        dynamic_key="test.task-1",
+    )
+    websocket = AsyncMock()
+    websocket.recv.return_value = task_run.model_dump_json()
+    subscription._websocket = websocket
+
+    received = await anext(subscription)
+
+    assert received.id == task_run.id
+    websocket.send.assert_not_awaited()
+    with pytest.raises(RuntimeError, match="must be acknowledged"):
+        await anext(subscription)
+
+    await subscription.acknowledge()
+    websocket.send.assert_awaited_once_with('{"type":"ack"}')
+
+
+async def test_subscription_reconnects_when_acknowledgement_connection_closes():
+    subscription = Subscription(
+        model=TaskRun,
+        path="/api/task_runs/subscriptions/scheduled",
+        keys=["test.task"],
+        base_url="http://localhost:4200",
+    )
+    websocket = AsyncMock()
+    websocket.send.side_effect = ConnectionClosedError(None, None)
+    subscription._websocket = websocket
+    subscription._awaiting_acknowledgement = True
+    subscription._reset_connection = AsyncMock()
+
+    await subscription.acknowledge()
+
+    subscription._reset_connection.assert_awaited_once()
+    assert subscription._awaiting_acknowledgement is False
 
 
 def test_subscription_uses_websocket_connect_with_ssl_for_wss():
