@@ -292,16 +292,15 @@ class PrefectLogsSubscriber:
 
     async def __anext__(self) -> Log:
         assert self._reconnection_attempts >= 0
-        consecutive_failures = 0
-        consecutive_clean_closes = 0
-        while consecutive_failures <= self._reconnection_attempts:
+        attempts = 0
+        while attempts <= self._reconnection_attempts:
             try:
                 # If we're here and the websocket is None, then we've had a failure in a
                 # previous reconnection attempt.
                 #
                 # Otherwise, after the first time through this loop, we're recovering
                 # from a ConnectionClosed, so reconnect now.
-                if not self._websocket or consecutive_failures > 0:
+                if not self._websocket or attempts > 0:
                     try:
                         await self._reconnect()
                     finally:
@@ -309,7 +308,6 @@ class PrefectLogsSubscriber:
                             self.client_name, "out", "reconnect"
                         ).inc()
                     assert self._websocket
-                    consecutive_failures = 0
 
                 while True:
                     message = orjson.loads(await self._websocket.recv())
@@ -329,14 +327,8 @@ class PrefectLogsSubscriber:
                     if not self._reconnect_on_clean_close:
                         logger.debug('Connection closed with "OK" status')
                         raise StopAsyncIteration
-                    consecutive_clean_closes += 1
 
-                consecutive_failures += 1
-                attempts = (
-                    consecutive_clean_closes
-                    if isinstance(exc, ConnectionClosedOK)
-                    else consecutive_failures
-                )
+                attempts += 1
                 logger.debug(
                     "Retryable error with %s/%s attempts",
                     attempts,

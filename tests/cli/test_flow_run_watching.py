@@ -191,6 +191,37 @@ async def test_watch_flow_run_returns_terminal_state_after_stream_dies(
     assert result.state is not None and result.state.is_completed()
 
 
+async def test_watch_flow_run_translates_subscriber_setup_failure(
+    prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
+):
+    flow_run = await prefect_client.create_flow_run(flow=slow_flow)
+
+    class FailingSetupSubscriber:
+        def __init__(self, flow_run_id: UUID):
+            pass
+
+        async def __aenter__(self) -> Self:
+            raise ConnectionError("events websocket unavailable")
+
+        async def __aexit__(self, *args) -> None:
+            pass
+
+    monkeypatch.setattr(
+        flow_runs_watching,
+        "FlowRunSubscriber",
+        FailingSetupSubscriber,
+    )
+
+    with pytest.raises(
+        FlowRunWatchError,
+        match="before it reached a terminal state",
+    ) as exc_info:
+        await watch_flow_run(flow_run.id, Console())
+
+    assert isinstance(exc_info.value.__cause__, ConnectionError)
+    assert str(exc_info.value.__cause__) == "events websocket unavailable"
+
+
 async def test_watch_flow_run_translates_final_read_failure(
     prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
 ):

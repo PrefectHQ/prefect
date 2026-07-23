@@ -1,3 +1,4 @@
+from datetime import timedelta
 from typing import Optional, Type
 from unittest.mock import AsyncMock
 
@@ -295,6 +296,41 @@ async def test_subscriber_reconnects_on_hard_disconnects(
 
     assert recorder.connections == 2
     assert recorder.events == [example_event_1, example_event_2]
+
+
+async def test_subscriber_retains_replay_cursor_across_long_reconnect(
+    Subscriber: Type[PrefectEventSubscriber],
+    socket_path: str,
+    token: Optional[str],
+    example_event_1: Event,
+    example_event_2: Event,
+    recorder: Recorder,
+    puppeteer: Puppeteer,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    puppeteer.token = token
+    puppeteer.outgoing_events = [example_event_1, example_event_2]
+    puppeteer.hard_disconnect_after = example_event_1.id
+
+    current_time = example_event_1.occurred + timedelta(seconds=10)
+    monkeypatch.setattr(
+        "prefect.types._datetime.now",
+        lambda tz: current_time,
+    )
+
+    async with Subscriber(
+        filter=EventFilter(event=EventNameFilter(name=["example.event"])),
+        reconnection_attempts=2,
+    ) as subscriber:
+        assert await anext(subscriber) == example_event_1
+
+        current_time += timedelta(minutes=2)
+
+        assert await anext(subscriber) == example_event_2
+
+    assert recorder.connections == 2
+    assert recorder.filter is not None
+    assert recorder.filter.occurred.since <= example_event_1.occurred
 
 
 async def test_subscriber_stops_on_clean_disconnect_by_default(

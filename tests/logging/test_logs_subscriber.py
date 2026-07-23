@@ -605,6 +605,30 @@ async def test_subscriber_reconnects_on_clean_disconnect_when_configured(
     assert reconnect_count == 3
 
 
+async def test_subscriber_limits_abnormal_disconnects_after_reconnecting():
+    subscriber = PrefectLogsSubscriber(
+        "http://example.com",
+        reconnection_attempts=2,
+    )
+    subscriber._websocket = AsyncMock()
+    subscriber._websocket.recv.side_effect = ConnectionClosedError(None, None)
+
+    reconnect_count = 0
+
+    async def reconnect() -> None:
+        nonlocal reconnect_count
+        reconnect_count += 1
+        subscriber._websocket = AsyncMock()
+        subscriber._websocket.recv.side_effect = ConnectionClosedError(None, None)
+
+    subscriber._reconnect = reconnect
+
+    with pytest.raises(ConnectionClosedError):
+        await subscriber.__anext__()
+
+    assert reconnect_count == 2
+
+
 def test_subscriber_sleep_logic():
     """Test that sleep logic is correct (without actually sleeping)"""
     # Just test that the sleep would be called correctly

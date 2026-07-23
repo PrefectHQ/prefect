@@ -59,16 +59,23 @@ async def watch_flow_run(
     subscriber = FlowRunSubscriber(flow_run_id=flow_run_id)
 
     async def consume() -> Exception | None:
-        async with subscriber:
-            while True:
-                try:
-                    item = await anext(subscriber)
-                except StopAsyncIteration:
-                    return None
-                except Exception as exc:
-                    return exc
+        entered_subscriber = False
+        try:
+            async with subscriber:
+                entered_subscriber = True
+                while True:
+                    try:
+                        item = await anext(subscriber)
+                    except StopAsyncIteration:
+                        return None
+                    except Exception as exc:
+                        return exc
 
-                console.print(formatter.format(item))
+                    console.print(formatter.format(item))
+        except Exception as exc:
+            if entered_subscriber:
+                raise
+            return exc
 
     if timeout is not None:
         with anyio.move_on_after(timeout) as cancel_scope:

@@ -703,6 +703,7 @@ class PrefectEventSubscriber:
     _websocket: Optional[ClientConnection]
     _filter: "EventFilter"
     _seen_events: MutableMapping[UUID, bool]
+    _backfill_since: Optional[prefect.types._datetime.DateTime]
 
     _api_key: Optional[str]
     _auth_token: Optional[str]
@@ -738,6 +739,7 @@ class PrefectEventSubscriber:
 
         self._filter = filter or EventFilter()  # type: ignore[call-arg]
         self._seen_events = TTLCache(maxsize=SEEN_EVENTS_SIZE, ttl=SEEN_EVENTS_TTL)
+        self._backfill_since = None
 
         socket_url = events_out_socket_from_api_url(api_url)
 
@@ -822,9 +824,13 @@ class PrefectEventSubscriber:
 
         from prefect.events.filters import EventOccurredFilter
 
+        current_time = prefect.types._datetime.now("UTC")
+        if self._backfill_since is None:
+            self._backfill_since = current_time - timedelta(minutes=1)
+
         self._filter.occurred = EventOccurredFilter(
-            since=prefect.types._datetime.now("UTC") - timedelta(minutes=1),
-            until=prefect.types._datetime.now("UTC") + timedelta(days=365),
+            since=self._backfill_since,
+            until=current_time + timedelta(days=365),
         )
 
         logger.debug("  filtering events since %s...", self._filter.occurred.since)
@@ -880,6 +886,12 @@ class PrefectEventSubscriber:
                     if event.id in self._seen_events:
                         continue
                     self._seen_events[event.id] = True
+                    replay_since = event.occurred - timedelta(minutes=1)
+                    if (
+                        self._backfill_since is None
+                        or replay_since > self._backfill_since
+                    ):
+                        self._backfill_since = replay_since
 
                     try:
                         return event
