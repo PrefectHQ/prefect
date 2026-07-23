@@ -41,6 +41,7 @@ class Subscription(Generic[S]):
             subprotocols=[websockets.Subprotocol("prefect")],
         )
         self._websocket = None
+        self._awaiting_acknowledgement = False
 
     def __aiter__(self) -> Self:
         return self
@@ -52,22 +53,45 @@ class Subscription(Generic[S]):
         return self._websocket
 
     async def __anext__(self) -> S:
+        if self._awaiting_acknowledgement:
+            raise RuntimeError(
+                "The previous subscription message must be acknowledged before "
+                "receiving another message"
+            )
+
         while True:
             try:
                 await self._ensure_connected()
                 message = await self.websocket.recv()
-
-                await self.websocket.send(orjson.dumps({"type": "ack"}).decode())
-
-                return self.model.model_validate_json(message)
+                model = self.model.model_validate_json(message)
+                self._awaiting_acknowledgement = True
+                return model
             except (
                 ConnectionRefusedError,
-                websockets.exceptions.ConnectionClosedError,
+                websockets.exceptions.ConnectionClosed,
             ):
-                self._websocket = None
-                if hasattr(self._connect, "protocol"):
-                    await self._connect.__aexit__(None, None, None)
+                await self._reset_connection()
                 await asyncio.sleep(0.5)
+
+    async def acknowledge(self) -> None:
+        """Acknowledge that the most recently received message was accepted."""
+        if not self._awaiting_acknowledgement:
+            raise RuntimeError("There is no subscription message to acknowledge")
+
+        try:
+            await self.websocket.send(orjson.dumps({"type": "ack"}).decode())
+        except websockets.exceptions.ConnectionClosed:
+            # The server will leave the Docket execution unacknowledged and
+            # redeliver it. Allow the caller to reconnect and accept that
+            # redelivery; TaskWorker deduplicates runs already in flight.
+            await self._reset_connection()
+        finally:
+            self._awaiting_acknowledgement = False
+
+    async def _reset_connection(self) -> None:
+        self._websocket = None
+        if hasattr(self._connect, "protocol"):
+            await self._connect.__aexit__(None, None, None)
 
     async def _ensure_connected(self):
         if self._websocket:

@@ -59,6 +59,7 @@ from prefect.server.api.dependencies import EnforceMinimumAPIVersion
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.schemas.ui import UISettings
 from prefect.server.services.base import RunInEphemeralServers, RunInWebservers, Service
+from prefect.server.task_queue import task_queue_lifespan
 from prefect.server.utilities.database import get_dialect
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -949,6 +950,23 @@ def create_app(
                 )
             )
             api_app.state.docket = docket
+            task_delivery_docket = await stack.enter_async_context(
+                Docket(
+                    name=f"{settings.server.docket.name}-task-delivery",
+                    url=settings.server.docket.url,
+                    execution_ttl=timedelta(0),
+                )
+            )
+            await stack.enter_async_context(
+                task_queue_lifespan(
+                    task_delivery_docket,
+                    concurrency=settings.server.tasks.scheduling.docket_concurrency,
+                    redelivery_timeout=(
+                        settings.server.tasks.scheduling.docket_redelivery_timeout
+                    ),
+                )
+            )
+            api_app.state.task_delivery_docket = task_delivery_docket
             if Services:
                 await stack.enter_async_context(Services.running())
             LIFESPAN_RAN_FOR_APP.add(app)

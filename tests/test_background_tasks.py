@@ -1,4 +1,3 @@
-import asyncio
 import uuid
 from datetime import timedelta
 from pathlib import Path
@@ -15,7 +14,6 @@ from prefect.client.schemas import TaskRun
 from prefect.filesystems import LocalFileSystem
 from prefect.results import ResultStore, get_or_create_default_task_scheduling_storage
 from prefect.server.api.task_runs import TaskQueue
-from prefect.server.schemas.core import TaskRun as ServerTaskRun
 from prefect.settings import (
     PREFECT_TASK_SCHEDULING_DEFAULT_STORAGE_BLOCK,
     temporary_settings,
@@ -37,13 +35,6 @@ def local_filesystem(tmp_path: Path) -> LocalFileSystem:
     block = LocalFileSystem(basepath=str(tmp_path))
     block.save(f"test-fs-{uuid.uuid4()}", overwrite=True)
     return block
-
-
-@pytest.fixture(autouse=True)
-async def clear_scheduled_task_queues():
-    TaskQueue.reset()
-    yield
-    TaskQueue.reset()
 
 
 @pytest.fixture(autouse=True)
@@ -197,13 +188,19 @@ async def test_scheduled_tasks_are_enqueued_server_side(
     # the REST API for this test, but that's not currently possible.
     # TODO: Add ways to inspect the task queue via the REST API
     monkeypatch.setattr(prefect.tasks, "get_client", lambda: in_memory_prefect_client)
+    enqueue = mock.AsyncMock()
+    monkeypatch.setattr(TaskQueue, "enqueue", enqueue)
 
     task_run_future = foo_task_with_result_storage.apply_async((42,))
     task_run = await in_memory_prefect_client.read_task_run(task_run_future.task_run_id)
     client_run: TaskRun = task_run
     assert client_run.state.is_scheduled()
 
-    enqueued_run: ServerTaskRun = await TaskQueue.for_key(client_run.task_key).get()
+    matching_calls = [
+        call for call in enqueue.await_args_list if call.args[0].id == client_run.id
+    ]
+    assert len(matching_calls) == 1
+    enqueued_run = matching_calls[0].args[0]
 
     # The server-side task run in the queue should be the same as the one returned
     # to the client, but some of the calculated fields will be populated server-side
@@ -229,14 +226,18 @@ async def test_scheduled_tasks_are_enqueued_server_side(
 
 async def test_tasks_are_not_enqueued_server_side_when_executed_directly(
     foo_task: Task[Any, int],
+    monkeypatch: pytest.MonkeyPatch,
 ):
     # Regression test for https://github.com/PrefectHQ/prefect/issues/13674
     # where executing a task would cause it to be enqueue server-side
     # and executed twice.
-    foo_task(x=42)
+    enqueue = mock.AsyncMock()
+    monkeypatch.setattr(TaskQueue, "enqueue", enqueue)
 
-    with pytest.raises(asyncio.QueueEmpty):
-        TaskQueue.for_key(foo_task.task_key).get_nowait()
+    foo_task(x=42)
+    assert all(
+        call.args[0].task_key != foo_task.task_key for call in enqueue.await_args_list
+    )
 
 
 @pytest.fixture

@@ -18,7 +18,10 @@ class ServerTasksSchedulingSettings(PrefectBaseSettings):
 
     max_scheduled_queue_size: int = Field(
         default=1000,
-        description="The maximum number of scheduled tasks to queue for submission.",
+        description=(
+            "Deprecated. Docket-backed task delivery does not use a process-local "
+            "scheduled queue limit."
+        ),
         validation_alias=AliasChoices(
             AliasPath("max_scheduled_queue_size"),
             "prefect_server_tasks_scheduling_max_scheduled_queue_size",
@@ -28,7 +31,10 @@ class ServerTasksSchedulingSettings(PrefectBaseSettings):
 
     max_retry_queue_size: int = Field(
         default=100,
-        description="The maximum number of retries to queue for submission.",
+        description=(
+            "Deprecated. Docket-backed task delivery does not use a process-local "
+            "retry queue limit."
+        ),
         validation_alias=AliasChoices(
             AliasPath("max_retry_queue_size"),
             "prefect_server_tasks_scheduling_max_retry_queue_size",
@@ -43,6 +49,24 @@ class ServerTasksSchedulingSettings(PrefectBaseSettings):
             AliasPath("pending_task_timeout"),
             "prefect_server_tasks_scheduling_pending_task_timeout",
             "prefect_task_scheduling_pending_task_timeout",
+        ),
+    )
+
+    docket_redelivery_timeout: timedelta = Field(
+        default=timedelta(seconds=30),
+        gt=timedelta(0),
+        description=(
+            "How long a deferred task run may remain unacknowledged by an API "
+            "server before Docket makes it available to another server replica."
+        ),
+    )
+
+    docket_concurrency: int = Field(
+        default=100,
+        gt=0,
+        description=(
+            "The maximum number of deferred task deliveries each API server may "
+            "hold open while awaiting task-worker acknowledgement."
         ),
     )
 
