@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import uuid
+from contextlib import suppress
 from datetime import datetime, timedelta, timezone
 from functools import partial
 from typing import AsyncGenerator, Generator, Optional
@@ -25,10 +26,12 @@ from prefect_redis.messaging import (
     _dlq_message_key,
     _stream_key,
     _trim_stream_to_lowest_delivered_id,
+    _warn_if_block_exceeds_socket_timeout,
 )
 from redis.asyncio import Redis, RedisCluster
 from redis.cluster import key_slot
 from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from prefect.server.events import Event
 from prefect.server.events.clients import PrefectServerEventsClient
@@ -706,6 +709,62 @@ class TestRedisMessagingSettings:
         assert settings.block == timedelta(seconds=10)
 
 
+@pytest.mark.parametrize(
+    "block, socket_timeout, should_warn",
+    [
+        pytest.param(timedelta(seconds=10), 5.0, True, id="block_gt_timeout"),
+        pytest.param(timedelta(seconds=5), 5.0, True, id="block_eq_timeout"),
+        # BLOCK 0 means "block indefinitely", which out-lives any finite timeout.
+        pytest.param(timedelta(seconds=0), 60.0, True, id="block_zero_is_infinite"),
+        pytest.param(timedelta(seconds=1), 60.0, False, id="default_block"),
+        # No socket timeout configured: idle reads never spuriously time out.
+        pytest.param(timedelta(seconds=0), None, False, id="no_socket_timeout"),
+    ],
+)
+def test_warn_if_block_exceeds_socket_timeout(
+    block: timedelta, socket_timeout: Optional[float], should_warn: bool
+):
+    """The warning fires when the block interval out-lives the socket timeout,
+    treating BLOCK 0 (infinite) as always exceeding a finite timeout."""
+    with patch("prefect_redis.messaging.logger") as mock_logger:
+        _warn_if_block_exceeds_socket_timeout("topic", block, socket_timeout)
+    assert mock_logger.warning.called is should_warn
+    if should_warn:
+        assert "block interval" in mock_logger.warning.call_args[0][0]
+
+
+async def test_consumer_run_warns_using_effective_socket_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """run() reads the effective socket_timeout off the client it will use, so a
+    URL query override (not just the settings default) is respected."""
+    monkeypatch.setenv(
+        "PREFECT_REDIS_MESSAGING_URL",
+        "redis://localhost:6379/0?socket_timeout=1",
+    )
+    _client_cache.clear()
+    consumer = Consumer(topic="warn-topic", block=timedelta(seconds=5))
+
+    async def handler(message: Message):  # pragma: no cover - never called
+        raise StopConsumer()
+
+    # Stop run() right after the one-time warning by raising StopConsumer from
+    # the first client interaction inside the loop.
+    with (
+        patch.object(Consumer, "_ensure_stream_and_group", side_effect=StopConsumer()),
+        patch(
+            "prefect_redis.messaging._warn_if_block_exceeds_socket_timeout"
+        ) as mock_warn,
+    ):
+        with pytest.raises(StopConsumer):
+            await consumer.run(handler)
+
+    mock_warn.assert_called_once()
+    # The effective timeout passed in is the URL override (1s), not the 60s default.
+    assert mock_warn.call_args[0][2] == 1
+    _client_cache.clear()
+
+
 async def test_trimming_with_no_delivered_messages(redis: Redis):
     """Test that stream trimming handles the case where no messages have been delivered."""
 
@@ -945,6 +1004,53 @@ async def test_consumer_recovers_from_redis_connection_error(
     )
     assert captured_messages[0].data == "message-1"
     assert captured_messages[1].data == "message-2"
+
+
+async def test_consumer_recovers_from_read_timeout(broker: str, publisher: Publisher):
+    """Consumer recovers after blocking reads time out during an outage.
+
+    Once socket_timeout fires, redis-py raises TimeoutError; with the bounded
+    retry policy that error is not retried indefinitely, so it reaches
+    Consumer.run(), which reconnects. Regression for OSS-8071 / #22478 on the
+    normal consumer path.
+    """
+    captured_messages: list[Message] = []
+    timeout_count = 0
+
+    async def handler(message: Message):
+        captured_messages.append(message)
+        if len(captured_messages) >= 2:
+            raise StopConsumer(ack=True)
+
+    consumer = create_consumer("message-tests")
+
+    original_xreadgroup = Redis.xreadgroup
+
+    async def timing_out_xreadgroup(self, *args, **kwargs):
+        nonlocal timeout_count
+        if timeout_count == 0:
+            timeout_count += 1
+            raise RedisTimeoutError("Simulated read timeout during outage")
+        return await original_xreadgroup(self, *args, **kwargs)
+
+    with patch.object(Redis, "xreadgroup", timing_out_xreadgroup):
+        consumer_task = asyncio.create_task(consumer.run(handler))
+        try:
+            await asyncio.sleep(0.5)
+
+            async with publisher as p:
+                await p.publish_data(b"message-1", {"id": "1"})
+                await p.publish_data(b"message-2", {"id": "2"})
+
+            with anyio.move_on_after(10.0):
+                await consumer_task
+        finally:
+            consumer_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await consumer_task
+
+    assert timeout_count == 1, "Should have hit the simulated read timeout"
+    assert len(captured_messages) == 2, "Should recover and receive both messages"
 
 
 async def test_clear_cached_clients():
