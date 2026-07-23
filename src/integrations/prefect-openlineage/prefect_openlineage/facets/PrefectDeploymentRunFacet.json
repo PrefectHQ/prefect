@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/PrefectHQ/prefect/src/integrations/prefect-openlineage/prefect_openlineage/facets/PrefectDeploymentRunFacet.json",
+  "$defs": {
+    "PrefectDeploymentRunFacet": {
+      "allOf": [
+        {
+          "$ref": "https://openlineage.io/spec/2-0-2/OpenLineage.json#/$defs/RunFacet"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "deploymentId": {
+              "description": "The ID of the Prefect deployment",
+              "type": "string"
+            },
+            "created": {
+              "description": "An [ISO-8601](https://en.wikipedia.org/wiki/ISO_8601) timestamp representing when the deployment was created",
+              "type": "string",
+              "format": "date-time",
+              "example": "2020-12-17T03:00:00.000Z"
+            },
+            "updated": {
+              "description": "An [ISO-8601](https://en.wikipedia.org/wiki/ISO_8601) timestamp representing when the deployment was last updated",
+              "type": "string",
+              "format": "date-time",
+              "example": "2020-12-17T04:00:00.000Z"
+            },
+            "name": {
+              "description": "The name of the Prefect deployment",
+              "type": "string"
+            }
+          },
+          "required": ["deployment_id", "created", "updated", "name"]
+        }
+      ],
+      "type": "object"
+    }
+  },
+  "type": "object",
+  "properties": {
+    "PrefectDeploymentRunFacet": {
+      "$ref": "#/$defs/PrefectDeploymentRunFacet"
+    }
+  }
+}
