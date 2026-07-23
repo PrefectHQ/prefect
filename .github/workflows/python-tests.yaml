@@ -384,7 +384,7 @@ jobs:
             PYTHON_VERSION=${{ matrix.python-version }}
             PREFECT_EXTRAS=[dev]
             NODE_VERSION=${{ steps.get_node_version.outputs.NODE_VERSION }}
-          tags: prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }}
+          tags: prefecthq/prefect:${{ steps.get_image_tag.outputs.image_tag }}
           outputs: type=docker,dest=/tmp/image.tar
           cache-from: type=gha,scope=test-${{ matrix.python-version }},ignore-error=true
           cache-to: type=gha,mode=max,scope=test-${{ matrix.python-version }},ignore-error=true
@@ -392,7 +392,7 @@ jobs:
       - name: Test Docker image
         run: |
           docker load --input /tmp/image.tar
-          docker run --rm prefecthq/prefect-dev:${{ steps.get_image_tag.outputs.image_tag }} prefect version
+          docker run --rm prefecthq/prefect:${{ steps.get_image_tag.outputs.image_tag }} prefect version
 
       - name: Install packages
         run: uv sync --locked
