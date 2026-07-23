@@ -27,22 +27,26 @@ depends_on = None
 
 
 def upgrade():
-    with op.get_context().autocommit_block():
-        invalid_index = (
-            op.get_bind()
-            .exec_driver_sql(
-                """
-                SELECT 1
-                FROM pg_class c
-                JOIN pg_index i ON i.indexrelid = c.oid
-                WHERE c.relname = 'ix_event_resources__event_id'
-                AND NOT i.indisvalid
-                """
+    migration_context = op.get_context()
+    with migration_context.autocommit_block():
+        if not migration_context.as_sql:
+            invalid_index = (
+                op.get_bind()
+                .exec_driver_sql(
+                    """
+                    SELECT 1
+                    FROM pg_class c
+                    JOIN pg_index i ON i.indexrelid = c.oid
+                    WHERE c.relname = 'ix_event_resources__event_id'
+                    AND NOT i.indisvalid
+                    """
+                )
+                .scalar()
             )
-            .scalar()
-        )
-        if invalid_index:
-            op.execute("DROP INDEX CONCURRENTLY IF EXISTS ix_event_resources__event_id")
+            if invalid_index:
+                op.execute(
+                    "DROP INDEX CONCURRENTLY IF EXISTS ix_event_resources__event_id"
+                )
         op.execute(
             """
             CREATE INDEX CONCURRENTLY IF NOT EXISTS

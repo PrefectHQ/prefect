@@ -12,19 +12,24 @@ import alembic.script
 import pytest
 import sqlalchemy as sa
 
+from prefect.server.database import dependencies
 from prefect.server.database.alembic_commands import (
     alembic_config,
     alembic_downgrade,
     alembic_upgrade,
 )
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database.interface import DBSingleton, PrefectDBInterface
 from prefect.server.database.orm_models import (
     AioSqliteORMConfiguration,
     AsyncPostgresORMConfiguration,
 )
 from prefect.server.models.variables import read_variables
 from prefect.server.utilities.database import get_dialect
-from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
+from prefect.settings import (
+    PREFECT_API_DATABASE_CONNECTION_URL,
+    PREFECT_SERVER_DATABASE_CONNECTION_URL,
+    temporary_settings,
+)
 from prefect.types._datetime import now
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
@@ -231,7 +236,10 @@ def test_event_resource_index_migration_rebuilds_invalid_index(
         yield
 
     operation = SimpleNamespace(
-        get_context=lambda: SimpleNamespace(autocommit_block=autocommit_block),
+        get_context=lambda: SimpleNamespace(
+            as_sql=False,
+            autocommit_block=autocommit_block,
+        ),
         get_bind=lambda: Bind(),
         execute=lambda statement: statements.append(" ".join(statement.split())),
     )
@@ -248,6 +256,39 @@ def test_event_resource_index_migration_rebuilds_invalid_index(
         "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
         "ix_event_resources__event_id ON event_resources (event_id)",
     ]
+
+
+def test_event_resource_index_migration_supports_postgres_dry_run(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    monkeypatch.setattr(
+        dependencies,
+        "MODELS_DEPENDENCIES",
+        {
+            "database_config": None,
+            "query_components": None,
+            "orm": None,
+            "interface_class": None,
+        },
+    )
+    monkeypatch.setattr(DBSingleton, "_instances", {})
+
+    with temporary_settings(
+        {
+            PREFECT_SERVER_DATABASE_CONNECTION_URL: (
+                "postgresql+asyncpg://localhost/prefect"
+            )
+        }
+    ):
+        alembic_upgrade("bad1e352c597:50737cdaee36", dry_run=True)
+
+    output = capsys.readouterr().out
+    assert (
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
+        "ix_event_resources__event_id ON event_resources (event_id)"
+        in " ".join(output.split())
+    )
 
 
 @pytest.fixture
