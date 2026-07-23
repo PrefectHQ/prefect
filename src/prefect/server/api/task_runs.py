@@ -445,7 +445,7 @@ async def _receive_task_run_acknowledgement(
             )
             if done:
                 return receive.result()
-            await subscription.renew(delivery)
+            await subscription.renew()
     finally:
         if not receive.done():
             receive.cancel()

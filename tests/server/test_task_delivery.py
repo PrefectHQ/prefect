@@ -106,7 +106,7 @@ async def test_renewal_prevents_redelivery_while_worker_is_connected() -> None:
             await manager.publish(task_run)
             delivery = await first.receive()
             await asyncio.sleep(0.02)
-            await first.renew(delivery)
+            await first.renew()
             await asyncio.sleep(0.02)
 
             with pytest.raises(asyncio.TimeoutError):

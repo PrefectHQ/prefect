@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-from collections import deque
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -58,7 +57,11 @@ class TaskRunSubscription:
         self._visibility_timeout_ms = max(
             1, int(visibility_timeout.total_seconds() * 1000)
         )
-        self._pending: deque[TaskRunDelivery] = deque()
+        self._deliveries: asyncio.Queue[TaskRunDelivery] = asyncio.Queue()
+        self._outstanding: dict[
+            tuple[str, str], tuple[TaskRunDelivery, asyncio.Event]
+        ] = {}
+        self._readers: list[asyncio.Task[None]] = []
 
     async def __aenter__(self) -> "TaskRunSubscription":
         async with self._docket.redis() as redis:
@@ -70,6 +73,9 @@ class TaskRunSubscription:
                     continue
                 if isinstance(result, BaseException):
                     raise result
+        self._readers = [
+            asyncio.create_task(self._read_stream(stream)) for stream in self._streams
+        ]
         return self
 
     async def __aexit__(
@@ -78,17 +84,28 @@ class TaskRunSubscription:
         exc: BaseException | None,
         traceback: object | None,
     ) -> None:
+        for reader in self._readers:
+            reader.cancel()
+        await asyncio.gather(*self._readers, return_exceptions=True)
         return None
 
     async def receive(self, timeout: float = 1) -> TaskRunDelivery:
         """Receive a new or abandoned delivery matching this subscription."""
-        if self._pending:
-            return self._pending.popleft()
+        return await asyncio.wait_for(self._deliveries.get(), timeout=timeout)
 
-        async with self._docket.redis() as redis:
-            pipeline = redis.pipeline()
-            for stream in self._streams:
-                pipeline.xautoclaim(
+    async def _read_stream(self, stream: str) -> None:
+        while True:
+            delivery = await self._read_one(stream)
+            released = asyncio.Event()
+            key = (delivery.stream, delivery.message_id)
+            self._outstanding[key] = (delivery, released)
+            await self._deliveries.put(delivery)
+            await released.wait()
+
+    async def _read_one(self, stream: str) -> TaskRunDelivery:
+        while True:
+            async with self._docket.redis() as redis:
+                _, claimed, *_ = await redis.xautoclaim(
                     stream,
                     _GROUP,
                     self._consumer,
@@ -96,33 +113,21 @@ class TaskRunSubscription:
                     start_id="0-0",
                     count=1,
                 )
-            for stream, result in zip(self._streams, await pipeline.execute()):
-                _, claimed, *_ = result
-                self._pending.extend(
-                    _parse_delivery(stream, message_id, fields)
-                    for message_id, fields in claimed
+                if claimed:
+                    message_id, fields = claimed[0]
+                    return _parse_delivery(stream, message_id, fields)
+
+                result = await redis.xreadgroup(
+                    _GROUP,
+                    self._consumer,
+                    streams={stream: ">"},
+                    count=1,
+                    block=1000,
                 )
-
-            if self._pending:
-                return self._pending.popleft()
-
-            result = await redis.xreadgroup(
-                _GROUP,
-                self._consumer,
-                streams=dict.fromkeys(self._streams, ">"),
-                count=1,
-                block=max(1, int(timeout * 1000)),
-            )
-
-        if not result:
-            raise asyncio.TimeoutError
-
-        self._pending.extend(
-            _parse_delivery(stream, message_id, fields)
-            for stream, entries in result
-            for message_id, fields in entries
-        )
-        return self._pending.popleft()
+            if result:
+                _, entries = result[0]
+                message_id, fields = entries[0]
+                return _parse_delivery(stream, message_id, fields)
 
     async def acknowledge(self, delivery: TaskRunDelivery) -> None:
         """Permanently acknowledge a delivery accepted by the TaskWorker."""
@@ -134,19 +139,26 @@ class TaskRunSubscription:
                 _GROUP,
                 delivery.message_id,
             )
+        _, released = self._outstanding.pop((delivery.stream, delivery.message_id))
+        released.set()
 
-    async def renew(self, delivery: TaskRunDelivery) -> None:
-        """Keep a delivery claimed while its TaskWorker remains connected."""
+    async def renew(self) -> None:
+        """Keep outstanding deliveries claimed while the TaskWorker is connected."""
+        if not self._outstanding:
+            return
         async with self._docket.redis() as redis:
-            await redis.xclaim(
-                delivery.stream,
-                _GROUP,
-                self._consumer,
-                min_idle_time=0,
-                message_ids=[delivery.message_id],
-                idle=0,
-                justid=True,
-            )
+            pipeline = redis.pipeline()
+            for delivery, _ in self._outstanding.values():
+                pipeline.xclaim(
+                    delivery.stream,
+                    _GROUP,
+                    self._consumer,
+                    min_idle_time=0,
+                    message_ids=[delivery.message_id],
+                    idle=0,
+                    justid=True,
+                )
+            await pipeline.execute()
 
     @property
     def renewal_interval(self) -> float:
