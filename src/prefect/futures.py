@@ -610,6 +610,7 @@ def as_completed(
     unique_futures: set[PrefectFuture[R]] = set(futures)
     total_futures = len(unique_futures)
     pending = unique_futures
+    deadline: float | None = None
     try:
         with timeout_context(timeout):
             done = {f for f in unique_futures if f._final_state}  # type: ignore[privateUsage]
@@ -628,8 +629,19 @@ def as_completed(
             for future in pending:
                 _register_prefect_done_callback(future, add_to_done)
 
+            deadline = time.monotonic() + timeout if timeout is not None else None
+
             while pending:
-                finished_event.wait()
+                if timeout is None:
+                    finished_event.wait()
+                else:
+                    assert deadline is not None
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise TimeoutError
+                    if not finished_event.wait(timeout=remaining):
+                        raise TimeoutError
+
                 with finished_lock:
                     done = finished_futures
                     finished_futures = []
