@@ -33,6 +33,9 @@ class FlowRunSubscriber:
     is received, the event subscription stops but log subscription continues for a
     configurable timeout to catch any straggler logs.
 
+    The underlying event and log subscribers own reconnection behavior. If either
+    exhausts its retries or fails for another reason, that error is propagated.
+
     Example:
         ```python
         from prefect.events.subscribers import FlowRunSubscriber
@@ -47,7 +50,7 @@ class FlowRunSubscriber:
     """
 
     _flow_run_id: UUID
-    _queue: asyncio.Queue[Union[Log, Event, None]]
+    _queue: asyncio.Queue[Union[Log, Event, Exception, None]]
     _tasks: list[asyncio.Task[None]]
     _flow_completed: bool
     _straggler_timeout: int
@@ -57,7 +60,6 @@ class FlowRunSubscriber:
     _logs_subscriber: PrefectLogsSubscriber | Any
     _events_subscriber: PrefectEventSubscriber | Any
     _sentinels_received: int
-    _error: Optional[Exception]
 
     def __init__(
         self,
@@ -80,7 +82,6 @@ class FlowRunSubscriber:
         self._tasks = []
         self._flow_completed = False
         self._sentinels_received = 0
-        self._error = None
 
         self._log_filter = LogFilter(flow_run_id=LogFilterFlowRunId(any_=[flow_run_id]))
         self._event_filter = EventFilter(
@@ -124,19 +125,6 @@ class FlowRunSubscriber:
         await self._logs_subscriber.__aexit__(exc_type, exc_val, exc_tb)
         await self._events_subscriber.__aexit__(exc_type, exc_val, exc_tb)
 
-    @property
-    def error(self) -> Optional[Exception]:
-        """The first error that ended a consumer task, if any.
-
-        A consumer records an error here when its underlying websocket dies or
-        closes before completion so callers can surface the failure.
-        """
-        return self._error
-
-    def _record_error(self, exc: Exception) -> None:
-        if self._error is None:
-            self._error = exc
-
     def _is_terminal_event(self, event: Event) -> bool:
         """Whether an event marks the flow run reaching a terminal state"""
         if event.resource.id != f"prefect.flow-run.{self._flow_run_id}":
@@ -160,13 +148,6 @@ class FlowRunSubscriber:
     async def __anext__(self) -> Union[Log, Event]:
         """Get the next log or event from the interleaved stream"""
         while self._sentinels_received < len(self._tasks):
-            # A consumer failed before the flow reached a terminal state. Stop
-            # instead of blocking on a sibling stream that may stay open and
-            # idle indefinitely; the failure is surfaced by the caller. The
-            # failed consumer's sentinel unblocks any pending queue.get() so we
-            # re-enter the loop and hit this check.
-            if self._error is not None and not self._flow_completed:
-                raise StopAsyncIteration
             if self._flow_completed:
                 try:
                     item = await asyncio.wait_for(
@@ -180,6 +161,8 @@ class FlowRunSubscriber:
             if item is None:
                 self._sentinels_received += 1
                 continue
+            if isinstance(item, Exception):
+                raise item
 
             return item
 
@@ -193,10 +176,10 @@ class FlowRunSubscriber:
         except asyncio.CancelledError:
             pass
         except Exception as exc:
-            self._record_error(exc)
+            await self._queue.put(exc)
         else:
             if not self._flow_completed:
-                self._record_error(
+                await self._queue.put(
                     ConnectionError("Flow run logs stream closed unexpectedly")
                 )
         finally:
@@ -213,10 +196,10 @@ class FlowRunSubscriber:
         except asyncio.CancelledError:
             pass
         except Exception as exc:
-            self._record_error(exc)
+            await self._queue.put(exc)
         else:
             if not self._flow_completed:
-                self._record_error(
+                await self._queue.put(
                     ConnectionError("Flow run events stream closed unexpectedly")
                 )
         finally:

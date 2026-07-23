@@ -21,7 +21,6 @@ from websockets.asyncio.client import ClientConnection
 from websockets.exceptions import (
     ConnectionClosed,
     ConnectionClosedError,
-    ConnectionClosedOK,
 )
 
 from prefect._internal.version_checking import check_server_version
@@ -46,6 +45,13 @@ if TYPE_CHECKING:
     from prefect.client.schemas.filters import LogFilter
 
 logger: "logging.Logger" = get_logger(__name__)
+
+# Exceptions that indicate transient network issues and should trigger retries.
+_RETRYABLE_EXCEPTIONS: Tuple[Type[Exception], ...] = (
+    ConnectionClosed,
+    TimeoutError,
+    OSError,
+)
 
 LOGS_OBSERVED = Counter(
     "prefect_logs_observed",
@@ -128,6 +134,10 @@ def get_logs_subscriber(
 class PrefectLogsSubscriber:
     """
     Subscribes to a Prefect logs stream, yielding logs as they occur.
+
+    Clean and abnormal disconnects are retried. The retry budget applies to
+    consecutive reconnection failures and resets after a successful connection.
+    The logs stream is live-only, so logs emitted while disconnected may be omitted.
 
     Example:
 
@@ -272,14 +282,15 @@ class PrefectLogsSubscriber:
 
     async def __anext__(self) -> Log:
         assert self._reconnection_attempts >= 0
-        for i in range(self._reconnection_attempts + 1):  # pragma: no branch
+        consecutive_failures = 0
+        while consecutive_failures <= self._reconnection_attempts:
             try:
                 # If we're here and the websocket is None, then we've had a failure in a
                 # previous reconnection attempt.
                 #
                 # Otherwise, after the first time through this loop, we're recovering
                 # from a ConnectionClosed, so reconnect now.
-                if not self._websocket or i > 0:
+                if not self._websocket or consecutive_failures > 0:
                     try:
                         await self._reconnect()
                     finally:
@@ -287,6 +298,7 @@ class PrefectLogsSubscriber:
                             self.client_name, "out", "reconnect"
                         ).inc()
                     assert self._websocket
+                    consecutive_failures = 0
 
                 while True:
                     message = orjson.loads(await self._websocket.recv())
@@ -301,20 +313,17 @@ class PrefectLogsSubscriber:
                     finally:
                         LOGS_OBSERVED.labels(self.client_name).inc()
 
-            except ConnectionClosedOK:
-                logger.debug('Connection closed with "OK" status')
-                raise StopAsyncIteration
-            except ConnectionClosed:
+            except _RETRYABLE_EXCEPTIONS:
+                consecutive_failures += 1
                 logger.debug(
-                    "Connection closed with %s/%s attempts",
-                    i + 1,
+                    "Retryable error with %s/%s attempts",
+                    consecutive_failures,
                     self._reconnection_attempts,
                 )
-                if i == self._reconnection_attempts:
-                    # this was our final chance, raise the most recent error
+                if consecutive_failures > self._reconnection_attempts:
                     raise
 
-                if i > 2:
+                if consecutive_failures > 2:
                     # let the first two attempts happen quickly in case this is just
                     # a standard load balancer timeout, but after that, just take a
                     # beat to let things come back around.

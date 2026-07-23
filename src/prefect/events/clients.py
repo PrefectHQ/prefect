@@ -25,7 +25,6 @@ from websockets.asyncio.client import ClientConnection
 from websockets.exceptions import (
     ConnectionClosed,
     ConnectionClosedError,
-    ConnectionClosedOK,
 )
 
 import prefect.types._datetime
@@ -677,6 +676,10 @@ class PrefectEventSubscriber:
     """
     Subscribes to a Prefect event stream, yielding events as they occur.
 
+    Clean and abnormal disconnects are retried. The retry budget applies to
+    consecutive reconnection failures and resets after a successful connection;
+    event backfill and ID-based deduplication cover the reconnect window.
+
     Example:
 
         from prefect.events.clients import PrefectEventSubscriber
@@ -870,9 +873,6 @@ class PrefectEventSubscriber:
                         return event
                     finally:
                         EVENTS_OBSERVED.labels(self.client_name).inc()
-            except ConnectionClosedOK:
-                logger.debug('Connection closed with "OK" status')
-                raise StopAsyncIteration
             except RETRYABLE_EXCEPTIONS:
                 consecutive_failures += 1
                 logger.debug(

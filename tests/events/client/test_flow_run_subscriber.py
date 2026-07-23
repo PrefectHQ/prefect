@@ -23,9 +23,10 @@ TERMINAL_FLOW_RUN_EVENTS = {
 class MockEventSubscriber:
     """Mock event subscriber for testing"""
 
-    def __init__(self, events: list[Event]):
+    def __init__(self, events: list[Event], stop_when_exhausted: bool = False):
         self.events = events
         self._index = 0
+        self._stop_when_exhausted = stop_when_exhausted
 
     async def __aenter__(self) -> Self:
         return self
@@ -38,7 +39,10 @@ class MockEventSubscriber:
 
     async def __anext__(self) -> Event:
         if self._index >= len(self.events):
-            raise StopAsyncIteration
+            if self._stop_when_exhausted:
+                raise StopAsyncIteration
+            await asyncio.Event().wait()
+            raise AssertionError("unreachable")
         event = self.events[self._index]
         self._index += 1
         return event
@@ -47,9 +51,10 @@ class MockEventSubscriber:
 class MockLogsSubscriber:
     """Mock logs subscriber for testing"""
 
-    def __init__(self, logs: list[Log]):
+    def __init__(self, logs: list[Log], stop_when_exhausted: bool = False):
         self.logs = logs
         self._index = 0
+        self._stop_when_exhausted = stop_when_exhausted
 
     async def __aenter__(self) -> Self:
         return self
@@ -62,7 +67,10 @@ class MockLogsSubscriber:
 
     async def __anext__(self) -> Log:
         if self._index >= len(self.logs):
-            raise StopAsyncIteration
+            if self._stop_when_exhausted:
+                raise StopAsyncIteration
+            await asyncio.Event().wait()
+            raise AssertionError("unreachable")
         log = self.logs[self._index]
         self._index += 1
         return log
@@ -164,9 +172,13 @@ def straggler_log(flow_run_id: UUID) -> Log:
 def setup_mocks(monkeypatch):
     """Setup mocks for get_events_subscriber and get_logs_subscriber"""
 
-    def create_mocks(events: list[Event], logs: list[Log]):
-        mock_events = MockEventSubscriber(events)
-        mock_logs = MockLogsSubscriber(logs)
+    def create_mocks(
+        events: list[Event],
+        logs: list[Log],
+        stop_when_exhausted: bool = False,
+    ):
+        mock_events = MockEventSubscriber(events, stop_when_exhausted)
+        mock_logs = MockLogsSubscriber(logs, stop_when_exhausted)
 
         def mock_get_events_subscriber(*args, **kwargs):
             return mock_events
@@ -302,15 +314,11 @@ async def test_flow_run_subscriber_straggler_timeout(
 
 async def test_flow_run_subscriber_empty_streams(flow_run_id: UUID, setup_mocks):
     """Test that empty streams are treated as premature termination"""
-    setup_mocks([], [])
+    setup_mocks([], [], stop_when_exhausted=True)
 
-    items: list[Log | Event] = []
-    async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
-        async for item in subscriber:
-            items.append(item)
-
-    assert len(items) == 0
-    assert isinstance(subscriber.error, ConnectionError)
+    with pytest.raises(ConnectionError, match="stream closed unexpectedly"):
+        async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
+            await anext(subscriber)
 
 
 async def test_flow_run_subscriber_context_manager_cleanup(
@@ -378,10 +386,10 @@ async def test_flow_run_subscriber_context_manager_cleanup(
     assert logs_exited
 
 
-async def test_flow_run_subscriber_records_non_connection_error(
+async def test_flow_run_subscriber_propagates_non_connection_error(
     flow_run_id: UUID, monkeypatch
 ):
-    """A non-retryable subscriber failure is recorded, not retried."""
+    """A non-retryable subscriber failure is propagated, not retried."""
 
     class InvalidEventSubscriber:
         async def __aenter__(self) -> Self:
@@ -410,14 +418,9 @@ async def test_flow_run_subscriber_records_non_connection_error(
         lambda *args, **kwargs: mock_logs,
     )
 
-    items: list[Log | Event] = []
-    async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
-        async for item in subscriber:
-            items.append(item)
-
-    assert items == []
-    assert isinstance(subscriber.error, ValueError)
-    assert str(subscriber.error) == "invalid event payload"
+    with pytest.raises(ValueError, match="invalid event payload"):
+        async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
+            await anext(subscriber)
 
 
 async def test_flow_run_subscriber_stops_when_events_close_and_logs_stay_open(
@@ -465,23 +468,22 @@ async def test_flow_run_subscriber_stops_when_events_close_and_logs_stay_open(
         lambda *args, **kwargs: HangingLogsSubscriber(),
     )
 
-    items: list[Log | Event] = []
-    with anyio.fail_after(1):
+    with (
+        anyio.fail_after(1),
+        pytest.raises(
+            ConnectionError, match="Flow run events stream closed unexpectedly"
+        ),
+    ):
         async with FlowRunSubscriber(flow_run_id=flow_run_id) as subscriber:
-            async for item in subscriber:
-                items.append(item)
-
-    assert items == []
-    assert isinstance(subscriber.error, ConnectionError)
-    assert str(subscriber.error) == "Flow run events stream closed unexpectedly"
+            await anext(subscriber)
 
 
-async def test_flow_run_subscriber_no_error_on_clean_completion(
+async def test_flow_run_subscriber_completes_after_terminal_event(
     flow_run_id: UUID,
     sample_event1: Event,
     monkeypatch: pytest.MonkeyPatch,
 ):
-    """A clean run that reaches a terminal state records no error"""
+    """A clean run stops after reaching a terminal state."""
     terminal_event = Event(
         id=uuid4(),
         occurred=datetime.now(timezone.utc) + timedelta(seconds=3),
@@ -505,13 +507,14 @@ async def test_flow_run_subscriber_no_error_on_clean_completion(
         lambda *args, **kwargs: HangingLogsSubscriber(),
     )
 
+    items: list[Log | Event] = []
     async with FlowRunSubscriber(
         flow_run_id=flow_run_id, straggler_timeout=1
     ) as subscriber:
-        async for _ in subscriber:
-            pass
+        async for item in subscriber:
+            items.append(item)
 
-    assert subscriber.error is None
+    assert terminal_event in items
 
 
 async def test_flow_run_subscriber_only_terminal_events_stop_consumption(

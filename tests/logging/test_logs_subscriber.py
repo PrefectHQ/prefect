@@ -273,8 +273,8 @@ async def test_subscriber_can_connect_with_defaults(
     log_puppeteer.outgoing_logs = [example_log_1, example_log_2]
 
     async with Subscriber() as subscriber:
-        async for log in subscriber:
-            log_recorder.logs.append(log)
+        for _ in range(2):
+            log_recorder.logs.append(await anext(subscriber))
 
     assert log_recorder.connections == 1
     assert log_recorder.path == socket_path
@@ -317,8 +317,8 @@ async def test_subscriber_can_connect_and_receive_one_log(
         filter=filter,
         reconnection_attempts=0,
     ) as subscriber:
-        async for log in subscriber:
-            log_recorder.logs.append(log)
+        for _ in range(2):
+            log_recorder.logs.append(await anext(subscriber))
 
     assert log_recorder.connections == 1
     assert log_recorder.path == socket_path
@@ -432,8 +432,8 @@ async def test_subscriber_reconnects_on_hard_disconnects(
         filter=filter,
         reconnection_attempts=2,
     ) as subscriber:
-        async for log in subscriber:
-            log_recorder.logs.append(log)
+        for _ in range(2):
+            log_recorder.logs.append(await anext(subscriber))
 
     assert log_recorder.connections == 2
     assert log_recorder.logs == [example_log_1, example_log_2]
@@ -460,9 +460,9 @@ async def test_subscriber_gives_up_after_so_many_attempts(
             filter=filter,
             reconnection_attempts=4,
         ) as subscriber:
-            async for log in subscriber:
-                log_puppeteer.refuse_any_further_connections = True
-                log_recorder.logs.append(log)
+            log_recorder.logs.append(await anext(subscriber))
+            log_puppeteer.refuse_any_further_connections = True
+            await anext(subscriber)
 
     assert log_recorder.connections == 1 + 4
 
@@ -483,8 +483,8 @@ async def test_subscriber_skips_duplicate_logs(
     filter = LogFilter(level=LogFilterLevel(ge_=logging.INFO))
 
     async with Subscriber(filter=filter) as subscriber:
-        async for log in subscriber:
-            log_recorder.logs.append(log)
+        for _ in range(2):
+            log_recorder.logs.append(await anext(subscriber))
 
     assert log_recorder.logs == [example_log_1, example_log_2]
 
@@ -553,20 +553,36 @@ def test_subscriber_auth_token_missing_error():
         # The actual connection would fail with ValueError during _reconnect()
 
 
-async def test_subscriber_connection_closed_gracefully_stops_iteration():
-    """Test that ConnectionClosedOK gracefully stops iteration"""
-    from unittest.mock import AsyncMock
-
+async def test_subscriber_reconnects_on_clean_disconnect(
+    example_log_1: Log,
+):
     from websockets.exceptions import ConnectionClosedOK
 
     from prefect.logging.clients import PrefectLogsSubscriber
 
-    subscriber = PrefectLogsSubscriber("http://example.com")
+    subscriber = PrefectLogsSubscriber("http://example.com", reconnection_attempts=1)
     subscriber._websocket = AsyncMock()
     subscriber._websocket.recv.side_effect = ConnectionClosedOK(None, None, None)
 
-    with pytest.raises(StopAsyncIteration):
-        await subscriber.__anext__()
+    reconnect_count = 0
+
+    async def reconnect() -> None:
+        nonlocal reconnect_count
+        reconnect_count += 1
+        subscriber._websocket = AsyncMock()
+        if reconnect_count < 3:
+            subscriber._websocket.recv.side_effect = ConnectionClosedOK(
+                None, None, None
+            )
+        else:
+            subscriber._websocket.recv.return_value = orjson.dumps(
+                {"type": "log", "log": example_log_1.model_dump(mode="json")}
+            )
+
+    subscriber._reconnect = reconnect
+
+    assert await subscriber.__anext__() == example_log_1
+    assert reconnect_count == 3
 
 
 def test_subscriber_sleep_logic():

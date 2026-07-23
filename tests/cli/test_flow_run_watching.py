@@ -142,7 +142,7 @@ async def test_watch_flow_run_timeout(prefect_client: PrefectClient):
 
 
 async def test_watch_flow_run_raises_when_stream_dies_before_completion(
-    prefect_client: PrefectClient, monkeypatch
+    prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
 ):
     """watch_flow_run must not report a non-terminal run as finished when the
     events/logs websocket dies before a terminal state is observed."""
@@ -168,7 +168,7 @@ async def test_watch_flow_run_raises_when_stream_dies_before_completion(
 
 
 async def test_watch_flow_run_returns_terminal_state_after_stream_dies(
-    prefect_client: PrefectClient, monkeypatch
+    prefect_client: PrefectClient, monkeypatch: pytest.MonkeyPatch
 ):
     """A final server read wins if the run finished as a stream died."""
     flow_run = await prefect_client.create_flow_run(flow=slow_flow, state=Completed())

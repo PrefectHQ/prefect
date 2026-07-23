@@ -58,31 +58,39 @@ async def watch_flow_run(
     formatter = FlowRunFormatter()
     subscriber = FlowRunSubscriber(flow_run_id=flow_run_id)
 
+    async def consume() -> Exception | None:
+        async with subscriber:
+            while True:
+                try:
+                    item = await anext(subscriber)
+                except StopAsyncIteration:
+                    return None
+                except Exception as exc:
+                    return exc
+
+                console.print(formatter.format(item))
+
     if timeout is not None:
         with anyio.move_on_after(timeout) as cancel_scope:
-            async with subscriber:
-                async for item in subscriber:
-                    console.print(formatter.format(item))
+            stream_error = await consume()
 
         if cancel_scope.cancelled_caught:
             raise FlowRunWaitTimeout(
                 f"Flow run with ID {flow_run_id} exceeded watch timeout of {timeout} seconds"
             )
     else:
-        async with subscriber:
-            async for item in subscriber:
-                console.print(formatter.format(item))
+        stream_error = await consume()
 
     try:
         async with get_client() as client:
             flow_run = await client.read_flow_run(flow_run_id)
     except Exception:
-        if subscriber.error is not None:
+        if stream_error is not None:
             raise FlowRunWatchError(
                 f"Stopped watching flow run {flow_run_id} before it reached a "
                 "terminal state; the events or logs stream closed unexpectedly "
                 "and the final state could not be read."
-            ) from subscriber.error
+            ) from stream_error
         raise
 
     # A stream may terminate just as the run finishes, so reconcile against the
@@ -92,7 +100,7 @@ async def watch_flow_run(
         raise FlowRunWatchError(
             f"Stopped watching flow run {flow_run_id} before it reached a terminal "
             "state because the events or logs stream closed unexpectedly."
-        ) from subscriber.error
+        ) from stream_error
 
     return flow_run
 
