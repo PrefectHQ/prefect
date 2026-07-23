@@ -25560,26 +25560,6 @@
             },
             "ServerTasksSchedulingSettings": {
                 "properties": {
-                    "max_scheduled_queue_size": {
-                        "type": "integer",
-                        "title": "Max Scheduled Queue Size",
-                        "description": "The maximum number of scheduled tasks to queue for submission.",
-                        "default": 1000,
-                        "supported_environment_variables": [
-                            "PREFECT_SERVER_TASKS_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE",
-                            "PREFECT_TASK_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE"
-                        ]
-                    },
-                    "max_retry_queue_size": {
-                        "type": "integer",
-                        "title": "Max Retry Queue Size",
-                        "description": "The maximum number of retries to queue for submission.",
-                        "default": 100,
-                        "supported_environment_variables": [
-                            "PREFECT_SERVER_TASKS_SCHEDULING_MAX_RETRY_QUEUE_SIZE",
-                            "PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE"
-                        ]
-                    },
                     "pending_task_timeout": {
                         "type": "string",
                         "format": "duration",
@@ -25589,6 +25569,16 @@
                         "supported_environment_variables": [
                             "PREFECT_SERVER_TASKS_SCHEDULING_PENDING_TASK_TIMEOUT",
                             "PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT"
+                        ]
+                    },
+                    "delivery_visibility_timeout": {
+                        "type": "string",
+                        "format": "duration",
+                        "title": "Delivery Visibility Timeout",
+                        "description": "How long a deferred task delivery may remain unacknowledged before another TaskWorker can claim it.",
+                        "default": "PT30S",
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_TASKS_SCHEDULING_DELIVERY_VISIBILITY_TIMEOUT"
                         ]
                     }
                 },

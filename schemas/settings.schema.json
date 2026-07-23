@@ -2541,26 +2541,6 @@
         "ServerTasksSchedulingSettings": {
             "description": "Settings for controlling server-side behavior related to task scheduling",
             "properties": {
-                "max_scheduled_queue_size": {
-                    "default": 1000,
-                    "description": "Deprecated. Docket-backed task delivery does not use a process-local scheduled queue limit.",
-                    "supported_environment_variables": [
-                        "PREFECT_SERVER_TASKS_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE",
-                        "PREFECT_TASK_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE"
-                    ],
-                    "title": "Max Scheduled Queue Size",
-                    "type": "integer"
-                },
-                "max_retry_queue_size": {
-                    "default": 100,
-                    "description": "Deprecated. Docket-backed task delivery does not use a process-local retry queue limit.",
-                    "supported_environment_variables": [
-                        "PREFECT_SERVER_TASKS_SCHEDULING_MAX_RETRY_QUEUE_SIZE",
-                        "PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE"
-                    ],
-                    "title": "Max Retry Queue Size",
-                    "type": "integer"
-                },
                 "pending_task_timeout": {
                     "default": "PT0S",
                     "description": "How long before a PENDING task are made available to another task worker.",
@@ -2572,25 +2552,15 @@
                     "title": "Pending Task Timeout",
                     "type": "string"
                 },
-                "docket_redelivery_timeout": {
+                "delivery_visibility_timeout": {
                     "default": "PT30S",
-                    "description": "How long a deferred task run may remain unacknowledged by an API server before Docket makes it available to another server replica.",
+                    "description": "How long a deferred task delivery may remain unacknowledged before another TaskWorker can claim it.",
                     "format": "duration",
                     "supported_environment_variables": [
-                        "PREFECT_SERVER_TASKS_SCHEDULING_DOCKET_REDELIVERY_TIMEOUT"
+                        "PREFECT_SERVER_TASKS_SCHEDULING_DELIVERY_VISIBILITY_TIMEOUT"
                     ],
-                    "title": "Docket Redelivery Timeout",
+                    "title": "Delivery Visibility Timeout",
                     "type": "string"
-                },
-                "docket_concurrency": {
-                    "default": 100,
-                    "description": "The maximum number of deferred task deliveries each API server may hold open while awaiting task-worker acknowledgement.",
-                    "exclusiveMinimum": 0,
-                    "supported_environment_variables": [
-                        "PREFECT_SERVER_TASKS_SCHEDULING_DOCKET_CONCURRENCY"
-                    ],
-                    "title": "Docket Concurrency",
-                    "type": "integer"
                 }
             },
             "title": "ServerTasksSchedulingSettings",

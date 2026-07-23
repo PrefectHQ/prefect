@@ -11,8 +11,8 @@ from starlette.testclient import TestClient, WebSocketTestSession
 
 from prefect.client.schemas import TaskRun
 from prefect.server import models
-from prefect.server.api import task_runs
 from prefect.server.schemas.core import TaskRun as ServerTaskRun
+from prefect.server.task_delivery import TaskRunDeliveryManager
 
 pytestmark = pytest.mark.clear_db
 
@@ -76,7 +76,7 @@ def drain(
 def enqueue(socket: WebSocketTestSession, *task_runs_to_enqueue: ServerTaskRun) -> None:
     with socket.portal_factory() as portal:
         for task_run in task_runs_to_enqueue:
-            portal.call(task_runs.TaskQueue.enqueue, task_run)
+            portal.call(TaskRunDeliveryManager.active().publish, task_run)
 
 
 @pytest.fixture
