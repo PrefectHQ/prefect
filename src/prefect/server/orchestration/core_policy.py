@@ -1853,6 +1853,8 @@ class EnforceDeploymentConcurrencyOnLate(FlowRunOrchestrationRule):
         if not limit:
             return
 
+        await context.session.refresh(limit)
+
         if limit.active_slots >= limit.limit:
             await self.reject_transition(
                 state=states.Cancelled(message="Deployment concurrency limit reached."),
