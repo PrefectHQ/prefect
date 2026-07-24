@@ -2088,6 +2088,83 @@ class TestSettingsSources:
         # Should default to ephemeral profile
         assert Settings().server.ephemeral.enabled
 
+    def test_loads_bundled_profile_selected_in_user_profiles_file(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ):
+        profiles_path = tmp_path / "profiles.toml"
+
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(profiles_path))
+
+        profiles_path.write_text('active = "local"\n\n[profiles]\n')
+
+        settings = Settings()
+        assert settings.api.url == "http://127.0.0.1:4200/api"
+        assert not settings.server.ephemeral.enabled
+
+    def test_loads_bundled_profile_selected_by_environment_variable(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ):
+        profiles_path = tmp_path / "profiles.toml"
+
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(profiles_path))
+        monkeypatch.setenv("PREFECT_PROFILE", "local")
+
+        settings = Settings()
+        assert settings.api.url == "http://127.0.0.1:4200/api"
+        assert not settings.server.ephemeral.enabled
+
+    def test_loads_bundled_profile_selected_by_cli(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ):
+        profiles_path = tmp_path / "profiles.toml"
+
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(profiles_path))
+        monkeypatch.setattr(
+            sys, "argv", ["/usr/local/bin/prefect", "--profile", "local"]
+        )
+
+        settings = Settings()
+        assert settings.api.url == "http://127.0.0.1:4200/api"
+        assert not settings.server.ephemeral.enabled
+
+    def test_user_profile_completely_overrides_bundled_profile(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ):
+        profiles_path = tmp_path / "profiles.toml"
+
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+        monkeypatch.setenv("PREFECT_PROFILES_PATH", str(profiles_path))
+
+        profiles_path.write_text(
+            textwrap.dedent(
+                """
+                active = "local"
+
+                [profiles.local]
+                PREFECT_LOGGING_LEVEL = "DEBUG"
+                """
+            )
+        )
+
+        settings = Settings()
+        assert settings.api.url is None
+        assert settings.logging.level == "DEBUG"
+
     def test_handle_profile_settings_with_invalid_active_profile(
         self,
         monkeypatch: pytest.MonkeyPatch,
