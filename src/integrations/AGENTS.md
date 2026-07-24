@@ -63,6 +63,8 @@ Integrations that need runtime-configurable behavior use `PrefectBaseSettings` s
 
 Unlike core `prefect.settings`, integration settings are not wired into the root `Settings` hierarchy. Access them by instantiating the class directly: `settings = MyIntegrationSettings()`. Tests override values via `mock.patch.dict("os.environ", {...})`.
 
+**`prefect-redis` cluster-slot safety:** Redis Cluster requires keys touched together by the same Lua script or transaction to hash to the same slot. Build new key prefixes with `cluster_key_prefix()`/`redis_key()` from `prefect_redis.client` (not hardcoded strings) so they pick up the cluster hash tag — see `ordering.py`, `messaging.py`, `lease_storage.py` for the pattern.
+
 ## Related
 
 - `docs/integrations/` → Integration-specific documentation pages
