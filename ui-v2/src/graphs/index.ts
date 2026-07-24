@@ -2,6 +2,7 @@ export {
 	centerViewport,
 	emitter,
 	layout,
+	refreshRunData,
 	resetHorizontalScaleMultiplier,
 	selectItem,
 	setConfig,

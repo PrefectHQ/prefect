@@ -12,6 +12,7 @@ function createNode(overrides: Partial<RunGraphNode> = {}): RunGraphNode {
 		id: "task-run-id",
 		label: "task",
 		state_type: "COMPLETED",
+		flow_run_run_count: 1,
 		start_time: startTime,
 		end_time: endTime,
 		parents: [],
