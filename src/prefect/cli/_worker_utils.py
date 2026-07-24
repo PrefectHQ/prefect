@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 
 logger = get_logger(__name__)
 
-WORKER_PID_FILE_NAME = "worker.pid"
+WORKER_PID_DIR_NAME = "workers"
 
 
 async def _check_work_pool_paused(work_pool_name: str) -> bool:
@@ -164,8 +164,13 @@ def _run_worker_in_background(
     Reconstructs the equivalent foreground command from the provided options,
     launches it with `subprocess.Popen`, and records the child process id in
     `pid_file` so `prefect worker stop` can terminate it later. This mirrors the
-    background behavior of `prefect server start`.
+    background behavior of `prefect server start`. The caller resolves a concrete
+    `worker_name` so each background worker has a stable, individually stoppable
+    identity.
     """
+    from prefect.cli._server_utils import _write_pid_file
+    from prefect.utilities.slugify import slugify
+
     command = [
         sys.executable,
         "-m",
@@ -207,9 +212,9 @@ def _run_worker_in_background(
         start_new_session=(os.name != "nt"),
         creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
     )
-    pid_file.write_text(str(process.pid))
+    _write_pid_file(pid_file, process.pid)
 
     console.print(
-        "The Prefect worker is running in the background. Run `prefect worker"
-        " stop` to stop it."
+        f"Worker {worker_name!r} is now running in the background. Run "
+        f"`prefect worker stop {slugify(worker_name or '')}` to stop it."
     )

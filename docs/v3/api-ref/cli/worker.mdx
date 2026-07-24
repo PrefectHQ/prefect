@@ -109,11 +109,47 @@ Start a worker process to poll a work pool for flow runs.
 
 
 ```command
-prefect worker stop [OPTIONS]
+prefect worker stop [OPTIONS] [NAME]
 ```
 
 
 
 <Info>
-Stop a Prefect worker running in the background.
+Stop one or more Prefect workers running in the background.
 </Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string">
+    The name of the background worker to stop.
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--all">
+    Stop all background workers.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect worker stop my-worker
+$ prefect worker stop --all
+```
+</Note>
