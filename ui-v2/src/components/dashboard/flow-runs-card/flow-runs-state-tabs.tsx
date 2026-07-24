@@ -1,5 +1,10 @@
 import type { components } from "@/api/prefect";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+	Tooltip,
+	TooltipContent,
+	TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type StateType = components["schemas"]["StateType"];
 
@@ -65,20 +70,27 @@ export const FlowRunStateTabs = ({
 			<Tabs value={selectedStates.join("-")} onValueChange={handleValueChange}>
 				<TabsList className="flex justify-between w-full h-auto">
 					{STATE_TYPES.map((stateType) => (
-						<TabsTrigger
-							key={stateType.join("-")}
-							value={stateType.join("-")}
-							aria-label={`${stateType.join("-").toLowerCase()} runs`}
-							className="flex flex-col items-center gap-1"
-						>
-							<FlowRunStateCountPill
-								states={stateType}
-								count={stateType.reduce(
-									(acc, state) => acc + stateCounts[state],
-									0,
-								)}
-							/>
-						</TabsTrigger>
+						<Tooltip key={stateType.join("-")}>
+							<TabsTrigger
+								asChild
+								value={stateType.join("-")}
+								aria-label={`${stateType.join("-").toLowerCase()} runs`}
+								className="flex flex-col items-center gap-1"
+							>
+								<TooltipTrigger>
+									<FlowRunStateCountPill
+										states={stateType}
+										count={stateType.reduce(
+											(acc, state) => acc + stateCounts[state],
+											0,
+										)}
+									/>
+								</TooltipTrigger>
+							</TabsTrigger>
+							<TooltipContent>
+								{stateType.join(", ").toLowerCase()}
+							</TooltipContent>
+						</Tooltip>
 					))}
 				</TabsList>
 			</Tabs>
