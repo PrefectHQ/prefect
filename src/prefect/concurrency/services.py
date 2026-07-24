@@ -4,7 +4,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from threading import Lock
 from typing import TYPE_CHECKING, Literal, Optional
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import cachetools
 import httpx
@@ -184,6 +184,32 @@ class ConcurrencySlotAcquisitionWithLeaseService(
                     await asyncio.sleep(retry_after)
                     if max_retries is not None:
                         max_retries -= 1
+
+    async def _discard(self, response: httpx.Response) -> None:
+        """Release a lease granted to a caller that was cancelled while waiting.
+
+        Without this the slots stay occupied until the lease expires, because the
+        caller never learns the lease id and so cannot record it for cleanup.
+        """
+        try:
+            data = response.json()
+            lease_id = data["lease_id"] if data.get("limits") else None
+        except Exception:
+            lease_id = None
+
+        if lease_id is None:
+            return
+
+        try:
+            await self._client.release_concurrency_slots_with_lease(
+                lease_id=UUID(lease_id)
+            )
+        except Exception:
+            logger.warning(
+                f"Failed to release concurrency lease {lease_id} for "
+                f"{self.concurrency_limit_names} after the acquiring caller was cancelled",
+                exc_info=True,
+            )
 
 
 def _should_use_cache(
