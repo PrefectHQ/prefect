@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import logging
+import threading
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, AsyncGenerator, Literal, Optional
 from uuid import UUID
@@ -150,6 +152,9 @@ async def aacquire_concurrency_slots_with_lease(
     )
     try:
         response = await asyncio.wrap_future(future)
+    except asyncio.CancelledError:
+        _release_lease_when_granted(future)
+        raise
     except TimeoutError as timeout:
         raise AcquireConcurrencySlotTimeoutError(
             f"Attempt to acquire concurrency slots timed out after {timeout_seconds} second(s)"
@@ -223,6 +228,49 @@ def _discard_cleanup_lease(lease_id: UUID) -> None:
     ctx = ConcurrencyContext.get()
     if ctx is not None and lease_id in ctx.cleanup_lease_ids:
         ctx.cleanup_lease_ids.remove(lease_id)
+
+
+def _release_lease_when_granted(
+    future: "concurrent.futures.Future[httpx.Response]",
+) -> None:
+    """Release the lease for an acquisition whose caller has been cancelled.
+
+    The acquisition may still be granted after the caller is gone, and the lease
+    id never reaches the `ConcurrencyContext`, so the slots would stay occupied
+    until the lease expires. The release cannot run on the cancelled caller, so it
+    happens on a short-lived thread once the acquisition finishes.
+    """
+
+    def _release(completed: "concurrent.futures.Future[httpx.Response]") -> None:
+        try:
+            data = completed.result().json()
+            lease_id = data["lease_id"] if data.get("limits") else None
+        except BaseException:
+            return
+
+        if lease_id is None:
+            return
+
+        threading.Thread(
+            target=_release_lease,
+            args=(UUID(lease_id),),
+            name="orphaned-concurrency-lease-release",
+            daemon=True,
+        ).start()
+
+    future.add_done_callback(_release)
+
+
+def _release_lease(lease_id: UUID) -> None:
+    try:
+        with get_client(sync_client=True) as client:
+            client.release_concurrency_slots_with_lease(lease_id=lease_id)
+    except Exception:
+        logger.warning(
+            "Failed to release concurrency lease %s after the acquiring caller was cancelled",
+            lease_id,
+            exc_info=True,
+        )
 
 
 def _response_to_minimal_concurrency_limit_response(
