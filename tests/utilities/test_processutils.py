@@ -1,5 +1,6 @@
 import subprocess
 import sys
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -198,6 +199,31 @@ class TestRunProcess:
         assert "hello" in out
         assert "world" in out
         assert "\ufffd" in out
+
+    async def test_run_process_drains_output_after_stream_error(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ):
+        completed = tmp_path / "completed"
+        script = (
+            "import pathlib, sys; "
+            "sys.stdout.write('x' * 1_000_000); sys.stdout.flush(); "
+            "sys.stderr.write('x' * 1_000_000); sys.stderr.flush(); "
+            f"pathlib.Path({str(completed)!r}).write_text('done')"
+        )
+        consume_process_output = mock.AsyncMock(
+            side_effect=RuntimeError("stream failed")
+        )
+        monkeypatch.setattr(
+            prefect.utilities.processutils,
+            "consume_process_output",
+            consume_process_output,
+        )
+
+        with pytest.raises(RuntimeError, match="stream failed"):
+            await run_process([sys.executable, "-c", script], stream_output=True)
+
+        consume_process_output.assert_awaited_once()
+        assert completed.read_text() == "done"
 
 
 class TestOpenProcess:
