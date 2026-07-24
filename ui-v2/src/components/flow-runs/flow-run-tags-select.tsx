@@ -65,17 +65,24 @@ export function FlowRunTagsSelect({
 		[onChange, value],
 	);
 
+	const commitFreeformTag = useCallback(
+		(tag: string) => {
+			const trimmed = tag.trim();
+			if (!trimmed) return;
+			addFreeformTag(trimmed);
+			setSearch("");
+		},
+		[addFreeformTag],
+	);
+
 	// Add on trailing comma for quick entry (matches common tags UX)
 	useEffect(() => {
 		const trimmed = search.trim();
 		if (trimmed.endsWith(",")) {
 			const tag = trimmed.replace(/,+$/, "").trim();
-			if (tag) {
-				addFreeformTag(tag);
-			}
-			setSearch("");
+			commitFreeformTag(tag);
 		}
-	}, [search, addFreeformTag]);
+	}, [search, commitFreeformTag]);
 
 	const triggerLabel = (
 		<span className="text-muted-foreground">
@@ -112,12 +119,12 @@ export function FlowRunTagsSelect({
 							const query = search.trim();
 							if (e.key === "Enter" && query) {
 								e.preventDefault();
-								addFreeformTag(query);
-								setSearch("");
+								commitFreeformTag(query);
 							} else if (e.key === "Backspace" && !search && value.length > 0) {
 								onChange?.(value.slice(0, -1));
 							}
 						}}
+						onBlur={() => commitFreeformTag(search)}
 					/>
 					<ComboboxCommandList>
 						{suggestions.length > 0 ? (

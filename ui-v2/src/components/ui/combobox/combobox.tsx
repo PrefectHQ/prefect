@@ -1,4 +1,10 @@
-import { createContext, type KeyboardEventHandler, use, useState } from "react";
+import {
+	createContext,
+	type FocusEventHandler,
+	type KeyboardEventHandler,
+	use,
+	useState,
+} from "react";
 import { Button } from "@/components/ui/button";
 import {
 	Command,
@@ -81,11 +87,13 @@ const ComboboxCommandInput = ({
 	value,
 	onValueChange,
 	placeholder,
+	onBlur,
 	onKeyDown,
 }: {
 	value?: string;
 	onValueChange?: (value: string) => void;
 	placeholder?: string;
+	onBlur?: FocusEventHandler<HTMLInputElement>;
 	onKeyDown?: KeyboardEventHandler<HTMLInputElement>;
 }) => {
 	return (
@@ -94,6 +102,7 @@ const ComboboxCommandInput = ({
 			onValueChange={onValueChange}
 			placeholder={placeholder}
 			className="h-9"
+			onBlur={onBlur}
 			onKeyDown={onKeyDown}
 		/>
 	);
