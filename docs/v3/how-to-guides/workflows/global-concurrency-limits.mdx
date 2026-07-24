@@ -143,6 +143,16 @@ if __name__ == "__main__":
 
 In both examples, the `concurrency` context manager occupies one slot on the `database` concurrency limit. If no slots are available, execution blocks until a slot becomes available.
 
+<Note>
+Before running these examples, create an **active** global concurrency limit that matches the name used in code:
+
+```bash
+prefect gcl create database --limit 1
+```
+
+If the limit does not exist, the default behavior is to log a warning and continue execution without blocking. Use `strict=True` when you need concurrency enforcement to fail fast when the specified limit does not exist instead of silently proceeding.
+</Note>
+
 ### Using strict mode
 
 Enable strict mode to ensure errors are raised if the limit doesn't exist or if lease renewal fails:
