@@ -674,10 +674,12 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._work_pool: Optional[WorkPool] = None
         self._exit_stack: AsyncExitStack = AsyncExitStack()
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
+        self._loops_task_group: Optional[anyio.abc.TaskGroup] = None
         self._client: Optional[PrefectClient] = None
         self._last_polled_time: datetime.datetime = prefect.types._datetime.now("UTC")
         self._limit = limit
         self._limiter: Optional[anyio.CapacityLimiter] = None
+        self._draining = False
         self._submitting_flow_run_ids: set[UUID] = set()
         self._scheduled_task_scopes: set[anyio.CancelScope] = set()
         self._worker_channel: Optional[WorkerChannel] = None
@@ -809,6 +811,11 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             extra=extra,
         )
 
+    def request_drain(self) -> None:
+        self._draining = True
+        if self._loops_task_group is not None:
+            self._loops_task_group.cancel_scope.cancel()
+
     async def start(
         self,
         run_once: bool = False,
@@ -837,52 +844,59 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         try:
             async with self as worker:
                 # schedule the scheduled flow run polling loop
-                async with anyio.create_task_group() as loops_task_group:
-                    loops_task_group.start_soon(
-                        partial(
-                            critical_service_loop,
-                            workload=self.get_and_submit_flow_runs,
-                            interval=PREFECT_WORKER_QUERY_SECONDS.value(),
-                            run_once=run_once,
-                            jitter_range=0.3,
-                            backoff=4,  # Up to ~1 minute interval during backoff
-                        )
-                    )
-                    # schedule the sync loop
-                    loops_task_group.start_soon(
-                        partial(
-                            critical_service_loop,
-                            workload=self.sync_with_backend,
-                            interval=self.heartbeat_interval_seconds,
-                            run_once=run_once,
-                            jitter_range=0.3,
-                            backoff=4,
-                        )
-                    )
+                try:
+                    async with anyio.create_task_group() as loops_task_group:
+                        self._loops_task_group = loops_task_group
+                        if self._draining:
+                            loops_task_group.cancel_scope.cancel()
 
-                    self._started_event = await self._emit_worker_started_event()
-
-                    start_client_metrics_server()
-
-                    if with_healthcheck:
-                        from prefect.workers.server import build_healthcheck_server
-
-                        # we'll start the ASGI server in a separate thread so that
-                        # uvicorn does not block the main thread
-                        healthcheck_server = build_healthcheck_server(
-                            worker=worker,
-                            query_interval_seconds=PREFECT_WORKER_QUERY_SECONDS.value(),
+                        loops_task_group.start_soon(
+                            partial(
+                                critical_service_loop,
+                                workload=self.get_and_submit_flow_runs,
+                                interval=PREFECT_WORKER_QUERY_SECONDS.value(),
+                                run_once=run_once,
+                                jitter_range=0.3,
+                                backoff=4,  # Up to ~1 minute interval during backoff
+                            )
                         )
-                        healthcheck_thread = threading.Thread(
-                            name="healthcheck-server-thread",
-                            target=healthcheck_server.run,
-                            daemon=True,
+                        # schedule the sync loop
+                        loops_task_group.start_soon(
+                            partial(
+                                critical_service_loop,
+                                workload=self.sync_with_backend,
+                                interval=self.heartbeat_interval_seconds,
+                                run_once=run_once,
+                                jitter_range=0.3,
+                                backoff=4,
+                            )
                         )
-                        healthcheck_thread.start()
-                    printer(f"Worker {worker.name!r} started!")
+
+                        self._started_event = await self._emit_worker_started_event()
+
+                        start_client_metrics_server()
+
+                        if with_healthcheck:
+                            from prefect.workers.server import build_healthcheck_server
+
+                            # we'll start the ASGI server in a separate thread so that
+                            # uvicorn does not block the main thread
+                            healthcheck_server = build_healthcheck_server(
+                                worker=worker,
+                                query_interval_seconds=PREFECT_WORKER_QUERY_SECONDS.value(),
+                            )
+                            healthcheck_thread = threading.Thread(
+                                name="healthcheck-server-thread",
+                                target=healthcheck_server.run,
+                                daemon=True,
+                            )
+                            healthcheck_thread.start()
+                        printer(f"Worker {worker.name!r} started!")
+                finally:
+                    self._loops_task_group = None
 
                 # If running once, wait for active runs to finish before teardown
-                if run_once and self._limiter:
+                if (run_once or self._draining) and self._limiter:
                     # Use the limiter's borrowed token count as the source of truth
                     while self.limiter.borrowed_tokens > 0:
                         self._logger.debug(

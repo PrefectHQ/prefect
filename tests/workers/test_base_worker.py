@@ -614,6 +614,47 @@ async def test_worker_with_work_pool_and_limit(
         )
 
 
+async def test_base_worker_drain_stops_polling_without_cancelling_active_runs(
+    work_pool: WorkPool,
+):
+    worker = WorkerTestImpl(work_pool_name=work_pool.name)
+    active_run_started = anyio.Event()
+    release_active_run = anyio.Event()
+    active_run_finished = anyio.Event()
+    polling_loop_cancelled = anyio.Event()
+
+    async def active_run():
+        active_run_started.set()
+        await release_active_run.wait()
+        active_run_finished.set()
+
+    async with worker:
+        assert worker._runs_task_group is not None
+        worker._runs_task_group.start_soon(active_run)
+        await active_run_started.wait()
+
+        async with anyio.create_task_group() as loops_task_group:
+            worker._loops_task_group = loops_task_group
+
+            async def polling_loop():
+                try:
+                    await anyio.sleep_forever()
+                finally:
+                    polling_loop_cancelled.set()
+
+            loops_task_group.start_soon(polling_loop)
+            worker.request_drain()
+
+        assert polling_loop_cancelled.is_set()
+
+        with anyio.move_on_after(0.2) as scope:
+            await active_run_finished.wait()
+        assert scope.cancel_called
+
+        release_active_run.set()
+        await active_run_finished.wait()
+
+
 async def test_worker_calls_run_with_expected_arguments(
     prefect_client: PrefectClient,
     worker_deployment_wq1: WorkQueue,
