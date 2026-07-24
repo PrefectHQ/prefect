@@ -1,5 +1,7 @@
 import asyncio
 import time
+import uuid
+from unittest import mock
 
 import pytest
 
@@ -36,6 +38,31 @@ async def test_concurrency_context_releases_slots_async(
         concurrency_limit.name
     )
     assert response.active_slots == 0
+
+
+def test_concurrency_context_cleanup_continues_after_release_failure():
+    lease_ids = [uuid.uuid4() for _ in range(3)]
+    released: list[uuid.UUID] = []
+
+    def release(lease_id: uuid.UUID) -> None:
+        released.append(lease_id)
+        if lease_id == lease_ids[0]:
+            raise RuntimeError("transient API failure")
+
+    client = mock.MagicMock()
+    client.__enter__.return_value = client
+    client.release_concurrency_slots_with_lease.side_effect = release
+
+    with mock.patch(
+        "prefect.concurrency.context.get_client", return_value=client
+    ) as get_client_mock:
+        context = ConcurrencyContext(cleanup_lease_ids=lease_ids)
+        with context:
+            pass
+
+    get_client_mock.assert_called_once_with(sync_client=True)
+    assert released == lease_ids
+    assert ConcurrencyContext.get() is None
 
 
 async def test_concurrency_context_releases_slots_sync(

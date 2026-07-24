@@ -1,6 +1,7 @@
 import asyncio
 import time as _time
-from uuid import UUID
+from unittest import mock
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -39,6 +40,30 @@ async def test_concurrency_context_releases_slots_async(
         v1_concurrency_limit.tag
     )
     assert response.active_slots == []
+
+
+def test_concurrency_context_cleanup_continues_after_release_failure():
+    cleanup_slots = [([f"tag-{i}"], 1.0, uuid4()) for i in range(3)]
+    released: list[UUID] = []
+
+    def decrement(names: list[str], occupancy_seconds: float, task_run_id: UUID):
+        released.append(task_run_id)
+        if task_run_id == cleanup_slots[0][2]:
+            raise RuntimeError("transient API failure")
+
+    client = mock.MagicMock()
+    client.__enter__.return_value = client
+    client.decrement_v1_concurrency_slots.side_effect = decrement
+
+    with mock.patch(
+        "prefect.concurrency.v1.context.get_client", return_value=client
+    ) as get_client_mock:
+        with ConcurrencyContext(cleanup_slots=cleanup_slots):
+            pass
+
+    get_client_mock.assert_called_once_with(sync_client=True)
+    assert released == [task_run_id for _, _, task_run_id in cleanup_slots]
+    assert ConcurrencyContext.get() is None
 
 
 async def test_concurrency_context_releases_slots_sync(
