@@ -24,6 +24,7 @@ const artifactTypeOptions = [
 	{ value: "all", label: "All Types" },
 	{ value: "markdown", label: "Markdown" },
 	{ value: "progress", label: "Progress" },
+	{ value: "rich", label: "Rich" },
 	{ value: "image", label: "Image" },
 	{ value: "table", label: "Table" },
 ] as const;
@@ -70,7 +71,7 @@ export const ArtifactsFilterComponent = ({
 			className="flex justify-between items-center"
 		>
 			<div>
-				<p className="text-base text-sm text-muted-foreground">
+				<p className="text-sm text-muted-foreground">
 					{totalCount.toLocaleString()} {pluralize(totalCount, "artifact")}
 				</p>
 			</div>

@@ -14,6 +14,10 @@ from uuid import UUID
 from typing_extensions import Self
 
 from prefect._internal.compatibility.async_dispatch import async_dispatch
+from prefect._internal.schemas.validators import (
+    DEFAULT_RICH_ARTIFACT_SANDBOX,
+    normalize_rich_artifact_data,
+)
 from prefect.client.orchestration import PrefectClient, get_client
 from prefect.client.schemas.actions import ArtifactCreate as ArtifactRequest
 from prefect.client.schemas.actions import ArtifactUpdate
@@ -360,6 +364,46 @@ class ImageArtifact(Artifact):
             str: The image URL.
         """
         return self.image_url
+
+
+class RichArtifact(Artifact):
+    """
+    An artifact that renders HTML/JS content in a sandboxed iframe.
+
+    Arguments:
+        html: The HTML content to render (can include inline CSS/JS).
+        sandbox: List of iframe sandbox permissions. Supported values are
+            `allow-scripts` and `allow-same-origin`. Defaults to
+            `['allow-scripts']`.
+        csp: Accepted for backward compatibility but ignored. Prefect always
+            applies a restrictive policy derived from the sanitized sandbox.
+    """
+
+    html: str
+    sandbox: list[str] | None = None
+    csp: str | None = None
+    type: str | None = "rich"
+
+    def _get_sandbox(self) -> list[str]:
+        if self.sandbox is not None:
+            return self.sandbox
+        return list(DEFAULT_RICH_ARTIFACT_SANDBOX)
+
+    def _format_data(self) -> dict[str, Any]:
+        return normalize_rich_artifact_data(
+            {
+                "html": self.html,
+                "sandbox": self._get_sandbox(),
+                "csp": self.csp,
+            }
+        )
+
+    async def aformat(self) -> dict[str, Any]:
+        return self._format_data()
+
+    @async_dispatch(aformat)
+    def format(self) -> dict[str, Any]:
+        return self._format_data()
 
 
 async def acreate_link_artifact(
@@ -792,4 +836,85 @@ def create_image_artifact(
     )
     artifact = cast(ArtifactResponse, new_artifact.create(_sync=True))  # pyright: ignore[reportCallIssue] _sync is valid because .create is wrapped in async_dispatch
 
+    return artifact.id
+
+
+async def acreate_rich_artifact(
+    html: str,
+    key: str | None = None,
+    description: str | None = None,
+    sandbox: list[str] | None = None,
+    csp: str | None = None,
+) -> UUID:
+    """
+    Create a rich HTML artifact that renders in a sandboxed iframe.
+
+    Arguments:
+        html: The HTML content to render (can include inline CSS/JS).
+        key: A user-provided string identifier.
+          Required for the artifact to show in the Artifacts page in the UI.
+          The key must only contain lowercase letters, numbers, and dashes.
+        description: A user-specified description of the artifact.
+        sandbox: List of iframe sandbox permissions. Supported values are
+          `allow-scripts` and `allow-same-origin`. Defaults to
+          ['allow-scripts'].
+        csp: Accepted for backward compatibility but ignored. Prefect always
+          applies a restrictive policy derived from the sanitized sandbox.
+
+    Returns:
+        The rich artifact ID.
+    """
+    new_artifact = RichArtifact(
+        key=key, description=description, html=html, sandbox=sandbox, csp=csp
+    )
+    artifact = await new_artifact.acreate()
+    return artifact.id
+
+
+@async_dispatch(acreate_rich_artifact)
+def create_rich_artifact(
+    html: str,
+    key: str | None = None,
+    description: str | None = None,
+    sandbox: list[str] | None = None,
+    csp: str | None = None,
+) -> UUID:
+    """
+    Create a rich HTML artifact that renders in a sandboxed iframe.
+
+    Arguments:
+        html: The HTML content to render (can include inline CSS/JS).
+        key: A user-provided string identifier.
+          Required for the artifact to show in the Artifacts page in the UI.
+          The key must only contain lowercase letters, numbers, and dashes.
+        description: A user-specified description of the artifact.
+        sandbox: List of iframe sandbox permissions. Supported values are
+          `allow-scripts` and `allow-same-origin`. Defaults to
+          ['allow-scripts'].
+        csp: Accepted for backward compatibility but ignored. Prefect always
+          applies a restrictive policy derived from the sanitized sandbox.
+
+    Returns:
+        The rich artifact ID.
+
+    Example:
+        ```python
+        from prefect import flow
+        from prefect.artifacts import create_rich_artifact
+
+        @flow
+        def my_flow():
+            create_rich_artifact(
+                html="<html><body><h1>Hello World</h1><script>console.log('hi');</script></body></html>",
+                key="my-rich-artifact",
+                description="A rich HTML artifact with JavaScript",
+            )
+
+        my_flow()
+        ```
+    """
+    new_artifact = RichArtifact(
+        key=key, description=description, html=html, sandbox=sandbox, csp=csp
+    )
+    artifact = cast(ArtifactResponse, new_artifact.create(_sync=True))  # pyright: ignore[reportCallIssue] _sync is valid because .create is wrapped in async_dispatch
     return artifact.id

@@ -8,6 +8,7 @@ from uuid import UUID
 from fastapi import Body, Depends, HTTPException, Path, Response, status
 
 import prefect.server.api.dependencies as dependencies
+from prefect._internal.schemas.validators import normalize_artifact_data_for_type
 from prefect.server import models
 from prefect.server.database import PrefectDBInterface, provide_database_interface
 from prefect.server.schemas import actions, core, filters, sorting
@@ -201,6 +202,25 @@ async def update_artifact(
     Update an artifact in the database.
     """
     async with db.session_context(begin_transaction=True) as session:
+        if "data" in artifact.model_fields_set:
+            existing_artifact = await models.artifacts.read_artifact(
+                session=session, artifact_id=artifact_id
+            )
+            if existing_artifact is None:
+                raise HTTPException(status_code=404, detail="Artifact not found.")
+
+            try:
+                artifact = actions.ArtifactUpdate.model_validate(
+                    {
+                        **artifact.model_dump(exclude_unset=True),
+                        "data": normalize_artifact_data_for_type(
+                            existing_artifact.type, artifact.data
+                        ),
+                    }
+                )
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
+
         result = await models.artifacts.update_artifact(
             session=session,
             artifact_id=artifact_id,
