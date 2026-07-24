@@ -59,6 +59,7 @@ from prefect.server.api.dependencies import EnforceMinimumAPIVersion
 from prefect.server.exceptions import ObjectNotFoundError
 from prefect.server.schemas.ui import UISettings
 from prefect.server.services.base import RunInEphemeralServers, RunInWebservers, Service
+from prefect.server.task_delivery import task_run_delivery_lifespan
 from prefect.server.utilities.database import get_dialect
 from prefect.settings import (
     PREFECT_API_DATABASE_CONNECTION_URL,
@@ -941,6 +942,14 @@ def create_app(
                     name=settings.server.docket.name,
                     url=settings.server.docket.url,
                     execution_ttl=timedelta(0),
+                )
+            )
+            await stack.enter_async_context(
+                task_run_delivery_lifespan(
+                    docket,
+                    visibility_timeout=(
+                        settings.server.tasks.scheduling.delivery_visibility_timeout
+                    ),
                 )
             )
             await stack.enter_async_context(

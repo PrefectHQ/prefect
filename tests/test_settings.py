@@ -540,8 +540,9 @@ SUPPORTED_SETTINGS = {
         "test_value": 10
     },
     "PREFECT_SERVER_TASKS_MAX_CACHE_KEY_LENGTH": {"test_value": 10},
-    "PREFECT_SERVER_TASKS_SCHEDULING_MAX_RETRY_QUEUE_SIZE": {"test_value": 10},
-    "PREFECT_SERVER_TASKS_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE": {"test_value": 10},
+    "PREFECT_SERVER_TASKS_SCHEDULING_DELIVERY_VISIBILITY_TIMEOUT": {
+        "test_value": timedelta(seconds=10),
+    },
     "PREFECT_SERVER_TASKS_SCHEDULING_PENDING_TASK_TIMEOUT": {
         "test_value": timedelta(seconds=10),
     },
@@ -579,11 +580,6 @@ SUPPORTED_SETTINGS = {
     },
     "PREFECT_TASK_SCHEDULING_DELETE_FAILED_SUBMISSIONS": {
         "test_value": True,
-        "legacy": True,
-    },
-    "PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE": {"test_value": 10, "legacy": True},
-    "PREFECT_TASK_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE": {
-        "test_value": 10,
         "legacy": True,
     },
     "PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT": {

@@ -129,6 +129,7 @@ class TaskWorker:
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
         self._executor = ThreadPoolExecutor(max_workers=limit if limit else None)
         self._limiter = anyio.CapacityLimiter(limit) if limit else None
+        self._accepted_task_runs: set[UUID] = set()
 
         self.in_flight_task_runs: dict[str, dict[UUID, DateTime]] = {
             task_key: {} for task_key in self.task_keys
@@ -235,6 +236,10 @@ class TaskWorker:
         from_sync.call_soon_in_loop_thread(create_call(self.astop)).result()
 
     async def _acquire_token(self, task_run_id: UUID) -> bool:
+        if task_run_id in self._accepted_task_runs:
+            logger.debug(f"Task run already accepted: {task_run_id!r}")
+            return False
+
         try:
             if self._limiter:
                 await self._limiter.acquire_on_behalf_of(task_run_id)
@@ -242,9 +247,11 @@ class TaskWorker:
             logger.debug(f"Token already acquired for task run: {task_run_id!r}")
             return False
 
+        self._accepted_task_runs.add(task_run_id)
         return True
 
     def _release_token(self, task_run_id: UUID) -> bool:
+        self._accepted_task_runs.discard(task_run_id)
         try:
             if self._limiter:
                 self._limiter.release_on_behalf_of(task_run_id)
@@ -265,13 +272,14 @@ class TaskWorker:
             task_key.split(".")[-1].split("-")[0] for task_key in sorted(self.task_keys)
         )
         logger.info(f"Subscribing to runs of task(s): {task_keys_repr}")
-        async for task_run in Subscription(
+        subscription = Subscription(
             model=TaskRun,
             path="/task_runs/subscriptions/scheduled",
             keys=self.task_keys,
             client_id=self.client_id,
             base_url=base_url,
-        ):
+        )
+        async for task_run in subscription:
             logger.info(f"Received task run: {task_run.id} - {task_run.name}")
 
             token_acquired = await self._acquire_token(task_run.id)
@@ -282,6 +290,7 @@ class TaskWorker:
                 self._runs_task_group.start_soon(
                     self._safe_submit_scheduled_task_run, task_run
                 )
+            await subscription.acknowledge()
 
     async def _safe_submit_scheduled_task_run(self, task_run: TaskRun):
         self.in_flight_task_runs[task_run.task_key][task_run.id] = (

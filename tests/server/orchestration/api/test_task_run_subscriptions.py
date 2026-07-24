@@ -1,33 +1,20 @@
-import asyncio
 import os
 import socket
 from collections import Counter
 from contextlib import contextmanager
 from typing import Generator, List
-from unittest.mock import patch
 from uuid import uuid4
 
 import pytest
 from fastapi import FastAPI
-from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.testclient import TestClient, WebSocketTestSession
 
 from prefect.client.schemas import TaskRun
 from prefect.server import models
-from prefect.server.api import task_runs
-from prefect.server.schemas import states as server_states
 from prefect.server.schemas.core import TaskRun as ServerTaskRun
+from prefect.server.task_delivery import TaskRunDeliveryManager
 
 pytestmark = pytest.mark.clear_db
-
-
-@pytest.fixture
-def reset_task_queues() -> Generator[None, None, None]:
-    task_runs.TaskQueue.reset()
-
-    yield
-
-    task_runs.TaskQueue.reset()
 
 
 @pytest.fixture
@@ -47,14 +34,26 @@ def test_auth_dance(app: FastAPI):
 
 
 @contextmanager
-def authenticated_socket(app: FastAPI) -> Generator[WebSocketTestSession, None, None]:
+def authenticated_socket(
+    app_or_client: FastAPI | TestClient,
+) -> Generator[WebSocketTestSession, None, None]:
     socket: WebSocketTestSession
-    with TestClient(app).websocket_connect(
-        "/api/task_runs/subscriptions/scheduled",
-        subprotocols=["prefect"],
-    ) as socket:
-        auth_dance(socket)
-        yield socket
+    if isinstance(app_or_client, TestClient):
+        client = app_or_client
+        with client.websocket_connect(
+            "/api/task_runs/subscriptions/scheduled",
+            subprotocols=["prefect"],
+        ) as socket:
+            auth_dance(socket)
+            yield socket
+    else:
+        with TestClient(app_or_client) as client:
+            with client.websocket_connect(
+                "/api/task_runs/subscriptions/scheduled",
+                subprotocols=["prefect"],
+            ) as socket:
+                auth_dance(socket)
+                yield socket
 
 
 def drain(
@@ -74,16 +73,20 @@ def drain(
     return messages
 
 
+def enqueue(socket: WebSocketTestSession, *task_runs_to_enqueue: ServerTaskRun) -> None:
+    with socket.portal_factory() as portal:
+        for task_run in task_runs_to_enqueue:
+            portal.call(TaskRunDeliveryManager.active().publish, task_run)
+
+
 @pytest.fixture
-async def taskA_run1(reset_task_queues) -> ServerTaskRun:
-    queued = ServerTaskRun(
+def taskA_run1() -> ServerTaskRun:
+    return ServerTaskRun(
         id=uuid4(),
         flow_run_id=None,
         task_key="mytasks.taskA",
         dynamic_key="mytasks.taskA-1",
     )
-    await task_runs.TaskQueue.enqueue(queued)
-    return queued
 
 
 def test_receiving_task_run(app: FastAPI, taskA_run1: TaskRun, client_id: str):
@@ -91,6 +94,7 @@ def test_receiving_task_run(app: FastAPI, taskA_run1: TaskRun, client_id: str):
         socket.send_json(
             {"type": "subscribe", "keys": ["mytasks.taskA"], "client_id": client_id}
         )
+        enqueue(socket, taskA_run1)
 
         (received,) = drain(socket)
 
@@ -98,14 +102,12 @@ def test_receiving_task_run(app: FastAPI, taskA_run1: TaskRun, client_id: str):
 
 
 @pytest.fixture
-async def taskA_run2(reset_task_queues) -> ServerTaskRun:
-    queued = ServerTaskRun(
+def taskA_run2() -> ServerTaskRun:
+    return ServerTaskRun(
         flow_run_id=None,
         task_key="mytasks.taskA",
         dynamic_key="mytasks.taskA-1",
     )
-    await task_runs.TaskQueue.enqueue(queued)
-    return queued
 
 
 def test_acknowledging_between_each_run(
@@ -115,6 +117,7 @@ def test_acknowledging_between_each_run(
         socket.send_json(
             {"type": "subscribe", "keys": ["mytasks.taskA"], "client_id": client_id}
         )
+        enqueue(socket, taskA_run1, taskA_run2)
 
         (first, second) = drain(socket, 2)
 
@@ -124,43 +127,34 @@ def test_acknowledging_between_each_run(
 
 
 @pytest.fixture
-async def mixed_bag_of_tasks(reset_task_queues) -> None:
-    await task_runs.TaskQueue.enqueue(
-        TaskRun(  # type: ignore
+def mixed_bag_of_tasks() -> list[ServerTaskRun]:
+    return [
+        ServerTaskRun(
             id=uuid4(),
             flow_run_id=None,
             task_key="mytasks.taskA",
             dynamic_key="mytasks.taskA-1",
-        )
-    )
-
-    await task_runs.TaskQueue.enqueue(
-        TaskRun(  # type: ignore
+        ),
+        ServerTaskRun(
             id=uuid4(),
             flow_run_id=None,
             task_key="mytasks.taskA",
             dynamic_key="mytasks.taskA-1",
-        )
-    )
-
-    # this one should not be delivered
-    await task_runs.TaskQueue.enqueue(
-        TaskRun(  # type: ignore
+        ),
+        # this one should not be delivered
+        ServerTaskRun(
             id=uuid4(),
             flow_run_id=None,
             task_key="nope.not.this.one",
             dynamic_key="nope.not.this.one-1",
-        )
-    )
-
-    await task_runs.TaskQueue.enqueue(
-        TaskRun(  # type: ignore
+        ),
+        ServerTaskRun(
             id=uuid4(),
             flow_run_id=None,
             task_key="other_tasks.taskB",
             dynamic_key="other_tasks.taskB-1",
-        )
-    )
+        ),
+    ]
 
 
 def test_server_only_delivers_tasks_for_subscribed_keys(
@@ -176,6 +170,7 @@ def test_server_only_delivers_tasks_for_subscribed_keys(
                 "client_id": client_id,
             }
         )
+        enqueue(socket, *mixed_bag_of_tasks)
 
         received = drain(socket, 3)
 
@@ -186,7 +181,7 @@ def test_server_only_delivers_tasks_for_subscribed_keys(
 
 
 @pytest.fixture
-async def ten_task_A_runs(reset_task_queues) -> List[ServerTaskRun]:
+def ten_task_A_runs() -> List[ServerTaskRun]:
     queued: List[ServerTaskRun] = []
     for _ in range(10):
         run = ServerTaskRun(
@@ -195,7 +190,6 @@ async def ten_task_A_runs(reset_task_queues) -> List[ServerTaskRun]:
             task_key="mytasks.taskA",
             dynamic_key="mytasks.taskA-1",
         )
-        await task_runs.TaskQueue.enqueue(run)
         queued.append(run)
     return queued
 
@@ -213,6 +207,7 @@ def test_only_one_socket_gets_each_task_run(
         second.send_json(
             {"type": "subscribe", "keys": ["mytasks.taskA"], "client_id": client_id}
         )
+        enqueue(first, *ten_task_A_runs)
 
         for i in range(5):
             received1 += drain(first, 1, quit=(i == 4))
@@ -240,140 +235,26 @@ def test_only_one_socket_gets_each_task_run(
 def test_server_redelivers_unacknowledged_runs(
     app: FastAPI, taskA_run1: TaskRun, client_id: str
 ):
-    with authenticated_socket(app) as socket:
-        socket.send_json(
-            {"type": "subscribe", "keys": ["mytasks.taskA"], "client_id": client_id}
-        )
-
-        received = socket.receive_json()
-        assert received["id"] == str(taskA_run1.id)
-
-        # but importantly, disconnect without acknowledging the ping
-        socket.close()
-
-    with authenticated_socket(app) as socket:
-        socket.send_json(
-            {"type": "subscribe", "keys": ["mytasks.taskA"], "client_id": client_id}
-        )
-
-        (received,) = drain(socket)
-        assert received.id == taskA_run1.id
-
-
-@pytest.fixture
-async def preexisting_runs(
-    session: AsyncSession, reset_task_queues
-) -> List[ServerTaskRun]:
-    stored_runA = ServerTaskRun.model_validate(
-        await models.task_runs.create_task_run(
-            session,
-            ServerTaskRun(
-                flow_run_id=None,
-                task_key="mytasks.taskA",
-                dynamic_key="mytasks.taskA-1",
-                state=server_states.Scheduled(state_details={"deferred": True}),
-            ),
-        )
-    )
-
-    stored_runB = ServerTaskRun.model_validate(
-        await models.task_runs.create_task_run(
-            session,
-            ServerTaskRun(
-                flow_run_id=None,
-                task_key="mytasks.taskA",
-                dynamic_key="mytasks.taskA-2",
-                state=server_states.Scheduled(state_details={"deferred": True}),
-            ),
-        )
-    )
-
-    await session.commit()
-
-    return [stored_runA, stored_runB]
-
-
-def test_server_restores_scheduled_task_runs_at_startup(
-    app: FastAPI,
-    preexisting_runs: List[TaskRun],
-    client_id: str,
-):
-    with authenticated_socket(app) as socket:
-        socket.send_json(
-            {"type": "subscribe", "keys": ["mytasks.taskA"], "client_id": client_id}
-        )
-
-        received = drain(socket, expecting=len(preexisting_runs))
-
-        assert {r.id for r in received} == {r.id for r in preexisting_runs}
-
-
-class TestQueueLimit:
-    async def test_task_queue_scheduled_size_limit(self):
-        task_key = "test_limit"
-        max_scheduled_size = 2
-
-        task_runs.TaskQueue.configure_task_key(
-            task_key, scheduled_size=max_scheduled_size, retry_size=1
-        )
-
-        queue = task_runs.TaskQueue.for_key(task_key)
-
-        for _ in range(max_scheduled_size):
-            task_run = ServerTaskRun(
-                id=uuid4(),
-                flow_run_id=None,
-                task_key=task_key,
-                dynamic_key=f"{task_key}-1",
+    with TestClient(app) as client:
+        with authenticated_socket(client) as socket:
+            socket.send_json(
+                {"type": "subscribe", "keys": ["mytasks.taskA"], "client_id": client_id}
             )
-            await queue.put(task_run)
+            enqueue(socket, taskA_run1)
 
-        with (
-            patch("asyncio.sleep", return_value=None),
-            pytest.raises(asyncio.TimeoutError),
-        ):
-            extra_task_run = ServerTaskRun(
-                id=uuid4(),
-                flow_run_id=None,
-                task_key=task_key,
-                dynamic_key=f"{task_key}-2",
+            received = socket.receive_json()
+            assert received["id"] == str(taskA_run1.id)
+
+            # Disconnect without acknowledging the task run.
+            socket.close()
+
+        with authenticated_socket(client) as socket:
+            socket.send_json(
+                {"type": "subscribe", "keys": ["mytasks.taskA"], "client_id": client_id}
             )
-            await asyncio.wait_for(queue.put(extra_task_run), timeout=0.01)
 
-        assert queue._scheduled_queue.qsize() == max_scheduled_size, (
-            "Queue size should be at its configured limit"
-        )
-
-    async def test_task_queue_retry_size_limit(self):
-        task_key = "test_retry_limit"
-        max_retry_size = 1
-
-        task_runs.TaskQueue.configure_task_key(
-            task_key, scheduled_size=2, retry_size=max_retry_size
-        )
-
-        queue = task_runs.TaskQueue.for_key(task_key)
-
-        task_run = ServerTaskRun(
-            id=uuid4(), flow_run_id=None, task_key=task_key, dynamic_key=f"{task_key}-1"
-        )
-        await queue.retry(task_run)
-
-        with (
-            patch("asyncio.sleep", return_value=None),
-            pytest.raises(asyncio.TimeoutError),
-        ):
-            extra_task_run = ServerTaskRun(
-                id=uuid4(),
-                flow_run_id=None,
-                task_key=task_key,
-                dynamic_key=f"{task_key}-2",
-            )
-            await asyncio.wait_for(queue.retry(extra_task_run), timeout=0.01)
-
-        assert queue._retry_queue.qsize() == max_retry_size, (
-            "Retry queue size should be at its configured limit"
-        )
+            (received,) = drain(socket)
+            assert received.id == taskA_run1.id
 
 
 @pytest.fixture
@@ -400,19 +281,19 @@ class TestTaskWorkerTracking:
         task_keys,
         expected_workers,
         client_id,
-        test_client,
     ):
-        for _ in range(num_connections):
-            with authenticated_socket(app) as socket:
-                socket.send_json(
-                    {"type": "subscribe", "keys": task_keys, "client_id": client_id}
-                )
+        with TestClient(app) as client:
+            for _ in range(num_connections):
+                with authenticated_socket(client) as socket:
+                    socket.send_json(
+                        {"type": "subscribe", "keys": task_keys, "client_id": client_id}
+                    )
 
-            response = test_client.post("api/task_workers/filter")
-            assert response.status_code == 200
-            tracked_workers = response.json()
-            assert len(tracked_workers) == expected_workers
+                response = client.post("api/task_workers/filter")
+                assert response.status_code == 200
+                tracked_workers = response.json()
+                assert len(tracked_workers) == expected_workers
 
-            for worker in tracked_workers:
-                assert worker["identifier"] == client_id
-                assert set(worker["task_keys"]) == set(task_keys)
+                for worker in tracked_workers:
+                    assert worker["identifier"] == client_id
+                    assert set(worker["task_keys"]) == set(task_keys)
