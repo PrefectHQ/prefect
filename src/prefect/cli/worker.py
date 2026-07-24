@@ -7,6 +7,7 @@ Start and interact with workers.
 import asyncio
 import json
 import os
+import signal
 from enum import Enum
 from pathlib import Path
 from typing import Annotated, Optional
@@ -16,6 +17,7 @@ import cyclopts
 import prefect.cli._app as _cli
 from prefect.cli._utilities import (
     exit_with_error,
+    exit_with_success,
     with_cli_exception_handling,
 )
 
@@ -111,6 +113,12 @@ async def start(
             ),
         ),
     ] = True,
+    background: Annotated[
+        bool,
+        cyclopts.Parameter(
+            "--background", alias="-b", help="Run the worker in the background."
+        ),
+    ] = False,
 ):
     """Start a worker process to poll a work pool for flow runs."""
     from prefect.cli._prompts import confirm
@@ -209,6 +217,57 @@ async def start(
             " installed to run your desired worker type."
         )
 
+    # Only background after validation passes, so a misconfigured worker fails here
+    # instead of reporting success (matches `prefect server start`).
+    if background:
+        from uuid import uuid4
+
+        from prefect.cli._server_utils import (
+            _cleanup_pid_file,
+            _is_process_running,
+            _read_pid_file,
+        )
+        from prefect.cli._worker_utils import (
+            WORKER_PID_DIR_NAME,
+            _run_worker_in_background,
+        )
+        from prefect.settings import PREFECT_HOME
+        from prefect.utilities.slugify import slugify
+
+        # Resolve a concrete name up front so multiple background workers can be
+        # tracked and stopped individually. A worker otherwise generates its name
+        # inside the child process, which the launching CLI cannot see.
+        resolved_name = worker_name or f"{worker_type}-{uuid4().hex[:8]}"
+        slug = slugify(resolved_name)
+        pid_file = Path(PREFECT_HOME.value()) / WORKER_PID_DIR_NAME / f"{slug}.pid"
+
+        if pid_file.exists():
+            existing_pid = _read_pid_file(pid_file)
+            if existing_pid is not None and _is_process_running(existing_pid):
+                exit_with_error(
+                    f"A background worker named {slug!r} is already running. To stop"
+                    f" it, run `prefect worker stop {slug}`."
+                )
+            # Reclaim a stale or corrupt PID file left by a previous worker.
+            _cleanup_pid_file(pid_file)
+
+        _run_worker_in_background(
+            _cli.console,
+            pid_file,
+            work_pool_name=work_pool_name,
+            worker_name=resolved_name,
+            work_queues=work_queues,
+            worker_type=worker_type,
+            limit=limit,
+            prefetch_seconds=prefetch_seconds,
+            run_once=run_once,
+            with_healthcheck=with_healthcheck,
+            install_policy=install_policy.value,
+            base_job_template=base_job_template,
+            create_pool_if_not_found=create_pool_if_not_found,
+        )
+        return
+
     worker_process_id = os.getpid()
     setup_signal_handlers_worker(
         worker_process_id, f"the {worker_type} worker", _cli.console.print
@@ -236,3 +295,88 @@ async def start(
         )
     except asyncio.CancelledError:
         _cli.console.print(f"Worker {worker.name!r} stopped!", style="yellow")
+
+
+@worker_app.command()
+@with_cli_exception_handling
+async def stop(
+    name: Annotated[
+        Optional[str],
+        cyclopts.Parameter(help="The name of the background worker to stop."),
+    ] = None,
+    *,
+    all: Annotated[
+        bool,
+        cyclopts.Parameter("--all", help="Stop all background workers."),
+    ] = False,
+):
+    """Stop one or more Prefect workers running in the background.
+
+    Examples:
+        ```bash
+        $ prefect worker stop my-worker
+        $ prefect worker stop --all
+        ```
+    """
+    from prefect.cli._server_utils import (
+        _cleanup_pid_file,
+        _is_process_running,
+        _read_pid_file,
+    )
+    from prefect.cli._worker_utils import WORKER_PID_DIR_NAME
+    from prefect.settings import PREFECT_HOME
+    from prefect.utilities.slugify import slugify
+
+    if all and name is not None:
+        exit_with_error("Cannot provide a worker name when stopping all workers.")
+
+    workers_dir = Path(PREFECT_HOME.value()) / WORKER_PID_DIR_NAME
+    pid_files = sorted(workers_dir.glob("*.pid")) if workers_dir.is_dir() else []
+
+    if not pid_files:
+        exit_with_success("No worker running in the background.")
+
+    if all:
+        targets = pid_files
+    elif name is not None:
+        target = workers_dir / f"{slugify(name)}.pid"
+        if not target.exists():
+            known = ", ".join(pid_file.stem for pid_file in pid_files)
+            exit_with_error(
+                f"No background worker named {name!r}. Running workers: {known}."
+            )
+        targets = [target]
+    elif len(pid_files) == 1:
+        targets = pid_files
+    else:
+        known = ", ".join(pid_file.stem for pid_file in pid_files)
+        exit_with_error(
+            f"Multiple workers are running in the background: {known}. Provide a"
+            " worker name or use `--all`."
+        )
+
+    for pid_file in targets:
+        slug = pid_file.stem
+        pid = _read_pid_file(pid_file)
+        if pid is None:
+            _cleanup_pid_file(pid_file)
+            _cli.console.print(
+                f"Worker {slug!r} PID file was empty or invalid. Cleaning up stale"
+                " PID file."
+            )
+            continue
+        if not _is_process_running(pid):
+            _cleanup_pid_file(pid_file)
+            _cli.console.print(
+                f"Worker {slug!r} is not running. Cleaning up stale PID file."
+            )
+            continue
+        try:
+            if os.name == "nt":
+                os.kill(pid, signal.CTRL_BREAK_EVENT)
+            else:
+                os.kill(pid, signal.SIGTERM)
+        except (ProcessLookupError, OSError):
+            pass
+        _cleanup_pid_file(pid_file)
+        _cli.console.print(f"Worker {slug!r} stopped!")

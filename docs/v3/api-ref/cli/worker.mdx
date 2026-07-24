@@ -94,6 +94,62 @@ Start a worker process to poll a work pool for flow runs.
     Create the work pool if it does not exist. Set to false when the work pool is managed externally (e.g. via Terraform or another provisioning tool).
 </ResponseField>
 
+<ResponseField name="--background">
+    Run the worker in the background.
+</ResponseField>
+
 </Accordion>
 
 </AccordionGroup>
+
+
+
+## `prefect worker stop`
+
+
+
+```command
+prefect worker stop [OPTIONS] [NAME]
+```
+
+
+
+<Info>
+Stop one or more Prefect workers running in the background.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string">
+    The name of the background worker to stop.
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--all">
+    Stop all background workers.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect worker stop my-worker
+$ prefect worker stop --all
+```
+</Note>
