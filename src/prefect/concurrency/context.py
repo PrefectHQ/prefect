@@ -1,3 +1,4 @@
+import logging
 from contextvars import ContextVar
 from typing import Any, ClassVar
 from uuid import UUID
@@ -8,7 +9,7 @@ from prefect.client.orchestration import get_client
 from prefect.context import ContextModel, Field
 from prefect.logging.loggers import get_logger
 
-logger = get_logger("concurrency")
+logger: logging.Logger = get_logger("concurrency")
 
 
 class ConcurrencyContext(ContextModel):
