@@ -71,12 +71,13 @@ export const FlowRunStateTabs = ({
 				<TabsList className="flex justify-between w-full h-auto">
 					{STATE_TYPES.map((stateType) => (
 						<Tooltip key={stateType.join("-")}>
-							<TooltipTrigger asChild>
-								<TabsTrigger
-									value={stateType.join("-")}
-									aria-label={`${stateType.join("-").toLowerCase()} runs`}
-									className="flex flex-col items-center gap-1"
-								>
+							<TabsTrigger
+								asChild
+								value={stateType.join("-")}
+								aria-label={`${stateType.join("-").toLowerCase()} runs`}
+								className="flex flex-col items-center gap-1"
+							>
+								<TooltipTrigger>
 									<FlowRunStateCountPill
 										states={stateType}
 										count={stateType.reduce(
@@ -84,8 +85,8 @@ export const FlowRunStateTabs = ({
 											0,
 										)}
 									/>
-								</TabsTrigger>
-							</TooltipTrigger>
+								</TooltipTrigger>
+							</TabsTrigger>
 							<TooltipContent>
 								{stateType.join(", ").toLowerCase()}
 							</TooltipContent>
