@@ -16,6 +16,26 @@ class ServerTasksSchedulingSettings(PrefectBaseSettings):
         ("server", "tasks", "scheduling")
     )
 
+    max_scheduled_queue_size: int = Field(
+        default=1000,
+        description="The maximum number of scheduled tasks to queue for submission.",
+        validation_alias=AliasChoices(
+            AliasPath("max_scheduled_queue_size"),
+            "prefect_server_tasks_scheduling_max_scheduled_queue_size",
+            "prefect_task_scheduling_max_scheduled_queue_size",
+        ),
+    )
+
+    max_retry_queue_size: int = Field(
+        default=100,
+        description="The maximum number of retries to queue for submission.",
+        validation_alias=AliasChoices(
+            AliasPath("max_retry_queue_size"),
+            "prefect_server_tasks_scheduling_max_retry_queue_size",
+            "prefect_task_scheduling_max_retry_queue_size",
+        ),
+    )
+
     pending_task_timeout: timedelta = Field(
         default=timedelta(0),
         description="How long before a PENDING task are made available to another task worker.",

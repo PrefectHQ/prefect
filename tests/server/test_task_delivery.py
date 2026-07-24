@@ -10,6 +10,7 @@ from docket import Docket, Worker
 from redis.exceptions import ConnectionError as RedisConnectionError
 
 from prefect.server.schemas.core import TaskRun
+from prefect.server.schemas.states import Scheduled
 from prefect.server.task_delivery import (
     TaskDeliveryUnavailable,
     TaskRunDeliveryManager,
@@ -256,6 +257,73 @@ async def test_publication_is_idempotent() -> None:
 
             with pytest.raises(asyncio.TimeoutError):
                 await subscription.receive(timeout=0.01)
+
+
+async def test_scheduled_deliveries_are_fifo() -> None:
+    async with delivery_system() as (_, manager):
+        task_runs = [make_task_run() for _ in range(10)]
+        async with manager.subscribe(["example.task"]) as subscription:
+            for task_run in task_runs:
+                await manager.publish(task_run)
+            deliveries = [await subscription.receive() for _ in task_runs]
+            for delivery in deliveries:
+                await subscription.acknowledge(delivery)
+
+        assert [delivery.task_run.id for delivery in deliveries] == [
+            task_run.id for task_run in task_runs
+        ]
+
+
+async def test_retry_deliveries_have_priority() -> None:
+    async with delivery_system() as (_, manager):
+        scheduled = make_task_run()
+        retry = make_task_run()
+        retry.state = Scheduled(name="AwaitingRetry")
+        async with manager.subscribe(["example.task"]) as subscription:
+            await manager.publish(scheduled)
+            await manager.publish(retry)
+            first = await subscription.receive()
+            second = await subscription.receive()
+            await subscription.acknowledge(first)
+            await subscription.acknowledge(second)
+
+        assert first.task_run.id == retry.id
+        assert second.task_run.id == scheduled.id
+
+
+async def test_scheduled_queue_applies_backpressure() -> None:
+    async with Docket(
+        name=f"test-{uuid4()}", url="memory://", execution_ttl=timedelta(0)
+    ) as docket:
+        docket.register(deliver_task_run)
+        manager = TaskRunDeliveryManager(
+            docket,
+            timedelta(seconds=1),
+            max_scheduled_size=1,
+            max_retry_size=1,
+        )
+        first = make_task_run()
+        second = make_task_run()
+        async with (
+            Worker(
+                docket,
+                minimum_check_interval=timedelta(milliseconds=5),
+                scheduling_resolution=timedelta(milliseconds=5),
+            ) as worker,
+            manager.subscribe(["example.task"]) as subscription,
+        ):
+            worker_task = asyncio.create_task(worker.run_forever())
+            await manager.publish(first)
+            blocked = asyncio.create_task(manager.publish(second))
+            await asyncio.sleep(0.05)
+            assert not blocked.done()
+            delivery = await subscription.receive()
+            await blocked
+            await subscription.acknowledge(delivery)
+            second_delivery = await subscription.receive()
+            await subscription.acknowledge(second_delivery)
+            worker_task.cancel()
+            await asyncio.gather(worker_task, return_exceptions=True)
 
 
 async def test_docket_schedules_delivery() -> None:

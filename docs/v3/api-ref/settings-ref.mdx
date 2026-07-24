@@ -2919,6 +2919,30 @@ Settings for controlling server worker channel behavior
 ---
 ## ServerTasksSchedulingSettings
 Settings for controlling server-side behavior related to task scheduling
+### `max_scheduled_queue_size`
+The maximum number of scheduled tasks to queue for submission.
+
+**Type**: `integer`
+
+**Default**: `1000`
+
+**TOML dotted key path**: `server.tasks.scheduling.max_scheduled_queue_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_TASKS_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE`, `PREFECT_TASK_SCHEDULING_MAX_SCHEDULED_QUEUE_SIZE`
+
+### `max_retry_queue_size`
+The maximum number of retries to queue for submission.
+
+**Type**: `integer`
+
+**Default**: `100`
+
+**TOML dotted key path**: `server.tasks.scheduling.max_retry_queue_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_TASKS_SCHEDULING_MAX_RETRY_QUEUE_SIZE`, `PREFECT_TASK_SCHEDULING_MAX_RETRY_QUEUE_SIZE`
+
 ### `pending_task_timeout`
 How long before a PENDING task are made available to another task worker.
 

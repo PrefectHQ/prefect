@@ -7,23 +7,89 @@ import hashlib
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import AsyncGenerator, ClassVar
+from typing import Any, AsyncGenerator, ClassVar, TypedDict, cast
 
 import orjson
+import sqlalchemy as sa
 from docket import CurrentDocket, Docket, Perpetual
 from redis.exceptions import ConnectionError as RedisConnectionError
+from sqlalchemy.orm import selectinload
 
 import prefect.server.schemas as schemas
 from prefect.logging import get_logger
+from prefect.server.database import provide_database_interface
+from prefect.server.schemas.states import StateType
+from prefect.settings import get_current_settings
 
 _RECONNECTION_DELAY = 0.5
 _READY = "ready"
 _CLAIMED = "claimed"
 _logger = get_logger(__name__)
 
+_RESERVE = """
+if redis.call('ZSCORE', KEYS[1], ARGV[1]) then return 1 end
+if redis.call('ZCARD', KEYS[1]) >= tonumber(ARGV[2]) then return 0 end
+redis.call('ZADD', KEYS[1], 0, ARGV[1])
+return 1
+"""
+
+_OFFER = """
+if redis.call('EXISTS', KEYS[2]) == 1 then
+  redis.call('ZREM', KEYS[3], ARGV[1])
+  redis.call('DEL', KEYS[1])
+  return 0
+end
+if redis.call('EXISTS', KEYS[1]) == 0 then
+  redis.call('LPUSH', KEYS[4], ARGV[2])
+  redis.call('SET', KEYS[1], 'ready')
+  return 1
+end
+return 0
+"""
+
+_CLAIM = """
+for i, queue in ipairs(KEYS) do
+  local message = redis.call('RPOP', queue)
+  if message then
+    local delivery, marker, acked, members =
+      string.match(message, '^([^\\n]+)\\n([^\\n]+)\\n([^\\n]+)\\n([^\\n]+)\\n')
+    if redis.call('EXISTS', acked) == 0 then
+      redis.call('SET', marker, 'claimed', 'PX', ARGV[1])
+      redis.call('ZREM', members, delivery)
+      return {queue, message}
+    end
+    redis.call('DEL', marker)
+  end
+end
+return nil
+"""
+
+_REQUEUE = """
+if redis.call('EXISTS', KEYS[2]) == 1 then
+  redis.call('DEL', KEYS[1])
+  return 1
+end
+if not redis.call('ZSCORE', KEYS[3], ARGV[1]) then
+  if redis.call('ZCARD', KEYS[3]) >= tonumber(ARGV[3]) then return 0 end
+  redis.call('ZADD', KEYS[3], 0, ARGV[1])
+end
+redis.call('RPUSH', KEYS[4], ARGV[2])
+redis.call('SET', KEYS[1], 'ready')
+return 1
+"""
+
 
 class TaskDeliveryUnavailable(RuntimeError):
     """Raised when task delivery has not been configured."""
+
+
+class _DeliveryEnvelope(TypedDict):
+    delivery_id: str
+    queued_key: str
+    acked_key: str
+    members_key: str
+    kind: str
+    task_run: dict[str, Any]
 
 
 @dataclass(frozen=True)
@@ -32,6 +98,8 @@ class TaskRunDelivery:
     delivery_id: str
     queue: str
     message: bytes
+    members_key: str
+    max_size: int
 
 
 class TaskRunSubscription:
@@ -42,10 +110,23 @@ class TaskRunSubscription:
         docket: Docket,
         task_keys: list[str],
         visibility_timeout: timedelta,
+        max_scheduled_size: int,
+        max_retry_size: int,
     ) -> None:
         self._docket = docket
-        self._queues = [_queue_key(docket, task_key) for task_key in task_keys]
+        self._queues = [
+            queue
+            for task_key in task_keys
+            for queue in (
+                _queue_key(docket, task_key, "retry"),
+                _queue_key(docket, task_key, "scheduled"),
+            )
+        ]
         self._visibility_timeout = visibility_timeout
+        self._max_sizes = {
+            "scheduled": max_scheduled_size,
+            "retry": max_retry_size,
+        }
         self._outstanding: dict[str, TaskRunDelivery] = {}
         self._visibility_renewer: asyncio.Task[None] | None = None
 
@@ -86,24 +167,16 @@ class TaskRunSubscription:
 
                 queue, message = result
                 queue = _decode(queue)
-                envelope = orjson.loads(message)
+                envelope = _decode_envelope(message)
                 delivery_id = envelope["delivery_id"]
-
-                async with self._docket.redis() as redis:
-                    if await redis.exists(_acked_key(self._docket, delivery_id)):
-                        await redis.delete(_queued_key(self._docket, delivery_id))
-                        continue
-                    await redis.set(
-                        _queued_key(self._docket, delivery_id),
-                        _CLAIMED,
-                        ex=self._visibility_timeout,
-                    )
 
                 delivery = TaskRunDelivery(
                     task_run=schemas.core.TaskRun.model_validate(envelope["task_run"]),
                     delivery_id=delivery_id,
                     queue=queue,
                     message=message,
+                    members_key=envelope["members_key"],
+                    max_size=self._max_sizes[envelope["kind"]],
                 )
                 self._outstanding[delivery_id] = delivery
                 return delivery
@@ -118,7 +191,16 @@ class TaskRunSubscription:
 
     async def _pop_one(self) -> tuple[bytes, bytes] | None:
         async with self._docket.redis() as redis:
-            return await redis.brpop(self._queues, timeout=1)
+            result = await cast(Any, redis).eval(
+                _CLAIM,
+                len(self._queues),
+                *self._queues,
+                str(int(self._visibility_timeout.total_seconds() * 1000)),
+            )
+        if result is None:
+            await asyncio.sleep(0.01)
+            return None
+        return result[0], result[1]
 
     async def acknowledge(self, delivery: TaskRunDelivery) -> None:
         """Acknowledge a task run accepted by the connected TaskWorker."""
@@ -129,7 +211,6 @@ class TaskRunSubscription:
                 ex=_delivery_ttl(self._visibility_timeout),
             )
             await redis.delete(_queued_key(self._docket, delivery.delivery_id))
-            await redis.lrem(delivery.queue, 0, delivery.message)
 
         self._outstanding.pop(delivery.delivery_id, None)
         # The acceptance marker is authoritative if cancellation races a
@@ -143,29 +224,24 @@ class TaskRunSubscription:
                 delivery.delivery_id,
                 exc_info=True,
             )
-        else:
-            try:
-                async with self._docket.redis() as redis:
-                    await redis.delete(_acked_key(self._docket, delivery.delivery_id))
-            except RedisConnectionError:
-                # The marker has a bounded TTL and is safe to leave behind.
-                _logger.warning(
-                    "Accepted and cancelled task delivery %s, but could not "
-                    "remove its acceptance marker",
-                    delivery.delivery_id,
-                    exc_info=True,
-                )
 
     async def _requeue(self, delivery: TaskRunDelivery) -> None:
-        async with self._docket.redis() as redis:
-            if await redis.exists(_acked_key(self._docket, delivery.delivery_id)):
+        while True:
+            async with self._docket.redis() as redis:
+                requeued = await cast(Any, redis).eval(
+                    _REQUEUE,
+                    4,
+                    _queued_key(self._docket, delivery.delivery_id),
+                    _acked_key(self._docket, delivery.delivery_id),
+                    delivery.members_key,
+                    delivery.queue,
+                    delivery.delivery_id,
+                    delivery.message,
+                    str(delivery.max_size),
+                )
+            if requeued:
                 return
-            await redis.rpush(delivery.queue, delivery.message)
-            await redis.set(
-                _queued_key(self._docket, delivery.delivery_id),
-                _READY,
-                ex=self._visibility_timeout * 2,
-            )
+            await asyncio.sleep(0.01)
 
     async def _renew_visibility(self) -> None:
         interval = max(0.001, self._visibility_timeout.total_seconds() / 4)
@@ -192,9 +268,26 @@ class TaskRunDeliveryManager:
 
     _active: ClassVar["TaskRunDeliveryManager | None"] = None
 
-    def __init__(self, docket: Docket, visibility_timeout: timedelta) -> None:
+    def __init__(
+        self,
+        docket: Docket,
+        visibility_timeout: timedelta,
+        max_scheduled_size: int | None = None,
+        max_retry_size: int | None = None,
+    ) -> None:
         self._docket = docket
         self._visibility_timeout = visibility_timeout
+        scheduling = get_current_settings().server.tasks.scheduling
+        self._max_scheduled_size = (
+            max_scheduled_size
+            if max_scheduled_size is not None
+            else scheduling.max_scheduled_queue_size
+        )
+        self._max_retry_size = (
+            max_retry_size
+            if max_retry_size is not None
+            else scheduling.max_retry_queue_size
+        )
 
     @classmethod
     def active(cls) -> "TaskRunDeliveryManager":
@@ -208,11 +301,51 @@ class TaskRunDeliveryManager:
         *,
         when: datetime | None = None,
     ) -> None:
+        kind = _delivery_kind(task_run)
+        max_size = self._max_retry_size if kind == "retry" else self._max_scheduled_size
+        delivery_id = _delivery_key(task_run)
+        members_key = _members_key(self._docket, task_run.task_key, kind)
+        await self._reserve(members_key, delivery_id, max_size, wait=True)
         await self._docket.add(
             deliver_task_run,
-            key=_delivery_key(task_run),
+            key=delivery_id,
             when=when,
-        )(task_run, self._visibility_timeout.total_seconds())
+        )(task_run, self._visibility_timeout.total_seconds(), kind, max_size)
+
+    async def reconcile(self, task_run: schemas.core.TaskRun) -> bool:
+        """Restore delivery for a deferred task run if its execution is absent."""
+        delivery_id = _delivery_key(task_run)
+        if await self._docket.get_execution(delivery_id) is not None:
+            return False
+        async with self._docket.redis() as redis:
+            if await redis.exists(_acked_key(self._docket, delivery_id)):
+                return False
+        kind = _delivery_kind(task_run)
+        max_size = self._max_retry_size if kind == "retry" else self._max_scheduled_size
+        members_key = _members_key(self._docket, task_run.task_key, kind)
+        if not await self._reserve(members_key, delivery_id, max_size, wait=False):
+            return False
+        when = (
+            task_run.state.state_details.scheduled_time
+            if kind == "retry" and task_run.state is not None
+            else None
+        )
+        await self._docket.add(deliver_task_run, key=delivery_id, when=when)(
+            task_run, self._visibility_timeout.total_seconds(), kind, max_size
+        )
+        return True
+
+    async def _reserve(
+        self, members_key: str, delivery_id: str, max_size: int, *, wait: bool
+    ) -> bool:
+        while True:
+            async with self._docket.redis() as redis:
+                reserved = await cast(Any, redis).eval(
+                    _RESERVE, 1, members_key, delivery_id, str(max_size)
+                )
+            if reserved or not wait:
+                return bool(reserved)
+            await asyncio.sleep(0.01)
 
     async def publish(self, task_run: schemas.core.TaskRun) -> None:
         await self.schedule(task_run)
@@ -222,6 +355,8 @@ class TaskRunDeliveryManager:
             self._docket,
             task_keys,
             self._visibility_timeout,
+            self._max_scheduled_size,
+            self._max_retry_size,
         )
 
 
@@ -237,6 +372,8 @@ async def schedule_task_run_delivery(
 async def deliver_task_run(
     task_run: schemas.core.TaskRun,
     visibility_timeout_seconds: float,
+    kind: str,
+    max_size: int,
     perpetual: Perpetual = Perpetual(),
     docket: Docket = CurrentDocket(),
 ) -> None:
@@ -245,36 +382,26 @@ async def deliver_task_run(
     delivery_id = _delivery_key(task_run)
     queued = _queued_key(docket, delivery_id)
     acked = _acked_key(docket, delivery_id)
+    members = _members_key(docket, task_run.task_key, kind)
+    queue = _queue_key(docket, task_run.task_key, kind)
+    message = _encode_envelope(delivery_id, queued, acked, members, kind, task_run)
 
     async with docket.redis() as redis:
         if await redis.exists(acked):
+            await redis.zrem(members, delivery_id)
             await redis.delete(queued)
             perpetual.cancel()
             return
-
-        newly_ready = await redis.set(
+        await cast(Any, redis).eval(
+            _OFFER,
+            4,
             queued,
-            _READY,
-            nx=True,
-            ex=visibility_timeout * 2,
+            acked,
+            members,
+            queue,
+            delivery_id,
+            message,
         )
-
-        if newly_ready:
-            await redis.rpush(
-                _queue_key(docket, task_run.task_key),
-                orjson.dumps(
-                    {
-                        "delivery_id": delivery_id,
-                        "task_run": task_run.model_dump(mode="json"),
-                    }
-                ),
-            )
-        else:
-            delivery_status = await redis.get(queued)
-            if delivery_status is not None and _decode(delivery_status) == _READY:
-                # Keep the marker alive while the delivery remains in the ready list.
-                # A subscriber changes it to a visibility-limited claim after BRPOP.
-                await redis.expire(queued, visibility_timeout * 2)
 
     perpetual.after(visibility_timeout)
 
@@ -290,16 +417,102 @@ async def task_run_delivery_lifespan(
     if TaskRunDeliveryManager._active is not None:
         raise RuntimeError("Task delivery is already running")
     TaskRunDeliveryManager._active = manager
+    reconciliation = asyncio.create_task(_reconcile_task_run_deliveries(manager))
     try:
         yield manager
     finally:
+        reconciliation.cancel()
+        await asyncio.gather(reconciliation, return_exceptions=True)
         if TaskRunDeliveryManager._active is manager:
             TaskRunDeliveryManager._active = None
 
 
-def _queue_key(docket: Docket, task_key: str) -> str:
+async def _reconcile_task_run_deliveries(
+    manager: TaskRunDeliveryManager,
+) -> None:
+    """Continuously repair Docket delivery state from the Prefect database."""
+    while True:
+        try:
+            db = provide_database_interface()
+            async with db.session_context(begin_transaction=False) as session:
+                result = await session.execute(
+                    sa.select(db.TaskRun)
+                    .join(
+                        db.TaskRunState,
+                        db.TaskRun.state_id == db.TaskRunState.id,
+                    )
+                    .where(db.TaskRun.state_type == StateType.SCHEDULED)
+                    .where(
+                        db.TaskRunState.state_details["deferred"].as_boolean()
+                        == sa.true()
+                    )
+                    .options(selectinload(db.TaskRun.state))
+                    .order_by(db.TaskRun.created)
+                )
+                task_runs = [
+                    schemas.core.TaskRun.model_validate(model)
+                    for model in result.scalars().all()
+                ]
+            for task_run in task_runs:
+                await manager.reconcile(task_run)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            _logger.warning(
+                "Failed to reconcile deferred task deliveries; retrying",
+                exc_info=True,
+            )
+        await asyncio.sleep(max(1.0, manager._visibility_timeout.total_seconds() / 2))
+
+
+def _queue_key(docket: Docket, task_key: str, kind: str = "scheduled") -> str:
     route = hashlib.blake2b(task_key.encode(), digest_size=16).hexdigest()
-    return docket.key(f"task-runs:ready:{route}")
+    return docket.key(f"task-runs:ready:{route}:{kind}")
+
+
+def _members_key(docket: Docket, task_key: str, kind: str) -> str:
+    route = hashlib.blake2b(task_key.encode(), digest_size=16).hexdigest()
+    return docket.key(f"task-runs:members:{route}:{kind}")
+
+
+def _delivery_kind(task_run: schemas.core.TaskRun) -> str:
+    return (
+        "retry"
+        if task_run.state is not None and task_run.state.name == "AwaitingRetry"
+        else "scheduled"
+    )
+
+
+def _encode_envelope(
+    delivery_id: str,
+    queued_key: str,
+    acked_key: str,
+    members_key: str,
+    kind: str,
+    task_run: schemas.core.TaskRun,
+) -> bytes:
+    return b"\n".join(
+        (
+            delivery_id.encode(),
+            queued_key.encode(),
+            acked_key.encode(),
+            members_key.encode(),
+            kind.encode(),
+            orjson.dumps(task_run.model_dump(mode="json")),
+        )
+    )
+
+
+def _decode_envelope(message: bytes) -> _DeliveryEnvelope:
+    delivery_id, queued, acked, members, kind, task_run = message.split(b"\n", 5)
+    return {
+        "delivery_id": delivery_id.decode(),
+        "queued_key": queued.decode(),
+        "acked_key": acked.decode(),
+        "members_key": members.decode(),
+        "kind": kind.decode(),
+        "task_run": orjson.loads(task_run),
+    }
 
 
 def _delivery_key(task_run: schemas.core.TaskRun) -> str:
