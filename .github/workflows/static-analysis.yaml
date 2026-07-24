@@ -52,7 +52,7 @@ jobs:
           cache-dependency-path: "**/package-lock.json"
 
       - name: Install mintlify-scrape
-        run: npm install -g @mintlify/scraping
+        run: npm install -g @mintlify/scraping@3.0.123
 
       - name: Run pre-commit
         run: |
@@ -93,5 +93,4 @@ jobs:
       - name: Run pyright check
         run: >-
           uv run pyright -p .github/pyrightconfig-ci.json --level error
-
 
