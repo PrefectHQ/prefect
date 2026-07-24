@@ -7,9 +7,15 @@ from typing_extensions import Self
 
 from prefect.client.orchestration import get_client
 from prefect.context import ContextModel, Field
-from prefect.logging.loggers import get_logger
+from prefect.logging.loggers import get_logger, get_run_logger
 
-logger: logging.Logger = get_logger("concurrency")
+
+def _cleanup_logger() -> logging.Logger | logging.LoggerAdapter[logging.Logger]:
+    try:
+        # Use a run logger if available so failures reach the run logs
+        return get_run_logger()
+    except Exception:
+        return get_logger("concurrency")
 
 
 class ConcurrencyContext(ContextModel):
@@ -24,6 +30,7 @@ class ConcurrencyContext(ContextModel):
         # Releasing these slots is best-effort: a failure for one entry must not
         # strand the others or skip the context teardown below.
         if self.cleanup_slots:
+            logger = _cleanup_logger()
             try:
                 with get_client(sync_client=True) as client:
                     for names, occupancy_seconds, task_run_id in self.cleanup_slots:
