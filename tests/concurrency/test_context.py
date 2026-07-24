@@ -1,11 +1,11 @@
 import asyncio
 import time
-import uuid
 from unittest import mock
+from uuid import UUID, uuid4
 
 import pytest
 
-from prefect.client.orchestration import PrefectClient, get_client
+from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.context import ConcurrencyContext
 from prefect.concurrency.sync import concurrency
@@ -40,28 +40,37 @@ async def test_concurrency_context_releases_slots_async(
     assert response.active_slots == 0
 
 
-def test_concurrency_context_cleanup_continues_after_release_failure():
-    lease_ids = [uuid.uuid4() for _ in range(3)]
-    released: list[uuid.UUID] = []
+async def test_concurrency_context_cleanup_continues_after_release_failure(
+    concurrency_limit: ConcurrencyLimitV2, prefect_client: PrefectClient
+):
+    with get_client(sync_client=True) as client:
+        response = client.increment_concurrency_slots_with_lease(
+            names=[concurrency_limit.name],
+            slots=1,
+            mode="concurrency",
+            lease_duration=300,
+        )
+    lease_id = UUID(response.json()["lease_id"])
 
-    def release(lease_id: uuid.UUID) -> None:
-        released.append(lease_id)
-        if lease_id == lease_ids[0]:
+    real_release = SyncPrefectClient.release_concurrency_slots_with_lease
+    failing_lease_id = uuid4()
+
+    def release(self: SyncPrefectClient, lease_id: UUID):
+        if lease_id == failing_lease_id:
             raise RuntimeError("transient API failure")
+        return real_release(self, lease_id=lease_id)
 
-    client = mock.MagicMock()
-    client.__enter__.return_value = client
-    client.release_concurrency_slots_with_lease.side_effect = release
-
-    with mock.patch(
-        "prefect.concurrency.context.get_client", return_value=client
-    ) as get_client_mock:
-        context = ConcurrencyContext(cleanup_lease_ids=lease_ids)
-        with context:
+    # The first release fails; the real lease must still be released.
+    with mock.patch.object(
+        SyncPrefectClient, "release_concurrency_slots_with_lease", release
+    ):
+        with ConcurrencyContext(cleanup_lease_ids=[failing_lease_id, lease_id]):
             pass
 
-    get_client_mock.assert_called_once_with(sync_client=True)
-    assert released == lease_ids
+    limit = await prefect_client.read_global_concurrency_limit_by_name(
+        concurrency_limit.name
+    )
+    assert limit.active_slots == 0
     assert ConcurrencyContext.get() is None
 
 

@@ -10,7 +10,7 @@ from prefect.context import ContextModel, Field
 from prefect.logging.loggers import get_logger, get_run_logger
 
 
-def _cleanup_logger() -> logging.Logger | logging.LoggerAdapter[logging.Logger]:
+def _cleanup_logger() -> "logging.Logger | logging.LoggerAdapter[logging.Logger]":
     try:
         # Use a run logger if available so failures reach the run logs
         return get_run_logger()
