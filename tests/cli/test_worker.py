@@ -940,14 +940,14 @@ class TestWorkerSignalForwarding:
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
-    async def test_sigint_sends_sigterm(self, worker_process):
+    async def test_sigint_drains_worker(self, worker_process):
         worker_process.send_signal(signal.SIGINT)
         await safe_shutdown(worker_process)
         worker_process.out.seek(0)
         out = worker_process.out.read().decode()
 
-        assert "Sending SIGINT" in out, (
-            "When sending a SIGINT, the main process should receive a SIGINT."
+        assert "Draining the process worker" in out, (
+            "When sending a SIGINT, the worker should drain active runs."
             f" Output:\n{out}"
         )
         assert "Worker 'test-worker' stopped!" in out, (
@@ -959,14 +959,14 @@ class TestWorkerSignalForwarding:
         sys.platform == "win32",
         reason="SIGTERM is only used in non-Windows environments",
     )
-    async def test_sigterm_sends_sigterm_directly(self, worker_process):
+    async def test_sigterm_drains_process_worker(self, worker_process):
         worker_process.send_signal(signal.SIGTERM)
         await safe_shutdown(worker_process)
         worker_process.out.seek(0)
         out = worker_process.out.read().decode()
 
-        assert "Sending SIGINT" in out, (
-            "When sending a SIGTERM, the main process should receive a SIGINT."
+        assert "Draining the process worker" in out, (
+            "When sending a SIGTERM, the process worker should drain active runs."
             f" Output:\n{out}"
         )
         assert "Worker 'test-worker' stopped!" in out, (
@@ -1021,5 +1021,5 @@ class TestWorkerSignalForwarding:
             or "Aborted." in out
         ), (
             "When sending two SIGTERM shortly after each other, the main process should"
-            f" first receive a SIGINT and then a SIGKILL. Output:\n{out}"
+            f" drain and then receive a SIGKILL. Output:\n{out}"
         )

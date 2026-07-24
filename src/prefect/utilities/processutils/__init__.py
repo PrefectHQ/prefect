@@ -556,23 +556,43 @@ def setup_signal_handlers_agent(pid: int, process_name: str, print_fn: PrintFn) 
 
 
 def setup_signal_handlers_worker(
-    pid: int, process_name: str, print_fn: PrintFn
+    pid: int,
+    process_name: str,
+    print_fn: PrintFn,
+    request_drain: Optional[Callable[[], None]] = None,
 ) -> None:
     """Handle interrupts of workers gracefully."""
     setup_handler = partial(
         forward_signal_handler, pid, process_name=process_name, print_fn=print_fn
     )
-    # when agent receives SIGINT, it stops dequeueing new FlowRuns, and runs until the subprocesses finish
+    # when worker receives SIGINT/SIGTERM, it stops dequeueing new FlowRuns,
+    # and runs until the subprocesses finish
     # the signal is not forwarded to subprocesses, so they can continue to run and hopefully still complete
     if sys.platform == "win32":
         # on Windows, use CTRL_BREAK_EVENT as SIGTERM is useless:
         # https://bugs.python.org/issue26350
         setup_handler(signal.SIGINT, signal.CTRL_BREAK_EVENT)
     else:
-        # forward first SIGINT directly, send SIGKILL on subsequent interrupt
-        setup_handler(signal.SIGINT, signal.SIGINT, signal.SIGKILL)
-        # first SIGTERM: send SIGINT, send SIGKILL on subsequent SIGTERM
-        setup_handler(signal.SIGTERM, signal.SIGINT, signal.SIGKILL)
+        if request_drain is None:
+            # forward first SIGINT directly, send SIGKILL on subsequent interrupt
+            setup_handler(signal.SIGINT, signal.SIGINT, signal.SIGKILL)
+            # first SIGTERM: send SIGINT, send SIGKILL on subsequent SIGTERM
+            setup_handler(signal.SIGTERM, signal.SIGINT, signal.SIGKILL)
+        else:
+
+            def drain_then_escalate(signum: signal.Signals) -> None:
+                def handle_signal(*arg: Any) -> None:
+                    print_fn(
+                        f"Received {signum.name}. Draining {process_name} "
+                        f"(PID {pid})..."
+                    )
+                    request_drain()
+                    setup_handler(signum, signal.SIGKILL)
+
+                _register_signal(signum, handle_signal)
+
+            drain_then_escalate(signal.SIGINT)
+            drain_then_escalate(signal.SIGTERM)
 
 
 def get_sys_executable() -> str:

@@ -607,6 +607,65 @@ async def test_task_status_receives_pid(
         fake_status.started.assert_called_once_with(int(result.identifier))
 
 
+async def test_process_worker_drain_preserves_active_runs(
+    process_work_pool: WorkPool,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    worker = ProcessWorker(work_pool_name=process_work_pool.name)
+    active_run_started = anyio.Event()
+    release_active_run = anyio.Event()
+    active_run_finished = anyio.Event()
+    polling_loop_cancelled = anyio.Event()
+
+    async def active_run():
+        active_run_started.set()
+        await release_active_run.wait()
+        active_run_finished.set()
+
+    monkeypatch.setattr(worker, "sync_with_backend", AsyncMock())
+
+    async with worker:
+        assert worker._runs_task_group is not None
+        worker._runs_task_group.start_soon(active_run)
+        await active_run_started.wait()
+
+        async with anyio.create_task_group() as loops_task_group:
+            worker._loops_task_group = loops_task_group
+
+            async def polling_loop():
+                try:
+                    await anyio.sleep_forever()
+                finally:
+                    polling_loop_cancelled.set()
+
+            loops_task_group.start_soon(polling_loop)
+            worker.request_drain()
+
+        assert polling_loop_cancelled.is_set()
+
+        with anyio.move_on_after(0.2) as scope:
+            await active_run_finished.wait()
+        assert scope.cancel_called
+
+        release_active_run.set()
+        await active_run_finished.wait()
+
+
+@pytest.mark.timeout(15)
+async def test_process_worker_run_once_exits_without_drain():
+    worker = ProcessWorker(work_pool_name="test-pool")
+    worker.setup = AsyncMock()
+    worker.teardown = AsyncMock()
+    worker.sync_with_backend = AsyncMock()
+    worker.get_and_submit_flow_runs = AsyncMock(return_value=[])
+    worker._emit_worker_started_event = AsyncMock(return_value=None)
+
+    await worker.start(run_once=True)
+
+    assert worker.get_and_submit_flow_runs.call_count == 1
+    assert worker.sync_with_backend.call_count == 1
+
+
 async def test_submit_adhoc_run_with_existing_flow_run_reuses_id(
     process_work_pool: WorkPool,
     prefect_client: PrefectClient,

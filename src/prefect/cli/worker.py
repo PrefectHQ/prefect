@@ -209,11 +209,6 @@ async def start(
             " installed to run your desired worker type."
         )
 
-    worker_process_id = os.getpid()
-    setup_signal_handlers_worker(
-        worker_process_id, f"the {worker_type} worker", _cli.console.print
-    )
-
     template_contents = None
     if base_job_template is not None:
         template_contents = json.loads(base_job_template.read_text())
@@ -227,6 +222,14 @@ async def start(
         heartbeat_interval_seconds=int(PREFECT_WORKER_HEARTBEAT_SECONDS.value()),
         base_job_template=template_contents,
         create_pool_if_not_found=create_pool_if_not_found,
+    )
+
+    worker_process_id = os.getpid()
+    setup_signal_handlers_worker(
+        worker_process_id,
+        f"the {worker_type} worker",
+        _cli.console.print,
+        request_drain=worker.request_drain,
     )
     try:
         await worker.start(
