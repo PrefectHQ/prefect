@@ -56,25 +56,18 @@ class Subscription(Generic[S]):
             try:
                 await self._ensure_connected()
                 message = await self.websocket.recv()
+
+                await self.websocket.send(orjson.dumps({"type": "ack"}).decode())
+
                 return self.model.model_validate_json(message)
             except (
                 ConnectionRefusedError,
-                websockets.exceptions.ConnectionClosed,
+                websockets.exceptions.ConnectionClosedError,
             ):
-                await self._reset_connection()
+                self._websocket = None
+                if hasattr(self._connect, "protocol"):
+                    await self._connect.__aexit__(None, None, None)
                 await asyncio.sleep(0.5)
-
-    async def acknowledge(self) -> None:
-        """Acknowledge that the most recently received message was accepted."""
-        try:
-            await self.websocket.send(orjson.dumps({"type": "ack"}).decode())
-        except websockets.exceptions.ConnectionClosed:
-            await self._reset_connection()
-
-    async def _reset_connection(self) -> None:
-        self._websocket = None
-        if hasattr(self._connect, "protocol"):
-            await self._connect.__aexit__(None, None, None)
 
     async def _ensure_connected(self):
         if self._websocket:

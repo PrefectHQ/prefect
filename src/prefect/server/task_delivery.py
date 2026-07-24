@@ -1,4 +1,4 @@
-"""Durable, task-keyed delivery of deferred task runs to TaskWorkers."""
+"""Durable delivery of deferred task runs to TaskWorkers."""
 
 from __future__ import annotations
 
@@ -7,30 +7,18 @@ import hashlib
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, AsyncGenerator, ClassVar
-from uuid import uuid4
+from typing import AsyncGenerator, ClassVar
 
-from docket import CurrentDocket, Docket
+import orjson
+from docket import CurrentDocket, Docket, Perpetual
 from redis.exceptions import ConnectionError as RedisConnectionError
-from redis.exceptions import ResponseError
 
 import prefect.server.schemas as schemas
 from prefect.logging import get_logger
 
-_GROUP = "prefect-task-workers"
-_KEY_PREFIX = "task-runs"
 _RECONNECTION_DELAY = 0.5
-_PUBLISH_SCRIPT = """
-if redis.call('SET', KEYS[2], '1', 'NX', 'EX', ARGV[1]) then
-    return redis.call('XADD', KEYS[1], '*', 'data', ARGV[2])
-end
-return false
-"""
-_ACK_SCRIPT = """
-redis.call('XACK', KEYS[1], ARGV[1], ARGV[2])
-redis.call('XDEL', KEYS[1], ARGV[2])
-return 1
-"""
+_READY = "ready"
+_CLAIMED = "claimed"
 _logger = get_logger(__name__)
 
 
@@ -41,47 +29,28 @@ class TaskDeliveryUnavailable(RuntimeError):
 @dataclass(frozen=True)
 class TaskRunDelivery:
     task_run: schemas.core.TaskRun
-    stream: str
-    message_id: str
+    delivery_id: str
+    queue: str
+    message: bytes
 
 
 class TaskRunSubscription:
-    """A keyed TaskWorker subscription backed by Docket's Redis transport."""
+    """A TaskWorker subscription to one or more task-key queues."""
 
     def __init__(
         self,
         docket: Docket,
         task_keys: list[str],
-        client_id: str,
         visibility_timeout: timedelta,
     ) -> None:
         self._docket = docket
-        self._streams = [_stream_key(docket, key) for key in task_keys]
-        self._consumer = f"{client_id}-{uuid4()}"
-        self._visibility_timeout_ms = max(
-            1, int(visibility_timeout.total_seconds() * 1000)
-        )
-        self._deliveries: asyncio.Queue[TaskRunDelivery] = asyncio.Queue()
-        self._outstanding: dict[
-            tuple[str, str], tuple[TaskRunDelivery, asyncio.Event]
-        ] = {}
-        self._readers: list[asyncio.Task[None]] = []
-        self._lease_renewer: asyncio.Task[None] | None = None
+        self._queues = [_queue_key(docket, task_key) for task_key in task_keys]
+        self._visibility_timeout = visibility_timeout
+        self._outstanding: dict[str, TaskRunDelivery] = {}
+        self._visibility_renewer: asyncio.Task[None] | None = None
 
     async def __aenter__(self) -> "TaskRunSubscription":
-        async with self._docket.redis() as redis:
-            pipeline = redis.pipeline()
-            for stream in self._streams:
-                pipeline.xgroup_create(stream, _GROUP, id="0", mkstream=True)
-            for result in await pipeline.execute(raise_on_error=False):
-                if isinstance(result, ResponseError) and "BUSYGROUP" in str(result):
-                    continue
-                if isinstance(result, BaseException):
-                    raise result
-        self._readers = [
-            asyncio.create_task(self._read_stream(stream)) for stream in self._streams
-        ]
-        self._lease_renewer = asyncio.create_task(self._renew_leases())
+        self._visibility_renewer = asyncio.create_task(self._renew_visibility())
         return self
 
     async def __aexit__(
@@ -90,142 +59,142 @@ class TaskRunSubscription:
         exc: BaseException | None,
         traceback: object | None,
     ) -> None:
-        tasks = [*self._readers]
-        if self._lease_renewer is not None:
-            tasks.append(self._lease_renewer)
-        for task in tasks:
-            task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
-        return None
+        if self._visibility_renewer is not None:
+            self._visibility_renewer.cancel()
+            await asyncio.gather(self._visibility_renewer, return_exceptions=True)
+
+        deliveries = list(self._outstanding.values())
+        self._outstanding.clear()
+        for delivery in deliveries:
+            try:
+                await self._requeue(delivery)
+            except RedisConnectionError:
+                # The Docket execution offers the run again after the visibility
+                # timeout if this API process cannot return it explicitly.
+                pass
 
     async def receive(self, timeout: float = 1) -> TaskRunDelivery:
-        """Receive a new or abandoned delivery matching this subscription."""
-        return await asyncio.wait_for(self._deliveries.get(), timeout=timeout)
+        """Receive a task run matching this subscription."""
+        return await asyncio.wait_for(self._receive_one(), timeout=timeout)
 
-    async def _read_stream(self, stream: str) -> None:
+    async def _receive_one(self) -> TaskRunDelivery:
         while True:
             try:
-                delivery = await self._read_one(stream)
+                result = await self._pop_one()
+                if result is None:
+                    continue
+
+                queue, message = result
+                queue = _decode(queue)
+                envelope = orjson.loads(message)
+                delivery_id = envelope["delivery_id"]
+
+                async with self._docket.redis() as redis:
+                    if await redis.exists(_acked_key(self._docket, delivery_id)):
+                        await redis.delete(_queued_key(self._docket, delivery_id))
+                        continue
+                    await redis.set(
+                        _queued_key(self._docket, delivery_id),
+                        _CLAIMED,
+                        ex=self._visibility_timeout,
+                    )
+
+                delivery = TaskRunDelivery(
+                    task_run=schemas.core.TaskRun.model_validate(envelope["task_run"]),
+                    delivery_id=delivery_id,
+                    queue=queue,
+                    message=message,
+                )
+                self._outstanding[delivery_id] = delivery
+                return delivery
             except RedisConnectionError:
                 _logger.warning(
-                    "Lost the Redis connection while reading task deliveries; "
+                    "Lost the Redis connection while receiving a task delivery; "
                     "retrying in %.1f seconds",
                     _RECONNECTION_DELAY,
                     exc_info=True,
                 )
                 await asyncio.sleep(_RECONNECTION_DELAY)
-                continue
-            except ResponseError as exc:
-                if "NOGROUP" not in str(exc):
-                    raise
-                try:
-                    await self._ensure_group(stream)
-                except RedisConnectionError:
-                    _logger.warning(
-                        "Lost the Redis connection while recreating a task "
-                        "delivery consumer group; retrying in %.1f seconds",
-                        _RECONNECTION_DELAY,
-                        exc_info=True,
-                    )
-                    await asyncio.sleep(_RECONNECTION_DELAY)
-                continue
 
-            released = asyncio.Event()
-            key = (delivery.stream, delivery.message_id)
-            self._outstanding[key] = (delivery, released)
-            await self._deliveries.put(delivery)
-            await released.wait()
-
-    async def _ensure_group(self, stream: str) -> None:
-        try:
-            async with self._docket.redis() as redis:
-                await redis.xgroup_create(stream, _GROUP, id="0", mkstream=True)
-        except ResponseError as exc:
-            if "BUSYGROUP" not in str(exc):
-                raise
-
-    async def _read_one(self, stream: str) -> TaskRunDelivery:
-        while True:
-            async with self._docket.redis() as redis:
-                _, claimed, *_ = await redis.xautoclaim(
-                    stream,
-                    _GROUP,
-                    self._consumer,
-                    min_idle_time=self._visibility_timeout_ms,
-                    start_id="0-0",
-                    count=1,
-                )
-                if claimed:
-                    message_id, fields = claimed[0]
-                    return _parse_delivery(stream, message_id, fields)
-
-                result = await redis.xreadgroup(
-                    _GROUP,
-                    self._consumer,
-                    streams={stream: ">"},
-                    count=1,
-                    block=1000,
-                )
-            if result:
-                _, entries = result[0]
-                message_id, fields = entries[0]
-                return _parse_delivery(stream, message_id, fields)
+    async def _pop_one(self) -> tuple[bytes, bytes] | None:
+        async with self._docket.redis() as redis:
+            return await redis.brpop(self._queues, timeout=1)
 
     async def acknowledge(self, delivery: TaskRunDelivery) -> None:
-        """Permanently acknowledge a delivery accepted by the TaskWorker."""
+        """Acknowledge a task run accepted by the connected TaskWorker."""
         async with self._docket.redis() as redis:
-            await redis.eval(
-                _ACK_SCRIPT,
-                1,
-                delivery.stream,
-                _GROUP,
-                delivery.message_id,
+            await redis.set(
+                _acked_key(self._docket, delivery.delivery_id),
+                "1",
+                ex=_delivery_ttl(self._visibility_timeout),
             )
-        _, released = self._outstanding.pop((delivery.stream, delivery.message_id))
-        released.set()
+            await redis.delete(_queued_key(self._docket, delivery.delivery_id))
+            await redis.lrem(delivery.queue, 0, delivery.message)
 
-    async def _renew(self) -> None:
-        """Keep outstanding deliveries claimed while the TaskWorker is connected."""
-        if not self._outstanding:
-            return
-        async with self._docket.redis() as redis:
-            pipeline = redis.pipeline()
-            for delivery, _ in self._outstanding.values():
-                pipeline.xclaim(
-                    delivery.stream,
-                    _GROUP,
-                    self._consumer,
-                    min_idle_time=0,
-                    message_ids=[delivery.message_id],
-                    idle=0,
-                    justid=True,
-                )
-            await pipeline.execute()
-
-    async def _renew_leases(self) -> None:
-        renewal_interval = self._visibility_timeout_ms / 4000
-        while True:
-            await asyncio.sleep(renewal_interval)
+        self._outstanding.pop(delivery.delivery_id, None)
+        # The acceptance marker is authoritative if cancellation races a
+        # reschedule or Redis becomes unavailable after the writes above.
+        try:
+            await self._docket.cancel(delivery.delivery_id)
+        except RedisConnectionError:
+            _logger.warning(
+                "Accepted task delivery %s, but could not cancel its Docket "
+                "execution; it will stop when Docket next observes the acceptance",
+                delivery.delivery_id,
+                exc_info=True,
+            )
+        else:
             try:
-                await self._renew()
-            except Exception:
+                async with self._docket.redis() as redis:
+                    await redis.delete(_acked_key(self._docket, delivery.delivery_id))
+            except RedisConnectionError:
+                # The marker has a bounded TTL and is safe to leave behind.
                 _logger.warning(
-                    "Failed to renew task delivery leases",
+                    "Accepted and cancelled task delivery %s, but could not "
+                    "remove its acceptance marker",
+                    delivery.delivery_id,
+                    exc_info=True,
+                )
+
+    async def _requeue(self, delivery: TaskRunDelivery) -> None:
+        async with self._docket.redis() as redis:
+            if await redis.exists(_acked_key(self._docket, delivery.delivery_id)):
+                return
+            await redis.rpush(delivery.queue, delivery.message)
+            await redis.set(
+                _queued_key(self._docket, delivery.delivery_id),
+                _READY,
+                ex=self._visibility_timeout * 2,
+            )
+
+    async def _renew_visibility(self) -> None:
+        interval = max(0.001, self._visibility_timeout.total_seconds() / 4)
+        while True:
+            await asyncio.sleep(interval)
+            try:
+                async with self._docket.redis() as redis:
+                    for delivery_id in list(self._outstanding):
+                        await redis.set(
+                            _queued_key(self._docket, delivery_id),
+                            _CLAIMED,
+                            xx=True,
+                            ex=self._visibility_timeout,
+                        )
+            except RedisConnectionError:
+                _logger.warning(
+                    "Lost the Redis connection while renewing task delivery visibility",
                     exc_info=True,
                 )
 
 
 class TaskRunDeliveryManager:
-    """Publishes task runs and creates keyed TaskWorker subscriptions."""
+    """Schedules Docket executions and creates keyed TaskWorker subscriptions."""
 
     _active: ClassVar["TaskRunDeliveryManager | None"] = None
 
     def __init__(self, docket: Docket, visibility_timeout: timedelta) -> None:
         self._docket = docket
         self._visibility_timeout = visibility_timeout
-        self._deduplication_ttl = max(
-            3600, int(visibility_timeout.total_seconds() * 10)
-        )
 
     @classmethod
     def active(cls) -> "TaskRunDeliveryManager":
@@ -239,28 +208,19 @@ class TaskRunDeliveryManager:
         *,
         when: datetime | None = None,
     ) -> None:
-        if when is None:
-            await self.publish(task_run)
-            return
-
         await self._docket.add(
-            publish_task_run,
+            deliver_task_run,
             key=_delivery_key(task_run),
             when=when,
-        )(task_run)
+        )(task_run, self._visibility_timeout.total_seconds())
 
     async def publish(self, task_run: schemas.core.TaskRun) -> None:
-        await _publish(
-            self._docket,
-            task_run,
-            deduplication_ttl=self._deduplication_ttl,
-        )
+        await self.schedule(task_run)
 
-    def subscribe(self, task_keys: list[str], client_id: str) -> TaskRunSubscription:
+    def subscribe(self, task_keys: list[str]) -> TaskRunSubscription:
         return TaskRunSubscription(
             self._docket,
             task_keys,
-            client_id,
             self._visibility_timeout,
         )
 
@@ -270,16 +230,53 @@ async def schedule_task_run_delivery(
     *,
     when: datetime | None = None,
 ) -> None:
-    """Schedule publication of a deferred task run through Docket."""
+    """Schedule a deferred task run for delivery through Docket."""
     await TaskRunDeliveryManager.active().schedule(task_run, when=when)
 
 
-async def publish_task_run(
+async def deliver_task_run(
     task_run: schemas.core.TaskRun,
+    visibility_timeout_seconds: float,
+    perpetual: Perpetual = Perpetual(),
     docket: Docket = CurrentDocket(),
 ) -> None:
-    """Docket task that publishes a run to its task-keyed delivery stream."""
-    await _publish(docket, task_run)
+    """Offer a task run until a TaskWorker acknowledges it."""
+    visibility_timeout = timedelta(seconds=visibility_timeout_seconds)
+    delivery_id = _delivery_key(task_run)
+    queued = _queued_key(docket, delivery_id)
+    acked = _acked_key(docket, delivery_id)
+
+    async with docket.redis() as redis:
+        if await redis.exists(acked):
+            await redis.delete(queued)
+            perpetual.cancel()
+            return
+
+        newly_ready = await redis.set(
+            queued,
+            _READY,
+            nx=True,
+            ex=visibility_timeout * 2,
+        )
+
+        if newly_ready:
+            await redis.rpush(
+                _queue_key(docket, task_run.task_key),
+                orjson.dumps(
+                    {
+                        "delivery_id": delivery_id,
+                        "task_run": task_run.model_dump(mode="json"),
+                    }
+                ),
+            )
+        else:
+            delivery_status = await redis.get(queued)
+            if delivery_status is not None and _decode(delivery_status) == _READY:
+                # Keep the marker alive while the delivery remains in the ready list.
+                # A subscriber changes it to a visibility-limited claim after BRPOP.
+                await redis.expire(queued, visibility_timeout * 2)
+
+    perpetual.after(visibility_timeout)
 
 
 @asynccontextmanager
@@ -288,7 +285,7 @@ async def task_run_delivery_lifespan(
     *,
     visibility_timeout: timedelta,
 ) -> AsyncGenerator[TaskRunDeliveryManager, None]:
-    """Configure publication and subscription for the API process."""
+    """Configure deferred task delivery for an API process."""
     manager = TaskRunDeliveryManager(docket, visibility_timeout)
     if TaskRunDeliveryManager._active is not None:
         raise RuntimeError("Task delivery is already running")
@@ -300,9 +297,9 @@ async def task_run_delivery_lifespan(
             TaskRunDeliveryManager._active = None
 
 
-def _stream_key(docket: Docket, task_key: str) -> str:
-    task = hashlib.blake2b(task_key.encode(), digest_size=16).hexdigest()
-    return docket.key(f"{_KEY_PREFIX}:stream:{task}")
+def _queue_key(docket: Docket, task_key: str) -> str:
+    route = hashlib.blake2b(task_key.encode(), digest_size=16).hexdigest()
+    return docket.key(f"task-runs:ready:{route}")
 
 
 def _delivery_key(task_run: schemas.core.TaskRun) -> str:
@@ -312,37 +309,22 @@ def _delivery_key(task_run: schemas.core.TaskRun) -> str:
     return f"task-run:{task_run.id}:{state_id}"
 
 
-async def _publish(
-    docket: Docket,
-    task_run: schemas.core.TaskRun,
-    *,
-    deduplication_ttl: int = 3600,
-) -> None:
-    stream = _stream_key(docket, task_run.task_key)
-    marker = f"{stream}:published:{_delivery_key(task_run)}"
-    async with docket.redis() as redis:
-        await redis.eval(
-            _PUBLISH_SCRIPT,
-            2,
-            stream,
-            marker,
-            str(deduplication_ttl),
-            task_run.model_dump_json(),
-        )
+def _delivery_marker_key(docket: Docket, delivery_id: str, marker: str) -> str:
+    delivery = hashlib.blake2b(delivery_id.encode(), digest_size=16).hexdigest()
+    return docket.key(f"task-runs:{delivery}:{marker}")
 
 
-def _parse_delivery(
-    stream: bytes | str,
-    message_id: bytes | str,
-    fields: dict[Any, Any],
-) -> TaskRunDelivery:
-    stream = stream.decode() if isinstance(stream, bytes) else stream
-    message_id = message_id.decode() if isinstance(message_id, bytes) else message_id
-    data = fields.get(b"data", fields.get("data"))
-    if data is None:
-        raise ValueError(f"Task delivery {message_id!r} has no data")
-    return TaskRunDelivery(
-        task_run=schemas.core.TaskRun.model_validate_json(data),
-        stream=stream,
-        message_id=message_id,
-    )
+def _queued_key(docket: Docket, delivery_id: str) -> str:
+    return _delivery_marker_key(docket, delivery_id, "queued")
+
+
+def _acked_key(docket: Docket, delivery_id: str) -> str:
+    return _delivery_marker_key(docket, delivery_id, "acked")
+
+
+def _delivery_ttl(visibility_timeout: timedelta) -> int:
+    return max(3600, int(visibility_timeout.total_seconds() * 10))
+
+
+def _decode(value: bytes | str) -> str:
+    return value.decode() if isinstance(value, bytes) else value

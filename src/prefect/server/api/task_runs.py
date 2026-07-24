@@ -386,7 +386,7 @@ async def scheduled_task_subscription(websocket: WebSocket) -> None:
     await models.task_workers.observe_worker(task_keys, client_id)
 
     async with TaskRunDeliveryManager.active().subscribe(
-        task_keys, client_id
+        task_keys
     ) as task_subscription:
         while True:
             # Observe here so workers with idle WebSockets remain visible.
@@ -406,7 +406,6 @@ async def scheduled_task_subscription(websocket: WebSocket) -> None:
                 ack_type = acknowledgement.get("type")
                 if ack_type != "ack":
                     if ack_type == "quit":
-                        await task_subscription.acknowledge(delivery)
                         return await websocket.close()
 
                     raise WebSocketDisconnect(

@@ -221,10 +221,6 @@ export PREFECT_SERVER_DOCKET_URL="rediss://redis-host:6379/0"
 The Docket URL can use the same Redis instance as the messaging configuration above, but you may use a different database number (e.g., `/1` instead of `/0`) to keep the data separate.
 </Note>
 
-With shared Redis, a task worker only claims runs for the task keys it serves. A delivery remains pending until the task worker acknowledges it; if the worker or its API replica disconnects, another subscription for the same task key can reclaim it after `server.tasks.scheduling.delivery_visibility_timeout`.
-
-Point background task workers at the load-balanced API URL so they reconnect through a healthy replica. Docket coordinates delivery, while task parameters and return values continue to use Prefect result storage; use shared result storage when submitters and task workers do not share a filesystem.
-
 ### Service separation
 
 For optimal performance, run API servers and background services separately:
