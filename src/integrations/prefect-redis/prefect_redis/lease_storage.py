@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Any, AsyncGenerator
 from uuid import UUID
 
 from redis.asyncio import Redis
@@ -17,7 +18,7 @@ from prefect.server.concurrency.lease_storage import (
     ConcurrencyLeaseStorage as _ConcurrencyLeaseStorage,
 )
 from prefect.server.utilities.leasing import ResourceLease
-from prefect_redis.client import get_async_redis_client
+from prefect_redis.client import managed_async_redis_client
 
 logger = logging.getLogger(__name__)
 
@@ -28,14 +29,19 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     """
 
     def __init__(self, redis_client: Redis | None = None):
-        self.redis_client = redis_client or get_async_redis_client()
+        self.redis_client = redis_client
         self.base_prefix = "prefect:concurrency:"
         self.lease_prefix = f"{self.base_prefix}lease:"
         self.expirations_key = f"{self.base_prefix}expirations"
         self.expiration_prefix = f"{self.base_prefix}expiration:"
-        # Lua scripts registered on the server
-        self._create_script: Any | None = None
-        self._revoke_script: Any | None = None
+
+    @asynccontextmanager
+    async def _redis_client(self) -> AsyncGenerator[Redis, None]:
+        if self.redis_client is not None:
+            yield self.redis_client
+        else:
+            async with managed_async_redis_client() as redis_client:
+                yield redis_client
 
     def _lease_key(self, lease_id: UUID) -> str:
         """Generate Redis key for a lease."""
@@ -49,53 +55,52 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     def _limit_holders_key(limit_id: UUID) -> str:
         return f"prefect:concurrency:limit:{limit_id}:holders"
 
-    async def _ensure_scripts(self) -> None:
-        if self._create_script is None:
-            create_script = """
-            -- KEYS[1] = lease_key
-            -- KEYS[2] = expirations_key
-            -- KEYS[3..n] = limit_holders_key for each resource id
-            -- ARGV[1] = lease_json
-            -- ARGV[2] = expiration_ts (number)
-            -- ARGV[3] = lease_id
-            -- ARGV[4] = holder_entry_json (or empty string)
-            redis.call('SET', KEYS[1], ARGV[1])
-            redis.call('ZADD', KEYS[2], ARGV[2], ARGV[3])
-            if ARGV[4] ~= '' then
-              local i = 3
-              while i <= #KEYS do
-                redis.call('HSET', KEYS[i], ARGV[3], ARGV[4])
-                i = i + 1
-              end
-            end
-            return 1
-            """
-            self._create_script = self.redis_client.register_script(create_script)
+    def _create_lease_script(self, redis_client: Redis) -> Any:
+        create_script = """
+        -- KEYS[1] = lease_key
+        -- KEYS[2] = expirations_key
+        -- KEYS[3..n] = limit_holders_key for each resource id
+        -- ARGV[1] = lease_json
+        -- ARGV[2] = expiration_ts (number)
+        -- ARGV[3] = lease_id
+        -- ARGV[4] = holder_entry_json (or empty string)
+        redis.call('SET', KEYS[1], ARGV[1])
+        redis.call('ZADD', KEYS[2], ARGV[2], ARGV[3])
+        if ARGV[4] ~= '' then
+          local i = 3
+          while i <= #KEYS do
+            redis.call('HSET', KEYS[i], ARGV[3], ARGV[4])
+            i = i + 1
+          end
+        end
+        return 1
+        """
+        return redis_client.register_script(create_script)
 
-        if self._revoke_script is None:
-            revoke_script = """
-            -- KEYS[1] = lease_key
-            -- KEYS[2] = expirations_key
-            -- ARGV[1] = lease_id
-            -- Read the lease in-script to avoid races and compute index keys
-            local lease_json = redis.call('GET', KEYS[1])
-            if lease_json then
-              local ok, lease = pcall(cjson.decode, lease_json)
-              if ok and lease then
-                if lease['resource_ids'] then
-                  for _, rid in ipairs(lease['resource_ids']) do
-                    local holder_index_key = 'prefect:concurrency:limit:' .. tostring(rid) .. ':holders'
-                    redis.call('HDEL', holder_index_key, ARGV[1])
-                  end
-                end
+    def _revoke_lease_script(self, redis_client: Redis) -> Any:
+        revoke_script = """
+        -- KEYS[1] = lease_key
+        -- KEYS[2] = expirations_key
+        -- ARGV[1] = lease_id
+        -- Read the lease in-script to avoid races and compute index keys
+        local lease_json = redis.call('GET', KEYS[1])
+        if lease_json then
+          local ok, lease = pcall(cjson.decode, lease_json)
+          if ok and lease then
+            if lease['resource_ids'] then
+              for _, rid in ipairs(lease['resource_ids']) do
+                local holder_index_key = 'prefect:concurrency:limit:' .. tostring(rid) .. ':holders'
+                redis.call('HDEL', holder_index_key, ARGV[1])
               end
             end
-            -- Proceed with idempotent deletes regardless
-            redis.call('DEL', KEYS[1])
-            redis.call('ZREM', KEYS[2], ARGV[1])
-            return 1
-            """
-            self._revoke_script = self.redis_client.register_script(revoke_script)
+          end
+        end
+        -- Proceed with idempotent deletes regardless
+        redis.call('DEL', KEYS[1])
+        redis.call('ZREM', KEYS[2], ARGV[1])
+        return 1
+        """
+        return redis_client.register_script(revoke_script)
 
     def _serialize_lease(
         self, lease: ResourceLease[ConcurrencyLimitLeaseMetadata]
@@ -160,40 +165,44 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         )
 
         try:
-            lease_key = self._lease_key(lease.id)
-            serialized_lease = self._serialize_lease(lease)
+            async with self._redis_client() as redis_client:
+                lease_key = self._lease_key(lease.id)
+                serialized_lease = self._serialize_lease(lease)
 
-            # Use a Lua script for atomic multi-key updates
-            await self._ensure_scripts()
-            holder_entry_json = ""
-            if metadata is not None and getattr(metadata, "holder", None) is not None:
-                holder = getattr(metadata, "holder")
-                if hasattr(holder, "model_dump"):
-                    holder = holder.model_dump(mode="json")  # type: ignore[attr-defined]
-                holder_entry_json = json.dumps(
-                    {
-                        "holder": holder,
-                        "slots": metadata.slots,
-                        "lease_id": str(lease.id),
-                    }
-                )
+                # Use a Lua script for atomic multi-key updates
+                create_script = self._create_lease_script(redis_client)
+                holder_entry_json = ""
+                if (
+                    metadata is not None
+                    and getattr(metadata, "holder", None) is not None
+                ):
+                    holder = getattr(metadata, "holder")
+                    if hasattr(holder, "model_dump"):
+                        holder = holder.model_dump(mode="json")  # type: ignore[attr-defined]
+                    holder_entry_json = json.dumps(
+                        {
+                            "holder": holder,
+                            "slots": metadata.slots,
+                            "lease_id": str(lease.id),
+                        }
+                    )
 
-            keys: list[str] = [
-                lease_key,
-                self.expirations_key,
-            ]
-            if holder_entry_json:
-                for rid in resource_ids:
-                    keys.append(self._limit_holders_key(rid))
+                keys: list[str] = [
+                    lease_key,
+                    self.expirations_key,
+                ]
+                if holder_entry_json:
+                    for rid in resource_ids:
+                        keys.append(self._limit_holders_key(rid))
 
-            args: list[str] = [
-                serialized_lease,
-                str(expiration.timestamp()),
-                str(lease.id),
-                holder_entry_json,
-            ]
+                args: list[str] = [
+                    serialized_lease,
+                    str(expiration.timestamp()),
+                    str(lease.id),
+                    holder_entry_json,
+                ]
 
-            await self._create_script(keys=keys, args=args)  # type: ignore[misc]
+                await create_script(keys=keys, args=args)
 
             return lease
         except RedisError as e:
@@ -204,8 +213,9 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         self, lease_id: UUID
     ) -> ResourceLease[ConcurrencyLimitLeaseMetadata] | None:
         try:
-            lease_key = self._lease_key(lease_id)
-            data = await self.redis_client.get(lease_key)
+            async with self._redis_client() as redis_client:
+                lease_key = self._lease_key(lease_id)
+                data = await redis_client.get(lease_key)
 
             if data is None:
                 return None
@@ -264,15 +274,16 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             """
 
             # Execute the atomic Lua script
-            result = await self.redis_client.eval(
-                renew_lease_script,
-                2,  # number of keys
-                lease_key,
-                self.expirations_key,
-                str(lease_id),
-                new_expiration_timestamp,
-                new_expiration_iso,
-            )
+            async with self._redis_client() as redis_client:
+                result = await redis_client.eval(
+                    renew_lease_script,
+                    2,  # number of keys
+                    lease_key,
+                    self.expirations_key,
+                    str(lease_id),
+                    new_expiration_timestamp,
+                    new_expiration_iso,
+                )
 
             return bool(result)
         except RedisError as e:
@@ -281,17 +292,18 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
     async def revoke_lease(self, lease_id: UUID) -> None:
         try:
-            lease_key = self._lease_key(lease_id)
-            # Use a Lua script for atomic multi-key updates with in-script read/cleanup
-            await self._ensure_scripts()
-            keys: list[str] = [
-                lease_key,
-                self.expirations_key,
-            ]
-            args: list[str] = [
-                str(lease_id),
-            ]
-            await self._revoke_script(keys=keys, args=args)  # type: ignore[misc]
+            async with self._redis_client() as redis_client:
+                lease_key = self._lease_key(lease_id)
+                # Use a Lua script for atomic multi-key updates with in-script read/cleanup
+                revoke_script = self._revoke_lease_script(redis_client)
+                keys: list[str] = [
+                    lease_key,
+                    self.expirations_key,
+                ]
+                args: list[str] = [
+                    str(lease_id),
+                ]
+                await revoke_script(keys=keys, args=args)
         except RedisError as e:
             logger.error(f"Failed to revoke lease {lease_id}: {e}")
             raise
@@ -304,9 +316,10 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
             # Get lease IDs that expire after now (active leases)
             # Redis zrangebyscore uses 'start' as the offset and 'num' as the limit
-            active_lease_ids = await self.redis_client.zrangebyscore(
-                self.expirations_key, now, "+inf", start=offset, num=limit
-            )
+            async with self._redis_client() as redis_client:
+                active_lease_ids = await redis_client.zrangebyscore(
+                    self.expirations_key, now, "+inf", start=offset, num=limit
+                )
 
             return [UUID(lease_id) for lease_id in active_lease_ids]
         except RedisError as e:
@@ -318,9 +331,10 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             now = datetime.now(timezone.utc).timestamp()
 
             # Get lease IDs that expire before now (expired leases)
-            expired_lease_ids = await self.redis_client.zrangebyscore(
-                self.expirations_key, "-inf", now, start=0, num=limit
-            )
+            async with self._redis_client() as redis_client:
+                expired_lease_ids = await redis_client.zrangebyscore(
+                    self.expirations_key, "-inf", now, start=0, num=limit
+                )
 
             return [UUID(lease_id) for lease_id in expired_lease_ids]
         except RedisError as e:
@@ -332,7 +346,8 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     ) -> list[tuple[UUID, ConcurrencyLeaseHolder]]:
         try:
             # Get all holder entries for this limit
-            values = await self.redis_client.hvals(self._limit_holders_key(limit_id))
+            async with self._redis_client() as redis_client:
+                values = await redis_client.hvals(self._limit_holders_key(limit_id))
             holders_with_leases: list[tuple[UUID, ConcurrencyLeaseHolder]] = []
 
             for v in values:

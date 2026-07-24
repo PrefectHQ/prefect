@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from functools import partial
 from typing import AsyncGenerator, Generator, Optional
@@ -9,7 +10,6 @@ from unittest.mock import patch
 
 import anyio
 import pytest
-from prefect_redis.client import _client_cache, clear_cached_clients
 from prefect_redis.messaging import (
     Cache,
     Consumer,
@@ -161,6 +161,12 @@ def test_messaging_keys_preserve_standalone_names(monkeypatch: pytest.MonkeyPatc
     assert _dlq_message_key(topic).startswith("dlq:")
 
 
+def test_cache_init_does_not_require_running_loop():
+    cache = Cache(topic="test")
+
+    assert cache.topic == "test"
+
+
 @pytest.mark.skipif(
     not os.environ.get("PREFECT_REDIS_CLUSTER_TEST_URL"),
     reason="requires PREFECT_REDIS_CLUSTER_TEST_URL",
@@ -182,9 +188,14 @@ async def test_messaging_runs_against_real_redis_cluster(
     await redis_client.flushall()
     try:
         monkeypatch.setenv("PREFECT_REDIS_MESSAGING_URL", settings_url)
+
+        @asynccontextmanager
+        async def redis_client_context():
+            yield redis_client
+
         monkeypatch.setattr(
-            "prefect_redis.messaging.get_async_redis_client",
-            lambda: redis_client,
+            "prefect_redis.messaging.managed_async_redis_client",
+            redis_client_context,
         )
 
         topic = f"cluster-message-tests-{uuid.uuid4()}"
@@ -945,20 +956,6 @@ async def test_consumer_recovers_from_redis_connection_error(
     )
     assert captured_messages[0].data == "message-1"
     assert captured_messages[1].data == "message-2"
-
-
-async def test_clear_cached_clients():
-    """Test that clear_cached_clients clears the cache."""
-    # Get a client to populate the cache
-    from prefect_redis.client import get_async_redis_client
-
-    get_async_redis_client()  # Populate cache
-    assert len(_client_cache) > 0, "Cache should have at least one client"
-
-    # Clear the cache
-    await clear_cached_clients()
-
-    assert len(_client_cache) == 0, "Cache should be empty after clearing"
 
 
 async def test_consumer_handles_orphan_pending_entries(
