@@ -53,7 +53,7 @@ EVENT_LOOP_GC_REFS: dict[int, AsyncGenerator[None, Any]] = {}
 
 
 RUNNING_IN_RUN_SYNC_LOOP_FLAG = ContextVar("running_in_run_sync_loop", default=False)
-RUNNING_ASYNC_FLAG = ContextVar("run_async", default=False)
+RUNNING_ASYNC_FLAG: ContextVar[Optional[bool]] = ContextVar("run_async", default=None)
 BACKGROUND_TASKS: set[asyncio.Task[Any]] = set()
 background_task_lock: threading.Lock = threading.Lock()
 
@@ -317,19 +317,22 @@ def sync_compatible(
         # otherwise, we make some determinations
         if _sync is None:
             try:
-                run_ctx = get_run_context()
-                parent_obj = getattr(run_ctx, "task", None)
-                if not parent_obj:
-                    parent_obj = getattr(run_ctx, "flow", None)
-                is_async = getattr(parent_obj, "isasync", True)
-            except MissingContextError:
-                # not in an execution context, make best effort to
-                # decide whether to syncify
+                asyncio.get_running_loop()
+                has_running_loop = True
+            except RuntimeError:
+                has_running_loop = False
+
+            if not has_running_loop:
+                is_async = False
+            else:
                 try:
-                    asyncio.get_running_loop()
+                    run_ctx = get_run_context()
+                    parent_obj = getattr(run_ctx, "task", None)
+                    if not parent_obj:
+                        parent_obj = getattr(run_ctx, "flow", None)
+                    is_async = getattr(parent_obj, "isasync", True)
+                except MissingContextError:
                     is_async = True
-                except RuntimeError:
-                    is_async = False
 
         async def ctx_call():
             """
@@ -345,7 +348,9 @@ def sync_compatible(
 
         if _sync is True:
             return run_coro_as_sync(ctx_call())
-        elif RUNNING_ASYNC_FLAG.get() or is_async:
+        elif RUNNING_ASYNC_FLAG.get() is False:
+            return run_coro_as_sync(ctx_call())
+        elif RUNNING_ASYNC_FLAG.get() is True or (has_running_loop and is_async):
             return ctx_call()
         else:
             return run_coro_as_sync(ctx_call())

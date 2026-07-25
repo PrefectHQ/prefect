@@ -20,7 +20,6 @@ from typing import (
     Union,
 )
 
-import anyio.to_thread
 from pydantic import Field, PrivateAttr
 from typing_extensions import Self
 
@@ -39,7 +38,11 @@ from prefect.results import (
     get_result_store,
 )
 from prefect.utilities.annotations import NotSet
-from prefect.utilities.asyncutils import run_coro_as_sync
+from prefect.utilities.asyncutils import (
+    RUNNING_ASYNC_FLAG,
+    run_coro_as_sync,
+    run_sync_in_worker_thread,
+)
 from prefect.utilities.collections import AutoEnum
 
 logger: logging.Logger = get_logger("transactions")
@@ -402,7 +405,11 @@ class Transaction(BaseTransaction):
             if inspect.iscoroutinefunction(hook):
                 run_coro_as_sync(hook(self))
             else:
-                hook(self)
+                token = RUNNING_ASYNC_FLAG.set(False)
+                try:
+                    hook(self)
+                finally:
+                    RUNNING_ASYNC_FLAG.reset(token)
         except Exception as exc:
             if should_log:
                 self.logger.error(
@@ -562,7 +569,7 @@ class AsyncTransaction(BaseTransaction):
             if inspect.iscoroutinefunction(hook):
                 await hook(self)
             else:
-                await anyio.to_thread.run_sync(hook, self)
+                await run_sync_in_worker_thread(hook, self)
         except Exception as exc:
             if should_log:
                 self.logger.error(
