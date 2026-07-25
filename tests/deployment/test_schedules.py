@@ -46,15 +46,19 @@ def test_create_deployment_schedule_create_keeps_explicit_active(active: bool):
     assert schedule.model_dump(exclude_unset=True)["active"] is active
 
 
-@pytest.mark.parametrize("active", [None, True, False])
-def test_normalize_schedule_wrapper_active(active: Optional[bool]):
+def test_normalize_schedule_wrapper_omits_unset_active():
+    from prefect.schedules import Cron
+
+    (normalized,) = normalize_to_deployment_schedule([Cron("0 0 * * *")])
+    assert "active" not in normalized.model_fields_set
+
+
+@pytest.mark.parametrize("active", [True, False])
+def test_normalize_schedule_wrapper_keeps_explicit_active(active: bool):
     from prefect.schedules import Cron
 
     (normalized,) = normalize_to_deployment_schedule([Cron("0 0 * * *", active=active)])
-    if active is None:
-        assert "active" not in normalized.model_fields_set
-    else:
-        assert normalized.model_dump(exclude_unset=True)["active"] is active
+    assert normalized.model_dump(exclude_unset=True)["active"] is active
 
 
 def test_normalize_none_returns_empty_list():

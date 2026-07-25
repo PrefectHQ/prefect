@@ -218,6 +218,12 @@ async def create_deployment(
         future_only=True,
     )
 
+    # An upsert that doesn't specify `active` should keep a matching schedule's
+    # current active state rather than silently re-activating a paused one.
+    existing_active = _active_state_by_match_key(
+        await read_deployment_schedules(session=session, deployment_id=deployment_id)
+    )
+
     await delete_schedules_for_deployment(session=session, deployment_id=deployment_id)
 
     if schedules:
@@ -227,7 +233,7 @@ async def create_deployment(
             schedules=[
                 schemas.actions.DeploymentScheduleCreate(
                     schedule=schedule.schedule,
-                    active=schedule.active,
+                    active=_resolve_schedule_active(schedule, existing_active),
                     parameters=schedule.parameters,
                     slug=schedule.slug,
                 )
@@ -296,17 +302,44 @@ def _schedule_match_key(slug: Optional[str], schedule: Any) -> str:
     return f"schedule:{json.dumps(definition, sort_keys=True)}"
 
 
+class AmbiguousScheduleMatchError(ValueError):
+    """Raised when slug-less schedules can't be matched one-to-one on redeploy."""
+
+
+def _active_state_by_match_key(
+    schedules: Sequence[schemas.core.DeploymentSchedule],
+) -> dict[str, bool]:
+    """Map each existing schedule's match key to its active state.
+
+    Slug-less schedules can collide on their recurrence definition. Preserving
+    active state across such a collision would silently hand both schedules one
+    state, so an ambiguous match is rejected rather than guessed.
+    """
+    by_key: dict[str, bool] = {}
+    for schedule in schedules:
+        key = _schedule_match_key(schedule.slug, schedule.schedule)
+        if key in by_key:
+            raise AmbiguousScheduleMatchError(
+                "Cannot preserve the active state of multiple schedules that "
+                "share the same definition and have no slug. Assign a slug to "
+                "each schedule to disambiguate them."
+            )
+        by_key[key] = schedule.active
+    return by_key
+
+
 def _resolve_schedule_active(
-    schedule: "schemas.actions.DeploymentScheduleUpdate",
+    schedule: schemas.actions.DeploymentScheduleCreate
+    | schemas.actions.DeploymentScheduleUpdate,
     existing_active: dict[str, bool],
 ) -> bool:
-    """Determine the active state for a schedule being recreated on update.
+    """Determine the active state for a schedule being recreated on upsert.
 
     An explicit `active` always wins. When it's omitted, inherit the matching
     existing schedule's state, falling back to active for a new schedule.
     """
-    if schedule.active is not None:
-        return schedule.active
+    if "active" in schedule.model_fields_set:
+        return bool(schedule.active)
     return existing_active.get(
         _schedule_match_key(schedule.slug, schedule.schedule), True
     )
@@ -426,12 +459,11 @@ async def update_deployment(
         # replace them with the new ones. An update that doesn't specify
         # `active` should keep a matching schedule's current active state
         # rather than silently re-activating one that was paused.
-        existing_active = {
-            _schedule_match_key(s.slug, s.schedule): s.active
-            for s in await read_deployment_schedules(
+        existing_active = _active_state_by_match_key(
+            await read_deployment_schedules(
                 session=session, deployment_id=deployment_id
             )
-        }
+        )
         await delete_schedules_for_deployment(
             session=session, deployment_id=deployment_id
         )

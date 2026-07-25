@@ -15,6 +15,16 @@ from prefect._internal.schemas.validators import (
 )
 
 
+class _Unset:
+    """Sentinel for an `active` argument that was not explicitly provided."""
+
+    def __repr__(self) -> str:
+        return "<unset>"
+
+
+_UNSET = _Unset()
+
+
 @dataclasses.dataclass(frozen=True)
 class Schedule:
     """
@@ -50,9 +60,13 @@ class Schedule:
         default_factory=partial(datetime.datetime.now, tz=datetime.timezone.utc)
     )
     day_or: bool = True
-    active: bool | None = None
+    active: bool = True
     parameters: dict[str, Any] = dataclasses.field(default_factory=dict)
     slug: str | None = None
+    # Internal: records whether `active` was set explicitly. The factories leave
+    # it False when `active` is omitted so a redeploy can preserve the schedule's
+    # server-side active state instead of forcing it back to True.
+    _active_provided: bool = dataclasses.field(default=True, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         defined_fields = [
@@ -76,7 +90,7 @@ def Cron(
     /,
     timezone: str | None = None,
     day_or: bool = True,
-    active: bool | None = None,
+    active: bool | _Unset = _UNSET,
     parameters: dict[str, Any] | None = None,
     slug: str | None = None,
 ) -> Schedule:
@@ -119,13 +133,18 @@ def Cron(
     """
     if parameters is None:
         parameters = {}
+    if isinstance(active, _Unset):
+        resolved_active, active_provided = True, False
+    else:
+        resolved_active, active_provided = active, True
     return Schedule(
         cron=cron,
         timezone=timezone,
         day_or=day_or,
-        active=active,
+        active=resolved_active,
         parameters=parameters,
         slug=slug,
+        _active_provided=active_provided,
     )
 
 
@@ -134,7 +153,7 @@ def Interval(
     /,
     anchor_date: datetime.datetime | None = None,
     timezone: str | None = None,
-    active: bool | None = None,
+    active: bool | _Unset = _UNSET,
     parameters: dict[str, Any] | None = None,
     slug: str | None = None,
 ) -> Schedule:
@@ -180,13 +199,18 @@ def Interval(
         anchor_date = datetime.datetime.now(tz=datetime.timezone.utc)
     if parameters is None:
         parameters = {}
+    if isinstance(active, _Unset):
+        resolved_active, active_provided = True, False
+    else:
+        resolved_active, active_provided = active, True
     return Schedule(
         interval=interval,
         anchor_date=anchor_date,
         timezone=timezone,
-        active=active,
+        active=resolved_active,
         parameters=parameters,
         slug=slug,
+        _active_provided=active_provided,
     )
 
 
@@ -194,7 +218,7 @@ def RRule(
     rrule: str,
     /,
     timezone: str | None = None,
-    active: bool | None = None,
+    active: bool | _Unset = _UNSET,
     parameters: dict[str, Any] | None = None,
     slug: str | None = None,
 ) -> Schedule:
@@ -230,10 +254,15 @@ def RRule(
     """
     if parameters is None:
         parameters = {}
+    if isinstance(active, _Unset):
+        resolved_active, active_provided = True, False
+    else:
+        resolved_active, active_provided = active, True
     return Schedule(
         rrule=rrule,
         timezone=timezone,
-        active=active,
+        active=resolved_active,
         parameters=parameters,
         slug=slug,
+        _active_provided=active_provided,
     )

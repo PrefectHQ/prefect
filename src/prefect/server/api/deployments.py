@@ -198,9 +198,14 @@ async def create_deployment(
                 )
 
         right_now = now("UTC")
-        model = await models.deployments.create_deployment(
-            session=session, deployment=deployment
-        )
+        try:
+            model = await models.deployments.create_deployment(
+                session=session, deployment=deployment
+            )
+        except models.deployments.AmbiguousScheduleMatchError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            )
 
         if model.created >= right_now:
             response.status_code = status.HTTP_201_CREATED
@@ -393,11 +398,16 @@ async def update_deployment(
                     detail="Concurrency limit not found",
                 )
 
-        result = await models.deployments.update_deployment(
-            session=session,
-            deployment_id=deployment_id,
-            deployment=deployment,
-        )
+        try:
+            result = await models.deployments.update_deployment(
+                session=session,
+                deployment_id=deployment_id,
+                deployment=deployment,
+            )
+        except models.deployments.AmbiguousScheduleMatchError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc)
+            )
 
         # Phase 1: For schedules with `replaces`, look up the row ID by
         # old slug, then NULL out those slugs so the unique index on

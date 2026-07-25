@@ -2465,6 +2465,89 @@ class TestUpdateDeployment:
         assert len(response.json()["schedules"]) == 1
         assert response.json()["schedules"][0]["active"] is True
 
+    async def test_upsert_via_post_preserves_paused_slugless_schedule(
+        self,
+        client,
+        flow,
+    ):
+        """Re-deploying through the POST upsert path (not PATCH) must also keep a
+        paused slug-less schedule paused (#19302)."""
+        schedule = schemas.schedules.CronSchedule(cron="10 * * * *")
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule, active=True
+                ),
+            ],
+            enforce_parameter_schema=False,
+        ).model_dump(mode="json")
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+        schedule_id = response.json()["schedules"][0]["id"]
+
+        response = await client.patch(
+            f"/deployments/{deployment_id}/schedules/{schedule_id}",
+            json={"active": False},
+        )
+        assert response.status_code == 204
+
+        # Upsert the same deployment without an explicit `active`.
+        upsert_data = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            schedules=[schemas.actions.DeploymentScheduleCreate(schedule=schedule)],
+            enforce_parameter_schema=False,
+        ).model_dump(mode="json", exclude_unset=True)
+
+        # 200, not 201: the upsert keeps the original `created` timestamp, so the
+        # route treats it as an update of the existing deployment.
+        response = await client.post("/deployments/", json=upsert_data)
+        assert response.status_code == 200, response.text
+        assert response.json()["id"] == deployment_id
+
+        response = await client.get(f"/deployments/{deployment_id}")
+        assert response.status_code == 200
+        assert len(response.json()["schedules"]) == 1
+        assert response.json()["schedules"][0]["active"] is False
+
+    async def test_redeploy_ambiguous_slugless_schedules_returns_422(
+        self,
+        client,
+        flow,
+    ):
+        """Two slug-less schedules that share a definition can't be matched
+        one-to-one on redeploy, so the request is rejected rather than guessing
+        which active state to preserve (#19302)."""
+        schedule = schemas.schedules.CronSchedule(cron="10 * * * *")
+        data = DeploymentCreate(
+            name="My Deployment",
+            flow_id=flow.id,
+            schedules=[
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule, active=True
+                ),
+                schemas.actions.DeploymentScheduleCreate(
+                    schedule=schedule, active=False
+                ),
+            ],
+            enforce_parameter_schema=False,
+        ).model_dump(mode="json")
+
+        response = await client.post("/deployments/", json=data)
+        assert response.status_code == 201
+        deployment_id = response.json()["id"]
+
+        update_data = schemas.actions.DeploymentUpdate(
+            schedules=[schemas.actions.DeploymentScheduleUpdate(schedule=schedule)],
+        ).model_dump(mode="json", exclude_unset=True)
+
+        response = await client.patch(f"/deployments/{deployment_id}", json=update_data)
+        assert response.status_code == 422
+
     async def test_update_deployment_with_multiple_schedules_and_existing_slugs_422(
         self,
         client,
