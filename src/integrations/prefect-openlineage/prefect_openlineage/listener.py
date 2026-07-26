@@ -40,16 +40,36 @@ class PrefectOpenLineageListener:
         )
 
     async def get_deployment_and_flow_info(self, flow_run_id: str) -> tuple:
-        """Retrieve deployment and flow information for a given flow run ID."""
-
         flow_run = await self.client.read_flow_run(flow_run_id)
-        deployment = await self.client.read_deployment(flow_run.deployment_id)
         flow_id = flow_run.flow_id
         flow = await self.client.read_flow(flow_id)
         flow_name = flow.name
+
         try:
-            ns = deployment.job_variables["env"]["OPENLINEAGE_NAMESPACE"]
-        except KeyError:
+            deployment = await self.client.read_deployment(flow_run.deployment_id)
+            try:
+                ns = deployment.job_variables["env"]["OPENLINEAGE_NAMESPACE"]
+            except KeyError:
+                ns = JOB_NAMESPACE
+                logger.info(
+                    "OPENLINEAGE_NAMESPACE deployment variable not found. Using OPENLINEAGE_NAMESPACE env variable."
+                )
+                if JOB_NAMESPACE == "default":
+                    logger.info(
+                        "OPENLINEAGE_NAMESPACE env variable not set. Namespace will be 'default.'"
+                    )
+            return (
+                str(deployment.id),
+                flow_run.start_time,
+                deployment.created.isoformat(),
+                deployment.updated.isoformat(),
+                deployment.name,
+                ns,
+                flow_name,
+            )
+
+        except Exception:
+            logger.info("Deployment not found for flow run: %s", flow_run_id)
             ns = JOB_NAMESPACE
             logger.info(
                 "OPENLINEAGE_NAMESPACE deployment variable not found. Using OPENLINEAGE_NAMESPACE env variable."
@@ -58,15 +78,8 @@ class PrefectOpenLineageListener:
                 logger.info(
                     "OPENLINEAGE_NAMESPACE env variable not set. Namespace will be 'default.'"
                 )
-        return (
-            str(deployment.id),
-            flow_run.start_time,
-            deployment.created.isoformat(),
-            deployment.updated.isoformat(),
-            deployment.name,
-            ns,
-            flow_name,
-        )
+
+            return (None, flow_run.start_time, None, None, None, ns, flow_name)
 
     async def get_prefect_version(self) -> str | None:
         """Retrieve the Prefect version from the Prefect API."""
@@ -81,14 +94,26 @@ class PrefectOpenLineageListener:
             )
 
     async def get_flow_ns(self, flow_run_id: str) -> str:
-        """Look for the OPENLINEAGE_NAMESPACE job env variable in the deployment."""
-
+        """
+        Looks for OPENLINEAGE_NAMESPACE job env variable in deployment.
+        """
         flow_run = await self.client.read_flow_run(flow_run_id)
-        deployment = await self.client.read_deployment(flow_run.deployment_id)
         try:
-            ns = deployment.job_variables["env"]["OPENLINEAGE_NAMESPACE"]
-        except KeyError:
-            ns = JOB_NAMESPACE
+            deployment = await self.client.read_deployment(flow_run.deployment_id)
+            try:
+                ns = deployment.job_variables["env"]["OPENLINEAGE_NAMESPACE"]
+            except KeyError:
+                ns = JOB_NAMESPACE
+                logger.info(
+                    "OPENLINEAGE_NAMESPACE deployment variable not found. Using OPENLINEAGE_NAMESPACE env variable."
+                )
+                if JOB_NAMESPACE == "default":
+                    logger.info(
+                        "OPENLINEAGE_NAMESPACE env variable not found. Namespace will be 'default.'"
+                    )
+            return ns
+        except Exception:
+            logger.info("Deployment not found for flow run: %s", flow_run_id)
             logger.info(
                 "OPENLINEAGE_NAMESPACE deployment variable not found. Using OPENLINEAGE_NAMESPACE env variable."
             )
@@ -96,7 +121,7 @@ class PrefectOpenLineageListener:
                 logger.info(
                     "OPENLINEAGE_NAMESPACE env variable not found. Namespace will be 'default.'"
                 )
-        return ns
+            return JOB_NAMESPACE
 
     async def get_job_ns(self, task_run_id: str) -> str:
         """Look for the OPENLINEAGE_NAMESPACE job env variable in the parent deployment."""

@@ -32,10 +32,10 @@ class PrefectOpenLineageAdapter:
         flowName: str = None,
         flowNamespace: str = None,
         prefectVersion: str = None,
-        deploymentId: str = None,
-        deploymentCreated: str = None,
-        deploymentUpdated: str = None,
-        deploymentName: str = None,
+        deploymentId: str | None = None,
+        deploymentCreated: str | None = None,
+        deploymentUpdated: str | None = None,
+        deploymentName: str | None = None,
     ) -> RunEvent:
         """Create and emit a flow-level OpenLineage event."""
 
@@ -47,17 +47,24 @@ class PrefectOpenLineageAdapter:
             case "FAILED":
                 eventType = RunState.FAIL
 
-        run_facets = {
-            "prefectDeployment": PrefectDeploymentRunFacet(
-                deploymentId=deploymentId,
-                created=deploymentCreated,
-                updated=deploymentUpdated,
-                name=deploymentName,
-            ),
-            "processingEngine": processing_engine_run.ProcessingEngineRunFacet(
-                version=prefectVersion, name="Prefect"
-            ),
-        }
+        if deploymentId:
+            run_facets = {
+                "prefectDeployment": PrefectDeploymentRunFacet(
+                    deployment_id=deploymentId,
+                    created=deploymentCreated,
+                    updated=deploymentUpdated,
+                    name=deploymentName,
+                ),
+                "processingEngine": processing_engine_run.ProcessingEngineRunFacet(
+                    version=prefectVersion, name="Prefect"
+                ),
+            }
+        else:
+            run_facets = {
+                "processingEngine": processing_engine_run.ProcessingEngineRunFacet(
+                    version=prefectVersion, name="Prefect"
+                )
+            }
 
         job_facets = {
             "jobType": JobTypeJobFacet(
@@ -91,10 +98,10 @@ class PrefectOpenLineageAdapter:
         namespace: str = None,
         jobDeps: list = None,
         prefectVersion: str = None,
-        deploymentId: str = None,
-        deploymentCreated: str = None,
-        deploymentUpdated: str = None,
-        deploymentName: str = None,
+        deploymentId: str | None = None,
+        deploymentCreated: str | None = None,
+        deploymentUpdated: str | None = None,
+        deploymentName: str | None = None,
         inputDatasets: list = [],
         outputDatasets: list = [],
     ) -> RunEvent:
@@ -108,21 +115,35 @@ class PrefectOpenLineageAdapter:
             case "FAILED":
                 eventType = RunState.FAIL
 
-        run_facets = {
-            "nominalTime": NominalTimeRunFacet(nominalStartTime=expectedEventTime),
-            "parentRun": ParentRunFacet(
-                run={"runId": flowRunId}, job={"namespace": namespace, "name": flowName}
-            ),
-            "prefectDeployment": PrefectDeploymentRunFacet(
-                deploymentId=deploymentId,
-                created=deploymentCreated,
-                updated=deploymentUpdated,
-                name=deploymentName,
-            ),
-            "processingEngine": processing_engine_run.ProcessingEngineRunFacet(
-                version=prefectVersion, name="Prefect"
-            ),
-        }
+        if deploymentId:
+            run_facets = {
+                "nominalTime": NominalTimeRunFacet(nominalStartTime=expectedEventTime),
+                "processingEngine": processing_engine_run.ProcessingEngineRunFacet(
+                    version=prefectVersion, name="Prefect"
+                ),
+                "parentRun": ParentRunFacet(
+                    run={"runId": flowRunId},
+                    job={"namespace": namespace, "name": flowName},
+                ),
+                "prefectDeployment": PrefectDeploymentRunFacet(
+                    deployment_id=deploymentId,
+                    created=deploymentCreated,
+                    updated=deploymentUpdated,
+                    name=deploymentName,
+                ),
+            }
+        else:
+            run_facets = {
+                "nominalTime": NominalTimeRunFacet(nominalStartTime=expectedEventTime),
+                "processingEngine": processing_engine_run.ProcessingEngineRunFacet(
+                    version=prefectVersion, name="Prefect"
+                ),
+                "parentRun": ParentRunFacet(
+                    run={"runId": flowRunId},
+                    job={"namespace": namespace, "name": flowName},
+                ),
+            }
+
         if jobDeps:
             upstream_jobs = [
                 job_dependencies_run.JobDependency(

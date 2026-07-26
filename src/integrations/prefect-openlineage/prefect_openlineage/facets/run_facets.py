@@ -9,7 +9,7 @@ class PrefectDeploymentRunFacet(BaseFacet):
     updated: str
     name: str
 
-    def __init__(self, deploymentId, created, updated, name):
+    def __init__(self, deploymentId: str, created: str, updated: str, name: str):
         super().__init__()
         self.deploymentId = deploymentId
         self.created = created
