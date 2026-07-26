@@ -50,7 +50,7 @@ class PrefectOpenLineageAdapter:
         if deploymentId:
             run_facets = {
                 "prefectDeployment": PrefectDeploymentRunFacet(
-                    deployment_id=deploymentId,
+                    deploymentId=deploymentId,
                     created=deploymentCreated,
                     updated=deploymentUpdated,
                     name=deploymentName,
@@ -126,7 +126,7 @@ class PrefectOpenLineageAdapter:
                     job={"namespace": namespace, "name": flowName},
                 ),
                 "prefectDeployment": PrefectDeploymentRunFacet(
-                    deployment_id=deploymentId,
+                    deploymentId=deploymentId,
                     created=deploymentCreated,
                     updated=deploymentUpdated,
                     name=deploymentName,
