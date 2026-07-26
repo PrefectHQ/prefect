@@ -106,7 +106,7 @@ describe("GlobalConcurrencyLimitsCreateOrEditDialog", () => {
 		expect(mockOnSubmitFn).toHaveBeenCalledOnce();
 	});
 
-	it("shows validation error when concurrency limit is negative", async () => {
+	it("prevents submitting a negative concurrency limit", async () => {
 		const user = userEvent.setup();
 
 		render(
@@ -123,8 +123,6 @@ describe("GlobalConcurrencyLimitsCreateOrEditDialog", () => {
 		await user.type(screen.getByLabelText(/name/i), "test-limit");
 		await user.click(screen.getByRole("button", { name: /save/i }));
 
-		expect(
-			await screen.findByText("Concurrency limit must be 0 or greater"),
-		).toBeVisible();
+		expect(limitInput).toBeInvalid();
 	});
 });

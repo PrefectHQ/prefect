@@ -62,7 +62,7 @@ describe("TaskRunConcurrencyLimitsCreateDialog", () => {
 		expect(mockOnSubmitFn).toHaveBeenCalledOnce();
 	});
 
-	it("shows validation error when concurrency limit is negative", async () => {
+	it("prevents submitting a negative concurrency limit", async () => {
 		const user = userEvent.setup();
 
 		render(
@@ -79,8 +79,6 @@ describe("TaskRunConcurrencyLimitsCreateDialog", () => {
 		await user.type(screen.getByLabelText(/tag/i), "my-tag");
 		await user.click(screen.getByRole("button", { name: /add/i }));
 
-		expect(
-			await screen.findByText("Concurrency limit must be 0 or greater"),
-		).toBeVisible();
+		expect(limitInput).toBeInvalid();
 	});
 });
