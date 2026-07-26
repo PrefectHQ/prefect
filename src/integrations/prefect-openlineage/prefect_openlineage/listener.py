@@ -138,14 +138,13 @@ class PrefectOpenLineageListener:
 
     async def get_artifacts_by_task_run(self, run_id: str) -> list[dict]:
         """Retrieve artifacts associated with a given task run ID."""
-
         payload = {"artifacts": {"task_run_id": {"any_": [run_id]}}}
         response = await self.client._client.post("/artifacts/filter", json=payload)
         if response.status_code == 200:
             dataset_info = []
             artifacts = response.json()
             for artifact in artifacts:
-                if "ol-dataset" in artifact["description"]:
+                if artifact["description"] and "ol-dataset" in artifact["description"]:
                     dataset_type = artifact["description"].split("_")[-1].lower()
                     data_list = ast.literal_eval(artifact["data"])
                     uri = data_list[0]["database_uri"].lower()
@@ -155,7 +154,7 @@ class PrefectOpenLineageListener:
                     )
             return dataset_info
         else:
-            logging.info("No datasets found for task run.")
+            logger.info("No datasets found for task run.")
             return []
 
     async def get_parent_runs(
