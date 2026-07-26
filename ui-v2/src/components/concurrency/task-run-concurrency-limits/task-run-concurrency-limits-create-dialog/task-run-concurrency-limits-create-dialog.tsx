@@ -108,7 +108,7 @@ export const TaskRunConcurrencyLimitsCreateDialog = ({
 								<FormItem>
 									<FormLabel>Concurrency Limit</FormLabel>
 									<FormControl>
-										<Input type="number" {...field} />
+										<Input type="number" min={0} {...field} />
 									</FormControl>
 									<FormMessage />
 								</FormItem>

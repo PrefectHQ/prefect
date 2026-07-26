@@ -75,7 +75,7 @@ export const GlobalConcurrencyLimitsCreateOrEditDialog = ({
 								<FormItem>
 									<FormLabel>Concurrency Limit</FormLabel>
 									<FormControl>
-										<Input type="number" {...field} />
+										<Input type="number" min={0} {...field} />
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -102,7 +102,7 @@ export const GlobalConcurrencyLimitsCreateOrEditDialog = ({
 									<FormItem>
 										<FormLabel>Active Slots</FormLabel>
 										<FormControl>
-											<Input type="number" {...field} />
+											<Input type="number" min={0} {...field} />
 										</FormControl>
 										<FormMessage />
 									</FormItem>
