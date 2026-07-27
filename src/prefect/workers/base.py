@@ -1290,6 +1290,16 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         return is_still_polling
 
     async def get_and_submit_flow_runs(self) -> list["FlowRun"]:
+        if self._work_pool is None:
+            # Submission needs the work pool's base job template, which is only
+            # available once the worker has synced with the API.
+            self._logger.debug(
+                "Worker has not yet synced with the Prefect API; "
+                "skipping flow run submission."
+            )
+            self._last_polled_time = prefect.types._datetime.now("UTC")
+            return []
+
         runs_response = await self._get_scheduled_flow_runs()
 
         self._last_polled_time = prefect.types._datetime.now("UTC")

@@ -233,6 +233,30 @@ class TestStartupWhenTheAPIIsUnreachable:
             async with WorkerTestImpl(name="test", work_pool_name="test-work-pool"):
                 pass
 
+    async def test_flow_runs_are_not_submitted_before_the_first_sync(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        connect_error: httpx.ConnectError,
+        prefect_client: PrefectClient,
+        work_pool: WorkPool,
+    ):
+        monkeypatch.setattr(
+            WorkerTestImpl, "sync_with_backend", AsyncMock(side_effect=connect_error)
+        )
+
+        @flow
+        def test_flow():
+            pass
+
+        await prefect_client.create_flow_run(
+            test_flow,
+            state=Scheduled(scheduled_time=now_fn("UTC")),
+            work_pool_name=work_pool.name,
+        )
+
+        async with WorkerTestImpl(name="test", work_pool_name=work_pool.name) as worker:
+            assert await worker.get_and_submit_flow_runs() == []
+
     async def test_cancellation_observer_is_set_up_once_the_api_is_reachable(
         self, monkeypatch: pytest.MonkeyPatch, connect_error: httpx.ConnectError
     ):
