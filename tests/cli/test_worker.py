@@ -192,6 +192,43 @@ async def test_start_worker_creates_work_pool_with_base_config(
     }
 
 
+@pytest.fixture
+def unreachable_api(monkeypatch: pytest.MonkeyPatch):
+    async def raise_connect_error(*args, **kwargs):
+        raise httpx.ConnectError("All connection attempts failed")
+
+    monkeypatch.setattr(PrefectClient, "read_work_pool", raise_connect_error)
+    monkeypatch.setattr(PrefectClient, "read_work_queues", raise_connect_error)
+
+
+@pytest.mark.usefixtures("use_hosted_api_server", "unreachable_api")
+def test_start_worker_when_api_is_unreachable(mock_worker):
+    invoke_and_assert(
+        command=[
+            "worker",
+            "start",
+            "-p",
+            "test-work-pool",
+            "-t",
+            "process",
+            "--run-once",
+        ],
+        expected_code=0,
+    )
+    mock_worker.return_value.start.assert_awaited_once_with(
+        run_once=True, with_healthcheck=False, printer=ANY
+    )
+
+
+@pytest.mark.usefixtures("use_hosted_api_server", "unreachable_api")
+def test_start_worker_without_type_when_api_is_unreachable():
+    invoke_and_assert(
+        command=["worker", "start", "-p", "test-work-pool", "--run-once"],
+        expected_code=1,
+        expected_output_contains=["Provide a worker type with '--type'"],
+    )
+
+
 @pytest.mark.usefixtures("use_hosted_api_server")
 def test_start_worker_with_work_queue_names(mock_worker, process_work_pool):
     invoke_and_assert(

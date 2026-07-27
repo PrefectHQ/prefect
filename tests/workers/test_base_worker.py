@@ -193,6 +193,75 @@ async def test_worker_requires_api_url_when_not_in_test_mode():
             pass
 
 
+class TestStartupWhenTheAPIIsUnreachable:
+    @pytest.fixture
+    def connect_error(self) -> httpx.ConnectError:
+        return httpx.ConnectError("All connection attempts failed")
+
+    async def test_setup_continues_when_the_api_is_unreachable(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+        connect_error: httpx.ConnectError,
+    ):
+        monkeypatch.setattr(
+            WorkerTestImpl, "sync_with_backend", AsyncMock(side_effect=connect_error)
+        )
+
+        async with WorkerTestImpl(
+            name="test", work_pool_name="test-work-pool"
+        ) as worker:
+            assert worker.is_setup
+            assert worker._work_pool is None
+
+        assert "Unable to reach the Prefect API while starting up" in caplog.text
+
+    async def test_setup_fails_for_non_transient_errors(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        request = httpx.Request("GET", "https://api.prefect.io/work_pools/test")
+        unauthorized = httpx.HTTPStatusError(
+            "Unauthorized",
+            request=request,
+            response=httpx.Response(401, request=request),
+        )
+        monkeypatch.setattr(
+            WorkerTestImpl, "sync_with_backend", AsyncMock(side_effect=unauthorized)
+        )
+
+        with pytest.raises(httpx.HTTPStatusError):
+            async with WorkerTestImpl(name="test", work_pool_name="test-work-pool"):
+                pass
+
+    async def test_cancellation_observer_is_set_up_once_the_api_is_reachable(
+        self, monkeypatch: pytest.MonkeyPatch, connect_error: httpx.ConnectError
+    ):
+        sync_with_backend = BaseWorker.sync_with_backend
+        failures = 1
+
+        async def flaky_sync_with_backend(self: BaseWorker[Any, Any, Any]) -> None:
+            nonlocal failures
+            if failures:
+                failures -= 1
+                raise connect_error
+            await sync_with_backend(self)
+
+        monkeypatch.setattr(
+            WorkerTestImpl, "sync_with_backend", flaky_sync_with_backend
+        )
+
+        with temporary_settings(updates={PREFECT_WORKER_ENABLE_CANCELLATION: True}):
+            async with WorkerTestImpl(
+                name="test", work_pool_name="test-work-pool"
+            ) as worker:
+                assert worker._cancelling_observer is None
+
+                await worker.sync_with_backend()
+
+                assert worker._work_pool is not None
+                assert worker._cancelling_observer is not None
+
+
 async def test_worker_creates_work_pool_by_default_during_sync(
     prefect_client: PrefectClient,
 ):

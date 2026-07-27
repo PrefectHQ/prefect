@@ -26,6 +26,7 @@ from zoneinfo import ZoneInfo
 
 import anyio
 import anyio.abc
+import httpx
 from exceptiongroup import BaseExceptionGroup, ExceptionGroup
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
 from pydantic.json_schema import GenerateJsonSchema
@@ -116,6 +117,13 @@ if TYPE_CHECKING:
         WorkerFlowRunResponse,
     )
     from prefect.flows import Flow
+
+
+def _is_transient_api_error(exc: httpx.HTTPError) -> bool:
+    """Whether an API error is likely to resolve itself if retried."""
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code >= 500
+    return isinstance(exc, httpx.TransportError)
 
 
 class BaseJobConfiguration(BaseModel):
@@ -1210,31 +1218,16 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         # it in all API requests made by this worker process.
         os.environ["PREFECT__WORKER_NAME"] = self.name
 
-        await self.sync_with_backend()
-
-        # Initialize cancellation handling if enabled
-        if get_current_settings().worker.enable_cancellation and self._work_pool:
-            try:
-                self._cancelling_observer = await self._exit_stack.enter_async_context(
-                    FlowRunCancellingObserver(
-                        on_cancelling=lambda flow_run_id: (
-                            self._runs_task_group.start_soon(
-                                self._cancel_run, flow_run_id
-                            )
-                        ),
-                        polling_interval=get_current_settings().worker.cancellation_poll_seconds,
-                        event_filter=EventFilter(
-                            event=EventNameFilter(name=["prefect.flow-run.Cancelling"]),
-                            any_resource=EventAnyResourceFilter(
-                                id=[f"prefect.work-pool.{self._work_pool.id}"]
-                            ),
-                        ),
-                    )
-                )
-            except Exception as exc:
-                self._logger.warning(
-                    "Failed to setup cancellation handling: %s", exc, exc_info=True
-                )
+        try:
+            await self.sync_with_backend()
+        except httpx.HTTPError as exc:
+            if not _is_transient_api_error(exc):
+                raise
+            self._logger.warning(
+                "Unable to reach the Prefect API while starting up; the worker will "
+                "keep attempting to connect: %s",
+                exc,
+            )
 
         self.is_setup = True
 
@@ -1354,10 +1347,44 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         await self._worker_channel.sync(self._runs_task_group)
 
+        await self._setup_cancellation_observer()
+
         self._logger.debug(
             "Worker synchronized with the Prefect API server. "
             + (f"Remote ID: {self.backend_id}" if self.backend_id else "")
         )
+
+    async def _setup_cancellation_observer(self) -> None:
+        """Start observing flow run cancellations if not already observing.
+
+        Requires a work pool, which is only available once the worker has
+        synced with the API.
+        """
+        if self._cancelling_observer is not None or self._work_pool is None:
+            return
+
+        if not get_current_settings().worker.enable_cancellation:
+            return
+
+        try:
+            self._cancelling_observer = await self._exit_stack.enter_async_context(
+                FlowRunCancellingObserver(
+                    on_cancelling=lambda flow_run_id: self._runs_task_group.start_soon(
+                        self._cancel_run, flow_run_id
+                    ),
+                    polling_interval=get_current_settings().worker.cancellation_poll_seconds,
+                    event_filter=EventFilter(
+                        event=EventNameFilter(name=["prefect.flow-run.Cancelling"]),
+                        any_resource=EventAnyResourceFilter(
+                            id=[f"prefect.work-pool.{self._work_pool.id}"]
+                        ),
+                    ),
+                )
+            )
+        except Exception as exc:
+            self._logger.warning(
+                "Failed to setup cancellation handling: %s", exc, exc_info=True
+            )
 
     def _ensure_worker_channel(self) -> None:
         if self._client is None:
