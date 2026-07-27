@@ -166,13 +166,13 @@ Description: {{ automation.description }}
 
 Event: {{ event.id }}
 Resource:
-{% for label, value in event.resource %}
+{% for label, value in event.resource.labels %}
 {{ label }}: {{ value }}
 {% endfor %}
 Related Resources:
 {% for related in event.related %}
     Role: {{ related.role }}
-    {% for label, value in related %}
+    {% for label, value in related.labels %}
     {{ label }}: {{ value }}
     {% endfor %}
 {% endfor %}
@@ -195,7 +195,7 @@ event and, if it finds one, fetches a fresh copy of that object from the API and
 | `task_run` | [`TaskRun`](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.TaskRun) | `prefect.task-run.*` |
 | `work_pool` | [`WorkPool`](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.WorkPool) | `prefect.work-pool.*` |
 | `work_queue` | [`WorkQueue`](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.WorkQueue) (with status) | `prefect.work-queue.*` |
-| `concurrency_limit` | `ConcurrencyLimit` | `prefect.concurrency-limit.*` |
+| `concurrency_limit` | [`ConcurrencyLimitV2`](https://reference.prefect.io/prefect/server/schemas/core/#prefect.server.schemas.core.ConcurrencyLimitV2) | `prefect.concurrency-limit.*` |
 | `variables` | Mapping of workspace [variables](/v3/concepts/variables) by name | (workspace-wide) |
 
 In addition to its native properties, each fetched object includes an `id` along with `created` and `updated`
@@ -246,9 +246,11 @@ run some time after its triggering event — and the underlying object may have 
 shortcut reflects the object's **current** state, which can differ from its state at the moment the automation
 fired.
 
-As a special case, the `state` of `flow_run` and `task_run` is rebuilt from the triggering event so that
+As a special case, the `state` of `flow_run` and `task_run` can be rebuilt from the triggering event so that
 `{{ flow_run.state.name }}` matches the state change that fired the automation, while the run's other fields still
-reflect the latest API values.
+reflect the latest API values. This rebuild only happens when the matching event resource carries all four
+`prefect.state-name`, `prefect.state-type`, `prefect.state-timestamp`, and `prefect.state-message` labels; if any is
+missing or malformed, the `state` falls back to the object's latest API value like the other fields.
 </Warning>
 
 Additional consequences of the fetch-on-demand behavior:
@@ -268,10 +270,14 @@ templates can use the following Prefect-provided filters:
 
 | Filter | Description |
 | --- | --- |
-| `tojson` | Serialize any value — including Pydantic objects such as `flow_run`, `deployment`, and `event` — to a JSON string. Accepts an optional `indent` for pretty-printing, for example `{{ flow_run \| tojson(indent=2) }}`. |
+| `tojson` | Serialize a JSON-compatible value or Pydantic model — such as `flow_run`, `deployment`, or `event` — to a JSON string. Accepts an optional `indent` for pretty-printing, for example `{{ flow_run \| tojson(indent=2) }}`. Values that are not JSON-serializable (for example a resource's `labels`) raise an error. |
 | `ui_url` | The Prefect UI URL for the given object, for example `{{ flow_run \| ui_url }}`. |
-| `ui_resource_events_url` | A UI link to the events page filtered to the given resource or object. |
+| `ui_resource_events_url` | A UI link to the events page filtered to the given resource or object, for example `{{ event.resource \| ui_resource_events_url }}`. Supports an `Automation`, a `Resource`, or a persisted object; unsupported inputs — including the fetched `flow_run`/`deployment` shortcuts — render as an empty string. |
 | `flow_run_id` | Extract a flow run ID from a string (such as a pull-request body or log line) that contains a `flow-run/<uuid>` path. |
+
+<Note>
+The `ui_url`, `ui_resource_events_url`, and `flow_run_id` filters are registered by the action message templates (notifications and webhooks). They are not registered by deployment-parameter rendering, so referencing them in a `Run deployment` parameter can fail with `No filter named 'ui_url'`. The `tojson` filter is always available.
+</Note>
 
 Human-friendly date and time rendering is also available through the
 [jinja2-humanize-extension](https://pypi.org/project/jinja2-humanize-extension/), which is enabled for automation
