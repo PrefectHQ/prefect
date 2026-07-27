@@ -31,7 +31,7 @@
               "type": "string"
             }
           },
-          "required": ["deployment_id", "created", "updated", "name"]
+          "required": ["deploymentId", "created", "updated", "name"]
         }
       ],
       "type": "object"
