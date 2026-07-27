@@ -580,16 +580,14 @@ class PrefectFutureList(list[PrefectFuture[R]], Iterator[PrefectFuture[R]]):
         results: list[R] = [None] * len(self)  # type: ignore[list-item]
 
         try:
-            # Wrap the entire loop in timeout_context so that both the wait
-            # for futures *and* any slow result retrieval (e.g. large data
-            # deserialization) are bounded by the caller's timeout.
-            with timeout_context(timeout, timeout_exc_type=_WaitTimeoutError):
-                # as_completed de-duplicates internally; each unique future
-                # is yielded exactly once, in completion order.
-                for future in as_completed(list(self), timeout=timeout):
-                    result = future.result(raise_on_failure=raise_on_failure)
-                    for i in future_to_indices[future]:
-                        results[i] = result
+            # `as_completed` de-duplicates internally; each unique future is
+            # yielded exactly once, in completion order. Its timeout scope stays
+            # entered while the loop body runs, so slow result retrieval (e.g.
+            # large data deserialization) is bounded by the caller's timeout too.
+            for future in as_completed(list(self), timeout=timeout):
+                result = future.result(raise_on_failure=raise_on_failure)
+                for i in future_to_indices[future]:
+                    results[i] = result
         # A `TimeoutError` from inside a task is not a `_WaitTimeoutError` and
         # propagates unchanged.
         except _WaitTimeoutError as exc:
