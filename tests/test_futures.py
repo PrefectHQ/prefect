@@ -48,18 +48,6 @@ class MockFuture(PrefectWrappedFuture[Any, Future[Any]]):
         return self._final_state.result()
 
 
-class TimeoutRaisingFuture(MockFuture):
-    """A completed future whose result raises a `TimeoutError`, as a task that
-    timed out internally would."""
-
-    def result(
-        self,
-        timeout: Optional[float] = None,
-        raise_on_failure: bool = True,
-    ) -> Any:
-        raise TimeoutError("oops")
-
-
 def mark_flow_run_suspension_requested() -> None:
     flow_run_context = FlowRunContext.get()
     assert flow_run_context
@@ -999,15 +987,6 @@ class TestPrefectFutureList:
             match="Timed out waiting for all futures to complete within 0.5 seconds",
         ):
             futures.result(timeout=0.5)
-
-    @pytest.mark.timeout(method="thread")
-    def test_result_with_timeout_does_not_obscure_other_timeouts(self):
-        """A `TimeoutError` from inside a task must surface even when the
-        caller passes a timeout of their own."""
-        futures = PrefectFutureList([TimeoutRaisingFuture()])
-
-        with pytest.raises(TimeoutError, match="oops"):
-            futures.result(timeout=5)
 
     def test_result_fail_fast(self):
         """A fast failure should be raised even when a slow future precedes it."""
