@@ -193,8 +193,8 @@ async def test_start_worker_creates_work_pool_with_base_config(
 
 
 @pytest.fixture
-def unreachable_api(monkeypatch: pytest.MonkeyPatch):
-    async def raise_connect_error(*args, **kwargs):
+def unreachable_api(monkeypatch: pytest.MonkeyPatch) -> None:
+    async def raise_connect_error(*args: object, **kwargs: object) -> None:
         raise httpx.ConnectError("All connection attempts failed")
 
     monkeypatch.setattr(PrefectClient, "read_work_pool", raise_connect_error)
@@ -202,7 +202,7 @@ def unreachable_api(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.mark.usefixtures("use_hosted_api_server", "unreachable_api")
-def test_start_worker_when_api_is_unreachable(mock_worker):
+def test_start_worker_when_api_is_unreachable(mock_worker: MagicMock):
     invoke_and_assert(
         command=[
             "worker",

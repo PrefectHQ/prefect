@@ -212,7 +212,7 @@ class TestStartupWhenTheAPIIsUnreachable:
             name="test", work_pool_name="test-work-pool"
         ) as worker:
             assert worker.is_setup
-            assert worker._work_pool is None
+            assert not worker._has_successfully_synced
 
         assert "Unable to reach the Prefect API while starting up" in caplog.text
 
@@ -233,57 +233,152 @@ class TestStartupWhenTheAPIIsUnreachable:
             async with WorkerTestImpl(name="test", work_pool_name="test-work-pool"):
                 pass
 
-    async def test_flow_runs_are_not_submitted_before_the_first_sync(
+    async def test_flow_runs_are_not_polled_after_a_partial_sync(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        connect_error: httpx.ConnectError,
+        work_pool: WorkPool,
+        worker_channel_endpoint_unavailable: None,
+    ):
+        heartbeat = AsyncMock(side_effect=connect_error)
+        monkeypatch.setattr(PrefectClient, "send_worker_heartbeat", heartbeat)
+        get_scheduled_flow_runs = AsyncMock(return_value=[])
+
+        async with WorkerTestImpl(name="test", work_pool_name=work_pool.name) as worker:
+            monkeypatch.setattr(
+                worker, "_get_scheduled_flow_runs", get_scheduled_flow_runs
+            )
+
+            # Reading the work pool succeeded before the heartbeat failed, so the
+            # snapshot alone cannot be used as the worker's readiness signal.
+            assert worker._work_pool is not None
+            assert not worker._has_successfully_synced
+            assert await worker.get_and_submit_flow_runs() == []
+
+        get_scheduled_flow_runs.assert_not_awaited()
+
+    async def test_worker_recovers_and_initializes_sync_dependent_services(
         self,
         monkeypatch: pytest.MonkeyPatch,
         connect_error: httpx.ConnectError,
         prefect_client: PrefectClient,
+        worker_deployment_wq1: Deployment,
         work_pool: WorkPool,
+        worker_channel_endpoint_unavailable: None,
+    ):
+        send_worker_heartbeat = PrefectClient.send_worker_heartbeat
+        allow_recovery = anyio.Event()
+        retry_started = anyio.Event()
+        worker_started = anyio.Event()
+        run_submitted = anyio.Event()
+        heartbeat_attempts = 0
+
+        async def flaky_heartbeat(
+            client: PrefectClient,
+            work_pool_name: str,
+            worker_name: str,
+            heartbeat_interval_seconds: float | None = None,
+            get_worker_id: bool = False,
+            worker_metadata: WorkerMetadata | None = None,
+        ) -> uuid.UUID | None:
+            nonlocal heartbeat_attempts
+            heartbeat_attempts += 1
+            if heartbeat_attempts == 1:
+                raise connect_error
+
+            retry_started.set()
+            await allow_recovery.wait()
+            return await send_worker_heartbeat(
+                client,
+                work_pool_name=work_pool_name,
+                worker_name=worker_name,
+                heartbeat_interval_seconds=heartbeat_interval_seconds,
+                get_worker_id=get_worker_id,
+                worker_metadata=worker_metadata,
+            )
+
+        monkeypatch.setattr(PrefectClient, "send_worker_heartbeat", flaky_heartbeat)
+
+        await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id,
+            state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(seconds=1)),
+        )
+
+        async def run_flow_run(
+            flow_run: FlowRun,
+            configuration: BaseJobConfiguration,
+            task_status: anyio.abc.TaskStatus[int] | None = None,
+        ) -> BaseWorkerResult:
+            run_submitted.set()
+            return BaseWorkerResult(identifier=str(flow_run.id), status_code=0)
+
+        def printer(message: str) -> None:
+            if message.endswith("started!"):
+                worker_started.set()
+
+        worker = WorkerTestImpl(
+            name="test",
+            work_pool_name=work_pool.name,
+            heartbeat_interval_seconds=1,
+        )
+        worker.run = AsyncMock(side_effect=run_flow_run)
+
+        async def start_worker() -> None:
+            await worker.start(run_once=True, printer=printer)
+
+        with temporary_settings(updates={PREFECT_WORKER_ENABLE_CANCELLATION: True}):
+            async with anyio.create_task_group() as task_group:
+                task_group.start_soon(start_worker)
+
+                with anyio.fail_after(5):
+                    await retry_started.wait()
+                    await worker_started.wait()
+
+                assert worker.is_setup
+                assert worker._work_pool is not None
+                assert not worker._has_successfully_synced
+                assert worker._cancelling_observer is None
+                assert not run_submitted.is_set()
+
+                allow_recovery.set()
+
+                with anyio.fail_after(5):
+                    await run_submitted.wait()
+
+                assert worker._has_successfully_synced
+                assert worker._cancelling_observer is not None
+
+    async def test_sustained_sync_failures_stop_the_worker(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        connect_error: httpx.ConnectError,
     ):
         monkeypatch.setattr(
             WorkerTestImpl, "sync_with_backend", AsyncMock(side_effect=connect_error)
         )
 
-        @flow
-        def test_flow():
-            pass
-
-        await prefect_client.create_flow_run(
-            test_flow,
-            state=Scheduled(scheduled_time=now_fn("UTC")),
-            work_pool_name=work_pool.name,
-        )
-
-        async with WorkerTestImpl(name="test", work_pool_name=work_pool.name) as worker:
-            assert await worker.get_and_submit_flow_runs() == []
-
-    async def test_cancellation_observer_is_set_up_once_the_api_is_reachable(
-        self, monkeypatch: pytest.MonkeyPatch, connect_error: httpx.ConnectError
-    ):
-        sync_with_backend = BaseWorker.sync_with_backend
-        failures = 1
-
-        async def flaky_sync_with_backend(self: BaseWorker[Any, Any, Any]) -> None:
-            nonlocal failures
-            if failures:
-                failures -= 1
-                raise connect_error
-            await sync_with_backend(self)
+        def no_wait_interval(interval: float, clamping_factor: float) -> float:
+            del interval, clamping_factor
+            return 0
 
         monkeypatch.setattr(
-            WorkerTestImpl, "sync_with_backend", flaky_sync_with_backend
+            "prefect.utilities.services.clamped_poisson_interval",
+            no_wait_interval,
+        )
+        worker = WorkerTestImpl(
+            name="test",
+            work_pool_name="test-work-pool",
+            heartbeat_interval_seconds=1,
         )
 
-        with temporary_settings(updates={PREFECT_WORKER_ENABLE_CANCELLATION: True}):
-            async with WorkerTestImpl(
-                name="test", work_pool_name="test-work-pool"
-            ) as worker:
-                assert worker._cancelling_observer is None
+        with anyio.fail_after(5):
+            with pytest.raises(ExceptionGroup) as exc_info:
+                await worker.start()
 
-                await worker.sync_with_backend()
-
-                assert worker._work_pool is not None
-                assert worker._cancelling_observer is not None
+        assert len(exc_info.value.exceptions) == 1
+        service_error = exc_info.value.exceptions[0]
+        assert isinstance(service_error, RuntimeError)
+        assert str(service_error) == "Service exceeded error threshold."
 
 
 async def test_worker_creates_work_pool_by_default_during_sync(

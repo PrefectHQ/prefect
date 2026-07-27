@@ -689,6 +689,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._submitting_flow_run_ids: set[UUID] = set()
         self._scheduled_task_scopes: set[anyio.CancelScope] = set()
         self._worker_channel: Optional[WorkerChannel] = None
+        self._has_successfully_synced = False
 
         # Cancellation handling
         self._cancelling_observer: Optional[FlowRunCancellingObserver] = None
@@ -844,29 +845,36 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         healthcheck_thread = None
         try:
             async with self as worker:
-                # schedule the scheduled flow run polling loop
+                polling_service = partial(
+                    critical_service_loop,
+                    workload=self.get_and_submit_flow_runs,
+                    interval=PREFECT_WORKER_QUERY_SECONDS.value(),
+                    run_once=run_once,
+                    jitter_range=0.3,
+                    backoff=4,  # Up to ~1 minute interval during backoff
+                )
+                sync_service = partial(
+                    critical_service_loop,
+                    workload=self._sync_and_initialize,
+                    interval=self.heartbeat_interval_seconds,
+                    run_once=run_once,
+                    jitter_range=0.3,
+                    backoff=4,
+                )
+
                 async with anyio.create_task_group() as loops_task_group:
-                    loops_task_group.start_soon(
-                        partial(
-                            critical_service_loop,
-                            workload=self.get_and_submit_flow_runs,
-                            interval=PREFECT_WORKER_QUERY_SECONDS.value(),
-                            run_once=run_once,
-                            jitter_range=0.3,
-                            backoff=4,  # Up to ~1 minute interval during backoff
-                        )
-                    )
-                    # schedule the sync loop
-                    loops_task_group.start_soon(
-                        partial(
-                            critical_service_loop,
-                            workload=self.sync_with_backend,
-                            interval=self.heartbeat_interval_seconds,
-                            run_once=run_once,
-                            jitter_range=0.3,
-                            backoff=4,
-                        )
-                    )
+                    if run_once:
+
+                        async def run_once_services() -> None:
+                            # A one-shot poll needs the work-pool configuration
+                            # produced by the one-shot synchronization attempt.
+                            await sync_service()
+                            await polling_service()
+
+                        loops_task_group.start_soon(run_once_services)
+                    else:
+                        loops_task_group.start_soon(polling_service)
+                        loops_task_group.start_soon(sync_service)
 
                     self._started_event = await self._emit_worker_started_event()
 
@@ -1201,6 +1209,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
     async def setup(self) -> None:
         """Prepares the worker to run."""
         self._logger.debug("Setting up worker...")
+        self._has_successfully_synced = False
         self._runs_task_group = anyio.create_task_group()
         self._limiter = (
             anyio.CapacityLimiter(self._limit) if self._limit is not None else None
@@ -1219,7 +1228,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         os.environ["PREFECT__WORKER_NAME"] = self.name
 
         try:
-            await self.sync_with_backend()
+            await self._sync_and_initialize()
         except httpx.HTTPError as exc:
             if not _is_transient_api_error(exc):
                 raise
@@ -1259,6 +1268,8 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._runs_task_group = None
         self._client = None
         self._worker_channel = None
+        self._has_successfully_synced = False
+        self._cancelling_observer = None
 
     def is_worker_still_polling(self, query_interval_seconds: float) -> bool:
         """
@@ -1290,9 +1301,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         return is_still_polling
 
     async def get_and_submit_flow_runs(self) -> list["FlowRun"]:
-        if self._work_pool is None:
-            # Submission needs the work pool's base job template, which is only
-            # available once the worker has synced with the API.
+        if not self._has_successfully_synced:
             self._logger.debug(
                 "Worker has not yet synced with the Prefect API; "
                 "skipping flow run submission."
@@ -1344,6 +1353,18 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             return WorkerMetadata(integrations=integration_versions)
         return None
 
+    async def _sync_and_initialize(self) -> None:
+        """Synchronize the worker and initialize sync-dependent services."""
+        await self.sync_with_backend()
+
+        # Synchronization can succeed without a work pool when automatic work-pool
+        # creation is disabled. The worker cannot submit runs without its template.
+        if self._work_pool is None:
+            return
+
+        await self._setup_cancellation_observer()
+        self._has_successfully_synced = True
+
     async def sync_with_backend(self) -> None:
         """
         Updates the worker's local information about it's current work pool and
@@ -1356,8 +1377,6 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             return
 
         await self._worker_channel.sync(self._runs_task_group)
-
-        await self._setup_cancellation_observer()
 
         self._logger.debug(
             "Worker synchronized with the Prefect API server. "
