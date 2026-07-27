@@ -309,6 +309,51 @@ def test_start_worker_with_all_work_queues_paused(mock_worker, process_work_pool
     )
 
 
+class TestPausedChecksWithUnreachableAPI:
+    """Regression tests for https://github.com/PrefectHQ/prefect/issues/22638
+
+    The paused-pool and paused-queue checks are informational, so an unreachable
+    API must not make them the operation that terminates worker startup.
+    """
+
+    @pytest.fixture
+    def unreachable_client(self, monkeypatch):
+        client = MagicMock()
+        client.__aenter__ = AsyncMock(return_value=client)
+        client.__aexit__ = AsyncMock(return_value=False)
+        connect_error = httpx.ConnectError("All connection attempts failed")
+        client.read_work_pool = AsyncMock(side_effect=connect_error)
+        client.read_work_queues = AsyncMock(side_effect=connect_error)
+        monkeypatch.setattr(
+            "prefect.cli._worker_utils.get_client", lambda *a, **kw: client
+        )
+        return client
+
+    async def test_check_work_pool_paused_tolerates_connect_error(
+        self, unreachable_client
+    ):
+        from prefect.cli._worker_utils import _check_work_pool_paused
+
+        assert await _check_work_pool_paused("some-pool") is False
+
+    async def test_check_work_queues_paused_tolerates_connect_error(
+        self, unreachable_client
+    ):
+        from prefect.cli._worker_utils import _check_work_queues_paused
+
+        assert await _check_work_queues_paused("some-pool", None) is False
+
+    @pytest.mark.usefixtures("use_hosted_api_server", "unreachable_client")
+    def test_worker_starts_when_paused_checks_cannot_reach_api(self, mock_worker):
+        invoke_and_assert(
+            command=["worker", "start", "-p", "test", "-t", "process", "--run-once"],
+            expected_code=0,
+        )
+        mock_worker.return_value.start.assert_awaited_once_with(
+            run_once=True, with_healthcheck=False, printer=ANY
+        )
+
+
 @pytest.mark.usefixtures("use_hosted_api_server")
 def test_start_worker_with_prefetch_seconds(mock_worker):
     invoke_and_assert(

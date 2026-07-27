@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional, Type
 
+import httpx
+
 from prefect._internal.integrations import KNOWN_EXTRAS_FOR_PACKAGES
 from prefect.client.collections import get_collections_metadata_client
 from prefect.client.orchestration import get_client
@@ -23,6 +25,11 @@ async def _check_work_pool_paused(work_pool_name: str) -> bool:
             work_pool = await client.read_work_pool(work_pool_name=work_pool_name)
             return work_pool.is_paused
     except ObjectNotFound:
+        return False
+    except httpx.RequestError:
+        # this check only prints a warning, so it should not be what terminates
+        # startup on an unreachable API; the worker's own connection handling
+        # decides whether to proceed
         return False
 
 
@@ -47,6 +54,8 @@ async def _check_work_queues_paused(
             )
             return all(queue.is_paused for queue in wqs) if wqs else False
     except ObjectNotFound:
+        return False
+    except httpx.RequestError:
         return False
 
 
