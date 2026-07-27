@@ -586,6 +586,56 @@ async def test_publisher_respects_batch_size(
         assert message.attributes == {"id": str(i)}
 
 
+async def test_publisher_periodic_task_survives_flush_failure_and_requeues(
+    broker: str, cache: Cache, redis: Redis
+):
+    """The periodic publisher recovers from a mid-outage flush failure.
+
+    With the new finite socket_timeout an in-flight XADD can raise during an
+    outage. The periodic task must not die: it re-queues the unsent batch and
+    flushes it once Redis is reachable again, rather than dropping the messages
+    (OSS-8071 / #22478).
+    """
+    failed = asyncio.Event()
+    recovered = asyncio.Event()
+    state = {"failed_once": False}
+    real_xadd = Redis.xadd
+
+    async def flaky_xadd(self: Redis, *args: object, **kwargs: object):
+        if not state["failed_once"]:
+            state["failed_once"] = True
+            failed.set()
+            raise RedisTimeoutError("simulated outage during publish")
+        result = await real_xadd(self, *args, **kwargs)
+        recovered.set()
+        return result
+
+    with patch.object(Redis, "xadd", flaky_xadd):
+        async with Publisher(
+            "message-tests",
+            cache=cache,
+            batch_size=100,  # large so only the periodic task flushes the batch
+            publish_every=timedelta(seconds=0.05),
+        ) as p:
+            assert await redis.xlen(p.stream) == 0
+            await p.publish_data(b"m1", {"id": "1"})
+            await p.publish_data(b"m2", {"id": "2"})
+
+            # The first periodic flush hits the simulated outage and fails.
+            await failed.wait()
+
+            # The task stayed alive and the unsent messages were re-queued
+            # (checked before any await so the next flush cannot interleave).
+            assert p._periodic_task is not None
+            assert not p._periodic_task.done()
+            assert len(p._batch) == 2
+
+            # A later interval flushes the re-queued batch once XADD recovers.
+            await recovered.wait()
+
+    assert await redis.xlen(p.stream) == 2
+
+
 async def test_trimming_streams(
     redis: Redis, publisher: Publisher, consumer_a: Consumer, consumer_b: Consumer
 ) -> None:
@@ -733,6 +783,31 @@ def test_warn_if_block_exceeds_socket_timeout(
         assert "block interval" in mock_logger.warning.call_args[0][0]
 
 
+@pytest.mark.parametrize(
+    "timeout_from_url, expected_hint",
+    [
+        pytest.param(
+            False, "PREFECT_REDIS_MESSAGING_SOCKET_TIMEOUT", id="from_setting"
+        ),
+        pytest.param(True, "socket_timeout query parameter", id="from_url_override"),
+    ],
+)
+def test_warn_remediation_matches_timeout_source(
+    timeout_from_url: bool, expected_hint: str
+):
+    """The remediation points at the URL query when that is what set the timeout,
+    since a URL socket_timeout query overrides the env var (#22478)."""
+    with patch("prefect_redis.messaging.logger") as mock_logger:
+        _warn_if_block_exceeds_socket_timeout(
+            "topic",
+            timedelta(seconds=5),
+            5.0,
+            timeout_from_url=timeout_from_url,
+        )
+    message = mock_logger.warning.call_args[0][0] % mock_logger.warning.call_args[0][1:]
+    assert expected_hint in message
+
+
 async def test_consumer_run_warns_using_effective_socket_timeout(
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -762,6 +837,8 @@ async def test_consumer_run_warns_using_effective_socket_timeout(
     mock_warn.assert_called_once()
     # The effective timeout passed in is the URL override (1s), not the 60s default.
     assert mock_warn.call_args[0][2] == 1
+    # The timeout came from the URL query, so remediation should target the URL.
+    assert mock_warn.call_args.kwargs["timeout_from_url"] is True
     _client_cache.clear()
 
 

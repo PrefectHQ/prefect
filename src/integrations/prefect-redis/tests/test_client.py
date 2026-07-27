@@ -522,6 +522,43 @@ async def test_clear_cached_clients_preserves_concurrent_replacement():
     _client_cache.clear()
 
 
+async def test_clear_cached_clients_retires_only_the_failed_client():
+    """Passing a client retires only that endpoint, leaving other clients alone.
+
+    Two clients for different endpoints can be cached on the same event loop
+    (e.g. one from a `url` and one from host/port). An outage of one broker must
+    not force-disconnect the healthy client for the other broker (#22478).
+    """
+    _client_cache.clear()
+    loop = _running_loop()
+
+    failed = AsyncMock(spec=Redis)
+    failed.connection_pool = MagicMock()
+    failed.connection_pool.disconnect = AsyncMock()
+    failed_key = (get_async_redis_client, ("redis://broker-a:6379/0",), (), loop)
+
+    healthy = AsyncMock(spec=Redis)
+    healthy.connection_pool = MagicMock()
+    healthy.connection_pool.disconnect = AsyncMock()
+    healthy_key = (get_async_redis_client, ("redis://broker-b:6379/0",), (), loop)
+
+    _client_cache[failed_key] = failed
+    _client_cache[healthy_key] = healthy
+
+    await clear_cached_clients(failed)
+
+    failed.connection_pool.disconnect.assert_awaited_once_with(inuse_connections=True)
+    failed.aclose.assert_awaited_once()
+    assert failed_key not in _client_cache
+
+    # The healthy broker's client is untouched and still cached.
+    healthy.connection_pool.disconnect.assert_not_awaited()
+    healthy.aclose.assert_not_awaited()
+    assert _client_cache.get(healthy_key) is healthy
+
+    _client_cache.clear()
+
+
 class _BlackholeProxy:
     """A TCP proxy that can stop relaying traffic to simulate a network partition."""
 

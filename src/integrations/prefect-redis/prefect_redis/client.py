@@ -207,36 +207,43 @@ def close_all_cached_connections() -> None:
         loop.run_until_complete(client.aclose())
 
 
-async def clear_cached_clients() -> None:
-    """Clear all cached Redis clients to force fresh connections.
+async def clear_cached_clients(client: Union[Redis, None] = None) -> None:
+    """Clear cached Redis clients to force fresh connections.
 
     This should be called when a connection error is detected to ensure
     subsequent calls to get_async_redis_client() return fresh clients
     rather than stale ones with broken connections.
 
-    Clients created on the current event loop are disconnected and closed
-    before being dropped so their connections — including ones stuck
-    `in_use` on a dead socket — are reaped rather than lingering in the
-    pool forever (which otherwise causes a permanent `MaxConnectionsError`).
+    The retired clients are disconnected and closed before being dropped so
+    their connections — including ones stuck `in_use` on a dead socket — are
+    reaped rather than lingering in the pool forever (which otherwise causes a
+    permanent `MaxConnectionsError`).
 
-    Only the matching entries are detached (before any await) and closed; the
-    cache is not cleared wholesale. A replacement client inserted concurrently
-    while we await disconnect/close therefore survives instead of being dropped
-    without being closed. Clients bound to other event loops are left untouched
-    since they cannot be awaited safely from here.
+    When `client` is given, only that client is retired, so an outage of one
+    broker does not force-disconnect healthy clients for other endpoints. When
+    it is omitted, every client on the current event loop is retired (clients
+    bound to other loops are left untouched since they cannot be awaited safely
+    from here).
+
+    Matching entries are detached (before any await) and closed; the cache is
+    not cleared wholesale, so a replacement client inserted concurrently while
+    we await disconnect/close survives instead of being dropped without being
+    closed.
     """
-    current_loop = _running_loop()
+    if client is not None:
+        keys = [key for key in list(_client_cache) if _client_cache.get(key) is client]
+    else:
+        current_loop = _running_loop()
+        keys = [key for key in list(_client_cache) if key[3] is current_loop]
 
-    detached = [
-        (key, _client_cache.pop(key))
-        for key in list(_client_cache)
-        if key[3] is current_loop
-    ]
+    detached = [_client_cache.pop(key) for key in keys]
+    # The failed client may already have been evicted/replaced; close it anyway.
+    targets = detached or ([client] if client is not None else [])
 
-    for _, client in detached:
+    for cached_client in targets:
         try:
-            await client.connection_pool.disconnect(inuse_connections=True)
-            await client.aclose()
+            await cached_client.connection_pool.disconnect(inuse_connections=True)
+            await cached_client.aclose()
         except Exception:
             logger.debug(
                 "Error closing cached Redis client while clearing cache",

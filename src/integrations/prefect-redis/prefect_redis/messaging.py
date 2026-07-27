@@ -21,6 +21,7 @@ from typing import (
     Union,
     cast,
 )
+from urllib.parse import parse_qs, urlsplit
 
 import orjson
 from pydantic import BeforeValidator, Field
@@ -40,6 +41,7 @@ from prefect.server.utilities.messaging import (
 from prefect.server.utilities.messaging import Publisher as _Publisher
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
 from prefect_redis.client import (
+    RedisMessagingSettings,
     clear_cached_clients,
     cluster_key_prefix,
     get_async_redis_client,
@@ -65,7 +67,11 @@ TimeDelta = Annotated[
 
 
 def _warn_if_block_exceeds_socket_timeout(
-    name: str, block: timedelta | str, socket_timeout: float | None
+    name: str,
+    block: timedelta | str,
+    socket_timeout: float | None,
+    *,
+    timeout_from_url: bool = False,
 ) -> None:
     """Warn when a consumer's block interval will out-live the socket timeout.
 
@@ -74,6 +80,11 @@ def _warn_if_block_exceeds_socket_timeout(
     respected rather than the settings default. Redis treats `BLOCK 0` as
     "block indefinitely", which always out-lives any finite socket timeout, so a
     zero block is flagged even though its numeric value is 0.
+
+    `timeout_from_url` selects the remediation the warning suggests: a
+    `socket_timeout` query parameter on the URL overrides
+    `PREFECT_REDIS_MESSAGING_SOCKET_TIMEOUT`, so pointing users at the env var
+    in that case would not take effect.
     """
     if socket_timeout is None:
         return
@@ -81,14 +92,19 @@ def _warn_if_block_exceeds_socket_timeout(
     block_seconds = _interpret_string_as_timedelta_seconds(block).total_seconds()
     blocks_forever = block_seconds == 0
     if blocks_forever or block_seconds >= socket_timeout:
+        remediation = (
+            "increase the socket_timeout query parameter on PREFECT_REDIS_MESSAGING_URL"
+            if timeout_from_url
+            else "increase PREFECT_REDIS_MESSAGING_SOCKET_TIMEOUT"
+        )
         logger.warning(
             "Consumer %s block interval (%s) is >= the Redis socket_timeout "
             "(%.1fs); idle blocking reads will time out and trigger spurious "
-            "reconnects. Set PREFECT_REDIS_MESSAGING_SOCKET_TIMEOUT above the "
-            "consumer block interval.",
+            "reconnects. To avoid this, %s above the consumer block interval.",
             name,
             "infinite (BLOCK 0)" if blocks_forever else f"{block_seconds:.1f}s",
             socket_timeout,
+            remediation,
         )
 
 
@@ -301,7 +317,21 @@ class Publisher(_Publisher):
             async def _publish_periodically() -> None:
                 while True:
                     await asyncio.sleep(interval)
-                    await asyncio.shield(self._publish_current_batch())
+                    try:
+                        await asyncio.shield(self._publish_current_batch())
+                    except asyncio.CancelledError:
+                        raise
+                    except Exception:
+                        # A finite socket_timeout can make an in-flight XADD
+                        # raise during an outage. Keep the periodic task alive so
+                        # publishing resumes when Redis recovers; the unsent
+                        # messages were re-queued and flush on the next interval.
+                        logger.warning(
+                            "Publisher for stream %s failed to flush its batch; "
+                            "will retry the unsent messages on the next interval",
+                            self.stream,
+                            exc_info=True,
+                        )
 
             self._periodic_task = asyncio.create_task(_publish_periodically())
 
@@ -346,6 +376,7 @@ class Publisher(_Publisher):
 
         self._batch.clear()
 
+        published = 0
         try:
             for message in to_publish:
                 await self._client.xadd(
@@ -355,9 +386,17 @@ class Publisher(_Publisher):
                         "attributes": orjson.dumps(message.attributes),
                     },
                 )
+                published += 1
         except Exception:
+            # Re-queue the messages we did not manage to publish so a transient
+            # outage does not silently drop them. Keep them ahead of anything
+            # enqueued while we awaited so ordering is preserved.
+            unsent = to_publish[published:]
+            self._batch[:0] = unsent
             if self.deduplicate_by:
-                await self.cache.forget_duplicates(self.deduplicate_by, to_publish)
+                # Forget only the unsent messages so they are re-deduplicated on
+                # the next attempt; the ones already published stay recorded.
+                await self.cache.forget_duplicates(self.deduplicate_by, unsent)
             raise
 
 
@@ -538,17 +577,24 @@ class Consumer(_Consumer):
         base_delay = 1.0
         max_delay = 60.0
 
+        url = RedisMessagingSettings().url
         _warn_if_block_exceeds_socket_timeout(
             self.name,
             self.block,
             get_async_redis_client().connection_pool.connection_kwargs.get(
                 "socket_timeout"
             ),
+            timeout_from_url=bool(
+                url and "socket_timeout" in parse_qs(urlsplit(url).query)
+            ),
         )
 
+        # Pre-bound (and cached, so this is the same instance the loop uses) so
+        # the reconnect handler can retire exactly the client that failed.
+        redis_client: Redis = get_async_redis_client()
         while True:  # Outer loop for connection resilience
             try:
-                redis_client: Redis = get_async_redis_client()
+                redis_client = get_async_redis_client()
 
                 if not self.use_consumer_group:
                     await self._run_without_consumer_group(handler, redis_client)
@@ -635,8 +681,9 @@ class Consumer(_Consumer):
                     f"reconnecting in {delay:.1f}s (attempt {attempt + 1}): {e}"
                 )
 
-                # Clear cached clients to force fresh connections
-                await clear_cached_clients()
+                # Retire only the failed client so an outage of this broker
+                # doesn't disconnect healthy clients for other endpoints.
+                await clear_cached_clients(redis_client)
 
                 await asyncio.sleep(delay)
                 attempt += 1
