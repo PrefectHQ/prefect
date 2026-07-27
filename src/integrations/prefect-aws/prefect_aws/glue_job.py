@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.concurrency.api import create_call, from_sync
 from prefect.blocks.abstract import JobBlock, JobRun
+from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect_aws import AwsCredentials
 
 _GlueJobClient = Any
@@ -39,19 +40,42 @@ class GlueJobRun(BaseModel, JobRun):
         ),
     )
 
-    _error_states = ["FAILED", "STOPPED", "ERROR", "TIMEOUT"]
-
-    aws_credentials: AwsCredentials = Field(
-        title="AWS Credentials",
-        default_factory=AwsCredentials,
-        description="The AWS credentials to use to connect to Glue.",
+    aws_credentials_name: Optional[str] = Field(
+        default=None,
+        title="AWS Credentials Name",
+        description="The name of the saved AwsCredentials block used to connect to Glue.",
     )
 
-    client: _GlueJobClient = Field(default=None, description="")
+    _error_states = ["FAILED", "STOPPED", "ERROR", "TIMEOUT"]
+
+    def _get_client(self) -> _GlueJobClient:
+        """Retrieve a Glue Job Client from the saved credentials block."""
+        if self.aws_credentials_name is None:
+            raise ValueError(
+                "AwsCredentials must be saved and its name provided to GlueJobRun"
+            )
+        aws_credentials = AwsCredentials.load(self.aws_credentials_name)
+        boto_session = aws_credentials.get_boto3_session()
+        return boto_session.client("glue")
+
+    async def _get_client_async(self) -> _GlueJobClient:
+        """Retrieve a Glue Job Client from the saved credentials block."""
+        if self.aws_credentials_name is None:
+            raise ValueError(
+                "AwsCredentials must be saved and its name provided to GlueJobRun"
+            )
+        aws_credentials = await run_sync_in_worker_thread(
+            AwsCredentials.load, self.aws_credentials_name
+        )
+        boto_session = aws_credentials.get_boto3_session()
+        return boto_session.client("glue")
 
     async def fetch_result(self) -> str:
         """fetch glue job state"""
-        job = self._get_job_run()
+        client = await self._get_client_async()
+        job = await run_sync_in_worker_thread(
+            client.get_job_run, JobName=self.job_name, RunId=self.job_id
+        )
         return job["JobRun"]["JobRunState"]
 
     def wait_for_completion(self) -> None:
@@ -59,8 +83,9 @@ class GlueJobRun(BaseModel, JobRun):
         Wait for the job run to complete and get exit code
         """
         self.logger.info(f"watching job {self.job_name} with run id {self.job_id}")
+        client = self._get_client()
         while True:
-            job = self._get_job_run()
+            job = self._get_job_run(client)
             job_state = job["JobRun"]["JobRunState"]
             if job_state in self._error_states:
                 # Generate a dynamic exception type from the AWS name
@@ -72,9 +97,9 @@ class GlueJobRun(BaseModel, JobRun):
 
             time.sleep(self.job_watch_poll_interval)
 
-    def _get_job_run(self):
+    def _get_job_run(self, client: _GlueJobClient) -> Any:
         """get glue job"""
-        return self.client.get_job_run(JobName=self.job_name, RunId=self.job_id)
+        return client.get_job_run(JobName=self.job_name, RunId=self.job_id)
 
 
 class GlueJobBlock(JobBlock):
@@ -109,11 +134,13 @@ class GlueJobBlock(JobBlock):
         def example_run_glue_job():
             aws_credentials = AwsCredentials(
                 aws_access_key_id="your_access_key_id",
-                aws_secret_access_key="your_secret_access_key"
+                aws_secret_access_key="your_secret_access_key",
             )
+            aws_credentials.save("my-credentials")
             glue_job_run = GlueJobBlock(
                 job_name="your_glue_job_name",
                 arguments={"--YOUR_EXTRA_ARGUMENT": "YOUR_EXTRA_ARGUMENT_VALUE"},
+                aws_credentials=aws_credentials,
             ).trigger()
 
             return glue_job_run.wait_for_completion()
@@ -150,14 +177,18 @@ class GlueJobBlock(JobBlock):
 
     async def atrigger(self) -> GlueJobRun:
         """async trigger for GlueJobRun"""
-        client = self._get_client()
-        job_run_id = self._start_job(client)
+        client = await run_sync_in_worker_thread(self._get_client)
+        job_run_id = await run_sync_in_worker_thread(self._start_job, client)
+        aws_credentials_name = self.aws_credentials._block_document_name
+        if aws_credentials_name is None:
+            raise ValueError(
+                "AwsCredentials must be saved before triggering a Glue job"
+            )
         return GlueJobRun(
             job_name=self.job_name,
             job_id=job_run_id,
             job_watch_poll_interval=self.job_watch_poll_interval,
-            aws_credentials=self.aws_credentials,
-            client=client,
+            aws_credentials_name=aws_credentials_name,
         )
 
     @async_dispatch(atrigger)
