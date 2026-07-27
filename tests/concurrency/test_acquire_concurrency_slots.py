@@ -1,5 +1,4 @@
 import asyncio
-import threading
 import uuid
 from concurrent.futures import Future
 from unittest import mock
@@ -7,18 +6,12 @@ from unittest import mock
 import pytest
 from httpx import Response
 
-from prefect.client.orchestration import SyncPrefectClient
 from prefect.client.schemas.responses import MinimalConcurrencyLimitResponse
 from prefect.concurrency._asyncio import (
     aacquire_concurrency_slots,
     aacquire_concurrency_slots_with_lease,
 )
 from prefect.concurrency.services import ConcurrencySlotAcquisitionWithLeaseService
-from prefect.settings import (
-    PREFECT_API_URL,
-    get_current_settings,
-    temporary_settings,
-)
 
 pytestmark = pytest.mark.clear_db
 
@@ -65,19 +58,17 @@ async def test_returns_minimal_concurrency_limit():
         assert result == limits
 
 
-async def _cancel_acquisition_after_lease_is_granted(
-    lease_id: uuid.UUID, get_client: mock.MagicMock
-) -> None:
-    """Cancel a caller once its acquisition is under way, then grant the lease.
+async def test_releases_lease_granted_after_caller_is_cancelled():
+    """A lease delivered to a caller that is already gone must not leak its slots.
 
-    Reproduces the ordering the service uses: the future is marked running before
-    the caller is cancelled, so `asyncio.wrap_future` cannot cancel it and the
-    granted lease is delivered to a caller that is already gone.
+    The future is marked running before the caller is cancelled, mirroring the
+    service: `asyncio.wrap_future` can no longer cancel it, so the granted lease
+    reaches a caller that is already gone.
     """
     response = Response(
         200,
         json={
-            "lease_id": str(lease_id),
+            "lease_id": str(uuid.uuid4()),
             "limits": [
                 MinimalConcurrencyLimitResponse(
                     id=uuid.uuid4(), name="test", limit=1
@@ -93,11 +84,12 @@ async def _cancel_acquisition_after_lease_is_granted(
         sent.set()
         return future
 
-    with mock.patch.object(
-        ConcurrencySlotAcquisitionWithLeaseService, "instance"
-    ) as instance:
-        instance.return_value.send = send
+    service = mock.MagicMock(spec=ConcurrencySlotAcquisitionWithLeaseService)
+    service.send = send
 
+    with mock.patch.object(
+        ConcurrencySlotAcquisitionWithLeaseService, "instance", return_value=service
+    ):
         acquire = asyncio.create_task(
             aacquire_concurrency_slots_with_lease(names=["test"], slots=1)
         )
@@ -109,53 +101,40 @@ async def _cancel_acquisition_after_lease_is_granted(
         with pytest.raises(asyncio.CancelledError):
             await acquire
 
-        with mock.patch("prefect.concurrency._asyncio.get_client", get_client):
-            future.set_result(response)
+        future.set_result(response)
+
+    service.release_orphaned_lease.assert_called_once_with(response)
 
 
-async def test_releases_lease_granted_after_caller_is_cancelled():
-    """A lease delivered to a caller that is already gone must not leak its slots."""
-    lease_id = uuid.uuid4()
-    released = threading.Event()
-    releases: list[uuid.UUID] = []
+@pytest.mark.parametrize("outcome", ["cancelled", "failed"])
+async def test_does_not_release_when_no_lease_was_granted(outcome: str):
+    """Only a granted lease needs releasing; a dead acquisition has nothing to clean up."""
+    future: Future[Response] = Future()
+    sent = asyncio.Event()
 
-    def release(lease_id: uuid.UUID) -> None:
-        releases.append(lease_id)
-        released.set()
+    def send(item: tuple[object, ...]) -> Future[Response]:
+        sent.set()
+        return future
 
-    client = mock.MagicMock(spec=SyncPrefectClient)
-    client.__enter__.return_value = client
-    client.release_concurrency_slots_with_lease.side_effect = release
+    service = mock.MagicMock(spec=ConcurrencySlotAcquisitionWithLeaseService)
+    service.send = send
 
-    await _cancel_acquisition_after_lease_is_granted(
-        lease_id, mock.MagicMock(return_value=client)
-    )
-
-    assert released.wait(10)
-    assert releases == [lease_id]
-
-
-async def test_releases_orphaned_lease_against_the_callers_api():
-    """The release runs off-caller, but must still target the caller's API."""
-    lease_id = uuid.uuid4()
-    released = threading.Event()
-    api_urls: list[str | None] = []
-
-    def release(lease_id: uuid.UUID) -> None:
-        released.set()
-
-    client = mock.MagicMock(spec=SyncPrefectClient)
-    client.__enter__.return_value = client
-    client.release_concurrency_slots_with_lease.side_effect = release
-
-    def get_client(sync_client: bool = False) -> mock.MagicMock:
-        api_urls.append(get_current_settings().api.url)
-        return client
-
-    with temporary_settings({PREFECT_API_URL: "https://scoped.example.com/api"}):
-        await _cancel_acquisition_after_lease_is_granted(
-            lease_id, mock.MagicMock(side_effect=get_client)
+    with mock.patch.object(
+        ConcurrencySlotAcquisitionWithLeaseService, "instance", return_value=service
+    ):
+        acquire = asyncio.create_task(
+            aacquire_concurrency_slots_with_lease(names=["test"], slots=1)
         )
+        await sent.wait()
 
-    assert released.wait(10)
-    assert api_urls == ["https://scoped.example.com/api"]
+        if outcome == "failed":
+            assert future.set_running_or_notify_cancel()
+
+        acquire.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await acquire
+
+        if outcome == "failed":
+            future.set_exception(ValueError("increment failed"))
+
+    service.release_orphaned_lease.assert_not_called()

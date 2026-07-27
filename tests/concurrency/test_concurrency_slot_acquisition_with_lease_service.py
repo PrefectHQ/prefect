@@ -136,6 +136,57 @@ async def test_releases_lease_when_caller_is_cancelled(mocked_client: Any) -> No
     release.assert_called_once_with(lease_id=lease_id)
 
 
+async def test_release_orphaned_lease_uses_the_acquiring_client(
+    mocked_client: Any,
+) -> None:
+    """Cleanup must go through the same client that acquired the slots."""
+    lease_id = uuid4()
+    response = Response(
+        200,
+        json={
+            "lease_id": str(lease_id),
+            "limits": [{"id": str(uuid4()), "name": "test-limit", "limit": 10}],
+        },
+    )
+
+    service = ConcurrencySlotAcquisitionWithLeaseService.instance(
+        frozenset(["test-limit"])
+    )
+    # Give the service a chance to enter its lifespan and create its client.
+    await asyncio.wrap_future(
+        service.send((1, "concurrency", None, None, 60.0, False, None))
+    )
+
+    with mock.patch.object(
+        mocked_client.client, "release_concurrency_slots_with_lease", autospec=True
+    ) as release:
+        await asyncio.wrap_future(service.release_orphaned_lease(response))
+
+    release.assert_called_once_with(lease_id=lease_id)
+
+
+async def test_release_orphaned_lease_logs_unreadable_response(
+    mocked_client: Any, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A successful response we cannot parse leaves a lease we cannot release."""
+    service = ConcurrencySlotAcquisitionWithLeaseService.instance(
+        frozenset(["test-limit"])
+    )
+    await asyncio.wrap_future(
+        service.send((1, "concurrency", None, None, 60.0, False, None))
+    )
+
+    with mock.patch.object(
+        mocked_client.client, "release_concurrency_slots_with_lease", autospec=True
+    ) as release:
+        await asyncio.wrap_future(
+            service.release_orphaned_lease(Response(200, content=b"not json"))
+        )
+
+    release.assert_not_called()
+    assert "Unable to read the lease id" in caplog.text
+
+
 async def test_retries_failed_call_respects_retry_after_header(
     mocked_client: Any,
 ) -> None:

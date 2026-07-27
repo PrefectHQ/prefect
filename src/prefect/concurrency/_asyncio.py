@@ -2,9 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
-import contextvars
 import logging
-import threading
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, AsyncGenerator, Literal, Optional
 from uuid import UUID
@@ -154,7 +152,7 @@ async def aacquire_concurrency_slots_with_lease(
     try:
         response = await asyncio.wrap_future(future)
     except asyncio.CancelledError:
-        _release_lease_when_granted(future)
+        _release_lease_when_granted(service, future)
         raise
     except TimeoutError as timeout:
         raise AcquireConcurrencySlotTimeoutError(
@@ -232,49 +230,25 @@ def _discard_cleanup_lease(lease_id: UUID) -> None:
 
 
 def _release_lease_when_granted(
+    service: ConcurrencySlotAcquisitionWithLeaseService,
     future: "concurrent.futures.Future[httpx.Response]",
 ) -> None:
     """Release the lease for an acquisition whose caller has been cancelled.
 
     The acquisition may still be granted after the caller is gone, and the lease
     id never reaches the `ConcurrencyContext`, so the slots would stay occupied
-    until the lease expires. The release cannot run on the cancelled caller, so it
-    happens on a short-lived thread once the acquisition finishes. The caller's
-    context is copied here so the release targets the API the slots were acquired
-    from rather than the default one.
+    until the lease expires. The cancelled caller cannot do the release itself, so
+    the service that acquired the slots is asked to release them.
     """
-    release_ctx = contextvars.copy_context()
 
     def _release(completed: "concurrent.futures.Future[httpx.Response]") -> None:
-        try:
-            data = completed.result().json()
-            lease_id = data["lease_id"] if data.get("limits") else None
-        except BaseException:
+        if completed.cancelled() or completed.exception() is not None:
+            # Nothing was granted, so there is nothing to release.
             return
 
-        if lease_id is None:
-            return
-
-        threading.Thread(
-            target=release_ctx.run,
-            args=(_release_lease, UUID(lease_id)),
-            name="orphaned-concurrency-lease-release",
-            daemon=True,
-        ).start()
+        service.release_orphaned_lease(completed.result())
 
     future.add_done_callback(_release)
-
-
-def _release_lease(lease_id: UUID) -> None:
-    try:
-        with get_client(sync_client=True) as client:
-            client.release_concurrency_slots_with_lease(lease_id=lease_id)
-    except Exception:
-        logger.warning(
-            "Failed to release concurrency lease %s after the acquiring caller was cancelled",
-            lease_id,
-            exc_info=True,
-        )
 
 
 def _response_to_minimal_concurrency_limit_response(
