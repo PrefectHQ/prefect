@@ -20,11 +20,30 @@ class DiagnosisLevel(str, enum.Enum):
     INFO = "info"
 
 
+class DiagnosisCategory(str, enum.Enum):
+    """Stable, machine-matchable category for a pod-failure diagnosis.
+
+    These values are emitted as the `kubernetes.diagnosis` label on
+    replicated pod events, so automations can match on a specific failure
+    mode. Treat the values as a stable contract — do not rename them.
+    """
+
+    IMAGE_PULL_ERROR = "ImagePullError"
+    CRASH_LOOP_BACKOFF = "CrashLoopBackOff"
+    OOM_KILLED = "OOMKilled"
+    EVICTED = "Evicted"
+    UNSCHEDULABLE = "Unschedulable"
+    UNSCHEDULABLE_INSUFFICIENT_RESOURCES = "Unschedulable.InsufficientResources"
+    UNSCHEDULABLE_NODE_AFFINITY = "Unschedulable.NodeAffinity"
+    UNSCHEDULABLE_TAINT = "Unschedulable.Taint"
+
+
 @dataclasses.dataclass(frozen=True)
 class InfrastructureDiagnosis:
     """A structured diagnosis of a Kubernetes pod failure."""
 
     level: DiagnosisLevel
+    category: DiagnosisCategory
     summary: str
     detail: str
     resolution: str
@@ -72,6 +91,7 @@ def _check_container_waiting(
         if reason in ("ImagePullBackOff", "ErrImagePull"):
             return InfrastructureDiagnosis(
                 level=DiagnosisLevel.ERROR,
+                category=DiagnosisCategory.IMAGE_PULL_ERROR,
                 summary=f"Image pull failed for container '{container_name}'",
                 detail=(
                     f"Kubernetes cannot pull the container image. "
@@ -88,6 +108,7 @@ def _check_container_waiting(
         if reason == "CrashLoopBackOff":
             return InfrastructureDiagnosis(
                 level=DiagnosisLevel.ERROR,
+                category=DiagnosisCategory.CRASH_LOOP_BACKOFF,
                 summary=(f"Container '{container_name}' is crash-looping"),
                 detail=(
                     f"The container repeatedly crashes after starting. "
@@ -116,6 +137,7 @@ def _check_container_terminated(
         if reason == "OOMKilled":
             return InfrastructureDiagnosis(
                 level=DiagnosisLevel.ERROR,
+                category=DiagnosisCategory.OOM_KILLED,
                 summary=(
                     f"Container '{container_name}' was killed due to "
                     f"out-of-memory (OOMKilled)"
@@ -135,6 +157,7 @@ def _check_container_terminated(
         if reason == "Evicted":
             return InfrastructureDiagnosis(
                 level=DiagnosisLevel.WARNING,
+                category=DiagnosisCategory.EVICTED,
                 summary=f"Container '{container_name}' was evicted",
                 detail=(
                     "The pod was evicted, likely due to node resource "
@@ -151,6 +174,27 @@ def _check_container_terminated(
     return None
 
 
+def _categorize_unschedulable(message: str) -> DiagnosisCategory:
+    """Map a scheduler `Unschedulable` message to a specific category.
+
+    The cause only appears in the human-readable condition message, so this
+    matches on substrings and is intentionally tolerant of wording changes.
+    Falls back to the generic `UNSCHEDULABLE` when the cause is unknown or
+    the message is empty.
+    """
+    text = message.lower()
+    if "taint" in text:
+        return DiagnosisCategory.UNSCHEDULABLE_TAINT
+    # Match affinity/selector wording explicitly rather than a generic
+    # "didn't match", which would also catch unrelated reasons such as
+    # "didn't match pod topology spread constraints".
+    if "affinity" in text or "node selector" in text:
+        return DiagnosisCategory.UNSCHEDULABLE_NODE_AFFINITY
+    if "insufficient" in text:
+        return DiagnosisCategory.UNSCHEDULABLE_INSUFFICIENT_RESOURCES
+    return DiagnosisCategory.UNSCHEDULABLE
+
+
 def _check_unschedulable(
     status: dict[str, Any],
 ) -> InfrastructureDiagnosis | None:
@@ -163,6 +207,7 @@ def _check_unschedulable(
             message = condition.get("message", "")
             return InfrastructureDiagnosis(
                 level=DiagnosisLevel.WARNING,
+                category=_categorize_unschedulable(message),
                 summary="Pod is unschedulable",
                 detail=(
                     f"Kubernetes cannot find a suitable node to run "
@@ -187,6 +232,7 @@ def _check_evicted(
         message = status.get("message", "")
         return InfrastructureDiagnosis(
             level=DiagnosisLevel.WARNING,
+            category=DiagnosisCategory.EVICTED,
             summary="Pod was evicted",
             detail=(f"The pod was evicted from its node. {message}".strip()),
             resolution=(

@@ -45,6 +45,21 @@ describe("RunLogs", () => {
 		expect(screen.getByText("Hello, world!")).toBeVisible();
 	});
 
+	it("should render URLs in log messages as clickable links", () => {
+		const log = createFakeLog({
+			message: "Visit https://example.com for details",
+		});
+		const screen = render(
+			<RunLogs logs={[log]} onBottomReached={vi.fn()} virtualize={false} />,
+		);
+
+		const link = screen.getByRole("link", { name: "https://example.com" });
+		expect(link).toBeVisible();
+		expect(link).toHaveAttribute("href", "https://example.com");
+		expect(link).toHaveAttribute("target", "_blank");
+		expect(link).toHaveAttribute("rel", "noopener noreferrer");
+	});
+
 	it("should display a log day and time", () => {
 		const log = createFakeLog({ timestamp: "2021-01-01T00:00:00.000Z" });
 		const screen = render(

@@ -232,7 +232,7 @@ class FileCollector:
         inner_pattern = pattern[1:]
 
         # Compile the pattern using gitignore-style matching
-        spec = pathspec.PathSpec.from_lines("gitwildmatch", [inner_pattern])
+        spec = pathspec.GitIgnoreSpec.from_lines([inner_pattern])
 
         # Find files in current collection that match the negation
         excluded: list[Path] = []
@@ -342,7 +342,7 @@ class FileCollector:
             List of collected file paths matching the pattern.
         """
         # Compile the pattern using gitignore-style matching
-        spec = pathspec.PathSpec.from_lines("gitwildmatch", [pattern])
+        spec = pathspec.GitIgnoreSpec.from_lines([pattern])
 
         collected: list[Path] = []
         try:

@@ -22,7 +22,7 @@ from exceptiongroup import ExceptionGroup
 from pydantic import Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
-from websockets.exceptions import ConnectionClosedError
+from websockets.exceptions import ConnectionClosedError, InvalidStatus
 from websockets.frames import Close
 
 import prefect
@@ -90,6 +90,8 @@ from prefect.types._datetime import travel_to
 from prefect.utilities.processutils import command_to_string
 from prefect.utilities.pydantic import parse_obj_as
 from prefect.workers._worker_channel import (
+    WorkerChannelError,
+    WorkerChannelRetryableError,
     WorkerChannelSession,
     WorkerChannelState,
     WorkerChannelStatus,
@@ -2843,6 +2845,65 @@ class TestWorkerChannelClient:
             await protocol.run_session(session)
 
         assert exc_info.value.reason == WorkerChannelCloseReason.AUTHORIZATION_FAILED
+
+    @pytest.mark.parametrize(
+        "status_code, expected_reason, expected_error",
+        [
+            (
+                401,
+                WorkerChannelCloseReason.AUTHENTICATION_FAILED,
+                WorkerChannelTerminalError,
+            ),
+            (
+                403,
+                WorkerChannelCloseReason.AUTHORIZATION_FAILED,
+                WorkerChannelTerminalError,
+            ),
+            (404, "endpoint_unavailable", WorkerChannelTerminalError),
+            (405, "endpoint_unavailable", WorkerChannelTerminalError),
+            (400, "endpoint_unavailable", WorkerChannelTerminalError),
+            (
+                500,
+                WorkerChannelCloseReason.TRANSIENT_SERVER_ERROR,
+                WorkerChannelRetryableError,
+            ),
+        ],
+    )
+    async def test_http_upgrade_auth_statuses_preserve_close_reason(
+        self,
+        status_code: int,
+        expected_reason: str,
+        expected_error: type[WorkerChannelError],
+    ):
+        class FailingConnect:
+            def __init__(self, exc: Exception):
+                self.exc = exc
+
+            async def __aenter__(self) -> None:
+                raise self.exc
+
+            async def __aexit__(self, *exc_info: Any) -> None:
+                pass
+
+        class FakeResponse:
+            pass
+
+        response = FakeResponse()
+        response.status_code = status_code
+
+        transport = WorkerChannelTransport(
+            api_url="http://localhost:4200/api",
+            work_pool_name="test-work-pool",
+            logger=logging.getLogger("test-worker-channel"),
+            connect_factory=lambda *args, **kwargs: FailingConnect(
+                InvalidStatus(response)
+            ),
+        )
+
+        with pytest.raises(expected_error) as exc_info:
+            await transport.connect_once(AsyncMock())
+
+        assert exc_info.value.reason == expected_reason
 
     async def test_sync_uses_channel_before_rest_heartbeat(self):
         worker_id = uuid.uuid4()

@@ -18,17 +18,57 @@ function getTimezoneLabel(value: string): string {
 	return value.replaceAll("/", " / ").replaceAll("_", " ");
 }
 
+const UTC_ALIASES = new Set([
+	"UTC",
+	"Etc/UTC",
+	"Etc/UCT",
+	"Etc/Universal",
+	"Etc/Zulu",
+	"Etc/GMT",
+	"Etc/GMT+0",
+	"Etc/GMT-0",
+	"Etc/GMT0",
+	"Etc/Greenwich",
+]);
+
+function isUTCAlias(timezone: string): boolean {
+	return UTC_ALIASES.has(timezone);
+}
+
+function normalizeTimezone(timezone: string): string;
+function normalizeTimezone(
+	timezone: string | undefined | null,
+): string | undefined | null;
+function normalizeTimezone(
+	timezone: string | undefined | null,
+): string | undefined | null {
+	if (!timezone) {
+		return timezone;
+	}
+	return isUTCAlias(timezone) ? "UTC" : timezone;
+}
+
 const localTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const normalizedLocalTimezone = normalizeTimezone(localTimezone);
 
 const SUGGESTED_TIMEZONES = [
-	{ label: "UTC", value: "Etc/UTC" },
-	{
-		label: getTimezoneLabel(localTimezone),
-		value: localTimezone,
-	},
+	{ label: "UTC", value: "UTC" },
+	...(normalizedLocalTimezone !== "UTC"
+		? [
+				{
+					label: getTimezoneLabel(localTimezone),
+					value: normalizedLocalTimezone,
+				},
+			]
+		: []),
 ];
 
 const TIMEZONES = Intl.supportedValuesOf("timeZone")
+	.filter(
+		(timezone) =>
+			normalizeTimezone(timezone) !== "UTC" &&
+			timezone !== normalizedLocalTimezone,
+	)
 	.map((timezone) => ({
 		label: getTimezoneLabel(timezone),
 		value: timezone,
@@ -49,6 +89,7 @@ export const TimezoneSelect = ({
 	const [search, setSearch] = useState("");
 
 	const deferredSearch = useDeferredValue(search);
+	const normalizedSelectedValue = normalizeTimezone(selectedValue);
 
 	const filteredSuggestedTimezones = useMemo(() => {
 		return SUGGESTED_TIMEZONES.filter(
@@ -67,14 +108,14 @@ export const TimezoneSelect = ({
 	}, [deferredSearch]);
 
 	const selectedTimezone = useMemo(
-		() => ALL_TIMEZONES.find(({ value }) => value === selectedValue),
-		[selectedValue],
+		() => ALL_TIMEZONES.find(({ value }) => value === normalizedSelectedValue),
+		[normalizedSelectedValue],
 	);
 
 	return (
 		<Combobox>
 			<ComboboxTrigger
-				selected={Boolean(selectedValue)}
+				selected={Boolean(normalizedSelectedValue)}
 				aria-label="Select timezone"
 			>
 				{selectedTimezone?.label ?? "Select timezone"}
@@ -95,7 +136,7 @@ export const TimezoneSelect = ({
 							return (
 								<ComboboxCommandItem
 									key={value}
-									selected={selectedValue === value}
+									selected={normalizedSelectedValue === value}
 									onSelect={(value) => {
 										onSelect(value);
 										setSearch("");
@@ -114,7 +155,7 @@ export const TimezoneSelect = ({
 							return (
 								<ComboboxCommandItem
 									key={value}
-									selected={selectedValue === value}
+									selected={normalizedSelectedValue === value}
 									onSelect={(value) => {
 										onSelect(value);
 										setSearch("");

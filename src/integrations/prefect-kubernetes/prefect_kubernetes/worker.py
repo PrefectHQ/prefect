@@ -107,6 +107,7 @@ from __future__ import annotations
 import base64
 import enum
 import json
+import uuid
 from contextlib import asynccontextmanager
 from typing import (
     TYPE_CHECKING,
@@ -1094,6 +1095,12 @@ class KubernetesWorker(
                     "and `PREFECT_INTEGRATIONS_KUBERNETES_WORKER_API_AUTH_STRING_SECRET_KEY` environment variables."
                 )
 
+        env_secret_name: str | None = None
+        if settings.worker.store_env_as_secret:
+            env_secret_name = await self._store_env_as_secret(
+                configuration=configuration, client=client
+            )
+
         try:
             batch_client = BatchV1Api(client)
             retry_settings = settings.worker.create_job_retry
@@ -1112,6 +1119,20 @@ class KubernetesWorker(
                         configuration.job_manifest,
                     )
         except kubernetes_asyncio.client.exceptions.ApiException as exc:
+            # Clean up the orphaned env Secret if Job creation failed
+            if env_secret_name:
+                try:
+                    core_client = CoreV1Api(client)
+                    await core_client.delete_namespaced_secret(
+                        name=env_secret_name,
+                        namespace=configuration.namespace,
+                    )
+                except Exception:
+                    self._logger.warning(
+                        "Failed to clean up env secret %r after Job creation failure",
+                        env_secret_name,
+                    )
+
             # Parse the reason and message from the response if feasible
             message = ""
             if exc.reason:
@@ -1126,7 +1147,139 @@ class KubernetesWorker(
                 f"Unable to create Kubernetes job{message}"
             ) from exc
 
+        if env_secret_name:
+            try:
+                await self._set_secret_owner_reference(
+                    secret_name=env_secret_name,
+                    namespace=configuration.namespace,
+                    job=job,
+                    client=client,
+                )
+            except Exception:
+                self._logger.warning(
+                    "Failed to set owner reference on env secret %r; "
+                    "it will not be automatically cleaned up when the Job is deleted",
+                    env_secret_name,
+                )
+
         return job
+
+    async def _store_env_as_secret(
+        self,
+        configuration: KubernetesWorkerJobConfiguration,
+        client: "ApiClient",
+    ) -> str | None:
+        """Moves plaintext env vars from the Job manifest into a per-job Secret.
+
+        Returns the name of the created Secret, or None if there were no
+        plaintext env vars to store.
+        """
+        container = configuration.job_manifest["spec"]["template"]["spec"][
+            "containers"
+        ][0]
+        manifest_env: list[dict[str, Any]] = container.get("env", [])
+
+        # Separate plain-value entries from valueFrom entries
+        plain_env: dict[str, str] = {}
+        value_from_entries: list[dict[str, Any]] = []
+        for entry in manifest_env:
+            if "valueFrom" in entry:
+                value_from_entries.append(entry)
+            elif "value" in entry and entry.get("name"):
+                plain_env[entry["name"]] = entry["value"]
+
+        if not plain_env:
+            return None
+
+        # Derive secret name from the Job's generateName
+        generate_name = configuration.job_manifest["metadata"].get(
+            "generateName", "prefect-job-"
+        )
+        # Strip trailing hyphen for cleaner naming
+        base_name = generate_name.rstrip("-")
+        short_id = uuid.uuid4().hex[:8]
+        secret_name = f"{base_name}-env-{short_id}"
+
+        # Create the Secret
+        secret = await self._create_env_secret(
+            name=secret_name,
+            env_vars=plain_env,
+            namespace=configuration.namespace,
+            client=client,
+            labels=configuration.job_manifest["metadata"].get("labels", {}),
+        )
+
+        # Rewrite the manifest: keep only valueFrom entries in env
+        container["env"] = value_from_entries
+
+        # Append envFrom.secretRef (preserving any existing envFrom entries)
+        existing_env_from: list[dict[str, Any]] = container.get("envFrom", [])
+        container["envFrom"] = [
+            *existing_env_from,
+            {"secretRef": {"name": secret.metadata.name}},
+        ]
+
+        return secret.metadata.name
+
+    async def _create_env_secret(
+        self,
+        name: str,
+        env_vars: dict[str, str],
+        namespace: str,
+        client: "ApiClient",
+        labels: dict[str, str] | None = None,
+    ) -> "V1Secret":
+        """Creates a Kubernetes Secret containing the given env var key-value pairs."""
+        core_client = CoreV1Api(client)
+        secret_labels = {"app.kubernetes.io/managed-by": "prefect"}
+        if labels:
+            # Propagate the flow-run-id label for auditability
+            flow_run_id = labels.get("prefect.io/flow-run-id")
+            if flow_run_id:
+                secret_labels["prefect.io/flow-run-id"] = flow_run_id
+
+        metadata = V1ObjectMeta(
+            name=name,
+            namespace=namespace,
+            labels=secret_labels,
+        )
+        # Secret string_data is automatically base64-encoded by the K8s API
+        secret = V1Secret(
+            api_version="v1",
+            kind="Secret",
+            metadata=metadata,
+            string_data=env_vars,
+        )
+        return await core_client.create_namespaced_secret(
+            namespace=namespace, body=secret
+        )
+
+    async def _set_secret_owner_reference(
+        self,
+        secret_name: str,
+        namespace: str,
+        job: "V1Job",
+        client: "ApiClient",
+    ) -> None:
+        """Patches the Secret to set the Job as its owner for automatic GC."""
+        core_client = CoreV1Api(client)
+        body = {
+            "metadata": {
+                "ownerReferences": [
+                    {
+                        "apiVersion": "batch/v1",
+                        "kind": "Job",
+                        "name": job.metadata.name,
+                        "uid": job.metadata.uid,
+                    }
+                ]
+            }
+        }
+        await core_client.patch_namespaced_secret(
+            name=secret_name,
+            namespace=namespace,
+            body=body,
+        )
 
     @staticmethod
     def _get_k8s_error_hint(

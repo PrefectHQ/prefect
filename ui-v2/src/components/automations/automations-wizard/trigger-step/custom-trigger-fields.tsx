@@ -19,6 +19,29 @@ import { CustomPostureSelect } from "./custom-posture-select";
 import { EventResourceCombobox } from "./event-resource-combobox";
 import { EventsCombobox } from "./events-combobox";
 
+type ResourceSpecification = Record<string, string | string[]>;
+type ResourceSpecificationValue =
+	| ResourceSpecification
+	| ResourceSpecification[]
+	| undefined;
+
+function getResourceIds(value: ResourceSpecificationValue): string[] {
+	if (!value) {
+		return [];
+	}
+
+	const specifications = Array.isArray(value) ? value : [value];
+
+	return specifications.flatMap((specification) => {
+		const resourceIds = specification["prefect.resource.id"];
+		if (!resourceIds) {
+			return [];
+		}
+
+		return Array.isArray(resourceIds) ? resourceIds : [resourceIds];
+	});
+}
+
 export const CustomTriggerFields = () => {
 	const form = useFormContext<AutomationWizardSchema>();
 	const posture = useWatch<AutomationWizardSchema>({ name: "trigger.posture" });
@@ -58,12 +81,7 @@ export const CustomTriggerFields = () => {
 				control={form.control}
 				name="trigger.match"
 				render={({ field }) => {
-					const resourceIds =
-						(field.value?.["prefect.resource.id"] as string[] | undefined) ??
-						[];
-					const resourceIdsArray = Array.isArray(resourceIds)
-						? resourceIds
-						: [resourceIds];
+					const resourceIdsArray = getResourceIds(field.value);
 					return (
 						<FormItem>
 							<FormLabel>From the following resources</FormLabel>
@@ -162,13 +180,7 @@ export const CustomTriggerFields = () => {
 						control={form.control}
 						name="trigger.match_related"
 						render={({ field }) => {
-							const resourceIds =
-								(field.value?.["prefect.resource.id"] as
-									| string[]
-									| undefined) ?? [];
-							const resourceIdsArray = Array.isArray(resourceIds)
-								? resourceIds
-								: [resourceIds];
+							const resourceIdsArray = getResourceIds(field.value);
 							return (
 								<FormItem>
 									<FormLabel>Filter for events related to</FormLabel>

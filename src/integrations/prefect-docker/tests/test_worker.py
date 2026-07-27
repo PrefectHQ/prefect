@@ -885,6 +885,107 @@ async def test_image_pull_policy_never_does_not_pull(
     mock_docker_client.api.pull.assert_not_called()
 
 
+async def test_image_pull_policy_if_possible_pulls_image_if_possible(
+    mock_docker_client, flow_run, default_docker_worker_job_configuration
+):
+    credentials = DockerRegistryCredentials(
+        username="my_username",
+        password="my_password",
+        registry_url="registry.hub.docker.com",
+    )
+
+    default_docker_worker_job_configuration.image_pull_policy = "IfPossible"
+    default_docker_worker_job_configuration.image = "prefect"
+    default_docker_worker_job_configuration.registry_credentials = credentials
+    default_docker_worker_job_configuration.prepare_for_flow_run(flow_run=flow_run)
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+    # Login SHOULD be called because we always pull (if possible)
+    mock_docker_client.login.assert_called_once_with(
+        username="my_username",
+        password="my_password",
+        registry="registry.hub.docker.com",
+        reauth=True,
+    )
+    mock_docker_client.api.pull.assert_called_once()
+
+
+async def test_image_pull_policy_if_possible_use_existing_local_image_if_pull_not_possible(
+    mock_docker_client, flow_run, default_docker_worker_job_configuration
+):
+    from docker.errors import APIError
+
+    credentials = DockerRegistryCredentials(
+        username="my_username",
+        password="my_password",
+        registry_url="registry.hub.docker.com",
+    )
+
+    mock_docker_client.login.side_effect = APIError(
+        "Server not reachable or image does not exist"
+    )
+
+    default_docker_worker_job_configuration.image_pull_policy = "IfPossible"
+    default_docker_worker_job_configuration.image = "prefect"
+    default_docker_worker_job_configuration.registry_credentials = credentials
+    default_docker_worker_job_configuration.prepare_for_flow_run(flow_run=flow_run)
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+    # Login SHOULD be called because we try to pull (=> always if possible)
+    mock_docker_client.login.assert_called_once_with(
+        username="my_username",
+        password="my_password",
+        registry="registry.hub.docker.com",
+        reauth=True,
+    )
+    # no pull, because registry is not available
+    mock_docker_client.api.pull.assert_not_called()
+
+
+async def test_image_pull_policy_if_possible_fail_if_local_image_is_not_found(
+    mock_docker_client, flow_run, default_docker_worker_job_configuration
+):
+    from docker.errors import APIError
+
+    credentials = DockerRegistryCredentials(
+        username="my_username",
+        password="my_password",
+        registry_url="registry.hub.docker.com",
+    )
+
+    mock_docker_client.login.side_effect = APIError(
+        "Server not reachable or image does not exist"
+    )
+    mock_docker_client.images.get.side_effect = docker.errors.ImageNotFound(
+        "Image not found locally"
+    )
+
+    default_docker_worker_job_configuration.image_pull_policy = "IfPossible"
+    default_docker_worker_job_configuration.image = "prefect"
+    default_docker_worker_job_configuration.registry_credentials = credentials
+    default_docker_worker_job_configuration.prepare_for_flow_run(flow_run=flow_run)
+    with pytest.raises(RuntimeError, match="Docker operation completely failed for"):
+        async with DockerWorker(work_pool_name="test") as worker:
+            await worker.run(
+                flow_run=flow_run, configuration=default_docker_worker_job_configuration
+            )
+    # Login SHOULD be called because we try to pull (=> always if possible)
+    mock_docker_client.login.assert_called_once_with(
+        username="my_username",
+        password="my_password",
+        registry="registry.hub.docker.com",
+        reauth=True,
+    )
+    # no pull, because registry is not available
+    mock_docker_client.api.pull.assert_not_called()
+    # still we search for a local image
+    mock_docker_client.images.get.assert_called_once()
+
+
 async def test_image_pull_policy_if_not_present_pulls_image_if_not_present(
     mock_docker_client, flow_run, default_docker_worker_job_configuration
 ):
@@ -939,6 +1040,7 @@ async def test_pull_image_raises_on_stream_error(
         {"error": "write /var/lib/docker/...: no space left on device"},
     ]
 
+    default_docker_worker_job_configuration.image_pull_policy = "Always"
     default_docker_worker_job_configuration.image = "prefect:latest"
     default_docker_worker_job_configuration.prepare_for_flow_run(flow_run=flow_run)
     with pytest.raises(RuntimeError, match="no space left on device"):

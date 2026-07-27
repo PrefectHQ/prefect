@@ -83,6 +83,20 @@ def slow_task(duration: float = 0.1) -> str:
     return "completed"
 
 
+def _append_sys_path_initializer(entry: str) -> None:
+    """Module-level initializer so it is picklable under the 'spawn' start method."""
+    import sys
+
+    sys.path.append(entry)
+
+
+@task(task_run_name=f"sys_path_contains_{uuid.uuid4()}")
+def sys_path_contains(entry: str) -> bool:
+    import sys
+
+    return entry in sys.path
+
+
 @task(task_run_name=f"event_emitting_task_{uuid.uuid4()}")
 def event_emitting_task() -> str:
     emit_event(
@@ -466,6 +480,29 @@ class TestProcessPoolTaskRunner:
         runner.set_subprocess_message_processor_factories([_processor_factory])
 
         assert runner.subprocess_message_processor_factories == (_processor_factory,)
+
+    def test_duplicate_preserves_initializer(self):
+        initargs = ("/tmp/prefect-init",)
+        runner = ProcessPoolTaskRunner(
+            max_workers=4,
+            initializer=_append_sys_path_initializer,
+            initargs=initargs,
+        )
+        duplicate_runner = runner.duplicate()
+
+        assert duplicate_runner._initializer is _append_sys_path_initializer
+        assert duplicate_runner._initargs == initargs
+
+    def test_initializer_runs_in_worker_subprocess(self):
+        """A user-supplied initializer runs in each worker before task code."""
+        entry = f"/tmp/prefect-init-{uuid.uuid4()}"
+        with ProcessPoolTaskRunner(
+            max_workers=1,
+            initializer=_append_sys_path_initializer,
+            initargs=(entry,),
+        ) as runner:
+            future = runner.submit(sys_path_contains, {"entry": entry})
+            assert future.result() is True
 
     def test_runner_must_be_started(self):
         runner = ProcessPoolTaskRunner()

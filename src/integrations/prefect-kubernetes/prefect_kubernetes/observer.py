@@ -172,9 +172,17 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                     metadata["creationTimestamp"].replace("Z", "+00:00")
                 )
 
-    # Create a deterministic event ID based on the pod's ID, phase, and restart count.
-    # This ensures that the event ID is the same for the same pod in the same phase and restart count
-    # and Prefect's event system will be able to deduplicate events.
+    # Diagnose pod failures up front so the category can participate in both
+    # the event identity and the emitted labels below.
+    diagnosis = diagnose_k8s_pod(status)
+
+    # Create a deterministic event ID based on the pod's ID, phase, restart
+    # count, and diagnosis category.  This ensures that the event ID is the
+    # same for the same pod in the same phase and restart count so Prefect's
+    # event system can deduplicate events, while still emitting a distinct
+    # event when the diagnosis changes without a phase/restart change (e.g. a
+    # Pending pod that becomes Unschedulable) so the diagnosis label is not
+    # deduplicated away.
     event_id = uuid.uuid5(
         uuid.NAMESPACE_URL,
         json.dumps(
@@ -185,6 +193,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                     cs.get("restartCount", 0)
                     for cs in status.get("containerStatuses", [])
                 ),
+                "diagnosis": diagnosis.category.value if diagnosis else None,
             },
             sort_keys=True,
         ),
@@ -268,11 +277,10 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                 exc_info=True,
             )
 
-    # Diagnose pod failures and emit actionable flow run logs.
+    # Emit actionable flow run logs for the diagnosis computed above.
     # Only log when the diagnosis changes to avoid spamming on repeated
     # MODIFIED events for the same failure condition.  Clear the cache
     # entry when the pod recovers so a recurrence is logged again.
-    diagnosis = diagnose_k8s_pod(status)
     if diagnosis and flow_run_id:
         last_diagnosis = _last_diagnosis_cache.get(uid)
         if diagnosis != last_diagnosis:
@@ -293,6 +301,10 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
         "prefect.resource.name": name,
         "kubernetes.namespace": namespace,
     }
+    # Expose the failure category so automations can match on the specific
+    # cause (e.g. distinguish an unschedulable pod from a slow-to-start one).
+    if diagnosis:
+        resource["kubernetes.diagnosis"] = diagnosis.category.value
     # Add eviction reason if the pod was evicted for debugging purposes
     if event_type == "MODIFIED" and phase == "Failed":
         for container_status in status.get("containerStatuses", []):
@@ -739,11 +751,24 @@ async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
             f"Job {name} has failed and no other active jobs found for flow run {flow_run_id}, marking as crashed"
         )
 
-        result_state = await propose_state(
-            client=orchestration_client,
-            state=Crashed(message="No active or succeeded pods found for any job"),
-            flow_run_id=uuid.UUID(flow_run_id),
-        )
+        # A concurrent transition (another worker replica or an API call) may
+        # move the run to a terminal state between our checks and this proposal,
+        # in which case the server rejects the Crashed transition with an Abort.
+        # Abort inherits from BaseException, so it bypasses kopf's Exception
+        # handling and stops the Jobs watcher for this process. Treat it as an
+        # expected no-op; let ordinary exceptions surface for kopf to retry.
+        try:
+            result_state = await propose_state(
+                client=orchestration_client,
+                state=Crashed(message="No active or succeeded pods found for any job"),
+                flow_run_id=uuid.UUID(flow_run_id),
+            )
+        except Abort:
+            logger.debug(
+                f"Crash proposal for flow run {flow_run_id} aborted; run is already terminal",
+                exc_info=True,
+            )
+            return
 
         # Only forward pod logs if the crash transition was accepted.
         # If the run advanced beyond Pending (e.g. to Running) during the

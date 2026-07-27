@@ -641,3 +641,16 @@ class TestPaginateFlows:
         response = await client.post("/flows/paginate")
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["results"] == []
+
+    @pytest.mark.usefixtures("flows")
+    async def test_paginate_flows_zero_limit(self, client):
+        response = await client.post("/flows/paginate", json=dict(limit=0))
+        assert response.status_code == status.HTTP_200_OK
+
+        json = response.json()
+
+        assert json["results"] == []
+        assert json["count"] == 2
+        assert json["limit"] == 0
+        assert json["pages"] == 0
+        assert json["page"] == 1

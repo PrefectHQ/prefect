@@ -17,13 +17,13 @@
       <div class="workspace-dashboard__ui-switch-content">
         <div class="workspace-dashboard__ui-switch-copy">
           <p class="workspace-dashboard__ui-switch-eyebrow">
-            Preview available
+            V2 UI available
           </p>
           <p class="workspace-dashboard__ui-switch-title">
-            Try the updated UI
+            Try the V2 UI
           </p>
           <p class="workspace-dashboard__ui-switch-description">
-            Preview the next version of Prefect in this browser. You can switch back at any time.
+            Preview the V2 UI in this browser. You can switch back at any time.
           </p>
         </div>
         <div class="workspace-dashboard__ui-switch-actions">
@@ -31,7 +31,7 @@
             Not now
           </p-button>
           <p-button primary @click="switchToV2">
-            Try updated UI
+            Try V2 UI
           </p-button>
         </div>
       </div>
@@ -101,15 +101,13 @@
   const browserUiSettings = ref<Settings | null>(UiSettings.settings)
   const serverSettings = await prefectApi.admin.getSettings()
   const showPromotionalContent = computed(() => serverSettings.PREFECT_SERVER_UI_SHOW_PROMOTIONAL_CONTENT)
-  const canSwitchToV2 = computed(() =>
-    browserUiSettings.value !== null &&
-    isUiAvailable(browserUiSettings.value, 'v2'),
-  )
+  const canSwitchToV2 = computed(() => {
+    return browserUiSettings.value !== null && isUiAvailable(browserUiSettings.value, 'v2')
+  })
   const { value: tryNewUiBannerDismissed } = useStorage('local', V2_PROMO_DISMISSED_STORAGE_KEY, false)
-  const showTryNewUiBanner = computed(() =>
-    canSwitchToV2.value &&
-    !tryNewUiBannerDismissed.value,
-  )
+  const showTryNewUiBanner = computed(() => {
+    return canSwitchToV2.value && browserUiSettings.value?.defaultUi === 'v1' && !tryNewUiBannerDismissed.value
+  })
 
   void UiSettings.loadOptional(route.path).then(settings => {
     browserUiSettings.value = settings

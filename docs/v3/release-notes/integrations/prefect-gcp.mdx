@@ -2,6 +2,20 @@
 title: prefect-gcp
 ---
 
+## 0.6.21
+
+_Released on July 15, 2026_
+
+**Bug Fixes**
+
+- Normalize `parquet_options` dictionaries in BigQuery load job config [#22379](https://github.com/PrefectHQ/prefect/pull/22379) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+
+**Documentation**
+
+- Regenerate API refs with mdxify `>=0.2.45` (drop empty stubs) [#22344](https://github.com/PrefectHQ/prefect/pull/22344) by [@zzstoatzz](https://github.com/zzstoatzz)
+
+---
+
 ## 0.6.20
 
 _Released on June 05, 2026_
@@ -22,8 +36,8 @@ _Released on May 28, 2026_
 
 **Bug Fixes**
 
-- Retry transient errors during Cloud Run V2 execution polling [#22113](https://github.com/PrefectHQ/prefect/pull/22113) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
-- Retry transient errors during Cloud Run V2 readiness poll [#22087](https://github.com/PrefectHQ/prefect/pull/22087) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Retry transient errors during Cloud Run V2 execution polling [#22113](https://github.com/PrefectHQ/prefect/pull/22113) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+- Retry transient errors during Cloud Run V2 readiness poll [#22087](https://github.com/PrefectHQ/prefect/pull/22087) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
 
 ---
 
@@ -36,7 +50,7 @@ _Released on May 06, 2026_
 - Graduate infrastructure decorators to GA [#21784](https://github.com/PrefectHQ/prefect/pull/21784) by [@desertaxle](https://github.com/desertaxle)
 - Add configurable bundle launchers [#21478](https://github.com/PrefectHQ/prefect/pull/21478) by [@desertaxle](https://github.com/desertaxle)
 - Make Cloud Run V2 worker job-creation retry settings configurable [#21722](https://github.com/PrefectHQ/prefect/pull/21722) by [@yukiyan](https://github.com/yukiyan)
-- Add `include_files` support to remaining infrastructure decorators [#21178](https://github.com/PrefectHQ/prefect/pull/21178) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Add `include_files` support to remaining infrastructure decorators [#21178](https://github.com/PrefectHQ/prefect/pull/21178) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
 
 **Enhancements**
 
@@ -49,12 +63,12 @@ _Released on May 06, 2026_
 **Documentation**
 
 - Update maximum documented timeout for Cloud Run V2 workers [#21140](https://github.com/PrefectHQ/prefect/pull/21140) by [@bryanterichardson](https://github.com/bryanterichardson)
-- Set up automatic API reference docs via `mdxify` [#20704](https://github.com/PrefectHQ/prefect/pull/20704) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Set up automatic API reference docs via `mdxify` [#20704](https://github.com/PrefectHQ/prefect/pull/20704) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
 
 **Maintenance**
 
 - Remove internal `Runner` usage from bundle execution paths [#21252](https://github.com/PrefectHQ/prefect/pull/21252) by [@desertaxle](https://github.com/desertaxle)
-- Add Docker image build and publish workflows [#20771](https://github.com/PrefectHQ/prefect/pull/20771) by [@app/devin-ai-integration](https://github.com/app/devin-ai-integration)
+- Add Docker image build and publish workflows [#20771](https://github.com/PrefectHQ/prefect/pull/20771) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
 - Fix integration API reference generation [#20789](https://github.com/PrefectHQ/prefect/pull/20789) by [@desertaxle](https://github.com/desertaxle)
 - Fix double backtick usage in source files [#21211](https://github.com/PrefectHQ/prefect/pull/21211) by [@desertaxle](https://github.com/desertaxle)
 - Bump `prefect` lower bound to `>=3.7.0`
@@ -73,7 +87,7 @@ _Released on February 12, 2026_
 **Maintenance**
 
 - Bump `prefect` lower bound to `>=3.6.17` [#20659](https://github.com/PrefectHQ/prefect/pull/20659) by [@desertaxle](https://github.com/desertaxle)
-- chore(deps-dev): bump ruff from 0.14.14 to 0.15.0 [#20540](https://github.com/PrefectHQ/prefect/pull/20540) by [@app/dependabot](https://github.com/app/dependabot)
+- chore(deps-dev): bump ruff from 0.14.14 to 0.15.0 [#20540](https://github.com/PrefectHQ/prefect/pull/20540) by [@dependabot](https://github.com/apps/dependabot)
 
 ---
 

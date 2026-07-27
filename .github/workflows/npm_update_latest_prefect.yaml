@@ -34,7 +34,7 @@
             PACKAGE_VERSION: ${{ inputs.package_version }}
   
         - name: Setup NodeJS 
-          uses: actions/setup-node@v6
+          uses: actions/setup-node@v7
           with:
             node-version-file: ".nvmrc"
             cache-dependency-path: "**/package-lock.json"

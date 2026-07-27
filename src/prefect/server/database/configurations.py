@@ -16,6 +16,7 @@ import sqlalchemy as sa
 from sqlalchemy import AdaptedConnection, event
 from sqlalchemy.dialects.sqlite import aiosqlite
 from sqlalchemy.engine.interfaces import DBAPIConnection
+from sqlalchemy.engine.url import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncConnection,
     AsyncEngine,
@@ -269,6 +270,29 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 server_settings["application_name"] = self.connection_app_name
             if self.search_path is not None:
                 server_settings["search_path"] = self.search_path
+
+            # asyncpg treats connection-URI query parameters like
+            # `default_transaction_isolation` as startup server settings, but
+            # SQLAlchemy's asyncpg dialect forwards URL query parameters as plain
+            # keyword arguments. Move any such settings into the `server_settings`
+            # connect argument so they are applied at connection startup.
+            engine_url = make_url(self.connection_url)
+            if "default_transaction_isolation" in engine_url.query:
+                server_settings["default_transaction_isolation"] = (
+                    engine_url.query["default_transaction_isolation"][-1]
+                    if isinstance(
+                        engine_url.query["default_transaction_isolation"], tuple
+                    )
+                    else engine_url.query["default_transaction_isolation"]
+                )
+                engine_url = engine_url.set(
+                    query={
+                        k: v
+                        for k, v in engine_url.query.items()
+                        if k != "default_transaction_isolation"
+                    }
+                )
+
             if server_settings:
                 connect_args["server_settings"] = server_settings
 
@@ -332,8 +356,14 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
                 kwargs["max_overflow"] = self.sqlalchemy_max_overflow
 
             engine = create_async_engine(
-                self.connection_url,
+                engine_url,
                 echo=self.echo,
+                # Prefect's conditional concurrency-counter updates depend on
+                # PostgreSQL's READ COMMITTED behavior: a waiting writer re-reads
+                # the latest committed row and re-evaluates its predicate before
+                # applying the change. Enforce the isolation level explicitly so
+                # correctness does not depend on database or role defaults.
+                isolation_level="READ COMMITTED",
                 # "pre-ping" connections upon checkout to ensure they have not been
                 # closed on the server side
                 pool_pre_ping=True,

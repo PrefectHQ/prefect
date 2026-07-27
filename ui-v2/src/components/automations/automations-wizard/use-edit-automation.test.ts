@@ -532,7 +532,7 @@ describe("useEditAutomation", () => {
 				});
 			});
 
-			it("transforms event trigger with array match_related to single object", () => {
+			it("preserves event trigger array match_related", () => {
 				const automation = createFakeAutomation({
 					trigger: {
 						type: "event",
@@ -550,9 +550,10 @@ describe("useEditAutomation", () => {
 
 				expect(result.trigger.type).toBe("event");
 				if (result.trigger.type === "event") {
-					expect(result.trigger.match_related).toEqual({
-						"prefect.resource.role": "flow",
-					});
+					expect(result.trigger.match_related).toEqual([
+						{ "prefect.resource.role": "flow" },
+						{ "prefect.resource.role": "deployment" },
+					]);
 				}
 			});
 

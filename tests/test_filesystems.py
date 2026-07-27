@@ -424,6 +424,118 @@ class TestRemoteFileSystem:
         assert fs._resolve_path(f"{base}/subdir") == f"{base}/subdir"
         assert fs._resolve_path("subdirectory") == f"{base}/subdirectory"
 
+    async def test_resolve_path_nested_basepath(self):
+        base = "memory://root/prefix"
+        fs = RemoteFileSystem(basepath=base)
+
+        assert fs._resolve_path(base) == "memory://root/prefix/"
+        assert fs._resolve_path("memory://root/prefix/") == "memory://root/prefix/"
+        assert (
+            fs._resolve_path("memory://root/prefix/folder/test.txt")
+            == "memory://root/prefix/folder/test.txt"
+        )
+        assert fs._resolve_path("folder/test.txt") == f"{base}/folder/test.txt"
+
+    async def test_write_outside_of_basepath_sibling_prefix(self):
+        fs = RemoteFileSystem(basepath="memory://root/foo")
+        with pytest.raises(ValueError, match="is outside of the base path"):
+            await fs.write_path("memory://root/foobar/test.txt", content=b"hello")
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "memory://root/prefix/../other/file.txt",
+            "memory://root/prefix/%2e%2e/other/file.txt",
+            "memory://root/prefix/.%2e/other/file.txt",
+            "memory://root/prefix/%2e./other/file.txt",
+            "memory://root/prefix%2f%2e%2e/other/file.txt",
+            "memory://root/prefix/folder/..",
+            "memory://root/prefix/folder/../file.txt",
+            "memory://root/prefix\\..\\other\\file.txt",
+            "memory://root/prefix/..\\other/file.txt",
+            "memory://root/prefix\\..\\other\\",
+            "memory://root/prefix\\folder\\..\\file.txt",
+            "memory://root/prefix%5c..%5cother/file.txt",
+        ],
+    )
+    async def test_write_path_rejects_dot_segment_traversal(self, path):
+        fs = RemoteFileSystem(basepath="memory://root/prefix")
+        with pytest.raises(ValueError, match="is outside of the base path"):
+            await fs.write_path(path, content=b"hello")
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "memory://root/pre%66ix/escape.txt",
+            "memory://root/prefix%2Fchild.txt",
+            "memory://root/prefix%2Ffolder/escape.txt",
+            "memory://root/prefix%2e/escape.txt",
+            "memory://root/prefix%2e%2e/escape.txt",
+        ],
+    )
+    async def test_write_path_rejects_encoded_prefix_spoofs(self, path):
+        fs = RemoteFileSystem(basepath="memory://root/prefix")
+        with pytest.raises(ValueError, match="is outside of the base path"):
+            await fs.write_path(path, content=b"hello")
+
+    async def test_write_path_encoded_base_prefix_roundtrip(self):
+        base = "memory://root/prefix%20space"
+        fs = RemoteFileSystem(basepath=base)
+
+        path = await fs.write_path(
+            "memory://root/prefix%20space/folder/test.txt", content=b"hello"
+        )
+        assert path == "memory://root/prefix%20space/folder/test.txt"
+        assert await fs.read_path("folder/test.txt") == b"hello"
+        assert (
+            await fs.read_path("memory://root/prefix%20space/folder/test.txt")
+            == b"hello"
+        )
+
+    async def test_write_path_distinct_keys_not_aliased(self):
+        fs = RemoteFileSystem(basepath="memory://root")
+        await fs.write_path("memory://root/a//b.txt", content=b"first")
+        await fs.write_path("memory://root/a/b.txt", content=b"second")
+        await fs.write_path("memory://root/a/./b.txt", content=b"third")
+        await fs.write_path("memory://root/a\\b.txt", content=b"fourth")
+
+        assert await fs.read_path("memory://root/a//b.txt") == b"first"
+        assert await fs.read_path("memory://root/a/b.txt") == b"second"
+        assert await fs.read_path("memory://root/a/./b.txt") == b"third"
+        assert await fs.read_path("memory://root/a\\b.txt") == b"fourth"
+
+    async def test_write_outside_of_basepath_case_different_netloc(self):
+        fs = RemoteFileSystem(basepath="memory://root/prefix")
+        with pytest.raises(ValueError, match="is outside of the base path"):
+            await fs.write_path("memory://ROOT/prefix/file.txt", content=b"hello")
+
+    @pytest.mark.parametrize("char", ["\r", "\n", "\t"])
+    async def test_write_path_with_control_characters(self, char):
+        fs = RemoteFileSystem(basepath="memory://root/prefix")
+
+        # Control characters in the path are stripped by urlsplit.
+        path = f"memory://root/prefix/folder/{char}test.txt"
+        result = await fs.write_path(path, content=b"hello")
+        assert char not in result
+        assert result == "memory://root/prefix/folder/test.txt"
+        assert await fs.read_path(path) == b"hello"
+
+        # Control characters in the netloc are stripped by urlsplit.
+        path = f"memory://root{char}/prefix/folder/test.txt"
+        result = await fs.write_path(path, content=b"hello")
+        assert char not in result
+        assert result == "memory://root/prefix/folder/test.txt"
+        assert await fs.read_path(path) == b"hello"
+
+    async def test_write_path_mixed_case_scheme_roundtrip(self):
+        fs = RemoteFileSystem(basepath="memory://root/prefix")
+        path = await fs.write_path(
+            "MEMORY://root/prefix/folder/test.txt", content=b"hello"
+        )
+        assert path == "memory://root/prefix/folder/test.txt"
+        assert await fs.read_path("folder/test.txt") == b"hello"
+        assert await fs.read_path("MEMORY://root/prefix/folder/test.txt") == b"hello"
+
     async def test_put_directory_flat(self):
         fs = RemoteFileSystem(basepath="memory://flat")
         await fs.put_directory(

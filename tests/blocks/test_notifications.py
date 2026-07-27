@@ -72,6 +72,8 @@ RESTRICTED_URLS = [
     ("https://private-internal.cloud.svc.cluster.local", "resolve"),
 ]
 
+APPRISE_IMPLICIT_QUERY_KEYS = {"batch", "optional", "retry", "wait"}
+
 
 def _assert_apprise_url_matches(actual_url: str, expected_url: str) -> None:
     actual = urllib.parse.urlsplit(actual_url)
@@ -87,7 +89,7 @@ def _assert_apprise_url_matches(actual_url: str, expected_url: str) -> None:
     for key, expected_value in expected_query.items():
         assert actual_query.get(key) == expected_value
 
-    assert set(actual_query) - set(expected_query) <= {"optional", "retry", "wait"}
+    assert set(actual_query) - set(expected_query) <= APPRISE_IMPLICIT_QUERY_KEYS
 
 
 @pytest.mark.parametrize("block_class", notification_classes)

@@ -90,6 +90,14 @@ async def _run_single_deploy(
     push_steps = deploy_config.get("push", actions.get("push")) or []
     pull_steps = deploy_config.get("pull", actions.get("pull")) or []
 
+    # An explicit empty `pull: []` (deployment-level takes precedence over the
+    # top-level definition) means "no pull steps". This differs from an
+    # omitted/`null` pull, which triggers default pull-action generation.
+    effective_pull = (
+        deploy_config["pull"] if "pull" in deploy_config else actions.get("pull")
+    )
+    explicit_no_pull = effective_pull == []
+
     deploy_config = await resolve_block_document_references(deploy_config)
     deploy_config = await resolve_variables(deploy_config)
 
@@ -237,6 +245,7 @@ async def _run_single_deploy(
     ## CONFIGURE PUSH and/or PULL STEPS FOR REMOTE FLOW STORAGE
     if (
         is_interactive()
+        and not explicit_no_pull
         and not (deploy_config.get("pull") or actions.get("pull"))
         and not docker_push_step_exists
         and confirm(
@@ -255,18 +264,23 @@ async def _run_single_deploy(
 
     # Prefer the originally captured pull_steps (taken before resolution) to
     # preserve unresolved block placeholders in the deployment spec. Only fall
-    # back to the config/actions/default if no pull steps were provided.
-    pull_steps = (
-        pull_steps
-        or deploy_config.get("pull")
-        or actions.get("pull")
-        or await _generate_default_pull_action(
-            console,
-            deploy_config=deploy_config,
-            actions=actions,
-            is_interactive=is_interactive,
+    # back to the config/actions/default if no pull steps were provided. An
+    # explicit empty `pull: []` disables pull steps entirely and skips default
+    # pull-action generation.
+    if explicit_no_pull:
+        pull_steps = []
+    else:
+        pull_steps = (
+            pull_steps
+            or deploy_config.get("pull")
+            or actions.get("pull")
+            or await _generate_default_pull_action(
+                console,
+                deploy_config=deploy_config,
+                actions=actions,
+                is_interactive=is_interactive,
+            )
         )
-    )
 
     ## RUN BUILD AND PUSH STEPS
     step_outputs: dict[str, Any] = {}
@@ -438,7 +452,9 @@ async def _run_single_deploy(
                 deploy_config_before_templating,
                 build_steps=build_steps or None,
                 push_steps=push_steps or None,
-                pull_steps=pull_steps or None,
+                # Preserve an explicit empty `pull: []` when saving so the
+                # no-pull setting survives; otherwise collapse falsey pull to None.
+                pull_steps=pull_steps if explicit_no_pull else (pull_steps or None),
                 triggers=trigger_specs or None,
                 sla=sla_specs or None,
                 prefect_file=prefect_file,

@@ -43,6 +43,51 @@ class AcquireConcurrencySlotTimeoutError(TimeoutError):
 logger: logging.Logger = get_logger("concurrency")
 
 
+def _format_http_status_error(exc: httpx.HTTPStatusError) -> str:
+    """Format an HTTP status error from the server into a compact string.
+
+    Handles both Prefect API payloads (`exception_detail`) and raw FastAPI
+    payloads (`detail`), extracting Pydantic-style validation errors and
+    dropping the leading `body` location component.
+    """
+    status_code = exc.response.status_code
+    reason = exc.response.reason_phrase
+    status_text = f"{status_code} {reason}" if reason else str(status_code)
+
+    try:
+        body = exc.response.json()
+    except Exception:
+        body = None
+
+    messages: list[str] = []
+    if isinstance(body, dict):
+        errors = body.get("exception_detail") or body.get("detail")
+        if isinstance(errors, list):
+            for error in errors:
+                if not isinstance(error, dict):
+                    continue
+                msg = error.get("msg")
+                if not isinstance(msg, str):
+                    continue
+                loc = error.get("loc")
+                if isinstance(loc, (list, tuple)) and loc:
+                    if loc[0] == "body":
+                        loc = loc[1:]
+                    field = ".".join(str(part) for part in loc)
+                else:
+                    field = ""
+                if field:
+                    messages.append(f"{field}: {msg}")
+                else:
+                    messages.append(msg)
+        elif isinstance(errors, str):
+            messages.append(errors)
+
+    if messages:
+        return f"{status_text}: {'; '.join(messages)}"
+    return status_text
+
+
 async def aacquire_concurrency_slots(
     names: list[str],
     slots: int,
@@ -59,6 +104,11 @@ async def aacquire_concurrency_slots(
         raise AcquireConcurrencySlotTimeoutError(
             f"Attempt to acquire concurrency slots timed out after {timeout_seconds} second(s)"
         ) from timeout
+    except httpx.HTTPStatusError as exc:
+        raise ConcurrencySlotAcquisitionError(
+            f"Unable to acquire concurrency slots on {names!r}: "
+            f"{_format_http_status_error(exc)}"
+        ) from exc
     except Exception as exc:
         raise ConcurrencySlotAcquisitionError(
             f"Unable to acquire concurrency slots on {names!r}"
@@ -104,6 +154,11 @@ async def aacquire_concurrency_slots_with_lease(
         raise AcquireConcurrencySlotTimeoutError(
             f"Attempt to acquire concurrency slots timed out after {timeout_seconds} second(s)"
         ) from timeout
+    except httpx.HTTPStatusError as exc:
+        raise ConcurrencySlotAcquisitionError(
+            f"Unable to acquire concurrency slots on {names!r}: "
+            f"{_format_http_status_error(exc)}"
+        ) from exc
     except Exception as exc:
         raise ConcurrencySlotAcquisitionError(
             f"Unable to acquire concurrency slots on {names!r}"
@@ -128,6 +183,15 @@ async def aacquire_concurrency_slots_with_lease(
                 log_level,
                 f"Concurrency limits {names!r} do not exist - skipping acquisition.",
             )
+    elif ctx := ConcurrencyContext.get():
+        # Record the lease for cleanup the moment it is granted. In the sync
+        # path this coroutine runs to completion on a separate event loop thread
+        # that the caller's timeout/cancellation cannot reach, so a cancellation
+        # firing in the calling thread the instant the lease is granted can no
+        # longer lose the lease id and leak the slot. The normal release path
+        # removes it again; anything left over is released idempotently when the
+        # ConcurrencyContext exits.
+        ctx.cleanup_lease_ids.append(retval.lease_id)
 
     return retval
 
@@ -147,6 +211,18 @@ async def arelease_concurrency_slots_with_lease(
 ) -> None:
     async with get_client() as client:
         await client.release_concurrency_slots_with_lease(lease_id=lease_id)
+
+
+def _discard_cleanup_lease(lease_id: UUID) -> None:
+    """Drop a lease id recorded for cleanup once it has been released normally.
+
+    Leases are recorded on the active `ConcurrencyContext` the moment they are
+    acquired; this removes one after a successful release so the context does not
+    re-release it on exit.
+    """
+    ctx = ConcurrencyContext.get()
+    if ctx is not None and lease_id in ctx.cleanup_lease_ids:
+        ctx.cleanup_lease_ids.remove(lease_id)
 
 
 def _response_to_minimal_concurrency_limit_response(
@@ -245,10 +321,11 @@ async def concurrency(
                 lease_id=response.lease_id,
             )
         except anyio.get_cancelled_exc_class():
-            # The task was cancelled before it could release the lease. Add the
-            # lease ID to the cleanup list so it can be released when the
-            # concurrency context is exited.
-            if ctx := ConcurrencyContext.get():
-                ctx.cleanup_lease_ids.append(response.lease_id)
+            # The task was cancelled before it could release the lease. Leave the
+            # lease ID in the cleanup list (recorded at acquisition) so it is
+            # released when the concurrency context is exited.
+            pass
+        else:
+            _discard_cleanup_lease(response.lease_id)
 
         emit_concurrency_release_events(response.limits, occupy, emitted_events)

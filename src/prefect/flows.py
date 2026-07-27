@@ -74,7 +74,7 @@ from prefect.logging.loggers import flow_run_logger
 from prefect.results import ResultSerializer, ResultStorage
 from prefect.schedules import Schedule
 from prefect.settings import (
-    PREFECT_DEFAULT_WORK_POOL_NAME,
+    PREFECT_DEPLOYMENTS_DEFAULT_WORK_POOL_NAME,
     PREFECT_FLOW_DEFAULT_RETRIES,
     PREFECT_FLOW_DEFAULT_RETRY_DELAY_SECONDS,
     PREFECT_TESTING_UNIT_TEST_MODE,
@@ -1468,7 +1468,7 @@ class Flow(Generic[P, R]):
         Args:
             name: The name to give the created deployment.
             work_pool_name: The name of the work pool to use for this deployment. Defaults to
-                the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
+                the value of `PREFECT_DEPLOYMENTS_DEFAULT_WORK_POOL_NAME`.
             image: The name of the Docker image to build, including the registry and
                 repository. Pass a DockerImage instance to customize the Dockerfile used
                 and build arguments.
@@ -1534,11 +1534,12 @@ class Flow(Generic[P, R]):
             ```
         """
         if not (
-            work_pool_name := work_pool_name or PREFECT_DEFAULT_WORK_POOL_NAME.value()
+            work_pool_name := work_pool_name
+            or PREFECT_DEPLOYMENTS_DEFAULT_WORK_POOL_NAME.value()
         ):
             raise ValueError(
                 "No work pool name provided. Please provide a `work_pool_name` or set the"
-                " `PREFECT_DEFAULT_WORK_POOL_NAME` environment variable."
+                " `PREFECT_DEPLOYMENTS_DEFAULT_WORK_POOL_NAME` environment variable."
             )
 
         from prefect.client.orchestration import get_client
@@ -1665,7 +1666,7 @@ class Flow(Generic[P, R]):
         Args:
             name: The name to give the created deployment.
             work_pool_name: The name of the work pool to use for this deployment. Defaults to
-                the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
+                the value of `PREFECT_DEPLOYMENTS_DEFAULT_WORK_POOL_NAME`.
             image: The name of the Docker image to build, including the registry and
                 repository. Pass a DockerImage instance to customize the Dockerfile used
                 and build arguments.

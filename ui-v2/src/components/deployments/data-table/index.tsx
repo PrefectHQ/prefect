@@ -15,8 +15,16 @@ import type { DeploymentWithFlow } from "@/api/deployments";
 import type { components } from "@/api/prefect";
 import { useDeleteDeploymentConfirmationDialog } from "@/components/deployments/use-delete-deployment-confirmation-dialog";
 import { FlowIconText } from "@/components/flows/flow-icon-text";
+import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog";
+import {
+	EmptyState,
+	EmptyStateActions,
+	EmptyStateDescription,
+	EmptyStateIcon,
+	EmptyStateTitle,
+} from "@/components/ui/empty-state";
 import { FlowRunActivityBarGraphTooltipProvider } from "@/components/ui/flow-run-activity-bar-graph";
 import { SearchInput } from "@/components/ui/input";
 import { ScheduleBadgeGroup } from "@/components/ui/schedule-badge";
@@ -44,6 +52,10 @@ export type DeploymentsDataTableProps = {
 	onPaginationChange: (pagination: PaginationState) => void;
 	onSortChange: (sort: components["schemas"]["DeploymentSort"]) => void;
 	onColumnFiltersChange: (columnFilters: ColumnFiltersState) => void;
+	filteredCount?: number;
+	isPending?: boolean;
+	isPlaceholderData?: boolean;
+	onClearFilters?: () => void;
 };
 
 const columnHelper = createColumnHelper<DeploymentWithFlow>();
@@ -144,7 +156,17 @@ export const DeploymentsDataTable = ({
 	onPaginationChange,
 	onSortChange,
 	onColumnFiltersChange,
+	filteredCount: filteredCountProp,
+	isPending = false,
+	isPlaceholderData = false,
+	onClearFilters,
 }: DeploymentsDataTableProps) => {
+	const filteredCount = filteredCountProp ?? deployments.length;
+	const showFilteredEmptyState =
+		filteredCount === 0 &&
+		!isPending &&
+		!isPlaceholderData &&
+		Boolean(onClearFilters);
 	const navigate = useNavigate();
 	const [deleteConfirmationDialogState, confirmDelete] =
 		useDeleteDeploymentConfirmationDialog();
@@ -266,17 +288,40 @@ export const DeploymentsDataTable = ({
 			</div>
 
 			<DeleteConfirmationDialog {...deleteConfirmationDialogState} />
-			<FlowRunActivityBarGraphTooltipProvider>
-				<DataTable
-					table={table}
-					onRowClick={(row) =>
-						void navigate({
-							to: "/deployments/deployment/$id",
-							params: { id: row.id },
-						})
-					}
-				/>
-			</FlowRunActivityBarGraphTooltipProvider>
+			{showFilteredEmptyState ? (
+				<DeploymentsFilteredEmptyState onClearFilters={onClearFilters} />
+			) : (
+				<FlowRunActivityBarGraphTooltipProvider>
+					<DataTable
+						table={table}
+						onRowClick={(row) =>
+							void navigate({
+								to: "/deployments/deployment/$id",
+								params: { id: row.id },
+							})
+						}
+					/>
+				</FlowRunActivityBarGraphTooltipProvider>
+			)}
 		</div>
 	);
 };
+
+const DeploymentsFilteredEmptyState = ({
+	onClearFilters,
+}: {
+	onClearFilters?: () => void;
+}) => (
+	<EmptyState>
+		<EmptyStateIcon id="Search" />
+		<EmptyStateTitle>No deployments match your filters</EmptyStateTitle>
+		<EmptyStateDescription>
+			Try adjusting your search or tag filters.
+		</EmptyStateDescription>
+		<EmptyStateActions>
+			<Button variant="outline" onClick={onClearFilters}>
+				Clear filters
+			</Button>
+		</EmptyStateActions>
+	</EmptyState>
+);

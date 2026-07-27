@@ -25,3 +25,32 @@ test("TimezoneSelect can select an option", async () => {
 	// ------------ Assert
 	expect(mockOnSelectFn).toBeCalledWith("Africa/Abidjan");
 });
+
+test("TimezoneSelect displays UTC when selectedValue is UTC", () => {
+	mockPointerEvents();
+
+	render(<TimezoneSelect onSelect={vi.fn()} selectedValue="UTC" />);
+
+	expect(screen.getByLabelText(/select timezone/i)).toHaveTextContent("UTC");
+});
+
+test("TimezoneSelect displays UTC when selectedValue is Etc/UTC", () => {
+	mockPointerEvents();
+
+	render(<TimezoneSelect onSelect={vi.fn()} selectedValue="Etc/UTC" />);
+
+	expect(screen.getByLabelText(/select timezone/i)).toHaveTextContent("UTC");
+});
+
+test("TimezoneSelect selects the canonical UTC option", async () => {
+	mockPointerEvents();
+	const user = userEvent.setup();
+	const mockOnSelectFn = vi.fn();
+
+	render(<TimezoneSelect onSelect={mockOnSelectFn} selectedValue="" />);
+
+	await user.click(screen.getByLabelText(/select timezone/i));
+	await user.click(screen.getByRole("option", { name: /^utc$/i }));
+
+	expect(mockOnSelectFn).toBeCalledWith("UTC");
+});

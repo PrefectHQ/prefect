@@ -5,6 +5,7 @@ import { format } from "date-fns-tz";
 import { useCallback, useEffect, useRef } from "react";
 import type { components } from "@/api/prefect";
 import { Badge } from "@/components/ui/badge";
+import { linkify } from "@/lib/linkify";
 import { cn } from "@/utils";
 
 type RunLogsProps = {
@@ -160,7 +161,7 @@ const RunLogRow = ({ log, taskRunName }: RunLogRowProps) => {
 				<LogLevelBadge level={log.level} />
 			</div>
 			<div className="select-auto whitespace-pre-wrap break-words">
-				{log.message}
+				{linkify(log.message)}
 			</div>
 			<div className="text-xs grid grid-cols-1 gap-1 justify-items-end text-muted-foreground truncate">
 				<span>{format(log.timestamp, "pp")}</span>

@@ -140,6 +140,55 @@ class TestUtilityFunctions:
             exc_info.value.args[0] == f"1 (of {len(mock_futures)}) futures unfinished"
         )
 
+    @pytest.mark.timeout(method="thread")
+    def test_as_completed_with_timeout_from_worker_thread(self):
+        """
+        Regression test: as_completed must respect `timeout` when consumed from a
+        real worker thread (where Prefect's watcher-thread cancellation cannot
+        interrupt a blocking `Event.wait()`).
+        """
+        hanging_future = Future()
+        future = PrefectConcurrentFuture(uuid.uuid4(), hanging_future)
+
+        caught: list[BaseException] = []
+
+        def consume_as_completed():
+            try:
+                for _ in as_completed([future], timeout=0.05):
+                    pass
+            except BaseException as exc:
+                caught.append(exc)
+
+        worker = threading.Thread(target=consume_as_completed)
+        worker.start()
+        worker.join(timeout=2.0)
+
+        if worker.is_alive():
+            # Self-cleaning: unblock the worker so the suite never leaks a
+            # non-daemon thread on the broken implementation.
+            hanging_future.set_result(Completed(data=None))
+            worker.join(timeout=2.0)
+            assert not worker.is_alive(), "Worker thread did not exit"
+            pytest.fail("as_completed did not time out in worker thread")
+
+        assert len(caught) == 1
+        assert isinstance(caught[0], TimeoutError)
+        assert caught[0].args[0] == "1 (of 1) futures unfinished"
+
+    @pytest.mark.timeout(method="thread")
+    def test_as_completed_with_zero_timeout_yields_completed_future(self):
+        """
+        A zero timeout is a non-blocking poll: futures whose wrapped future has
+        already completed (but whose `_final_state` has not yet been populated)
+        must still be yielded before the timeout is enforced.
+        """
+        completed_future = Future()
+        completed_future.set_result(Completed(data=42))
+        future = PrefectConcurrentFuture(uuid.uuid4(), completed_future)
+
+        results = [f.result() for f in as_completed([future], timeout=0)]
+        assert results == [42]
+
     @pytest.mark.usefixtures("use_hosted_api_server")
     def test_as_completed_yields_correct_order(self):
         @task

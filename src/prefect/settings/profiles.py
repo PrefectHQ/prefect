@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from collections.abc import Mapping
 from pathlib import Path
 from typing import (
     Annotated,
@@ -19,6 +20,7 @@ from pydantic import (
     Field,
     ValidationError,
 )
+from typing_extensions import Self
 
 from prefect._internal.compatibility.backports import tomllib
 from prefect.exceptions import ProfileSettingsValidationError
@@ -29,23 +31,147 @@ from prefect.settings.models.root import Settings
 from prefect.utilities.collections import set_in_dict
 
 
+class _SettingsDict(dict):
+    """
+    A dictionary that stores profile settings using canonical Setting keys while
+    allowing lookup via legacy Setting aliases.
+
+    Canonical names are used for persistence and export; legacy keys transparently
+    resolve to the canonical entry for `__getitem__`, `get`, `__contains__`,
+    assignment, union, and equality checks.
+    """
+
+    def _canonical_key(self, key: Any) -> Any:
+        if isinstance(key, Setting):
+            settings_fields = _get_settings_fields(Settings)
+            canonical = settings_fields.get(key.name)
+            if canonical is None:
+                canonical = settings_fields[key.accessor]
+            return canonical
+        if isinstance(key, str):
+            settings_fields = _get_settings_fields(Settings)
+            canonical = settings_fields.get(key)
+            if canonical is None:
+                canonical = settings_fields.get(key.upper())
+            return canonical if canonical is not None else key
+        return key
+
+    def __getitem__(self, key: Any) -> Any:
+        return super().__getitem__(self._canonical_key(key))
+
+    def __setitem__(self, key: Any, value: Any) -> None:
+        super().__setitem__(self._canonical_key(key), value)
+
+    def __delitem__(self, key: Any) -> None:
+        super().__delitem__(self._canonical_key(key))
+
+    def __contains__(self, key: Any) -> bool:
+        return super().__contains__(self._canonical_key(key))
+
+    def get(self, key: Any, default: Any = None) -> Any:  # type: ignore[override]
+        return super().get(self._canonical_key(key), default)
+
+    def pop(self, key: Any, *args: Any) -> Any:
+        return super().pop(self._canonical_key(key), *args)
+
+    def setdefault(self, key: Any, default: Any = None) -> Any:  # type: ignore[override]
+        return super().setdefault(self._canonical_key(key), default)
+
+    def update(self, *args: Any, **kwargs: Any) -> None:
+        if args:
+            if len(args) > 1:
+                raise TypeError("update expected at most 1 argument")
+            other = args[0]
+            if isinstance(other, Mapping):
+                for k, v in other.items():
+                    self[k] = v
+            else:
+                for k, v in other:
+                    self[k] = v
+        for k, v in kwargs.items():
+            self[k] = v
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Mapping):
+            return NotImplemented
+        return dict(self) == {self._canonical_key(k): v for k, v in other.items()}
+
+    def __ne__(self, other: object) -> bool:
+        eq = self.__eq__(other)
+        if eq is NotImplemented:
+            return NotImplemented
+        return not eq
+
+    def __ior__(self, other: Any) -> Self:
+        if not isinstance(other, Mapping):
+            return NotImplemented
+        self.update(other)
+        return self
+
+    def __or__(self, other: Any) -> "_SettingsDict":
+        if not isinstance(other, Mapping):
+            return NotImplemented
+        result = _SettingsDict()
+        result.update(self)
+        result.update(other)
+        return result
+
+    def __ror__(self, other: Any) -> "_SettingsDict":
+        if not isinstance(other, Mapping):
+            return NotImplemented
+        result = _SettingsDict()
+        result.update(other)
+        result.update(self)
+        return result
+
+
 def _cast_settings(
     settings: dict[str | Setting, Any] | Any,
 ) -> dict[Setting, Any]:
-    """For backwards compatibility, allow either Settings objects as keys or string references to settings."""
+    """For backwards compatibility, allow either Settings objects as keys or string references to settings.
+
+    Canonical setting names take precedence over legacy aliases. If both a canonical
+    name and an alias are present for the same setting, the canonical value is used.
+    """
     if not isinstance(settings, dict):
         raise ValueError("Settings must be a dictionary.")
-    casted_settings = {}
+
+    casted_settings: dict[Setting, Any] = {}
+    canonical_keys: set[Setting] = set()
+
+    settings_fields = _get_settings_fields(Settings)
+
+    def _resolve_key(k: str | Setting) -> tuple[Setting, bool]:
+        if isinstance(k, Setting):
+            canonical = settings_fields.get(k.name)
+            if canonical is None:
+                canonical = settings_fields[k.accessor]
+            is_canonical = k.name == canonical.name
+            return canonical, is_canonical
+        setting = settings_fields[k]
+        return setting, k == setting.name or k == setting.accessor
+
+    # First pass: canonical keys win over aliases regardless of input order.
     for k, value in settings.items():
         try:
-            if isinstance(k, str):
-                setting = _get_settings_fields(Settings)[k]
-            else:
-                setting = k
-            casted_settings[setting] = value
+            setting, is_canonical = _resolve_key(k)
         except KeyError as e:
             warnings.warn(f"Setting {e} is not recognized")
             continue
+        if is_canonical:
+            casted_settings[setting] = value
+            canonical_keys.add(setting)
+
+    # Second pass: keep alias values only when no canonical key was provided.
+    for k, value in settings.items():
+        try:
+            setting, is_canonical = _resolve_key(k)
+        except KeyError:
+            continue
+        if is_canonical or setting in canonical_keys:
+            continue
+        casted_settings[setting] = value
+
     return casted_settings
 
 
@@ -65,6 +191,10 @@ class Profile(BaseModel):
         default_factory=dict
     )
     source: Optional[Path] = None
+
+    def model_post_init(self, __context: Any) -> None:
+        if not isinstance(self.settings, _SettingsDict):
+            self.__dict__["settings"] = _SettingsDict(self.settings)
 
     def to_environment_variables(self) -> dict[str, str]:
         """Convert the profile settings to a dictionary of environment variables."""

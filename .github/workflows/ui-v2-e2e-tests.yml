@@ -76,7 +76,7 @@ jobs:
         env:
           PREFECT_API_URL: http://127.0.0.1:4200/api
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: "ui-v2/.nvmrc"
           cache: "npm"
@@ -138,7 +138,7 @@ jobs:
         env:
           PREFECT_SERVER_API_AUTH_STRING: admin:secret
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version-file: "ui-v2/.nvmrc"
           cache: "npm"

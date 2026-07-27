@@ -10,7 +10,7 @@ Tasks for interacting with GCP BigQuery
 
 ## Functions
 
-### `abigquery_query` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `abigquery_query` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L72" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 abigquery_query(query: str, gcp_credentials: GcpCredentials, query_params: Optional[List[tuple]] = None, dry_run_max_bytes: Optional[int] = None, dataset: Optional[str] = None, table: Optional[str] = None, to_dataframe: bool = False, job_config: Optional[dict] = None, project: Optional[str] = None, result_transformer: Optional[Callable[[List['Row']], Any]] = None, location: str = 'US') -> Any
@@ -48,7 +48,7 @@ provided, will default to the one inferred from your credentials.
 - matching the query criteria.
 
 
-### `bigquery_query` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L175" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `bigquery_query` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L200" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 bigquery_query(query: str, gcp_credentials: GcpCredentials, query_params: Optional[List[tuple]] = None, dry_run_max_bytes: Optional[int] = None, dataset: Optional[str] = None, table: Optional[str] = None, to_dataframe: bool = False, job_config: Optional[dict] = None, project: Optional[str] = None, result_transformer: Optional[Callable[[List['Row']], Any]] = None, location: str = 'US') -> Any
@@ -86,7 +86,7 @@ provided, will default to the one inferred from your credentials.
 - matching the query criteria.
 
 
-### `abigquery_create_table` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L292" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `abigquery_create_table` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L317" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 abigquery_create_table(dataset: str, table: str, gcp_credentials: GcpCredentials, schema: Optional[List['SchemaField']] = None, clustering_fields: List[str] = None, time_partitioning: 'TimePartitioning' = None, project: Optional[str] = None, location: str = 'US', external_config: Optional['ExternalConfig'] = None) -> str
@@ -134,7 +134,7 @@ Example:
     ```
 
 
-### `bigquery_create_table` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L388" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `bigquery_create_table` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L413" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 bigquery_create_table(dataset: str, table: str, gcp_credentials: GcpCredentials, schema: Optional[List['SchemaField']] = None, clustering_fields: List[str] = None, time_partitioning: 'TimePartitioning' = None, project: Optional[str] = None, location: str = 'US', external_config: Optional['ExternalConfig'] = None) -> str
@@ -182,7 +182,7 @@ Example:
     ```
 
 
-### `abigquery_insert_stream` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L473" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `abigquery_insert_stream` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L498" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 abigquery_insert_stream(dataset: str, table: str, records: List[dict], gcp_credentials: GcpCredentials, project: Optional[str] = None, location: str = 'US') -> List
@@ -207,7 +207,7 @@ not provided, will default to the one inferred from your credentials.
 - List of inserted rows.
 
 
-### `bigquery_insert_stream` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L549" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `bigquery_insert_stream` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L574" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 bigquery_insert_stream(dataset: str, table: str, records: List[dict], gcp_credentials: GcpCredentials, project: Optional[str] = None, location: str = 'US') -> List
@@ -232,7 +232,7 @@ not provided, will default to the one inferred from your credentials.
 - List of inserted rows.
 
 
-### `abigquery_load_cloud_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L618" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `abigquery_load_cloud_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L643" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 abigquery_load_cloud_storage(dataset: str, table: str, uri: str, gcp_credentials: GcpCredentials, schema: Optional[List['SchemaField']] = None, job_config: Optional[dict] = None, project: Optional[str] = None, location: str = 'US') -> 'LoadJob'
@@ -258,7 +258,7 @@ Args:
 - The response from `load_table_from_uri`.
 
 
-### `bigquery_load_cloud_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L707" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `bigquery_load_cloud_storage` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L727" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 bigquery_load_cloud_storage(dataset: str, table: str, uri: str, gcp_credentials: GcpCredentials, schema: Optional[List['SchemaField']] = None, job_config: Optional[dict] = None, project: Optional[str] = None, location: str = 'US') -> 'LoadJob'
@@ -284,7 +284,7 @@ Args:
 - The response from `load_table_from_uri`.
 
 
-### `abigquery_load_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L793" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `abigquery_load_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L808" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 abigquery_load_file(dataset: str, table: str, path: Union[str, Path], gcp_credentials: GcpCredentials, schema: Optional[List['SchemaField']] = None, job_config: Optional[dict] = None, rewind: bool = False, size: Optional[int] = None, project: Optional[str] = None, location: str = 'US') -> 'LoadJob'
@@ -316,7 +316,7 @@ not provided, will default to the one inferred from your credentials.
 - The response from `load_table_from_file`.
 
 
-### `bigquery_load_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L898" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `bigquery_load_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L906" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 bigquery_load_file(dataset: str, table: str, path: Union[str, Path], gcp_credentials: GcpCredentials, schema: Optional[List['SchemaField']] = None, job_config: Optional[dict] = None, rewind: bool = False, size: Optional[int] = None, project: Optional[str] = None, location: str = 'US') -> 'LoadJob'
@@ -350,7 +350,7 @@ not provided, will default to the one inferred from your credentials.
 
 ## Classes
 
-### `BigQueryWarehouse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L993" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `BigQueryWarehouse` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L996" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A block for querying a database with BigQuery.
@@ -375,7 +375,7 @@ clause, or the dialect's equivalent clause, like `TOP`, to the query.
 
 **Methods:**
 
-#### `aexecute` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1447" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aexecute` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1450" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aexecute(self, operation: str, parameters: Optional[Dict[str, Any]] = None, **execution_options: Dict[str, Any]) -> None
@@ -415,7 +415,7 @@ async with BigQueryWarehouse.load("BLOCK_NAME") as warehouse:
 ```
 
 
-#### `aexecute_many` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1541" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aexecute_many` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1544" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aexecute_many(self, operation: str, seq_of_parameters: List[Dict[str, Any]]) -> None
@@ -461,7 +461,7 @@ async with BigQueryWarehouse.load("bigquery") as warehouse:
 ```
 
 
-#### `afetch_all` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1335" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `afetch_all` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1338" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 afetch_all(self, operation: str, parameters: Optional[Dict[str, Any]] = None, **execution_options: Dict[str, Any]) -> List['Row']
@@ -506,7 +506,7 @@ async with BigQueryWarehouse.load("BLOCK_NAME") as warehouse:
 ```
 
 
-#### `afetch_many` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1203" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `afetch_many` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1206" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 afetch_many(self, operation: str, parameters: Optional[Dict[str, Any]] = None, size: Optional[int] = None, **execution_options: Dict[str, Any]) -> List['Row']
@@ -559,7 +559,7 @@ async with BigQueryWarehouse.load("BLOCK_NAME") as warehouse:
 ```
 
 
-#### `afetch_one` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1087" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `afetch_one` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1090" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 afetch_one(self, operation: str, parameters: Optional[Dict[str, Any]] = None, **execution_options: Dict[str, Any]) -> 'Row'
@@ -606,13 +606,13 @@ async with BigQueryWarehouse.load("BLOCK_NAME") as warehouse:
 ```
 
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1034" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1037" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
 ```
 
-#### `close` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1643" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `close` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1646" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 close(self)
@@ -621,7 +621,7 @@ close(self)
 Closes connection and its cursors.
 
 
-#### `execute` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1495" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `execute` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1498" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 execute(self, operation: str, parameters: Optional[Dict[str, Any]] = None, **execution_options: Dict[str, Any]) -> None
@@ -660,7 +660,7 @@ with BigQueryWarehouse.load("BLOCK_NAME") as warehouse:
 ```
 
 
-#### `execute_many` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1593" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `execute_many` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1596" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 execute_many(self, operation: str, seq_of_parameters: List[Dict[str, Any]]) -> None
@@ -705,7 +705,7 @@ with BigQueryWarehouse.load("bigquery") as warehouse:
 ```
 
 
-#### `fetch_all` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1392" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `fetch_all` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1395" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 fetch_all(self, operation: str, parameters: Optional[Dict[str, Any]] = None, **execution_options: Dict[str, Any]) -> List['Row']
@@ -750,7 +750,7 @@ with BigQueryWarehouse.load("BLOCK_NAME") as warehouse:
 ```
 
 
-#### `fetch_many` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1270" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `fetch_many` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1273" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 fetch_many(self, operation: str, parameters: Optional[Dict[str, Any]] = None, size: Optional[int] = None, **execution_options: Dict[str, Any]) -> List['Row']
@@ -803,7 +803,7 @@ with BigQueryWarehouse.load("BLOCK_NAME") as warehouse:
 ```
 
 
-#### `fetch_one` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1146" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `fetch_one` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1149" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 fetch_one(self, operation: str, parameters: Optional[Dict[str, Any]] = None, **execution_options: Dict[str, Any]) -> 'Row'
@@ -850,7 +850,7 @@ with BigQueryWarehouse.load("BLOCK_NAME") as warehouse:
 ```
 
 
-#### `get_connection` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1042" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_connection` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1045" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_connection(self) -> 'Connection'
@@ -859,7 +859,7 @@ get_connection(self) -> 'Connection'
 Get the opened connection to BigQuery.
 
 
-#### `reset_cursors` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1073" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `reset_cursors` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-gcp/prefect_gcp/bigquery.py#L1076" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 reset_cursors(self) -> None

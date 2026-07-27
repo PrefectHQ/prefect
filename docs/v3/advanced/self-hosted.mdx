@@ -98,7 +98,7 @@ flowchart TB
 Configure PostgreSQL as your database backend:
 
 ```bash
-export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://user:password@host:5432/prefect"
+export PREFECT_SERVER_DATABASE_CONNECTION_URL="postgresql+asyncpg://user:password@host:5432/prefect"
 ```
 
 <Warning>
@@ -125,7 +125,7 @@ To use AWS IAM authentication for your PostgreSQL database (experimental):
 
 4. **Configure your connection URL**:
    ```bash
-   export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://iam_user@host:5432/prefect"
+   export PREFECT_SERVER_DATABASE_CONNECTION_URL="postgresql+asyncpg://iam_user@host:5432/prefect"
    ```
 
 ### Azure Managed Identity Authentication
@@ -149,7 +149,7 @@ To use Azure managed identity (Microsoft Entra ID) authentication for your Postg
 
 4. **Configure your connection URL**:
    ```bash
-   export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://<identity-name>@host:5432/prefect"
+   export PREFECT_SERVER_DATABASE_CONNECTION_URL="postgresql+asyncpg://<identity-name>@host:5432/prefect"
    ```
 
 ### Redis setup
@@ -157,8 +157,8 @@ To use Azure managed identity (Microsoft Entra ID) authentication for your Postg
 Configure Redis as your server's message broker, cache, and lease storage:
 
 ```bash
-export PREFECT_MESSAGING_BROKER="prefect_redis.messaging"
-export PREFECT_MESSAGING_CACHE="prefect_redis.messaging"
+export PREFECT_SERVER_EVENTS_MESSAGING_BROKER="prefect_redis.messaging"
+export PREFECT_SERVER_EVENTS_MESSAGING_CACHE="prefect_redis.messaging"
 export PREFECT_SERVER_EVENTS_CAUSAL_ORDERING="prefect_redis.ordering"
 export PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE="prefect_redis.lease_storage"
 export PREFECT_REDIS_MESSAGING_HOST="redis-host"
@@ -287,7 +287,7 @@ Some services maintain their own at-least-once semantics at the database or Redi
 Disable automatic migrations in multi-server deployments:
 
 ```bash
-export PREFECT_API_DATABASE_MIGRATE_ON_START="false"
+export PREFECT_SERVER_DATABASE_MIGRATE_ON_START="false"
 ```
 
 Run migrations separately before deployment:
@@ -300,9 +300,12 @@ prefect server database upgrade -y
 
 Configure health checks for your load balancer:
 
-- **Health endpoint**: `/api/health`
-- **Expected response**: HTTP 200 with JSON `{"status": "healthy"}`
+- **Health endpoint**: `/api/health` (verifies the HTTP server is running)
+- **Readiness endpoint**: `/api/ready` (verifies database connectivity and returns `503` when Postgres is unreachable)
+- **Expected response**: HTTP 200 with JSON `true` from `/api/health`
 - **Check interval**: 5-10 seconds
+
+Use `/api/health` for liveness-style checks where you only need to confirm the process is up. Use `/api/ready` when the check should fail if the database is unavailable—for example, to stop routing traffic during a Postgres outage. See [Kubernetes health and readiness probes](/v3/advanced/server-helm#kubernetes-health-and-readiness-probes) for probe configuration on Kubernetes.
 
 Example NGINX configuration:
 
@@ -383,8 +386,8 @@ server {
 
 When self-hosting the UI behind a proxy:
 
-- `PREFECT_UI_API_URL`: Connection URL from UI to API
-- `PREFECT_UI_SERVE_BASE`: Base URL path to serve the UI
+- `PREFECT_SERVER_UI_API_URL`: Connection URL from UI to API
+- `PREFECT_SERVER_UI_SERVE_BASE`: Base URL path to serve the UI
 - `PREFECT_UI_URL`: URL for clients to access the UI
 
 #### SSL certificates
@@ -443,7 +446,7 @@ services:
         condition: service_healthy
     command: prefect server database upgrade -y
     environment:
-      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
+      PREFECT_SERVER_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
 
   prefect-api:
     image: prefecthq/prefect:3-latest
@@ -458,10 +461,10 @@ services:
       replicas: 3
     command: prefect server start --host 0.0.0.0 --no-services
     environment:
-      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
-      PREFECT_API_DATABASE_MIGRATE_ON_START: "false"
-      PREFECT_MESSAGING_BROKER: prefect_redis.messaging
-      PREFECT_MESSAGING_CACHE: prefect_redis.messaging
+      PREFECT_SERVER_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
+      PREFECT_SERVER_DATABASE_MIGRATE_ON_START: "false"
+      PREFECT_SERVER_EVENTS_MESSAGING_BROKER: prefect_redis.messaging
+      PREFECT_SERVER_EVENTS_MESSAGING_CACHE: prefect_redis.messaging
       PREFECT_SERVER_EVENTS_CAUSAL_ORDERING: prefect_redis.ordering
       PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: prefect_redis.lease_storage
       PREFECT_REDIS_MESSAGING_HOST: redis
@@ -483,10 +486,10 @@ services:
       replicas: 2
     command: prefect server services start
     environment:
-      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
-      PREFECT_API_DATABASE_MIGRATE_ON_START: "false"
-      PREFECT_MESSAGING_BROKER: prefect_redis.messaging
-      PREFECT_MESSAGING_CACHE: prefect_redis.messaging
+      PREFECT_SERVER_DATABASE_CONNECTION_URL: postgresql+asyncpg://prefect:prefect@postgres:5432/prefect
+      PREFECT_SERVER_DATABASE_MIGRATE_ON_START: "false"
+      PREFECT_SERVER_EVENTS_MESSAGING_BROKER: prefect_redis.messaging
+      PREFECT_SERVER_EVENTS_MESSAGING_CACHE: prefect_redis.messaging
       PREFECT_SERVER_EVENTS_CAUSAL_ORDERING: prefect_redis.ordering
       PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE: prefect_redis.lease_storage
       PREFECT_REDIS_MESSAGING_HOST: redis
@@ -509,13 +512,13 @@ Deploying Prefect self-hosted somehow else? Consider [opening a PR](/contribute/
 
 #### Handling large databases
 
-When running migrations on large database instances (especially where tables like `events`, `flow_runs`, or `task_runs` can reach millions of rows), the default database timeout of 10 seconds may not be sufficient for creating indexes.
+When running migrations on large database instances (especially where tables like `events`, `flow_runs`, or `task_runs` can reach millions of rows), creating indexes can take a long time. On PostgreSQL, migrations use a dedicated statement timeout (`PREFECT_SERVER_DATABASE_MIGRATION_TIMEOUT`) instead of the general database timeout (`PREFECT_SERVER_DATABASE_TIMEOUT`), and have no timeout by default.
 
-If you encounter a `TimeoutError` during migrations, increase the database timeout:
+If you want to bound how long a migration can run, set a migration timeout:
 
 ```bash
 # Set timeout to 10 minutes (adjust based on your database size)
-export PREFECT_API_DATABASE_TIMEOUT=600
+export PREFECT_SERVER_DATABASE_MIGRATION_TIMEOUT=600
 
 # Then run the migration
 prefect server database upgrade -y
@@ -524,7 +527,7 @@ prefect server database upgrade -y
 For Docker deployments:
 
 ```bash
-docker run -e PREFECT_API_DATABASE_TIMEOUT=600 prefecthq/prefect:latest prefect server database upgrade -y
+docker run -e PREFECT_SERVER_DATABASE_MIGRATION_TIMEOUT=600 prefecthq/prefect:latest prefect server database upgrade -y
 ```
 
 <Note>

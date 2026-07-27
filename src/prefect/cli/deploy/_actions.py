@@ -278,10 +278,17 @@ async def _generate_default_pull_action(
                     }
                 ]
 
-        entrypoint_path, _ = deploy_config["entrypoint"].split(":")
+        entrypoint = deploy_config["entrypoint"]
+        if ":" in entrypoint:
+            entrypoint_path, _ = entrypoint.rsplit(":", 1)
+            flow_source = (Path.cwd() / Path(entrypoint_path)).absolute().resolve()
+        else:
+            # Module-path style entrypoint (e.g. `my_package.my_flow`); there is
+            # no local file to point at, so reference the working directory.
+            flow_source = Path.cwd().absolute().resolve()
         console.print(
             "Your Prefect workers will attempt to load your flow from:"
-            f" [green]{(Path.cwd() / Path(entrypoint_path)).absolute().resolve()}[/]. To"
+            f" [green]{flow_source}[/]. To"
             " see more options for managing your flow's code, run:\n\n\t[blue]$"
             " prefect init[/]\n"
         )

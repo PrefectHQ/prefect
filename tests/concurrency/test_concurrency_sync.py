@@ -1,3 +1,4 @@
+from typing import Any
 from unittest import mock
 from uuid import UUID
 
@@ -483,3 +484,56 @@ def test_concurrency_without_limit_names_sync(names):
             release_spy.assert_not_called()
 
     assert executed
+
+
+@pytest.mark.parametrize("payload_key", ["exception_detail", "detail"])
+@pytest.mark.parametrize("endpoint", ["acquire", "concurrency"])
+def test_acquire_concurrency_slots_formats_server_validation_error(
+    monkeypatch: pytest.MonkeyPatch,
+    endpoint: str,
+    payload_key: str,
+):
+    async def mocked_increment(*args: Any, **kwargs: Any) -> None:
+        raise HTTPStatusError(
+            "Unprocessable Entity",
+            request=Request("POST", "http://test.com"),
+            response=Response(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                json={
+                    payload_key: [
+                        {
+                            "loc": ["body", "slots"],
+                            "msg": "Input should be greater than 0",
+                            "type": "greater_than",
+                        },
+                        {
+                            "loc": ["body", "lease_duration"],
+                            "msg": "Input should be greater than or equal to 60",
+                            "type": "greater_than_equal",
+                        },
+                    ]
+                },
+            ),
+        )
+
+    if endpoint == "acquire":
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectClient.increment_concurrency_slots",
+            mocked_increment,
+        )
+        with pytest.raises(ConcurrencySlotAcquisitionError) as exc_info:
+            acquire_concurrency_slots(["test"], slots=0, max_retries=0)
+    else:
+        monkeypatch.setattr(
+            "prefect.client.orchestration.PrefectClient.increment_concurrency_slots_with_lease",
+            mocked_increment,
+        )
+        with pytest.raises(ConcurrencySlotAcquisitionError) as exc_info:
+            with concurrency("test", occupy=0, max_retries=0, lease_duration=30):
+                pass
+
+    assert str(exc_info.value) == (
+        "Unable to acquire concurrency slots on ['test']: 422 Unprocessable Entity: "
+        "slots: Input should be greater than 0; "
+        "lease_duration: Input should be greater than or equal to 60"
+    )

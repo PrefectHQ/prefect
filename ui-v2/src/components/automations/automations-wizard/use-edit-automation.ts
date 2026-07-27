@@ -200,9 +200,7 @@ function transformTriggerToFormValue(trigger: AutomationTrigger): TriggerInput {
 				threshold: trigger.threshold,
 				within: trigger.within,
 				match: trigger.match,
-				match_related: Array.isArray(trigger.match_related)
-					? trigger.match_related[0]
-					: trigger.match_related,
+				match_related: trigger.match_related,
 				for_each: trigger.for_each,
 				after: trigger.after,
 				expect: trigger.expect,

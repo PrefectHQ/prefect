@@ -441,8 +441,12 @@ class TaskRunFilterStateName(PrefectBaseModel):
 
 
 class TaskRunFilterState(PrefectBaseModel, OperatorMixin):
-    type: Optional[TaskRunFilterStateType]
-    name: Optional[TaskRunFilterStateName]
+    type: Optional[TaskRunFilterStateType] = Field(
+        default=None, description="Filter criteria for `TaskRun` state type"
+    )
+    name: Optional[TaskRunFilterStateName] = Field(
+        default=None, description="Filter criteria for `TaskRun` state name"
+    )
 
 
 class TaskRunFilterSubFlowRuns(PrefectBaseModel):

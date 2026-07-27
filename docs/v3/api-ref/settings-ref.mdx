@@ -1658,6 +1658,18 @@ A connection timeout, in seconds, applied to database connections. Defaults to `
 **Supported environment variables**:
 `PREFECT_SERVER_DATABASE_CONNECTION_TIMEOUT`, `PREFECT_API_DATABASE_CONNECTION_TIMEOUT`
 
+### `migration_timeout`
+A statement timeout, in seconds, applied to database migrations. Schema changes such as concurrent index builds on large tables can take much longer than an ordinary API query, so migrations are not bound by `server.database.timeout`. Defaults to `None` (no timeout); set a positive value to bound migration statement duration.
+
+**Type**: `number | None`
+
+**Default**: `None`
+
+**TOML dotted key path**: `server.database.migration_timeout`
+
+**Supported environment variables**:
+`PREFECT_SERVER_DATABASE_MIGRATION_TIMEOUT`
+
 ---
 ## ServerDeploymentsSettings
 ### `concurrency_slot_wait_seconds`
@@ -2994,11 +3006,11 @@ Whether or not to serve the Prefect UI.
 `PREFECT_SERVER_UI_ENABLED`, `PREFECT_UI_ENABLED`
 
 ### `v2_enabled`
-Whether neutral UI entry points should default to the experimental V2 UI instead of V1 when the browser has no saved UI preference.
+Whether neutral UI entry points should default to the V2 UI instead of V1 when the browser has no saved UI preference. Set to false to restore V1 as the default for browsers without a saved preference.
 
 **Type**: `boolean`
 
-**Default**: `False`
+**Default**: `True`
 
 **TOML dotted key path**: `server.ui.v2_enabled`
 

@@ -1,5 +1,6 @@
 import { STATE_NAME_TO_TYPE, type StateName } from "@/api/flow-runs/constants";
 import type { components } from "@/api/prefect";
+import { DeploymentLink } from "@/components/deployments/deployment-link";
 import { FlowLink } from "@/components/flows/flow-link";
 import { StateBadge } from "@/components/ui/state-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
@@ -14,6 +15,7 @@ type StateType = components["schemas"]["StateType"];
 type TriggerDetailsFlowRunStateProps = {
 	flowIds: string[];
 	tags: string[];
+	deploymentIds?: string[];
 	posture: AutomationTriggerEventPosture;
 	states: string[];
 	time?: number;
@@ -53,6 +55,7 @@ function mapStateNameToStateType(stateName: string): StateType | null {
 export const TriggerDetailsFlowRunState = ({
 	flowIds,
 	tags,
+	deploymentIds = [],
 	posture,
 	states,
 	time,
@@ -79,6 +82,18 @@ export const TriggerDetailsFlowRunState = ({
 				<>
 					<span>with the tag</span>
 					<TagBadgeGroup tags={tags} />
+				</>
+			)}
+
+			{deploymentIds.length > 0 && (
+				<>
+					<span>of deployment</span>
+					{deploymentIds.map((deploymentId, index) => (
+						<span key={deploymentId} className="flex items-center gap-1">
+							<DeploymentLink deploymentId={deploymentId} />
+							{index === deploymentIds.length - 2 && <span>or</span>}
+						</span>
+					))}
 				</>
 			)}
 

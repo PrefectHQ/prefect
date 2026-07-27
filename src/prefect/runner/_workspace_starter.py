@@ -126,7 +126,7 @@ def _stdlib_prefixes() -> tuple[str, ...]:
 
 @functools.lru_cache(maxsize=1)
 def _site_packages_dirs() -> tuple[str, ...]:
-    """Resolved site-packages directories that should always be kept."""
+    """Resolved site-packages directories that should not be promoted to PYTHONPATH."""
     dirs: set[str] = set()
     paths = sysconfig.get_paths()
     for key in ("purelib", "platlib"):
@@ -147,12 +147,14 @@ def _site_packages_dirs() -> tuple[str, ...]:
     return tuple(sorted(dirs))
 
 
-def _is_stdlib_path(entry: str) -> bool:
-    """True when *entry* is a stdlib, lib-dynload, or stdlib zip path.
+def _is_interpreter_path(entry: str) -> bool:
+    """True when *entry* is managed by the interpreter rather than the workspace.
 
-    Site-packages directories that live under the stdlib tree are kept.
-    Only interpreter stdlib zip archives next to stdlib directories are filtered;
-    user archives like `/app/python_deps.zip` are preserved.
+    The interpreter already adds stdlib, lib-dynload, and site-packages directories
+    in the correct order. Adding any of them to PYTHONPATH changes that ordering and
+    can let a site-packages backport shadow a standard-library module. Only
+    interpreter stdlib zip archives next to stdlib directories are filtered; user
+    archives like `/app/python_deps.zip` are preserved.
     """
     if not entry:
         return False
@@ -160,9 +162,11 @@ def _is_stdlib_path(entry: str) -> bool:
     resolved_path = Path(entry).resolve()
     resolved = str(resolved_path)
 
-    for sp in _site_packages_dirs():
-        if resolved == sp or resolved.startswith(sp + os.sep):
-            return False
+    site_packages_dirs = _site_packages_dirs()
+    if resolved in site_packages_dirs:
+        return True
+    if any(resolved.startswith(sp + os.sep) for sp in site_packages_dirs):
+        return False
 
     for root in _stdlib_prefixes():
         if resolved == root or resolved.startswith(root + os.sep):
@@ -187,7 +191,11 @@ def workspace_environment(workspace: PreparedWorkspace) -> dict[str, str]:
         candidate_entries.extend(existing_pythonpath.split(os.pathsep))
 
     for entry in candidate_entries:
-        if entry and entry not in pythonpath_entries and not _is_stdlib_path(entry):
+        if (
+            entry
+            and entry not in pythonpath_entries
+            and not _is_interpreter_path(entry)
+        ):
             pythonpath_entries.append(entry)
 
     environment["PYTHONPATH"] = os.pathsep.join(pythonpath_entries)

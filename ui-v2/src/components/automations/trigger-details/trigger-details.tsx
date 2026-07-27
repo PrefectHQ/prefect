@@ -100,6 +100,7 @@ function fromStateNameEvents(events: string[]): string[] {
 function extractFlowRunStateProps(trigger: EventTrigger): {
 	flowIds: string[];
 	tags: string[];
+	deploymentIds: string[];
 	posture: AutomationTriggerEventPosture;
 	states: string[];
 	time?: number;
@@ -111,6 +112,10 @@ function extractFlowRunStateProps(trigger: EventTrigger): {
 
 	const flowIds = fromResourceId("prefect.flow", matchRelatedResourceIds);
 	const tags = fromResourceId("prefect.tag", matchRelatedResourceIds);
+	const deploymentIds = fromResourceId(
+		"prefect.deployment",
+		matchRelatedResourceIds,
+	);
 
 	const posture = trigger.posture;
 	const states =
@@ -121,6 +126,7 @@ function extractFlowRunStateProps(trigger: EventTrigger): {
 	return {
 		flowIds,
 		tags,
+		deploymentIds,
 		posture,
 		states,
 		time: trigger.within,

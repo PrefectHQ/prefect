@@ -50,44 +50,48 @@ Start a worker process to poll a work pool for flow runs.
 
 <Accordion title="Options" defaultOpen>
 
-<ResponseField name="-n">
-    The name to give to the started worker. If not provided, a unique name will be generated.
+<ResponseField name="--name">
+    The name to give to the started worker.
 </ResponseField>
 
-<ResponseField name="-p">
+<ResponseField name="--pool">
     The work pool the started worker should poll.
 </ResponseField>
 
-<ResponseField name="-q">
-    One or more work queue names for the worker to pull from. If not provided, the worker will pull from all work queues in the work pool.
+<ResponseField name="--work-queue">
+    Work queue names to pull from (repeatable).
 </ResponseField>
 
-<ResponseField name="-t">
-    The type of worker to start. If not provided, the worker type will be inferred from the work pool.
+<ResponseField name="--type">
+    The type of worker to start.
 </ResponseField>
 
 <ResponseField name="--prefetch-seconds">
-    Number of seconds to look into the future for scheduled flow runs.
+    Seconds to look ahead for scheduled flow runs. [from PREFECT_WORKER_PREFETCH_SECONDS]
 </ResponseField>
 
 <ResponseField name="--run-once">
-    Only run worker polling once. By default, the worker runs forever.
+    Only run worker polling once.
 </ResponseField>
 
-<ResponseField name="-l">
-    Maximum number of flow runs to execute concurrently.
+<ResponseField name="--limit">
+    Maximum concurrent flow runs.
 </ResponseField>
 
 <ResponseField name="--with-healthcheck">
-    Start a healthcheck server for the worker.
+    Start a healthcheck server.
 </ResponseField>
 
 <ResponseField name="--install-policy">
-    Install policy to use workers from Prefect integration packages.
+    Install policy for worker packages.
 </ResponseField>
 
 <ResponseField name="--base-job-template">
-    The path to a JSON file containing the base job template to use. If unspecified, Prefect will use the default base job template for the given worker type. If the work pool already exists, this will be ignored.
+    Path to JSON file containing base job template.
+</ResponseField>
+
+<ResponseField name="--create-pool-if-not-found">
+    Create the work pool if it does not exist. Set to false when the work pool is managed externally (e.g. via Terraform or another provisioning tool).
 </ResponseField>
 
 </Accordion>

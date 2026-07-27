@@ -34,12 +34,12 @@ if TYPE_CHECKING:
 
 def __getattr__(name: str) -> "Setting":
     from prefect.settings.legacy import (
-        _get_settings_fields,
+        _get_legacy_setting,
         _get_valid_setting_names,
     )
 
     if name in _get_valid_setting_names(Settings):
-        return _get_settings_fields(Settings)[name]
+        return _get_legacy_setting(name)
     raise AttributeError(f"{name} is not a Prefect setting.")
 
 

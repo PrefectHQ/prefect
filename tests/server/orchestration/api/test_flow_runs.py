@@ -3414,6 +3414,18 @@ class TestPaginateFlowRuns:
         assert response.status_code == status.HTTP_200_OK, response.text
         assert len(response.json()["results"]) == 0
 
+    async def test_read_flow_runs_zero_limit(self, flow_runs, client):
+        response = await client.post("/flow_runs/paginate", json=dict(limit=0))
+        assert response.status_code == status.HTTP_200_OK, response.text
+
+        json = response.json()
+
+        assert json["results"] == []
+        assert json["count"] == 3
+        assert json["limit"] == 0
+        assert json["pages"] == 0
+        assert json["page"] == 1
+
 
 class TestDownloadFlowRunLogs:
     @pytest.fixture

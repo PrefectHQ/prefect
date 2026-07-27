@@ -1466,6 +1466,23 @@
                         "PREFECT_API_DATABASE_CONNECTION_TIMEOUT"
                     ],
                     "title": "Connection Timeout"
+                },
+                "migration_timeout": {
+                    "anyOf": [
+                        {
+                            "exclusiveMinimum": 0,
+                            "type": "number"
+                        },
+                        {
+                            "type": "null"
+                        }
+                    ],
+                    "default": null,
+                    "description": "A statement timeout, in seconds, applied to database migrations. Schema changes such as concurrent index builds on large tables can take much longer than an ordinary API query, so migrations are not bound by `server.database.timeout`. Defaults to `None` (no timeout); set a positive value to bound migration statement duration.",
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_DATABASE_MIGRATION_TIMEOUT"
+                    ],
+                    "title": "Migration Timeout"
                 }
             },
             "title": "ServerDatabaseSettings",
@@ -2621,8 +2638,8 @@
                     "type": "boolean"
                 },
                 "v2_enabled": {
-                    "default": false,
-                    "description": "Whether neutral UI entry points should default to the experimental V2 UI instead of V1 when the browser has no saved UI preference.",
+                    "default": true,
+                    "description": "Whether neutral UI entry points should default to the V2 UI instead of V1 when the browser has no saved UI preference. Set to false to restore V1 as the default for browsers without a saved preference.",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_UI_V2_ENABLED"
                     ],

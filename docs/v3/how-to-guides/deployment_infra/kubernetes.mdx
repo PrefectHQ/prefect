@@ -448,6 +448,18 @@ add secret permissions to the Role:
     verbs: ["get", "create", "update", "delete"]
 ```
 
+If you enable the worker to store generated flow-run environment variables in a
+per-job Kubernetes secret instead of embedding them directly in the Job manifest
+(by setting `PREFECT_INTEGRATIONS_KUBERNETES_WORKER_STORE_ENV_AS_SECRET=true`),
+add `create`, `patch`, and `delete` permissions on secrets to the Role:
+
+{/* pmd-metadata: notest */}
+```yaml
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create", "patch", "delete"]
+```
+
 ### Observer permissions
 
 The Kubernetes worker includes an observer that watches for pod and job events to

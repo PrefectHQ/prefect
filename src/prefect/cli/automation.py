@@ -94,7 +94,9 @@ async def ls():
 @automation_app.command(name="inspect")
 @with_cli_exception_handling
 async def inspect(
-    name: Annotated[Optional[str], cyclopts.Parameter(show=False)] = None,
+    name: Annotated[
+        Optional[str], cyclopts.Parameter(show=False, help="An automation's name.")
+    ] = None,
     *,
     id: Annotated[
         Optional[str],
@@ -117,7 +119,16 @@ async def inspect(
         ),
     ] = None,
 ):
-    """Inspect an automation."""
+    """Inspect an automation.
+
+    Examples:
+        ```bash
+        $ prefect automation inspect "my-automation"
+        $ prefect automation inspect --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        $ prefect automation inspect "my-automation" --output json
+        $ prefect automation inspect "my-automation" --output yaml
+        ```
+    """
     import orjson
     import yaml as pyyaml
     from pydantic import BaseModel
@@ -172,14 +183,23 @@ async def inspect(
 @automation_app.command(name="resume", alias="enable")
 @with_cli_exception_handling
 async def resume(
-    name: Annotated[Optional[str], cyclopts.Parameter(show=False)] = None,
+    name: Annotated[
+        Optional[str], cyclopts.Parameter(show=False, help="An automation's name.")
+    ] = None,
     *,
     id: Annotated[
         Optional[str],
         cyclopts.Parameter("--id", help="An automation's id"),
     ] = None,
 ):
-    """Resume an automation."""
+    """Resume an automation.
+
+    Examples:
+        ```bash
+        $ prefect automation resume "my-automation"
+        $ prefect automation resume --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        ```
+    """
     from prefect.client.orchestration import get_client
     from prefect.exceptions import PrefectHTTPStatusError
 
@@ -223,14 +243,23 @@ async def resume(
 @automation_app.command(name="pause", alias="disable")
 @with_cli_exception_handling
 async def pause(
-    name: Annotated[Optional[str], cyclopts.Parameter(show=False)] = None,
+    name: Annotated[
+        Optional[str], cyclopts.Parameter(show=False, help="An automation's name.")
+    ] = None,
     *,
     id: Annotated[
         Optional[str],
         cyclopts.Parameter("--id", help="An automation's id"),
     ] = None,
 ):
-    """Pause an automation."""
+    """Pause an automation.
+
+    Examples:
+        ```bash
+        $ prefect automation pause "my-automation"
+        $ prefect automation pause --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        ```
+    """
     from prefect.client.orchestration import get_client
     from prefect.exceptions import PrefectHTTPStatusError
 
@@ -274,7 +303,9 @@ async def pause(
 @automation_app.command(name="delete")
 @with_cli_exception_handling
 async def delete(
-    name: Annotated[Optional[str], cyclopts.Parameter(show=False)] = None,
+    name: Annotated[
+        Optional[str], cyclopts.Parameter(show=False, help="An automation's name.")
+    ] = None,
     *,
     id: Annotated[
         Optional[str],
@@ -285,7 +316,15 @@ async def delete(
         cyclopts.Parameter("--all", help="Delete all automations"),
     ] = False,
 ):
-    """Delete an automation."""
+    """Delete an automation.
+
+    Examples:
+        ```bash
+        $ prefect automation delete "my-automation"
+        $ prefect automation delete --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+        $ prefect automation delete --all
+        ```
+    """
     from prefect.client.orchestration import get_client
 
     async with get_client() as client:
@@ -386,7 +425,16 @@ async def create(
         ),
     ] = None,
 ):
-    """Create one or more automations from a file or JSON string."""
+    """Create one or more automations from a file or JSON string.
+
+    Examples:
+        ```bash
+        $ prefect automation create --from-file automation.yaml
+        $ prefect automation create -f automation.json
+        $ prefect automation create --from-json '{"name": "my-automation", "trigger": {...}, "actions": [...]}'
+        $ prefect automation create -j '[{"name": "auto1", ...}, {"name": "auto2", ...}]'
+        ```
+    """
     import orjson
     import yaml as pyyaml
 
@@ -486,7 +534,15 @@ async def update(
         ),
     ] = None,
 ):
-    """Update an existing automation from a file or JSON string."""
+    """Update an existing automation from a file or JSON string.
+
+    Examples:
+        ```bash
+        $ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" --from-file automation.yaml
+        $ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" -f automation.json
+        $ prefect automation update --id "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa" --from-json '{"name": "updated-automation", "trigger": {...}, "actions": [...]}'
+        ```
+    """
     import orjson
     import yaml as pyyaml
 

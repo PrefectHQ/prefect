@@ -412,14 +412,54 @@ class RemoteFileSystem(WritableFileSystem, WritableDeploymentStorage):
 
         # Confirm that absolute paths are valid
         if scheme:
-            if scheme != base_scheme:
+            if scheme.lower() != base_scheme.lower():
                 raise ValueError(
                     f"Path {path!r} with scheme {scheme!r} must use the same scheme as"
                     f" the base path {base_scheme!r}."
                 )
 
         if netloc:
-            if (netloc != base_netloc) or not urlpath.startswith(base_urlpath):
+            if netloc != base_netloc:
+                raise ValueError(
+                    f"Path {path!r} is outside of the base path {self.basepath!r}."
+                )
+
+            # Normalize the base path for containment checks so that sibling prefixes
+            # (e.g. base `/foo` vs path `/foobar`) are not treated as contained.
+            base_path = base_urlpath.rstrip("/")
+            base_output_path = base_path + "/" if base_path else "/"
+
+            if not urlpath:
+                urlpath = "/"
+
+            # Decode percent-encoded and backslash separators only for traversal
+            # checks. The containment check below uses the raw URL path so that
+            # prefix spoofs such as `pre%66ix` or `prefix%2Fchild` are rejected.
+            decoded_path = urllib.parse.unquote(urlpath).replace("\\", "/")
+            if any(segment == ".." for segment in decoded_path.split("/")):
+                raise ValueError(
+                    f"Path {path!r} is outside of the base path {self.basepath!r}."
+                )
+
+            if urlpath == base_path or urlpath == base_output_path:
+                return urllib.parse.urlunsplit(
+                    (base_scheme, base_netloc, base_output_path, "", "")
+                )
+
+            if (base_path and urlpath.startswith(base_path + "/")) or (
+                not base_path and urlpath.startswith("/")
+            ):
+                return urllib.parse.urlunsplit(
+                    (base_scheme, base_netloc, urlpath, "", "")
+                )
+
+            raise ValueError(
+                f"Path {path!r} is outside of the base path {self.basepath!r}."
+            )
+
+        if scheme:
+            decoded_path = urllib.parse.unquote(urlpath).replace("\\", "/")
+            if any(segment == ".." for segment in decoded_path.split("/")):
                 raise ValueError(
                     f"Path {path!r} is outside of the base path {self.basepath!r}."
                 )

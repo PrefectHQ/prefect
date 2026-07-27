@@ -10,7 +10,7 @@ Redis credentials handling
 
 ## Classes
 
-### `RedisDatabase` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/blocks.py#L16" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RedisDatabase` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/blocks.py#L17" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Block used to manage authentication with a Redis database
@@ -22,11 +22,35 @@ Block used to manage authentication with a Redis database
 - `username`: The username to use when connecting to the Redis server
 - `password`: The password to use when connecting to the Redis server
 - `ssl`: Whether to use SSL when connecting to the Redis server
+- `key_ttl`: Optional per-key TTL in seconds applied to every written key
+(`SET ... EX`); `None` (default) means keys never expire
 
 
 **Methods:**
 
-#### `as_connection_params` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/blocks.py#L160" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aread_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/blocks.py#L85" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aread_path(self, path: str) -> bytes
+```
+
+Read a redis key
+
+**Args:**
+- `path`: Redis key to read from
+
+**Returns:**
+- Contents at key as bytes
+
+**Examples:**
+
+Read a key:
+    ```python
+    content = await block.aread_path("my-key")
+    ```
+
+
+#### `as_connection_params` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/blocks.py#L228" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 as_connection_params(self) -> Dict[str, Any]
@@ -35,7 +59,27 @@ as_connection_params(self) -> Dict[str, Any]
 Return a dictionary suitable for unpacking
 
 
-#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/blocks.py#L63" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `awrite_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/blocks.py#L128" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+awrite_path(self, path: str, content: bytes) -> bool
+```
+
+Write to a redis key
+
+**Args:**
+- `path`: Redis key to write to
+- `content`: Binary object to write
+
+**Examples:**
+
+Write a key:
+    ```python
+    await block.awrite_path("my-key", b"contents")
+    ```
+
+
+#### `block_initialization` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/blocks.py#L77" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 block_initialization(self) -> None
@@ -44,7 +88,7 @@ block_initialization(self) -> None
 Validate parameters
 
 
-#### `from_connection_string` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/blocks.py#L130" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `from_connection_string` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/blocks.py#L198" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_connection_string(cls, connection_string: Union[str, SecretStr]) -> 'RedisDatabase'
@@ -63,7 +107,7 @@ Supports the following URL schemes:
 - `RedisCredentials` instance
 
 
-#### `get_async_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/blocks.py#L114" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_async_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/blocks.py#L182" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_async_client(self) -> redis.asyncio.Redis
@@ -75,7 +119,7 @@ Get Redis Client
 - An initialized Redis async client
 
 
-#### `get_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/blocks.py#L99" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `get_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/blocks.py#L167" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_client(self) -> redis.Redis
@@ -87,7 +131,7 @@ Get Redis Client
 - An initialized Redis async client
 
 
-#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/blocks.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/blocks.py#L107" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_path(self, path: str) -> bytes
@@ -101,11 +145,18 @@ Read a redis key
 **Returns:**
 - Contents at key as bytes
 
+**Examples:**
 
-#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/blocks.py#L86" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+Read a key:
+    ```python
+    content = block.read_path("my-key")
+    ```
+
+
+#### `write_path` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/blocks.py#L148" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-write_path(self, path: str, content: bytes) -> None
+write_path(self, path: str, content: bytes) -> bool
 ```
 
 Write to a redis key
@@ -113,4 +164,11 @@ Write to a redis key
 **Args:**
 - `path`: Redis key to write to
 - `content`: Binary object to write
+
+**Examples:**
+
+Write a key:
+    ```python
+    block.write_path("my-key", b"contents")
+    ```
 

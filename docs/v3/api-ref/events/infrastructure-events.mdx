@@ -215,6 +215,13 @@ within 5 minutes of each other are chained using the `follows` field.
 | `prefect.resource.name` | Pod name |
 | `kubernetes.namespace` | Kubernetes namespace |
 | `kubernetes.reason` | Eviction reason (only for evicted pods) |
+| `kubernetes.diagnosis` | Stable, machine-matchable failure category (only when the pod's status matches a known failure condition) |
+
+`kubernetes.diagnosis` is one of: `ImagePullError`, `CrashLoopBackOff`, `OOMKilled`,
+`Evicted`, `Unschedulable`, `Unschedulable.InsufficientResources`,
+`Unschedulable.NodeAffinity`, or `Unschedulable.Taint`. Match on this label in an
+automation trigger to react to a specific failure mode rather than parsing the
+pod phase or event payload.
 
 ##### Related resources
 

@@ -55,6 +55,20 @@ export const WithTags: Story = {
 	},
 };
 
+export const WithDeployments: Story = {
+	name: "With deployments",
+	args: {
+		flowIds: [],
+		tags: [],
+		deploymentIds: [
+			"00000000-0000-0000-0000-000000000001",
+			"00000000-0000-0000-0000-000000000002",
+		],
+		posture: "Reactive",
+		states: ["FAILED"],
+	},
+};
+
 export const ProactiveWithTime: Story = {
 	name: "Proactive posture with time",
 	args: {
@@ -102,6 +116,7 @@ export const ComplexTrigger: Story = {
 	args: {
 		flowIds: ["00000000-0000-0000-0000-000000000001"],
 		tags: ["production"],
+		deploymentIds: ["00000000-0000-0000-0000-000000000002"],
 		posture: "Proactive",
 		states: ["FAILED", "CRASHED"],
 		time: 60,

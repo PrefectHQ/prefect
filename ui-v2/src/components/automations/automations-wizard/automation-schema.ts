@@ -131,6 +131,10 @@ export type TriggerPosture = z.infer<typeof TriggerPostureSchema>;
 const ResourceSpecificationSchema = z.record(
 	z.union([z.string(), z.array(z.string())]),
 );
+const MatchRelatedSchema = z.union([
+	ResourceSpecificationSchema,
+	z.array(ResourceSpecificationSchema),
+]);
 
 export const EventTriggerSchema = z.object({
 	type: z.literal("event"),
@@ -139,7 +143,7 @@ export const EventTriggerSchema = z.object({
 	within: z.number().min(0).default(0),
 	// Match conditions
 	match: ResourceSpecificationSchema.optional(),
-	match_related: ResourceSpecificationSchema.optional(),
+	match_related: MatchRelatedSchema.optional(),
 	for_each: z.array(z.string()).optional(),
 	after: z.array(z.string()).optional(),
 	expect: z.array(z.string()).optional(),

@@ -90,6 +90,7 @@ SettingAccessor: TypeAlias = Literal[
     "server.database.echo",
     "server.database.host",
     "server.database.migrate_on_start",
+    "server.database.migration_timeout",
     "server.database.name",
     "server.database.password",
     "server.database.port",

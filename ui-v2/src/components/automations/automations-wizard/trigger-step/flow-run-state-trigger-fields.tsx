@@ -11,10 +11,16 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { TagsInput } from "@/components/ui/tags-input";
+import { AutomationDeploymentCombobox } from "./automation-deployment-combobox";
 import { PostureSelect } from "./posture-select";
 import { StateMultiSelect } from "./state-multi-select";
 
-type MatchRelated = Record<string, string | string[]> | undefined;
+type ResourceSpecification = Record<string, string | string[]>;
+type MatchRelated = ResourceSpecification | ResourceSpecification[] | undefined;
+
+const FLOW_RESOURCE_PREFIX = "prefect.flow.";
+const TAG_RESOURCE_PREFIX = "prefect.tag.";
+const DEPLOYMENT_RESOURCE_PREFIX = "prefect.deployment.";
 
 // Convert state names to event strings (e.g., "Completed" -> "prefect.flow-run.Completed")
 // When no states selected, returns wildcard ["prefect.flow-run.*"] (Vue behavior)
@@ -39,48 +45,89 @@ function fromStateNameEvents(events: string[] | undefined): StateName[] {
 		.map((event) => event.replace("prefect.flow-run.", "") as StateName);
 }
 
+function matchRelatedAsArray(
+	matchRelated: MatchRelated,
+): ResourceSpecification[] {
+	if (!matchRelated) {
+		return [];
+	}
+
+	return Array.isArray(matchRelated) ? matchRelated : [matchRelated];
+}
+
+function extractResourceIdsFromMatchRelated(
+	matchRelated: MatchRelated,
+	prefix: string,
+): string[] {
+	const resourceIds = matchRelatedAsArray(matchRelated).flatMap((match) => {
+		const value = match["prefect.resource.id"];
+		if (!value) {
+			return [];
+		}
+
+		return Array.isArray(value) ? value : [value];
+	});
+
+	return resourceIds
+		.filter((id) => id.startsWith(prefix))
+		.map((id) => id.slice(prefix.length));
+}
+
 function extractFlowIdsFromMatchRelated(matchRelated: MatchRelated): string[] {
-	if (!matchRelated) return [];
-
-	const resourceIds = matchRelated["prefect.resource.id"];
-	if (!resourceIds) return [];
-
-	const ids = Array.isArray(resourceIds) ? resourceIds : [resourceIds];
-	return ids
-		.filter((id) => id.startsWith("prefect.flow."))
-		.map((id) => id.replace("prefect.flow.", ""));
+	return extractResourceIdsFromMatchRelated(matchRelated, FLOW_RESOURCE_PREFIX);
 }
 
 function extractTagsFromMatchRelated(matchRelated: MatchRelated): string[] {
-	if (!matchRelated) return [];
-
-	const resourceIds = matchRelated["prefect.resource.id"];
-	if (!resourceIds) return [];
-
-	const ids = Array.isArray(resourceIds) ? resourceIds : [resourceIds];
-	return ids
-		.filter((id) => id.startsWith("prefect.tag."))
-		.map((id) => id.replace("prefect.tag.", ""));
+	return extractResourceIdsFromMatchRelated(matchRelated, TAG_RESOURCE_PREFIX);
 }
 
-function buildMatchRelated(flowIds: string[], tags: string[]): MatchRelated {
-	const flowResourceIds = flowIds.map((id) => `prefect.flow.${id}`);
-	const tagResourceIds = tags.map((tag) => `prefect.tag.${tag}`);
+function extractDeploymentIdsFromMatchRelated(
+	matchRelated: MatchRelated,
+): string[] {
+	return extractResourceIdsFromMatchRelated(
+		matchRelated,
+		DEPLOYMENT_RESOURCE_PREFIX,
+	);
+}
 
-	// Return empty object when no flows/tags selected (matches Vue behavior)
-	if (flowResourceIds.length === 0 && tagResourceIds.length === 0) {
+function buildMatchRelated(
+	flowIds: string[],
+	tags: string[],
+	deploymentIds: string[],
+): MatchRelated {
+	const flowResourceIds = flowIds.map((id) => `${FLOW_RESOURCE_PREFIX}${id}`);
+	const tagResourceIds = tags.map((tag) => `${TAG_RESOURCE_PREFIX}${tag}`);
+	const deploymentResourceIds = deploymentIds.map(
+		(id) => `${DEPLOYMENT_RESOURCE_PREFIX}${id}`,
+	);
+
+	if (
+		flowResourceIds.length === 0 &&
+		tagResourceIds.length === 0 &&
+		deploymentResourceIds.length === 0
+	) {
 		return {};
 	}
 
-	// Set role based on which type is selected (Vue behavior)
-	// Since tags are hidden when flows are selected, only one type will be present
-	const role = flowResourceIds.length > 0 ? "flow" : "tag";
-	const resourceIds = [...flowResourceIds, ...tagResourceIds];
+	const matchRelated: ResourceSpecification[] = [];
 
-	return {
-		"prefect.resource.role": role,
-		"prefect.resource.id": resourceIds,
-	};
+	if (flowResourceIds.length > 0 || tagResourceIds.length > 0) {
+		// Since tags are hidden when flows are selected, only one type will be present
+		const role = flowResourceIds.length > 0 ? "flow" : "tag";
+		matchRelated.push({
+			"prefect.resource.role": role,
+			"prefect.resource.id": [...flowResourceIds, ...tagResourceIds],
+		});
+	}
+
+	if (deploymentResourceIds.length > 0) {
+		matchRelated.push({
+			"prefect.resource.role": "deployment",
+			"prefect.resource.id": deploymentResourceIds,
+		});
+	}
+
+	return matchRelated.length === 1 ? matchRelated[0] : matchRelated;
 }
 
 export const FlowRunStateTriggerFields = () => {
@@ -99,6 +146,8 @@ export const FlowRunStateTriggerFields = () => {
 
 	const selectedFlowIds = extractFlowIdsFromMatchRelated(matchRelated);
 	const selectedTags = extractTagsFromMatchRelated(matchRelated);
+	const selectedDeploymentIds =
+		extractDeploymentIdsFromMatchRelated(matchRelated);
 
 	const handleFlowToggle = (flowId: string) => {
 		const currentFlowIds = selectedFlowIds;
@@ -110,14 +159,21 @@ export const FlowRunStateTriggerFields = () => {
 		const newTags = newFlowIds.length > 0 ? [] : selectedTags;
 		form.setValue(
 			"trigger.match_related",
-			buildMatchRelated(newFlowIds, newTags),
+			buildMatchRelated(newFlowIds, newTags, selectedDeploymentIds),
 		);
 	};
 
 	const handleTagsChange = (tags: string[]) => {
 		form.setValue(
 			"trigger.match_related",
-			buildMatchRelated(selectedFlowIds, tags),
+			buildMatchRelated(selectedFlowIds, tags, selectedDeploymentIds),
+		);
+	};
+
+	const handleDeploymentIdsChange = (deploymentIds: string[]) => {
+		form.setValue(
+			"trigger.match_related",
+			buildMatchRelated(selectedFlowIds, selectedTags, deploymentIds),
 		);
 	};
 
@@ -149,6 +205,16 @@ export const FlowRunStateTriggerFields = () => {
 					</FormControl>
 				</FormItem>
 			)}
+
+			<FormItem>
+				<FormLabel>Deployments</FormLabel>
+				<FormControl>
+					<AutomationDeploymentCombobox
+						selectedDeploymentIds={selectedDeploymentIds}
+						onSelectDeploymentIds={handleDeploymentIdsChange}
+					/>
+				</FormControl>
+			</FormItem>
 
 			<FormItem>
 				<FormLabel>Flow Run</FormLabel>

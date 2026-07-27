@@ -6,18 +6,25 @@ import {
 	RouterProvider,
 } from "@tanstack/react-router";
 import { act, render, waitFor } from "@testing-library/react";
-import { createWrapper } from "@tests/utils";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
+import { HttpResponse, http } from "msw";
 import { useState } from "react";
 import { describe, expect, it } from "vitest";
 import type { Deployment } from "@/api/deployments";
-import { createFakeDeployment } from "@/mocks";
-import { useCreateFlowRunForm } from "./use-create-flow-run-form";
+import { createFakeDeployment, createFakeFlowRun } from "@/mocks";
+import {
+	type AdditionalOptionsOverrides,
+	useCreateFlowRunForm,
+} from "./use-create-flow-run-form";
 
 type HookResult = ReturnType<typeof useCreateFlowRunForm>;
 
 const renderUseCreateFlowRunForm = async (
 	initialDeployment: Deployment,
 	initialOverride: Record<string, unknown> | undefined = undefined,
+	initialAdditionalOptionsOverrides:
+		| AdditionalOptionsOverrides
+		| undefined = undefined,
 ) => {
 	const resultRef: { current: HookResult | null } = { current: null };
 	let setDeploymentState: (deployment: Deployment) => void = () => {};
@@ -32,7 +39,11 @@ const renderUseCreateFlowRunForm = async (
 		>(initialOverride);
 		setDeploymentState = setDeployment;
 		setOverrideState = setOverride;
-		resultRef.current = useCreateFlowRunForm(deployment, override);
+		resultRef.current = useCreateFlowRunForm(
+			deployment,
+			override,
+			initialAdditionalOptionsOverrides,
+		);
 		return null;
 	};
 
@@ -161,5 +172,63 @@ describe("useCreateFlowRunForm", () => {
 
 		setOverrideParameters({ foo: "x" });
 		expect(result.current.parametersFormValues).toEqual({ foo: "y" });
+	});
+
+	it("initializes additional options from overrideAdditionalOptions", async () => {
+		const deployment = createFakeDeployment({
+			tags: ["deployment-tag"],
+			work_queue_name: "default-queue",
+			job_variables: { default: "var" },
+		});
+
+		const { result } = await renderUseCreateFlowRunForm(deployment, undefined, {
+			message: "copied message",
+			tags: ["copied-tag"],
+			work_queue_name: "copied-queue",
+			retries: 3,
+			retry_delay: 5,
+			job_variables: { image: "my-ecr-uri" },
+		});
+
+		expect(result.current.form.getValues("state.message")).toBe(
+			"copied message",
+		);
+		expect(result.current.form.getValues("tags")).toEqual(["copied-tag"]);
+		expect(result.current.form.getValues("work_queue_name")).toBe(
+			"copied-queue",
+		);
+		expect(result.current.form.getValues("empirical_policy.retries")).toBe(3);
+		expect(result.current.form.getValues("empirical_policy.retry_delay")).toBe(
+			5,
+		);
+		expect(result.current.form.getValues("job_variables")).toBe(
+			'{"image":"my-ecr-uri"}',
+		);
+	});
+
+	it("includes copied tags in the create flow run payload", async () => {
+		const deployment = createFakeDeployment({ parameters: {} });
+		let requestBody: Record<string, unknown> = {};
+		server.use(
+			http.post(
+				buildApiUrl("/deployments/:id/create_flow_run"),
+				async ({ request }) => {
+					requestBody = (await request.json()) as Record<string, unknown>;
+					return HttpResponse.json(createFakeFlowRun({ id: "new-run-id" }));
+				},
+			),
+		);
+
+		const { result } = await renderUseCreateFlowRunForm(deployment, undefined, {
+			tags: ["copied-tag"],
+		});
+
+		await act(async () => {
+			await result.current.form.handleSubmit(result.current.onCreate)();
+		});
+
+		await waitFor(() => {
+			expect(requestBody.tags).toEqual(["copied-tag"]);
+		});
 	});
 });

@@ -1,15 +1,17 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createWrapper } from "@tests/utils";
+import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { mockPointerEvents } from "@tests/utils/browser";
+import { HttpResponse, http } from "msw";
 import { useForm } from "react-hook-form";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { AutomationWizardSchema } from "@/components/automations/automations-wizard/automation-schema";
 import { Form } from "@/components/ui/form";
 import { FlowRunStateTriggerFields } from "./flow-run-state-trigger-fields";
 
-type MatchRelated = Record<string, string | string[]> | undefined;
+type ResourceSpecification = Record<string, string | string[]>;
+type MatchRelated = ResourceSpecification | ResourceSpecification[] | undefined;
 
 const FlowRunStateTriggerFieldsContainer = ({
 	defaultPosture = "Reactive" as const,
@@ -46,6 +48,23 @@ const FlowRunStateTriggerFieldsContainer = ({
 describe("FlowRunStateTriggerFields", () => {
 	beforeAll(() => {
 		mockPointerEvents();
+	});
+
+	beforeEach(() => {
+		server.use(
+			http.post(buildApiUrl("/deployments/filter"), () =>
+				HttpResponse.json([
+					{
+						id: "deployment-id-1",
+						name: "Test Deployment",
+						flow_id: "flow-1",
+						created: "2024-01-01T00:00:00Z",
+						updated: "2024-01-01T00:00:00Z",
+						status: "READY",
+					},
+				]),
+			),
+		);
 	});
 
 	it("renders posture select with Reactive as default", () => {
@@ -125,6 +144,15 @@ describe("FlowRunStateTriggerFields", () => {
 		expect(screen.getByText("All flows")).toBeVisible();
 	});
 
+	it("renders deployment combobox with 'All deployments' placeholder", () => {
+		render(<FlowRunStateTriggerFieldsContainer />, {
+			wrapper: createWrapper(),
+		});
+
+		expect(screen.getByText("Deployments")).toBeVisible();
+		expect(screen.getByText("All deployments")).toBeVisible();
+	});
+
 	it("renders tags input field when no flows are selected", () => {
 		render(<FlowRunStateTriggerFieldsContainer />, {
 			wrapper: createWrapper(),
@@ -169,6 +197,30 @@ describe("FlowRunStateTriggerFields", () => {
 
 		expect(screen.getByText("production")).toBeVisible();
 		expect(screen.getByText("critical")).toBeVisible();
+	});
+
+	it("displays selected deployments from array match_related", async () => {
+		render(
+			<FlowRunStateTriggerFieldsContainer
+				defaultMatchRelated={[
+					{
+						"prefect.resource.role": "flow",
+						"prefect.resource.id": ["prefect.flow.flow-id-1"],
+					},
+					{
+						"prefect.resource.role": "deployment",
+						"prefect.resource.id": ["prefect.deployment.deployment-id-1"],
+					},
+				]}
+			/>,
+			{
+				wrapper: createWrapper(),
+			},
+		);
+
+		await waitFor(() => {
+			expect(screen.getByText("Test Deployment")).toBeVisible();
+		});
 	});
 
 	it("can add a tag using the tags input", async () => {

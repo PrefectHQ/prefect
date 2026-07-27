@@ -7,13 +7,53 @@ sidebarTitle: client
 
 ## Functions
 
-### `cached` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/client.py#L114" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `is_cluster_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/client.py#L106" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+is_cluster_url(url: str) -> bool
+```
+
+
+Return True if the URL uses the Redis Cluster scheme.
+
+
+### `normalize_cluster_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/client.py#L111" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+normalize_cluster_url(url: str) -> str
+```
+
+
+Return a redis-py compatible URL for Redis Cluster connections.
+
+
+### `cluster_key_prefix` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/client.py#L120" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+cluster_key_prefix(prefix: str, url: str | None = None) -> str
+```
+
+
+Return a key prefix, hash-tagged when configured for Redis Cluster.
+
+
+### `redis_key` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/client.py#L128" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+redis_key(prefix: str, suffix: str, url: str | None = None) -> str
+```
+
+
+Return a Redis key rooted at a cluster-aware prefix.
+
+
+### `cached` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/client.py#L150" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 cached(fn: Callable[..., Any]) -> Callable[..., Any]
 ```
 
-### `close_all_cached_connections` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/client.py#L125" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `close_all_cached_connections` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/client.py#L161" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 close_all_cached_connections() -> None
@@ -23,7 +63,7 @@ close_all_cached_connections() -> None
 Close all cached Redis connections.
 
 
-### `clear_cached_clients` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/client.py#L136" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `clear_cached_clients` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/client.py#L172" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 clear_cached_clients() -> None
@@ -37,7 +77,7 @@ subsequent calls to get_async_redis_client() return fresh clients
 rather than stale ones with broken connections.
 
 
-### `get_async_redis_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/client.py#L149" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_async_redis_client` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/client.py#L185" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_async_redis_client(url: Union[str, None] = None, host: Union[str, None] = None, port: Union[int, None] = None, db: Union[int, None] = None, password: Union[str, None] = None, username: Union[str, None] = None, health_check_interval: Union[int, None] = None, decode_responses: bool = True, ssl: Union[bool, None] = None, socket_timeout: Union[float, None, Any] = _UNSET, socket_connect_timeout: Union[float, None, Any] = _UNSET, protocol: Union[int, None] = None) -> Redis
@@ -46,9 +86,10 @@ get_async_redis_client(url: Union[str, None] = None, host: Union[str, None] = No
 
 Retrieves an async Redis client.
 
-When `url` is provided (or configured via
+When a standalone `url` is provided (or configured via
 `PREFECT_REDIS_MESSAGING_URL`), `Redis.from_url` is used and
-the discrete host/port/… arguments are ignored.
+the discrete host/port/… arguments are ignored. Redis Cluster
+URLs are detected but intentionally not enabled yet.
 
 **Args:**
 - `url`: Full Redis URL (e.g. `redis\://localhost\:6379/0`).
@@ -69,7 +110,7 @@ unicode strings.
 - a Redis client
 
 
-### `async_redis_from_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/client.py#L227" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `async_redis_from_settings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/client.py#L266" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 async_redis_from_settings(settings: RedisMessagingSettings, **options: Any) -> Redis
@@ -77,7 +118,7 @@ async_redis_from_settings(settings: RedisMessagingSettings, **options: Any) -> R
 
 ## Classes
 
-### `RedisMessagingSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/client.py#L18" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `RedisMessagingSettings` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-redis/prefect_redis/client.py#L19" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Settings for connecting to Redis.

@@ -1,4 +1,4 @@
-import { useQuery, useSuspenseQueries } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import type {
@@ -19,14 +19,6 @@ import type { components } from "@/api/prefect";
 import { DeploymentsDataTable } from "@/components/deployments/data-table";
 import { DeploymentsEmptyState } from "@/components/deployments/empty-state";
 import { DeploymentsPageHeader } from "@/components/deployments/header";
-import { Button } from "@/components/ui/button";
-import {
-	EmptyState,
-	EmptyStateActions,
-	EmptyStateDescription,
-	EmptyStateIcon,
-	EmptyStateTitle,
-} from "@/components/ui/empty-state";
 import { PrefectLoading } from "@/components/ui/loading";
 import { RouteErrorState } from "@/components/ui/route-error-state";
 import { usePageSizePreference } from "@/hooks/use-page-size-preference";
@@ -73,25 +65,6 @@ const buildPaginationBody = (
 	},
 });
 
-const DeploymentsFilteredEmptyState = ({
-	onClearFilters,
-}: {
-	onClearFilters: () => void;
-}) => (
-	<EmptyState>
-		<EmptyStateIcon id="Search" />
-		<EmptyStateTitle>No deployments match your filters</EmptyStateTitle>
-		<EmptyStateDescription>
-			Try adjusting your search or tag filters.
-		</EmptyStateDescription>
-		<EmptyStateActions>
-			<Button variant="outline" onClick={onClearFilters}>
-				Clear filters
-			</Button>
-		</EmptyStateActions>
-	</EmptyState>
-);
-
 export const Route = createFileRoute("/deployments/")({
 	validateSearch: zodValidator(searchParams),
 	component: function RouteComponent() {
@@ -102,13 +75,18 @@ export const Route = createFileRoute("/deployments/")({
 		const [columnFilters, onColumnFiltersChange] =
 			useDeploymentsColumnFilters();
 
-		const [{ data: deploymentsCount }, { data: deploymentsPage }] =
-			useSuspenseQueries({
-				queries: [
-					buildCountDeploymentsQuery(),
-					buildPaginateDeploymentsQuery(buildPaginationBody(search)),
-				],
-			});
+		const { data: deploymentsCount } = useSuspenseQuery(
+			buildCountDeploymentsQuery(),
+		);
+
+		const {
+			data: deploymentsPage,
+			isPending,
+			isPlaceholderData,
+			isError,
+			error: deploymentsPageError,
+			refetch: refetchDeploymentsPage,
+		} = useQuery(buildPaginateDeploymentsQuery(buildPaginationBody(search)));
 
 		const deployments = deploymentsPage?.results ?? [];
 		const filteredCount = deploymentsPage?.count ?? 0;
@@ -126,20 +104,44 @@ export const Route = createFileRoute("/deployments/")({
 			});
 		}, [navigate]);
 
+		const flowIds = [
+			...new Set(deployments.map((deployment) => deployment.flow_id)),
+		];
+
 		const { data: flows } = useQuery(
-			buildListFlowsQuery({
-				flows: {
-					operator: "and_",
-					id: {
-						any_: [
-							...new Set(deployments.map((deployment) => deployment.flow_id)),
-						],
+			buildListFlowsQuery(
+				{
+					flows: {
+						operator: "and_",
+						id: {
+							any_: flowIds,
+						},
 					},
+					offset: 0,
+					sort: "NAME_ASC",
 				},
-				offset: 0,
-				sort: "NAME_ASC",
-			}),
+				{ enabled: flowIds.length > 0 },
+			),
 		);
+
+		if (isError) {
+			const serverError = categorizeError(
+				deploymentsPageError,
+				"Failed to load deployments",
+			);
+
+			return (
+				<div className="flex flex-col gap-4">
+					<DeploymentsPageHeader />
+					<RouteErrorState
+						error={serverError}
+						onRetry={() => {
+							void refetchDeploymentsPage();
+						}}
+					/>
+				</div>
+			);
+		}
 
 		const deploymentsWithFlows = deployments.map((deployment) => ({
 			...deployment,
@@ -151,12 +153,13 @@ export const Route = createFileRoute("/deployments/")({
 				<DeploymentsPageHeader />
 				{deploymentsCount === 0 ? (
 					<DeploymentsEmptyState />
-				) : filteredCount === 0 ? (
-					<DeploymentsFilteredEmptyState onClearFilters={onClearFilters} />
 				) : (
 					<DeploymentsDataTable
 						deployments={deploymentsWithFlows}
 						currentDeploymentsCount={deploymentsCount}
+						filteredCount={filteredCount}
+						isPending={isPending}
+						isPlaceholderData={isPlaceholderData}
 						pageCount={deploymentsPage?.pages ?? 0}
 						pagination={pagination}
 						sort={sort}
@@ -164,6 +167,7 @@ export const Route = createFileRoute("/deployments/")({
 						onPaginationChange={onPaginationChange}
 						onSortChange={onSortChange}
 						onColumnFiltersChange={onColumnFiltersChange}
+						onClearFilters={onClearFilters}
 					/>
 				)}
 			</div>
@@ -192,42 +196,45 @@ export const Route = createFileRoute("/deployments/")({
 		);
 	},
 	loaderDeps: ({ search }) => buildPaginationBody(search),
-	loader: async ({ deps, context }) => {
-		// Get full count of deployments, don't block the UI
-		const deploymentsCountResult = context.queryClient.ensureQueryData(
-			buildCountDeploymentsQuery(),
-		);
+	loader: ({ deps, context }) => {
+		// Prefetch stable count and paginated deployments without blocking the loader.
+		// The paginated query uses keepPreviousData so the search/filter UI stays
+		// interactive and focused while results update.
+		void context.queryClient.prefetchQuery(buildCountDeploymentsQuery());
+		void context.queryClient.prefetchQuery(buildPaginateDeploymentsQuery(deps));
 
-		// Get paginated deployments, wait for the result to get corresponding flows
-		const deploymentsPaginateResult = await context.queryClient.ensureQueryData(
-			buildPaginateDeploymentsQuery(deps),
-		);
-
-		const deployments = deploymentsPaginateResult?.results ?? [];
-
-		const flowIds = [
-			...new Set(deployments.map((deployment) => deployment.flow_id)),
-		];
-
-		// Get flows corresponding to the deployments
-		const flowsFilterResult = context.queryClient.ensureQueryData(
-			buildListFlowsQuery({
-				flows: {
-					operator: "and_",
-					id: {
-						any_: flowIds,
-					},
-				},
-				offset: 0,
-				sort: "NAME_ASC",
-			}),
-		);
-
-		return {
-			deploymentsCountResult,
-			deploymentsPaginateResult,
-			flowsFilterResult,
-		};
+		// In the background, prefetch the flows for the deployments on this page
+		// once the paginated query is available.
+		void (async () => {
+			try {
+				const page = await context.queryClient.ensureQueryData(
+					buildPaginateDeploymentsQuery(deps),
+				);
+				const deployments = page?.results ?? [];
+				const flowIds = [
+					...new Set(deployments.map((deployment) => deployment.flow_id)),
+				];
+				if (flowIds.length > 0) {
+					void context.queryClient.prefetchQuery(
+						buildListFlowsQuery(
+							{
+								flows: {
+									operator: "and_",
+									id: {
+										any_: flowIds,
+									},
+								},
+								offset: 0,
+								sort: "NAME_ASC",
+							},
+							{ enabled: true },
+						),
+					);
+				}
+			} catch {
+				// Errors will be handled by the component queries.
+			}
+		})();
 	},
 	wrapInSuspense: true,
 	pendingComponent: PrefectLoading,
@@ -339,7 +346,7 @@ const useDeploymentsColumnFilters = () => {
 						?.value as string[] | undefined;
 					return {
 						...prev,
-						offset: 0,
+						page: 1,
 						flowOrDeploymentName,
 						tags,
 					};

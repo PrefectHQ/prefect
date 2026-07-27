@@ -18,7 +18,7 @@ from prefect.server.concurrency.lease_storage import (
     ConcurrencyLeaseStorage as _ConcurrencyLeaseStorage,
 )
 from prefect.server.utilities.leasing import ResourceLease
-from prefect_redis.client import managed_async_redis_client
+from prefect_redis.client import cluster_key_prefix, managed_async_redis_client
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
     def __init__(self, redis_client: Redis | None = None):
         self.redis_client = redis_client
-        self.base_prefix = "prefect:concurrency:"
+        self.base_prefix = f"{cluster_key_prefix('prefect:concurrency')}:"
         self.lease_prefix = f"{self.base_prefix}lease:"
         self.expirations_key = f"{self.base_prefix}expirations"
         self.expiration_prefix = f"{self.base_prefix}expiration:"
@@ -51,9 +51,8 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         """Generate Redis key for lease expiration."""
         return f"{self.expiration_prefix}{lease_id}"
 
-    @staticmethod
-    def _limit_holders_key(limit_id: UUID) -> str:
-        return f"prefect:concurrency:limit:{limit_id}:holders"
+    def _limit_holders_key(self, limit_id: UUID) -> str:
+        return f"{self.base_prefix}limit:{limit_id}:holders"
 
     def _create_lease_script(self, redis_client: Redis) -> Any:
         create_script = """
@@ -82,6 +81,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         -- KEYS[1] = lease_key
         -- KEYS[2] = expirations_key
         -- ARGV[1] = lease_id
+        -- ARGV[2] = concurrency key prefix
         -- Read the lease in-script to avoid races and compute index keys
         local lease_json = redis.call('GET', KEYS[1])
         if lease_json then
@@ -89,7 +89,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
           if ok and lease then
             if lease['resource_ids'] then
               for _, rid in ipairs(lease['resource_ids']) do
-                local holder_index_key = 'prefect:concurrency:limit:' .. tostring(rid) .. ':holders'
+                local holder_index_key = ARGV[2] .. 'limit:' .. tostring(rid) .. ':holders'
                 redis.call('HDEL', holder_index_key, ARGV[1])
               end
             end
@@ -302,6 +302,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
                 ]
                 args: list[str] = [
                     str(lease_id),
+                    self.base_prefix,
                 ]
                 await revoke_script(keys=keys, args=args)
         except RedisError as e:

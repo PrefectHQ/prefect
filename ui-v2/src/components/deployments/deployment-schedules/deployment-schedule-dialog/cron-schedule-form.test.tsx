@@ -19,6 +19,14 @@ const CronScheduleFormTest = (props: CronScheduleFormProps) => (
 	</>
 );
 
+const baseSchedule = {
+	active: true,
+	created: "0",
+	deployment_id: "0",
+	id: "123",
+	updated: "0",
+};
+
 describe("CronScheduleForm", () => {
 	beforeAll(mockPointerEvents);
 
@@ -95,15 +103,11 @@ describe("CronScheduleForm", () => {
 	it("is able to edit a cron schedule", () => {
 		// Setup
 		const MOCK_SCHEDULE = {
-			active: true,
-			created: "0",
-			deployment_id: "0",
-			id: "123",
-			updated: "0",
+			...baseSchedule,
 			schedule: {
 				cron: "* * * * 1/2",
 				day_or: true,
-				timezone: '"Etc/UTC"',
+				timezone: "Etc/UTC",
 			},
 		};
 
@@ -121,5 +125,36 @@ describe("CronScheduleForm", () => {
 		expect(screen.getByLabelText(/active/i)).toBeChecked();
 		expect(screen.getByLabelText(/value/i)).toHaveValue("* * * * 1/2");
 		expect(screen.getByRole("switch", { name: /day or/i })).toBeChecked();
+		expect(screen.getByLabelText(/select timezone/i)).toHaveTextContent("UTC");
+	});
+
+	it("defaults to UTC for new schedules", () => {
+		render(<CronScheduleFormTest deployment_id="0" onSubmit={vi.fn()} />, {
+			wrapper: createWrapper(),
+		});
+
+		expect(screen.getByLabelText(/select timezone/i)).toHaveTextContent("UTC");
+	});
+
+	it("displays UTC when editing a schedule stored as UTC", () => {
+		const MOCK_SCHEDULE = {
+			...baseSchedule,
+			schedule: {
+				cron: "* * * * 1/2",
+				day_or: true,
+				timezone: "UTC",
+			},
+		};
+
+		render(
+			<CronScheduleFormTest
+				deployment_id="0"
+				onSubmit={vi.fn()}
+				scheduleToEdit={MOCK_SCHEDULE}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		expect(screen.getByLabelText(/select timezone/i)).toHaveTextContent("UTC");
 	});
 });
