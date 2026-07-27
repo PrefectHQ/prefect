@@ -34,6 +34,14 @@ if TYPE_CHECKING:
 logger: "logging.Logger" = get_logger(__name__)
 
 
+class _WaitTimeoutError(TimeoutError):
+    """Raised when Prefect's own waiting on futures times out.
+
+    Distinguishes a timeout produced by Prefect from a `TimeoutError` raised by
+    user code inside a task, which must be surfaced unchanged.
+    """
+
+
 class PrefectFuture(abc.ABC, Generic[R]):
     """
     Abstract base class for Prefect futures. A Prefect future is a handle to the
@@ -575,17 +583,16 @@ class PrefectFutureList(list[PrefectFuture[R]], Iterator[PrefectFuture[R]]):
             # Wrap the entire loop in timeout_context so that both the wait
             # for futures *and* any slow result retrieval (e.g. large data
             # deserialization) are bounded by the caller's timeout.
-            with timeout_context(timeout):
+            with timeout_context(timeout, timeout_exc_type=_WaitTimeoutError):
                 # as_completed de-duplicates internally; each unique future
                 # is yielded exactly once, in completion order.
                 for future in as_completed(list(self), timeout=timeout):
                     result = future.result(raise_on_failure=raise_on_failure)
                     for i in future_to_indices[future]:
                         results[i] = result
-        except TimeoutError as exc:
-            # timeout came from inside the task
-            if "Scope timed out after {timeout} second(s)." not in str(exc):
-                raise
+        # A `TimeoutError` from inside a task is not a `_WaitTimeoutError` and
+        # propagates unchanged.
+        except _WaitTimeoutError as exc:
             raise TimeoutError(
                 f"Timed out waiting for all futures to complete within {timeout} seconds"
             ) from exc
@@ -612,7 +619,7 @@ def as_completed(
     pending = unique_futures
     deadline: float | None = None
     try:
-        with timeout_context(timeout):
+        with timeout_context(timeout, timeout_exc_type=_WaitTimeoutError):
             done = {f for f in unique_futures if f._final_state}  # type: ignore[privateUsage]
             pending = unique_futures - done
             yield from done
@@ -638,7 +645,7 @@ def as_completed(
                     assert deadline is not None
                     remaining = deadline - time.monotonic()
                     if not finished_event.wait(timeout=max(remaining, 0.0)):
-                        raise TimeoutError
+                        raise _WaitTimeoutError
 
                 with finished_lock:
                     done = finished_futures
@@ -649,8 +656,8 @@ def as_completed(
                     pending.remove(future)
                     yield future
 
-    except TimeoutError:
-        raise TimeoutError(
+    except _WaitTimeoutError:
+        raise _WaitTimeoutError(
             "%d (of %d) futures unfinished" % (len(pending), total_futures)
         )
 
