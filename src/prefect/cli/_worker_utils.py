@@ -27,8 +27,9 @@ async def _check_work_pool_paused(work_pool_name: str) -> bool:
     except ObjectNotFound:
         return False
     except httpx.RequestError:
-        # this check is informational only; the worker's service loops retry
-        # transport failures, so an unreachable API must not block startup
+        # this check only prints a warning, so it should not be what terminates
+        # startup on an unreachable API; the worker's own connection handling
+        # decides whether to proceed
         return False
 
 

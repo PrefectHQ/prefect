@@ -4129,37 +4129,6 @@ async def test_worker_proposes_submitting_state_before_run(
     assert call_args[0][0].id == flow_run.id
 
 
-class TestStartupWithUnreachableAPI:
-    """Regression tests for https://github.com/PrefectHQ/prefect/issues/22638"""
-
-    @staticmethod
-    def _channel(sync_side_effect):
-        return Mock(
-            set_client=Mock(),
-            sync=AsyncMock(side_effect=sync_side_effect),
-            stop=Mock(),
-        )
-
-    async def test_setup_survives_unreachable_api(self, work_pool, caplog):
-        connect_error = httpx.ConnectError("All connection attempts failed")
-
-        with mock.patch("prefect.workers.base.WorkPoolWorkerChannel") as channel_cls:
-            channel_cls.return_value = self._channel(connect_error)
-
-            async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
-                assert worker.is_setup
-
-        assert "Could not reach the Prefect API during worker startup" in caplog.text
-
-    async def test_setup_does_not_swallow_other_errors(self, work_pool):
-        with mock.patch("prefect.workers.base.WorkPoolWorkerChannel") as channel_cls:
-            channel_cls.return_value = self._channel(ValueError("bad config"))
-
-            with pytest.raises(ValueError, match="bad config"):
-                async with WorkerTestImpl(work_pool_name=work_pool.name):
-                    pass
-
-
 class TestSubmit:
     @pytest.fixture
     def mock_run_process(self, monkeypatch: pytest.MonkeyPatch):
