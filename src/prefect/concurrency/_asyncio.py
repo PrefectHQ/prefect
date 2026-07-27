@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
+import contextvars
 import logging
 import threading
 from contextlib import asynccontextmanager
@@ -238,8 +239,11 @@ def _release_lease_when_granted(
     The acquisition may still be granted after the caller is gone, and the lease
     id never reaches the `ConcurrencyContext`, so the slots would stay occupied
     until the lease expires. The release cannot run on the cancelled caller, so it
-    happens on a short-lived thread once the acquisition finishes.
+    happens on a short-lived thread once the acquisition finishes. The caller's
+    context is copied here so the release targets the API the slots were acquired
+    from rather than the default one.
     """
+    release_ctx = contextvars.copy_context()
 
     def _release(completed: "concurrent.futures.Future[httpx.Response]") -> None:
         try:
@@ -252,8 +256,8 @@ def _release_lease_when_granted(
             return
 
         threading.Thread(
-            target=_release_lease,
-            args=(UUID(lease_id),),
+            target=release_ctx.run,
+            args=(_release_lease, UUID(lease_id)),
             name="orphaned-concurrency-lease-release",
             daemon=True,
         ).start()

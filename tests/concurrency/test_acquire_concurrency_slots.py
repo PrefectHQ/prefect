@@ -14,6 +14,11 @@ from prefect.concurrency._asyncio import (
     aacquire_concurrency_slots_with_lease,
 )
 from prefect.concurrency.services import ConcurrencySlotAcquisitionWithLeaseService
+from prefect.settings import (
+    PREFECT_API_URL,
+    get_current_settings,
+    temporary_settings,
+)
 
 pytestmark = pytest.mark.clear_db
 
@@ -60,9 +65,15 @@ async def test_returns_minimal_concurrency_limit():
         assert result == limits
 
 
-async def test_releases_lease_granted_after_caller_is_cancelled():
-    """A lease delivered to a caller that is already gone must not leak its slots."""
-    lease_id = uuid.uuid4()
+async def _cancel_acquisition_after_lease_is_granted(
+    lease_id: uuid.UUID, get_client: mock.MagicMock
+) -> None:
+    """Cancel a caller once its acquisition is under way, then grant the lease.
+
+    Reproduces the ordering the service uses: the future is marked running before
+    the caller is cancelled, so `asyncio.wrap_future` cannot cancel it and the
+    granted lease is delivered to a caller that is already gone.
+    """
     response = Response(
         200,
         json={
@@ -76,18 +87,6 @@ async def test_releases_lease_granted_after_caller_is_cancelled():
     )
 
     future: Future[Response] = Future()
-    released = threading.Event()
-    releases: list[uuid.UUID] = []
-
-    client = mock.MagicMock(spec=SyncPrefectClient)
-
-    def release(lease_id: uuid.UUID) -> None:
-        releases.append(lease_id)
-        released.set()
-
-    client.release_concurrency_slots_with_lease.side_effect = release
-    client.__enter__.return_value = client
-
     sent = asyncio.Event()
 
     def send(item: tuple[object, ...]) -> Future[Response]:
@@ -102,16 +101,61 @@ async def test_releases_lease_granted_after_caller_is_cancelled():
         acquire = asyncio.create_task(
             aacquire_concurrency_slots_with_lease(names=["test"], slots=1)
         )
-        # Once the request has been sent the task is suspended on the future, so
-        # the acquisition below completes after the caller is already gone.
+        # Once the request has been sent, the caller is suspended on the future.
         await sent.wait()
-        with mock.patch("prefect.concurrency._asyncio.get_client", return_value=client):
+
+        assert future.set_running_or_notify_cancel()
+        acquire.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await acquire
+
+        with mock.patch("prefect.concurrency._asyncio.get_client", get_client):
             future.set_result(response)
-            acquire.cancel()
 
-            with pytest.raises(asyncio.CancelledError):
-                await acquire
 
-            await asyncio.get_running_loop().run_in_executor(None, released.wait)
+async def test_releases_lease_granted_after_caller_is_cancelled():
+    """A lease delivered to a caller that is already gone must not leak its slots."""
+    lease_id = uuid.uuid4()
+    released = threading.Event()
+    releases: list[uuid.UUID] = []
 
+    def release(lease_id: uuid.UUID) -> None:
+        releases.append(lease_id)
+        released.set()
+
+    client = mock.MagicMock(spec=SyncPrefectClient)
+    client.__enter__.return_value = client
+    client.release_concurrency_slots_with_lease.side_effect = release
+
+    await _cancel_acquisition_after_lease_is_granted(
+        lease_id, mock.MagicMock(return_value=client)
+    )
+
+    assert released.wait(10)
     assert releases == [lease_id]
+
+
+async def test_releases_orphaned_lease_against_the_callers_api():
+    """The release runs off-caller, but must still target the caller's API."""
+    lease_id = uuid.uuid4()
+    released = threading.Event()
+    api_urls: list[str | None] = []
+
+    def release(lease_id: uuid.UUID) -> None:
+        released.set()
+
+    client = mock.MagicMock(spec=SyncPrefectClient)
+    client.__enter__.return_value = client
+    client.release_concurrency_slots_with_lease.side_effect = release
+
+    def get_client(sync_client: bool = False) -> mock.MagicMock:
+        api_urls.append(get_current_settings().api.url)
+        return client
+
+    with temporary_settings({PREFECT_API_URL: "https://scoped.example.com/api"}):
+        await _cancel_acquisition_after_lease_is_granted(
+            lease_id, mock.MagicMock(side_effect=get_client)
+        )
+
+    assert released.wait(10)
+    assert api_urls == ["https://scoped.example.com/api"]
