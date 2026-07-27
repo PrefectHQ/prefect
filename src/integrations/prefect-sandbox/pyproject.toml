@@ -1,0 +1,89 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prefect-sandbox"
+description = "Prefect integration for running commands and untrusted code in ephemeral, kernel-isolated sandboxes."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache License 2.0" }
+keywords = ["prefect", "sandbox", "microvm", "isolation"]
+authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
+classifiers = [
+  "Natural Language :: English",
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Libraries",
+]
+dependencies = ["prefect>=3.7.8", "typing-extensions>=4.10"]
+dynamic = ["version"]
+
+[dependency-groups]
+dev = [
+  "coverage",
+  "interrogate",
+  "mkdocs-gen-files",
+  "mkdocs-material",
+  "mkdocs",
+  "mkdocstrings[python]",
+  "mypy",
+  "pillow",
+  "pre-commit",
+  "pytest-asyncio",
+  "pytest >= 8.3",
+  "pytest-env",
+  "pytest-xdist",
+]
+
+[project.urls]
+Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-sandbox"
+
+# Makes the blocks discoverable: `load_prefect_collections()` imports every module
+# in this group, which is what `prefect block register -m prefect_sandbox`, block
+# lookup by slug, and the UI's block catalog all depend on.
+[project.entry-points."prefect.collections"]
+prefect_sandbox = "prefect_sandbox"
+
+[tool.setuptools_scm]
+version_file = "prefect_sandbox/_version.py"
+root = "../../.."
+tag_regex = "^prefect-sandbox-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
+fallback_version = "0.1.0"
+git_describe_command = [
+  "git",
+  "describe",
+  "--dirty",
+  "--tags",
+  "--long",
+  "--match",
+  "prefect-sandbox-*[0-9]*",
+]
+
+[tool.interrogate]
+ignore-init-module = true
+ignore_init_method = true
+exclude = ["prefect_sandbox/_version.py", "tests"]
+fail-under = 95
+omit-covered-files = true
+
+[tool.coverage.run]
+omit = ["tests/*", "prefect_sandbox/_version.py"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "session"
+asyncio_mode = "auto"
+env = ["PREFECT_TEST_MODE=1"]
+
+[tool.uv.sources]
+prefect = { path = "../../../" }

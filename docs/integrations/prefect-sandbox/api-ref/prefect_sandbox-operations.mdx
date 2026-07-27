@@ -1,0 +1,346 @@
+---
+title: operations
+sidebarTitle: operations
+---
+
+# `prefect_sandbox.operations`
+
+
+Run a list of commands inside a disposable, kernel-isolated sandbox.
+
+`SandboxOperation` is the sandbox counterpart to `prefect_shell.ShellOperation`: the
+same `trigger`/`wait`/`fetch` and `run` ergonomics, the same `a`-prefixed async twins,
+the same context-manager cleanup. The difference is where the commands land — an
+ephemeral microVM that is destroyed afterwards and that inherits none of the worker's
+credentials, instead of a subprocess on the worker itself.
+
+
+## Classes
+
+### `SandboxProcess` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/operations.py#L59" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+One execution of a command sequence inside one sandbox, which it owns.
+
+Where `prefect_shell.ShellProcess` borrows a live process object from the block
+that spawned it and leaves teardown on that block's shared exit stacks, a
+`SandboxProcess` owns its sandbox outright: the handle, the in-flight execution and
+the teardown all live here. That is what makes concurrent
+`SandboxOperation.atrigger()` calls independent — closing one process destroys only
+its own sandbox.
+
+**Attributes:**
+- `sandbox`: Handle to the sandbox the commands are running in.
+- `result`: The full `SandboxResult` once the commands have finished, otherwise
+`None`. A sandbox result carries strictly more than a shell one — exit
+code, stderr, `timed_out`, `truncated`, `sandbox_terminated` — and
+`fetch_result` can only return stdout lines, so this is where the rest is.
+
+
+**Methods:**
+
+#### `aclose` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/operations.py#L231" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aclose(self) -> None
+```
+
+Destroy this process's sandbox, cancelling the commands if still running.
+
+Idempotent, and safe to call while another `SandboxProcess` from the same
+`SandboxOperation` is mid-flight.
+
+
+#### `afetch_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/operations.py#L210" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+afetch_result(self) -> list[str]
+```
+
+Retrieve the sandbox's captured stdout (async version).
+
+**Returns:**
+- The stdout lines. stderr is deliberately excluded and is available in full
+- on `result.stderr`: `SandboxResult` keeps the two streams apart, and
+- merging them here would throw that distinction away. (`ShellProcess` folds
+- stderr into the result on its async path but not its sync one; there is no
+- consistent behaviour there to preserve.)
+
+
+#### `await_for_completion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/operations.py#L168" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+await_for_completion(self) -> None
+```
+
+Wait for the commands to finish (async version).
+
+**Raises:**
+- `RuntimeError`: If this process was never started.
+- `SandboxExecutionError`: If the commands failed or timed out and
+`raise_on_failure` is set.
+
+
+#### `close` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/operations.py#L269" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+close(self) -> None
+```
+
+Destroy this process's sandbox (sync version).
+
+
+#### `fetch_result` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/operations.py#L223" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+fetch_result(self) -> list[str]
+```
+
+Retrieve the sandbox's captured stdout (sync version).
+
+**Returns:**
+- The stdout lines, exactly as `afetch_result` returns them.
+
+
+#### `return_code` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/operations.py#L115" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+return_code(self) -> int | None
+```
+
+The command's exit status, or `None` while it is still running.
+
+**Returns:**
+- The exit code, or `None` if the commands have not finished. Meaningless
+- when `result.timed_out` is set — consult `result` for that.
+
+
+#### `wait_for_completion` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/operations.py#L198" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+wait_for_completion(self) -> None
+```
+
+Wait for the commands to finish (sync version).
+
+
+### `SandboxOperation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/operations.py#L311" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+A list of commands to run inside a disposable, kernel-isolated sandbox.
+
+Read this as "`ShellOperation`, but the commands run inside a sandbox": `trigger()`
+for long-running work you want to supervise, `run()` for short work, `a`-prefixed
+twins for async callers, and context-manager support that tears down everything the
+operation created.
+
+This is deliberately **not** a Prefect Block, and it must stay that way. `backend`
+is typed as the abstract `SandboxBackend`, and `Block.save()` recursively registers
+the block types found in a block's field annotations; `register_type_and_schema`
+refuses any Block whose direct bases include `ABC`
+(`prefect/blocks/core.py:1492`), which `SandboxBackend(Block, ABC)` does. A Block
+with a `SandboxBackend` field therefore raises `InvalidBlockRegistration` the
+moment anybody saves it — verified empirically, not inferred. The *backends* are
+Blocks, which is where persisted, UI-editable configuration and `SecretStr`
+credentials belong. Commands belong in code.
+
+**Args:**
+- `backend`: The sandbox provider to run in, e.g. `SbxSandbox`.
+- `commands`: Commands to execute sequentially in a single shell inside the
+sandbox. The operation's exit status is the last command's.
+- `env`: Environment variables to set for the commands. Nothing is inherited from
+the worker\: whatever is not listed here does not exist in the sandbox.
+- `working_dir`: Directory *inside the sandbox* to run in. Unlike
+`ShellOperation.working_dir` this is a plain string, not a validated
+`DirectoryPath` — the path has to exist in the guest, and validating it
+against the worker's filesystem would reject every correct value.
+- `shell`: Shell to interpret `commands` with. Defaults to `sh`, not `bash`,
+because slim sandbox images frequently ship no bash.
+- `timeout`: Seconds the commands may run before the backend stops them.
+- `files`: Files to write into the sandbox before the commands run, as
+`{path\: content}`, via `SandboxBackend.awrite_file`. This is how
+model-generated source gets in without riding on a command line.
+- `stream_output`: Whether to relay the sandbox's captured output to the run
+logger.
+- `raise_on_failure`: Whether a nonzero exit raises `SandboxExecutionError`. Set
+`False` to treat the exit code as data and read it off
+`SandboxProcess.result`.
+
+**Examples:**
+
+Run two commands in a fresh sandbox and get their output:
+```python
+from prefect_sandbox import SandboxOperation, SbxSandbox
+
+output = await SandboxOperation(
+    SbxSandbox(image="python:3.12-slim"),
+    ["pip install --quiet requests", "python -c 'import requests; print(requests.__version__)'"],
+).arun()
+```
+
+Supervise a long-running command and keep the full result:
+```python
+from prefect_sandbox import SandboxOperation, SbxSandbox
+
+operation = SandboxOperation(SbxSandbox(), ["./train.sh"], timeout=3600)
+async with operation:
+    process = await operation.atrigger()
+    await process.await_for_completion()
+    lines = await process.afetch_result()
+    print(process.result.exit_code, process.result.truncated)
+```
+
+
+**Methods:**
+
+#### `aclose` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/operations.py#L618" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aclose(self) -> None
+```
+
+Destroy every sandbox this operation created and still tracks (async version).
+
+Outstanding `atrigger()` results and an active `arun()` are tracked. A process
+already closed through its own `aclose()` is skipped. In-flight provisioning
+is cancelled before this returns. Every teardown is attempted. Failures are
+logged and then raised after the remaining sandboxes have been handled. The
+context-manager exits suppress that cleanup error only when a different
+exception is already leaving the body.
+
+
+#### `arun` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/operations.py#L563" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+arun(self) -> list[str]
+```
+
+Provision, run, fetch, and destroy, in one call (async version).
+
+Ideal for short-lived commands. The sandbox is destroyed before this returns,
+including on failure. It is tracked only while active so a concurrent
+`aclose()` can cancel it, then removed after its own cleanup.
+
+**Returns:**
+- The stdout lines produced by the commands.
+
+**Raises:**
+- `SandboxExecutionError`: If the commands failed or timed out and
+`raise_on_failure` is set.
+
+**Examples:**
+
+Sleep for 5 seconds and then print "Hello, world!":
+```python
+from prefect_sandbox import SandboxOperation, SbxSandbox
+
+output = await SandboxOperation(
+    SbxSandbox(), ["sleep 5", "echo 'Hello, world!'"]
+).arun()
+```
+
+
+#### `atrigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/operations.py#L515" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+atrigger(self) -> SandboxProcess
+```
+
+Provision a sandbox, start the commands in it, and return a handle (async version).
+
+Ideal for long-running commands; for short ones use `arun`, which cleans up on
+your behalf. Every call gets its own sandbox, so concurrent calls on a single
+operation are independent — `SandboxProcess.aclose()` destroys only that call's
+sandbox, and `aclose()` on the operation reclaims whichever ones are left.
+
+**Returns:**
+- A `SandboxProcess` tracking the newly provisioned sandbox.
+
+**Examples:**
+
+Sleep for 5 seconds and then print "Hello, world!":
+```python
+from prefect_sandbox import SandboxOperation, SbxSandbox
+
+async with SandboxOperation(
+    SbxSandbox(), ["sleep 5", "echo 'Hello, world!'"]
+) as operation:
+    process = await operation.atrigger()
+    await process.await_for_completion()
+    output = await process.afetch_result()
+```
+
+
+#### `close` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/operations.py#L670" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+close(self) -> None
+```
+
+Destroy every sandbox this operation created and still tracks (sync version).
+
+
+#### `logger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/operations.py#L428" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+logger(self) -> LoggerOrAdapter
+```
+
+A run logger when inside a flow or task run, else a logger named for the class.
+
+Copied from `prefect.blocks.abstract`, which defines this property on every
+abstract block base rather than on `Block` itself. `SandboxOperation` is not a
+Block at all, so it has to define it too, and it must degrade gracefully:
+operations are frequently driven from plain scripts.
+
+**Returns:**
+- The run logger, or a default logger labelled with the class's name.
+
+
+#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/operations.py#L600" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run(self) -> list[str]
+```
+
+Provision, run, fetch, and destroy, in one call (sync version).
+
+**Returns:**
+- The stdout lines produced by the commands.
+
+**Examples:**
+
+Sleep for 5 seconds and then print "Hello, world!":
+```python
+from prefect_sandbox import SandboxOperation, SbxSandbox
+
+output = SandboxOperation(
+    SbxSandbox(), ["sleep 5", "echo 'Hello, world!'"]
+).run()
+```
+
+
+#### `trigger` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/operations.py#L542" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+trigger(self) -> SandboxProcess
+```
+
+Provision a sandbox and start the commands in it (sync version).
+
+**Returns:**
+- A `SandboxProcess` tracking the newly provisioned sandbox.
+
+**Examples:**
+
+Sleep for 5 seconds and then print "Hello, world!":
+```python
+from prefect_sandbox import SandboxOperation, SbxSandbox
+
+with SandboxOperation(
+    SbxSandbox(), ["sleep 5", "echo 'Hello, world!'"]
+) as operation:
+    process = operation.trigger()
+    process.wait_for_completion()
+    output = process.fetch_result()
+```

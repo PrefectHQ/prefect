@@ -1,0 +1,252 @@
+---
+title: sbx
+sidebarTitle: sbx
+---
+
+# `prefect_sandbox.sbx`
+
+
+Docker Sandboxes (`sbx`) backend: local microVMs driven through the `sbx` CLI.
+
+There is no Python SDK for Docker Sandboxes, so this backend shells out to the CLI
+with `asyncio.create_subprocess_exec`. Every invocation is a fresh, short-lived child
+process, which is what lets one `SbxSandbox` block instance serve concurrent flow runs
+without holding per-sandbox state.
+
+
+## Classes
+
+### `SbxSandbox` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/sbx.py#L153" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Run commands in a Docker Sandboxes (`sbx`) microVM on the local host.
+
+Each sandbox is a microVM with its own kernel, so code you did not author is
+isolated far more strongly than by a shared-kernel container. `acreate` maps to
+`sbx create`, `aexec` to `sbx exec`, and `adestroy` to `sbx rm -f`; sandboxes are
+addressed by their generated `--name`, which is also `Sandbox.id`.
+
+Prefect injects none of its context into the sandbox — no `PREFECT_API_KEY`, no
+`PREFECT_API_URL`, no worker environment, no flow-run parameters. The only
+environment a command sees is what the template image bakes in, whatever the `sbx`
+runtime itself adds (proxy variables and `SBX_CRED_*`/`*_API_KEY` placeholders it
+manages on the sandbox's behalf, governed by `sbx secret` on the host), and the
+`env` passed to that specific `aexec` call.
+
+Requirements, all host-level and none of them configured by Prefect:
+
+- The `sbx` binary on PATH and a signed-in host (`sbx login`). Docker Desktop
+  is not required. Follow Docker's platform prerequisites; Ubuntu hosts need KVM.
+- A one-time `sbx policy init <allow-all|balanced|deny-all>` on the host.
+Outbound network egress is governed by the host `sbx policy`, which is a
+deployment-level control: run `sbx policy init deny-all` for a no-egress default.
+Setting `egress="deny"` additionally layers a per-sandbox deny-all rule over
+whatever the host allows, since deny rules beat allow rules in `sbx`. The backend
+verifies that an active deny-all rule applies and fails creation if organization
+governance made the local rule inactive.
+
+**Attributes:**
+- `image`: Container image used as the sandbox template.
+- `memory`: Memory limit for the sandbox.
+- `cpus`: Number of CPUs to allocate.
+- `sbx_path`: Path to the `sbx` binary.
+- `create_timeout`: Seconds allowed for provisioning.
+- `egress`: Whether to layer a per-sandbox deny-all network rule.
+- `max_output_bytes`: Per-stream cap on captured output.
+
+**Examples:**
+
+Load a configured block:
+```python
+from prefect_sandbox import SbxSandbox
+
+sbx_sandbox = SbxSandbox.load("BLOCK_NAME")
+```
+
+Run untrusted code in a throwaway microVM with no network access:
+```python
+from prefect import flow
+from prefect_sandbox import SbxSandbox
+
+@flow
+async def run_generated_code(source: str) -> str:
+    backend = SbxSandbox(image="python:3.12-slim", egress="deny")
+    async with backend.asession() as sandbox:
+        await backend.awrite_file(
+            sandbox, "/tmp/prefect-sandbox/main.py", source
+        )
+        result = await backend.aexec(
+            sandbox,
+            ["python", "/tmp/prefect-sandbox/main.py"],
+            timeout=60,
+        )
+    return result.stdout
+```
+
+
+**Methods:**
+
+#### `aclose` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L252" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aclose(self) -> None
+```
+
+Release backend-level resources such as HTTP connections.
+
+Separate from `adestroy`, which disposes of a single sandbox. The default is
+a no-op; backends holding a client should override it.
+
+
+#### `acreate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/sbx.py#L496" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+acreate(self) -> Sandbox
+```
+
+Provision one microVM.
+
+The sandbox is created against a throwaway empty host directory. `sbx create`
+requires at least one workspace path and mounts it read-write at the *same*
+absolute path inside the microVM, so pointing it at a temp dir is what keeps
+the rest of the host filesystem out of reach. The path is recorded in
+`Sandbox.metadata` rather than on the block, so concurrent flow runs sharing
+one block cannot clean up each other's workspace.
+
+**Returns:**
+- A handle whose `id` is the sandbox's `sbx` name.
+
+**Raises:**
+- `SandboxUnavailableError`: If the `sbx` binary is not installed.
+- `SandboxCreationError`: If provisioning failed or timed out.
+
+
+#### `acreate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L221" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+acreate(self) -> Sandbox
+```
+
+Provision one sandbox and return its handle.
+
+
+#### `adestroy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/sbx.py#L644" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+adestroy(self, sandbox: Sandbox) -> None
+```
+
+Remove `sandbox` and the host workspace that was mounted into it.
+
+Idempotent: when `sbx rm -f` returns nonzero, `sbx ls --json` must confirm the
+sandbox is already absent. Other failures are raised because untrusted code may
+still be running. `-f` is not optional — only it can remove a sandbox in use.
+
+
+#### `adestroy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L249" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+adestroy(self, sandbox: Sandbox) -> None
+```
+
+Tear down `sandbox`. Idempotent.
+
+
+#### `aexec` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/sbx.py#L569" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aexec(self, sandbox: Sandbox, command: Sequence[str]) -> SandboxResult
+```
+
+Run `command` inside `sandbox` and return its outcome.
+
+`env` and `working_dir` use `sbx exec`'s own `-e`/`-w` flags, so no shell is
+involved anywhere and the caller never has to quote anything. The timeout is
+enforced around the `sbx exec` process itself. When it expires, the backend
+destroys the sandbox to guarantee the guest command cannot keep running.
+
+**Args:**
+- `sandbox`: Handle returned by `acreate`.
+- `command`: Argv to execute.
+- `timeout`: Seconds the command may run.
+- `env`: Environment variables for this command only.
+- `working_dir`: Directory inside the sandbox to run in.
+
+**Returns:**
+- A `SandboxResult`; a nonzero exit code is data, not an error.
+
+**Raises:**
+- `ValueError`: If `command` is empty, `timeout` is not a positive finite
+number, or `env` cannot be expressed as POSIX environment variables.
+
+
+#### `aexec` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L225" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aexec(self, sandbox: Sandbox, command: Sequence[str]) -> SandboxResult
+```
+
+Run `command` (an argv list, no shell) inside `sandbox`.
+
+**Args:**
+- `sandbox`: Handle returned by `acreate`.
+- `command`: Argv to execute. Not passed through a shell, so the caller does
+not need to quote anything.
+- `timeout`: Seconds the command may run before it is stopped.
+- `env`: Environment variables to set for this command only.
+- `working_dir`: Directory to run in.
+
+**Returns:**
+- A `SandboxResult`. A nonzero exit code is reported here, not raised.
+
+
+#### `asession` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L288" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+asession(self) -> AsyncIterator[Sandbox]
+```
+
+Provision a sandbox for the duration of the block and always destroy it.
+
+```python
+async with backend.asession() as sandbox:
+    result = await backend.aexec(sandbox, ["python", "-c", "print(1)"], timeout=30)
+```
+
+
+#### `awrite_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/sbx.py#L656" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+awrite_file(self, sandbox: Sandbox, path: str, content: str) -> None
+```
+
+Write `content` to `path` inside `sandbox` using `sbx cp`.
+
+Overrides the base implementation, which smuggles the payload through the
+command line and is therefore capped at a few hundred kilobytes. `sbx cp`
+streams from a host file instead, so size is bounded only by the sandbox's
+disk.
+
+**Args:**
+- `sandbox`: Handle returned by `acreate`.
+- `path`: Absolute destination path inside the sandbox.
+- `content`: Text to write.
+
+**Raises:**
+- `SandboxError`: If the destination directory could not be created or the
+copy failed.
+
+
+#### `awrite_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L259" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+awrite_file(self, sandbox: Sandbox, path: str, content: str) -> None
+```
+
+Write `content` to `path` inside `sandbox`.
+
+The default implementation needs nothing but `aexec`: it base64-encodes the
+payload and decodes it inside the sandbox, which keeps arbitrary bytes and
+quoting hazards out of the command line. Backends with a native file-transfer
+API should override this — the fallback is bounded by
+`MAX_INLINE_FILE_BYTES` because the payload rides on the command line.

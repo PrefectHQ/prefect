@@ -1,0 +1,114 @@
+---
+title: tasks
+sidebarTitle: tasks
+---
+
+# `prefect_sandbox.tasks`
+
+
+Prefect tasks for running commands and untrusted code inside a sandbox.
+
+Each task is a thin wrapper over `SandboxOperation` rather than a second
+implementation of it. `prefect_shell.shell_run_command` duplicates the whole of
+`ShellOperation` and the two have drifted; there is one code path here.
+
+
+## Functions
+
+### `arun_in_sandbox` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/tasks.py#L89" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+arun_in_sandbox(backend: SandboxBackend, commands: Sequence[str], env: Mapping[str, str] | None = None, working_dir: str | None = None, shell: str = 'sh', timeout: float = DEFAULT_TIMEOUT_SECONDS, files: Mapping[str, str] | None = None, stream_output: bool = True, raise_on_failure: bool = True) -> list[str]
+```
+
+
+Run commands in a fresh sandbox that is destroyed afterwards (async version).
+
+**Args:**
+- `backend`: The sandbox provider to run in.
+- `commands`: Commands to execute sequentially in one shell inside the sandbox.
+- `env`: Environment variables to set. Nothing is inherited from the worker.
+- `working_dir`: Directory inside the sandbox to run in.
+- `shell`: Shell to interpret `commands` with.
+- `timeout`: Seconds the commands may run before the backend stops them.
+- `files`: Files to write into the sandbox first, as `{path\: content}`.
+- `stream_output`: Whether to relay captured output to the run logger.
+- `raise_on_failure`: Whether a nonzero exit raises `SandboxExecutionError`.
+
+**Returns:**
+- The stdout lines produced by the commands.
+
+
+### `run_in_sandbox` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/tasks.py#L148" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_in_sandbox(backend: SandboxBackend, commands: Sequence[str], env: Mapping[str, str] | None = None, working_dir: str | None = None, shell: str = 'sh', timeout: float = DEFAULT_TIMEOUT_SECONDS, files: Mapping[str, str] | None = None, stream_output: bool = True, raise_on_failure: bool = True) -> list[str]
+```
+
+
+Run commands in a fresh sandbox that is destroyed afterwards (sync version).
+
+**Args:**
+- `backend`: The sandbox provider to run in.
+- `commands`: Commands to execute sequentially in one shell inside the sandbox.
+- `env`: Environment variables to set. Nothing is inherited from the worker.
+- `working_dir`: Directory inside the sandbox to run in.
+- `shell`: Shell to interpret `commands` with.
+- `timeout`: Seconds the commands may run before the backend stops them.
+- `files`: Files to write into the sandbox first, as `{path\: content}`.
+- `stream_output`: Whether to relay captured output to the run logger.
+- `raise_on_failure`: Whether a nonzero exit raises `SandboxExecutionError`.
+
+**Returns:**
+- The stdout lines produced by the commands.
+
+
+### `arun_python_in_sandbox` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/tasks.py#L201" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+arun_python_in_sandbox(code: str, backend: SandboxBackend, python_executable: str = 'python', env: Mapping[str, str] | None = None, working_dir: str | None = None, shell: str = 'sh', timeout: float = DEFAULT_TIMEOUT_SECONDS, stream_output: bool = True, raise_on_failure: bool = True) -> list[str]
+```
+
+
+Execute Python source in a fresh sandbox that is destroyed afterwards (async version).
+
+The intended use is code you did not author — model-generated scripts, a user's
+snippet — which is exactly why it does not run on the worker.
+
+**Args:**
+- `code`: Python source to execute. Written into the sandbox as a file, so it may
+contain anything a `.py` file may contain.
+- `backend`: The sandbox provider to run in.
+- `python_executable`: Interpreter to invoke inside the sandbox.
+- `env`: Environment variables to set. Nothing is inherited from the worker.
+- `working_dir`: Directory inside the sandbox to run in.
+- `shell`: Shell used to invoke the interpreter.
+- `timeout`: Seconds the script may run before the backend stops it.
+- `stream_output`: Whether to relay captured output to the run logger.
+- `raise_on_failure`: Whether a nonzero exit raises `SandboxExecutionError`.
+
+**Returns:**
+- The stdout lines produced by the script.
+### `run_python_in_sandbox` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/tasks.py#L260" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+run_python_in_sandbox(code: str, backend: SandboxBackend, python_executable: str = 'python', env: Mapping[str, str] | None = None, working_dir: str | None = None, shell: str = 'sh', timeout: float = DEFAULT_TIMEOUT_SECONDS, stream_output: bool = True, raise_on_failure: bool = True) -> list[str]
+```
+
+
+Execute Python source in a fresh sandbox that is destroyed afterwards (sync version).
+
+**Args:**
+- `code`: Python source to execute. Written into the sandbox as a file, so it may
+contain anything a `.py` file may contain.
+- `backend`: The sandbox provider to run in.
+- `python_executable`: Interpreter to invoke inside the sandbox.
+- `env`: Environment variables to set. Nothing is inherited from the worker.
+- `working_dir`: Directory inside the sandbox to run in.
+- `shell`: Shell used to invoke the interpreter.
+- `timeout`: Seconds the script may run before the backend stops it.
+- `stream_output`: Whether to relay captured output to the run logger.
+- `raise_on_failure`: Whether a nonzero exit raises `SandboxExecutionError`.
+
+**Returns:**
+- The stdout lines produced by the script.

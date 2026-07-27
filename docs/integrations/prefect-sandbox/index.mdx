@@ -1,0 +1,205 @@
+---
+title: prefect-sandbox
+description: Run commands and untrusted code in disposable Docker Sandboxes microVMs.
+keywords: ["sandbox", "microVM", "Docker Sandboxes", "sbx", "untrusted code"]
+---
+
+Run commands or model-generated code in a disposable, kernel-isolated sandbox that is
+destroyed afterward. The sandbox does not inherit the Prefect worker's environment.
+
+`prefect-sandbox` ships `SbxSandbox`, a backend for local
+[Docker Sandboxes](https://docs.docker.com/ai/sandboxes/) microVMs. Its
+`SandboxBackend` contract lets other providers implement the same lifecycle in their own
+packages.
+
+## Getting started
+
+### Prerequisites
+
+<Steps>
+  <Step title="Install Docker Sandboxes">
+    Install and sign in to the `sbx` CLI. On macOS:
+
+    ```bash
+    brew trust docker/tap
+    brew install docker/tap/sbx
+    sbx login
+    sbx version
+    ```
+
+    Docker Desktop is not required. See the Docker Sandboxes prerequisites for
+    Windows and Ubuntu installation and hardware-virtualization requirements.
+  </Step>
+  <Step title="Initialize the host policy">
+    `sbx login` prompts for a policy on first use. For a non-interactive host,
+    initialize one explicitly:
+
+    ```bash
+    sbx policy ls || sbx policy init deny-all
+    ```
+
+    Use `deny-all` for code you do not trust. Reinitializing the policy requires
+    `sbx policy reset`, which stops running sandboxes.
+  </Step>
+</Steps>
+
+### Install `prefect-sandbox`
+
+```bash
+pip install prefect-sandbox
+```
+
+There is no Python `sbx` dependency. The integration invokes the installed CLI.
+
+### Register the block type
+
+```bash
+prefect block register -m prefect_sandbox
+```
+
+This registers the `Sbx Sandbox` block type for configuration in the Prefect UI and
+loading by name.
+
+## Examples
+
+### Run a command
+
+`run_in_sandbox` creates one sandbox, runs the commands in order, returns stdout lines,
+and destroys the sandbox even when execution fails.
+
+```python
+from prefect import flow
+from prefect_sandbox import SbxSandbox, run_in_sandbox
+
+
+@flow
+def hello_sandbox() -> list[str]:
+    return run_in_sandbox(
+        SbxSandbox(image="python:3.12-slim"),
+        ["python -c 'print(\"hello from a microVM\")'"],
+    )
+```
+
+Use `arun_in_sandbox` from an async flow.
+
+### Run generated Python
+
+`run_python_in_sandbox` writes source to a file before executing it, preserving
+newlines, quotes, Unicode, and useful traceback line numbers.
+
+```python
+from prefect import flow
+from prefect_sandbox import SbxSandbox, run_python_in_sandbox
+
+
+@flow
+def run_generated(source: str) -> list[str]:
+    return run_python_in_sandbox(
+        source,
+        SbxSandbox(image="python:3.12-slim", egress="deny"),
+        timeout=120,
+    )
+```
+
+### Inspect the full result
+
+Use `SandboxOperation` when you need the exit code, stderr, timeout status, or
+truncation status.
+
+```python
+from prefect_sandbox import SandboxOperation, SbxSandbox
+
+operation = SandboxOperation(
+    SbxSandbox(egress="deny"),
+    ["python /tmp/prefect-sandbox/main.py"],
+    files={"/tmp/prefect-sandbox/main.py": "print('hello')"},
+    working_dir="/tmp/prefect-sandbox",
+    raise_on_failure=False,
+)
+
+with operation:
+    process = operation.trigger()
+    process.wait_for_completion()
+    print(process.result.exit_code)
+    print(process.result.stdout, process.result.stderr)
+```
+
+`process.result` is a `SandboxResult` containing `exit_code`, `stdout`, `stderr`,
+`timed_out`, `truncated`, and `sandbox_terminated`.
+
+### Use the backend directly
+
+The direct API supports several commands in one sandbox:
+
+```python
+from prefect_sandbox import SbxSandbox
+
+
+async def probe() -> None:
+    backend = SbxSandbox(memory="4g", egress="deny")
+    async with backend.asession() as sandbox:
+        result = await backend.aexec(
+            sandbox,
+            ["python", "-c", "print(1 + 1)"],
+            timeout=60,
+            env={"GREETING": "hi"},
+        )
+        result.raise_for_status()
+```
+
+## Security and limits
+
+- **No worker credentials are injected.** `sbx exec` receives only variables explicitly
+  provided through `env`. The CLI process itself still uses the host environment to reach
+  Docker, but Docker Sandboxes does not forward that environment into the microVM.
+- **Docker-managed secrets are a separate host capability.** Kits and `sbx secret` can
+  expose placeholders whose outbound requests are completed by Docker's host proxy.
+  Audit that host configuration before running untrusted code; use `egress="deny"` when
+  the code should have no network-backed authority.
+- **Egress is controlled by Docker Sandboxes policy.** `egress="deny"` adds a
+  per-sandbox deny rule and verifies that an active deny-all rule applies before
+  returning the sandbox. Creation fails closed if organization governance makes the
+  local rule inactive. Without this setting, the sandbox inherits the active host or
+  organization policy.
+- **Output is bounded.** Each stream defaults to a 64 KiB cap. Additional bytes are
+  drained and discarded, and `SandboxResult.truncated` is set.
+- **Timeouts are explicit.** The backend bounds the complete `sbx exec` call. When the
+  limit expires, it destroys the sandbox so the guest command cannot continue and sets
+  `sandbox_terminated`. If removal cannot be confirmed, execution raises an
+  infrastructure error instead of claiming the sandbox stopped.
+- **This does not isolate the flow run.** Prefect still runs the flow on the worker.
+  Only commands handed to the integration execute in the sandbox.
+- **The workspace is temporary.** Docker Sandboxes requires a host workspace.
+  `SbxSandbox` creates an empty temporary directory per sandbox and removes it during
+  teardown.
+
+## Add another backend
+
+`SandboxBackend` defines the provider-neutral lifecycle:
+
+| Method | Purpose |
+| --- | --- |
+| `acreate()` | Provision a sandbox and return its `Sandbox` handle. |
+| `aexec(...)` | Run an argv list and return a `SandboxResult`. |
+| `adestroy(...)` | Idempotently destroy the sandbox. |
+| `awrite_file(...)` | Optionally override the portable file-write fallback. |
+| `aclose()` | Optionally release provider-level resources. |
+
+Add a provider as a sibling module in this integration or from an external package, and
+register its block through the `prefect.collections` entry point. Implementations must
+keep per-sandbox state on the handle, clean up failed creates, bound output while
+reading it, report timeouts accurately, avoid forwarding ambient credentials, and
+return nonzero exits as data.
+
+Hosted APIs fit the same contract. For example, Islo exposes create, streaming exec,
+file upload, and delete endpoints. Its `timeout_secs` field is currently only a
+client-side compatibility hint, so a future backend must enforce its own wall-clock
+deadline and delete the sandbox before reporting a timeout.
+
+## Resources
+
+- [Docker Sandboxes documentation](https://docs.docker.com/ai/sandboxes/)
+- [Islo sandbox API](https://docs.islo.dev/api-reference/sandboxes/create-sandbox)
+- [Prefect blocks](/v3/concepts/blocks)
+- [`prefect-shell`](/integrations/prefect-shell)
+- [`prefect-docker`](/integrations/prefect-docker)
