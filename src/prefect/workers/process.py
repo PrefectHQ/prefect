@@ -169,7 +169,7 @@ class ProcessWorker(
         try:
             async with self as worker:
                 # wait for an initial heartbeat to configure the worker
-                await worker.sync_with_backend()
+                await worker._sync_with_backend_best_effort()
                 # schedule the scheduled flow run polling loop
                 async with anyio.create_task_group() as loops_task_group:
                     loops_task_group.start_soon(

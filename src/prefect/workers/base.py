@@ -26,6 +26,7 @@ from zoneinfo import ZoneInfo
 
 import anyio
 import anyio.abc
+import httpx
 from exceptiongroup import BaseExceptionGroup, ExceptionGroup
 from pydantic import BaseModel, Field, PrivateAttr, field_validator
 from pydantic.json_schema import GenerateJsonSchema
@@ -1210,7 +1211,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         # it in all API requests made by this worker process.
         os.environ["PREFECT__WORKER_NAME"] = self.name
 
-        await self.sync_with_backend()
+        await self._sync_with_backend_best_effort()
 
         # Initialize cancellation handling if enabled
         if get_current_settings().worker.enable_cancellation and self._work_pool:
@@ -1340,6 +1341,23 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         if integration_versions:
             return WorkerMetadata(integrations=integration_versions)
         return None
+
+    async def _sync_with_backend_best_effort(self) -> None:
+        """
+        Sync with the backend, tolerating an unreachable API.
+
+        Startup syncs happen outside the `critical_service_loop`s that retry
+        `sync_with_backend`, so a transient outage here would otherwise kill the
+        worker process before those loops ever start.
+        """
+        try:
+            await self.sync_with_backend()
+        except httpx.RequestError as exc:
+            self._logger.warning(
+                "Could not reach the Prefect API during worker startup (%s). The"
+                " worker will keep retrying in the background.",
+                exc,
+            )
 
     async def sync_with_backend(self) -> None:
         """
