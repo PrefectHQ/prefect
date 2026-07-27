@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, Callable, Generic
 from typing_extensions import NamedTuple, Self, TypeVar
 
 from prefect._flow_run_suspension import raise_if_flow_run_suspension_requested
+from prefect._internal.concurrency.cancellation import CancelledError
 from prefect._internal.waiters import FlowRunWaiter
 from prefect.client.orchestration import get_client
 from prefect.exceptions import ObjectNotFound
@@ -578,6 +579,10 @@ class PrefectFutureList(list[PrefectFuture[R]], Iterator[PrefectFuture[R]]):
             future_to_indices.setdefault(future, []).append(idx)
 
         results: list[R] = [None] * len(self)  # type: ignore[list-item]
+        timeout_message = (
+            f"Timed out waiting for all futures to complete within {timeout} seconds"
+        )
+        deadline = time.monotonic() + timeout if timeout is not None else None
 
         try:
             # `as_completed` de-duplicates internally; each unique future is
@@ -591,9 +596,17 @@ class PrefectFutureList(list[PrefectFuture[R]], Iterator[PrefectFuture[R]]):
         # A `TimeoutError` from inside a task is not a `_WaitTimeoutError` and
         # propagates unchanged.
         except _WaitTimeoutError as exc:
-            raise TimeoutError(
-                f"Timed out waiting for all futures to complete within {timeout} seconds"
-            ) from exc
+            raise TimeoutError(timeout_message) from exc
+        except CancelledError as exc:
+            # Cancel scopes deliver cancellation to the frame the supervised
+            # thread is currently in. While `as_completed` is suspended at its
+            # `yield`, that frame is this one, so its `timeout_context` never
+            # sees the error and cannot convert it. Only claim the cancellation
+            # if our own deadline has passed; otherwise it belongs to an
+            # enclosing scope, such as a flow run timeout.
+            if deadline is None or time.monotonic() < deadline:
+                raise
+            raise TimeoutError(timeout_message) from exc
 
         return results
 

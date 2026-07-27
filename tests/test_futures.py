@@ -979,6 +979,28 @@ class TestPrefectFutureList:
             futures.result()
 
     @pytest.mark.timeout(method="thread")
+    def test_result_timeout_covers_slow_result_retrieval(self):
+        """The timeout also bounds result retrieval, which runs while
+        `as_completed` is suspended at its `yield`."""
+
+        class SlowResultFuture(MockFuture):
+            def result(
+                self,
+                timeout: Optional[float] = None,
+                raise_on_failure: bool = True,
+            ) -> Any:
+                time.sleep(1)
+                return 42
+
+        futures = PrefectFutureList([SlowResultFuture()])
+
+        with pytest.raises(
+            TimeoutError,
+            match="Timed out waiting for all futures to complete within 0.1 seconds",
+        ):
+            futures.result(timeout=0.1)
+
+    @pytest.mark.timeout(method="thread")
     def test_result_timeout_raises_dedicated_message(self):
         futures = PrefectFutureList([PrefectConcurrentFuture(uuid.uuid4(), Future())])
 
