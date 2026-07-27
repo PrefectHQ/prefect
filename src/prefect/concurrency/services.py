@@ -105,12 +105,25 @@ class ConcurrencySlotAcquisitionWithLeaseService(
         super().__init__(concurrency_limit_names)
         self._client: PrefectClient
         self.concurrency_limit_names: list[str] = sorted(list(concurrency_limit_names))
+        self._pending_releases: set[concurrent.futures.Future[None]] = set()
 
     @asynccontextmanager
     async def _lifespan(self) -> AsyncGenerator[None, None]:
         async with get_client() as client:
             self._client = client
-            yield
+            try:
+                yield
+            finally:
+                # The client closes when this exits, so releases scheduled by
+                # cancelled callers have to finish first or their slots leak.
+                if self._pending_releases:
+                    await asyncio.gather(
+                        *(
+                            asyncio.wrap_future(release)
+                            for release in tuple(self._pending_releases)
+                        ),
+                        return_exceptions=True,
+                    )
 
     async def acquire(
         self,
@@ -211,20 +224,28 @@ class ConcurrencySlotAcquisitionWithLeaseService(
         """Release a lease that was delivered to a caller which is already gone.
 
         The release is scheduled on the service's own loop so it reuses the client
-        that acquired the slots, keeping acquisition and cleanup on the same API.
+        that acquired the slots, keeping acquisition and cleanup on the same API, and
+        is tracked so that draining the service waits for it.
         """
-        loop = self._loop
-        if loop is None or loop.is_closed():
-            logger.warning(
-                f"Unable to release concurrency lease for {self.concurrency_limit_names} "
-                "after the acquiring caller was cancelled: the acquisition service is "
-                "no longer running. The slots remain occupied until the lease expires."
-            )
-            future: concurrent.futures.Future[None] = concurrent.futures.Future()
-            future.set_result(None)
-            return future
+        with self._lock:
+            loop = self._loop
+            if self._stopped or loop is None or loop.is_closed():
+                logger.warning(
+                    f"Unable to release concurrency lease for {self.concurrency_limit_names} "
+                    "after the acquiring caller was cancelled: the acquisition service is "
+                    "no longer running. The slots remain occupied until the lease expires."
+                )
+                stopped: concurrent.futures.Future[None] = concurrent.futures.Future()
+                stopped.set_result(None)
+                return stopped
 
-        return asyncio.run_coroutine_threadsafe(self._discard(response), loop)
+            # Registering under the lock `_stop` uses keeps the service from
+            # finishing its lifespan, and closing its client, before this release.
+            release = asyncio.run_coroutine_threadsafe(self._discard(response), loop)
+            self._pending_releases.add(release)
+
+        release.add_done_callback(self._pending_releases.discard)
+        return release
 
     def _lease_id_from_response(self, response: httpx.Response) -> Optional[UUID]:
         """Read the lease id out of a successful acquisition response.

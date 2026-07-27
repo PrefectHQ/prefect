@@ -165,6 +165,45 @@ async def test_release_orphaned_lease_uses_the_acquiring_client(
     release.assert_called_once_with(lease_id=lease_id)
 
 
+async def test_drain_waits_for_orphaned_lease_release(mocked_client: Any) -> None:
+    """Draining must not close the client out from under an in-flight release."""
+    lease_id = uuid4()
+    response = Response(
+        200,
+        json={
+            "lease_id": str(lease_id),
+            "limits": [{"id": str(uuid4()), "name": "test-limit", "limit": 10}],
+        },
+    )
+
+    released = threading.Event()
+
+    async def slow_release(*args: Any, **kwargs: Any) -> None:
+        # Yield repeatedly so an untracked release would outlive the drain.
+        for _ in range(100):
+            await asyncio.sleep(0)
+        released.set()
+
+    service = ConcurrencySlotAcquisitionWithLeaseService.instance(
+        frozenset(["test-limit"])
+    )
+    await asyncio.wrap_future(
+        service.send((1, "concurrency", None, None, 60.0, False, None))
+    )
+
+    with mock.patch.object(
+        mocked_client.client,
+        "release_concurrency_slots_with_lease",
+        autospec=True,
+        side_effect=slow_release,
+    ) as release:
+        service.release_orphaned_lease(response)
+        await service.drain()
+
+    assert released.is_set()
+    release.assert_called_once_with(lease_id=lease_id)
+
+
 async def test_release_orphaned_lease_logs_unreadable_response(
     mocked_client: Any, caplog: pytest.LogCaptureFixture
 ) -> None:
