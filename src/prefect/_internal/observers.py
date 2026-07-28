@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 import uuid
 from contextlib import AsyncExitStack
 from typing import Any, Protocol
@@ -19,6 +20,11 @@ from prefect.events.clients import PrefectEventSubscriber, get_events_subscriber
 from prefect.events.filters import EventFilter, EventNameFilter
 from prefect.logging.loggers import get_logger
 from prefect.utilities.services import critical_service_loop
+
+# How long to keep re-reading a flow run's state after receiving a suspension event
+# before concluding that the run was not actually suspended, and how often to re-read.
+SUSPENSION_CONFIRMATION_TIMEOUT = 30.0
+SUSPENSION_CONFIRMATION_INTERVAL = 0.5
 
 
 class OnCancellingCallback(Protocol):
@@ -257,6 +263,8 @@ class FlowRunSuspendingObserver:
         polling_interval: float = 10,
         event_filter: EventFilter | None = None,
         on_failure: OnFailureCallback | None = None,
+        suspension_confirmation_timeout: float = SUSPENSION_CONFIRMATION_TIMEOUT,
+        suspension_confirmation_interval: float = SUSPENSION_CONFIRMATION_INTERVAL,
     ):
         """
         Observer that notices flow runs when they are marked as suspended.
@@ -268,6 +276,8 @@ class FlowRunSuspendingObserver:
         self.on_suspended = on_suspended
         self.on_failure = on_failure
         self.polling_interval = polling_interval
+        self.suspension_confirmation_timeout = suspension_confirmation_timeout
+        self.suspension_confirmation_interval = suspension_confirmation_interval
 
         if event_filter is not None:
             if (
@@ -346,8 +356,25 @@ class FlowRunSuspendingObserver:
         if flow_run_id in self._suspended_flow_run_ids:
             return
 
-        flow_run = await self._client.read_flow_run(flow_run_id)
-        self._notify_if_suspended_state(flow_run_id, flow_run.state)
+        # A `Suspended` event can reach us before the state change that produced it
+        # is visible to readers, so a single read may still report the previous
+        # state. Re-read until the suspension is confirmed rather than dropping it,
+        # which would leave the run executing with no further event to react to.
+        deadline = time.monotonic() + self.suspension_confirmation_timeout
+        while True:
+            flow_run = await self._client.read_flow_run(flow_run_id)
+            if is_suspended_flow_run_state(flow_run.state):
+                self._notify_if_suspended_state(flow_run_id, flow_run.state)
+                return
+            if time.monotonic() >= deadline:
+                self.logger.warning(
+                    "Received a suspension event for flow run %s, but its state did"
+                    " not become Suspended within %s seconds.",
+                    flow_run_id,
+                    self.suspension_confirmation_timeout,
+                )
+                return
+            await asyncio.sleep(self.suspension_confirmation_interval)
 
     async def _consume_events(self):
         if self._events_subscriber is None:

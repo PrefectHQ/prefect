@@ -632,9 +632,11 @@ class TestFlowRunSuspendingObserver:
             assert flow_run_id in observer._suspended_flow_run_ids
             assert "Failed to check current state" in caplog.text
 
-    async def test_event_consumer_reads_flow_run_before_callback(self):
+    async def test_event_consumer_rereads_flow_run_until_suspension_is_visible(self):
         callback = MagicMock()
-        observer = FlowRunSuspendingObserver(on_suspended=callback)
+        observer = FlowRunSuspendingObserver(
+            on_suspended=callback, suspension_confirmation_interval=0.01
+        )
 
         flow_run_id = uuid.uuid4()
         suspended_state = Suspended()
@@ -647,14 +649,37 @@ class TestFlowRunSuspendingObserver:
             with patch.object(
                 observer._client,
                 "read_flow_run",
-                side_effect=[running_flow_run, suspended_flow_run],
+                side_effect=[running_flow_run, running_flow_run, suspended_flow_run],
+            ) as read_flow_run:
+                await observer._notify_if_suspended(flow_run_id)
+
+            assert read_flow_run.call_count == 3
+            callback.assert_called_once_with(flow_run_id, suspended_state)
+            assert flow_run_id in observer._suspended_flow_run_ids
+
+    async def test_event_consumer_gives_up_if_suspension_is_never_visible(self, caplog):
+        callback = MagicMock()
+        observer = FlowRunSuspendingObserver(
+            on_suspended=callback,
+            suspension_confirmation_timeout=0.05,
+            suspension_confirmation_interval=0.01,
+        )
+
+        flow_run_id = uuid.uuid4()
+        running_flow_run = mock.MagicMock(state=Running())
+        caplog.set_level("WARNING", logger="prefect.FlowRunSuspendingObserver")
+
+        async with observer:
+            observer.add_in_flight_flow_run_id(flow_run_id)
+
+            with patch.object(
+                observer._client, "read_flow_run", return_value=running_flow_run
             ):
                 await observer._notify_if_suspended(flow_run_id)
-                callback.assert_not_called()
 
-                await observer._notify_if_suspended(flow_run_id)
-
-            callback.assert_called_once_with(flow_run_id, suspended_state)
+        callback.assert_not_called()
+        assert flow_run_id not in observer._suspended_flow_run_ids
+        assert "did not become Suspended" in caplog.text
 
     async def test_clean_event_consumer_completion_starts_polling(self):
         callback = MagicMock()
