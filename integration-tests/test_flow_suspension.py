@@ -181,7 +181,47 @@ def test_external_suspension_stops_flow_run_at_next_task_boundary(tmp_path: Path
             time.sleep(10)
             print("markers after 10s:", _task_marker_count(marker_dir))
             print("still running:", execution_process.poll() is None)
-            print("EXECUTION LOG TAIL:\n" + _worker_output(execution_log_path))
+            keywords = (
+                "uspend",
+                "websocket",
+                "Websocket",
+                "Reconnect",
+                "filter",
+                "auth",
+                "observer",
+                "Observer",
+                "events stream",
+                "polling",
+            )
+            interesting = [
+                line
+                for line in execution_log_path.read_text().splitlines()
+                if any(keyword in line for keyword in keywords)
+                and "prefect.task-run." not in line
+            ]
+            print("INTERESTING EXECUTION LOG LINES:")
+            for line in interesting[:200]:
+                print(line[:400])
+            from prefect.events.filters import (
+                EventFilter,
+                EventNameFilter,
+                EventResourceFilter,
+            )
+
+            with get_client(sync_client=True) as client:
+                page = client.read_events(
+                    filter=EventFilter(
+                        event=EventNameFilter(prefix=["prefect.flow-run."]),
+                        resource=EventResourceFilter(
+                            id=[f"prefect.flow-run.{flow_run_id}"]
+                        ),
+                    ),
+                    limit=50,
+                )
+            print(
+                "SERVER FLOW-RUN EVENTS:",
+                sorted((event.occurred.isoformat(), event.event) for event in page.events),
+            )
             raise
         _phase("process-exited")
         assert return_code == 0, (
