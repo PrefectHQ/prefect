@@ -44,10 +44,12 @@ Work-pool-level launchers are configured via `prefect work-pool storage configur
 
 - Do not set `PREFECT__WORKER_NAME` / `PREFECT__WORKER_ID` in `os.environ` from outside `BaseWorker` — setup/teardown own this lifecycle.
 - Do not call `prepare_for_flow_run()` without passing `worker_name` and `worker_id` — omitting them silently drops attribution from child-process API requests.
+- Do not override `start()` in a worker subclass — the polling/sync/healthcheck loop orchestration lives solely in `BaseWorker.start()`; subclasses customize behavior via `run()` instead.
 
 ## Pitfalls
 
 - `backend_id` is `None` until the first heartbeat succeeds; `PREFECT__WORKER_ID` is not set until then. Code that reads `self.backend_id` early in the lifecycle may get `None`.
+- Flow-run polling is gated on `_has_successfully_synced` (set once a sync resolves a work pool): startup treats transient API errors (5xx, transport errors) as non-fatal and retries via the sync loop, but non-transient errors (e.g. 401/403) still raise and stop startup.
 - `ProcessWorker` calls the deprecated `Runner.execute_flow_run()` / `Runner.execute_bundle()` paths (suppressing `PrefectDeprecationWarning` with `warnings.catch_warnings()`). It bypasses `FlowRunExecutor` and `ProcessStarter` — this is a known migration gap (see `runner/AGENTS.md`).
 
 ## Related
