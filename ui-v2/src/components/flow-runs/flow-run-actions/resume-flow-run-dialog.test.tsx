@@ -213,7 +213,7 @@ describe("ResumeFlowRunDialog", () => {
 		});
 	});
 
-	it("bounds the markdown description separately from a scrollable form", async () => {
+	it("bounds the markdown description by the viewport separately from the scrollable form", async () => {
 		const manyFieldProperties: Record<
 			string,
 			{ type: string; title: string; default?: number }
@@ -279,15 +279,15 @@ describe("ResumeFlowRunDialog", () => {
 			).toBeInTheDocument();
 		});
 
-		// Keep validation context visible and independently bounded while the long
-		// form uses the remaining dialog space.
+		// Keep validation context visible and independently bounded relative to the
+		// viewport while the long form uses the remaining dialog space.
 		const descriptionElement = screen.getByText(
 			"One or more of your inputs were invalid.",
 		);
 		expect(descriptionElement).toBeVisible();
 		const descriptionScroller = descriptionElement.closest(".overflow-y-auto");
 		expect(descriptionScroller).not.toBeNull();
-		expect(descriptionScroller).toHaveClass("max-h-48");
+		expect(descriptionScroller).toHaveClass("max-h-[min(12rem,20vh)]");
 		expect(
 			screen.getByLabelText(/Field 10/).closest(".overflow-y-auto"),
 		).not.toBe(descriptionScroller);
