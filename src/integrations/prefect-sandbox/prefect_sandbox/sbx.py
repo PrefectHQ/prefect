@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import math
 import os
 import shutil
 import signal
@@ -31,7 +30,7 @@ from prefect_sandbox.base import (
     SandboxUnavailableError,
     _shielded_cleanup,
     new_sandbox_name,
-    validate_env,
+    validate_exec_request,
 )
 
 __all__ = ["SbxSandbox"]
@@ -596,11 +595,7 @@ class SbxSandbox(SandboxBackend):
             ValueError: If `command` is empty, `timeout` is not a positive finite
                 number, or `env` cannot be expressed as POSIX environment variables.
         """
-        if not command:
-            raise ValueError("command must not be empty.")
-        if not math.isfinite(timeout) or timeout <= 0:
-            raise ValueError(f"timeout must be a positive, finite number: {timeout!r}")
-        validate_env(env)
+        validate_exec_request(command, timeout, env)
 
         args = ["exec"]
         for key, value in (env or {}).items():

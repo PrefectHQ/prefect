@@ -1,18 +1,61 @@
 ---
 title: prefect-sandbox
-description: Run commands and untrusted code in disposable Docker Sandboxes microVMs.
-keywords: ["sandbox", "microVM", "Docker Sandboxes", "sbx", "untrusted code"]
+description: Run commands and untrusted code in disposable microVMs, either on the worker with Docker Sandboxes or hosted on Islo.
+keywords: ["sandbox", "microVM", "Docker Sandboxes", "sbx", "untrusted code", "islo", "egress", "kernel isolation"]
 ---
 
 Run commands or model-generated code in a disposable, kernel-isolated sandbox that is
 destroyed afterward. The sandbox does not inherit the Prefect worker's environment.
 
-`prefect-sandbox` ships `SbxSandbox`, a backend for local
-[Docker Sandboxes](https://docs.docker.com/ai/sandboxes/) microVMs. Its
-`SandboxBackend` contract lets other providers implement the same lifecycle in their own
-packages.
+`prefect-sandbox` ships two backends for the same `SandboxBackend` contract:
+
+- `SbxSandbox` runs [Docker Sandboxes](https://docs.docker.com/ai/sandboxes/) microVMs
+  on the worker's own host through the `sbx` CLI.
+- `IsloSandbox` runs hosted [Islo](https://docs.islo.dev) microVMs over a REST API, so
+  the worker needs nothing installed and never executes the sandboxed code itself.
+
+Other providers can implement the same lifecycle in their own packages.
+
+<Note>
+  Prefect forwards none of its own context into a sandbox, on either backend: no
+  `PREFECT_API_KEY`, no `PREFECT_API_URL`, no worker environment, and no flow-run
+  parameters. A command sees only what the template image provides plus the `env` you
+  pass to that specific call. Provider credentials stay on the worker — the `sbx` host
+  session and the Islo API key reach the control plane, never the guest.
+</Note>
 
 ## Getting started
+
+### Install `prefect-sandbox`
+
+```bash
+pip install prefect-sandbox
+```
+
+### Register the block types
+
+```bash
+prefect block register -m prefect_sandbox
+```
+
+This registers the `Sbx Sandbox` and `Islo Sandbox` block types for configuration in
+the Prefect UI and loading by name.
+
+### Choose a backend
+
+|  | `SbxSandbox` | `IsloSandbox` |
+| --- | --- | --- |
+| Where the sandbox runs | A microVM on the Prefect worker's host. | A microVM on Islo's infrastructure. |
+| What must be installed | The `sbx` CLI, a signed-in host, an initialized host policy, and hardware virtualization. | Nothing beyond `prefect-sandbox`. |
+| How credentials are supplied | Host-level `sbx login`. Prefect configures no credentials. | An API key on the block or in `ISLO_API_KEY`, exchanged for a short-lived session token. |
+| How egress is controlled | The host `sbx policy`, plus a per-sandbox deny-all rule when `egress="deny"`. | The creation request itself when `egress="deny"`, or a named `gateway_profile` for an allowlist. |
+| How files are transferred | `sbx cp` streams from a host temporary file. | A multipart upload to the Islo file API. |
+| What happens on timeout | The backend destroys the sandbox, then reports `timed_out` and `sandbox_terminated`. | The same, and the backend enforces the wall clock itself because the provider treats its own `timeout_secs` as a hint. |
+
+Both backends cap output per stream, return a nonzero exit code as data, and destroy the
+sandbox once the work it was created for finishes.
+
+## Docker Sandboxes with `SbxSandbox`
 
 ### Prerequisites
 
@@ -43,24 +86,157 @@ packages.
   </Step>
 </Steps>
 
-### Install `prefect-sandbox`
-
-```bash
-pip install prefect-sandbox
-```
-
 There is no Python `sbx` dependency. The integration invokes the installed CLI.
 
-### Register the block type
+### Save a configured block
 
-```bash
-prefect block register -m prefect_sandbox
+```python
+from prefect_sandbox import SbxSandbox
+
+SbxSandbox(image="python:3.12-slim", memory="4g", egress="deny").save("local-sandbox")
 ```
 
-This registers the `Sbx Sandbox` block type for configuration in the Prefect UI and
-loading by name.
+## Hosted microVMs with `IsloSandbox`
+
+### Prerequisites
+
+Nothing to install beyond `prefect-sandbox`. There is no Islo SDK to add, no CLI to
+place on the worker, and no host virtualization to arrange — the backend talks to the
+Islo REST API, and the sandbox runs on Islo's infrastructure.
+
+<Steps>
+  <Step title="Create an API key">
+    Use the Islo CLI on your own machine, not on the worker:
+
+    ```bash
+    islo api-key create prefect --show
+    ```
+
+    `--show` prints the key so you can copy it into Prefect.
+  </Step>
+  <Step title="Give the key to the block or to the worker">
+    Set it on the block, or leave `api_key` unset and put it in the worker's
+    environment.
+
+    <Tabs>
+      <Tab title="On the block">
+        ```python
+        from prefect_sandbox import IsloSandbox
+
+        IsloSandbox(api_key="isk_your_key_here").save("islo-sandbox")
+        ```
+      </Tab>
+      <Tab title="In the environment">
+        ```bash
+        export ISLO_API_KEY=isk_your_key_here
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+</Steps>
+
+The API key is exchanged for a short-lived session token, and only that token travels on
+subsequent requests. Neither the key nor the token is passed to a sandboxed command.
+
+### Pin sandboxes to a region
+
+`api_url` defaults to the control plane at `https://api.islo.dev`. Regional compute
+endpoints speak the same API, so set one to keep sandboxes in a single region:
+
+```python
+from prefect_sandbox import IsloSandbox
+
+backend = IsloSandbox(api_url="https://ca.compute.islo.dev")
+```
+
+`ISLO_API_URL` sets the same value from the worker's environment when `api_url` is
+unset.
+
+### Control egress
+
+Egress is decided when the sandbox is provisioned, not layered on afterward, so there is
+no window in which the sandbox exists with the wrong network access.
+
+- `egress="deny"` requests a sandbox with outbound internet switched off. Creation fails
+  if the provider then reports internet access enabled, which is what tenant policy
+  overriding per-sandbox egress would look like.
+- `gateway_profile="<name>"` selects a named Islo gateway profile. Use it instead of
+  `egress="deny"` when a command needs a specific allowlist rather than no network at
+  all.
+- `egress="inherit"`, the default, accepts the tenant default.
+
+```python
+from prefect_sandbox import IsloSandbox
+
+no_network = IsloSandbox(egress="deny")
+package_index_only = IsloSandbox(gateway_profile="pypi-only")
+```
+
+### Bound the sandbox lifetime
+
+`delete_after` is the provider-side orphan reaper: Islo deletes the sandbox that many
+seconds after creation even if Prefect never gets to it. It is the backstop for a worker
+that is killed outright, since a process that no longer exists cannot run teardown. It
+defaults to 3600 seconds — set it above the longest command a sandbox will serve, or to
+`None` to rely solely on Prefect-side teardown.
+
+### Save a configured block
+
+```python
+from prefect_sandbox import IsloSandbox
+
+IsloSandbox(
+    image="docker.io/library/python:3.12-slim",
+    vcpus=2,
+    memory_mb=4096,
+    disk_gb=10,
+    egress="deny",
+    delete_after=1800,
+).save("islo-sandbox")
+```
+
+Load it by name from a flow with `IsloSandbox.load("islo-sandbox")`.
+
+## One contract, either provider
+
+The `SandboxBackend` contract is the whole interface. Every task, operation, and
+guarantee on this page behaves the same on both backends, so swapping providers changes
+only which block you construct — accept a `SandboxBackend` and the rest of the code does
+not change:
+
+```python
+from prefect import flow
+from prefect_sandbox import IsloSandbox, SandboxBackend, SbxSandbox, run_in_sandbox
+
+
+@flow
+def report_guest_kernel(backend: SandboxBackend) -> list[str]:
+    return run_in_sandbox(backend, ["uname -r"], timeout=60)
+
+
+report_guest_kernel(SbxSandbox(egress="deny"))
+report_guest_kernel(IsloSandbox(egress="deny"))
+```
+
+Because a configured backend is a Block, the choice can come from deployment
+configuration instead of from code. `Block.load` resolves any registered backend from
+its slug-qualified name — `sbx-sandbox/local` or `islo-sandbox/hosted`:
+
+```python
+from prefect import flow
+from prefect.blocks.core import Block
+from prefect_sandbox import run_in_sandbox
+
+
+@flow
+def report_guest_kernel(block_slug: str) -> list[str]:
+    return run_in_sandbox(Block.load(block_slug), ["uname -r"], timeout=60)
+```
 
 ## Examples
+
+These examples use `SbxSandbox`, but any `SandboxBackend` — including `IsloSandbox` —
+substitutes directly.
 
 ### Run a command
 
@@ -97,6 +273,23 @@ def run_generated(source: str) -> list[str]:
     return run_python_in_sandbox(
         source,
         SbxSandbox(image="python:3.12-slim", egress="deny"),
+        timeout=120,
+    )
+```
+
+On a hosted sandbox, name the image and interpreter the guest actually provides:
+
+```python
+from prefect import flow
+from prefect_sandbox import IsloSandbox, run_python_in_sandbox
+
+
+@flow
+def run_generated_hosted(source: str) -> list[str]:
+    return run_python_in_sandbox(
+        source,
+        IsloSandbox(image="docker.io/library/python:3.12-slim", egress="deny"),
+        python_executable="python3",
         timeout=120,
     )
 ```
@@ -147,11 +340,42 @@ async def probe() -> None:
         result.raise_for_status()
 ```
 
+The Islo backend has a native file API, so writing a large payload does not go through
+the command line:
+
+```python
+from prefect_sandbox import IsloSandbox
+
+
+async def score(source: str) -> str:
+    backend = IsloSandbox(egress="deny")
+    async with backend.asession() as sandbox:
+        await backend.awrite_file(sandbox, "/tmp/main.py", source)
+        result = await backend.aexec(sandbox, ["python3", "/tmp/main.py"], timeout=60)
+    return result.stdout
+```
+
 ## Security and limits
 
-- **No worker credentials are injected.** `sbx exec` receives only variables explicitly
-  provided through `env`. The CLI process itself still uses the host environment to reach
-  Docker, but Docker Sandboxes does not forward that environment into the microVM.
+These hold for every backend:
+
+- **No worker credentials are injected.** A command receives only the variables
+  explicitly provided through `env`. Nothing from the worker's environment reaches the
+  guest, including `PREFECT_API_KEY`.
+- **Output is bounded.** Each stream defaults to a 64 KiB cap. Additional bytes are
+  discarded as they arrive, and `SandboxResult.truncated` is set.
+- **Timeouts are explicit.** The backend bounds the complete execution. When the limit
+  expires, it destroys the sandbox so the guest command cannot continue and sets
+  `sandbox_terminated`. If removal cannot be confirmed, execution raises an
+  infrastructure error instead of claiming the sandbox stopped.
+- **This does not isolate the flow run.** Prefect still runs the flow on the worker.
+  Only commands handed to the integration execute in the sandbox.
+
+### Docker Sandboxes
+
+- **The CLI still uses the host environment.** `sbx exec` receives only what `env`
+  provides, but the CLI process itself reads the host environment to reach Docker.
+  Docker Sandboxes does not forward that environment into the microVM.
 - **Docker-managed secrets are a separate host capability.** Kits and `sbx secret` can
   expose placeholders whose outbound requests are completed by Docker's host proxy.
   Audit that host configuration before running untrusted code; use `egress="deny"` when
@@ -161,17 +385,24 @@ async def probe() -> None:
   returning the sandbox. Creation fails closed if organization governance makes the
   local rule inactive. Without this setting, the sandbox inherits the active host or
   organization policy.
-- **Output is bounded.** Each stream defaults to a 64 KiB cap. Additional bytes are
-  drained and discarded, and `SandboxResult.truncated` is set.
-- **Timeouts are explicit.** The backend bounds the complete `sbx exec` call. When the
-  limit expires, it destroys the sandbox so the guest command cannot continue and sets
-  `sandbox_terminated`. If removal cannot be confirmed, execution raises an
-  infrastructure error instead of claiming the sandbox stopped.
-- **This does not isolate the flow run.** Prefect still runs the flow on the worker.
-  Only commands handed to the integration execute in the sandbox.
 - **The workspace is temporary.** Docker Sandboxes requires a host workspace.
   `SbxSandbox` creates an empty temporary directory per sandbox and removes it during
   teardown.
+
+### Islo
+
+- **The API key stays on the worker.** The key is exchanged for a short-lived session
+  token, and only that token travels on subsequent requests. Neither is passed to a
+  sandboxed command, and nothing about a provisioned sandbox is stored on the block.
+- **Egress is part of the creation request.** `egress="deny"` provisions the sandbox
+  with the internet switched off rather than restricting it afterward, and creation
+  fails if the provider then reports internet access enabled.
+- **Orphans are reaped provider-side.** `delete_after` deletes the sandbox even when
+  Prefect-side teardown never runs, which is the only cleanup that survives a worker
+  being killed outright.
+- **The provider's own timeout is a hint.** `timeout_secs` is sent for the provider's
+  bookkeeping, but the backend enforces the requested wall clock itself and destroys the
+  sandbox rather than trusting the stream to end.
 
 ## Add another backend
 
@@ -191,14 +422,18 @@ keep per-sandbox state on the handle, clean up failed creates, bound output whil
 reading it, report timeouts accurately, avoid forwarding ambient credentials, and
 return nonzero exits as data.
 
-Hosted APIs fit the same contract. For example, Islo exposes create, streaming exec,
-file upload, and delete endpoints. Its `timeout_secs` field is currently only a
-client-side compatibility hint, so a future backend must enforce its own wall-clock
-deadline and delete the sandbox before reporting a timeout.
+Hosted APIs fit the same contract; `IsloSandbox` is the worked example. It maps
+`acreate` to `POST /sandboxes`, `aexec` to `POST /sandboxes/{name}/exec/stream`,
+`awrite_file` to `POST /sandboxes/{name}/files`, and `adestroy` to
+`DELETE /sandboxes/{name}`, and it shows the two habits a REST provider needs: enforce
+your own wall-clock deadline when the provider's timeout is advisory, and choose the
+sandbox name before sending the create request so every failure path can still delete
+by name.
 
 ## Resources
 
 - [Docker Sandboxes documentation](https://docs.docker.com/ai/sandboxes/)
+- [Islo documentation](https://docs.islo.dev)
 - [Islo sandbox API](https://docs.islo.dev/api-reference/sandboxes/create-sandbox)
 - [Prefect blocks](/v3/concepts/blocks)
 - [`prefect-shell`](/integrations/prefect-shell)

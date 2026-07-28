@@ -1,0 +1,263 @@
+---
+title: islo
+sidebarTitle: islo
+---
+
+# `prefect_sandbox.islo`
+
+
+Islo backend: hosted microVM sandboxes driven through the Islo REST API.
+
+There is no Python SDK for Islo, and its CLI is a signed-in developer tool that keeps
+credentials in the OS keyring — neither of which suits a worker. This backend therefore
+talks to the documented REST API (https://docs.islo.dev/openapi.json) with an API key,
+so a Prefect deployment needs nothing installed and nothing logged in: a key in a Block
+or in `ISLO_API_KEY` is the whole configuration.
+
+The key is exchanged for a short-lived session token, which is the only credential that
+ever travels on a request. Neither the key nor the token is passed to a sandboxed
+command.
+
+
+## Classes
+
+### `IsloSandbox` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/islo.py#L204" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Run commands in a hosted Islo microVM sandbox.
+
+Each sandbox is a microVM with its own kernel, provisioned on Islo's infrastructure
+rather than on the worker's host, so nothing needs to be installed next to Prefect
+and the worker never runs the untrusted code itself. `acreate` maps to
+`POST /sandboxes`, `aexec` to `POST /sandboxes/{name}/exec/stream`, `awrite_file`
+to `POST /sandboxes/{name}/files`, and `adestroy` to `DELETE /sandboxes/{name}`.
+Sandboxes are addressed by their generated name, which is also `Sandbox.id`.
+
+Authentication is an API key (`islo api-key create <name> --show`), read from
+`api_key` or from `ISLO_API_KEY`. The key never leaves the worker: it is exchanged
+for a short-lived session token, and only that token is sent on subsequent calls.
+Neither reaches a sandboxed command.
+
+Prefect injects none of its context into the sandbox — no `PREFECT_API_KEY`, no
+`PREFECT_API_URL`, no worker environment, no flow-run parameters. A command sees
+only what the image provides plus the `env` passed to that specific `aexec` call.
+
+Outbound network access is decided at creation: `egress="deny"` requests a sandbox
+with the internet switched off, and `gateway_profile` selects a named Islo gateway
+profile when some egress is required. Unlike a policy overlay applied after the
+fact, this is part of the provisioning request, so there is no window in which the
+sandbox exists with the wrong egress; creation fails if the provider reports
+internet access after it was denied.
+
+There is no backend-level connection pool, so `aclose` stays the base no-op: each
+call opens its own HTTP client, which is what keeps one saved block usable from
+both Prefect's sync and async interfaces.
+
+**Attributes:**
+- `image`: Container image used as the sandbox template.
+- `vcpus`: Virtual CPUs to allocate.
+- `memory_mb`: Memory to allocate, in MiB.
+- `disk_gb`: Disk to allocate, in GiB.
+- `workdir`: Default working directory for commands.
+- `user`: Guest user to run commands as.
+- `api_key`: Islo API key. Falls back to `ISLO_API_KEY`.
+- `api_url`: API base URL. Falls back to `ISLO_API_URL`, then the public endpoint.
+- `create_timeout`: Seconds allowed for provisioning.
+- `egress`: Whether to provision the sandbox with the internet switched off.
+- `gateway_profile`: Named Islo gateway profile governing allowed egress.
+- `delete_after`: Provider-side reaper for sandboxes teardown never reached.
+- `max_output_bytes`: Per-stream cap on captured output.
+
+**Examples:**
+
+Load a configured block:
+```python
+from prefect_sandbox import IsloSandbox
+
+islo_sandbox = IsloSandbox.load("BLOCK_NAME")
+```
+
+Run untrusted code in a throwaway microVM with no network access:
+```python
+from prefect import flow
+from prefect_sandbox import IsloSandbox
+
+@flow
+async def run_generated_code(source: str) -> str:
+    backend = IsloSandbox(egress="deny")
+    async with backend.asession() as sandbox:
+        await backend.awrite_file(sandbox, "/tmp/main.py", source)
+        result = await backend.aexec(
+            sandbox, ["python3", "/tmp/main.py"], timeout=60
+        )
+    return result.stdout
+```
+
+
+**Methods:**
+
+#### `aclose` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L273" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aclose(self) -> None
+```
+
+Release backend-level resources such as HTTP connections.
+
+Separate from `adestroy`, which disposes of a single sandbox. The default is
+a no-op; backends holding a client should override it.
+
+
+#### `acreate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/islo.py#L580" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+acreate(self) -> Sandbox
+```
+
+Provision one microVM and wait until it can accept commands.
+
+The generated name is chosen before the request is sent, so every failure path —
+including a response that never arrives — can still delete by name. Nothing
+about the sandbox is stored on the block; the provider's own id travels in
+`Sandbox.metadata` purely so an operator can find the sandbox in the Islo
+console.
+
+**Returns:**
+- A handle whose `id` is the sandbox's Islo name.
+
+**Raises:**
+- `SandboxUnavailableError`: If no API key is configured or Islo is unreachable.
+- `SandboxCreationError`: If provisioning failed or timed out.
+
+
+#### `acreate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L242" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+acreate(self) -> Sandbox
+```
+
+Provision one sandbox and return its handle.
+
+
+#### `adestroy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/islo.py#L849" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+adestroy(self, sandbox: Sandbox) -> None
+```
+
+Delete `sandbox`. Idempotent.
+
+**Raises:**
+- `SandboxError`: If deletion could not be confirmed, since untrusted code may
+still be running.
+
+
+#### `adestroy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L270" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+adestroy(self, sandbox: Sandbox) -> None
+```
+
+Tear down `sandbox`. Idempotent.
+
+
+#### `aexec` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/islo.py#L658" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aexec(self, sandbox: Sandbox, command: Sequence[str]) -> SandboxResult
+```
+
+Run `command` inside `sandbox` and return its outcome.
+
+The command is sent as an argv list, so no shell is involved and the caller
+never has to quote anything. Output arrives as Server-Sent Events and is capped
+as it streams. The provider treats its own `timeout_secs` as a hint, so the
+wall clock is enforced here; when it expires the sandbox is destroyed, because
+closing the stream would not stop the guest process.
+
+**Args:**
+- `sandbox`: Handle returned by `acreate`.
+- `command`: Argv to execute.
+- `timeout`: Seconds the command may run.
+- `env`: Environment variables for this command only.
+- `working_dir`: Directory inside the sandbox to run in, overriding `workdir`.
+
+**Returns:**
+- A `SandboxResult`; a nonzero exit code is data, not an error.
+
+**Raises:**
+- `ValueError`: If `command` is empty, `timeout` is not a positive finite
+number, or `env` cannot be expressed as POSIX environment variables.
+- `SandboxExecutionError`: If the execution stream itself failed.
+
+
+#### `aexec` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L246" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+aexec(self, sandbox: Sandbox, command: Sequence[str]) -> SandboxResult
+```
+
+Run `command` (an argv list, no shell) inside `sandbox`.
+
+**Args:**
+- `sandbox`: Handle returned by `acreate`.
+- `command`: Argv to execute. Not passed through a shell, so the caller does
+not need to quote anything.
+- `timeout`: Seconds the command may run before it is stopped.
+- `env`: Environment variables to set for this command only.
+- `working_dir`: Directory to run in.
+
+**Returns:**
+- A `SandboxResult`. A nonzero exit code is reported here, not raised.
+
+
+#### `asession` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L309" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+asession(self) -> AsyncIterator[Sandbox]
+```
+
+Provision a sandbox for the duration of the block and always destroy it.
+
+```python
+async with backend.asession() as sandbox:
+    result = await backend.aexec(sandbox, ["python", "-c", "print(1)"], timeout=30)
+```
+
+
+#### `awrite_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/islo.py#L858" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+awrite_file(self, sandbox: Sandbox, path: str, content: str) -> None
+```
+
+Write `content` to `path` inside `sandbox` using Islo's file API.
+
+Overrides the base implementation, which smuggles the payload through the
+command line and is therefore capped at a few hundred kilobytes. This uploads
+the bytes directly, so size is bounded only by the sandbox's disk.
+
+**Args:**
+- `sandbox`: Handle returned by `acreate`.
+- `path`: Absolute destination path inside the sandbox.
+- `content`: Text to write.
+
+**Raises:**
+- `SandboxError`: If the destination directory could not be created or the
+upload failed.
+
+
+#### `awrite_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L280" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+awrite_file(self, sandbox: Sandbox, path: str, content: str) -> None
+```
+
+Write `content` to `path` inside `sandbox`.
+
+The default implementation needs nothing but `aexec`: it base64-encodes the
+payload and decodes it inside the sandbox, which keeps arbitrary bytes and
+quoting hazards out of the command line. Backends with a native file-transfer
+API should override this — the fallback is bounded by
+`MAX_INLINE_FILE_BYTES` because the payload rides on the command line.
+

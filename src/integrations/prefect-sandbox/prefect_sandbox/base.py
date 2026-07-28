@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import math
 import shlex
 import uuid
 from abc import ABC, abstractmethod
@@ -38,6 +39,7 @@ __all__ = [
     "SandboxUnavailableError",
     "new_sandbox_name",
     "validate_env",
+    "validate_exec_request",
 ]
 
 #: Default per-stream cap on captured output. Sandboxed code is frequently
@@ -152,6 +154,25 @@ def validate_env(env: Mapping[str, str] | None) -> None:
             raise ValueError(f"Invalid environment variable name: {key!r}")
         if "\0" in str(value):
             raise ValueError(f"Environment variable {key!r} contains a null byte.")
+
+
+def validate_exec_request(
+    command: Sequence[str], timeout: float, env: Mapping[str, str] | None
+) -> None:
+    """Reject `aexec` arguments no backend can honour.
+
+    Lives here rather than in each backend so every provider rejects the same inputs
+    with the same message, which is what makes the conformance suite meaningful.
+
+    Raises:
+        ValueError: If `command` is empty, `timeout` is not a positive finite number,
+            or `env` cannot be expressed as POSIX environment variables.
+    """
+    if not command:
+        raise ValueError("command must not be empty.")
+    if not math.isfinite(timeout) or timeout <= 0:
+        raise ValueError(f"timeout must be a positive, finite number: {timeout!r}")
+    validate_env(env)
 
 
 async def _shielded_cleanup(awaitable: Awaitable[None]) -> None:
