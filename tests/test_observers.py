@@ -2,6 +2,8 @@ import asyncio
 import threading
 import uuid
 from contextlib import suppress
+from datetime import timedelta
+from typing import cast
 from unittest import mock
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -18,15 +20,44 @@ from prefect._internal.observers import (
 )
 from prefect._internal.testing import retry_asserts
 from prefect.client.schemas.objects import StateType
+from prefect.events import Event, Resource
 from prefect.events.filters import EventAnyResourceFilter, EventFilter, EventNameFilter
 from prefect.events.utilities import emit_event
 from prefect.states import Running, Suspended
+from prefect.types._datetime import DateTime, now
 
 
 @flow
 def test_flow():
     """Simple test flow for observer tests."""
     pass
+
+
+def suspension_event(
+    flow_run_id: uuid.UUID,
+    state_id: uuid.UUID,
+    occurred: DateTime | None = None,
+) -> Event:
+    """A `Suspended` state change event, whose ID is the ID of the new state."""
+    return Event(
+        id=state_id,
+        occurred=occurred or cast(DateTime, now("UTC")),
+        event="prefect.flow-run.Suspended",
+        resource=Resource({"prefect.resource.id": f"prefect.flow-run.{flow_run_id}"}),
+    )
+
+
+class FakeEventSubscriber:
+    def __init__(self, events: list[Event]):
+        self._events = list(events)
+
+    def __aiter__(self) -> "FakeEventSubscriber":
+        return self
+
+    async def __anext__(self) -> Event:
+        if not self._events:
+            raise StopAsyncIteration
+        return self._events.pop(0)
 
 
 class TestFlowRunCancellingObserver:
@@ -538,6 +569,18 @@ class TestFlowRunCancellingObserver:
 
 
 class TestFlowRunSuspendingObserver:
+    async def consume(
+        self,
+        observer: FlowRunSuspendingObserver,
+        *events: Event,
+        wait_for_confirmation: bool = True,
+    ) -> None:
+        """Deliver `events` to the observer's event consumer."""
+        observer._events_subscriber = FakeEventSubscriber(list(events))  # type: ignore[assignment]
+        await observer._consume_events()
+        if wait_for_confirmation:
+            await asyncio.gather(*list(observer._confirmation_tasks.values()))
+
     async def test_observer_validates_event_filter_has_suspended_event(self):
         callback = AsyncMock()
 
@@ -632,54 +675,207 @@ class TestFlowRunSuspendingObserver:
             assert flow_run_id in observer._suspended_flow_run_ids
             assert "Failed to check current state" in caplog.text
 
-    async def test_event_consumer_rereads_flow_run_until_suspension_is_visible(self):
+    async def test_event_confirms_exact_state_once_it_is_readable(self):
+        """The event can arrive before the state it reports is readable."""
         callback = MagicMock()
         observer = FlowRunSuspendingObserver(
-            on_suspended=callback, suspension_confirmation_interval=0.01
+            on_suspended=callback, suspension_confirmation_interval=0
         )
 
         flow_run_id = uuid.uuid4()
         suspended_state = Suspended()
-        running_flow_run = mock.MagicMock(state=Running())
-        suspended_flow_run = mock.MagicMock(state=suspended_state)
 
         async with observer:
             observer.add_in_flight_flow_run_id(flow_run_id)
 
             with patch.object(
                 observer._client,
-                "read_flow_run",
-                side_effect=[running_flow_run, running_flow_run, suspended_flow_run],
-            ) as read_flow_run:
-                await observer._notify_if_suspended(flow_run_id)
+                "read_flow_run_states",
+                side_effect=[[Running()], [Running()], [Running(), suspended_state]],
+            ):
+                await self.consume(
+                    observer, suspension_event(flow_run_id, suspended_state.id)
+                )
 
-            assert read_flow_run.call_count == 3
             callback.assert_called_once_with(flow_run_id, suspended_state)
             assert flow_run_id in observer._suspended_flow_run_ids
 
-    async def test_event_consumer_gives_up_if_suspension_is_never_visible(self, caplog):
+    async def test_event_is_confirmed_after_the_current_state_advances(self):
+        callback = MagicMock()
+        observer = FlowRunSuspendingObserver(on_suspended=callback)
+
+        flow_run_id = uuid.uuid4()
+        suspended_state = Suspended()
+
+        async with observer:
+            observer.add_in_flight_flow_run_id(flow_run_id)
+
+            with patch.object(
+                observer._client,
+                "read_flow_run_states",
+                return_value=[Running(), suspended_state, Running()],
+            ):
+                await self.consume(
+                    observer, suspension_event(flow_run_id, suspended_state.id)
+                )
+
+            callback.assert_called_once_with(flow_run_id, suspended_state)
+
+    async def test_a_different_suspension_does_not_confirm_the_event(self, caplog):
+        """Only the transition the event identifies may confirm that event."""
         callback = MagicMock()
         observer = FlowRunSuspendingObserver(
-            on_suspended=callback,
-            suspension_confirmation_timeout=0.05,
-            suspension_confirmation_interval=0.01,
+            on_suspended=callback, suspension_confirmation_timeout=0
         )
 
         flow_run_id = uuid.uuid4()
-        running_flow_run = mock.MagicMock(state=Running())
         caplog.set_level("WARNING", logger="prefect.FlowRunSuspendingObserver")
 
         async with observer:
             observer.add_in_flight_flow_run_id(flow_run_id)
 
             with patch.object(
-                observer._client, "read_flow_run", return_value=running_flow_run
+                observer._client,
+                "read_flow_run_states",
+                return_value=[Running(), Suspended()],
             ):
-                await observer._notify_if_suspended(flow_run_id)
+                await self.consume(
+                    observer, suspension_event(flow_run_id, uuid.uuid4())
+                )
 
+            callback.assert_not_called()
+            assert flow_run_id not in observer._suspended_flow_run_ids
+            assert "never became readable" in caplog.text
+
+    async def test_event_replayed_from_before_watching_is_ignored(self):
+        """Subscribers backfill events, which may predate the run we're watching."""
+        callback = MagicMock()
+        observer = FlowRunSuspendingObserver(on_suspended=callback)
+
+        flow_run_id = uuid.uuid4()
+        suspended_state = Suspended()
+
+        async with observer:
+            observer.add_in_flight_flow_run_id(flow_run_id)
+
+            with patch.object(
+                observer._client,
+                "read_flow_run_states",
+                return_value=[suspended_state],
+            ) as read_flow_run_states:
+                await self.consume(
+                    observer,
+                    suspension_event(
+                        flow_run_id,
+                        suspended_state.id,
+                        occurred=cast(DateTime, now("UTC") - timedelta(seconds=30)),
+                    ),
+                )
+
+            read_flow_run_states.assert_not_called()
+            callback.assert_not_called()
+
+    async def test_confirmation_does_not_block_other_flow_runs(self):
+        callback = MagicMock()
+        observer = FlowRunSuspendingObserver(on_suspended=callback)
+
+        blocked_flow_run_id = uuid.uuid4()
+        flow_run_id = uuid.uuid4()
+        suspended_state = Suspended()
+        blocked = asyncio.Event()
+
+        async def read_flow_run_states(read_flow_run_id: uuid.UUID):
+            if read_flow_run_id == blocked_flow_run_id:
+                await blocked.wait()
+                return []
+            return [suspended_state]
+
+        async with observer:
+            observer.add_in_flight_flow_run_id(blocked_flow_run_id)
+            observer.add_in_flight_flow_run_id(flow_run_id)
+
+            with patch.object(
+                observer._client, "read_flow_run_states", read_flow_run_states
+            ):
+                await self.consume(
+                    observer,
+                    suspension_event(blocked_flow_run_id, uuid.uuid4()),
+                    suspension_event(flow_run_id, suspended_state.id),
+                    wait_for_confirmation=False,
+                )
+
+                async for attempt in retry_asserts():
+                    with attempt:
+                        callback.assert_called_once_with(flow_run_id, suspended_state)
+
+                assert any(
+                    key[0] == blocked_flow_run_id
+                    for key in observer._confirmation_tasks
+                )
+                blocked.set()
+
+    async def test_pending_confirmation_is_cancelled_when_the_run_is_removed(self):
+        callback = MagicMock()
+        observer = FlowRunSuspendingObserver(on_suspended=callback)
+
+        flow_run_id = uuid.uuid4()
+        blocked = asyncio.Event()
+
+        async def read_flow_run_states(read_flow_run_id: uuid.UUID):
+            await blocked.wait()
+            return []
+
+        async with observer:
+            observer.add_in_flight_flow_run_id(flow_run_id)
+
+            with patch.object(
+                observer._client, "read_flow_run_states", read_flow_run_states
+            ):
+                await self.consume(
+                    observer,
+                    suspension_event(flow_run_id, uuid.uuid4()),
+                    wait_for_confirmation=False,
+                )
+                assert observer._confirmation_tasks
+
+                task = next(iter(observer._confirmation_tasks.values()))
+                observer.remove_in_flight_flow_run_id(flow_run_id)
+
+                assert not observer._confirmation_tasks
+                with suppress(asyncio.CancelledError):
+                    await task
+                assert task.cancelled()
+                callback.assert_not_called()
+
+    async def test_pending_confirmation_is_cancelled_on_shutdown(self):
+        callback = MagicMock()
+        observer = FlowRunSuspendingObserver(on_suspended=callback)
+
+        flow_run_id = uuid.uuid4()
+        blocked = asyncio.Event()
+
+        async def read_flow_run_states(read_flow_run_id: uuid.UUID):
+            await blocked.wait()
+            return []
+
+        async with observer:
+            observer.add_in_flight_flow_run_id(flow_run_id)
+
+            with patch.object(
+                observer._client, "read_flow_run_states", read_flow_run_states
+            ):
+                await self.consume(
+                    observer,
+                    suspension_event(flow_run_id, uuid.uuid4()),
+                    wait_for_confirmation=False,
+                )
+                task = next(iter(observer._confirmation_tasks.values()))
+
+        assert not observer._confirmation_tasks
+        with suppress(asyncio.CancelledError):
+            await task
+        assert task.cancelled()
         callback.assert_not_called()
-        assert flow_run_id not in observer._suspended_flow_run_ids
-        assert "did not become Suspended" in caplog.text
 
     async def test_clean_event_consumer_completion_starts_polling(self):
         callback = MagicMock()

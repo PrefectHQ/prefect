@@ -4,6 +4,7 @@ import asyncio
 import time
 import uuid
 from contextlib import AsyncExitStack
+from datetime import datetime
 from typing import Any, Protocol
 
 from prefect._flow_run_suspension import is_suspended_flow_run_state
@@ -19,10 +20,11 @@ from prefect.client.schemas.objects import State, StateType
 from prefect.events.clients import PrefectEventSubscriber, get_events_subscriber
 from prefect.events.filters import EventFilter, EventNameFilter
 from prefect.logging.loggers import get_logger
+from prefect.types._datetime import now
 from prefect.utilities.services import critical_service_loop
 
-# How long to keep re-reading a flow run's state after receiving a suspension event
-# before concluding that the run was not actually suspended, and how often to re-read.
+# How long to keep looking for the state a suspension event refers to before
+# concluding that it will never become readable, and how often to look for it.
 SUSPENSION_CONFIRMATION_TIMEOUT = 30.0
 SUSPENSION_CONFIRMATION_INTERVAL = 0.5
 
@@ -301,15 +303,25 @@ class FlowRunSuspendingObserver:
         self._is_shutting_down = False
         self._client: PrefectClient | None = None
         self._suspended_flow_run_ids: set[uuid.UUID] = set()
+        # When we started watching each flow run. Subscribers backfill events from
+        # shortly before they connect, so suspensions that happened before we began
+        # watching belong to an earlier execution of the run and must be ignored.
+        self._watching_since: dict[uuid.UUID, datetime] = {}
+        self._confirmation_tasks: dict[
+            tuple[uuid.UUID, uuid.UUID], asyncio.Task[None]
+        ] = {}
 
     def add_in_flight_flow_run_id(self, flow_run_id: uuid.UUID):
         self.logger.debug("Adding in-flight flow run ID: %s", flow_run_id)
         self._in_flight_flow_run_ids.add(flow_run_id)
+        self._watching_since[flow_run_id] = now("UTC")
 
     def remove_in_flight_flow_run_id(self, flow_run_id: uuid.UUID):
         self.logger.debug("Removing in-flight flow run ID: %s", flow_run_id)
         self._in_flight_flow_run_ids.discard(flow_run_id)
         self._suspended_flow_run_ids.discard(flow_run_id)
+        self._watching_since.pop(flow_run_id, None)
+        self._cancel_confirmation_tasks(flow_run_id)
 
     async def watch_flow_run_id(self, flow_run_id: uuid.UUID) -> None:
         self.add_in_flight_flow_run_id(flow_run_id)
@@ -348,33 +360,59 @@ class FlowRunSuspendingObserver:
             self._suspended_flow_run_ids.add(flow_run_id)
             self.on_suspended(flow_run_id, state)
 
-    async def _notify_if_suspended(self, flow_run_id: uuid.UUID) -> None:
+    async def _confirm_suspension(
+        self, flow_run_id: uuid.UUID, state_id: uuid.UUID
+    ) -> None:
+        """Notify about the suspension transition identified by `state_id`.
+
+        A state change event can reach us before the state that produced it is
+        readable, so look for that exact state until it appears rather than
+        dropping the notification; the subscription will not send it again.
+        """
         if self._client is None:
             raise RuntimeError(
                 "Client not initialized. Please use `async with` to initialize the observer."
             )
-        if flow_run_id in self._suspended_flow_run_ids:
-            return
 
-        # A `Suspended` event can reach us before the state change that produced it
-        # is visible to readers, so a single read may still report the previous
-        # state. Re-read until the suspension is confirmed rather than dropping it,
-        # which would leave the run executing with no further event to react to.
         deadline = time.monotonic() + self.suspension_confirmation_timeout
         while True:
-            flow_run = await self._client.read_flow_run(flow_run_id)
-            if is_suspended_flow_run_state(flow_run.state):
-                self._notify_if_suspended_state(flow_run_id, flow_run.state)
+            if flow_run_id in self._suspended_flow_run_ids:
                 return
+
+            states = await self._client.read_flow_run_states(flow_run_id)
+            for state in states:
+                if state.id == state_id:
+                    self._notify_if_suspended_state(flow_run_id, state)
+                    return
+
             if time.monotonic() >= deadline:
                 self.logger.warning(
-                    "Received a suspension event for flow run %s, but its state did"
-                    " not become Suspended within %s seconds.",
+                    "Received a suspension event for flow run %s, but state %s never"
+                    " became readable within %s seconds.",
                     flow_run_id,
+                    state_id,
                     self.suspension_confirmation_timeout,
                 )
                 return
+
             await asyncio.sleep(self.suspension_confirmation_interval)
+
+    def _schedule_suspension_confirmation(
+        self, flow_run_id: uuid.UUID, state_id: uuid.UUID
+    ) -> None:
+        key = (flow_run_id, state_id)
+        if key in self._confirmation_tasks:
+            return
+
+        task = asyncio.create_task(self._confirm_suspension(flow_run_id, state_id))
+        self._confirmation_tasks[key] = task
+        task.add_done_callback(lambda _: self._confirmation_tasks.pop(key, None))
+
+    def _cancel_confirmation_tasks(self, flow_run_id: uuid.UUID | None = None) -> None:
+        for key, task in list(self._confirmation_tasks.items()):
+            if flow_run_id is None or key[0] == flow_run_id:
+                task.cancel()
+                self._confirmation_tasks.pop(key, None)
 
     async def _consume_events(self):
         if self._events_subscriber is None:
@@ -390,7 +428,22 @@ class FlowRunSuspendingObserver:
                 )
                 if flow_run_id not in self._in_flight_flow_run_ids:
                     continue
-                await self._notify_if_suspended(flow_run_id)
+                if flow_run_id in self._suspended_flow_run_ids:
+                    continue
+
+                watching_since = self._watching_since.get(flow_run_id)
+                if watching_since is not None and event.occurred < watching_since:
+                    self.logger.debug(
+                        "Ignoring replayed suspension event for flow run %s that"
+                        " occurred before this run was watched.",
+                        flow_run_id,
+                    )
+                    continue
+
+                # State change events carry the ID of the state they report, so the
+                # event identifies the exact transition to confirm. Confirmation is
+                # done in a separate task to keep consuming events while we wait.
+                self._schedule_suspension_confirmation(flow_run_id, event.id)
             except ValueError:
                 self.logger.warning(
                     "Received event with invalid flow run ID: %s",
@@ -497,6 +550,7 @@ class FlowRunSuspendingObserver:
     async def __aexit__(self, *exc_info: Any):
         self.logger.debug("Shutting down FlowRunSuspendingObserver")
         self._is_shutting_down = True
+        self._cancel_confirmation_tasks()
         await self._exit_stack.__aexit__(*exc_info)
         if self._consumer_task is not None:
             self._consumer_task.cancel()
