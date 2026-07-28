@@ -5,6 +5,7 @@ import {
 	TooltipContent,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { capitalize } from "@/utils";
 
 type StateType = components["schemas"]["StateType"];
 
@@ -88,7 +89,7 @@ export const FlowRunStateTabs = ({
 								</TooltipTrigger>
 							</TabsTrigger>
 							<TooltipContent>
-								{stateType.join(", ").toLowerCase()}
+								{stateType.map(capitalize).join(", ")}
 							</TooltipContent>
 						</Tooltip>
 					))}
