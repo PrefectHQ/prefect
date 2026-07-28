@@ -44,7 +44,7 @@ Use the hosted Prefect Cloud MCP server if your MCP client supports remote HTTP 
 The hosted server URL is:
 
 ```text
-https://prefect-cloud-mcp-server.fastmcp.app/mcp
+https://prefect.fastmcp.app/mcp
 ```
 
 When you add this URL to your client, the client starts a browser sign-in flow. Sign in to Prefect Cloud, then choose the workspaces that the client can read.
@@ -57,7 +57,7 @@ The hosted Prefect Cloud MCP server is in beta. It gives read-only access to the
 
 ### Local installation
 
-Install and run the MCP server locally using `uvx`:
+Use the local server with Prefect Cloud or a self-hosted Prefect server. Install and run it with `uvx`:
 
 ```bash
 uvx --from prefect-mcp prefect-mcp-server
@@ -67,7 +67,7 @@ When you run the server locally with stdio transport, the server uses credential
 
 ### Self-managed remote deployment
 
-Deploy the MCP server to [Prefect Horizon](https://horizon.prefect.io/) if you want to manage your own remote MCP server:
+Deploy the MCP server to [Prefect Horizon](https://horizon.prefect.io/) if you want to manage your own remote MCP server. This setup can connect to Prefect Cloud or to a self-hosted Prefect server.
 
 1. Fork the [prefect-mcp-server repository](https://github.com/PrefectHQ/prefect-mcp-server) on GitHub
 2. Sign in to [horizon.prefect.io](https://horizon.prefect.io/)
@@ -100,18 +100,18 @@ Configure your AI assistant to connect to the Prefect MCP server.
 Use the hosted Prefect Cloud server URL with HTTP transport:
 
 ```text
-https://prefect-cloud-mcp-server.fastmcp.app/mcp
+https://prefect.fastmcp.app/mcp
 ```
 
 For example, add the hosted server to Claude Code:
 
 ```bash
-claude mcp add prefect-cloud --transport http https://prefect-cloud-mcp-server.fastmcp.app/mcp
+claude mcp add prefect-cloud --transport http https://prefect.fastmcp.app/mcp
 ```
 
 Then run `/mcp` in Claude Code and select **Authenticate**. Claude Code opens Prefect Cloud in your browser. Sign in and choose the workspaces that Claude Code can read.
 
-Use this setup when you want Prefect Cloud to manage authentication.
+Use this setup when you want Prefect Cloud to manage authentication. Use the local server or a self-managed remote server for self-hosted Prefect.
 
 ### Local server setup
 
