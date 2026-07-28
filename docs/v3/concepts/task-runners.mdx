@@ -91,6 +91,22 @@ def elevator():
 
 The `max_workers` parameter of the `ThreadPoolTaskRunner` and `ProcessPoolTaskRunner` controls the number of threads or processes (respectively) that the task runner will use to execute tasks.
 
+The `ProcessPoolTaskRunner` also accepts `initializer` and `initargs` parameters, mirroring `ProcessPoolExecutor`. Prefect runs `initializer(*initargs)` once in each worker subprocess, after its own event and log forwarding setup, before the worker executes any tasks:
+
+{/* pmd-metadata: notest */}
+```python
+import sys
+from prefect.task_runners import ProcessPoolTaskRunner
+
+def add_to_path(*paths):
+    sys.path[:0] = paths
+
+runner = ProcessPoolTaskRunner(
+    initializer=add_to_path,
+    initargs=("/opt/my_app/libs",),
+)
+```
+
 ## Submit tasks to a task runner
 
 When you use `.submit()` to submit a task to a task runner, the task runner creates a 

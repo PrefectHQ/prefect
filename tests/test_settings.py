@@ -385,6 +385,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_DATABASE_ECHO": {"test_value": True},
     "PREFECT_SERVER_DATABASE_HOST": {"test_value": "localhost"},
     "PREFECT_SERVER_DATABASE_MIGRATE_ON_START": {"test_value": True},
+    "PREFECT_SERVER_DATABASE_MIGRATION_TIMEOUT": {"test_value": 10.0},
     "PREFECT_SERVER_DATABASE_NAME": {"test_value": "prefect"},
     "PREFECT_SERVER_DATABASE_PASSWORD": {"test_value": "password"},
     "PREFECT_SERVER_DATABASE_PORT": {"test_value": 5432},
@@ -1314,6 +1315,26 @@ class TestSettingAccess:
 
 
 class TestDatabaseSettings:
+    def test_migration_timeout_defaults_to_none(self):
+        """Migrations are not bound by the application statement timeout.
+
+        Schema changes such as concurrent index builds on large tables can take
+        far longer than an ordinary API query, so `migration_timeout` defaults
+        to no timeout rather than inheriting `server.database.timeout`.
+        """
+        settings = get_current_settings()
+        assert settings.server.database.migration_timeout is None
+        assert settings.server.database.timeout == 10.0
+
+    @pytest.mark.parametrize("value", [0, -1.0])
+    def test_migration_timeout_rejects_non_positive(self, value: float):
+        """asyncpg's `command_timeout` requires a positive value, so a `0` or
+        negative migration timeout must be rejected up front rather than failing
+        every PostgreSQL migration connection at server startup.
+        """
+        with pytest.raises(pydantic.ValidationError):
+            ServerDatabaseSettings(migration_timeout=value)
+
     def test_database_connection_url_templates_password(self):
         with temporary_settings(
             {

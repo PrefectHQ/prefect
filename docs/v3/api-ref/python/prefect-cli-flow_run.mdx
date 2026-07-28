@@ -33,8 +33,17 @@ ls()
 
 View recent flow runs or flow runs for specific flows.
 
+**Examples:**
 
-### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L285" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+```bash
+$ prefect flow-runs ls --state Running
+$ prefect flow-runs ls --state Running --state late
+$ prefect flow-runs ls --state-type RUNNING
+$ prefect flow-runs ls --state-type RUNNING --state-type FAILED
+```
+
+
+### `delete` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L294" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete(id: UUID)
@@ -44,7 +53,7 @@ delete(id: UUID)
 Delete a flow run by ID.
 
 
-### `cancel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L305" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `cancel` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L314" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 cancel(id: UUID)
@@ -54,7 +63,7 @@ cancel(id: UUID)
 Cancel a flow run by ID.
 
 
-### `retry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L327" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `retry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L336" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 retry(id_or_name: str)
@@ -63,8 +72,23 @@ retry(id_or_name: str)
 
 Retry a failed or completed flow run.
 
+The flow run can be specified by either its UUID or its name. If multiple
+flow runs have the same name, you must use the UUID to disambiguate.
 
-### `logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L486" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+If the flow run has an associated deployment, it will be scheduled for retry
+and a worker will pick it up. If there is no deployment, you must provide
+an --entrypoint to the flow code, and the flow will execute locally.
+
+**Examples:**
+
+```bash
+$ prefect flow-run retry abc123-def456-7890-...
+$ prefect flow-run retry my-flow-run-name
+$ prefect flow-run retry abc123 --entrypoint ./flows/my_flow.py:my_flow
+```
+
+
+### `logs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L510" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 logs(id: UUID)
@@ -74,7 +98,7 @@ logs(id: UUID)
 View logs for a flow run.
 
 
-### `watch` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L661" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `watch` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L685" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 watch(id: UUID)
@@ -84,7 +108,7 @@ watch(id: UUID)
 Watch a flow run until it reaches a terminal state.
 
 
-### `execute` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L693" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `execute` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_run.py#L720" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 execute(id: Optional[UUID] = None)

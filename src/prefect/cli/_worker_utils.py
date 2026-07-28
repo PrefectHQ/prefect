@@ -2,27 +2,30 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import shlex
 import subprocess
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Type
+from typing import TYPE_CHECKING, Callable, NoReturn, Optional, Type
+
+import httpx
 
 from prefect._internal.integrations import KNOWN_EXTRAS_FOR_PACKAGES
 from prefect.client.collections import get_collections_metadata_client
 from prefect.client.orchestration import get_client
 from prefect.client.schemas.filters import WorkQueueFilter, WorkQueueFilterName
 from prefect.exceptions import ObjectNotFound
-from prefect.logging import get_logger
+from prefect.logging.loggers import get_logger
 from prefect.plugins import load_prefect_collections
 from prefect.utilities.dispatch import lookup_type
-from prefect.workers.base import BaseWorker
+from prefect.workers.base import BaseWorker, _is_transient_api_error
 
 if TYPE_CHECKING:
     from rich.console import Console
 
-logger = get_logger(__name__)
+logger: logging.Logger = get_logger(__name__)
 
 WORKER_PID_DIR_NAME = "workers"
 
@@ -64,6 +67,11 @@ async def _check_work_pool_paused(work_pool_name: str) -> bool:
             return work_pool.is_paused
     except ObjectNotFound:
         return False
+    except httpx.HTTPError as exc:
+        logger.debug(
+            "Unable to check if work pool %r is paused: %s", work_pool_name, exc
+        )
+        return False
 
 
 async def _check_work_queues_paused(
@@ -88,11 +96,18 @@ async def _check_work_queues_paused(
             return all(queue.is_paused for queue in wqs) if wqs else False
     except ObjectNotFound:
         return False
+    except httpx.HTTPError as exc:
+        logger.debug(
+            "Unable to check if the work queues in work pool %r are paused: %s",
+            work_pool_name,
+            exc,
+        )
+        return False
 
 
 async def _retrieve_worker_type_from_pool(
     console: "Console",
-    exit_fn: object,
+    exit_fn: Callable[[str], NoReturn],
     work_pool_name: Optional[str] = None,
 ) -> str:
     """Discover the worker type for a work pool.
@@ -127,6 +142,14 @@ async def _retrieve_worker_type_from_pool(
             style="yellow",
         )
         worker_type = "process"
+    except httpx.HTTPError as exc:
+        if _is_transient_api_error(exc):
+            exit_fn(
+                f"Unable to reach the Prefect API to determine the type of work pool"
+                f" {work_pool_name!r}: {exc}. Provide a worker type with '--type' to"
+                " start a worker while the API is unavailable."
+            )
+        exit_fn(f"Unable to determine the type of work pool {work_pool_name!r}: {exc}")
     return worker_type
 
 

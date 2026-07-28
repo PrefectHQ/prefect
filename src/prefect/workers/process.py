@@ -19,11 +19,9 @@ from __future__ import annotations
 import contextlib
 import os
 import tempfile
-import threading
 import warnings
-from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Optional, TypeVar
 
 import anyio
 import anyio.abc
@@ -32,14 +30,8 @@ from pydantic import Field, field_validator
 from prefect._internal.schemas.validators import validate_working_dir
 from prefect.client.schemas.objects import Flow as APIFlow
 from prefect.runner.runner import Runner
-from prefect.settings import PREFECT_WORKER_QUERY_SECONDS
 from prefect.states import Pending
 from prefect.utilities.processutils import command_to_string, get_sys_executable
-from prefect.utilities.services import (
-    critical_service_loop,
-    start_client_metrics_server,
-    stop_client_metrics_server,
-)
 from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
@@ -140,99 +132,6 @@ class ProcessWorker(
     _display_name = "Process"
     _documentation_url = "https://docs.prefect.io/latest/get-started/quickstart"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/356e6766a91baf20e1d08bbe16e8b5aaef4d8643-48x48.png"
-
-    async def start(
-        self,
-        run_once: bool = False,
-        with_healthcheck: bool = False,
-        printer: Callable[..., None] = print,
-    ) -> None:
-        """
-        Starts the worker and runs the main worker loops.
-
-        By default, the worker will run loops to poll for scheduled/cancelled flow
-        runs and sync with the Prefect API server.
-
-        If `run_once` is set, the worker will only run each loop once and then return.
-
-        If `with_healthcheck` is set, the worker will start a healthcheck server which
-        can be used to determine if the worker is still polling for flow runs and restart
-        the worker if necessary.
-
-        Args:
-            run_once: If set, the worker will only run each loop once then return.
-            with_healthcheck: If set, the worker will start a healthcheck server.
-            printer: A `print`-like function where logs will be reported.
-        """
-        healthcheck_server = None
-        healthcheck_thread = None
-        try:
-            async with self as worker:
-                # wait for an initial heartbeat to configure the worker
-                await worker.sync_with_backend()
-                # schedule the scheduled flow run polling loop
-                async with anyio.create_task_group() as loops_task_group:
-                    loops_task_group.start_soon(
-                        partial(
-                            critical_service_loop,
-                            workload=self.get_and_submit_flow_runs,
-                            interval=PREFECT_WORKER_QUERY_SECONDS.value(),
-                            run_once=run_once,
-                            jitter_range=0.3,
-                            backoff=4,  # Up to ~1 minute interval during backoff
-                        )
-                    )
-                    # schedule the sync loop
-                    loops_task_group.start_soon(
-                        partial(
-                            critical_service_loop,
-                            workload=self.sync_with_backend,
-                            interval=self.heartbeat_interval_seconds,
-                            run_once=run_once,
-                            jitter_range=0.3,
-                            backoff=4,
-                        )
-                    )
-
-                    self._started_event = await self._emit_worker_started_event()
-
-                    start_client_metrics_server()
-
-                    if with_healthcheck:
-                        from prefect.workers.server import build_healthcheck_server
-
-                        # we'll start the ASGI server in a separate thread so that
-                        # uvicorn does not block the main thread
-                        healthcheck_server = build_healthcheck_server(
-                            worker=worker,
-                            query_interval_seconds=PREFECT_WORKER_QUERY_SECONDS.value(),
-                        )
-                        healthcheck_thread = threading.Thread(
-                            name="healthcheck-server-thread",
-                            target=healthcheck_server.run,
-                            daemon=True,
-                        )
-                        healthcheck_thread.start()
-                    printer(f"Worker {worker.name!r} started!")
-
-                # If running once, wait for active runs to complete before exiting
-                if run_once and self._limiter:
-                    while self.limiter.borrowed_tokens > 0:
-                        self._logger.debug(
-                            "Waiting for %s active run(s) to finish before shutdown...",
-                            self.limiter.borrowed_tokens,
-                        )
-                        await anyio.sleep(0.1)
-        finally:
-            stop_client_metrics_server()
-
-            if healthcheck_server and healthcheck_thread:
-                self._logger.debug("Stopping healthcheck server...")
-                healthcheck_server.should_exit = True
-                healthcheck_thread.join()
-                self._logger.debug("Healthcheck server stopped.")
-
-        printer(f"Worker {worker.name!r} stopped!")
 
     async def run(
         self,

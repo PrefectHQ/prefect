@@ -32,11 +32,13 @@ Watch a flow run, displaying interleaved events and logs until completion.
 
 **Raises:**
 - `FlowRunWaitTimeout`: If the flow run exceeds the timeout
+- `FlowRunWatchError`: If the events/logs stream closes before the flow run
+reaches a terminal state
 
 
 ## Classes
 
-### `FlowRunFormatter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_runs_watching.py#L77" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FlowRunFormatter` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_runs_watching.py#L115" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Handles formatting of logs and events for CLI display
@@ -44,7 +46,7 @@ Handles formatting of logs and events for CLI display
 
 **Methods:**
 
-#### `format` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_runs_watching.py#L122" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `format` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_runs_watching.py#L160" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 format(self, item: Log | Event) -> str
@@ -53,7 +55,7 @@ format(self, item: Log | Event) -> str
 Format a log or event for display
 
 
-#### `format_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_runs_watching.py#L150" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `format_event` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_runs_watching.py#L188" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 format_event(self, event: Event) -> str
@@ -62,7 +64,7 @@ format_event(self, event: Event) -> str
 Format an event
 
 
-#### `format_log` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_runs_watching.py#L129" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `format_log` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_runs_watching.py#L167" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 format_log(self, log: Log) -> str
@@ -71,7 +73,7 @@ format_log(self, log: Log) -> str
 Format a log entry
 
 
-#### `format_run_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_runs_watching.py#L118" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `format_run_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_runs_watching.py#L156" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 format_run_id(self, run_id_short: str) -> str
@@ -80,7 +82,7 @@ format_run_id(self, run_id_short: str) -> str
 Format run ID
 
 
-#### `format_timestamp` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_runs_watching.py#L84" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `format_timestamp` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/cli/flow_runs_watching.py#L122" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 format_timestamp(self, dt: datetime) -> str
