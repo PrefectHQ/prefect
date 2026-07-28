@@ -1,0 +1,89 @@
+import pytest
+import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from prefect.server.database import PrefectDBInterface
+from prefect.server.utilities._post_commit import call_after_commit
+
+
+async def test_hooks_are_called_after_the_commit(session: AsyncSession):
+    called: list[str] = []
+
+    async def hook() -> None:
+        called.append("hook")
+
+    call_after_commit(session, hook)
+
+    assert called == []
+
+    await session.commit()
+
+    assert called == ["hook"]
+
+
+async def test_hooks_are_called_in_order_and_only_once(session: AsyncSession):
+    called: list[int] = []
+
+    def hook_for(i: int):
+        async def hook() -> None:
+            called.append(i)
+
+        return hook
+
+    for i in range(3):
+        call_after_commit(session, hook_for(i))
+
+    await session.commit()
+    await session.commit()
+
+    assert called == [0, 1, 2]
+
+
+async def test_hooks_are_discarded_on_rollback(session: AsyncSession):
+    called: list[str] = []
+
+    async def hook() -> None:
+        called.append("hook")
+
+    await session.execute(sa.text("SELECT 1"))
+    call_after_commit(session, hook)
+
+    await session.rollback()
+    await session.commit()
+
+    assert called == []
+
+
+async def test_hooks_are_called_when_a_transaction_context_commits(
+    db: PrefectDBInterface,
+):
+    called: list[str] = []
+
+    async def hook() -> None:
+        called.append("hook")
+
+    async with db.session_context(begin_transaction=True) as session:
+        call_after_commit(session, hook)
+        assert called == []
+
+    assert called == ["hook"]
+
+
+async def test_failing_hooks_do_not_fail_the_commit(
+    session: AsyncSession, caplog: pytest.LogCaptureFixture
+):
+    called: list[str] = []
+
+    async def exploding_hook() -> None:
+        raise ValueError("nope")
+
+    async def hook() -> None:
+        called.append("hook")
+
+    call_after_commit(session, exploding_hook)
+    call_after_commit(session, hook)
+
+    await session.commit()
+
+    assert called == ["hook"]
+    assert "Error while running post-commit hook" in caplog.text

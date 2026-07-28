@@ -20,10 +20,16 @@ from prefect.server.orchestration.rules import (
     OrchestrationContext,
 )
 from prefect.server.schemas import core
+from prefect.server.utilities._post_commit import call_after_commit
 
 
 class InstrumentFlowRunStateTransitions(FlowRunUniversalTransform):
-    """When a Flow Run changes states, fire a Prefect Event for the state change"""
+    """When a Flow Run changes states, fire a Prefect Event for the state change
+
+    The event is published after the transaction writing the state commits, so
+    subscribers can always read the new state, and transitions that are rolled back
+    never emit an event.
+    """
 
     async def after_transition(
         self, context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy]
@@ -53,15 +59,18 @@ class InstrumentFlowRunStateTransitions(FlowRunUniversalTransform):
 
         assert isinstance(context.session, AsyncSession)
 
-        async with PrefectServerEventsClient() as events:
-            await events.emit(
-                await flow_run_state_change_event(
-                    session=context.session,
-                    occurred=validated_state.timestamp,
-                    flow_run=context.run,
-                    initial_state_id=initial_state.id if initial_state else None,
-                    initial_state=initial_state,
-                    validated_state_id=validated_state.id,
-                    validated_state=validated_state,
-                )
-            )
+        event = await flow_run_state_change_event(
+            session=context.session,
+            occurred=validated_state.timestamp,
+            flow_run=context.run,
+            initial_state_id=initial_state.id if initial_state else None,
+            initial_state=initial_state,
+            validated_state_id=validated_state.id,
+            validated_state=validated_state,
+        )
+
+        async def publish_state_change_event() -> None:
+            async with PrefectServerEventsClient() as events:
+                await events.emit(event)
+
+        call_after_commit(context.session, publish_state_change_event)
