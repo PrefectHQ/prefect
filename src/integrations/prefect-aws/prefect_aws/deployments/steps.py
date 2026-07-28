@@ -152,9 +152,10 @@ def pull_from_s3(
     s3 = get_s3_client(credentials=credentials, client_parameters=client_parameters)
 
     local_path = Path.cwd()
+    prefix = f"{folder}/" if folder and not folder.endswith("/") else folder
 
     paginator = s3.get_paginator("list_objects_v2")
-    for result in paginator.paginate(Bucket=bucket, Prefix=folder):
+    for result in paginator.paginate(Bucket=bucket, Prefix=prefix):
         for obj in result.get("Contents", []):
             remote_key = obj["Key"]
 
@@ -164,7 +165,7 @@ def pull_from_s3(
 
             target = PurePosixPath(
                 local_path
-                / relative_path_to_current_platform(remote_key).relative_to(folder)
+                / relative_path_to_current_platform(remote_key).relative_to(prefix)
             )
             Path.mkdir(Path(target.parent), parents=True, exist_ok=True)
             s3.download_file(bucket, remote_key, str(target))
