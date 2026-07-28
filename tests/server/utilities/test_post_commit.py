@@ -87,3 +87,22 @@ async def test_failing_hooks_do_not_fail_the_commit(
 
     assert called == ["hook"]
     assert "Error while running post-commit hook" in caplog.text
+
+
+async def test_hooks_wait_for_the_enclosing_transaction_of_a_savepoint(
+    db: PrefectDBInterface,
+):
+    called: list[str] = []
+
+    async def hook() -> None:
+        called.append("hook")
+
+    async with db.session_context(begin_transaction=True) as session:
+        async with session.begin_nested():
+            await session.execute(sa.text("SELECT 1"))
+            call_after_commit(session, hook)
+
+        # releasing the savepoint is not durable on its own
+        assert called == []
+
+    assert called == ["hook"]

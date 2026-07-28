@@ -45,6 +45,10 @@ def call_after_commit(session: AsyncSession, hook: PostCommitHook) -> None:
 
 
 def _call_hooks(session: Session) -> None:
+    if session.in_nested_transaction():
+        # releasing a savepoint isn't durable until the enclosing transaction commits
+        return
+
     hooks: list[PostCommitHook] = session.info.get(_HOOKS, [])
     while hooks:
         hook = hooks.pop(0)
