@@ -486,7 +486,10 @@ class TestCredentials:
         with pytest.raises(SandboxUnavailableError) as excinfo:
             await backend.acreate()
         message = str(excinfo.value)
-        assert "https://api.islo.dev" in message
+        # The endpoint that could not be reached is the first thing an operator needs.
+        # Taken from the module rather than repeated as a literal, so the assertion
+        # cannot drift from the default it is describing.
+        assert islo._DEFAULT_API_URL in message
         assert "name resolution failed" in message
 
 
