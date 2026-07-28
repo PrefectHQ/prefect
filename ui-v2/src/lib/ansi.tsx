@@ -59,10 +59,51 @@ const ANSI_SGR_TO_CLASS: Record<string, string> = {
 	"0": "",
 };
 
-// Matches a single ANSI SGR escape sequence (e.g. ESC[32m) and captures its
-// numeric code. Built from a computed escape character to avoid embedding a
-// control character in the source.
-const ANSI_SGR_REGEX = new RegExp(`${String.fromCharCode(27)}\\[(\\d+)m`, "g");
+// Matches an ANSI SGR escape sequence (e.g. ESC[32m or ESC[1;38;5;196m) and
+// captures its semicolon-separated parameter list. Built from a computed escape
+// character to avoid embedding a control character in the source.
+const ANSI_SGR_REGEX = new RegExp(
+	`${String.fromCharCode(27)}\\[([\\d;]*)m`,
+	"g",
+);
+
+// SGR codes that introduce an extended color and consume trailing parameters:
+// `<code>;5;<n>` (256-color) or `<code>;2;<r>;<g>;<b>` (truecolor). We have no
+// Tailwind equivalent for these, so they are consumed and stripped rather than
+// misinterpreted as separate styling codes.
+const EXTENDED_COLOR_CODES = new Set(["38", "48", "58"]);
+
+/**
+ * Applies a single SGR parameter list to the current set of active classes,
+ * returning the updated set.
+ */
+function applySgrParams(params: string[], activeClasses: string[]): string[] {
+	let next = activeClasses;
+
+	for (let i = 0; i < params.length; i++) {
+		const code = params[i];
+
+		if (EXTENDED_COLOR_CODES.has(code)) {
+			const mode = params[i + 1];
+			if (mode === "5") {
+				i += 2;
+			} else if (mode === "2") {
+				i += 4;
+			}
+			continue;
+		}
+
+		const newClass = ANSI_SGR_TO_CLASS[code];
+
+		if (newClass === "") {
+			next = [];
+		} else if (newClass && !next.includes(newClass)) {
+			next = [...next, newClass];
+		}
+	}
+
+	return next;
+}
 
 /**
  * Renders a log message as React nodes, translating ANSI SGR escape codes into
@@ -98,13 +139,9 @@ export function renderLogMessage(message: string): ReactNode {
 		}
 
 		const [fullMatch, code] = match;
-		const newClass = ANSI_SGR_TO_CLASS[code];
-
-		if (newClass === "") {
-			activeClasses = [];
-		} else if (newClass && !activeClasses.includes(newClass)) {
-			activeClasses.push(newClass);
-		}
+		// An empty parameter list (ESC[m) is equivalent to a reset (ESC[0m).
+		const params = code === "" ? ["0"] : code.split(";");
+		activeClasses = applySgrParams(params, activeClasses);
 
 		lastIndex = index + fullMatch.length;
 	}
