@@ -1063,7 +1063,13 @@ def test_worker_start_background_spawns_detached_process(monkeypatch, workers_pi
     assert popen.call_count == 1
     reconstructed = popen.call_args.args[0]
     assert reconstructed[0] == sys.executable
-    assert reconstructed[1:5] == ["-m", "prefect", "worker", "start"]
+    assert reconstructed[1] == "-m"
+    assert reconstructed[2] == "prefect"
+    # `--profile <name>` may be forwarded ahead of the subcommand depending on
+    # the active profile, so locate `worker start` rather than assuming a fixed
+    # offset.
+    worker_index = reconstructed.index("worker")
+    assert reconstructed[worker_index : worker_index + 2] == ["worker", "start"]
     assert "--pool" in reconstructed
     assert "test-pool" in reconstructed
     assert "--background" not in reconstructed
@@ -1180,6 +1186,69 @@ def test_worker_start_background_reclaims_stale_pid_file(monkeypatch, workers_pi
     assert (workers_pid_dir / "w1.pid").read_text() == "4242"
 
 
+def test_worker_start_background_rejects_same_name_while_running(
+    monkeypatch, workers_pid_dir
+):
+    """Starting a background worker with a name that is already running is
+    rejected, and the existing worker's PID file is left untouched."""
+    workers_pid_dir.mkdir(parents=True, exist_ok=True)
+    (workers_pid_dir / "w1.pid").write_text("4321")
+
+    monkeypatch.setattr(os, "kill", lambda pid, sig: None)  # the pid is alive
+
+    popen = MagicMock()
+    monkeypatch.setattr("subprocess.Popen", popen)
+
+    invoke_and_assert(
+        command=[
+            "worker",
+            "start",
+            "--pool",
+            "test-pool",
+            "--name",
+            "w1",
+            "--background",
+        ],
+        expected_code=1,
+        expected_output_contains="already running",
+    )
+    assert popen.call_count == 0
+    assert (workers_pid_dir / "w1.pid").read_text() == "4321"
+
+
+def test_worker_stop_detects_pid_reuse(monkeypatch, workers_pid_dir):
+    """A PID that the OS has reused for an unrelated process after the worker
+    exited is treated as stale rather than signaled, since it is no longer the
+    process that was originally recorded."""
+    workers_pid_dir.mkdir(parents=True, exist_ok=True)
+    (workers_pid_dir / "w1.pid").write_text("4321")
+    (workers_pid_dir / "w1.marker").write_text("original-start-marker")
+
+    monkeypatch.setattr(
+        "prefect.cli._server_utils._process_start_marker",
+        lambda pid: "a-different-processes-start-marker",
+    )
+
+    sent = []
+
+    def fake_kill(pid, sig):
+        if sig == 0:
+            return  # the process now at this pid is alive, just not our worker
+        sent.append((pid, sig))
+
+    monkeypatch.setattr(os, "kill", fake_kill)
+
+    invoke_and_assert(
+        command=["worker", "stop", "w1"],
+        expected_code=0,
+        expected_output_contains="Cleaning up stale PID file",
+        expected_output_does_not_contain="stopped!",
+    )
+    assert sent == []  # the unrelated process was never signaled
+    assert not (workers_pid_dir / "w1.pid").exists()
+    assert not (workers_pid_dir / "w1.marker").exists()
+
+
 def test_worker_stop_when_none_running(workers_pid_dir):
     """`worker stop` reports nothing to stop when no background worker is tracked."""
     invoke_and_assert(
@@ -1189,19 +1258,32 @@ def test_worker_stop_when_none_running(workers_pid_dir):
     )
 
 
+def _fake_kill_terminates_on_signal(sent):
+    """Build a fake `os.kill` where a non-zero signal "kills" the process, so a
+    later liveness probe (signal 0) for the same pid reports it as gone. This
+    lets tests exercise the wait-for-exit loop in `worker stop` without a real
+    process or a real sleep.
+    """
+    terminated = set()
+
+    def fake_kill(pid, sig):
+        if sig == 0:
+            if pid in terminated:
+                raise ProcessLookupError()
+            return
+        terminated.add(pid)
+        sent.append((pid, sig))
+
+    return fake_kill
+
+
 def test_worker_stop_without_name_stops_single(monkeypatch, workers_pid_dir):
     """With exactly one background worker tracked, `worker stop` stops it."""
     workers_pid_dir.mkdir(parents=True, exist_ok=True)
     (workers_pid_dir / "only.pid").write_text("55")
 
     sent = []
-
-    def fake_kill(pid, sig):
-        if sig == 0:
-            return  # process is alive
-        sent.append((pid, sig))
-
-    monkeypatch.setattr(os, "kill", fake_kill)
+    monkeypatch.setattr(os, "kill", _fake_kill_terminates_on_signal(sent))
 
     invoke_and_assert(
         command=["worker", "stop"],
@@ -1219,13 +1301,7 @@ def test_worker_stop_by_name_leaves_others_running(monkeypatch, workers_pid_dir)
     (workers_pid_dir / "w2.pid").write_text("2222")
 
     sent = []
-
-    def fake_kill(pid, sig):
-        if sig == 0:
-            return
-        sent.append((pid, sig))
-
-    monkeypatch.setattr(os, "kill", fake_kill)
+    monkeypatch.setattr(os, "kill", _fake_kill_terminates_on_signal(sent))
 
     invoke_and_assert(
         command=["worker", "stop", "w1"],
@@ -1244,21 +1320,50 @@ def test_worker_stop_all(monkeypatch, workers_pid_dir):
         (workers_pid_dir / f"{slug}.pid").write_text(pid)
 
     sent = []
-
-    def fake_kill(pid, sig):
-        if sig == 0:
-            return
-        sent.append(pid)
-
-    monkeypatch.setattr(os, "kill", fake_kill)
+    monkeypatch.setattr(os, "kill", _fake_kill_terminates_on_signal(sent))
 
     invoke_and_assert(
         command=["worker", "stop", "--all"],
         expected_code=0,
         expected_output_contains="stopped!",
     )
-    assert sorted(sent) == [1, 2, 3]
+    assert sorted(pid for pid, _ in sent) == [1, 2, 3]
     assert list(workers_pid_dir.glob("*.pid")) == []
+
+
+def test_worker_stop_waits_for_graceful_shutdown(monkeypatch, workers_pid_dir):
+    """`worker stop` reports that a worker is still shutting down rather than
+    lying about success, and keeps tracking it, if it does not exit within the
+    grace period after being signaled."""
+    workers_pid_dir.mkdir(parents=True, exist_ok=True)
+    (workers_pid_dir / "w1.pid").write_text("55")
+
+    sent = []
+
+    def fake_kill(pid, sig):
+        if sig != 0:
+            sent.append((pid, sig))
+        # Signal 0 never raises: the worker stays alive through the whole grace
+        # period, as a worker finishing in-flight runs would.
+
+    monkeypatch.setattr(os, "kill", fake_kill)
+
+    sleeps = []
+
+    async def fake_sleep(seconds):
+        sleeps.append(seconds)
+
+    monkeypatch.setattr("prefect.cli.worker.asyncio.sleep", fake_sleep)
+
+    invoke_and_assert(
+        command=["worker", "stop", "w1"],
+        expected_code=0,
+        expected_output_contains="is still shutting down",
+        expected_output_does_not_contain="stopped!",
+    )
+    assert sent == [(55, signal.SIGTERM)]
+    assert len(sleeps) == 5
+    assert (workers_pid_dir / "w1.pid").read_text() == "55"
 
 
 def test_worker_stop_rejects_name_with_all(monkeypatch, workers_pid_dir):
@@ -1281,32 +1386,74 @@ def test_worker_stop_ambiguous_without_name(monkeypatch, workers_pid_dir):
     workers_pid_dir.mkdir(parents=True, exist_ok=True)
     (workers_pid_dir / "w1.pid").write_text("1")
     (workers_pid_dir / "w2.pid").write_text("2")
-    kill = MagicMock()
-    monkeypatch.setattr(os, "kill", kill)
+
+    sent = []
+
+    def fake_kill(pid, sig):
+        if sig != 0:
+            sent.append((pid, sig))
+        # signal 0 never raises: both workers are alive.
+
+    monkeypatch.setattr(os, "kill", fake_kill)
 
     invoke_and_assert(
         command=["worker", "stop"],
         expected_code=1,
         expected_output_contains="Multiple workers are running in the background",
     )
-    assert kill.call_count == 0
+    assert sent == []  # no worker was signaled while ambiguous
     assert (workers_pid_dir / "w1.pid").exists()
     assert (workers_pid_dir / "w2.pid").exists()
+
+
+def test_worker_stop_ambiguous_ignores_stale_entries(monkeypatch, workers_pid_dir):
+    """A stale entry does not count toward ambiguity: it is cleaned up and the
+    sole remaining live worker is stopped unambiguously."""
+    workers_pid_dir.mkdir(parents=True, exist_ok=True)
+    (workers_pid_dir / "live.pid").write_text("10")
+    (workers_pid_dir / "dead.pid").write_text("99999")
+
+    terminated = set()
+
+    def fake_kill(pid, sig):
+        if pid == 99999:
+            raise ProcessLookupError()  # always dead
+        if sig == 0:
+            if pid in terminated:
+                raise ProcessLookupError()
+            return
+        terminated.add(pid)
+
+    monkeypatch.setattr(os, "kill", fake_kill)
+
+    invoke_and_assert(
+        command=["worker", "stop"],
+        expected_code=0,
+        expected_output_contains="stopped!",
+    )
+    assert not (workers_pid_dir / "dead.pid").exists()
+    assert not (workers_pid_dir / "live.pid").exists()
 
 
 def test_worker_stop_unknown_name(monkeypatch, workers_pid_dir):
     """`worker stop <name>` for an unknown worker errors and stops nothing."""
     workers_pid_dir.mkdir(parents=True, exist_ok=True)
     (workers_pid_dir / "w1.pid").write_text("1")
-    kill = MagicMock()
-    monkeypatch.setattr(os, "kill", kill)
+
+    sent = []
+
+    def fake_kill(pid, sig):
+        if sig != 0:
+            sent.append((pid, sig))
+
+    monkeypatch.setattr(os, "kill", fake_kill)
 
     invoke_and_assert(
         command=["worker", "stop", "nope"],
         expected_code=1,
         expected_output_contains="No background worker named 'nope'",
     )
-    assert kill.call_count == 0
+    assert sent == []
     assert (workers_pid_dir / "w1.pid").exists()
 
 
@@ -1406,6 +1553,44 @@ def test_worker_start_background_forwards_all_options(monkeypatch, workers_pid_d
     assert "--no-create-pool-if-not-found" in argv
     assert "--background" not in argv
     assert "-b" not in argv
+
+
+def test_worker_start_background_forwards_active_profile(monkeypatch, workers_pid_dir):
+    """The reconstructed background command pins the profile the parent validated
+    against, so the detached worker does not reload a different one from disk."""
+    fake_process = MagicMock()
+    fake_process.pid = 999
+    popen = MagicMock(return_value=fake_process)
+    monkeypatch.setattr("subprocess.Popen", popen)
+
+    class FakeProfile:
+        name = "my-test-profile"
+
+    class FakeSettingsContext:
+        profile = FakeProfile()
+
+    monkeypatch.setattr(
+        "prefect.context.get_settings_context", lambda: FakeSettingsContext()
+    )
+
+    invoke_and_assert(
+        command=[
+            "worker",
+            "start",
+            "--pool",
+            "test-pool",
+            "--name",
+            "w1",
+            "--background",
+        ],
+        expected_code=0,
+        expected_output_contains="running in the background",
+    )
+
+    argv = popen.call_args.args[0]
+    assert argv[:3] == [sys.executable, "-m", "prefect"]
+    assert argv[3:5] == ["--profile", "my-test-profile"]
+    assert argv[5:7] == ["worker", "start"]
 
 
 async def test_worker_start_background_validates_before_spawning_push_pool(

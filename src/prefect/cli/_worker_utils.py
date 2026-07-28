@@ -27,6 +27,36 @@ logger = get_logger(__name__)
 WORKER_PID_DIR_NAME = "workers"
 
 
+def _worker_marker_path(pid_file: Path) -> Path:
+    """Return the path storing the process identity marker for a worker's PID file."""
+    return pid_file.with_suffix(".marker")
+
+
+def _verify_worker_process(pid_file: Path, pid: int) -> bool:
+    """Check whether `pid` is still the same worker process recorded at `pid_file`.
+
+    A liveness check alone cannot tell a still-running worker from an unrelated
+    process that the OS has since assigned the same PID, so this also compares the
+    identity marker recorded when the worker was started. If no marker was
+    recorded (e.g. no procfs on this platform), liveness alone is trusted.
+    """
+    from prefect.cli._server_utils import _is_process_running, _process_start_marker
+
+    if not _is_process_running(pid):
+        return False
+
+    marker_path = _worker_marker_path(pid_file)
+    if not marker_path.exists():
+        return True
+    try:
+        recorded_marker = marker_path.read_text()
+    except OSError:
+        return True
+
+    current_marker = _process_start_marker(pid)
+    return current_marker is None or current_marker == recorded_marker
+
+
 async def _check_work_pool_paused(work_pool_name: str) -> bool:
     try:
         async with get_client() as client:
@@ -158,6 +188,7 @@ def _run_worker_in_background(
     install_policy: str = "prompt",
     base_job_template: Optional[Path] = None,
     create_pool_if_not_found: bool = True,
+    profile_name: Optional[str] = None,
 ) -> None:
     """Spawn `prefect worker start` as a background process.
 
@@ -166,20 +197,17 @@ def _run_worker_in_background(
     `pid_file` so `prefect worker stop` can terminate it later. This mirrors the
     background behavior of `prefect server start`. The caller resolves a concrete
     `worker_name` so each background worker has a stable, individually stoppable
-    identity.
+    identity, and passes the active `profile_name` so the detached child polls the
+    same API the parent validated against instead of whatever profile happens to
+    be active on disk when it starts.
     """
-    from prefect.cli._server_utils import _write_pid_file
+    from prefect.cli._server_utils import _process_start_marker, _write_pid_file
     from prefect.utilities.slugify import slugify
 
-    command = [
-        sys.executable,
-        "-m",
-        "prefect",
-        "worker",
-        "start",
-        "--pool",
-        work_pool_name,
-    ]
+    command = [sys.executable, "-m", "prefect"]
+    if profile_name:
+        command += ["--profile", profile_name]
+    command += ["worker", "start", "--pool", work_pool_name]
     if worker_name:
         command += ["--name", worker_name]
     if worker_type:
@@ -213,6 +241,9 @@ def _run_worker_in_background(
         creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
     )
     _write_pid_file(pid_file, process.pid)
+    marker = _process_start_marker(process.pid)
+    if marker is not None:
+        _worker_marker_path(pid_file).write_text(marker)
 
     console.print(
         f"Worker {worker_name!r} is now running in the background. Run "

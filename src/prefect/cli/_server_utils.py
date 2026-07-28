@@ -382,6 +382,30 @@ def _is_process_running(pid: int) -> bool:
         return False
 
 
+def _process_start_marker(pid: int) -> str | None:
+    """Return a marker identifying the specific process instance running as `pid`.
+
+    A PID alone does not prove identity: once a process exits, the OS is free to
+    reuse its PID for an unrelated process. Comparing this marker at signal time
+    against the one recorded when a process was started detects that reuse, so a
+    stale PID is not mistaken for the process it used to belong to.
+
+    Returns `None` on platforms without procfs, where identity cannot be verified
+    and callers should fall back to a liveness-only check.
+    """
+    try:
+        stat = Path(f"/proc/{pid}/stat").read_text()
+        # The second field (comm) is parenthesized and may itself contain spaces
+        # or parens, so split on the last ')' before reading the remaining
+        # whitespace-separated fields (see proc(5)). `starttime` is field 22,
+        # i.e. index 22 - 3 = 19 once field 3 (state) is index 0 of the
+        # remainder.
+        remainder = stat.rsplit(")", 1)[1].split()
+        return remainder[19]
+    except (OSError, IndexError):
+        return None
+
+
 def _read_pid_file(path: Path) -> int | None:
     """Read and validate a PID from a file."""
     try:
