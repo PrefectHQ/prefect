@@ -779,7 +779,7 @@ class IsloSandbox(SandboxBackend):
                         f"Islo execution stream for {name!r} failed: {exc}. The "
                         "command may still be running in the sandbox."
                     ) from exc
-        raise SandboxExecutionError(
+        raise SandboxExecutionError(  # pragma: no cover - the loop always returns
             f"Islo rejected the session token twice while running a command in "
             f"{name!r}."
         )

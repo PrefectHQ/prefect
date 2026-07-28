@@ -575,6 +575,36 @@ class TestBlockShape:
 
 
 class TestSessionToken:
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            "bm90LWpzb24",  # decodes to "not-json"
+            "eyJzdWIiOiJhYmMifQ",  # valid JSON, but carries no `exp`
+            "!!!not-base64!!!",
+        ],
+        ids=["payload-is-not-json", "payload-has-no-expiry", "payload-is-not-base64"],
+    )
+    async def test_a_token_with_an_unreadable_payload_is_still_usable(
+        self, backend: IsloSandbox, fake_islo: FakeIslo, payload: str
+    ) -> None:
+        """The payload is a hint about when to refresh, not an authorization decision.
+
+        A JWT-shaped token whose payload cannot be read falls back to a short
+        assumed lifetime, so a changed token format costs one extra exchange
+        rather than failing every request.
+        """
+        token = f"header.{payload}.signature"
+        fake_islo.replies("auth", reply(200, {"session_token": token}))
+
+        handle = await backend.acreate()
+        await backend.aexec(handle, ["true"], timeout=5)
+
+        assert {recorded.bearer for recorded in fake_islo.requests_for("create")} == {
+            token
+        }
+        # Reused rather than re-exchanged: the fallback lifetime has not elapsed.
+        assert len(fake_islo.requests_for("auth")) == 1
+
     async def test_the_key_is_exchanged_once_and_the_token_reused(
         self, backend: IsloSandbox, fake_islo: FakeIslo
     ) -> None:
@@ -1289,6 +1319,33 @@ class TestExecStreamDecoding:
 class TestExecOutputCap:
     """Invariant 5: capped while streaming, never buffered then trimmed."""
 
+    async def test_an_empty_event_never_claims_truncation(
+        self, fake_islo: FakeIslo, sandbox: Sandbox
+    ) -> None:
+        """A command that prints nothing more has not lost anything.
+
+        Guards the arithmetic in the cap: once the buffer is full there is no room
+        left, and an empty payload must not be mistaken for one that overflowed.
+        """
+        backend = IsloSandbox(api_key=SecretStr(BLOCK_API_KEY), max_output_bytes=4)
+        fake_islo.events = sse(("stdout", ""), ("exit", "0"))
+
+        result = await backend.aexec(sandbox, ["true"], timeout=5)
+
+        assert result.stdout == ""
+        assert not result.truncated
+
+    async def test_an_empty_event_after_the_cap_is_reached_changes_nothing(
+        self, fake_islo: FakeIslo, sandbox: Sandbox
+    ) -> None:
+        backend = IsloSandbox(api_key=SecretStr(BLOCK_API_KEY), max_output_bytes=4)
+        fake_islo.events = sse(("stdout", "abcdef"), ("stdout", ""), ("exit", "0"))
+
+        result = await backend.aexec(sandbox, ["true"], timeout=5)
+
+        assert result.stdout == "abcd"
+        assert result.truncated
+
     async def test_stdout_beyond_the_cap_is_dropped_and_flagged(
         self, fake_islo: FakeIslo, sandbox: Sandbox
     ) -> None:
@@ -1346,6 +1403,36 @@ class TestExecOutputCap:
 
 
 class TestExecFailures:
+    async def test_a_failure_that_is_not_json_is_still_legible(
+        self, backend: IsloSandbox, fake_islo: FakeIslo, sandbox: Sandbox
+    ) -> None:
+        """Not every error on the path is shaped like the provider's own.
+
+        A gateway in front of the API answers with HTML, so the message falls back
+        to the raw body rather than reporting nothing at all.
+        """
+        fake_islo.replies(
+            "exec",
+            lambda request: httpx.Response(
+                502, text="<html><body>502 Bad Gateway</body></html>"
+            ),
+        )
+
+        with pytest.raises(SandboxExecutionError) as excinfo:
+            await backend.aexec(sandbox, ["true"], timeout=5)
+
+        message = str(excinfo.value)
+        assert "502" in message
+        assert "Bad Gateway" in message
+
+    async def test_a_failure_with_an_empty_body_still_names_the_status(
+        self, backend: IsloSandbox, fake_islo: FakeIslo, sandbox: Sandbox
+    ) -> None:
+        fake_islo.replies("exec", lambda request: httpx.Response(500, text=""))
+
+        with pytest.raises(SandboxExecutionError, match="500"):
+            await backend.aexec(sandbox, ["true"], timeout=5)
+
     async def test_a_refused_stream_reports_the_providers_reason(
         self, backend: IsloSandbox, fake_islo: FakeIslo, sandbox: Sandbox
     ) -> None:
