@@ -1,3 +1,4 @@
+import asyncio
 import os
 import subprocess
 import time
@@ -11,6 +12,8 @@ import prefect
 from prefect import flow, get_client, task
 from prefect.client.schemas.actions import WorkPoolCreate
 from prefect.client.schemas.objects import FlowRun
+from prefect.events.clients import get_events_subscriber
+from prefect.events.utilities import emit_event
 from prefect.flow_runs import suspend_flow_run
 from prefect.settings import PREFECT_API_URL
 
@@ -228,6 +231,25 @@ def test_external_suspension_stops_flow_run_at_next_task_boundary(
                     (event.occurred.isoformat(), event.event) for event in page.events
                 ),
             )
+
+            async def _probe_live_delivery() -> None:
+                async with get_events_subscriber(
+                    filter=EventFilter(event=EventNameFilter(name=["devin.probe"]))
+                ) as subscriber:
+                    await asyncio.sleep(1)
+                    emit_event(
+                        event="devin.probe",
+                        resource={"prefect.resource.id": f"devin.probe.{uuid4()}"},
+                    )
+                    try:
+                        async with asyncio.timeout(20):
+                            async for event in subscriber:
+                                print("PROBE: received live event", event.event)
+                                return
+                    except TimeoutError:
+                        print("PROBE: no live event delivered within 20s")
+
+            asyncio.run(_probe_live_delivery())
             raise
         _phase("process-exited")
         assert return_code == 0, (
