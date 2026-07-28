@@ -1357,13 +1357,10 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         """Synchronize the worker and initialize sync-dependent services."""
         await self.sync_with_backend()
 
-        # Synchronization can succeed without a work pool when automatic work-pool
-        # creation is disabled. The worker cannot submit runs without its template.
-        if self._work_pool is None:
-            return
-
-        await self._setup_cancellation_observer()
-        self._has_successfully_synced = True
+        # Preserve startup behavior for custom workers that override the public
+        # synchronization method without calling `super()`.
+        if not self._has_successfully_synced:
+            await self._initialize_after_sync()
 
     async def sync_with_backend(self) -> None:
         """
@@ -1377,11 +1374,22 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             return
 
         await self._worker_channel.sync(self._runs_task_group)
+        await self._initialize_after_sync()
 
         self._logger.debug(
             "Worker synchronized with the Prefect API server. "
             + (f"Remote ID: {self.backend_id}" if self.backend_id else "")
         )
+
+    async def _initialize_after_sync(self) -> None:
+        """Initialize services that depend on a completed backend sync."""
+        # Synchronization can succeed without a work pool when automatic work-pool
+        # creation is disabled. The worker cannot submit runs without its template.
+        if self._work_pool is None:
+            return
+
+        await self._setup_cancellation_observer()
+        self._has_successfully_synced = True
 
     async def _setup_cancellation_observer(self) -> None:
         """Start observing flow run cancellations if not already observing.

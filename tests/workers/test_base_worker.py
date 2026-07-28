@@ -233,14 +233,14 @@ class TestStartupWhenTheAPIIsUnreachable:
             async with WorkerTestImpl(name="test", work_pool_name="test-work-pool"):
                 pass
 
-    async def test_flow_runs_are_not_polled_after_a_partial_sync(
+    async def test_polling_waits_for_a_complete_sync(
         self,
         monkeypatch: pytest.MonkeyPatch,
         connect_error: httpx.ConnectError,
         work_pool: WorkPool,
         worker_channel_endpoint_unavailable: None,
     ):
-        heartbeat = AsyncMock(side_effect=connect_error)
+        heartbeat = AsyncMock(side_effect=[connect_error, None])
         monkeypatch.setattr(PrefectClient, "send_worker_heartbeat", heartbeat)
         get_scheduled_flow_runs = AsyncMock(return_value=[])
 
@@ -254,8 +254,13 @@ class TestStartupWhenTheAPIIsUnreachable:
             assert worker._work_pool is not None
             assert not worker._has_successfully_synced
             assert await worker.get_and_submit_flow_runs() == []
+            get_scheduled_flow_runs.assert_not_awaited()
 
-        get_scheduled_flow_runs.assert_not_awaited()
+            await worker.sync_with_backend()
+
+            assert worker._has_successfully_synced
+            assert await worker.get_and_submit_flow_runs() == []
+            get_scheduled_flow_runs.assert_awaited_once()
 
     async def test_worker_recovers_and_initializes_sync_dependent_services(
         self,
@@ -271,6 +276,8 @@ class TestStartupWhenTheAPIIsUnreachable:
         retry_started = anyio.Event()
         worker_started = anyio.Event()
         run_submitted = anyio.Event()
+        observer_setup_started = anyio.Event()
+        allow_observer_setup = anyio.Event()
         heartbeat_attempts = 0
 
         async def flaky_heartbeat(
@@ -322,6 +329,18 @@ class TestStartupWhenTheAPIIsUnreachable:
             heartbeat_interval_seconds=1,
         )
         worker.run = AsyncMock(side_effect=run_flow_run)
+        setup_cancellation_observer = worker._setup_cancellation_observer
+
+        async def gated_cancellation_observer_setup() -> None:
+            observer_setup_started.set()
+            await allow_observer_setup.wait()
+            await setup_cancellation_observer()
+
+        monkeypatch.setattr(
+            worker,
+            "_setup_cancellation_observer",
+            gated_cancellation_observer_setup,
+        )
 
         async def start_worker() -> None:
             await worker.start(run_once=True, printer=printer)
@@ -341,6 +360,16 @@ class TestStartupWhenTheAPIIsUnreachable:
                 assert not run_submitted.is_set()
 
                 allow_recovery.set()
+
+                with anyio.fail_after(5):
+                    await observer_setup_started.wait()
+
+                assert not worker._has_successfully_synced
+                assert worker._cancelling_observer is None
+                assert await worker.get_and_submit_flow_runs() == []
+                assert not run_submitted.is_set()
+
+                allow_observer_setup.set()
 
                 with anyio.fail_after(5):
                     await run_submitted.wait()

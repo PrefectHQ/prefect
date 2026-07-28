@@ -15,7 +15,7 @@ from prefect.exceptions import ObjectNotFound
 from prefect.logging.loggers import get_logger
 from prefect.plugins import load_prefect_collections
 from prefect.utilities.dispatch import lookup_type
-from prefect.workers.base import BaseWorker
+from prefect.workers.base import BaseWorker, _is_transient_api_error
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -106,11 +106,13 @@ async def _retrieve_worker_type_from_pool(
         )
         worker_type = "process"
     except httpx.HTTPError as exc:
-        exit_fn(
-            f"Unable to reach the Prefect API to determine the type of work pool"
-            f" {work_pool_name!r}: {exc}. Provide a worker type with '--type' to start"
-            " a worker while the API is unavailable."
-        )
+        if _is_transient_api_error(exc):
+            exit_fn(
+                f"Unable to reach the Prefect API to determine the type of work pool"
+                f" {work_pool_name!r}: {exc}. Provide a worker type with '--type' to"
+                " start a worker while the API is unavailable."
+            )
+        exit_fn(f"Unable to determine the type of work pool {work_pool_name!r}: {exc}")
     return worker_type
 
 
