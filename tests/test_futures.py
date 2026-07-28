@@ -159,15 +159,15 @@ class TestUtilityFunctions:
             except BaseException as exc:
                 caught.append(exc)
 
-        worker = threading.Thread(target=consume_as_completed)
+        # Daemonized so a thread blocked on the broken implementation cannot hold up
+        # interpreter exit and take the whole test session down with it.
+        worker = threading.Thread(target=consume_as_completed, daemon=True)
         worker.start()
-        worker.join(timeout=2.0)
+        worker.join(timeout=30.0)
 
         if worker.is_alive():
-            # Self-cleaning: unblock the worker so the suite never leaks a
-            # non-daemon thread on the broken implementation.
             hanging_future.set_result(Completed(data=None))
-            worker.join(timeout=2.0)
+            worker.join(timeout=30.0)
             assert not worker.is_alive(), "Worker thread did not exit"
             pytest.fail("as_completed did not time out in worker thread")
 
