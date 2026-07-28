@@ -168,6 +168,17 @@ For example, to limit a worker to five concurrent flow runs:
 prefect worker start --pool "my-pool" --limit 5
 ```
 
+<Note>
+**Starting a worker when the Prefect API is unreachable**
+
+If the Prefect API is unreachable when a worker starts, the worker logs a warning and keeps retrying instead of exiting.
+It begins submitting flow runs as soon as it can sync with the API.
+
+If you start a worker without the `--type` flag, Prefect must reach the API to discover the work pool's type. If the API
+is unreachable at that point, the command exits with an error—provide `--type` explicitly to start the worker while the
+API is unavailable.
+</Note>
+
 import { HELM } from "/snippets/resource-management/helm.mdx"
 import { workers } from "/snippets/resource-management/vars.mdx"
 
