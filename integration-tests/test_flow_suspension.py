@@ -4,6 +4,7 @@ import time
 from pathlib import Path
 from uuid import UUID, uuid4
 
+import pytest
 import uv
 
 import prefect
@@ -84,7 +85,10 @@ def _task_marker_count(marker_dir: Path) -> int:
     return len(list(marker_dir.glob(f"{TASK_MARKER_PREFIX}*")))
 
 
-def test_external_suspension_stops_flow_run_at_next_task_boundary(tmp_path: Path):
+@pytest.mark.parametrize("attempt", range(3))
+def test_external_suspension_stops_flow_run_at_next_task_boundary(
+    tmp_path: Path, attempt: int
+):
     api_url = PREFECT_API_URL.value()
     assert api_url, "PREFECT_API_URL must be configured for integration tests."
     cli_env = {
@@ -220,7 +224,9 @@ def test_external_suspension_stops_flow_run_at_next_task_boundary(tmp_path: Path
                 )
             print(
                 "SERVER FLOW-RUN EVENTS:",
-                sorted((event.occurred.isoformat(), event.event) for event in page.events),
+                sorted(
+                    (event.occurred.isoformat(), event.event) for event in page.events
+                ),
             )
             raise
         _phase("process-exited")
