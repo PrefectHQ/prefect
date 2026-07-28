@@ -22,13 +22,13 @@ from prefect.events.clients import PrefectEventSubscriber, get_events_subscriber
 from prefect.events.filters import EventFilter, EventNameFilter
 from prefect.exceptions import ObjectNotFound
 from prefect.logging.loggers import get_logger
-from prefect.types._datetime import now
 from prefect.utilities.services import critical_service_loop
 
-# How long to keep looking for the state a suspension event refers to before
-# concluding that it will never become readable, and how often to look for it.
-SUSPENSION_CONFIRMATION_TIMEOUT = 30.0
+# How long to wait before warning that a suspension state is still unavailable,
+# how often to look initially, and the retry cap after the warning.
+SUSPENSION_CONFIRMATION_WARNING_AFTER = 30.0
 SUSPENSION_CONFIRMATION_INTERVAL = 0.5
+SUSPENSION_CONFIRMATION_MAX_INTERVAL = 10.0
 
 
 class OnCancellingCallback(Protocol):
@@ -52,19 +52,36 @@ class _SuspensionWatch:
         client: PrefectClient,
         on_suspended: OnSuspendedCallback,
         logger: logging.Logger,
-        confirmation_timeout: float,
+        confirmation_warning_after: float,
         confirmation_interval: float,
+        wait_for_initial_state: bool = False,
     ) -> None:
         self.flow_run_id = flow_run_id
-        self.started_at = now("UTC")
         self.is_suspended = False
         self._client = client
         self._on_suspended = on_suspended
         self._logger = logger
-        self._confirmation_timeout = confirmation_timeout
+        self._confirmation_warning_after = confirmation_warning_after
         self._confirmation_interval = confirmation_interval
+        self._is_initialized = not wait_for_initial_state
+        self._replay_checkpoint: datetime | None = None
+        self._pending_events: dict[uuid.UUID, datetime] = {}
         self._confirmation_tasks: dict[uuid.UUID, asyncio.Task[None]] = {}
         self._closed = False
+
+    def initialize(self, state: State | None) -> None:
+        """Set the server-derived replay checkpoint and process buffered events."""
+        if self._is_initialized:
+            return
+
+        self._replay_checkpoint = state.timestamp if state is not None else None
+        self._is_initialized = True
+        self.notify_if_suspended(state)
+
+        pending_events = self._pending_events
+        self._pending_events = {}
+        for state_id, occurred in pending_events.items():
+            self.observe(state_id, occurred)
 
     def notify_if_suspended(self, state: State | None) -> None:
         if (
@@ -79,10 +96,13 @@ class _SuspensionWatch:
         """Confirm a new suspension event without blocking event consumption."""
         if self._closed or self.is_suspended:
             return
-        if occurred < self.started_at:
+        if not self._is_initialized:
+            self._pending_events.setdefault(state_id, occurred)
+            return
+        if self._replay_checkpoint is not None and occurred <= self._replay_checkpoint:
             self._logger.debug(
                 "Ignoring replayed suspension event for flow run %s that occurred"
-                " before this run was watched.",
+                " at or before the initial server state.",
                 self.flow_run_id,
             )
             return
@@ -98,7 +118,9 @@ class _SuspensionWatch:
         )
 
     async def _confirm(self, state_id: uuid.UUID) -> None:
-        deadline = time.monotonic() + self._confirmation_timeout
+        warning_deadline = time.monotonic() + self._confirmation_warning_after
+        retry_interval = self._confirmation_interval
+        warned = False
         last_error: Exception | None = None
 
         while not self._closed and not self.is_suspended:
@@ -128,18 +150,23 @@ class _SuspensionWatch:
                 self.notify_if_suspended(state)
                 return
 
-            if time.monotonic() >= deadline:
+            if not warned and time.monotonic() >= warning_deadline:
                 self._logger.warning(
-                    "Received a suspension event for flow run %s, but state %s never"
-                    " became readable within %s seconds.",
+                    "Received a suspension event for flow run %s, but state %s has"
+                    " not become readable within %s seconds; continuing to retry.",
                     self.flow_run_id,
                     state_id,
-                    self._confirmation_timeout,
+                    self._confirmation_warning_after,
                     exc_info=last_error,
                 )
-                return
+                warned = True
 
-            await asyncio.sleep(self._confirmation_interval)
+            await asyncio.sleep(retry_interval)
+            if warned:
+                retry_interval = min(
+                    max(retry_interval * 2, self._confirmation_interval),
+                    SUSPENSION_CONFIRMATION_MAX_INTERVAL,
+                )
 
     def _confirmation_done(self, state_id: uuid.UUID, task: asyncio.Task[None]) -> None:
         if self._confirmation_tasks.get(state_id) is task:
@@ -157,6 +184,7 @@ class _SuspensionWatch:
 
     def cancel(self) -> tuple[asyncio.Task[None], ...]:
         self._closed = True
+        self._pending_events.clear()
         tasks = tuple(self._confirmation_tasks.values())
         for task in tasks:
             task.cancel()
@@ -392,7 +420,9 @@ class FlowRunSuspendingObserver:
         polling_interval: float = 10,
         event_filter: EventFilter | None = None,
         on_failure: OnFailureCallback | None = None,
-        suspension_confirmation_timeout: float = SUSPENSION_CONFIRMATION_TIMEOUT,
+        suspension_confirmation_warning_after: float = (
+            SUSPENSION_CONFIRMATION_WARNING_AFTER
+        ),
         suspension_confirmation_interval: float = SUSPENSION_CONFIRMATION_INTERVAL,
     ):
         """
@@ -405,7 +435,9 @@ class FlowRunSuspendingObserver:
         self.on_suspended = on_suspended
         self.on_failure = on_failure
         self.polling_interval = polling_interval
-        self.suspension_confirmation_timeout = suspension_confirmation_timeout
+        self.suspension_confirmation_warning_after = (
+            suspension_confirmation_warning_after
+        )
         self.suspension_confirmation_interval = suspension_confirmation_interval
 
         if event_filter is not None:
@@ -449,14 +481,24 @@ class FlowRunSuspendingObserver:
             )
         self.logger.debug("Adding in-flight flow run ID: %s", flow_run_id)
         if flow_run_id not in self._watches:
-            self._watches[flow_run_id] = _SuspensionWatch(
-                flow_run_id=flow_run_id,
-                client=self._client,
-                on_suspended=self.on_suspended,
-                logger=self.logger,
-                confirmation_timeout=self.suspension_confirmation_timeout,
-                confirmation_interval=self.suspension_confirmation_interval,
+            self._watches[flow_run_id] = self._create_watch(flow_run_id)
+
+    def _create_watch(
+        self, flow_run_id: uuid.UUID, *, wait_for_initial_state: bool = False
+    ) -> _SuspensionWatch:
+        if self._client is None:
+            raise RuntimeError(
+                "Client not initialized. Please use `async with` to initialize the observer."
             )
+        return _SuspensionWatch(
+            flow_run_id=flow_run_id,
+            client=self._client,
+            on_suspended=self.on_suspended,
+            logger=self.logger,
+            confirmation_warning_after=self.suspension_confirmation_warning_after,
+            confirmation_interval=self.suspension_confirmation_interval,
+            wait_for_initial_state=wait_for_initial_state,
+        )
 
     def remove_in_flight_flow_run_id(self, flow_run_id: uuid.UUID):
         self.logger.debug("Removing in-flight flow run ID: %s", flow_run_id)
@@ -464,10 +506,14 @@ class FlowRunSuspendingObserver:
             watch.cancel()
 
     async def watch_flow_run_id(self, flow_run_id: uuid.UUID) -> None:
-        self.add_in_flight_flow_run_id(flow_run_id)
         if self._client is None:
             raise RuntimeError(
                 "Client not initialized. Please use `async with` to initialize the observer."
+            )
+        self.logger.debug("Adding in-flight flow run ID: %s", flow_run_id)
+        if flow_run_id not in self._watches:
+            self._watches[flow_run_id] = self._create_watch(
+                flow_run_id, wait_for_initial_state=True
             )
         retry_interval = max(min(self.polling_interval, 1.0), 0.01)
         attempts = 0
@@ -491,7 +537,7 @@ class FlowRunSuspendingObserver:
                 await asyncio.sleep(retry_interval)
                 continue
 
-            watch.notify_if_suspended(flow_run.state)
+            watch.initialize(flow_run.state)
             return
 
     def _notify_if_suspended_state(
