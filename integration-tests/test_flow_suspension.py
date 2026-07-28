@@ -45,7 +45,7 @@ def externally_suspended_flow(marker_dir: str) -> None:
 def _worker_output(log_path: Path) -> str:
     if not log_path.exists():
         return "<no worker log>"
-    return log_path.read_text()[-4000:]
+    return log_path.read_text()[-30000:]
 
 
 def _wait_for(
@@ -87,7 +87,11 @@ def _task_marker_count(marker_dir: Path) -> int:
 def test_external_suspension_stops_flow_run_at_next_task_boundary(tmp_path: Path):
     api_url = PREFECT_API_URL.value()
     assert api_url, "PREFECT_API_URL must be configured for integration tests."
-    cli_env = {**os.environ, "PREFECT_API_URL": api_url}
+    cli_env = {
+        **os.environ,
+        "PREFECT_API_URL": api_url,
+        "PREFECT_LOGGING_LEVEL": "DEBUG",
+    }
 
     work_pool_name = f"suspension-pool-{uuid4()}"
     deployment_name = f"suspension-deployment-{uuid4()}"
@@ -100,9 +104,15 @@ def test_external_suspension_stops_flow_run_at_next_task_boundary(tmp_path: Path
     execution_process: subprocess.Popen[str] | None = None
     execution_log = None
 
+    _t0 = time.monotonic()
+
+    def _phase(label: str) -> None:
+        print(f"PHASE {label}: {time.monotonic() - _t0:.1f}s")
+
     try:
         with get_client(sync_client=True) as client:
             client.create_work_pool(WorkPoolCreate(name=work_pool_name, type="process"))
+        _phase("work-pool-created")
 
         deployment_id = prefect.flow.from_source(
             source=str(REPO_ROOT),
@@ -116,6 +126,8 @@ def test_external_suspension_stops_flow_run_at_next_task_boundary(tmp_path: Path
             print_next_steps=False,
             ignore_warnings=True,
         )
+
+        _phase("deployed")
 
         with get_client(sync_client=True) as client:
             flow_run = client.create_flow_run_from_deployment(deployment_id)
@@ -155,9 +167,23 @@ def test_external_suspension_stops_flow_run_at_next_task_boundary(tmp_path: Path
             ),
         )
 
-        suspend_flow_run(flow_run_id=flow_run_id)
+        _phase("first-task-boundary")
 
-        return_code = execution_process.wait(timeout=120)
+        suspend_flow_run(flow_run_id=flow_run_id)
+        _phase("suspend-requested")
+
+        try:
+            return_code = execution_process.wait(timeout=25)
+        except subprocess.TimeoutExpired:
+            _phase("process-DID-NOT-EXIT")
+            print("markers:", _task_marker_count(marker_dir))
+            print("state:", _read_flow_run(flow_run_id).state)
+            time.sleep(10)
+            print("markers after 10s:", _task_marker_count(marker_dir))
+            print("still running:", execution_process.poll() is None)
+            print("EXECUTION LOG TAIL:\n" + _worker_output(execution_log_path))
+            raise
+        _phase("process-exited")
         assert return_code == 0, (
             f"`prefect flow-run execute` exited with code {return_code}.\n"
             f"Execution log:\n{_worker_output(execution_log_path)}"
