@@ -59,7 +59,7 @@ an image.
 **Args:**
 - `*deployments`: A list of deployments to deploy.
 - `work_pool_name`: The name of the work pool to use for these deployments. Defaults to
-the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
+the value of `PREFECT_DEPLOYMENTS_DEFAULT_WORK_POOL_NAME`.
 - `image`: The name of the Docker image to build, including the registry and
 repository. Pass a DockerImage instance to customize the Dockerfile used
 and build arguments.
@@ -98,7 +98,7 @@ if __name__ == "__main__":
 ```
 
 
-### `deploy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L1665" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `deploy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/deployments/runner.py#L1667" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 deploy(*deployments: RunnerDeployment) -> List[UUID]
@@ -118,7 +118,7 @@ an image.
 **Args:**
 - `*deployments`: A list of deployments to deploy.
 - `work_pool_name`: The name of the work pool to use for these deployments. Defaults to
-the value of `PREFECT_DEFAULT_WORK_POOL_NAME`.
+the value of `PREFECT_DEPLOYMENTS_DEFAULT_WORK_POOL_NAME`.
 - `image`: The name of the Docker image to build, including the registry and
 repository. Pass a DockerImage instance to customize the Dockerfile used
 and build arguments.

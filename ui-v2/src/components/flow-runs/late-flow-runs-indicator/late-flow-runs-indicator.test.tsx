@@ -24,8 +24,9 @@ test("shows tooltip with appropriate message", async () => {
 	const badge = screen.getByRole("button");
 	await user.hover(badge);
 
-	expect(screen.getAllByText("Late Flow Runs")).toHaveLength(2);
-	expect(screen.getAllByText("3 flow runs running late")).toHaveLength(2);
+	const tooltip = await screen.findByRole("tooltip");
+	expect(tooltip).toHaveTextContent("Late Flow Runs");
+	expect(tooltip).toHaveTextContent("3 flow runs running late");
 });
 
 test("shows singular message for single late run", async () => {
@@ -36,7 +37,8 @@ test("shows singular message for single late run", async () => {
 	const badge = screen.getByRole("button");
 	await user.hover(badge);
 
-	expect(screen.getAllByText("1 flow run running late")).toHaveLength(2);
+	const tooltip = await screen.findByRole("tooltip");
+	expect(tooltip).toHaveTextContent("1 flow run running late");
 });
 
 test("applies custom className", () => {

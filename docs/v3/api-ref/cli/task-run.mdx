@@ -48,7 +48,6 @@ View details about a task run.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="ID" type="string" required>
-    \[required]
 </ResponseField>
 </Accordion>
 
@@ -81,7 +80,7 @@ prefect task-run ls [OPTIONS]
 
 
 <Info>
-View recent task runs
+View recent task runs.
 </Info>
 
 
@@ -110,6 +109,10 @@ View recent task runs
 
 <ResponseField name="--state-type">
     Type of the task run's state
+</ResponseField>
+
+<ResponseField name="--output">
+    Specify an output format. Currently supports: json
 </ResponseField>
 
 </Accordion>
@@ -142,7 +145,6 @@ View logs for a task run.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="ID" type="string" required>
-    \[required]
 </ResponseField>
 </Accordion>
 
@@ -164,6 +166,10 @@ View logs for a task run.
 
 <ResponseField name="--tail">
     Show the last 20 logs instead of all logs.
+</ResponseField>
+
+<ResponseField name="--output">
+    Specify an output format. Currently supports: json
 </ResponseField>
 
 </Accordion>

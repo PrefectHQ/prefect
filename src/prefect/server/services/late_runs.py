@@ -1,6 +1,6 @@
 """
 The MarkLateRuns service. Responsible for putting flow runs in a Late state if they are not started on time.
-The threshold for a late run can be configured by changing `PREFECT_API_SERVICES_LATE_RUNS_AFTER_SECONDS`.
+The threshold for a late run can be configured by changing `PREFECT_SERVER_SERVICES_LATE_RUNS_AFTER_SECONDS`.
 """
 
 from __future__ import annotations

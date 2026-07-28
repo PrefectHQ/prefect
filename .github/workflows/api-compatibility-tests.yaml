@@ -43,7 +43,7 @@ jobs:
           submodules: true
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         id: setup_python
         with:
           python-version: "3.12"

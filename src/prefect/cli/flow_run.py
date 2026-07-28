@@ -37,7 +37,7 @@ from prefect.client.schemas.filters import FlowFilter, FlowRunFilter, LogFilter
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.responses import SetStateStatus
 from prefect.client.schemas.sorting import FlowRunSort, LogSort
-from prefect.exceptions import Abort, ObjectNotFound
+from prefect.exceptions import Abort, FlowRunWatchError, ObjectNotFound
 from prefect.logging import get_logger
 from prefect.runner._flow_run_executor import FlowRunExecutorContext
 from prefect.runner._workspace_starter import WorkspaceResolvingEngineCommandStarter
@@ -182,7 +182,16 @@ async def ls(
         ),
     ] = None,
 ):
-    """View recent flow runs or flow runs for specific flows."""
+    """View recent flow runs or flow runs for specific flows.
+
+    Examples:
+        ```bash
+        $ prefect flow-runs ls --state Running
+        $ prefect flow-runs ls --state Running --state late
+        $ prefect flow-runs ls --state-type RUNNING
+        $ prefect flow-runs ls --state-type RUNNING --state-type FAILED
+        ```
+    """
     if output and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
 
@@ -340,7 +349,22 @@ async def retry(
         ),
     ] = None,
 ):
-    """Retry a failed or completed flow run."""
+    """Retry a failed or completed flow run.
+
+    The flow run can be specified by either its UUID or its name. If multiple
+    flow runs have the same name, you must use the UUID to disambiguate.
+
+    If the flow run has an associated deployment, it will be scheduled for retry
+    and a worker will pick it up. If there is no deployment, you must provide
+    an --entrypoint to the flow code, and the flow will execute locally.
+
+    Examples:
+        ```bash
+        $ prefect flow-run retry abc123-def456-7890-...
+        $ prefect flow-run retry my-flow-run-name
+        $ prefect flow-run retry abc123 --entrypoint ./flows/my_flow.py:my_flow
+        ```
+    """
     from prefect.flow_engine import run_flow
     from prefect.flows import InfrastructureBoundFlow, load_flow_from_entrypoint
     from prefect.states import Scheduled
@@ -679,7 +703,10 @@ async def watch(
             exit_with_success(f"Flow run already finished in {state.name!r}.")
         exit_with_error(f"Flow run already finished in state {state.name!r}.", code=1)
 
-    finished = await watch_flow_run(id, _cli.console, timeout=timeout)
+    try:
+        finished = await watch_flow_run(id, _cli.console, timeout=timeout)
+    except FlowRunWatchError as exc:
+        exit_with_error(str(exc))
     state = finished.state
     if state is None:
         exit_with_error("Flow run finished in an unknown state.")

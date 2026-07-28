@@ -25,7 +25,7 @@ export const UI_SWITCH_REASON_OPTIONS: ReadonlyArray<{
 		value: "missing_feature",
 		label: "Missing feature",
 		description:
-			"A workflow or page you need is not available in the updated UI yet.",
+			"A workflow or page you need is not available in the V2 UI yet.",
 	},
 	{
 		value: "bug_incorrect_behavior",
@@ -45,9 +45,9 @@ export const UI_SWITCH_REASON_OPTIONS: ReadonlyArray<{
 	},
 	{
 		value: "prefer_v1_familiarity",
-		label: "Prefer current UI or familiarity",
+		label: "Prefer V1 UI or familiarity",
 		description:
-			"You prefer the existing layout or established workflows in the current UI.",
+			"You prefer the existing layout or established workflows in the V1 UI.",
 	},
 	{
 		value: "other",
@@ -237,8 +237,8 @@ export function buildUiSwitchGithubIssueUrl(args: {
 	const body = [
 		"### UI switch feedback",
 		"",
-		"- From UI: Updated UI",
-		"- To UI: Current UI",
+		"- From UI: V2 UI",
+		"- To UI: V1 UI",
 		`- Current path: ${args.currentPath}`,
 		`- Reason: ${reasonLabel}`,
 		"",
@@ -247,7 +247,7 @@ export function buildUiSwitchGithubIssueUrl(args: {
 	].join("\n");
 
 	const params = new URLSearchParams({
-		title: `Updated UI feedback: ${reasonLabel}`,
+		title: `V2 UI feedback: ${reasonLabel}`,
 		body,
 	});
 

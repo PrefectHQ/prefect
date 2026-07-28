@@ -1,12 +1,13 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 import sqlalchemy as sa
 from pydantic import ValidationError
+from sqlalchemy import event
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface
@@ -766,3 +767,178 @@ async def test_denied_slots_decay_not_clamped_for_rate_limits(
     )
     assert refreshed
     assert refreshed.denied_slots == 10
+
+
+def _set_event_on_concurrency_update(
+    engine: AsyncEngine,
+    acquired: asyncio.Event,
+    blocked: asyncio.Event,
+):
+    """Set `blocked` when a connection executes an UPDATE against concurrency_limit_v2
+    after `acquired` has been set."""
+
+    def before_cursor(
+        conn, cursor, statement, parameters, context, executemany
+    ) -> None:
+        if (
+            acquired.is_set()
+            and "UPDATE" in statement
+            and "concurrency_limit_v2" in statement
+        ):
+            blocked.set()
+
+    event.listen(engine.sync_engine, "before_cursor_execute", before_cursor)
+    return before_cursor
+
+
+async def test_contended_increment_waits_and_re_evaluates_at_read_committed(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+):
+    """When two transactions try to increment the same limit and only one slot is
+    available, the second waits for the row lock and then returns False under READ
+    COMMITTED."""
+    if not db.database_config.connection_url.startswith("postgresql+asyncpg"):
+        pytest.skip("Test requires PostgreSQL")
+
+    limit = await create_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2(
+            name=f"contended-increment-{uuid4()}",
+            limit=1,
+            active_slots=0,
+        ),
+    )
+    await session.commit()
+
+    acquired = asyncio.Event()
+    release = asyncio.Event()
+    blocked = asyncio.Event()
+    engine = await db.engine()
+    listener = _set_event_on_concurrency_update(engine, acquired, blocked)
+
+    async def t1() -> None:
+        async with db.session_context(begin_transaction=True) as session1:
+            result = await bulk_increment_active_slots(
+                session=session1,
+                concurrency_limit_ids=[limit.id],
+                slots=1,
+            )
+            assert result is True
+            acquired.set()
+            await release.wait()
+
+    async def t2() -> bool:
+        await acquired.wait()
+        async with db.session_context(begin_transaction=True) as session2:
+            return await bulk_increment_active_slots(
+                session=session2,
+                concurrency_limit_ids=[limit.id],
+                slots=1,
+            )
+
+    t1_task = asyncio.create_task(t1())
+    t2_task = asyncio.create_task(t2())
+
+    try:
+        try:
+            await asyncio.wait_for(blocked.wait(), timeout=5)
+        except TimeoutError:
+            raise AssertionError(
+                "Second transaction did not attempt an UPDATE while the first held the row lock"
+            )
+
+        release.set()
+        t2_result = await asyncio.wait_for(t2_task, timeout=5)
+        await asyncio.wait_for(t1_task, timeout=5)
+    finally:
+        release.set()
+        event.remove(engine.sync_engine, "before_cursor_execute", listener)
+        t1_task.cancel()
+        t2_task.cancel()
+
+    assert t2_result is False
+
+    async with db.session_context(begin_transaction=True) as final_session:
+        final_limit = await read_concurrency_limit(
+            session=final_session, concurrency_limit_id=limit.id
+        )
+        assert final_limit
+        assert final_limit.active_slots == 1
+
+
+async def test_contended_release_serializes_through_row_lock(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+):
+    """When two transactions try to decrement the same limit, both succeed because
+    READ COMMITTED lets the second wait and then re-read the latest committed count."""
+    if not db.database_config.connection_url.startswith("postgresql+asyncpg"):
+        pytest.skip("Test requires PostgreSQL")
+
+    limit = await create_concurrency_limit(
+        session=session,
+        concurrency_limit=ConcurrencyLimitV2(
+            name=f"contended-release-{uuid4()}",
+            limit=10,
+            active_slots=2,
+        ),
+    )
+    await session.commit()
+
+    acquired = asyncio.Event()
+    release = asyncio.Event()
+    blocked = asyncio.Event()
+    engine = await db.engine()
+    listener = _set_event_on_concurrency_update(engine, acquired, blocked)
+
+    async def t1() -> bool:
+        async with db.session_context(begin_transaction=True) as session1:
+            result = await bulk_decrement_active_slots(
+                session=session1,
+                concurrency_limit_ids=[limit.id],
+                slots=1,
+            )
+            acquired.set()
+            await release.wait()
+            return result
+
+    async def t2() -> bool:
+        await acquired.wait()
+        async with db.session_context(begin_transaction=True) as session2:
+            return await bulk_decrement_active_slots(
+                session=session2,
+                concurrency_limit_ids=[limit.id],
+                slots=1,
+            )
+
+    t1_task = asyncio.create_task(t1())
+    t2_task = asyncio.create_task(t2())
+
+    try:
+        try:
+            await asyncio.wait_for(blocked.wait(), timeout=5)
+        except TimeoutError:
+            raise AssertionError(
+                "Second transaction did not attempt an UPDATE while the first held the row lock"
+            )
+
+        release.set()
+        results = await asyncio.gather(
+            asyncio.wait_for(t1_task, timeout=5),
+            asyncio.wait_for(t2_task, timeout=5),
+        )
+    finally:
+        release.set()
+        event.remove(engine.sync_engine, "before_cursor_execute", listener)
+        t1_task.cancel()
+        t2_task.cancel()
+
+    assert all(results)
+
+    async with db.session_context(begin_transaction=True) as final_session:
+        final_limit = await read_concurrency_limit(
+            session=final_session, concurrency_limit_id=limit.id
+        )
+        assert final_limit
+        assert final_limit.active_slots == 0

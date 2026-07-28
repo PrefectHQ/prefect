@@ -14,7 +14,7 @@ prefect config [OPTIONS] COMMAND [ARGS]...
 
 
 <Info>
-View and set Prefect profiles.
+View and set Prefect settings.
 </Info>
 
 
@@ -29,7 +29,7 @@ View and set Prefect profiles.
 
 
 ```command
-prefect config set [OPTIONS] SETTINGS...
+prefect config set [OPTIONS] SETTINGS
 ```
 
 
@@ -47,8 +47,8 @@ Change the value for a setting by setting the value in the current profile.
 
 
 <Accordion title="Arguments" defaultOpen>
-<ResponseField name="SETTINGS..." type="string" required>
-    \[required]
+<ResponseField name="SETTINGS" type="string" required>
+    Settings in VAR=VAL format
 </ResponseField>
 </Accordion>
 
@@ -71,8 +71,7 @@ prefect config validate [OPTIONS]
 <Info>
 Read and validate the current profile.
 
-Deprecated settings will be automatically converted to new names unless both are
-set.
+Deprecated settings will be automatically converted to new names.
 </Info>
 
 
@@ -87,7 +86,7 @@ set.
 
 
 ```command
-prefect config unset [OPTIONS] SETTING_NAMES...
+prefect config unset [OPTIONS] SETTING_NAMES
 ```
 
 
@@ -107,8 +106,8 @@ Removes the setting from the current profile.
 
 
 <Accordion title="Arguments" defaultOpen>
-<ResponseField name="SETTING_NAMES..." type="string" required>
-    \[required]
+<ResponseField name="SETTING_NAMES" type="string" required>
+    Setting names to unset
 </ResponseField>
 </Accordion>
 
@@ -117,7 +116,7 @@ Removes the setting from the current profile.
 <Accordion title="Options" defaultOpen>
 
 <ResponseField name="--yes">
-    
+    Skip confirmation
 </ResponseField>
 
 </Accordion>
@@ -153,27 +152,19 @@ Display the current settings.
 <Accordion title="Options" defaultOpen>
 
 <ResponseField name="--show-defaults">
-    Toggle display of default settings.
-
---show-defaults displays all settings,
-even if they are not changed from the
-default values.
-
---hide-defaults displays only settings
-that are changed from default values.
+    Show default values
 </ResponseField>
 
 <ResponseField name="--show-sources">
-    Toggle display of the source of a value for
-a setting.
-
-The value for a setting can come from the
-current profile, environment variables, or
-the defaults.
+    Show value sources
 </ResponseField>
 
 <ResponseField name="--show-secrets">
-    Toggle display of secrets setting values.
+    Show secret values
+</ResponseField>
+
+<ResponseField name="--output">
+    Specify an output format. Currently supports: json
 </ResponseField>
 
 </Accordion>

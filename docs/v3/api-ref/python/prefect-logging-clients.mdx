@@ -7,22 +7,22 @@ sidebarTitle: clients
 
 ## Functions
 
-### `http_to_ws` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/clients.py#L68" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `http_to_ws` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/clients.py#L75" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 http_to_ws(url: str) -> str
 ```
 
-### `logs_out_socket_from_api_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/clients.py#L72" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `logs_out_socket_from_api_url` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/clients.py#L79" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 logs_out_socket_from_api_url(url: str) -> str
 ```
 
-### `get_logs_subscriber` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/clients.py#L90" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_logs_subscriber` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/clients.py#L97" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-get_logs_subscriber(filter: Optional['LogFilter'] = None, reconnection_attempts: int = 10) -> 'PrefectLogsSubscriber'
+get_logs_subscriber(filter: Optional['LogFilter'] = None, reconnection_attempts: int = 10, reconnect_on_clean_close: bool = False) -> 'PrefectLogsSubscriber'
 ```
 
 
@@ -34,10 +34,14 @@ you're using Prefect Cloud or OSS and returns the appropriate subscriber.
 
 ## Classes
 
-### `PrefectLogsSubscriber` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/clients.py#L128" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PrefectLogsSubscriber` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/clients.py#L140" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Subscribes to a Prefect logs stream, yielding logs as they occur.
+
+Abnormal disconnects are retried. Clean disconnects end iteration unless
+`reconnect_on_clean_close` is enabled. The logs stream is live-only, so logs
+emitted while disconnected may be omitted.
 
 Example:
 
@@ -54,13 +58,13 @@ Example:
 
 **Methods:**
 
-#### `client_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/clients.py#L196" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `client_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/clients.py#L216" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 client_name(self) -> str
 ```
 
-### `PrefectCloudLogsSubscriber` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/clients.py#L325" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `PrefectCloudLogsSubscriber` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/clients.py#L348" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Logs subscriber for Prefect Cloud
@@ -68,7 +72,7 @@ Logs subscriber for Prefect Cloud
 
 **Methods:**
 
-#### `client_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/clients.py#L196" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `client_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/logging/clients.py#L216" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 client_name(self) -> str

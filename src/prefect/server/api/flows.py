@@ -255,6 +255,6 @@ async def paginate_flows(
         results=results,
         count=count,
         limit=limit,
-        pages=(count + limit - 1) // limit,
+        pages=(count + limit - 1) // limit if limit > 0 else 0,
         page=page,
     )

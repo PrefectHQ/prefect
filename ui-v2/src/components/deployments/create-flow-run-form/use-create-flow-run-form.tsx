@@ -74,36 +74,79 @@ const formSchema = z.object({
 
 export type CreateFlowRunSchema = z.infer<typeof formSchema>;
 
+export type AdditionalOptionsOverrides = {
+	message?: string;
+	tags?: string[];
+	work_queue_name?: string | null;
+	retries?: number | null;
+	retry_delay?: number | null;
+	job_variables?: Record<string, unknown> | null;
+};
+
 // nb: Parameter values are managed separately by `useSchemaForm`; this only
 // builds defaults for the react-hook-form portion of the create flow run form.
-const createDefaultValues = (deployment: Deployment): CreateFlowRunSchema => ({
-	empirical_policy: {
-		retries: 0,
-		retry_delay: 0,
-	},
-	name: createFakeFlowRunName(),
-	job_variables: deployment.job_variables
-		? JSON.stringify(deployment.job_variables)
-		: "",
-	state: {
-		message: "",
-		state_details: { scheduled_time: null },
-	},
-	tags: deployment.tags ?? [],
-	work_queue_name: deployment.work_queue_name,
-	enforce_parameter_schema: deployment.enforce_parameter_schema,
-	parameter_openapi_schema: deployment.parameter_openapi_schema,
-});
+const createDefaultValues = (
+	deployment: Deployment,
+	overrideAdditionalOptions?: AdditionalOptionsOverrides,
+): CreateFlowRunSchema => {
+	const base = {
+		empirical_policy: {
+			retries: 0,
+			retry_delay: 0,
+		},
+		name: createFakeFlowRunName(),
+		job_variables: deployment.job_variables
+			? JSON.stringify(deployment.job_variables)
+			: "",
+		state: {
+			message: "",
+			state_details: { scheduled_time: null },
+		},
+		tags: deployment.tags ?? [],
+		work_queue_name: deployment.work_queue_name,
+		enforce_parameter_schema: deployment.enforce_parameter_schema,
+		parameter_openapi_schema: deployment.parameter_openapi_schema,
+	};
+
+	if (!overrideAdditionalOptions) {
+		return base;
+	}
+
+	return {
+		...base,
+		state: {
+			...base.state,
+			message: overrideAdditionalOptions.message ?? base.state.message,
+		},
+		tags: overrideAdditionalOptions.tags ?? base.tags,
+		work_queue_name:
+			overrideAdditionalOptions.work_queue_name ?? base.work_queue_name,
+		empirical_policy: {
+			...base.empirical_policy,
+			retries:
+				overrideAdditionalOptions.retries ?? base.empirical_policy.retries,
+			retry_delay:
+				overrideAdditionalOptions.retry_delay ??
+				base.empirical_policy.retry_delay,
+		},
+		job_variables: overrideAdditionalOptions.job_variables
+			? JSON.stringify(overrideAdditionalOptions.job_variables)
+			: base.job_variables,
+	};
+};
 
 export const useCreateFlowRunForm = (
 	deployment: Deployment,
 	overrideParameters: Record<string, unknown> | undefined,
+	overrideAdditionalOptions?: AdditionalOptionsOverrides,
 ) => {
 	const navigate = useNavigate();
 	// Capture initial form values once so subsequent deployment refetches
 	// (driven by `refetchInterval` / `refetchOnWindowFocus`) do not overwrite
 	// in-flight user edits. See OSS-7952.
-	const [initialFormValues] = useState(() => createDefaultValues(deployment));
+	const [initialFormValues] = useState(() =>
+		createDefaultValues(deployment, overrideAdditionalOptions),
+	);
 	const [initialParameterValues] = useState(
 		() => overrideParameters ?? deployment.parameters ?? {},
 	);
@@ -221,6 +264,7 @@ function createPayload(
 				...formValues.state.state_details,
 			},
 		},
+		tags: formValues.tags,
 		job_variables: jobVariablesPayload,
 		enforce_parameter_schema: formValues.enforce_parameter_schema,
 		parameters: parameterValues,

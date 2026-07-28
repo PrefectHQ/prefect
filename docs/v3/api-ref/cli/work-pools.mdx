@@ -1,0 +1,1060 @@
+---
+title: " "
+sidebarTitle: prefect work-pools
+---
+
+# `prefect work-pools`
+
+
+
+```command
+prefect work-pools [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Manage work pools.
+</Info>
+
+
+
+
+
+
+
+
+## `prefect work-pools storage`
+
+
+
+```command
+prefect work-pools storage [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+EXPERIMENTAL: Manage work pool storage.
+</Info>
+
+
+
+
+
+
+
+
+### `prefect work-pools storage configure`
+
+
+
+```command
+prefect work-pools storage configure [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+EXPERIMENTAL: Configure work pool storage.
+</Info>
+
+
+
+
+
+
+
+
+#### `prefect work-pools storage configure s3`
+
+
+
+```command
+prefect work-pools storage configure s3 [OPTIONS] WORK_POOL_NAME
+```
+
+
+
+<Info>
+EXPERIMENTAL: Configure AWS S3 storage for a work pool.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="WORK_POOL_NAME" type="string" required>
+    The name of the work pool to configure storage for.
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--bucket">
+    The name of the S3 bucket to use.
+</ResponseField>
+
+<ResponseField name="--aws-credentials-block-name">
+    The name of the AWS credentials block to use.
+</ResponseField>
+
+<ResponseField name="--launcher">
+    Shared executable or path for upload and execution.
+</ResponseField>
+
+<ResponseField name="--launcher-arg">
+    Append one argv token to the shared launcher. Repeat per token.
+</ResponseField>
+
+<ResponseField name="--upload-launcher">
+    Replace the shared executable or path for upload only.
+</ResponseField>
+
+<ResponseField name="--upload-launcher-arg">
+    Append one upload-only argv token. Extends the shared launcher.
+</ResponseField>
+
+<ResponseField name="--execution-launcher">
+    Replace the shared executable or path for execution only.
+</ResponseField>
+
+<ResponseField name="--execution-launcher-arg">
+    Append one execution-only argv token. Extends the shared launcher.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool storage configure s3 "my-pool" --bucket my-bucket --aws-credentials-block-name my-credentials
+```
+</Note>
+
+
+
+
+#### `prefect work-pools storage configure gcs`
+
+
+
+```command
+prefect work-pools storage configure gcs [OPTIONS] WORK_POOL_NAME
+```
+
+
+
+<Info>
+EXPERIMENTAL: Configure Google Cloud storage for a work pool.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="WORK_POOL_NAME" type="string" required>
+    The name of the work pool to configure storage for.
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--bucket">
+    The name of the Google Cloud Storage bucket to use.
+</ResponseField>
+
+<ResponseField name="--gcp-credentials-block-name">
+    The name of the Google Cloud credentials block to use.
+</ResponseField>
+
+<ResponseField name="--launcher">
+    Shared executable or path for upload and execution.
+</ResponseField>
+
+<ResponseField name="--launcher-arg">
+    Append one argv token to the shared launcher. Repeat per token.
+</ResponseField>
+
+<ResponseField name="--upload-launcher">
+    Replace the shared executable or path for upload only.
+</ResponseField>
+
+<ResponseField name="--upload-launcher-arg">
+    Append one upload-only argv token. Extends the shared launcher.
+</ResponseField>
+
+<ResponseField name="--execution-launcher">
+    Replace the shared executable or path for execution only.
+</ResponseField>
+
+<ResponseField name="--execution-launcher-arg">
+    Append one execution-only argv token. Extends the shared launcher.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool storage configure gcs "my-pool" --bucket my-bucket --gcp-credentials-block-name my-credentials
+```
+</Note>
+
+
+
+
+#### `prefect work-pools storage configure azure-blob-storage`
+
+
+
+```command
+prefect work-pools storage configure azure-blob-storage [OPTIONS] WORK_POOL_NAME
+```
+
+
+
+<Info>
+EXPERIMENTAL: Configure Azure Blob Storage for a work pool.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="WORK_POOL_NAME" type="string" required>
+    The name of the work pool to configure storage for.
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--container">
+    The name of the Azure Blob Storage container to use.
+</ResponseField>
+
+<ResponseField name="--azure-blob-storage-credentials-block-name">
+    The name of the Azure Blob Storage credentials block to use.
+</ResponseField>
+
+<ResponseField name="--launcher">
+    Shared executable or path for upload and execution.
+</ResponseField>
+
+<ResponseField name="--launcher-arg">
+    Append one argv token to the shared launcher. Repeat per token.
+</ResponseField>
+
+<ResponseField name="--upload-launcher">
+    Replace the shared executable or path for upload only.
+</ResponseField>
+
+<ResponseField name="--upload-launcher-arg">
+    Append one upload-only argv token. Extends the shared launcher.
+</ResponseField>
+
+<ResponseField name="--execution-launcher">
+    Replace the shared executable or path for execution only.
+</ResponseField>
+
+<ResponseField name="--execution-launcher-arg">
+    Append one execution-only argv token. Extends the shared launcher.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool storage configure azure-blob-storage "my-pool" --container my-container --azure-blob-storage-credentials-block-name my-credentials
+```
+</Note>
+
+
+
+
+### `prefect work-pools storage inspect`
+
+
+
+```command
+prefect work-pools storage inspect [OPTIONS] WORK_POOL_NAME
+```
+
+
+
+<Info>
+EXPERIMENTAL: Inspect the storage configuration for a work pool.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="WORK_POOL_NAME" type="string" required>
+    The name of the work pool to display storage configuration for.
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--output">
+    Specify an output format. Currently supports: json
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool storage inspect "my-pool"
+$ prefect work-pool storage inspect "my-pool" --output json
+```
+</Note>
+
+
+
+
+## `prefect work-pools create`
+
+
+
+```command
+prefect work-pools create [OPTIONS] NAME
+```
+
+
+
+<Info>
+Create a new work pool or update an existing one.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the work pool.
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--base-job-template">
+    The path to a JSON file containing the base job template to use. If unspecified, Prefect will use the default base job template for the given worker type.
+</ResponseField>
+
+<ResponseField name="--paused">
+    Whether or not to create the work pool in a paused state.
+</ResponseField>
+
+<ResponseField name="--type">
+    The type of work pool to create.
+</ResponseField>
+
+<ResponseField name="--set-as-default">
+    Whether or not to use the created work pool as the local default for deployment.
+</ResponseField>
+
+<ResponseField name="--provision-infrastructure">
+    Whether or not to provision infrastructure for the work pool if supported for the given work pool type.
+</ResponseField>
+
+<ResponseField name="--overwrite">
+    Whether or not to overwrite an existing work pool with the same name.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+# Create a Kubernetes work pool in a paused state
+$ prefect work-pool create "my-pool" --type kubernetes --paused
+
+# Create a Docker work pool with a custom base job template
+$ prefect work-pool create "my-pool" --type docker --base-job-template ./base-job-template.json
+
+# Update an existing work pool
+$ prefect work-pool create "existing-pool" --base-job-template ./base-job-template.json --overwrite
+```
+</Note>
+
+
+
+
+## `prefect work-pools ls`
+
+
+
+```command
+prefect work-pools ls [OPTIONS]
+```
+
+
+
+<Info>
+List work pools.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--verbose">
+    Show additional information about work pools.
+</ResponseField>
+
+<ResponseField name="--output">
+    Specify an output format. Currently supports: json
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool ls
+```
+</Note>
+
+
+
+
+## `prefect work-pools inspect`
+
+
+
+```command
+prefect work-pools inspect [OPTIONS] NAME
+```
+
+
+
+<Info>
+Inspect a work pool.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the work pool to inspect.
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--output">
+    Specify an output format. Currently supports: json
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool inspect "my-pool"
+$ prefect work-pool inspect "my-pool" --output json
+```
+</Note>
+
+
+
+
+## `prefect work-pools slots`
+
+
+
+```command
+prefect work-pools slots [OPTIONS] NAME
+```
+
+
+
+<Info>
+Show concurrency slot utilization for a work pool.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the work pool.
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--output">
+    Specify an output format. Currently supports: json
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+## `prefect work-pools pause`
+
+
+
+```command
+prefect work-pools pause [OPTIONS] NAME
+```
+
+
+
+<Info>
+Pause a work pool.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the work pool to pause.
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool pause "my-pool"
+```
+</Note>
+
+
+
+
+## `prefect work-pools resume`
+
+
+
+```command
+prefect work-pools resume [OPTIONS] NAME
+```
+
+
+
+<Info>
+Resume a work pool.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the work pool to resume.
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool resume "my-pool"
+```
+</Note>
+
+
+
+
+## `prefect work-pools update`
+
+
+
+```command
+prefect work-pools update [OPTIONS] NAME
+```
+
+
+
+<Info>
+Update a work pool.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the work pool to update.
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--base-job-template">
+    The path to a JSON file containing the base job template to use. If None, the base job template will not be modified.
+</ResponseField>
+
+<ResponseField name="--concurrency-limit">
+    The concurrency limit for the work pool. If None, the concurrency limit will not be modified.
+</ResponseField>
+
+<ResponseField name="--description">
+    The description for the work pool. If None, the description will not be modified.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool update "my-pool"
+```
+</Note>
+
+
+
+
+## `prefect work-pools provision-infrastructure`
+
+
+
+```command
+prefect work-pools provision-infrastructure [OPTIONS] NAME
+```
+
+
+
+<Info>
+Provision infrastructure for a work pool.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the work pool to provision infrastructure for.
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool provision-infrastructure "my-pool"
+$ prefect work-pool provision-infra "my-pool"
+```
+</Note>
+
+
+
+
+## `prefect work-pools provision-infra`
+
+
+
+```command
+prefect work-pools provision-infra [OPTIONS] NAME
+```
+
+
+
+<Info>
+Provision infrastructure for a work pool.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the work pool to provision infrastructure for.
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool provision-infrastructure "my-pool"
+$ prefect work-pool provision-infra "my-pool"
+```
+</Note>
+
+
+
+
+## `prefect work-pools delete`
+
+
+
+```command
+prefect work-pools delete [OPTIONS] NAME
+```
+
+
+
+<Info>
+Delete a work pool.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the work pool to delete.
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool delete "my-pool"
+```
+</Note>
+
+
+
+
+## `prefect work-pools set-concurrency-limit`
+
+
+
+```command
+prefect work-pools set-concurrency-limit [OPTIONS] NAME CONCURRENCY_LIMIT
+```
+
+
+
+<Info>
+Set the concurrency limit for a work pool.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the work pool to update.
+</ResponseField>
+<ResponseField name="CONCURRENCY_LIMIT" type="string" required>
+    The new concurrency limit for the work pool.
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool set-concurrency-limit "my-pool" 10
+```
+</Note>
+
+
+
+
+## `prefect work-pools clear-concurrency-limit`
+
+
+
+```command
+prefect work-pools clear-concurrency-limit [OPTIONS] NAME
+```
+
+
+
+<Info>
+Clear the concurrency limit for a work pool.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string" required>
+    The name of the work pool to update.
+</ResponseField>
+</Accordion>
+
+
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool clear-concurrency-limit "my-pool"
+```
+</Note>
+
+
+
+
+## `prefect work-pools get-default-base-job-template`
+
+
+
+```command
+prefect work-pools get-default-base-job-template [OPTIONS]
+```
+
+
+
+<Info>
+Get the default base job template for a given work pool type.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--type">
+    The type of work pool for which to get the default base job template.
+</ResponseField>
+
+<ResponseField name="--file">
+    If set, write the output to a file.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool get-default-base-job-template --type kubernetes
+```
+</Note>
+
+
+
+
+## `prefect work-pools preview`
+
+
+
+```command
+prefect work-pools preview [OPTIONS] [NAME]
+```
+
+
+
+<Info>
+Preview the work pool's scheduled work for all queues.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="NAME" type="string">
+    The name or ID of the work pool to preview
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--hours">
+    The number of hours to look ahead; defaults to 1 hour
+</ResponseField>
+
+<ResponseField name="--output">
+    Specify an output format. Currently supports: json
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+<Note>
+**Example:**
+
+```bash
+$ prefect work-pool preview "my-pool" --hours 24
+```
+</Note>

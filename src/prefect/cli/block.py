@@ -184,6 +184,12 @@ async def register(
     This makes the blocks available for configuration via the UI.
     If a block type has already been registered, its registration will be updated to
     match the block's current definition.
+
+    Examples:
+        ```bash
+        $ prefect block register -f my_blocks.py
+        $ prefect block register -m prefect_aws.credentials
+        ```
     """
     from prefect.client.base import ServerType, determine_server_type
     from prefect.exceptions import ScriptError, exception_traceback
