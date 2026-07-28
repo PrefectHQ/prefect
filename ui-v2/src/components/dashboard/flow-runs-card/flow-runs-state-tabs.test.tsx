@@ -336,7 +336,7 @@ describe("FlowRunStateTabs", () => {
 		expect(
 			screen.getByRole("tab", { name: /cancelled runs/i }),
 		).toHaveTextContent("1");
-    });
+	});
 
 	it("shows capitalized state names when hovering a tab", async () => {
 		const user = userEvent.setup();
