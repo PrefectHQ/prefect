@@ -23,7 +23,8 @@ from prefect.client.schemas.objects import StateType
 from prefect.events import Event, Resource
 from prefect.events.filters import EventAnyResourceFilter, EventFilter, EventNameFilter
 from prefect.events.utilities import emit_event
-from prefect.states import Running, Suspended
+from prefect.exceptions import ObjectNotFound
+from prefect.states import Suspended
 from prefect.types._datetime import DateTime, now
 
 
@@ -573,13 +574,10 @@ class TestFlowRunSuspendingObserver:
         self,
         observer: FlowRunSuspendingObserver,
         *events: Event,
-        wait_for_confirmation: bool = True,
     ) -> None:
         """Deliver `events` to the observer's event consumer."""
         observer._events_subscriber = FakeEventSubscriber(list(events))  # type: ignore[assignment]
         await observer._consume_events()
-        if wait_for_confirmation:
-            await asyncio.gather(*list(observer._confirmation_tasks.values()))
 
     async def test_observer_validates_event_filter_has_suspended_event(self):
         callback = AsyncMock()
@@ -690,14 +688,21 @@ class TestFlowRunSuspendingObserver:
 
             with patch.object(
                 observer._client,
-                "read_flow_run_states",
-                side_effect=[[Running()], [Running()], [Running(), suspended_state]],
+                "read_flow_run_state",
+                side_effect=[
+                    RuntimeError("temporarily unavailable"),
+                    ObjectNotFound(Exception("not committed")),
+                    suspended_state,
+                ],
             ):
                 await self.consume(
                     observer, suspension_event(flow_run_id, suspended_state.id)
                 )
 
-            callback.assert_called_once_with(flow_run_id, suspended_state)
+                async for attempt in retry_asserts():
+                    with attempt:
+                        callback.assert_called_once_with(flow_run_id, suspended_state)
+
             assert flow_run_id in observer._suspended_flow_run_ids
 
     async def test_event_is_confirmed_after_the_current_state_advances(self):
@@ -712,14 +717,16 @@ class TestFlowRunSuspendingObserver:
 
             with patch.object(
                 observer._client,
-                "read_flow_run_states",
-                return_value=[Running(), suspended_state, Running()],
+                "read_flow_run_state",
+                return_value=suspended_state,
             ):
                 await self.consume(
                     observer, suspension_event(flow_run_id, suspended_state.id)
                 )
 
-            callback.assert_called_once_with(flow_run_id, suspended_state)
+                async for attempt in retry_asserts():
+                    with attempt:
+                        callback.assert_called_once_with(flow_run_id, suspended_state)
 
     async def test_a_different_suspension_does_not_confirm_the_event(self, caplog):
         """Only the transition the event identifies may confirm that event."""
@@ -734,18 +741,20 @@ class TestFlowRunSuspendingObserver:
         async with observer:
             observer.add_in_flight_flow_run_id(flow_run_id)
 
+            different_state = Suspended()
             with patch.object(
                 observer._client,
-                "read_flow_run_states",
-                return_value=[Running(), Suspended()],
+                "read_flow_run_state",
+                return_value=different_state,
             ):
                 await self.consume(
                     observer, suspension_event(flow_run_id, uuid.uuid4())
                 )
+                await asyncio.sleep(0)
 
             callback.assert_not_called()
             assert flow_run_id not in observer._suspended_flow_run_ids
-            assert "never became readable" in caplog.text
+            assert "returned state" in caplog.text
 
     async def test_event_replayed_from_before_watching_is_ignored(self):
         """Subscribers backfill events, which may predate the run we're watching."""
@@ -760,9 +769,9 @@ class TestFlowRunSuspendingObserver:
 
             with patch.object(
                 observer._client,
-                "read_flow_run_states",
-                return_value=[suspended_state],
-            ) as read_flow_run_states:
+                "read_flow_run_state",
+                return_value=suspended_state,
+            ) as read_flow_run_state:
                 await self.consume(
                     observer,
                     suspension_event(
@@ -772,7 +781,7 @@ class TestFlowRunSuspendingObserver:
                     ),
                 )
 
-            read_flow_run_states.assert_not_called()
+            read_flow_run_state.assert_not_called()
             callback.assert_not_called()
 
     async def test_confirmation_does_not_block_other_flow_runs(self):
@@ -784,34 +793,29 @@ class TestFlowRunSuspendingObserver:
         suspended_state = Suspended()
         blocked = asyncio.Event()
 
-        async def read_flow_run_states(read_flow_run_id: uuid.UUID):
-            if read_flow_run_id == blocked_flow_run_id:
+        async def read_flow_run_state(state_id: uuid.UUID):
+            if state_id != suspended_state.id:
                 await blocked.wait()
-                return []
-            return [suspended_state]
+                raise ObjectNotFound(Exception("not committed"))
+            return suspended_state
 
         async with observer:
             observer.add_in_flight_flow_run_id(blocked_flow_run_id)
             observer.add_in_flight_flow_run_id(flow_run_id)
 
             with patch.object(
-                observer._client, "read_flow_run_states", read_flow_run_states
+                observer._client, "read_flow_run_state", read_flow_run_state
             ):
                 await self.consume(
                     observer,
                     suspension_event(blocked_flow_run_id, uuid.uuid4()),
                     suspension_event(flow_run_id, suspended_state.id),
-                    wait_for_confirmation=False,
                 )
 
                 async for attempt in retry_asserts():
                     with attempt:
                         callback.assert_called_once_with(flow_run_id, suspended_state)
 
-                assert any(
-                    key[0] == blocked_flow_run_id
-                    for key in observer._confirmation_tasks
-                )
                 blocked.set()
 
     async def test_pending_confirmation_is_cancelled_when_the_run_is_removed(self):
@@ -820,31 +824,31 @@ class TestFlowRunSuspendingObserver:
 
         flow_run_id = uuid.uuid4()
         blocked = asyncio.Event()
+        started = asyncio.Event()
+        cancelled = asyncio.Event()
 
-        async def read_flow_run_states(read_flow_run_id: uuid.UUID):
-            await blocked.wait()
-            return []
+        async def read_flow_run_state(state_id: uuid.UUID):
+            started.set()
+            try:
+                await blocked.wait()
+            finally:
+                cancelled.set()
+            raise ObjectNotFound(Exception("not committed"))
 
         async with observer:
             observer.add_in_flight_flow_run_id(flow_run_id)
 
             with patch.object(
-                observer._client, "read_flow_run_states", read_flow_run_states
+                observer._client, "read_flow_run_state", read_flow_run_state
             ):
                 await self.consume(
                     observer,
                     suspension_event(flow_run_id, uuid.uuid4()),
-                    wait_for_confirmation=False,
                 )
-                assert observer._confirmation_tasks
-
-                task = next(iter(observer._confirmation_tasks.values()))
+                await started.wait()
                 observer.remove_in_flight_flow_run_id(flow_run_id)
 
-                assert not observer._confirmation_tasks
-                with suppress(asyncio.CancelledError):
-                    await task
-                assert task.cancelled()
+                await cancelled.wait()
                 callback.assert_not_called()
 
     async def test_pending_confirmation_is_cancelled_on_shutdown(self):
@@ -853,28 +857,30 @@ class TestFlowRunSuspendingObserver:
 
         flow_run_id = uuid.uuid4()
         blocked = asyncio.Event()
+        started = asyncio.Event()
+        cancelled = asyncio.Event()
 
-        async def read_flow_run_states(read_flow_run_id: uuid.UUID):
-            await blocked.wait()
-            return []
+        async def read_flow_run_state(state_id: uuid.UUID):
+            started.set()
+            try:
+                await blocked.wait()
+            finally:
+                cancelled.set()
+            raise ObjectNotFound(Exception("not committed"))
 
         async with observer:
             observer.add_in_flight_flow_run_id(flow_run_id)
 
             with patch.object(
-                observer._client, "read_flow_run_states", read_flow_run_states
+                observer._client, "read_flow_run_state", read_flow_run_state
             ):
                 await self.consume(
                     observer,
                     suspension_event(flow_run_id, uuid.uuid4()),
-                    wait_for_confirmation=False,
                 )
-                task = next(iter(observer._confirmation_tasks.values()))
+                await started.wait()
 
-        assert not observer._confirmation_tasks
-        with suppress(asyncio.CancelledError):
-            await task
-        assert task.cancelled()
+        assert cancelled.is_set()
         callback.assert_not_called()
 
     async def test_clean_event_consumer_completion_starts_polling(self):
