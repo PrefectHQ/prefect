@@ -199,19 +199,19 @@ Load it by name from a flow with `IsloSandbox.load("islo-sandbox")`.
 
 ## One contract, either provider
 
-The `SandboxBackend` contract is the whole interface. Every task, operation, and
-guarantee on this page behaves the same on both backends, so swapping providers changes
-only which block you construct — accept a `SandboxBackend` and the rest of the code does
-not change:
+The `SandboxBackend` contract is the whole interface. Every operation and guarantee on
+this page behaves the same on both backends, so swapping providers changes only which
+block you construct — accept a `SandboxBackend` and the rest of the code does not
+change:
 
 ```python
 from prefect import flow
-from prefect_sandbox import IsloSandbox, SandboxBackend, SbxSandbox, run_in_sandbox
+from prefect_sandbox import IsloSandbox, SandboxBackend, SandboxOperation, SbxSandbox
 
 
 @flow
 def report_guest_kernel(backend: SandboxBackend) -> list[str]:
-    return run_in_sandbox(backend, ["uname -r"], timeout=60)
+    return SandboxOperation(backend, ["uname -r"], timeout=60).run()
 
 
 report_guest_kernel(SbxSandbox(egress="deny"))
@@ -225,12 +225,12 @@ its slug-qualified name — `sbx-sandbox/local` or `islo-sandbox/hosted`:
 ```python
 from prefect import flow
 from prefect.blocks.core import Block
-from prefect_sandbox import run_in_sandbox
+from prefect_sandbox import SandboxOperation
 
 
 @flow
 def report_guest_kernel(block_slug: str) -> list[str]:
-    return run_in_sandbox(Block.load(block_slug), ["uname -r"], timeout=60)
+    return SandboxOperation(Block.load(block_slug), ["uname -r"], timeout=60).run()
 ```
 
 ## Examples
@@ -240,64 +240,65 @@ substitutes directly.
 
 ### Run a command
 
-`run_in_sandbox` creates one sandbox, runs the commands in order, returns stdout lines,
-and destroys the sandbox even when execution fails.
+`SandboxOperation.run` creates one sandbox, runs the commands in order, returns stdout
+lines, and destroys the sandbox even when execution fails.
 
 ```python
 from prefect import flow
-from prefect_sandbox import SbxSandbox, run_in_sandbox
+from prefect_sandbox import SandboxOperation, SbxSandbox
 
 
 @flow
 def hello_sandbox() -> list[str]:
-    return run_in_sandbox(
+    return SandboxOperation(
         SbxSandbox(image="python:3.12-slim"),
         ["python -c 'print(\"hello from a microVM\")'"],
-    )
+    ).run()
 ```
 
-Use `arun_in_sandbox` from an async flow.
+Use `arun` from an async flow.
 
 ### Run generated Python
 
-`run_python_in_sandbox` writes source to a file before executing it, preserving
-newlines, quotes, Unicode, and useful traceback line numbers.
+Write the source to a file before executing it, rather than passing it on the command
+line: that preserves newlines, quotes, Unicode, and useful traceback line numbers.
 
 ```python
 from prefect import flow
-from prefect_sandbox import SbxSandbox, run_python_in_sandbox
+from prefect_sandbox import SandboxOperation, SbxSandbox
 
 
 @flow
 def run_generated(source: str) -> list[str]:
-    return run_python_in_sandbox(
-        source,
+    return SandboxOperation(
         SbxSandbox(image="python:3.12-slim", egress="deny"),
+        ["python /tmp/prefect-sandbox/main.py"],
+        files={"/tmp/prefect-sandbox/main.py": source},
         timeout=120,
-    )
+    ).run()
 ```
 
 On a hosted sandbox, name the image and interpreter the guest actually provides:
 
 ```python
 from prefect import flow
-from prefect_sandbox import IsloSandbox, run_python_in_sandbox
+from prefect_sandbox import IsloSandbox, SandboxOperation
 
 
 @flow
 def run_generated_hosted(source: str) -> list[str]:
-    return run_python_in_sandbox(
-        source,
+    return SandboxOperation(
         IsloSandbox(image="docker.io/library/python:3.12-slim", egress="deny"),
-        python_executable="python3",
+        ["python3 /tmp/prefect-sandbox/main.py"],
+        files={"/tmp/prefect-sandbox/main.py": source},
         timeout=120,
-    )
+    ).run()
 ```
 
 ### Inspect the full result
 
-Use `SandboxOperation` when you need the exit code, stderr, timeout status, or
-truncation status.
+Trigger the operation instead of running it when you need the exit code, stderr, timeout
+status, or truncation status.
 
 ```python
 from prefect_sandbox import SandboxOperation, SbxSandbox

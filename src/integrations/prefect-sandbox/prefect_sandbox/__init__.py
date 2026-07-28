@@ -18,12 +18,6 @@ from prefect_sandbox.base import (
 from prefect_sandbox.islo import IsloSandbox
 from prefect_sandbox.operations import SandboxOperation, SandboxProcess
 from prefect_sandbox.sbx import SbxSandbox
-from prefect_sandbox.tasks import (
-    arun_in_sandbox,
-    arun_python_in_sandbox,
-    run_in_sandbox,
-    run_python_in_sandbox,
-)
 
 try:
     from prefect_sandbox import _version
@@ -47,8 +41,4 @@ __all__ = [
     "SandboxUnavailableError",
     "SbxSandbox",
     "__version__",
-    "arun_in_sandbox",
-    "arun_python_in_sandbox",
-    "run_in_sandbox",
-    "run_python_in_sandbox",
 ]

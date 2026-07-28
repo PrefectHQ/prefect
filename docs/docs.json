@@ -745,8 +745,7 @@
                       "integrations/prefect-sandbox/api-ref/prefect_sandbox-base",
                       "integrations/prefect-sandbox/api-ref/prefect_sandbox-islo",
                       "integrations/prefect-sandbox/api-ref/prefect_sandbox-operations",
-                      "integrations/prefect-sandbox/api-ref/prefect_sandbox-sbx",
-                      "integrations/prefect-sandbox/api-ref/prefect_sandbox-tasks"
+                      "integrations/prefect-sandbox/api-ref/prefect_sandbox-sbx"
                     ]
                   }
                 ]
