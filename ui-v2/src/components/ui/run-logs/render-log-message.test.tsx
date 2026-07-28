@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { createElement } from "react";
 import { describe, expect, it } from "vitest";
-import { renderLogMessage } from "./ansi";
+import { renderLogMessage } from "./render-log-message";
 
 const ESC = String.fromCharCode(27);
 

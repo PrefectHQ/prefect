@@ -5,8 +5,8 @@ import { format } from "date-fns-tz";
 import { useCallback, useEffect, useRef } from "react";
 import type { components } from "@/api/prefect";
 import { Badge } from "@/components/ui/badge";
-import { renderLogMessage } from "@/lib/ansi";
 import { cn } from "@/utils";
+import { renderLogMessage } from "./render-log-message";
 
 type RunLogsProps = {
 	logs: components["schemas"]["Log"][];
