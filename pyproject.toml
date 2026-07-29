@@ -377,7 +377,7 @@ skip = [
     "pyproject.toml",
 ]
 # from https://github.com/PrefectHQ/prefect/pull/10813#issuecomment-1732676130
-ignore-regex = ".*lazy=\"selectin\"|.*e import Bloc$|America/Nome"
+ignore-regex = ".*lazy=\"selectin\"|.*e import Bloc\\s*$|America/Nome"
 
 ignore-words-list = [
     "selectin",
