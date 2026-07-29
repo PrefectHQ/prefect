@@ -58,11 +58,6 @@ _API_URL_ENV_VAR = "ISLO_API_URL"
 #: data and therefore cannot be trusted without this keyed binding.
 _API_URL_SIGNATURE_KEY = "api_url_signature"
 
-#: Process-private key for the API-key cache discriminator. A plain digest of a
-#: credential is an offline verifier if it is ever exposed; keying the fingerprint
-#: makes it useful only inside this process.
-_SESSION_CACHE_FINGERPRINT_KEY = secrets.token_bytes(32)
-
 #: Reported when the wall clock expired, so the command's own status is unknown.
 _UNKNOWN_EXIT_CODE = -1
 
@@ -460,7 +455,7 @@ class IsloSandbox(SandboxBackend):
     _session_token: str | None = PrivateAttr(default=None)
     _session_token_expires_at: float = PrivateAttr(default=0.0)
     _session_token_api_url: str | None = PrivateAttr(default=None)
-    _session_token_api_key_fingerprint: bytes | None = PrivateAttr(default=None)
+    _session_token_api_key: SecretStr | None = PrivateAttr(default=None)
 
     def _resolved_api_url(self) -> str:
         """Return the API base URL, honouring the block, then the environment."""
@@ -565,17 +560,16 @@ class IsloSandbox(SandboxBackend):
         """
         endpoint = api_url or self._resolved_api_url()
         resolved_api_key = self._resolved_api_key() if api_key is None else api_key
-        api_key_fingerprint = hmac.new(
-            _SESSION_CACHE_FINGERPRINT_KEY,
-            resolved_api_key.encode(),
-            hashlib.sha256,
-        ).digest()
         cached = self._session_token
+        cached_api_key = self._session_token_api_key
         if (
             not force_refresh
             and cached
             and self._session_token_api_url == endpoint
-            and self._session_token_api_key_fingerprint == api_key_fingerprint
+            and cached_api_key is not None
+            and secrets.compare_digest(
+                cached_api_key.get_secret_value(), resolved_api_key
+            )
             and time.time() < self._session_token_expires_at
         ):
             return cached
@@ -610,7 +604,10 @@ class IsloSandbox(SandboxBackend):
         self._session_token = token
         self._session_token_expires_at = _token_expiry(token)
         self._session_token_api_url = endpoint
-        self._session_token_api_key_fingerprint = api_key_fingerprint
+        # PrivateAttr is excluded from serialization and SecretStr redacts reprs. Keep
+        # the credential identity beside its token rather than deriving a fast digest,
+        # which would create an unnecessary offline credential verifier.
+        self._session_token_api_key = SecretStr(resolved_api_key)
         return token
 
     async def _arequest(
