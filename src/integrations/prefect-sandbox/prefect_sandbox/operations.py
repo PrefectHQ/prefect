@@ -418,6 +418,12 @@ class SandboxOperation:
         # teardown and this list only records which ones are still outstanding.
         self._processes: list[SandboxProcess] = []
         self._provisioning: set[asyncio.Task[object]] = set()
+        # Sandboxes that exist but are not yet attached to a `SandboxProcess`, keyed by
+        # the task provisioning them. A closer running on a different event loop cannot
+        # join that task — the thread owning its loop is blocked inside `close()` — so
+        # this handle is the only thing that lets such a closer destroy the sandbox
+        # instead of abandoning it.
+        self._provisioned: dict[asyncio.Task[object], Sandbox] = {}
         self._close_generation = 0
         self._active_closers = 0
         # Guards the list against the sync lane (which runs on a separate
@@ -457,6 +463,13 @@ class SandboxOperation:
         half-provisioned operation never leaves a microVM running.
         """
         sandbox = await self.backend.acreate()
+        # Publish the handle the moment it exists, before any of the work below that
+        # can take a while — seeding files, in particular. Until the `SandboxProcess`
+        # is appended to `_processes`, this is the only record a concurrent closer has.
+        provisioner = asyncio.current_task()
+        if provisioner is not None:
+            with self._lock:
+                self._provisioned[provisioner] = sandbox
         try:
             for path, content in self.files.items():
                 await self.backend.awrite_file(sandbox, path, content)
@@ -511,6 +524,7 @@ class SandboxOperation:
         finally:
             with self._lock:
                 self._provisioning.discard(task)
+                self._provisioned.pop(task, None)
 
     async def atrigger(self) -> SandboxProcess:
         """Provision a sandbox, start the commands in it, and return a handle (async version).
@@ -619,11 +633,17 @@ class SandboxOperation:
         """Destroy every sandbox this operation created and still tracks (async version).
 
         Outstanding `atrigger()` results and an active `arun()` are tracked. A process
-        already closed through its own `aclose()` is skipped. In-flight provisioning
-        is cancelled before this returns. Every teardown is attempted. Failures are
-        logged and then raised after the remaining sandboxes have been handled. The
-        context-manager exits suppress that cleanup error only when a different
-        exception is already leaving the body.
+        already closed through its own `aclose()` is skipped. Every teardown is
+        attempted. Failures are logged and then raised after the remaining sandboxes
+        have been handled. The context-manager exits suppress that cleanup error only
+        when a different exception is already leaving the body.
+
+        Provisioning still in flight on *this* event loop is cancelled before this
+        returns. Provisioning on another loop cannot be — a `with` block inside async
+        code closes on Prefect's sync loop while the thread owning the provisioning loop
+        is blocked here, so joining that task would deadlock. Its cancellation is
+        scheduled instead, and any sandbox it had already created is destroyed by this
+        call, so nothing is left running either way.
         """
         current_loop = asyncio.get_running_loop()
         with self._lock:
@@ -631,6 +651,14 @@ class SandboxOperation:
             self._close_generation += 1
             processes, self._processes = self._processes, []
             provisioning = list(self._provisioning)
+            # Sandboxes belonging to provisioning this closer cannot join. Destroying
+            # them here is what keeps a scheduled-but-not-awaited cancellation from
+            # abandoning a live microVM.
+            orphans = [
+                sandbox
+                for task, sandbox in self._provisioned.items()
+                if task.get_loop() is not current_loop
+            ]
         try:
             local_provisioning: list[asyncio.Task[object]] = []
             for task in provisioning:
@@ -645,6 +673,16 @@ class SandboxOperation:
 
             failures: list[Exception] = []
             failed_processes: list[SandboxProcess] = []
+            for sandbox in orphans:
+                # `adestroy` is idempotent, so racing the cancelled provisioner's own
+                # cleanup is harmless; both outcomes end with the sandbox gone.
+                try:
+                    await _shielded_cleanup(self.backend.adestroy(sandbox))
+                except Exception as exc:
+                    failures.append(exc)
+                    self.logger.exception(
+                        f"Failed to destroy {sandbox}; it may still be running."
+                    )
             for process in processes:
                 try:
                     await process.aclose()
@@ -658,10 +696,22 @@ class SandboxOperation:
                 with self._lock:
                     self._processes.extend(failed_processes)
                 raise SandboxError(
-                    f"Failed to destroy {len(failures)} of {len(processes)} sandboxes; "
-                    "see the preceding errors for sandbox identifiers."
+                    f"Failed to destroy {len(failures)} of "
+                    f"{len(processes) + len(orphans)} sandboxes; see the preceding "
+                    "errors for sandbox identifiers."
                 ) from failures[0]
-            self.logger.info(f"Successfully closed {len(processes)} open sandboxes.")
+            # Counting the orphans separately matters: reporting only the processes
+            # would log a confident "closed 0 open sandboxes" in exactly the case where
+            # a sandbox existed and had to be cleaned up out of band.
+            if orphans:
+                self.logger.info(
+                    f"Successfully closed {len(processes)} open sandboxes and "
+                    f"{len(orphans)} still being provisioned on another event loop."
+                )
+            else:
+                self.logger.info(
+                    f"Successfully closed {len(processes)} open sandboxes."
+                )
         finally:
             with self._lock:
                 self._active_closers -= 1

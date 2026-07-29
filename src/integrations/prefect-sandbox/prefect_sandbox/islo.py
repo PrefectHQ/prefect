@@ -812,33 +812,30 @@ class IsloSandbox(SandboxBackend):
         # exit event on a stream that was perfectly well formed on the wire.
         carried_cr = ""
         exit_code: int | None = None
-        try:
-            async for chunk in response.aiter_bytes():
-                text = carried_cr + decoder.decode(chunk)
-                carried_cr = ""
-                if text.endswith("\r"):
-                    text, carried_cr = text[:-1], "\r"
-                buffer += text.replace("\r\n", "\n")
-                events, buffer = _split_sse_events(buffer)
-                for event, data in events:
-                    if event == "stdout":
-                        stdout.append(data)
-                    elif event == "stderr":
-                        stderr.append(data)
-                    elif event == "error":
-                        stderr.append(f"{data}\n")
-                    elif event == "exit":
-                        try:
-                            exit_code = int(data.strip())
-                        except ValueError:
-                            exit_code = _UNPARSABLE_EXIT_CODE
-                if exit_code is not None:
-                    break
-        except httpx.HTTPError:
-            # A connection torn down after the exit event is a completed command, not a
-            # failure; the provider closes the stream at the same moment.
-            if exit_code is None:
-                raise
+        # No guard for "the connection dropped after the exit event": the break above
+        # leaves the stream the instant an exit arrives, so a transport error can only
+        # reach here before the command reported one. It is a genuine failure.
+        async for chunk in response.aiter_bytes():
+            text = carried_cr + decoder.decode(chunk)
+            carried_cr = ""
+            if text.endswith("\r"):
+                text, carried_cr = text[:-1], "\r"
+            buffer += text.replace("\r\n", "\n")
+            events, buffer = _split_sse_events(buffer)
+            for event, data in events:
+                if event == "stdout":
+                    stdout.append(data)
+                elif event == "stderr":
+                    stderr.append(data)
+                elif event == "error":
+                    stderr.append(f"{data}\n")
+                elif event == "exit":
+                    try:
+                        exit_code = int(data.strip())
+                    except ValueError:
+                        exit_code = _UNPARSABLE_EXIT_CODE
+            if exit_code is not None:
+                break
         if exit_code is None:
             raise SandboxExecutionError(
                 f"Islo execution stream for {name!r} ended without an exit event. The "

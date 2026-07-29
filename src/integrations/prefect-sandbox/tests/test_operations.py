@@ -14,6 +14,7 @@ destroy) and on which sandbox a teardown touched. Real backends have their own s
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import inspect
 import logging
 from collections.abc import Mapping, Sequence
@@ -985,6 +986,52 @@ class TestFilesAndProvisioning:
         with pytest.raises(asyncio.CancelledError):
             await trigger
         assert backend.live == set()
+
+    async def test_a_sync_close_destroys_a_sandbox_provisioned_on_another_loop(
+        self, prefect_task_runs_caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """The cross-loop twin of the same-loop test below, and the harder case.
+
+        `with` inside async code closes through `close(_sync=True)`, which runs
+        `aclose()` on Prefect's own loop while this thread stays blocked. The
+        provisioning task therefore lives on a loop the closer cannot join — joining
+        would deadlock, since this thread owns it — so cancellation is only scheduled.
+        Without destroying the already-created sandbox from the closing loop, the
+        microVM is simply abandoned.
+        """
+        backend = SlowWriteSandbox()
+        operation = SandboxOperation(backend, ["true"], files={"/app/x": "y"})
+        trigger = asyncio.create_task(operation.atrigger())
+        await backend._write_started.wait()
+        assert len(backend.live) == 1
+
+        # Exactly what `__exit__` does. Called from inside a running loop on purpose:
+        # `run_coro_as_sync` puts `aclose()` on Prefect's own loop and blocks *this*
+        # thread, so the provisioning task cannot advance and a merely scheduled
+        # cancellation cannot be consumed while the close is in progress.
+        operation.close(_sync=True)
+
+        assert backend.live == set(), "a sandbox was abandoned on the other loop"
+        assert any(
+            "another event loop" in record.message
+            for record in prefect_task_runs_caplog.records
+        ), "the operator-facing log must not claim zero sandboxes were closed"
+
+        backend._allow_write.set()
+        with contextlib.suppress(asyncio.CancelledError, SandboxError):
+            await trigger
+
+    async def test_provisioning_is_refused_while_the_operation_closes(self) -> None:
+        """A trigger that starts after closure began must not create a sandbox at all."""
+        backend = FakeSandbox()
+        operation = SandboxOperation(backend, ["true"])
+        operation._active_closers += 1
+
+        with pytest.raises(SandboxError, match="while the operation closes"):
+            await operation.atrigger()
+
+        assert backend.live == set()
+        assert backend.event_kinds.count("create") == 0
 
     async def test_close_destroys_a_sandbox_with_an_in_flight_file_write(self) -> None:
         backend = SlowWriteSandbox()

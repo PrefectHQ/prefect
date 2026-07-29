@@ -518,15 +518,21 @@ class TestApiUrl:
         ).acreate()
         assert fake_islo.requests[0].url.host == "eu.compute.islo.dev"
 
-    async def test_a_trailing_slash_does_not_double_up(
-        self, fake_islo: FakeIslo
+    @pytest.mark.parametrize(
+        "configured",
+        ["https://eu.compute.islo.dev/", "https://eu.compute.islo.dev///"],
+    )
+    def test_a_trailing_slash_is_stripped_from_the_resolved_url(
+        self, configured: str
     ) -> None:
-        await IsloSandbox(
-            api_key=SecretStr(BLOCK_API_KEY), api_url="https://eu.compute.islo.dev/"
-        ).acreate()
-        assert str(fake_islo.requests_for("create")[0].url) == (
-            "https://eu.compute.islo.dev/sandboxes"
-        )
+        """Asserted on the resolved value, not on a built request.
+
+        httpx normalizes a base URL itself, so checking the outgoing request would
+        pass whether or not this backend strips anything — and the resolved URL is
+        also what lands in `Sandbox.metadata`, where nothing normalizes it.
+        """
+        backend = IsloSandbox(api_key=SecretStr(BLOCK_API_KEY), api_url=configured)
+        assert backend._resolved_api_url() == "https://eu.compute.islo.dev"
 
     async def test_the_resolved_url_travels_on_the_handle(
         self, backend: IsloSandbox, fake_islo: FakeIslo
@@ -1488,11 +1494,15 @@ class TestExecFailures:
 
         assert "may still be running" in str(excinfo.value)
 
-    async def test_a_connection_lost_after_the_exit_event_is_a_completed_command(
+    async def test_the_stream_is_left_the_moment_the_exit_event_arrives(
         self, backend: IsloSandbox, fake_islo: FakeIslo, sandbox: Sandbox
     ) -> None:
-        """The provider closes the stream at the moment the command exits, so a
-        torn-down connection there is the normal ending, not a failure."""
+        """Nothing after the exit event can change the outcome.
+
+        The stream is abandoned as soon as the exit code is known, so whatever the
+        provider does with the connection afterwards — hold it open, drop it, keep
+        talking — cannot turn a finished command into a failure or a timeout.
+        """
         fake_islo.events = then_drops(sse(("stdout", "done"), ("exit", "7")))
 
         result = await backend.aexec(sandbox, ["true"], timeout=5)
