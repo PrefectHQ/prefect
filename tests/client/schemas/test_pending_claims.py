@@ -1,3 +1,4 @@
+from typing import Protocol
 from uuid import UUID, uuid4
 
 import pytest
@@ -16,8 +17,6 @@ from prefect.client.schemas.pending_claims import (
     PendingClaimRunningFields,
     PendingClaimStateDetails,
     PendingTimeoutCount,
-    pending_claim_startup_action,
-    pending_claim_startup_disposition,
     pending_claim_teardown_idempotency_key,
 )
 from prefect.client.schemas.responses import SetStateStatus
@@ -36,28 +35,338 @@ def _pending_claim(
     )
 
 
-def _startup_scenario(
-    expected: SetStateStatus,
-    *,
-    bound: bool = True,
-    matching_claim: bool = True,
-    matching_execution: bool = True,
-) -> tuple[PendingClaim, PendingClaimReference, SetStateStatus]:
+class PendingClaimContractAdapter(Protocol):
+    def startup_disposition(
+        self,
+        canonical_state: PendingClaimStateDetails,
+        mirrored_state: PendingClaimStateDetails,
+        reference: PendingClaimReference,
+    ) -> SetStateStatus: ...
+
+    def startup_action(self, status: SetStateStatus) -> str: ...
+
+    def bind_execution(
+        self,
+        canonical_state: PendingClaimStateDetails,
+        mirrored_state: PendingClaimStateDetails,
+        request: BindExecutionRequest,
+    ) -> PendingClaimOperationResult: ...
+
+    def preserve_pending_substate(
+        self,
+        canonical_state: PendingClaimStateDetails,
+        source_state_id: UUID,
+        target_state_id: UUID,
+    ) -> PendingClaimStateDetails: ...
+
+    def expire_and_replace(
+        self,
+        canonical_state: PendingClaimStateDetails,
+        replacement_claim: PendingClaim,
+    ) -> tuple[PendingClaimStateDetails, PendingClaimStateDetails]: ...
+
+    def accept_running(
+        self,
+        canonical_state: PendingClaimStateDetails,
+        reference: PendingClaimReference,
+    ) -> PendingClaimStateDetails: ...
+
+
+class ReferencePendingClaimContract:
+    """Test-only reference adapter for the shared conformance cases."""
+
+    def startup_disposition(
+        self,
+        canonical_state: PendingClaimStateDetails,
+        mirrored_state: PendingClaimStateDetails,
+        reference: PendingClaimReference,
+    ) -> SetStateStatus:
+        active_claim = canonical_state.pending_claim
+        if (
+            active_claim is None
+            or active_claim.id != reference.claim_id
+            or (
+                active_claim.execution_id is not None
+                and active_claim.execution_id != reference.execution_id
+            )
+        ):
+            return SetStateStatus.ABORT
+        if active_claim.execution_id is None:
+            return SetStateStatus.WAIT
+        return SetStateStatus.ACCEPT
+
+    def startup_action(self, status: SetStateStatus) -> str:
+        if status == SetStateStatus.ACCEPT:
+            return "start_user_code"
+        if status == SetStateStatus.WAIT:
+            return "retry"
+        return "exit_without_user_code"
+
+    def bind_execution(
+        self,
+        canonical_state: PendingClaimStateDetails,
+        mirrored_state: PendingClaimStateDetails,
+        request: BindExecutionRequest,
+    ) -> PendingClaimOperationResult:
+        active_claim = canonical_state.pending_claim
+        if active_claim is None or active_claim.id != request.claim_id:
+            return PendingClaimOperationResult(
+                status="not_current",
+                reason="Claim is no longer current.",
+            )
+        if active_claim.execution_id in (None, request.execution_id):
+            return PendingClaimOperationResult(status="accepted")
+        return PendingClaimOperationResult(
+            status="conflict",
+            reason="Claim is already bound to another execution.",
+        )
+
+    def preserve_pending_substate(
+        self,
+        canonical_state: PendingClaimStateDetails,
+        source_state_id: UUID,
+        target_state_id: UUID,
+    ) -> PendingClaimStateDetails:
+        return canonical_state.model_copy(deep=True)
+
+    def expire_and_replace(
+        self,
+        canonical_state: PendingClaimStateDetails,
+        replacement_claim: PendingClaim,
+    ) -> tuple[PendingClaimStateDetails, PendingClaimStateDetails]:
+        timeout_count = canonical_state.pending_timeout_count or 0
+        expired = PendingClaimStateDetails(
+            pending_timeout_count=timeout_count + 1,
+        )
+        replacement = PendingClaimStateDetails(
+            pending_claim=replacement_claim,
+            pending_timeout_count=expired.pending_timeout_count,
+        )
+        return expired, replacement
+
+    def accept_running(
+        self,
+        canonical_state: PendingClaimStateDetails,
+        reference: PendingClaimReference,
+    ) -> PendingClaimStateDetails:
+        return PendingClaimStateDetails(
+            execution_lineage=ExecutionLineage(
+                claim_id=reference.claim_id,
+                execution_id=reference.execution_id,
+            )
+        )
+
+
+class MirrorAuthorityAdapter(ReferencePendingClaimContract):
+    def startup_disposition(
+        self,
+        canonical_state: PendingClaimStateDetails,
+        mirrored_state: PendingClaimStateDetails,
+        reference: PendingClaimReference,
+    ) -> SetStateStatus:
+        return super().startup_disposition(mirrored_state, canonical_state, reference)
+
+
+class StateRecordIdentityAdapter(ReferencePendingClaimContract):
+    def preserve_pending_substate(
+        self,
+        canonical_state: PendingClaimStateDetails,
+        source_state_id: UUID,
+        target_state_id: UUID,
+    ) -> PendingClaimStateDetails:
+        if source_state_id != target_state_id:
+            return PendingClaimStateDetails()
+        return canonical_state
+
+
+class ResetTimeoutCountAdapter(ReferencePendingClaimContract):
+    def expire_and_replace(
+        self,
+        canonical_state: PendingClaimStateDetails,
+        replacement_claim: PendingClaim,
+    ) -> tuple[PendingClaimStateDetails, PendingClaimStateDetails]:
+        expired, replacement = super().expire_and_replace(
+            canonical_state, replacement_claim
+        )
+        replacement.pending_timeout_count = 0
+        return expired, replacement
+
+
+class DoubleIncrementAdapter(ReferencePendingClaimContract):
+    def expire_and_replace(
+        self,
+        canonical_state: PendingClaimStateDetails,
+        replacement_claim: PendingClaim,
+    ) -> tuple[PendingClaimStateDetails, PendingClaimStateDetails]:
+        expired, replacement = super().expire_and_replace(
+            canonical_state, replacement_claim
+        )
+        assert expired.pending_timeout_count is not None
+        expired.pending_timeout_count += 1
+        return expired, replacement
+
+
+class RetainClaimOnRunningAdapter(ReferencePendingClaimContract):
+    def accept_running(
+        self,
+        canonical_state: PendingClaimStateDetails,
+        reference: PendingClaimReference,
+    ) -> PendingClaimStateDetails:
+        accepted = super().accept_running(canonical_state, reference)
+        accepted.pending_claim = canonical_state.pending_claim
+        accepted.pending_timeout_count = canonical_state.pending_timeout_count
+        return accepted
+
+
+class StartOnRejectAdapter(ReferencePendingClaimContract):
+    def startup_action(self, status: SetStateStatus) -> str:
+        if status == SetStateStatus.REJECT:
+            return "start_user_code"
+        return super().startup_action(status)
+
+
+def _assert_pending_claim_contract(adapter: PendingClaimContractAdapter) -> None:
     claim_id = uuid7()
-    bound_execution_id = uuid7() if bound else None
+    execution_id = uuid7()
     active_claim = _pending_claim(
         claim_id=claim_id,
-        execution_id=bound_execution_id,
+        execution_id=execution_id,
     )
-    reference = PendingClaimReference(
-        claim_id=claim_id if matching_claim else uuid7(),
-        execution_id=(
-            bound_execution_id
-            if bound_execution_id is not None and matching_execution
-            else uuid7()
-        ),
+    canonical = PendingClaimStateDetails(
+        pending_claim=active_claim,
+        pending_timeout_count=1,
+        future_state_hint={"source": "canonical"},
     )
-    return active_claim, reference, expected
+    matching_reference = PendingClaimReference(
+        claim_id=claim_id,
+        execution_id=execution_id,
+    )
+
+    assert (
+        adapter.startup_disposition(
+            canonical,
+            PendingClaimStateDetails(),
+            matching_reference,
+        )
+        == SetStateStatus.ACCEPT
+    )
+
+    unbound = PendingClaimStateDetails(pending_claim=_pending_claim(claim_id=claim_id))
+    assert (
+        adapter.startup_disposition(
+            unbound,
+            PendingClaimStateDetails(),
+            matching_reference,
+        )
+        == SetStateStatus.WAIT
+    )
+
+    stale_canonical = PendingClaimStateDetails(
+        pending_claim=_pending_claim(execution_id=uuid7())
+    )
+    matching_mirror = canonical.model_copy(deep=True)
+    assert (
+        adapter.startup_disposition(
+            stale_canonical,
+            matching_mirror,
+            matching_reference,
+        )
+        == SetStateStatus.ABORT
+    )
+
+    wrong_execution = PendingClaimReference(
+        claim_id=claim_id,
+        execution_id=uuid7(),
+    )
+    assert (
+        adapter.startup_disposition(
+            canonical,
+            matching_mirror,
+            wrong_execution,
+        )
+        == SetStateStatus.ABORT
+    )
+
+    expected_actions = {
+        SetStateStatus.ACCEPT: "start_user_code",
+        SetStateStatus.WAIT: "retry",
+        SetStateStatus.REJECT: "exit_without_user_code",
+        SetStateStatus.ABORT: "exit_without_user_code",
+    }
+    assert {
+        status: adapter.startup_action(status) for status in SetStateStatus
+    } == expected_actions
+
+    unbound_request = BindExecutionRequest(
+        claim_id=claim_id,
+        execution_id=execution_id,
+    )
+    assert (
+        adapter.bind_execution(
+            unbound,
+            PendingClaimStateDetails(),
+            unbound_request,
+        ).status
+        == "accepted"
+    )
+    assert (
+        adapter.bind_execution(
+            canonical,
+            PendingClaimStateDetails(),
+            unbound_request,
+        ).status
+        == "accepted"
+    )
+    assert (
+        adapter.bind_execution(
+            canonical,
+            PendingClaimStateDetails(),
+            BindExecutionRequest(
+                claim_id=claim_id,
+                execution_id=uuid7(),
+            ),
+        ).status
+        == "conflict"
+    )
+    assert (
+        adapter.bind_execution(
+            stale_canonical,
+            matching_mirror,
+            unbound_request,
+        ).status
+        == "not_current"
+    )
+
+    source_state_id = uuid4()
+    target_state_id = uuid4()
+    assert source_state_id != target_state_id
+    named_substate = adapter.preserve_pending_substate(
+        canonical,
+        source_state_id,
+        target_state_id,
+    )
+    assert named_substate.pending_claim == canonical.pending_claim
+    assert named_substate.pending_timeout_count == canonical.pending_timeout_count
+    assert named_substate.model_dump()["future_state_hint"] == {"source": "canonical"}
+
+    replacement_claim = _pending_claim()
+    expired, replacement = adapter.expire_and_replace(
+        canonical,
+        replacement_claim,
+    )
+    assert expired.pending_claim is None
+    assert expired.pending_timeout_count == 2
+    assert replacement.pending_claim == replacement_claim
+    assert replacement.pending_claim.id != active_claim.id
+    assert replacement.pending_timeout_count == expired.pending_timeout_count
+
+    accepted_running = adapter.accept_running(canonical, matching_reference)
+    assert accepted_running.pending_claim is None
+    assert accepted_running.pending_timeout_count is None
+    assert accepted_running.execution_lineage == ExecutionLineage(
+        claim_id=claim_id,
+        execution_id=execution_id,
+    )
 
 
 def test_pending_claim_metadata_supports_unbound_execution_and_future_fields():
@@ -283,119 +592,26 @@ def test_pending_timeout_count_is_non_negative():
         adapter.validate_python(-1)
 
 
-def test_named_pending_substate_round_trip_preserves_claim_and_sequence_count():
-    active_claim = _pending_claim(execution_id=uuid7())
-    canonical = PendingClaimStateDetails(
-        pending_claim=active_claim,
-        pending_timeout_count=2,
-        future_state_hint={"source": "server"},
-    )
-    original_state_record_id = uuid4()
-    named_substate_record_id = uuid4()
-
-    named_substate = PendingClaimStateDetails.model_validate(
-        canonical.model_dump(mode="json")
-    )
-
-    assert named_substate_record_id != original_state_record_id
-    assert named_substate.pending_claim == active_claim
-    assert named_substate.pending_timeout_count == 2
-    assert named_substate.model_dump()["future_state_hint"] == {"source": "server"}
-
-
-def test_replacement_claim_inherits_count_until_running_is_accepted():
-    first_claim = _pending_claim()
-    canonical = PendingClaimStateDetails(
-        pending_claim=first_claim,
-        pending_timeout_count=1,
-    )
-    assert canonical.pending_timeout_count is not None
-    count_after_valid_expiry = canonical.pending_timeout_count + 1
-    replacement_claim = _pending_claim()
-    replacement = PendingClaimStateDetails(
-        pending_claim=replacement_claim,
-        pending_timeout_count=count_after_valid_expiry,
-    )
-
-    assert replacement.pending_claim.id != first_claim.id
-    assert replacement.pending_timeout_count == 2
-
-    accepted_running = PendingClaimStateDetails(
-        execution_lineage=ExecutionLineage(
-            claim_id=replacement_claim.id,
-            execution_id=uuid7(),
-        )
-    )
-
-    assert accepted_running.pending_claim is None
-    assert accepted_running.pending_timeout_count is None
-    assert accepted_running.execution_lineage is not None
-    assert accepted_running.execution_lineage.claim_id == replacement_claim.id
+def test_reference_adapter_satisfies_pending_claim_contract():
+    _assert_pending_claim_contract(ReferencePendingClaimContract())
 
 
 @pytest.mark.parametrize(
-    ("active_claim", "reference", "expected"),
+    "adapter",
     [
-        pytest.param(
-            *_startup_scenario(SetStateStatus.ACCEPT),
-            id="matching-bound-execution",
-        ),
-        pytest.param(
-            *_startup_scenario(
-                SetStateStatus.WAIT,
-                bound=False,
-            ),
-            id="matching-unbound-execution",
-        ),
-        pytest.param(
-            *_startup_scenario(
-                SetStateStatus.ABORT,
-                matching_claim=False,
-            ),
-            id="stale-claim",
-        ),
-        pytest.param(
-            *_startup_scenario(
-                SetStateStatus.ABORT,
-                matching_execution=False,
-            ),
-            id="mismatched-execution",
-        ),
-        pytest.param(
-            None,
-            PendingClaimReference(
-                claim_id=uuid7(),
-                execution_id=uuid7(),
-            ),
-            SetStateStatus.ABORT,
-            id="no-active-claim",
-        ),
+        pytest.param(MirrorAuthorityAdapter(), id="non-canonical-authority"),
+        pytest.param(StateRecordIdentityAdapter(), id="state-record-identity"),
+        pytest.param(ResetTimeoutCountAdapter(), id="replacement-resets-count"),
+        pytest.param(DoubleIncrementAdapter(), id="expiry-not-atomic"),
+        pytest.param(RetainClaimOnRunningAdapter(), id="running-retains-claim"),
+        pytest.param(StartOnRejectAdapter(), id="reject-starts-user-code"),
     ],
 )
-def test_startup_disposition_uses_canonical_current_claim(
-    active_claim: PendingClaim | None,
-    reference: PendingClaimReference,
-    expected: SetStateStatus,
+def test_contract_cases_reject_incorrect_implementations(
+    adapter: PendingClaimContractAdapter,
 ):
-    canonical = PendingClaimStateDetails(pending_claim=active_claim)
-
-    assert pending_claim_startup_disposition(canonical, reference) == expected
-
-
-@pytest.mark.parametrize(
-    ("status", "expected_action"),
-    [
-        (SetStateStatus.ACCEPT, "start_user_code"),
-        (SetStateStatus.WAIT, "retry"),
-        (SetStateStatus.REJECT, "exit_without_user_code"),
-        (SetStateStatus.ABORT, "exit_without_user_code"),
-    ],
-)
-def test_startup_action_requires_explicit_accept(
-    status: SetStateStatus,
-    expected_action: str,
-):
-    assert pending_claim_startup_action(status) == expected_action
+    with pytest.raises(AssertionError):
+        _assert_pending_claim_contract(adapter)
 
 
 @pytest.mark.parametrize(

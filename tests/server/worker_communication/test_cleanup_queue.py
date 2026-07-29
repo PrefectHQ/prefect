@@ -72,7 +72,7 @@ def test_cleanup_queue_message_id_rejects_empty_producer_identity():
 
 async def test_enqueue_pending_claim_teardown_authors_strict_queue_payload(
     queue: WorkerCleanupQueue,
-) -> None:
+):
     work_pool_id = uuid4()
     work_queue_id = uuid4()
     flow_run_id = uuid4()
@@ -123,7 +123,7 @@ async def test_enqueue_pending_claim_teardown_authors_strict_queue_payload(
 async def test_enqueue_pending_claim_teardown_requires_protocol_uuid7(
     queue: WorkerCleanupQueue,
     identifier: str,
-) -> None:
+):
     identifiers = {
         "claim_id": uuid7(),
         "execution_id": uuid7(),

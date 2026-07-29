@@ -16,13 +16,12 @@ from uuid import UUID
 from pydantic import UUID7, ConfigDict, Field, model_validator
 from typing_extensions import Literal, TypeAlias
 
-from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect.client.schemas.responses import SetStateStatus
-from prefect.types import NonNegativeInteger, PositiveInteger
-
-PENDING_CLAIM_TEARDOWN: Literal["pending_claim_teardown.v1"] = (
-    "pending_claim_teardown.v1"
+from prefect._internal.pending_claims import (
+    PENDING_CLAIM_TEARDOWN,
+    pending_claim_teardown_idempotency_key,
 )
+from prefect._internal.schemas.bases import PrefectBaseModel
+from prefect.types import NonNegativeInteger, PositiveInteger
 
 PendingTimeoutCount: TypeAlias = NonNegativeInteger
 PendingClaimOperationStatus: TypeAlias = Literal["accepted", "not_current", "conflict"]
@@ -125,45 +124,6 @@ class PendingClaimOperationResult(PrefectBaseModel):
         return self
 
 
-def pending_claim_startup_disposition(
-    canonical_state: PendingClaimStateDetails,
-    reference: PendingClaimReference,
-) -> SetStateStatus:
-    """Classify claim-aware startup against canonical current state metadata."""
-
-    active_claim = canonical_state.pending_claim
-    if (
-        active_claim is None
-        or active_claim.id != reference.claim_id
-        or (
-            active_claim.execution_id is not None
-            and active_claim.execution_id != reference.execution_id
-        )
-    ):
-        return SetStateStatus.ABORT
-    if active_claim.execution_id is None:
-        return SetStateStatus.WAIT
-    return SetStateStatus.ACCEPT
-
-
-def pending_claim_startup_action(
-    status: SetStateStatus,
-) -> PendingClaimStartupAction:
-    """Return the only permitted runtime action for an orchestration outcome."""
-
-    if status == SetStateStatus.ACCEPT:
-        return "start_user_code"
-    if status == SetStateStatus.WAIT:
-        return "retry"
-    return "exit_without_user_code"
-
-
-def pending_claim_teardown_idempotency_key(flow_run_id: UUID, claim_id: UUID) -> str:
-    """Return the stable cleanup identity for one abandoned pending claim."""
-
-    return f"{PENDING_CLAIM_TEARDOWN}:{flow_run_id}:{claim_id}"
-
-
 __all__ = [
     "PENDING_CLAIM_TEARDOWN",
     "BindExecutionRequest",
@@ -179,7 +139,5 @@ __all__ = [
     "PendingClaimStartupAction",
     "PendingClaimStateDetails",
     "PendingTimeoutCount",
-    "pending_claim_startup_action",
-    "pending_claim_startup_disposition",
     "pending_claim_teardown_idempotency_key",
 ]
