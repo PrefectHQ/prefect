@@ -31,6 +31,7 @@ import time
 from collections.abc import AsyncIterator, Callable
 from typing import Any
 
+import cloudpickle
 import httpx
 import pytest
 from prefect_sandbox import islo
@@ -717,6 +718,30 @@ class TestBlockShape:
 
 
 class TestSessionToken:
+    async def test_environment_api_key_and_session_are_never_pickled(
+        self, fake_islo: FakeIslo, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        environment_only_key = "environment-key-that-must-not-enter-pickle"
+        monkeypatch.setenv("ISLO_API_KEY", environment_only_key)
+        backend = IsloSandbox()
+        handle = await backend.acreate()
+
+        payload = cloudpickle.dumps(backend)
+        restored = cloudpickle.loads(payload)
+
+        assert environment_only_key.encode() not in payload
+        assert restored._session_token is None
+        assert restored._session_token_expires_at == 0.0
+        assert restored._session_token_api_url is None
+        assert restored._session_token_api_key is None
+
+        fake_islo.requests.clear()
+        await restored.adestroy(handle)
+        assert fake_islo.requests_for("auth")[0].body == {
+            "access_key": environment_only_key
+        }
+        assert fake_islo.live == set()
+
     @pytest.mark.parametrize(
         "payload",
         [

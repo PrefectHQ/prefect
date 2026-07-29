@@ -483,6 +483,25 @@ class IsloSandbox(SandboxBackend):
     _session_token_api_url: str | None = PrivateAttr(default=None)
     _session_token_api_key: SecretStr | None = PrivateAttr(default=None)
 
+    def __getstate__(self) -> dict[str, Any]:
+        """Exclude ephemeral credentials and sessions from pickle payloads."""
+        state = super().__getstate__()
+        private = state.get("__pydantic_private__")
+        if isinstance(private, dict):
+            # Pydantic includes PrivateAttr values in pickle state. A backend may have
+            # resolved its API key only from the environment, so carrying this cache
+            # through a ProcessPoolTaskRunner would turn an otherwise absent credential
+            # into serialized task data. Preserve unrelated Block internals while
+            # rebuilding the complete session cache cold in the child.
+            state["__pydantic_private__"] = {
+                **private,
+                "_session_token": None,
+                "_session_token_expires_at": 0.0,
+                "_session_token_api_url": None,
+                "_session_token_api_key": None,
+            }
+        return state
+
     def _resolved_api_url(self) -> str:
         """Return the API base URL, honouring the block, then the environment."""
         url = self.api_url or os.environ.get(_API_URL_ENV_VAR) or _DEFAULT_API_URL
