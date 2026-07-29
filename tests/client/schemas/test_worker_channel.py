@@ -112,6 +112,27 @@ def _ready_frame(**payload_overrides: object) -> dict[str, object]:
     }
 
 
+def _pending_claim_cleanup_frame(
+    target: dict[str, object],
+    **payload_overrides: object,
+) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "message_id": str(uuid4()),
+        "kind": "pending_claim_teardown.v1",
+        "reservation_token": "reservation-token",
+        "lease_expires_at": now("UTC").isoformat(),
+        "delivery_count": 1,
+        "work_queue_id": None,
+        "target": target,
+        "data": {},
+    }
+    payload.update(payload_overrides)
+    return {
+        **_frame_base("cleanup.message.v1"),
+        "payload": payload,
+    }
+
+
 def test_auth_setup_messages_are_outside_application_frame_envelope():
     assert WorkerChannelAuthRequest(type="auth", token=None).token is None
     assert WorkerChannelAuthRequest.model_validate({"type": "auth"}).token is None
@@ -507,6 +528,101 @@ def test_cleanup_message_validates_supported_kinds_and_kind_specific_targets():
                 },
             }
         )
+
+
+def test_pending_claim_cleanup_accepts_required_target_fields_only():
+    flow_run_id = uuid4()
+    claim_id = uuid7()
+
+    frame = CleanupMessageFrame.model_validate(
+        _pending_claim_cleanup_frame(
+            {
+                "flow_run_id": str(flow_run_id),
+                "claim_id": str(claim_id),
+            }
+        )
+    )
+
+    assert frame.payload.work_queue_id is None
+    assert frame.payload.target.flow_run_id == flow_run_id
+    assert frame.payload.target.claim_id == claim_id
+    assert frame.payload.target.execution_id is None
+    assert frame.payload.target.infrastructure_pid is None
+
+
+@pytest.mark.parametrize("field", ["flow_run_id", "claim_id"])
+def test_pending_claim_cleanup_requires_claim_identity(field: str):
+    target = {
+        "flow_run_id": str(uuid4()),
+        "claim_id": str(uuid7()),
+    }
+    del target[field]
+
+    with pytest.raises(ValidationError):
+        CleanupMessageFrame.model_validate(_pending_claim_cleanup_frame(target))
+
+
+def test_pending_claim_cleanup_preserves_forward_compatible_hints():
+    frame = CleanupMessageFrame.model_validate(
+        _pending_claim_cleanup_frame(
+            {
+                "flow_run_id": str(uuid4()),
+                "claim_id": str(uuid7()),
+                "execution_id": str(uuid7()),
+                "infrastructure_pid": "provider/resource",
+                "future_target_hint": {"label": "claim"},
+            },
+            data={"future_data_hint": {"region": "us-east"}},
+        )
+    )
+
+    assert frame.payload.target.model_dump()["future_target_hint"] == {"label": "claim"}
+    assert frame.payload.data == {"future_data_hint": {"region": "us-east"}}
+
+
+def test_pending_claim_cleanup_rejects_internal_pool_routing_in_target():
+    with pytest.raises(ValidationError, match="internal routing fields"):
+        CleanupMessageFrame.model_validate(
+            _pending_claim_cleanup_frame(
+                {
+                    "flow_run_id": str(uuid4()),
+                    "claim_id": str(uuid7()),
+                    "work_pool_id": str(uuid4()),
+                }
+            )
+        )
+
+
+@pytest.mark.parametrize("field", ["work_pool_id", "idempotency_key"])
+def test_cleanup_wire_payload_rejects_internal_enqueue_fields(field: str):
+    with pytest.raises(ValidationError):
+        CleanupMessageFrame.model_validate(
+            _pending_claim_cleanup_frame(
+                {
+                    "flow_run_id": str(uuid4()),
+                    "claim_id": str(uuid7()),
+                },
+                **{field: str(uuid4())},
+            )
+        )
+
+
+@pytest.mark.parametrize(
+    "target",
+    [
+        {"flow_run_id": str(uuid4()), "claim_id": str(uuid4())},
+        {
+            "flow_run_id": str(uuid4()),
+            "claim_id": str(uuid7()),
+            "execution_id": str(uuid4()),
+        },
+    ],
+)
+def test_pending_claim_cleanup_requires_protocol_uuid7_identifiers(
+    target: dict[str, object],
+):
+    with pytest.raises(ValidationError):
+        CleanupMessageFrame.model_validate(_pending_claim_cleanup_frame(target))
 
 
 def test_cleanup_operation_frames_and_results_validate_reservation_contract():

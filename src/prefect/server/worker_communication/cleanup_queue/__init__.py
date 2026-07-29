@@ -4,7 +4,7 @@ from collections.abc import Iterable, Mapping
 import importlib
 import logging
 from typing import Any, ClassVar, Literal
-from uuid import UUID
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 from pydantic import ConfigDict, Field
 
@@ -43,6 +43,14 @@ else:
     CLEANUP_QUEUE_DEAD_LETTERS = None
     CLEANUP_QUEUE_LEASE_EXPIRATIONS = None
     CLEANUP_QUEUE_OPERATIONS = None
+
+
+def cleanup_queue_message_id(idempotency_key: str) -> UUID:
+    """Derive a deterministic cleanup message ID from its producer identity."""
+
+    if not idempotency_key:
+        raise ValueError("idempotency_key must be non-empty")
+    return uuid5(NAMESPACE_URL, f"prefect:{idempotency_key}")
 
 
 class CleanupQueueMessage(PrefectBaseModel):
@@ -383,6 +391,7 @@ __all__ = [
     "CleanupQueueReservation",
     "CleanupQueueWakeup",
     "WorkerCleanupQueue",
+    "cleanup_queue_message_id",
     "get_worker_cleanup_queue",
     "record_cleanup_queue_dead_letter",
     "record_cleanup_queue_lease_expiry_result",

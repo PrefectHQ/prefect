@@ -8,7 +8,10 @@ from uuid import uuid4
 
 import pytest
 
-from prefect.server.worker_communication.cleanup_queue import get_worker_cleanup_queue
+from prefect.server.worker_communication.cleanup_queue import (
+    cleanup_queue_message_id,
+    get_worker_cleanup_queue,
+)
 from prefect.server.worker_communication.cleanup_queue import memory as memory_module
 from prefect.server.worker_communication.cleanup_queue.memory import WorkerCleanupQueue
 from prefect.settings import (
@@ -43,6 +46,25 @@ def clock(monkeypatch: pytest.MonkeyPatch) -> Clock:
 
 class TestMemoryWorkerCleanupQueue(WorkerCleanupQueueStandardTestSuite):
     pass
+
+
+def test_cleanup_queue_message_id_uses_stable_producer_namespace():
+    key = (
+        "pending_claim_teardown.v1:"
+        "00000000-0000-0000-0000-000000000001:"
+        "00000000-0000-0000-0000-000000000002"
+    )
+
+    assert str(cleanup_queue_message_id(key)) == (
+        "5bafa77f-395f-542c-8cb6-6b49c698f3df"
+    )
+    assert cleanup_queue_message_id(key) == cleanup_queue_message_id(key)
+    assert cleanup_queue_message_id(f"{key}:different") != cleanup_queue_message_id(key)
+
+
+def test_cleanup_queue_message_id_rejects_empty_producer_identity():
+    with pytest.raises(ValueError, match="non-empty"):
+        cleanup_queue_message_id("")
 
 
 async def test_get_worker_cleanup_queue_uses_default_in_memory_backend() -> None:

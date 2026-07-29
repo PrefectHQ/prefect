@@ -99,6 +99,14 @@ class StateWaitDetails(PrefectBaseModel):
     reason: Optional[str] = Field(
         default=None, description="The reason why the state transition should wait."
     )
+    max_wait_seconds: Optional[int] = Field(
+        default=None,
+        ge=0,
+        description=(
+            "The maximum remaining time in seconds that the client should retry this "
+            "state transition."
+        ),
+    )
 
 
 class HistoryResponseState(PrefectBaseModel):
