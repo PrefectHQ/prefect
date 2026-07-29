@@ -1665,6 +1665,29 @@ class TestWriteFile:
         assert b'filename="main.py"' in uploaded.content
         assert b"print('hi')\n" in uploaded.content
 
+    async def test_an_unusable_sandbox_is_reported_in_terms_of_the_write(
+        self, backend: IsloSandbox, fake_islo: FakeIslo, sandbox: Sandbox
+    ) -> None:
+        """A failed write must say what failed to be written.
+
+        The parent directory is created with `aexec`, which *raises* when the sandbox
+        itself is gone rather than returning a nonzero exit. Surfacing that unchanged
+        would answer a call to `awrite_file` with a message about running a command,
+        naming neither the path nor the write. Found by pointing the backend at the
+        real API with a sandbox name it had never seen.
+        """
+        fake_islo.replies(
+            "exec", reply(404, {"code": "SANDBOX_NOT_FOUND", "message": "gone"})
+        )
+
+        with pytest.raises(SandboxError) as excinfo:
+            await backend.awrite_file(sandbox, "/tmp/prefect-sandbox/main.py", "x = 1")
+
+        message = str(excinfo.value)
+        assert "/tmp/prefect-sandbox/main.py" in message
+        assert "/tmp/prefect-sandbox'" in message
+        assert "SANDBOX_NOT_FOUND" in message
+
     async def test_creates_the_parent_directory_first(
         self, backend: IsloSandbox, fake_islo: FakeIslo, sandbox: Sandbox
     ) -> None:

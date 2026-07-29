@@ -874,7 +874,19 @@ class IsloSandbox(SandboxBackend):
         directory = path.rsplit("/", 1)[0] if "/" in path else ""
         if directory:
             # The upload endpoint writes one file; it does not create missing parents.
-            result = await self.aexec(sandbox, ["mkdir", "-p", directory], timeout=60)
+            try:
+                result = await self.aexec(
+                    sandbox, ["mkdir", "-p", directory], timeout=60
+                )
+            except SandboxError as exc:
+                # `aexec` raises when the sandbox itself is unusable — a vanished
+                # sandbox, for instance — and its message talks about running a
+                # command. Reported unchanged, a failed write would say nothing about
+                # the write or the path the caller asked for.
+                raise SandboxError(
+                    f"Could not create {directory!r} in {sandbox} while writing "
+                    f"{path!r}: {exc}"
+                ) from exc
             if not result.ok:
                 raise SandboxError(
                     f"Could not create {directory!r} in {sandbox}: "
