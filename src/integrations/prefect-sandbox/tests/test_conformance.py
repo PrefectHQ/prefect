@@ -315,10 +315,12 @@ class IsloProviderFake(ProviderFake):
         self._script = Script()
         self._fail_create = False
         self._requests: list[tuple[str, str, str]] = []
+        self._handle_signing_key = SecretStr("conformance-stable-handle-signing-key")
         # A real key or URL in the developer's environment must not change what these
         # tests exercise.
         monkeypatch.delenv("ISLO_API_KEY", raising=False)
         monkeypatch.delenv("ISLO_API_URL", raising=False)
+        monkeypatch.delenv("PREFECT_SANDBOX_ISLO_HANDLE_SIGNING_KEY", raising=False)
         monkeypatch.setattr(IsloSandbox, "_new_client", self._client)
         self.backend = self.new_backend()
 
@@ -326,6 +328,7 @@ class IsloProviderFake(ProviderFake):
         """Build a backend whose every client is routed to this fake."""
         return IsloSandbox(
             api_key=SecretStr("conformance-api-key"),
+            handle_signing_key=self._handle_signing_key,
             api_url=_ISLO_BASE_URL,
             **overrides,  # type: ignore[arg-type]
         )

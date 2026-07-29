@@ -21,7 +21,7 @@ command.
 
 ## Classes
 
-### `IsloSandbox` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/islo.py#L204" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `IsloSandbox` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/islo.py#L287" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Run commands in a hosted Islo microVM sandbox.
@@ -37,6 +37,11 @@ Authentication is an API key (`islo api-key create <name> --show`), read from
 `api_key` or from `ISLO_API_KEY`. The key never leaves the worker: it is exchanged
 for a short-lived session token, and only that token is sent on subsequent calls.
 Neither reaches a sandboxed command.
+
+Handles use a separate signing key so rotating the provider API key cannot strand a
+live sandbox. Prefect persists the generated `handle_signing_key` with a saved block.
+Set `PREFECT_SANDBOX_ISLO_HANDLE_SIGNING_KEY` to the same high-entropy value on every
+worker when constructing unsaved backends independently.
 
 Prefect injects none of its context into the sandbox — no `PREFECT_API_KEY`, no
 `PREFECT_API_URL`, no worker environment, no flow-run parameters. A command sees
@@ -61,6 +66,7 @@ both Prefect's sync and async interfaces.
 - `workdir`: Default working directory for commands.
 - `user`: Guest user to run commands as.
 - `api_key`: Islo API key. Falls back to `ISLO_API_KEY`.
+- `handle_signing_key`: Stable secret that authenticates serialized handles.
 - `api_url`: API base URL. Falls back to `ISLO_API_URL`, then the public endpoint.
 - `create_timeout`: Seconds allowed for provisioning.
 - `egress`: Whether to provision the sandbox with the internet switched off.
@@ -96,7 +102,7 @@ async def run_generated_code(source: str) -> str:
 
 **Methods:**
 
-#### `aclose` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L274" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aclose` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L287" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aclose(self) -> None
@@ -108,7 +114,7 @@ Separate from `adestroy`, which disposes of a single sandbox. The default is
 a no-op; backends holding a client should override it.
 
 
-#### `acreate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/islo.py#L580" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `acreate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/islo.py#L813" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 acreate(self) -> Sandbox
@@ -130,7 +136,7 @@ console.
 - `SandboxCreationError`: If provisioning failed or timed out.
 
 
-#### `acreate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L243" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `acreate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L256" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 acreate(self) -> Sandbox
@@ -139,7 +145,7 @@ acreate(self) -> Sandbox
 Provision one sandbox and return its handle.
 
 
-#### `adestroy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/islo.py#L846" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `adestroy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/islo.py#L1147" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 adestroy(self, sandbox: Sandbox) -> None
@@ -152,7 +158,7 @@ Delete `sandbox`. Idempotent.
 still be running.
 
 
-#### `adestroy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L271" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `adestroy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L284" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 adestroy(self, sandbox: Sandbox) -> None
@@ -161,7 +167,7 @@ adestroy(self, sandbox: Sandbox) -> None
 Tear down `sandbox`. Idempotent.
 
 
-#### `aexec` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/islo.py#L658" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aexec` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/islo.py#L913" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aexec(self, sandbox: Sandbox, command: Sequence[str]) -> SandboxResult
@@ -191,7 +197,7 @@ number, or `env` cannot be expressed as POSIX environment variables.
 - `SandboxExecutionError`: If the execution stream itself failed.
 
 
-#### `aexec` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L247" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aexec` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L260" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aexec(self, sandbox: Sandbox, command: Sequence[str]) -> SandboxResult
@@ -211,7 +217,7 @@ not need to quote anything.
 - A `SandboxResult`. A nonzero exit code is reported here, not raised.
 
 
-#### `asession` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L310" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `asession` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L323" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 asession(self) -> AsyncIterator[Sandbox]
@@ -225,7 +231,7 @@ async with backend.asession() as sandbox:
 ```
 
 
-#### `awrite_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/islo.py#L855" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `awrite_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/islo.py#L1157" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 awrite_file(self, sandbox: Sandbox, path: str, content: str) -> None
@@ -247,7 +253,7 @@ the bytes directly, so size is bounded only by the sandbox's disk.
 upload failed.
 
 
-#### `awrite_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L281" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `awrite_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L294" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 awrite_file(self, sandbox: Sandbox, path: str, content: str) -> None

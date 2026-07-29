@@ -164,6 +164,12 @@ Islo REST API, and the sandbox runs on Islo's infrastructure.
 The API key is exchanged for a short-lived session token, and only that token travels on
 subsequent requests. Neither the key nor the token is passed to a sandboxed command.
 
+`IsloSandbox` signs handles with a separate stable secret, so rotating the provider API
+key does not invalidate a live sandbox or prevent teardown. Saving the block persists its
+generated `handle_signing_key`. If workers construct unsaved backends independently, set
+the same high-entropy `PREFECT_SANDBOX_ISLO_HANDLE_SIGNING_KEY` on every worker; do not
+rotate it while handles are live.
+
 ### Pin sandboxes to a region
 
 `api_url` defaults to the control plane at `https://api.islo.dev`. Regional compute

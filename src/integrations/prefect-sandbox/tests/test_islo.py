@@ -51,6 +51,7 @@ from pydantic import SecretStr, ValidationError
 BLOCK_API_KEY = "islo-key-from-the-block"
 ENVIRONMENT_API_KEY = "islo-key-from-the-environment"
 ROTATED_API_KEY = "islo-key-after-rotation"
+HANDLE_SIGNING_KEY = "prefect-sandbox-stable-handle-signing-key"
 
 #: One canned answer to one request, which is all a test needs to describe the
 #: provider misbehaving.
@@ -304,6 +305,7 @@ def clean_islo_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep a developer's own Islo configuration out of every test."""
     monkeypatch.delenv("ISLO_API_KEY", raising=False)
     monkeypatch.delenv("ISLO_API_URL", raising=False)
+    monkeypatch.setenv("PREFECT_SANDBOX_ISLO_HANDLE_SIGNING_KEY", HANDLE_SIGNING_KEY)
 
 
 @pytest.fixture
@@ -578,6 +580,7 @@ class TestApiUrl:
         handle = await creator.acreate()
         backend = IsloSandbox(
             api_key=SecretStr(BLOCK_API_KEY),
+            handle_signing_key=creator.handle_signing_key,
             api_url="https://wrong.compute.islo.dev",
         )
 
@@ -661,6 +664,7 @@ class TestApiUrl:
         with pytest.raises(SandboxError, match="failed authentication"):
             await IsloSandbox(
                 api_key=SecretStr(BLOCK_API_KEY),
+                handle_signing_key=backend.handle_signing_key,
                 api_url="https://wrong.compute.islo.dev",
             ).aexec(copied, ["true"], timeout=5)
 
@@ -675,14 +679,19 @@ class TestBlockShape:
         assert fake_islo.requests == []
 
     def test_the_api_key_stays_out_of_reprs_and_dumps(self) -> None:
-        instance = IsloSandbox(api_key=SecretStr(BLOCK_API_KEY))
-        assert BLOCK_API_KEY not in repr(instance)
-        assert BLOCK_API_KEY not in str(instance)
-        assert BLOCK_API_KEY not in str(instance.model_dump())
-        assert BLOCK_API_KEY not in instance.model_dump_json()
+        instance = IsloSandbox(
+            api_key=SecretStr(BLOCK_API_KEY),
+            handle_signing_key=SecretStr(HANDLE_SIGNING_KEY),
+        )
+        for secret in (BLOCK_API_KEY, HANDLE_SIGNING_KEY):
+            assert secret not in repr(instance)
+            assert secret not in str(instance)
+            assert secret not in str(instance.model_dump())
+            assert secret not in instance.model_dump_json()
         # Still recoverable by the backend itself, which is the whole point.
         assert instance.api_key is not None
         assert instance.api_key.get_secret_value() == BLOCK_API_KEY
+        assert instance.handle_signing_key.get_secret_value() == HANDLE_SIGNING_KEY
 
     @pytest.mark.parametrize(
         "kwargs",
@@ -695,6 +704,7 @@ class TestBlockShape:
             {"delete_after": 0},
             {"max_output_bytes": 0},
             {"egress": "allow-all"},
+            {"handle_signing_key": "too-short"},
         ],
     )
     def test_invalid_configuration_is_rejected(self, kwargs: dict[str, object]) -> None:
@@ -1254,10 +1264,33 @@ class TestCreateFailureCleanup:
             backend._api_url_signature(
                 second.id,
                 backend._resolved_api_url(),
-                api_key=ROTATED_API_KEY,
             )
         )
         await backend.adestroy(second)
+        assert fake_islo.live == set()
+
+    async def test_rotated_api_key_can_destroy_a_handle_on_another_worker(
+        self, fake_islo: FakeIslo
+    ) -> None:
+        """Provider credential rotation must not invalidate a live handle."""
+        signing_key = SecretStr(HANDLE_SIGNING_KEY)
+        creator = IsloSandbox(
+            api_key=SecretStr(BLOCK_API_KEY),
+            handle_signing_key=signing_key,
+        )
+        handle = await creator.acreate()
+        rotated_worker = IsloSandbox(
+            api_key=SecretStr(ROTATED_API_KEY),
+            handle_signing_key=signing_key,
+        )
+
+        await rotated_worker.aexec(handle, ["true"], timeout=5)
+        await rotated_worker.awrite_file(handle, "proof.txt", "rotated")
+        await rotated_worker.adestroy(handle)
+
+        assert [
+            request.body["access_key"] for request in fake_islo.requests_for("auth")
+        ] == [BLOCK_API_KEY, ROTATED_API_KEY]
         assert fake_islo.live == set()
 
     async def test_a_failed_cleanup_reports_a_possibly_live_sandbox(

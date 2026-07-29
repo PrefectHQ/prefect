@@ -52,6 +52,7 @@ _DEFAULT_API_URL = "https://api.islo.dev"
 #: Environment fallbacks, matching the names the Islo CLI itself reads.
 _API_KEY_ENV_VAR = "ISLO_API_KEY"
 _API_URL_ENV_VAR = "ISLO_API_URL"
+_HANDLE_SIGNING_KEY_ENV_VAR = "PREFECT_SANDBOX_ISLO_HANDLE_SIGNING_KEY"
 
 #: Authenticator for the endpoint carried by a serialized sandbox handle. The URL
 #: must survive transport to another worker, but the handle itself is caller-provided
@@ -99,6 +100,12 @@ _ERROR_DETAIL_CHARS = 2000
 #: retained event payload is still governed by `max_output_bytes`; this allowance keeps
 #: the parser useful when that cap is tiny without permitting an unbounded frame.
 _SSE_FRAME_OVERHEAD_CHARS = 16 * 1024
+
+
+def _new_handle_signing_key() -> SecretStr:
+    """Return a configured stable handle key or generate one for this block."""
+    configured = os.environ.get(_HANDLE_SIGNING_KEY_ENV_VAR, "").strip()
+    return SecretStr(configured or secrets.token_urlsafe(32))
 
 
 class _CappedText:
@@ -292,6 +299,11 @@ class IsloSandbox(SandboxBackend):
     for a short-lived session token, and only that token is sent on subsequent calls.
     Neither reaches a sandboxed command.
 
+    Handles use a separate signing key so rotating the provider API key cannot strand a
+    live sandbox. Prefect persists the generated `handle_signing_key` with a saved block.
+    Set `PREFECT_SANDBOX_ISLO_HANDLE_SIGNING_KEY` to the same high-entropy value on every
+    worker when constructing unsaved backends independently.
+
     Prefect injects none of its context into the sandbox — no `PREFECT_API_KEY`, no
     `PREFECT_API_URL`, no worker environment, no flow-run parameters. A command sees
     only what the image provides plus the `env` passed to that specific `aexec` call.
@@ -315,6 +327,7 @@ class IsloSandbox(SandboxBackend):
         workdir: Default working directory for commands.
         user: Guest user to run commands as.
         api_key: Islo API key. Falls back to `ISLO_API_KEY`.
+        handle_signing_key: Stable secret that authenticates serialized handles.
         api_url: API base URL. Falls back to `ISLO_API_URL`, then the public endpoint.
         create_timeout: Seconds allowed for provisioning.
         egress: Whether to provision the sandbox with the internet switched off.
@@ -400,6 +413,19 @@ class IsloSandbox(SandboxBackend):
             "unset to read the `ISLO_API_KEY` environment variable instead."
         ),
     )
+    handle_signing_key: SecretStr = Field(
+        default_factory=_new_handle_signing_key,
+        min_length=32,
+        validate_default=True,
+        title="Handle Signing Key",
+        description=(
+            "Stable secret used only to authenticate serialized sandbox handles. "
+            "Prefect persists the generated value with a saved block. For independently "
+            "constructed workers, set the same value explicitly or through "
+            "`PREFECT_SANDBOX_ISLO_HANDLE_SIGNING_KEY`; do not rotate it while handles "
+            "are live."
+        ),
+    )
     api_url: str | None = Field(
         default=None,
         title="API URL",
@@ -462,13 +488,11 @@ class IsloSandbox(SandboxBackend):
         url = self.api_url or os.environ.get(_API_URL_ENV_VAR) or _DEFAULT_API_URL
         return url.rstrip("/")
 
-    def _api_url_signature(
-        self, sandbox_id: str, api_url: str, *, api_key: str | None = None
-    ) -> str:
-        """Bind a sandbox name and endpoint to this block's secret credential."""
+    def _api_url_signature(self, sandbox_id: str, api_url: str) -> str:
+        """Bind a sandbox name and endpoint to the stable handle-signing secret."""
         message = f"{sandbox_id}\0{api_url}".encode()
-        resolved_api_key = self._resolved_api_key() if api_key is None else api_key
-        return hmac.new(resolved_api_key.encode(), message, hashlib.sha256).hexdigest()
+        signing_key = self.handle_signing_key.get_secret_value()
+        return hmac.new(signing_key.encode(), message, hashlib.sha256).hexdigest()
 
     def _authenticated_target(self, sandbox: Sandbox) -> tuple[str, str]:
         """Return the authenticated endpoint and the key that authenticated it.
@@ -495,7 +519,7 @@ class IsloSandbox(SandboxBackend):
                 "recreate the handle with IsloSandbox.acreate()."
             )
         api_key = self._resolved_api_key()
-        expected = self._api_url_signature(sandbox.id, recorded, api_key=api_key)
+        expected = self._api_url_signature(sandbox.id, recorded)
         if not hmac.compare_digest(signature, expected):
             raise SandboxError(
                 "Islo sandbox handle endpoint metadata failed authentication; "
@@ -821,12 +845,10 @@ class IsloSandbox(SandboxBackend):
         if self.delete_after is not None:
             payload["lifecycle"] = {"delete_after": self.delete_after}
 
-        # Resolve the credential and build the handle authenticator before any create
-        # request. `_atoken` may return a cached session without consulting the API key;
-        # signing only after provisioning would then let an environment-key removal
-        # turn a successful create into an unsigned-handle failure that leaks the VM.
+        # Resolve the provider credential and build the independent handle authenticator
+        # before provisioning, so no successful create can return an unsigned handle.
         api_key = self._resolved_api_key()
-        api_url_signature = self._api_url_signature(name, api_url, api_key=api_key)
+        api_url_signature = self._api_url_signature(name, api_url)
         await self._atoken(api_url=api_url, api_key=api_key)
         create_deadline = time.monotonic() + self.create_timeout
 
