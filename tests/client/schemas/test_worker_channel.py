@@ -580,17 +580,24 @@ def test_pending_claim_cleanup_preserves_forward_compatible_hints():
     assert frame.payload.data == {"future_data_hint": {"region": "us-east"}}
 
 
-def test_pending_claim_cleanup_rejects_internal_pool_routing_in_target():
-    with pytest.raises(ValidationError, match="internal routing fields"):
-        CleanupMessageFrame.model_validate(
-            _pending_claim_cleanup_frame(
-                {
-                    "flow_run_id": str(uuid4()),
-                    "claim_id": str(uuid7()),
-                    "work_pool_id": str(uuid4()),
-                }
-            )
+def test_pending_claim_cleanup_preserves_unknown_routing_looking_target_fields():
+    work_pool_id = uuid4()
+    work_queue_id = uuid4()
+
+    frame = CleanupMessageFrame.model_validate(
+        _pending_claim_cleanup_frame(
+            {
+                "flow_run_id": str(uuid4()),
+                "claim_id": str(uuid7()),
+                "work_pool_id": str(work_pool_id),
+                "work_queue_id": str(work_queue_id),
+            }
         )
+    )
+
+    target = frame.payload.target.model_dump()
+    assert target["work_pool_id"] == str(work_pool_id)
+    assert target["work_queue_id"] == str(work_queue_id)
 
 
 @pytest.mark.parametrize("field", ["work_pool_id", "idempotency_key"])
@@ -607,22 +614,22 @@ def test_cleanup_wire_payload_rejects_internal_enqueue_fields(field: str):
         )
 
 
-@pytest.mark.parametrize(
-    "target",
-    [
-        {"flow_run_id": str(uuid4()), "claim_id": str(uuid4())},
-        {
-            "flow_run_id": str(uuid4()),
-            "claim_id": str(uuid7()),
-            "execution_id": str(uuid4()),
-        },
-    ],
-)
-def test_pending_claim_cleanup_requires_protocol_uuid7_identifiers(
-    target: dict[str, object],
-):
-    with pytest.raises(ValidationError):
-        CleanupMessageFrame.model_validate(_pending_claim_cleanup_frame(target))
+def test_pending_claim_cleanup_treats_delivered_identifiers_as_opaque_uuids():
+    claim_id = uuid4()
+    execution_id = uuid4()
+
+    frame = CleanupMessageFrame.model_validate(
+        _pending_claim_cleanup_frame(
+            {
+                "flow_run_id": str(uuid4()),
+                "claim_id": str(claim_id),
+                "execution_id": str(execution_id),
+            }
+        )
+    )
+
+    assert frame.payload.target.claim_id == claim_id
+    assert frame.payload.target.execution_id == execution_id
 
 
 def test_cleanup_operation_frames_and_results_validate_reservation_contract():

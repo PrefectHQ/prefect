@@ -63,6 +63,7 @@ from prefect.client.schemas.objects import (
     Flow,
     FlowRunPolicy,
     Integration,
+    StateDetails,
     StateType,
     TaskRun,
     Variable,
@@ -1110,6 +1111,56 @@ async def test_set_then_read_flow_run_state(prefect_client):
     state = await prefect_client.read_flow_run_state(response.state.id)
     assert state == states[1]
     assert state.state_details.flow_run_id == flow_run_id
+
+
+async def test_set_flow_run_state_preserves_explicit_transition_identity():
+    api_url = "http://test/api"
+    flow_run_id = uuid4()
+    transition_id = uuid4()
+    state = Running(state_details=StateDetails(transition_id=transition_id))
+    state_without_identity = Running()
+
+    with temporary_settings({PREFECT_CLIENT_CSRF_SUPPORT_ENABLED: False}):
+        with respx.mock(base_url=api_url) as router:
+            route = router.post(f"/flow_runs/{flow_run_id}/set_state").mock(
+                return_value=httpx.Response(
+                    200,
+                    json={
+                        "state": None,
+                        "status": "WAIT",
+                        "details": {
+                            "type": "wait_details",
+                            "delay_seconds": 0,
+                        },
+                    },
+                )
+            )
+            async with PrefectClient(api_url) as client:
+                await client.set_flow_run_state(flow_run_id, state)
+                await client.set_flow_run_state(flow_run_id, state)
+                await client.set_flow_run_state(flow_run_id, state_without_identity)
+                await client.set_flow_run_state(flow_run_id, state_without_identity)
+
+    request_details = [
+        json.loads(call.request.content)["state"]["state_details"]
+        for call in route.calls
+    ]
+    assert [details["transition_id"] for details in request_details[:2]] == [
+        str(transition_id),
+        str(transition_id),
+    ]
+    generated_transition_ids = [
+        details["transition_id"] for details in request_details[2:]
+    ]
+    assert all(generated_transition_ids)
+    assert len(set(generated_transition_ids)) == 2
+    assert all(
+        details["flow_run_id"] == str(flow_run_id) for details in request_details
+    )
+    assert state.state_details.flow_run_id is None
+    assert state.state_details.transition_id == transition_id
+    assert state_without_identity.state_details.flow_run_id is None
+    assert state_without_identity.state_details.transition_id is None
 
 
 async def test_read_flow_run_state_404_is_object_not_found(prefect_client):
@@ -3470,6 +3521,55 @@ class TestSyncClient:
         assert state.is_completed()
         assert state.message == "Test!"
         assert state.state_details.flow_run_id == flow_run_id
+
+    def test_set_flow_run_state_preserves_explicit_transition_identity(self):
+        api_url = "http://test/api"
+        flow_run_id = uuid4()
+        transition_id = uuid4()
+        state = Running(state_details=StateDetails(transition_id=transition_id))
+        state_without_identity = Running()
+
+        with temporary_settings({PREFECT_CLIENT_CSRF_SUPPORT_ENABLED: False}):
+            with respx.mock(base_url=api_url) as router:
+                route = router.post(f"/flow_runs/{flow_run_id}/set_state").mock(
+                    return_value=httpx.Response(
+                        200,
+                        json={
+                            "state": None,
+                            "status": "WAIT",
+                            "details": {
+                                "type": "wait_details",
+                                "delay_seconds": 0,
+                            },
+                        },
+                    )
+                )
+                with SyncPrefectClient(api_url) as client:
+                    client.set_flow_run_state(flow_run_id, state)
+                    client.set_flow_run_state(flow_run_id, state)
+                    client.set_flow_run_state(flow_run_id, state_without_identity)
+                    client.set_flow_run_state(flow_run_id, state_without_identity)
+
+        request_details = [
+            json.loads(call.request.content)["state"]["state_details"]
+            for call in route.calls
+        ]
+        assert [details["transition_id"] for details in request_details[:2]] == [
+            str(transition_id),
+            str(transition_id),
+        ]
+        generated_transition_ids = [
+            details["transition_id"] for details in request_details[2:]
+        ]
+        assert all(generated_transition_ids)
+        assert len(set(generated_transition_ids)) == 2
+        assert all(
+            details["flow_run_id"] == str(flow_run_id) for details in request_details
+        )
+        assert state.state_details.flow_run_id is None
+        assert state.state_details.transition_id == transition_id
+        assert state_without_identity.state_details.flow_run_id is None
+        assert state_without_identity.state_details.transition_id is None
 
     def test_read_server_default_result_storage(self, sync_prefect_client):
         configuration = sync_prefect_client.read_server_default_result_storage()

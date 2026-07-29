@@ -637,6 +637,9 @@ def propose_state_with_result_sync(
     Accepted proposals are hydrated with server-authored state identity, timestamp,
     and details. Other orchestration dispositions are returned unchanged.
     """
+    if not flow_run_id:
+        raise ValueError("You must provide a `flow_run_id`")
+
     response = client.set_flow_run_state(flow_run_id, state, force=force)
 
     if response.status == SetStateStatus.ACCEPT:
@@ -683,6 +686,8 @@ def propose_state_sync(
         prefect.exceptions.Abort: if an ABORT instruction is received from
             the Prefect API
     """
+    if not flow_run_id:
+        raise ValueError("You must provide a `flow_run_id`")
 
     # Handle sub-flow tracing
     if state.is_final():

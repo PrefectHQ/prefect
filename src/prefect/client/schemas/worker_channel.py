@@ -4,12 +4,12 @@ Shared v1 worker-channel protocol contract.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable
 from enum import Enum
 from typing import Annotated, Any, ClassVar, Union
 from uuid import UUID
 
-from pydantic import UUID7, ConfigDict, Field, TypeAdapter, model_validator
+from pydantic import ConfigDict, Field, TypeAdapter, model_validator
 from typing_extensions import Literal, TypeAlias
 
 from prefect._internal.schemas.bases import PrefectBaseModel
@@ -399,21 +399,9 @@ class PendingClaimTeardownTarget(PrefectBaseModel):
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
 
     flow_run_id: UUID
-    claim_id: UUID7
-    execution_id: UUID7 | None = None
+    claim_id: UUID
+    execution_id: UUID | None = None
     infrastructure_pid: str | None = None
-
-    @model_validator(mode="before")
-    @classmethod
-    def reject_internal_routing_fields(cls, data: Any) -> Any:
-        if isinstance(data, Mapping):
-            internal_fields = {"work_pool_id"} & data.keys()
-            if internal_fields:
-                fields = ", ".join(sorted(internal_fields))
-                raise ValueError(
-                    f"Cleanup target cannot include internal routing fields: {fields}"
-                )
-        return data
 
 
 class _CleanupMessagePayloadBase(_StrictProtocolModel):

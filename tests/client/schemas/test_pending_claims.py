@@ -1,24 +1,67 @@
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
 from prefect._internal.uuid7 import uuid7
 from prefect.client.schemas.pending_claims import (
-    PENDING_CLAIM_CONTRACT,
     BindExecutionRequest,
     ClaimInfrastructureRequest,
     ExecutionLineage,
     PendingClaim,
     PendingClaimCreate,
+    PendingClaimCreateFields,
+    PendingClaimOperationResult,
     PendingClaimReference,
+    PendingClaimRunningFields,
+    PendingClaimStateDetails,
     PendingTimeoutCount,
+    pending_claim_startup_action,
+    pending_claim_startup_disposition,
     pending_claim_teardown_idempotency_key,
 )
+from prefect.client.schemas.responses import SetStateStatus
+
+
+def _pending_claim(
+    *,
+    claim_id: UUID | None = None,
+    execution_id: UUID | None = None,
+) -> PendingClaim:
+    return PendingClaim(
+        id=claim_id or uuid7(),
+        execution_id=execution_id,
+        timeout_seconds=300,
+        max_timeouts=3,
+    )
+
+
+def _startup_scenario(
+    expected: SetStateStatus,
+    *,
+    bound: bool = True,
+    matching_claim: bool = True,
+    matching_execution: bool = True,
+) -> tuple[PendingClaim, PendingClaimReference, SetStateStatus]:
+    claim_id = uuid7()
+    bound_execution_id = uuid7() if bound else None
+    active_claim = _pending_claim(
+        claim_id=claim_id,
+        execution_id=bound_execution_id,
+    )
+    reference = PendingClaimReference(
+        claim_id=claim_id if matching_claim else uuid7(),
+        execution_id=(
+            bound_execution_id
+            if bound_execution_id is not None and matching_execution
+            else uuid7()
+        ),
+    )
+    return active_claim, reference, expected
 
 
 def test_pending_claim_metadata_supports_unbound_execution_and_future_fields():
-    claim_id = uuid7()
+    claim_id = uuid4()
 
     claim = PendingClaim.model_validate(
         {
@@ -56,16 +99,42 @@ def test_pending_claim_metadata_requires_resolved_server_policy(field: str):
         ("timeout_seconds", 3600),
         ("max_timeouts", 1),
         ("max_timeouts", 100),
-        ("pending_timeout_count", 0),
-        ("pending_timeout_count", 999),
     ],
 )
-def test_initial_claim_cannot_rewrite_server_policy_or_count(field: str, value: object):
+def test_initial_claim_cannot_rewrite_nested_server_fields(field: str, value: object):
     with pytest.raises(ValidationError):
-        PendingClaimCreate.model_validate({"id": uuid7(), field: value})
+        PendingClaimCreateFields.model_validate(
+            {
+                "pending_claim": {
+                    "id": uuid7(),
+                    field: value,
+                }
+            }
+        )
 
 
-def test_claim_and_execution_identifiers_must_be_uuid7():
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("pending_timeout_count", 0),
+        ("pending_timeout_count", 999),
+        (
+            "execution_lineage",
+            {"claim_id": uuid7(), "execution_id": uuid7()},
+        ),
+    ],
+)
+def test_initial_claim_cannot_inject_sibling_server_fields(field: str, value: object):
+    with pytest.raises(ValidationError):
+        PendingClaimCreateFields.model_validate(
+            {
+                "pending_claim": {"id": uuid7()},
+                field: value,
+            }
+        )
+
+
+def test_claim_and_execution_requests_require_uuid7():
     with pytest.raises(ValidationError):
         PendingClaimCreate(id=uuid4())
 
@@ -112,10 +181,12 @@ def test_running_reference_rejects_stored_or_server_authored_fields(
     field: str, value: object
 ):
     with pytest.raises(ValidationError):
-        PendingClaimReference.model_validate(
+        PendingClaimRunningFields.model_validate(
             {
-                "claim_id": uuid7(),
-                "execution_id": uuid7(),
+                "pending_claim": {
+                    "claim_id": uuid7(),
+                    "execution_id": uuid7(),
+                },
                 field: value,
             }
         )
@@ -186,15 +257,20 @@ def test_claim_execution_requests_require_operation_identifiers(
         model.model_validate(payload)
 
 
-def test_execution_lineage_is_server_authored_and_forward_compatible():
+def test_persisted_lineage_accepts_opaque_uuids_and_future_fields():
+    claim_id = uuid4()
+    execution_id = uuid4()
+
     lineage = ExecutionLineage.model_validate(
         {
-            "claim_id": uuid7(),
-            "execution_id": uuid7(),
+            "claim_id": claim_id,
+            "execution_id": execution_id,
             "future_lineage_hint": "value",
         }
     )
 
+    assert lineage.claim_id == claim_id
+    assert lineage.execution_id == execution_id
     assert lineage.model_dump()["future_lineage_hint"] == "value"
 
 
@@ -207,63 +283,154 @@ def test_pending_timeout_count_is_non_negative():
         adapter.validate_python(-1)
 
 
-def test_contract_defines_canonical_ownership_and_cross_claim_count():
-    assert PENDING_CLAIM_CONTRACT.initial_claim_client_fields == ("id",)
-    assert PENDING_CLAIM_CONTRACT.initial_claim_server_managed_fields == (
-        "execution_id",
-        "timeout_seconds",
-        "max_timeouts",
-        "pending_timeout_count",
+def test_named_pending_substate_round_trip_preserves_claim_and_sequence_count():
+    active_claim = _pending_claim(execution_id=uuid7())
+    canonical = PendingClaimStateDetails(
+        pending_claim=active_claim,
+        pending_timeout_count=2,
+        future_state_hint={"source": "server"},
     )
-    assert (
-        PENDING_CLAIM_CONTRACT.ownership_authority
-        == "canonical_current_orchestration_state"
-    )
-    assert (
-        PENDING_CLAIM_CONTRACT.ownership_serialization
-        == "owning_state_transition_per_flow_run"
-    )
-    assert PENDING_CLAIM_CONTRACT.serialized_ownership_mutations == (
-        "binding",
-        "ownership_transfer",
-        "forced_exit",
-        "expiry",
-    )
-    assert (
-        PENDING_CLAIM_CONTRACT.timeout_count_authority
-        == "canonical_current_orchestration_state"
-    )
-    assert (
-        PENDING_CLAIM_CONTRACT.pending_substate_identity
-        == "claim_id_not_state_record_id"
-    )
-    assert (
-        PENDING_CLAIM_CONTRACT.pending_substate_behavior
-        == "preserve_pending_claim_and_timeout_count"
-    )
-    assert PENDING_CLAIM_CONTRACT.replacement_claim_behavior == "preserve_timeout_count"
-    assert (
-        PENDING_CLAIM_CONTRACT.valid_expiry_behavior
-        == "atomically_increment_timeout_count"
-    )
-    assert (
-        PENDING_CLAIM_CONTRACT.accepted_running_behavior
-        == "clear_pending_claim_and_timeout_count_write_execution_lineage"
+    original_state_record_id = uuid4()
+    named_substate_record_id = uuid4()
+
+    named_substate = PendingClaimStateDetails.model_validate(
+        canonical.model_dump(mode="json")
     )
 
+    assert named_substate_record_id != original_state_record_id
+    assert named_substate.pending_claim == active_claim
+    assert named_substate.pending_timeout_count == 2
+    assert named_substate.model_dump()["future_state_hint"] == {"source": "server"}
 
-def test_stale_or_mismatched_startup_aborts_without_user_code():
-    assert PENDING_CLAIM_CONTRACT.stale_or_mismatched_startup_outcome == "ABORT"
-    assert PENDING_CLAIM_CONTRACT.abort_action == "exit_without_user_code"
+
+def test_replacement_claim_inherits_count_until_running_is_accepted():
+    first_claim = _pending_claim()
+    canonical = PendingClaimStateDetails(
+        pending_claim=first_claim,
+        pending_timeout_count=1,
+    )
+    assert canonical.pending_timeout_count is not None
+    count_after_valid_expiry = canonical.pending_timeout_count + 1
+    replacement_claim = _pending_claim()
+    replacement = PendingClaimStateDetails(
+        pending_claim=replacement_claim,
+        pending_timeout_count=count_after_valid_expiry,
+    )
+
+    assert replacement.pending_claim.id != first_claim.id
+    assert replacement.pending_timeout_count == 2
+
+    accepted_running = PendingClaimStateDetails(
+        execution_lineage=ExecutionLineage(
+            claim_id=replacement_claim.id,
+            execution_id=uuid7(),
+        )
+    )
+
+    assert accepted_running.pending_claim is None
+    assert accepted_running.pending_timeout_count is None
+    assert accepted_running.execution_lineage is not None
+    assert accepted_running.execution_lineage.claim_id == replacement_claim.id
 
 
-def test_contract_defines_claim_aware_startup_outcomes():
-    assert PENDING_CLAIM_CONTRACT.matching_bound_startup_outcome == "ACCEPT"
-    assert PENDING_CLAIM_CONTRACT.unbound_execution_startup_outcome == "WAIT"
-    assert PENDING_CLAIM_CONTRACT.accept_action == "start_user_code"
-    assert PENDING_CLAIM_CONTRACT.wait_action == "retry"
-    assert PENDING_CLAIM_CONTRACT.reject_action == "exit_without_user_code"
-    assert PENDING_CLAIM_CONTRACT.abort_action == "exit_without_user_code"
+@pytest.mark.parametrize(
+    ("active_claim", "reference", "expected"),
+    [
+        pytest.param(
+            *_startup_scenario(SetStateStatus.ACCEPT),
+            id="matching-bound-execution",
+        ),
+        pytest.param(
+            *_startup_scenario(
+                SetStateStatus.WAIT,
+                bound=False,
+            ),
+            id="matching-unbound-execution",
+        ),
+        pytest.param(
+            *_startup_scenario(
+                SetStateStatus.ABORT,
+                matching_claim=False,
+            ),
+            id="stale-claim",
+        ),
+        pytest.param(
+            *_startup_scenario(
+                SetStateStatus.ABORT,
+                matching_execution=False,
+            ),
+            id="mismatched-execution",
+        ),
+        pytest.param(
+            None,
+            PendingClaimReference(
+                claim_id=uuid7(),
+                execution_id=uuid7(),
+            ),
+            SetStateStatus.ABORT,
+            id="no-active-claim",
+        ),
+    ],
+)
+def test_startup_disposition_uses_canonical_current_claim(
+    active_claim: PendingClaim | None,
+    reference: PendingClaimReference,
+    expected: SetStateStatus,
+):
+    canonical = PendingClaimStateDetails(pending_claim=active_claim)
+
+    assert pending_claim_startup_disposition(canonical, reference) == expected
+
+
+@pytest.mark.parametrize(
+    ("status", "expected_action"),
+    [
+        (SetStateStatus.ACCEPT, "start_user_code"),
+        (SetStateStatus.WAIT, "retry"),
+        (SetStateStatus.REJECT, "exit_without_user_code"),
+        (SetStateStatus.ABORT, "exit_without_user_code"),
+    ],
+)
+def test_startup_action_requires_explicit_accept(
+    status: SetStateStatus,
+    expected_action: str,
+):
+    assert pending_claim_startup_action(status) == expected_action
+
+
+@pytest.mark.parametrize(
+    ("scenario", "payload"),
+    [
+        (
+            "first or duplicate exact binding",
+            {"status": "accepted"},
+        ),
+        (
+            "stale or mismatched canonical claim",
+            {"status": "not_current", "reason": "Claim is no longer current."},
+        ),
+        (
+            "different execution or infrastructure binding",
+            {"status": "conflict", "reason": "Claim is already bound."},
+        ),
+    ],
+)
+def test_binding_result_contract_distinguishes_outcomes(
+    scenario: str,
+    payload: dict[str, str],
+):
+    result = PendingClaimOperationResult.model_validate(
+        {**payload, "future_result_hint": scenario}
+    )
+
+    assert result.status == payload["status"]
+    assert result.model_dump()["future_result_hint"] == scenario
+
+
+@pytest.mark.parametrize("status", ["not_current", "conflict"])
+def test_binding_failures_require_a_reason(status: str):
+    with pytest.raises(ValidationError, match="reason"):
+        PendingClaimOperationResult.model_validate({"status": status})
 
 
 def test_pending_claim_teardown_identity_excludes_optional_targeting_fields():
@@ -273,4 +440,3 @@ def test_pending_claim_teardown_identity_excludes_optional_targeting_fields():
     assert pending_claim_teardown_idempotency_key(flow_run_id, claim_id) == (
         f"pending_claim_teardown.v1:{flow_run_id}:{claim_id}"
     )
-    assert PENDING_CLAIM_CONTRACT.teardown_semantic_idempotency == "claim_id"

@@ -4,15 +4,20 @@ Shared pending-claim protocol contract.
 Request models in this module are strict because clients may only author fields
 owned by that operation. Persisted metadata models allow unknown fields so old
 readers can preserve future protocol extensions during rolling deployments.
+
+The claim fields on canonical current orchestration state are authoritative.
+Binding, ownership transfer, forced exit, and expiry must serialize through the
+owning state-transition module's per-flow-run mechanism.
 """
 
 from typing import ClassVar
 from uuid import UUID
 
-from pydantic import UUID7, ConfigDict, Field
+from pydantic import UUID7, ConfigDict, Field, model_validator
 from typing_extensions import Literal, TypeAlias
 
 from prefect._internal.schemas.bases import PrefectBaseModel
+from prefect.client.schemas.responses import SetStateStatus
 from prefect.types import NonNegativeInteger, PositiveInteger
 
 PENDING_CLAIM_TEARDOWN: Literal["pending_claim_teardown.v1"] = (
@@ -20,6 +25,10 @@ PENDING_CLAIM_TEARDOWN: Literal["pending_claim_teardown.v1"] = (
 )
 
 PendingTimeoutCount: TypeAlias = NonNegativeInteger
+PendingClaimOperationStatus: TypeAlias = Literal["accepted", "not_current", "conflict"]
+PendingClaimStartupAction: TypeAlias = Literal[
+    "start_user_code", "retry", "exit_without_user_code"
+]
 
 
 class PendingClaim(PrefectBaseModel):
@@ -27,8 +36,8 @@ class PendingClaim(PrefectBaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
 
-    id: UUID7
-    execution_id: UUID7 | None = None
+    id: UUID
+    execution_id: UUID | None = None
     timeout_seconds: PositiveInteger
     max_timeouts: PositiveInteger
 
@@ -38,8 +47,24 @@ class ExecutionLineage(PrefectBaseModel):
 
     model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
 
-    claim_id: UUID7
-    execution_id: UUID7
+    claim_id: UUID
+    execution_id: UUID
+
+
+class PendingClaimStateDetails(PrefectBaseModel):
+    """
+    Claim-owned projection of canonical orchestration state details.
+
+    `pending_timeout_count` belongs to the contiguous startup-recovery sequence,
+    not to one claim, so replacement claims inherit it. Accepted RUNNING state
+    clears the active fields and retains only `execution_lineage`.
+    """
+
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
+
+    pending_claim: PendingClaim | None = None
+    pending_timeout_count: PendingTimeoutCount | None = None
+    execution_lineage: ExecutionLineage | None = None
 
 
 class _StrictPendingClaimRequest(PrefectBaseModel):
@@ -52,6 +77,12 @@ class PendingClaimCreate(_StrictPendingClaimRequest):
     id: UUID7
 
 
+class PendingClaimCreateFields(_StrictPendingClaimRequest):
+    """Client-writable state-details fragment for an initial pending claim."""
+
+    pending_claim: PendingClaimCreate
+
+
 class _PendingClaimExecutionRequest(_StrictPendingClaimRequest):
     claim_id: UUID7
     execution_id: UUID7
@@ -59,6 +90,12 @@ class _PendingClaimExecutionRequest(_StrictPendingClaimRequest):
 
 class PendingClaimReference(_PendingClaimExecutionRequest):
     """Request-only claim reference presented by a RUNNING proposal."""
+
+
+class PendingClaimRunningFields(_StrictPendingClaimRequest):
+    """Client-writable state-details fragment for claim-aware startup."""
+
+    pending_claim: PendingClaimReference
 
 
 class BindExecutionRequest(_PendingClaimExecutionRequest):
@@ -71,89 +108,54 @@ class ClaimInfrastructureRequest(_PendingClaimExecutionRequest):
     infrastructure_pid: str = Field(min_length=1)
 
 
-class PendingClaimContract(PrefectBaseModel):
-    """Machine-readable cross-system pending-claim behavior."""
+class PendingClaimOperationResult(PrefectBaseModel):
+    """Forward-compatible result for claim-scoped binding operations."""
 
-    model_config: ClassVar[ConfigDict] = ConfigDict(extra="forbid", frozen=True)
+    model_config: ClassVar[ConfigDict] = ConfigDict(extra="allow")
 
-    pending_state_field: Literal["pending_claim"]
-    running_proposal_field: Literal["pending_claim"]
-    accepted_lineage_field: Literal["execution_lineage"]
-    timeout_count_field: Literal["pending_timeout_count"]
-    ownership_authority: Literal["canonical_current_orchestration_state"]
-    timeout_count_authority: Literal["canonical_current_orchestration_state"]
-    ownership_serialization: Literal["owning_state_transition_per_flow_run"]
-    serialized_ownership_mutations: tuple[
-        Literal["binding", "ownership_transfer", "forced_exit", "expiry"], ...
-    ]
-    pending_substate_identity: Literal["claim_id_not_state_record_id"]
-    pending_substate_behavior: Literal["preserve_pending_claim_and_timeout_count"]
-    replacement_claim_behavior: Literal["preserve_timeout_count"]
-    valid_expiry_behavior: Literal["atomically_increment_timeout_count"]
-    accepted_running_behavior: Literal[
-        "clear_pending_claim_and_timeout_count_write_execution_lineage"
-    ]
-    initial_claim_client_fields: tuple[Literal["id"], ...]
-    initial_claim_server_managed_fields: tuple[
-        Literal[
-            "execution_id",
-            "timeout_seconds",
-            "max_timeouts",
-            "pending_timeout_count",
-        ],
-        ...,
-    ]
-    matching_bound_startup_outcome: Literal["ACCEPT"]
-    unbound_execution_startup_outcome: Literal["WAIT"]
-    stale_or_mismatched_startup_outcome: Literal["ABORT"]
-    accept_action: Literal["start_user_code"]
-    wait_action: Literal["retry"]
-    reject_action: Literal["exit_without_user_code"]
-    abort_action: Literal["exit_without_user_code"]
-    teardown_delivery: Literal["at_least_once"]
-    teardown_semantic_idempotency: Literal["claim_id"]
-    cloud_authorization_internals: Literal["excluded_from_shared_contract"]
+    status: PendingClaimOperationStatus
+    reason: str | None = None
+
+    @model_validator(mode="after")
+    def require_failure_reason(self) -> "PendingClaimOperationResult":
+        if self.status != "accepted" and not self.reason:
+            raise ValueError(
+                "`reason` is required for non-accepted pending-claim operations"
+            )
+        return self
 
 
-PENDING_CLAIM_CONTRACT = PendingClaimContract(
-    pending_state_field="pending_claim",
-    running_proposal_field="pending_claim",
-    accepted_lineage_field="execution_lineage",
-    timeout_count_field="pending_timeout_count",
-    ownership_authority="canonical_current_orchestration_state",
-    timeout_count_authority="canonical_current_orchestration_state",
-    ownership_serialization="owning_state_transition_per_flow_run",
-    serialized_ownership_mutations=(
-        "binding",
-        "ownership_transfer",
-        "forced_exit",
-        "expiry",
-    ),
-    pending_substate_identity="claim_id_not_state_record_id",
-    pending_substate_behavior="preserve_pending_claim_and_timeout_count",
-    replacement_claim_behavior="preserve_timeout_count",
-    valid_expiry_behavior="atomically_increment_timeout_count",
-    accepted_running_behavior=(
-        "clear_pending_claim_and_timeout_count_write_execution_lineage"
-    ),
-    initial_claim_client_fields=("id",),
-    initial_claim_server_managed_fields=(
-        "execution_id",
-        "timeout_seconds",
-        "max_timeouts",
-        "pending_timeout_count",
-    ),
-    matching_bound_startup_outcome="ACCEPT",
-    unbound_execution_startup_outcome="WAIT",
-    stale_or_mismatched_startup_outcome="ABORT",
-    accept_action="start_user_code",
-    wait_action="retry",
-    reject_action="exit_without_user_code",
-    abort_action="exit_without_user_code",
-    teardown_delivery="at_least_once",
-    teardown_semantic_idempotency="claim_id",
-    cloud_authorization_internals="excluded_from_shared_contract",
-)
+def pending_claim_startup_disposition(
+    canonical_state: PendingClaimStateDetails,
+    reference: PendingClaimReference,
+) -> SetStateStatus:
+    """Classify claim-aware startup against canonical current state metadata."""
+
+    active_claim = canonical_state.pending_claim
+    if (
+        active_claim is None
+        or active_claim.id != reference.claim_id
+        or (
+            active_claim.execution_id is not None
+            and active_claim.execution_id != reference.execution_id
+        )
+    ):
+        return SetStateStatus.ABORT
+    if active_claim.execution_id is None:
+        return SetStateStatus.WAIT
+    return SetStateStatus.ACCEPT
+
+
+def pending_claim_startup_action(
+    status: SetStateStatus,
+) -> PendingClaimStartupAction:
+    """Return the only permitted runtime action for an orchestration outcome."""
+
+    if status == SetStateStatus.ACCEPT:
+        return "start_user_code"
+    if status == SetStateStatus.WAIT:
+        return "retry"
+    return "exit_without_user_code"
 
 
 def pending_claim_teardown_idempotency_key(flow_run_id: UUID, claim_id: UUID) -> str:
@@ -163,15 +165,21 @@ def pending_claim_teardown_idempotency_key(flow_run_id: UUID, claim_id: UUID) ->
 
 
 __all__ = [
-    "PENDING_CLAIM_CONTRACT",
     "PENDING_CLAIM_TEARDOWN",
     "BindExecutionRequest",
     "ClaimInfrastructureRequest",
     "ExecutionLineage",
     "PendingClaim",
-    "PendingClaimContract",
     "PendingClaimCreate",
+    "PendingClaimCreateFields",
+    "PendingClaimOperationResult",
+    "PendingClaimOperationStatus",
     "PendingClaimReference",
+    "PendingClaimRunningFields",
+    "PendingClaimStartupAction",
+    "PendingClaimStateDetails",
     "PendingTimeoutCount",
+    "pending_claim_startup_action",
+    "pending_claim_startup_disposition",
     "pending_claim_teardown_idempotency_key",
 ]

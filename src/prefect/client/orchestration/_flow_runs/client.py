@@ -392,8 +392,11 @@ class FlowRunClient(BaseClient):
             flow_run_id if isinstance(flow_run_id, UUID) else UUID(flow_run_id)
         )
         state_create = to_state_create(state)
-        state_create.state_details.flow_run_id = flow_run_id
-        state_create.state_details.transition_id = uuid4()
+        state_details = state_create.state_details.model_copy()
+        state_details.flow_run_id = flow_run_id
+        if state_details.transition_id is None:
+            state_details.transition_id = uuid4()
+        state_create.state_details = state_details
         try:
             response = self.request(
                 "POST",
@@ -920,8 +923,11 @@ class FlowRunAsyncClient(BaseAsyncClient):
             flow_run_id if isinstance(flow_run_id, UUID) else UUID(flow_run_id)
         )
         state_create = to_state_create(state)
-        state_create.state_details.flow_run_id = flow_run_id
-        state_create.state_details.transition_id = uuid4()
+        state_details = state_create.state_details.model_copy()
+        state_details.flow_run_id = flow_run_id
+        if state_details.transition_id is None:
+            state_details.transition_id = uuid4()
+        state_create.state_details = state_details
         try:
             response = await self.request(
                 "POST",

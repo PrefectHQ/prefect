@@ -173,59 +173,119 @@ def test_propose_state_with_result_sync_preserves_wait_without_sleep(
     sleep.assert_not_called()
 
 
-async def test_propose_state_delegates_and_retries_only_wait(
+async def test_propose_state_with_result_requires_flow_run_id():
+    client = MagicMock()
+    client.set_flow_run_state = AsyncMock()
+
+    with pytest.raises(ValueError, match="flow_run_id"):
+        await engine.propose_state_with_result(
+            client,
+            Running(),
+            None,  # type: ignore[arg-type]
+        )
+
+    client.set_flow_run_state.assert_not_awaited()
+
+
+def test_sync_state_proposal_entry_points_require_flow_run_id():
+    client = MagicMock()
+
+    with pytest.raises(ValueError, match="flow_run_id"):
+        engine.propose_state_with_result_sync(
+            client,
+            Running(),
+            None,  # type: ignore[arg-type]
+        )
+
+    with pytest.raises(ValueError, match="flow_run_id"):
+        engine.propose_state_sync(
+            client,
+            Running(),
+            None,  # type: ignore[arg-type]
+        )
+
+    client.set_flow_run_state.assert_not_called()
+
+
+async def test_propose_state_retries_wait_through_client_seam(
     monkeypatch: pytest.MonkeyPatch,
 ):
     flow_run_id = uuid4()
-    proposed = Pending()
+    transition_id = uuid4()
+    proposed = Pending(state_details=StateDetails(transition_id=transition_id))
     wait_result = _orchestration_result(
         SetStateStatus.WAIT,
         StateWaitDetails(delay_seconds=3, reason="wait", max_wait_seconds=30),
     )
+    accepted_state = Pending(
+        id=uuid7(),
+        timestamp=now("UTC"),
+        state_details=StateDetails(
+            flow_run_id=flow_run_id,
+            transition_id=transition_id,
+        ),
+    )
     accept_result = _orchestration_result(
         SetStateStatus.ACCEPT,
         StateAcceptDetails(),
-        proposed,
+        accepted_state,
     )
-    propose_with_result = AsyncMock(side_effect=[wait_result, accept_result])
+    client = MagicMock()
+    client.set_flow_run_state = AsyncMock(side_effect=[wait_result, accept_result])
     sleep = AsyncMock()
-    monkeypatch.setattr(engine, "propose_state_with_result", propose_with_result)
     monkeypatch.setattr(engine.anyio, "sleep", sleep)
 
-    state = await engine.propose_state(MagicMock(), proposed, flow_run_id, force=True)
+    state = await engine.propose_state(client, proposed, flow_run_id, force=True)
 
-    assert state is accept_result.state
-    assert propose_with_result.await_count == 2
-    assert propose_with_result.await_args_list[0].args[1] is proposed
-    assert propose_with_result.await_args_list[1].args[1] is proposed
+    assert state is proposed
+    assert proposed.id == accepted_state.id
+    assert proposed.state_details == accepted_state.state_details
+    assert proposed.state_details.transition_id == transition_id
+    assert client.set_flow_run_state.await_count == 2
+    assert all(
+        call.args[1] is proposed for call in client.set_flow_run_state.await_args_list
+    )
     sleep.assert_awaited_once_with(3)
 
 
-def test_propose_state_sync_delegates_and_retries_only_wait(
+def test_propose_state_sync_retries_wait_through_client_seam(
     monkeypatch: pytest.MonkeyPatch,
 ):
     flow_run_id = uuid4()
-    proposed = Pending()
+    transition_id = uuid4()
+    proposed = Pending(state_details=StateDetails(transition_id=transition_id))
     wait_result = _orchestration_result(
         SetStateStatus.WAIT,
         StateWaitDetails(delay_seconds=3, reason="wait", max_wait_seconds=30),
     )
+    accepted_state = Pending(
+        id=uuid7(),
+        timestamp=now("UTC"),
+        state_details=StateDetails(
+            flow_run_id=flow_run_id,
+            transition_id=transition_id,
+        ),
+    )
     accept_result = _orchestration_result(
         SetStateStatus.ACCEPT,
         StateAcceptDetails(),
-        proposed,
+        accepted_state,
     )
-    propose_with_result = MagicMock(side_effect=[wait_result, accept_result])
+    client = MagicMock()
+    client.set_flow_run_state.side_effect = [wait_result, accept_result]
     sleep = MagicMock()
-    monkeypatch.setattr(engine, "propose_state_with_result_sync", propose_with_result)
     monkeypatch.setattr(engine.time, "sleep", sleep)
 
-    state = engine.propose_state_sync(MagicMock(), proposed, flow_run_id, force=True)
+    state = engine.propose_state_sync(client, proposed, flow_run_id, force=True)
 
-    assert state is accept_result.state
-    assert propose_with_result.call_count == 2
-    assert propose_with_result.call_args_list[0].args[1] is proposed
-    assert propose_with_result.call_args_list[1].args[1] is proposed
+    assert state is proposed
+    assert proposed.id == accepted_state.id
+    assert proposed.state_details == accepted_state.state_details
+    assert proposed.state_details.transition_id == transition_id
+    assert client.set_flow_run_state.call_count == 2
+    assert all(
+        call.args[1] is proposed for call in client.set_flow_run_state.call_args_list
+    )
     sleep.assert_called_once_with(3)
 
 
@@ -252,13 +312,15 @@ def test_propose_state_sync_delegates_and_retries_only_wait(
 async def test_propose_state_preserves_legacy_terminal_outcome_behavior(
     result: OrchestrationResult[Any],
     exception: type[Exception],
-    monkeypatch: pytest.MonkeyPatch,
 ):
-    monkeypatch.setattr(
-        engine,
-        "propose_state_with_result",
-        AsyncMock(return_value=result),
-    )
+    client = MagicMock()
+    client.set_flow_run_state = AsyncMock(return_value=result)
+    proposed = Running()
+    flow_run_id = uuid4()
 
     with pytest.raises(exception):
-        await engine.propose_state(MagicMock(), Running(), uuid4())
+        await engine.propose_state(client, proposed, flow_run_id)
+
+    client.set_flow_run_state.assert_awaited_once_with(
+        flow_run_id, proposed, force=False
+    )
