@@ -27,6 +27,7 @@ import asyncio
 import base64
 import dataclasses
 import json
+import threading
 import time
 from collections.abc import AsyncIterator, Callable
 from typing import Any
@@ -730,10 +731,7 @@ class TestSessionToken:
         restored = cloudpickle.loads(payload)
 
         assert environment_only_key.encode() not in payload
-        assert restored._session_token is None
-        assert restored._session_token_expires_at == 0.0
-        assert restored._session_token_api_url is None
-        assert restored._session_token_api_key is None
+        assert restored._session_cache is None
 
         fake_islo.requests.clear()
         await restored.adestroy(handle)
@@ -785,6 +783,46 @@ class TestSessionToken:
             for recorded in fake_islo.requests
             if recorded.route != "auth"
         } == {fake_islo.tokens[0]}
+
+    async def test_cross_thread_refresh_never_exposes_a_torn_cache_snapshot(
+        self,
+        backend: IsloSandbox,
+        fake_islo: FakeIslo,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A rotated token is never paired with the previous API-key identity."""
+        original_token = await backend._atoken(api_key=BLOCK_API_KEY)
+        refresh_paused = threading.Event()
+        release_refresh = threading.Event()
+        real_token_expiry = islo._token_expiry
+
+        def pause_rotated_refresh(token: str) -> float:
+            if token != original_token:
+                refresh_paused.set()
+                if not release_refresh.wait(5):
+                    raise RuntimeError("test did not release token refresh")
+            return real_token_expiry(token)
+
+        monkeypatch.setattr(islo, "_token_expiry", pause_rotated_refresh)
+        rotated_refresh = asyncio.create_task(
+            asyncio.to_thread(
+                lambda: asyncio.run(
+                    backend._atoken(
+                        force_refresh=True,
+                        api_key=ROTATED_API_KEY,
+                    )
+                )
+            )
+        )
+        assert await asyncio.to_thread(refresh_paused.wait, 2)
+        try:
+            token_for_original_key = await backend._atoken(api_key=BLOCK_API_KEY)
+        finally:
+            release_refresh.set()
+        rotated_token = await rotated_refresh
+
+        assert token_for_original_key == original_token
+        assert rotated_token == fake_islo.tokens[1]
 
     async def test_an_expired_token_is_exchanged_again(
         self, backend: IsloSandbox, fake_islo: FakeIslo

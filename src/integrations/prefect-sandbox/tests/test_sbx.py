@@ -846,17 +846,21 @@ class TestHandleAuthentication:
     def test_publishing_the_host_key_syncs_its_directory(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        synced_modes: list[int] = []
-        real_fsync = os.fsync
+        opened_directories: list[Path] = []
+        real_open = os.open
 
-        def record_fsync(fd: int) -> None:
-            synced_modes.append(os.fstat(fd).st_mode)
-            real_fsync(fd)
+        def record_open(path: str | os.PathLike[str], flags: int, *args: int) -> int:
+            candidate = Path(path)
+            if candidate.is_dir():
+                opened_directories.append(candidate)
+            return real_open(path, flags, *args)
 
-        monkeypatch.setattr(sbx_module.os, "fsync", record_fsync)
+        monkeypatch.setattr(sbx_module.os, "open", record_open)
         sbx_module._load_or_create_handle_key()
+        key_directory = sbx_module._handle_key_path().parent
 
-        assert any(stat.S_ISDIR(mode) for mode in synced_modes)
+        assert key_directory.parent in opened_directories
+        assert key_directory in opened_directories
 
     @pytest.mark.parametrize("failure_point", ["write", "flush", "fsync"])
     def test_a_failed_key_write_removes_its_staging_file(
@@ -892,9 +896,12 @@ class TestHandleAuthentication:
                 lambda fd, *args, **kwargs: FailingHandle(fd),
             )
         else:
+            real_fsync = os.fsync
 
             def fail_fsync(fd: int) -> None:
-                raise OSError(28, "No space left on device")
+                if stat.S_ISREG(os.fstat(fd).st_mode):
+                    raise OSError(28, "No space left on device")
+                real_fsync(fd)
 
             monkeypatch.setattr(sbx_module.os, "fsync", fail_fsync)
 
@@ -1452,7 +1459,7 @@ class TestHostTempFile:
                 os.close(self._fd)
                 return False
 
-            def write(self, _: str) -> int:
+            def write(self, _: bytes) -> int:
                 raise OSError(28, "No space left on device")
 
         monkeypatch.setattr(
@@ -1463,6 +1470,26 @@ class TestHostTempFile:
             _write_host_temp_file("a payload that never lands")
 
         assert list(tmp_path.glob("prefect-sandbox-*")) == []
+
+    def test_stages_utf8_bytes_without_text_newline_translation(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(sbx_module.tempfile, "tempdir", str(tmp_path))
+        opened_modes: list[str] = []
+        real_fdopen = os.fdopen
+
+        def record_mode(fd: int, mode: str, *args: object, **kwargs: object) -> Any:
+            opened_modes.append(mode)
+            return real_fdopen(fd, mode, *args, **kwargs)
+
+        monkeypatch.setattr(sbx_module.os, "fdopen", record_mode)
+        content = "first\nsecond\nhéllo 🌍\n"
+        path = Path(_write_host_temp_file(content))
+        try:
+            assert opened_modes == ["wb"]
+            assert path.read_bytes() == content.encode()
+        finally:
+            path.unlink()
 
 
 class TestWriteFile:
@@ -1491,6 +1518,27 @@ class TestWriteFile:
         await backend.awrite_file(sandbox, "/tmp/prefect-sandbox/main.py", "x")
         host_path = fake_sbx.calls_for("cp")[0][1]
         assert not Path(host_path).exists()
+
+    async def test_a_staging_file_deletion_failure_is_reported(
+        self,
+        backend: SbxSandbox,
+        fake_sbx: FakeSbx,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        real_unlink = os.unlink
+        sandbox = await backend.acreate()
+
+        def fail_unlink(path: str | os.PathLike[str]) -> None:
+            raise PermissionError(13, "Permission denied", path)
+
+        monkeypatch.setattr(sbx_module.os, "unlink", fail_unlink)
+
+        with pytest.raises(SandboxError, match="Could not remove staged host file"):
+            await backend.awrite_file(sandbox, "main.py", "sensitive")
+
+        host_path = fake_sbx.calls_for("cp")[0][1]
+        assert Path(host_path).exists()
+        real_unlink(host_path)
 
     async def test_cancellation_joins_and_removes_an_in_flight_staging_file(
         self,

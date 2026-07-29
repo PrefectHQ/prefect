@@ -127,18 +127,24 @@ def _write_host_temp_file(content: str) -> str:
     """
     fd, path = tempfile.mkstemp(prefix="prefect-sandbox-")
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(content)
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(content.encode())
     except BaseException:
-        _unlink_quietly(path)
+        _remove_host_temp_file(path)
         raise
     return path
 
 
-def _unlink_quietly(path: str) -> None:
-    """Delete `path`, ignoring the case where it is already gone."""
-    with suppress(OSError):
+def _remove_host_temp_file(path: str) -> None:
+    """Delete a staged host file, suppressing only an already-absent path."""
+    try:
         os.unlink(path)
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        raise SandboxError(
+            f"Could not remove staged host file {path!r}: {exc}"
+        ) from exc
 
 
 async def _astage_host_temp_file(content: str) -> str:
@@ -152,7 +158,7 @@ async def _astage_host_temp_file(content: str) -> str:
             cancelled = True
     host_path = staging.result()
     if cancelled:
-        await _shielded_cleanup(asyncio.to_thread(_unlink_quietly, host_path))
+        await _shielded_cleanup(asyncio.to_thread(_remove_host_temp_file, host_path))
         raise asyncio.CancelledError
     return host_path
 
@@ -225,6 +231,7 @@ def _sync_handle_key_directory(directory: Path) -> None:
 def _load_or_create_handle_key() -> bytes:
     """Load the host signing key, publishing a complete 0600 file atomically."""
     path = _handle_key_path()
+    key_directory_existed = path.parent.is_dir()
     try:
         path.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
     except OSError as exc:
@@ -232,6 +239,9 @@ def _load_or_create_handle_key() -> bytes:
             f"Could not prepare sandbox handle key directory {str(path.parent)!r}: "
             f"{exc}"
         ) from exc
+    if not key_directory_existed:
+        _sync_handle_key_directory.cache_clear()
+        _sync_handle_key_directory(path.parent.parent)
 
     while True:
         try:
@@ -908,4 +918,6 @@ class SbxSandbox(SandboxBackend):
                     f"{stderr.strip()[:500]}"
                 )
         finally:
-            await _shielded_cleanup(asyncio.to_thread(_unlink_quietly, host_path))
+            await _shielded_cleanup(
+                asyncio.to_thread(_remove_host_temp_file, host_path)
+            )

@@ -24,6 +24,7 @@ import os
 import secrets
 import time
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any, ClassVar, Literal
 from urllib.parse import quote
 
@@ -284,6 +285,16 @@ def _is_absent(response: httpx.Response) -> bool:
     )
 
 
+@dataclass(frozen=True, slots=True)
+class _SessionCache:
+    """One atomically replaceable session-token snapshot."""
+
+    token: str
+    expires_at: float
+    api_url: str
+    api_key: SecretStr
+
+
 class IsloSandbox(SandboxBackend):
     """Run commands in a hosted Islo microVM sandbox.
 
@@ -474,14 +485,11 @@ class IsloSandbox(SandboxBackend):
         ),
     )
 
-    #: Cached session token and the moment it should be replaced. Deliberately not
-    #: guarded by a lock: two concurrent flow runs racing to refresh perform one extra
-    #: exchange and both end up with a valid token, whereas an `asyncio.Lock` created
-    #: on a Block would bind this instance to whichever event loop touched it first.
-    _session_token: str | None = PrivateAttr(default=None)
-    _session_token_expires_at: float = PrivateAttr(default=0.0)
-    _session_token_api_url: str | None = PrivateAttr(default=None)
-    _session_token_api_key: SecretStr | None = PrivateAttr(default=None)
+    #: One immutable snapshot keeps cross-thread reads atomic without an
+    #: event-loop-bound `asyncio.Lock`. Concurrent refreshes may perform one extra
+    #: exchange, but a token can never be observed beside another credential's
+    #: endpoint, expiry, or identity.
+    _session_cache: _SessionCache | None = PrivateAttr(default=None)
 
     def __getstate__(self) -> dict[str, Any]:
         """Exclude ephemeral credentials and sessions from pickle payloads."""
@@ -495,10 +503,7 @@ class IsloSandbox(SandboxBackend):
             # rebuilding the complete session cache cold in the child.
             state["__pydantic_private__"] = {
                 **private,
-                "_session_token": None,
-                "_session_token_expires_at": 0.0,
-                "_session_token_api_url": None,
-                "_session_token_api_key": None,
+                "_session_cache": None,
             }
         return state
 
@@ -603,19 +608,17 @@ class IsloSandbox(SandboxBackend):
         """
         endpoint = api_url or self._resolved_api_url()
         resolved_api_key = self._resolved_api_key() if api_key is None else api_key
-        cached = self._session_token
-        cached_api_key = self._session_token_api_key
+        cached = self._session_cache
         if (
             not force_refresh
             and cached
-            and self._session_token_api_url == endpoint
-            and cached_api_key is not None
+            and cached.api_url == endpoint
             and secrets.compare_digest(
-                cached_api_key.get_secret_value(), resolved_api_key
+                cached.api_key.get_secret_value(), resolved_api_key
             )
-            and time.time() < self._session_token_expires_at
+            and time.time() < cached.expires_at
         ):
-            return cached
+            return cached.token
 
         async with self._new_client(
             token=None, timeout=_CONTROL_TIMEOUT, api_url=endpoint
@@ -644,13 +647,15 @@ class IsloSandbox(SandboxBackend):
             raise SandboxUnavailableError(
                 "Islo token exchange returned no session token."
             )
-        self._session_token = token
-        self._session_token_expires_at = _token_expiry(token)
-        self._session_token_api_url = endpoint
-        # PrivateAttr is excluded from serialization and SecretStr redacts reprs. Keep
-        # the credential identity beside its token rather than deriving a fast digest,
+        # `__getstate__` strips this PrivateAttr and SecretStr redacts reprs. Keep the
+        # credential identity beside its token rather than deriving a fast digest,
         # which would create an unnecessary offline credential verifier.
-        self._session_token_api_key = SecretStr(resolved_api_key)
+        self._session_cache = _SessionCache(
+            token=token,
+            expires_at=_token_expiry(token),
+            api_url=endpoint,
+            api_key=SecretStr(resolved_api_key),
+        )
         return token
 
     async def _arequest(
