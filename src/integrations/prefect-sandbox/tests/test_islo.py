@@ -1021,6 +1021,37 @@ class TestCreateFailureCleanup:
         assert poll_delays == []
         assert fake_islo.live == set()
 
+    async def test_cleanup_backs_off_when_running_delete_remains_rejected(
+        self,
+        backend: IsloSandbox,
+        fake_islo: FakeIslo,
+        poll_delays: list[float],
+    ) -> None:
+        """Only the first delete after `running` is retried without a delay."""
+
+        def creates_then_times_out(request: httpx.Request) -> httpx.Response:
+            fake_islo.live.add(json.loads(request.content)["name"])
+            raise httpx.ReadTimeout("create response was late")
+
+        rejection = reply(
+            409,
+            {
+                "code": "SANDBOX_BUSY",
+                "message": "sandbox is running but deletion is not ready",
+            },
+        )
+        fake_islo.replies("create", creates_then_times_out)
+        fake_islo.statuses = ["running", "running"]
+        fake_islo.replies("delete", rejection, rejection, fake_islo.default)
+
+        with pytest.raises(SandboxError, match="create response was late"):
+            await backend.acreate()
+
+        assert len(fake_islo.requests_for("delete")) == 3
+        assert len(fake_islo.requests_for("status")) == 2
+        assert poll_delays == [islo._POLL_INTERVAL]
+        assert fake_islo.live == set()
+
     async def test_a_cancelled_create_still_deletes_the_sandbox(
         self, backend: IsloSandbox, fake_islo: FakeIslo
     ) -> None:

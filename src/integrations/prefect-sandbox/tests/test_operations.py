@@ -1520,6 +1520,13 @@ class TestFilesAndProvisioning:
 class TestValidation:
     """Bad configuration is rejected up front, naming the offending value."""
 
+    @pytest.mark.parametrize("commands", ["echo hi", b"true"])
+    def test_commands_must_be_a_sequence_not_a_string(
+        self, commands: str | bytes
+    ) -> None:
+        with pytest.raises(ValueError, match="sequence of command strings"):
+            SandboxOperation(FakeSandbox(), commands)  # type: ignore[arg-type]
+
     def test_commands_must_not_be_empty(self) -> None:
         with pytest.raises(ValueError, match="at least one command"):
             SandboxOperation(FakeSandbox(), [])

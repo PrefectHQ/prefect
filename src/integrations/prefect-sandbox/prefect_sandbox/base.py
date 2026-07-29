@@ -166,9 +166,12 @@ def validate_exec_request(
     with the same message, which is what makes the conformance suite meaningful.
 
     Raises:
-        ValueError: If `command` is empty, `timeout` is not a positive finite number,
-            or `env` cannot be expressed as POSIX environment variables.
+        ValueError: If `command` is a bare string/bytes value or is empty, `timeout`
+            is not a positive finite number, or `env` cannot be expressed as POSIX
+            environment variables.
     """
+    if isinstance(command, (str, bytes)):
+        raise ValueError("command must be an argv sequence, not a string or bytes.")
     if not command:
         raise ValueError("command must not be empty.")
     if not math.isfinite(timeout) or timeout <= 0:

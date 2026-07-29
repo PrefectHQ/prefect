@@ -614,6 +614,7 @@ class IsloSandbox(SandboxBackend):
         """
         path = f"/sandboxes/{quote(name, safe='')}"
         deadline = time.monotonic() + provisioning_timeout
+        retried_ready_immediately = False
         while True:
             response = await self._arequest("DELETE", path, api_url=api_url)
             if response.status_code in (200, 202, 204) or _is_absent(response):
@@ -633,9 +634,13 @@ class IsloSandbox(SandboxBackend):
                 break
             if status == _READY_STATUS:
                 # The VM became deletable between the rejected request and this poll.
-                # Retry immediately; stopping here would leave a now-running sandbox
-                # alive until its provider-side lifecycle expires.
-                continue
+                # Retry that transition immediately; stopping here would leave a
+                # now-running sandbox alive until its provider-side lifecycle expires.
+                # If Islo rejects the immediate retry too, use the normal poll delay
+                # below instead of hammering DELETE/GET until the deadline.
+                if not retried_ready_immediately:
+                    retried_ready_immediately = True
+                    continue
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 break

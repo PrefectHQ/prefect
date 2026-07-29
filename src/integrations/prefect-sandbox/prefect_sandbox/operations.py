@@ -459,9 +459,15 @@ class SandboxOperation:
         """Validate and record the operation's configuration.
 
         Raises:
-            ValueError: If `commands` is empty, `timeout` is not positive, or `env`
-                holds a name a POSIX `env` invocation cannot express.
+            ValueError: If `commands` is a bare string/bytes value or is empty,
+                `timeout` is not positive, or `env` holds a name a POSIX `env`
+                invocation cannot express.
         """
+        if isinstance(commands, (str, bytes)):
+            raise ValueError(
+                "`commands` must be a sequence of command strings, not a string "
+                "or bytes."
+            )
         if not commands:
             raise ValueError("`commands` must contain at least one command.")
         if not math.isfinite(timeout) or timeout <= 0:

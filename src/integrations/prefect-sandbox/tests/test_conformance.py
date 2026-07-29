@@ -74,6 +74,16 @@ _WORKER_ENVIRONMENT = {
 #: input once instead of per backend.
 _INVALID_EXEC_REQUESTS = [
     pytest.param(
+        {"command": "echo hi", "timeout": 5},
+        "command must be an argv sequence, not a string or bytes.",
+        id="string-command",
+    ),
+    pytest.param(
+        {"command": b"true", "timeout": 5},
+        "command must be an argv sequence, not a string or bytes.",
+        id="bytes-command",
+    ),
+    pytest.param(
         {"command": [], "timeout": 5}, "command must not be empty.", id="empty"
     ),
     pytest.param(
