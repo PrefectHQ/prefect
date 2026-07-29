@@ -186,8 +186,11 @@ class TestUtilityFunctions:
         completed_future.set_result(Completed(data=42))
         future = PrefectConcurrentFuture(uuid.uuid4(), completed_future)
 
-        results = [f.result() for f in as_completed([future], timeout=0)]
-        assert results == [42]
+        completed = list(as_completed([future], timeout=0))
+
+        # Read results from the wrapped future to avoid run_coro_as_sync
+        # deadlocks under xdist parallel execution
+        assert [f.wrapped_future.result().data for f in completed] == [42]
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     def test_as_completed_yields_correct_order(self):
