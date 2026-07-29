@@ -468,27 +468,29 @@ class IsloSandbox(SandboxBackend):
         ).hexdigest()
 
     def _api_url_for(self, sandbox: Sandbox) -> str:
-        """Return only a configured or authenticated handle endpoint.
+        """Return only an authenticated handle endpoint.
 
         `Sandbox` is serializable and may be supplied by an untrusted caller. Its URL
-        therefore cannot decide where the raw API key or session token is sent unless
-        it carries the HMAC written by `acreate`. Old unsigned handles safely fall
-        back to the current block configuration.
+        and id therefore cannot decide where credentials are sent or which tenant
+        sandbox is modified unless both carry the HMAC written by `acreate`.
 
         Raises:
-            SandboxError: If signed endpoint metadata was altered.
+            SandboxError: If endpoint metadata is unsigned or was altered.
         """
-        configured = self._resolved_api_url()
         recorded = sandbox.metadata.get("api_url")
         if not isinstance(recorded, str) or not recorded.strip():
-            return configured
+            raise SandboxError(
+                "Islo sandbox handle endpoint metadata is not authenticated; "
+                "recreate the handle with IsloSandbox.acreate()."
+            )
         recorded = recorded.strip().rstrip("/")
-        if recorded == configured:
-            return configured
 
         signature = sandbox.metadata.get(_API_URL_SIGNATURE_KEY)
         if not isinstance(signature, str) or not signature:
-            return configured
+            raise SandboxError(
+                "Islo sandbox handle endpoint metadata is not authenticated; "
+                "recreate the handle with IsloSandbox.acreate()."
+            )
         expected = self._api_url_signature(sandbox.id, recorded)
         if not hmac.compare_digest(signature, expected):
             raise SandboxError(

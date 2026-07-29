@@ -337,8 +337,28 @@ def backend(fake_islo: FakeIslo) -> IsloSandbox:
     return IsloSandbox(api_key=SecretStr(BLOCK_API_KEY))
 
 
+def signed_handle(
+    backend: IsloSandbox,
+    name: str,
+    *,
+    api_url: str | None = None,
+    metadata: dict[str, str] | None = None,
+) -> Sandbox:
+    """Construct a provider-issued equivalent handle for a targeted unit test."""
+    endpoint = api_url or backend._resolved_api_url()
+    return Sandbox(
+        id=name,
+        backend="islo",
+        metadata={
+            "api_url": endpoint,
+            islo._API_URL_SIGNATURE_KEY: backend._api_url_signature(name, endpoint),
+            **(metadata or {}),
+        },
+    )
+
+
 @pytest.fixture
-def sandbox(fake_islo: FakeIslo) -> Sandbox:
+def sandbox(fake_islo: FakeIslo, backend: IsloSandbox) -> Sandbox:
     """A handle to a sandbox the fake API already believes is running.
 
     Handles are self-contained, so an exec or teardown test does not have to
@@ -347,7 +367,7 @@ def sandbox(fake_islo: FakeIslo) -> Sandbox:
     """
     name = f"{SANDBOX_NAME_PREFIX}0123456789ab"
     fake_islo.live.add(name)
-    return Sandbox(id=name, backend="islo", metadata={"sandbox_id": "sb_existing"})
+    return signed_handle(backend, name, metadata={"sandbox_id": "sb_existing"})
 
 
 @pytest.fixture
@@ -568,25 +588,32 @@ class TestApiUrl:
             "ca.compute.islo.dev"
         }
 
-    async def test_unsigned_handle_url_falls_back_to_trusted_configuration(
-        self, fake_islo: FakeIslo
+    @pytest.mark.parametrize("operation", ["exec", "write", "destroy"])
+    async def test_unsigned_handle_is_rejected_before_any_request(
+        self, fake_islo: FakeIslo, operation: str
     ) -> None:
-        """Handles from an older release cannot choose a credential destination."""
+        """Removing the signature cannot authorize a different tenant target."""
         name = f"{SANDBOX_NAME_PREFIX}unsigned"
         fake_islo.live.add(name)
         handle = Sandbox(
             id=name,
             backend="islo",
-            metadata={"api_url": "https://attacker.example"},
+            metadata={"api_url": "https://api.islo.dev"},
         )
         backend = IsloSandbox(
             api_key=SecretStr(BLOCK_API_KEY),
             api_url="https://api.islo.dev",
         )
 
-        await backend.aexec(handle, ["true"], timeout=5)
+        with pytest.raises(SandboxError, match="not authenticated"):
+            if operation == "exec":
+                await backend.aexec(handle, ["true"], timeout=5)
+            elif operation == "write":
+                await backend.awrite_file(handle, "main.py", "print('hi')\n")
+            else:
+                await backend.adestroy(handle)
 
-        assert {request.url.host for request in fake_islo.requests} == {"api.islo.dev"}
+        assert fake_islo.requests == []
 
     @pytest.mark.parametrize("operation", ["exec", "write", "destroy"])
     async def test_tampered_handle_url_is_rejected_before_any_request(
@@ -768,7 +795,7 @@ class TestSessionToken:
             "delete", reply(401, {"code": "AUTH_REQUIRED", "message": "still no"})
         )
         with pytest.raises(SandboxError, match="still no"):
-            await backend.adestroy(Sandbox(id="prefect-sandbox-abc", backend="islo"))
+            await backend.adestroy(signed_handle(backend, "prefect-sandbox-abc"))
         assert len(fake_islo.requests_for("delete")) == 2
 
 
@@ -1707,7 +1734,7 @@ class TestExecFailures:
     ) -> None:
         with pytest.raises(SandboxExecutionError, match="SANDBOX_NOT_FOUND"):
             await backend.aexec(
-                Sandbox(id="prefect-sandbox-gone", backend="islo"),
+                signed_handle(backend, "prefect-sandbox-gone"),
                 ["true"],
                 timeout=5,
             )
@@ -1845,7 +1872,7 @@ class TestDestroy:
     ) -> None:
         """The name is interpolated into a URL, so it is escaped rather than
         trusted to be URL-safe."""
-        await backend.adestroy(Sandbox(id="../other-tenant", backend="islo"))
+        await backend.adestroy(signed_handle(backend, "../other-tenant"))
         assert fake_islo.requests_for("delete")[0].url.raw_path == (
             b"/sandboxes/..%2Fother-tenant"
         )
@@ -1872,7 +1899,7 @@ class TestDestroy:
     async def test_destroying_a_handle_that_was_never_created_succeeds(
         self, backend: IsloSandbox, fake_islo: FakeIslo
     ) -> None:
-        await backend.adestroy(Sandbox(id="prefect-sandbox-never", backend="islo"))
+        await backend.adestroy(signed_handle(backend, "prefect-sandbox-never"))
         assert fake_islo.requests_for("delete")
 
     async def test_any_other_failure_is_loud_because_code_may_still_run(
