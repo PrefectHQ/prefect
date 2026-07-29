@@ -16,7 +16,7 @@ without holding per-sandbox state.
 
 ## Classes
 
-### `SbxSandbox` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/sbx.py#L287" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SbxSandbox` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/sbx.py#L352" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Run commands in a Docker Sandboxes (`sbx`) microVM on the local host.
@@ -86,7 +86,7 @@ async def run_generated_code(source: str) -> str:
 
 **Methods:**
 
-#### `aclose` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L287" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aclose` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L291" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aclose(self) -> None
@@ -98,7 +98,7 @@ Separate from `adestroy`, which disposes of a single sandbox. The default is
 a no-op; backends holding a client should override it.
 
 
-#### `acreate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/sbx.py#L630" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `acreate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/sbx.py#L695" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 acreate(self) -> Sandbox
@@ -121,7 +121,7 @@ one block cannot clean up each other's workspace.
 - `SandboxCreationError`: If provisioning failed or timed out.
 
 
-#### `acreate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L256" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `acreate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L260" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 acreate(self) -> Sandbox
@@ -130,7 +130,7 @@ acreate(self) -> Sandbox
 Provision one sandbox and return its handle.
 
 
-#### `adestroy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/sbx.py#L798" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `adestroy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/sbx.py#L863" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 adestroy(self, sandbox: Sandbox) -> None
@@ -143,7 +143,7 @@ sandbox is already absent. Other failures are raised because untrusted code may
 still be running. `-f` is not optional — only it can remove a sandbox in use.
 
 
-#### `adestroy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L284" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `adestroy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L288" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 adestroy(self, sandbox: Sandbox) -> None
@@ -152,7 +152,7 @@ adestroy(self, sandbox: Sandbox) -> None
 Tear down `sandbox`. Idempotent.
 
 
-#### `aexec` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/sbx.py#L726" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aexec` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/sbx.py#L791" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aexec(self, sandbox: Sandbox, command: Sequence[str]) -> SandboxResult
@@ -180,7 +180,7 @@ destroys the sandbox to guarantee the guest command cannot keep running.
 number, or `env` cannot be expressed as POSIX environment variables.
 
 
-#### `aexec` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L260" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aexec` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L264" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aexec(self, sandbox: Sandbox, command: Sequence[str]) -> SandboxResult
@@ -200,7 +200,7 @@ not need to quote anything.
 - A `SandboxResult`. A nonzero exit code is reported here, not raised.
 
 
-#### `asession` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L323" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `asession` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L335" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 asession(self) -> AsyncIterator[Sandbox]
@@ -214,7 +214,7 @@ async with backend.asession() as sandbox:
 ```
 
 
-#### `awrite_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/sbx.py#L809" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `awrite_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/sbx.py#L874" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 awrite_file(self, sandbox: Sandbox, path: str, content: str) -> None
@@ -237,7 +237,7 @@ disk.
 copy failed.
 
 
-#### `awrite_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L294" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `awrite_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L298" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 awrite_file(self, sandbox: Sandbox, path: str, content: str) -> None
@@ -250,3 +250,4 @@ payload and decodes it inside the sandbox, which keeps arbitrary bytes and
 quoting hazards out of the command line. Backends with a native file-transfer
 API should override this — the fallback is bounded by
 `MAX_INLINE_FILE_BYTES` because the payload rides on the command line.
+
