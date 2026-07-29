@@ -65,6 +65,8 @@ alembic_revision("description")      # Create a new migration
 
 - **`docket.add()` in monitor loops must pass a per-entity `key=` to prevent duplicate enqueues.** Without it, repeated iterations over the same pending entity enqueue duplicate tasks — causing duplicate state transitions. Format: `"<service-name>:<entity-id>"`, e.g., `"mark-flow-run-late:{run.id}"` in `services/late_runs.py`.
 
+- **Lease expiration-index entries can outlive the lease record.** In `concurrency/lease_storage/{memory,filesystem}.py`, the expiration timestamp is tracked separately from the lease record. `revoke_lease()` pops both unconditionally, so any code reconciling expired leases (e.g. `services/repossessor.py::revoke_expired_lease`) must call it even when `read_lease()` returns `None` — otherwise the orphaned index entry keeps reporting that lease as expired on every pass.
+
 ## UI Serving Architecture
 
 Both V1 and V2 UI bundles are served simultaneously when available: V1 at `PREFECT_UI_SERVE_BASE` (default `/`), V2 at `{base_url}/v2`. The `redirect_to_preferred_ui` middleware routes neutral entry points using the `prefect_ui_version` cookie. `PREFECT_SERVER_UI_V2_ENABLED` sets the *default* for browsers with no saved preference — it does not remove V1 or force all users to V2. Both bundles must be built before packaging (`PREFECT_REQUIRE_PACKAGED_UI_BUNDLES=1` enforces this via `hatch_build.py`). **The version-redirect `Location` header must be a relative path** — using `request.url.replace(...)` builds an absolute URL that embeds the internal Host behind a reverse proxy and leaks it to the client.
