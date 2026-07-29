@@ -1097,6 +1097,7 @@ async def test_set_then_read_flow_run_state(prefect_client):
     )
     assert isinstance(response, OrchestrationResult)
     assert response.status == SetStateStatus.ACCEPT
+    assert response.state is not None
 
     states = await prefect_client.read_flow_run_states(flow_run_id)
     assert len(states) == 2
@@ -1105,6 +1106,15 @@ async def test_set_then_read_flow_run_state(prefect_client):
 
     assert states[1].is_completed()
     assert states[1].message == "Test!"
+
+    state = await prefect_client.read_flow_run_state(response.state.id)
+    assert state == states[1]
+    assert state.state_details.flow_run_id == flow_run_id
+
+
+async def test_read_flow_run_state_404_is_object_not_found(prefect_client):
+    with pytest.raises(prefect.exceptions.ObjectNotFound):
+        await prefect_client.read_flow_run_state(uuid4())
 
 
 async def test_set_flow_run_state_404_is_object_not_found(prefect_client):
@@ -3443,6 +3453,23 @@ class TestSyncClient:
         version = sync_prefect_client.api_version()
         assert prefect.__version__
         assert version == prefect.__version__
+
+    def test_read_flow_run_state(self, sync_prefect_client):
+        @flow
+        def foo():
+            pass
+
+        flow_run_id = sync_prefect_client.create_flow_run(foo).id
+        response = sync_prefect_client.set_flow_run_state(
+            flow_run_id,
+            state=Completed(message="Test!"),
+        )
+        assert response.state is not None
+
+        state = sync_prefect_client.read_flow_run_state(response.state.id)
+        assert state.is_completed()
+        assert state.message == "Test!"
+        assert state.state_details.flow_run_id == flow_run_id
 
     def test_read_server_default_result_storage(self, sync_prefect_client):
         configuration = sync_prefect_client.read_server_default_result_storage()

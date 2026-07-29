@@ -154,6 +154,29 @@ def test_pull_from_s3(s3_setup, tmp_path, mock_aws_credentials):
         assert target.read_text() == content
 
 
+def test_pull_from_s3_ignores_sibling_prefix(s3_setup, tmp_path, mock_aws_credentials):
+    s3, bucket_name = s3_setup
+    folder = "my-folder"
+
+    s3.put_object(
+        Bucket=bucket_name, Key=f"{folder}/my-flow.py", Body="expected content"
+    )
+    s3.put_object(
+        Bucket=bucket_name, Key=f"{folder}-2/my-flow.py", Body="unrelated content"
+    )
+
+    os.chdir(tmp_path)
+    output = pull_from_s3(bucket_name, folder)
+
+    assert output["folder"] == folder
+    assert {
+        path.relative_to(tmp_path).as_posix()
+        for path in tmp_path.rglob("*")
+        if path.is_file()
+    } == {"my-flow.py"}
+    assert (tmp_path / "my-flow.py").read_text() == "expected content"
+
+
 def test_push_pull_empty_folders(s3_setup, tmp_path, mock_aws_credentials):
     s3, bucket_name = s3_setup
     folder = "my-project"
