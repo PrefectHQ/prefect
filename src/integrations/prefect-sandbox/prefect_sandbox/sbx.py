@@ -9,10 +9,14 @@ without holding per-sandbox state.
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import hmac
 import json
 import os
+import secrets
 import shutil
 import signal
+import stat
 import tempfile
 from collections.abc import Mapping, Sequence
 from contextlib import suppress
@@ -21,6 +25,7 @@ from typing import ClassVar, Literal
 
 from pydantic import Field
 
+from prefect.settings import get_current_settings
 from prefect_sandbox.base import (
     Sandbox,
     SandboxBackend,
@@ -53,6 +58,16 @@ _READ_CHUNK = 64 * 1024
 
 #: Prefix for host directories created and owned by this backend.
 _WORKSPACE_PREFIX = "prefect-sandbox-ws-"
+
+#: Metadata key carrying an HMAC over the sandbox name and host workspace.
+_HANDLE_SIGNATURE_KEY = "handle_signature"
+
+#: Persistent host-private signing key. A sandbox handle is meaningful only on the
+#: host whose `sbx` daemon owns it, so every backend instance on that host shares this
+#: key while no caller-supplied handle or guest-mounted workspace can read it.
+_HANDLE_KEY_BYTES = 32
+_HANDLE_KEY_DIR = "prefect-sandbox"
+_HANDLE_KEY_FILE = "sbx-handle.key"
 
 
 async def _adrain_capped(
@@ -139,6 +154,119 @@ def _validated_workspace_path(workspace: str) -> Path:
             f"Refusing to remove unowned sandbox workspace {workspace!r}."
         )
     return resolved
+
+
+def _handle_key_path() -> Path:
+    """Return the host-private key path without touching the filesystem."""
+    return Path(get_current_settings().home) / _HANDLE_KEY_DIR / _HANDLE_KEY_FILE
+
+
+def _read_handle_key(path: Path) -> bytes:
+    """Read and validate one host-private signing key without following a symlink."""
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(path, flags)
+    try:
+        info = os.fstat(fd)
+        if not stat.S_ISREG(info.st_mode):
+            raise SandboxUnavailableError(
+                f"Sandbox handle key {str(path)!r} is not a regular file."
+            )
+        if os.name == "posix" and info.st_mode & 0o077:
+            raise SandboxUnavailableError(
+                f"Sandbox handle key {str(path)!r} must not be accessible by "
+                "group or other users."
+            )
+        with os.fdopen(fd, "rb", closefd=False) as handle:
+            key = handle.read(_HANDLE_KEY_BYTES + 1)
+    finally:
+        os.close(fd)
+    if len(key) != _HANDLE_KEY_BYTES:
+        raise SandboxUnavailableError(
+            f"Sandbox handle key {str(path)!r} has an invalid length."
+        )
+    return key
+
+
+def _load_or_create_handle_key() -> bytes:
+    """Load the host signing key, publishing a complete 0600 file atomically."""
+    path = _handle_key_path()
+    try:
+        path.parent.mkdir(parents=True, mode=0o700, exist_ok=True)
+    except OSError as exc:
+        raise SandboxUnavailableError(
+            f"Could not prepare sandbox handle key directory {str(path.parent)!r}: "
+            f"{exc}"
+        ) from exc
+
+    while True:
+        try:
+            return _read_handle_key(path)
+        except FileNotFoundError:
+            key = secrets.token_bytes(_HANDLE_KEY_BYTES)
+            staging_path = path.with_name(f".{path.name}.{secrets.token_hex(8)}.tmp")
+            flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+            try:
+                fd = os.open(staging_path, flags, 0o600)
+            except OSError as exc:
+                raise SandboxUnavailableError(
+                    f"Could not stage sandbox handle key {str(path)!r}: {exc}"
+                ) from exc
+            try:
+                with os.fdopen(fd, "wb", closefd=False) as handle:
+                    handle.write(key)
+                    handle.flush()
+                    os.fsync(fd)
+            finally:
+                os.close(fd)
+            try:
+                # A hard link publishes the already-complete inode without replacing
+                # a key another process may have won the race to install.
+                os.link(staging_path, path)
+            except FileExistsError:
+                continue
+            except OSError as exc:
+                raise SandboxUnavailableError(
+                    f"Could not install sandbox handle key {str(path)!r}: {exc}"
+                ) from exc
+            finally:
+                with suppress(FileNotFoundError):
+                    staging_path.unlink()
+            return key
+        except OSError as exc:
+            raise SandboxUnavailableError(
+                f"Could not read sandbox handle key {str(path)!r}: {exc}"
+            ) from exc
+
+
+def _handle_signature(name: str, workspace: str, key: bytes) -> str:
+    """Bind one sandbox name and workspace to the host-private key."""
+    message = f"{name}\0{workspace}".encode()
+    return hmac.new(key, message, hashlib.sha256).hexdigest()
+
+
+def _authenticated_workspace(sandbox: Sandbox) -> str:
+    """Authenticate `sandbox.id` and its workspace before targeting either."""
+    workspace = sandbox.metadata.get("workspace")
+    signature = sandbox.metadata.get(_HANDLE_SIGNATURE_KEY)
+    if (
+        not isinstance(workspace, str)
+        or not isinstance(signature, str)
+        or not signature
+    ):
+        raise SandboxError(
+            "Docker Sandbox handle metadata is not authenticated; recreate the "
+            "handle with SbxSandbox.acreate()."
+        )
+    canonical_workspace = str(_validated_workspace_path(workspace))
+    expected = _handle_signature(
+        sandbox.id, canonical_workspace, _load_or_create_handle_key()
+    )
+    if not hmac.compare_digest(signature, expected):
+        raise SandboxError(
+            "Docker Sandbox handle metadata failed authentication; refusing to "
+            "execute, copy, or delete through it."
+        )
+    return canonical_workspace
 
 
 def _strip_autostart_notice(stderr: str, name: str) -> str:
@@ -517,8 +645,14 @@ class SbxSandbox(SandboxBackend):
             SandboxCreationError: If provisioning failed or timed out.
         """
         self._check_binary()
+        handle_key = await asyncio.to_thread(_load_or_create_handle_key)
         name = new_sandbox_name()
-        workspace = await asyncio.to_thread(tempfile.mkdtemp, prefix=_WORKSPACE_PREFIX)
+        workspace = str(
+            _validated_workspace_path(
+                await asyncio.to_thread(tempfile.mkdtemp, prefix=_WORKSPACE_PREFIX)
+            )
+        )
+        handle_signature = _handle_signature(name, workspace, handle_key)
         # `shell` is a required agent subcommand, not a hint, and the workspace path
         # must follow it -- `sbx create` rejects both omissions.
         args = ["create", "-q", "--name", name, "--memory", self.memory]
@@ -581,7 +715,12 @@ class SbxSandbox(SandboxBackend):
                 ) from cleanup_error
             raise
         return Sandbox(
-            id=name, backend=self.backend_name, metadata={"workspace": workspace}
+            id=name,
+            backend=self.backend_name,
+            metadata={
+                "workspace": workspace,
+                _HANDLE_SIGNATURE_KEY: handle_signature,
+            },
         )
 
     async def aexec(
@@ -615,6 +754,7 @@ class SbxSandbox(SandboxBackend):
                 number, or `env` cannot be expressed as POSIX environment variables.
         """
         validate_exec_request(command, timeout, env)
+        await asyncio.to_thread(_authenticated_workspace, sandbox)
 
         args = ["exec"]
         for key, value in (env or {}).items():
@@ -662,10 +802,9 @@ class SbxSandbox(SandboxBackend):
         sandbox is already absent. Other failures are raised because untrusted code may
         still be running. `-f` is not optional — only it can remove a sandbox in use.
         """
-        workspace = sandbox.metadata.get("workspace")
+        workspace = await asyncio.to_thread(_authenticated_workspace, sandbox)
         await self._aremove_sandbox(sandbox.id)
-        if workspace:
-            await self._aremove_workspace(workspace)
+        await self._aremove_workspace(workspace)
 
     async def awrite_file(self, sandbox: Sandbox, path: str, content: str) -> None:
         """Write `content` to `path` inside `sandbox` using `sbx cp`.
@@ -684,6 +823,7 @@ class SbxSandbox(SandboxBackend):
             SandboxError: If the destination directory could not be created or the
                 copy failed.
         """
+        await asyncio.to_thread(_authenticated_workspace, sandbox)
         directory = path.rsplit("/", 1)[0] if "/" in path else ""
         if directory:
             # `sbx cp` does not create missing parents; it fails inside its own tar

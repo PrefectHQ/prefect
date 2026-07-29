@@ -25,6 +25,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 import time
 from pathlib import Path
 from typing import Any
@@ -315,6 +316,31 @@ def fake_sbx(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> FakeSbx:
 def backend(fake_sbx: FakeSbx) -> SbxSandbox:
     """A backend that resolves `sbx` by name, exactly as a user's would."""
     return SbxSandbox(create_timeout=60.0)
+
+
+@pytest.fixture(autouse=True)
+def isolated_handle_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the host signing key deterministic and outside the user's Prefect home."""
+    key_path = tmp_path / "prefect-home" / "prefect-sandbox" / "sbx-handle.key"
+    monkeypatch.setattr(sbx_module, "_handle_key_path", lambda: key_path)
+
+
+def authenticated_handle(name: str, workspace: str) -> Sandbox:
+    """Build the equivalent of a provider-issued handle for a targeted unit test."""
+    canonical_workspace = str(sbx_module._validated_workspace_path(workspace))
+    signature = sbx_module._handle_signature(
+        name,
+        canonical_workspace,
+        sbx_module._load_or_create_handle_key(),
+    )
+    return Sandbox(
+        id=name,
+        backend="sbx",
+        metadata={
+            "workspace": canonical_workspace,
+            sbx_module._HANDLE_SIGNATURE_KEY: signature,
+        },
+    )
 
 
 @pytest.fixture
@@ -739,6 +765,83 @@ class TestExecArgv:
         assert fake_sbx.calls_for("exec") == []
 
 
+class TestHandleAuthentication:
+    @pytest.mark.parametrize("operation", ["exec", "copy", "destroy"])
+    async def test_an_unsigned_handle_reaches_no_targeting_subprocess(
+        self, backend: SbxSandbox, fake_sbx: FakeSbx, operation: str
+    ) -> None:
+        issued = await backend.acreate()
+        unsigned = Sandbox(
+            id=issued.id,
+            backend="sbx",
+            metadata={"workspace": issued.metadata["workspace"]},
+        )
+        calls_before = fake_sbx.calls
+
+        with pytest.raises(SandboxError, match="not authenticated"):
+            if operation == "exec":
+                await backend.aexec(unsigned, ["true"], timeout=5)
+            elif operation == "copy":
+                await backend.awrite_file(unsigned, "proof.txt", "untrusted")
+            else:
+                await backend.adestroy(unsigned)
+
+        assert fake_sbx.calls == calls_before
+        assert issued.id in fake_sbx.live_sandboxes
+        await backend.adestroy(issued)
+
+    @pytest.mark.parametrize("field", ["id", "workspace"])
+    async def test_the_signature_binds_every_cli_target(
+        self, backend: SbxSandbox, fake_sbx: FakeSbx, field: str
+    ) -> None:
+        issued = await backend.acreate()
+        tampered_id = f"{issued.id}-other" if field == "id" else issued.id
+        tampered_workspace = (
+            f"{issued.metadata['workspace']}-other"
+            if field == "workspace"
+            else issued.metadata["workspace"]
+        )
+        tampered = Sandbox(
+            id=tampered_id,
+            backend="sbx",
+            metadata={
+                "workspace": tampered_workspace,
+                sbx_module._HANDLE_SIGNATURE_KEY: issued.metadata[
+                    sbx_module._HANDLE_SIGNATURE_KEY
+                ],
+            },
+        )
+        calls_before = fake_sbx.calls
+
+        with pytest.raises(SandboxError, match="failed authentication"):
+            await backend.adestroy(tampered)
+
+        assert fake_sbx.calls == calls_before
+        assert issued.id in fake_sbx.live_sandboxes
+        await backend.adestroy(issued)
+
+    async def test_a_valid_handle_works_across_backend_instances(
+        self, backend: SbxSandbox, fake_sbx: FakeSbx
+    ) -> None:
+        issued = await backend.acreate()
+        another_backend = SbxSandbox()
+
+        result = await another_backend.aexec(issued, ["true"], timeout=5)
+
+        assert result.ok
+        await another_backend.adestroy(issued)
+        assert fake_sbx.live_sandboxes == set()
+
+    def test_the_host_key_is_stable_and_private(self) -> None:
+        first = sbx_module._load_or_create_handle_key()
+        second = sbx_module._load_or_create_handle_key()
+        key_path = sbx_module._handle_key_path()
+
+        assert first == second
+        assert len(first) == sbx_module._HANDLE_KEY_BYTES
+        assert key_path.stat().st_mode & 0o077 == 0
+
+
 class TestExecResults:
     async def test_stdout_is_captured(self, backend: SbxSandbox) -> None:
         sandbox = await backend.acreate()
@@ -795,16 +898,19 @@ class TestExecResults:
         assert "�" in result.stdout
 
     async def test_a_vanished_sandbox_is_a_plain_failure(
-        self, backend: SbxSandbox
+        self, backend: SbxSandbox, fake_sbx: FakeSbx
     ) -> None:
         """`sbx exec` cannot be told apart from a command that exited 1, so the
         CLI's own message is preserved rather than guessed at."""
-        result = await backend.aexec(
-            Sandbox(id="never-created", backend="sbx"), ["true"], timeout=5
-        )
+        sandbox = await backend.acreate()
+        (fake_sbx.root / "sandboxes" / sandbox.id).unlink()
+
+        result = await backend.aexec(sandbox, ["true"], timeout=5)
+
         assert result.exit_code == 1
         assert "no sandbox named" in result.stderr
         assert not result.timed_out
+        await backend.adestroy(sandbox)
 
 
 class TestTimeoutSemantics:
@@ -1076,8 +1182,13 @@ class TestDestroy:
     async def test_destroying_a_handle_that_was_never_created_succeeds(
         self, backend: SbxSandbox, fake_sbx: FakeSbx
     ) -> None:
-        await backend.adestroy(Sandbox(id="never-created", backend="sbx"))
+        workspace = tempfile.mkdtemp(prefix=sbx_module._WORKSPACE_PREFIX)
+        handle = authenticated_handle("never-created", workspace)
+
+        await backend.adestroy(handle)
+
         assert fake_sbx.calls_for("rm") == [["rm", "-f", "never-created"]]
+        assert not Path(workspace).exists()
 
     async def test_a_failing_rm_is_loud_and_preserves_the_workspace_for_retry(
         self, backend: SbxSandbox, fake_sbx: FakeSbx
@@ -1172,11 +1283,7 @@ class TestDestroy:
         monkeypatch.setattr(sbx_module.tempfile, "tempdir", str(tmp_path))
         workspace = tmp_path / "prefect-sandbox-ws-no-longer-a-directory"
         workspace.write_text("")
-        handle = Sandbox(
-            id="already-gone",
-            backend="sbx",
-            metadata={"workspace": str(workspace)},
-        )
+        handle = authenticated_handle("already-gone", str(workspace))
 
         with pytest.raises(SandboxError) as excinfo:
             await backend.adestroy(handle)
@@ -1190,14 +1297,17 @@ class TestDestroy:
         handle = Sandbox(
             id="forged",
             backend="sbx",
-            metadata={"workspace": str(tmp_path)},
+            metadata={
+                "workspace": str(tmp_path),
+                sbx_module._HANDLE_SIGNATURE_KEY: "forged",
+            },
         )
 
         with pytest.raises(SandboxError, match="Refusing to remove unowned"):
             await backend.adestroy(handle)
 
         assert tmp_path.exists()
-        assert fake_sbx.calls_for("rm") == [["rm", "-f", "forged"]]
+        assert fake_sbx.calls_for("rm") == []
 
     async def test_an_already_deleted_workspace_is_not_an_error(
         self, backend: SbxSandbox

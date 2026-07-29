@@ -50,6 +50,7 @@ from pydantic import SecretStr, ValidationError
 #: environment, kept distinct so precedence is observable.
 BLOCK_API_KEY = "islo-key-from-the-block"
 ENVIRONMENT_API_KEY = "islo-key-from-the-environment"
+ROTATED_API_KEY = "islo-key-after-rotation"
 
 #: One canned answer to one request, which is all a test needs to describe the
 #: provider misbehaving.
@@ -1232,6 +1233,31 @@ class TestCreateFailureCleanup:
             await backend.acreate()
 
         assert fake_islo.requests == []
+        assert fake_islo.live == set()
+
+    async def test_a_cached_session_is_never_reused_after_api_key_rotation(
+        self, fake_islo: FakeIslo, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A session and the handle it creates must belong to the same API key."""
+        monkeypatch.setenv("ISLO_API_KEY", ENVIRONMENT_API_KEY)
+        backend = IsloSandbox()
+        first = await backend.acreate()
+        await backend.adestroy(first)
+
+        monkeypatch.setenv("ISLO_API_KEY", ROTATED_API_KEY)
+        second = await backend.acreate()
+
+        assert [
+            request.body["access_key"] for request in fake_islo.requests_for("auth")
+        ] == [ENVIRONMENT_API_KEY, ROTATED_API_KEY]
+        assert second.metadata[islo._API_URL_SIGNATURE_KEY] == (
+            backend._api_url_signature(
+                second.id,
+                backend._resolved_api_url(),
+                api_key=ROTATED_API_KEY,
+            )
+        )
+        await backend.adestroy(second)
         assert fake_islo.live == set()
 
     async def test_a_failed_cleanup_reports_a_possibly_live_sandbox(

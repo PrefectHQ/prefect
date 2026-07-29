@@ -454,21 +454,23 @@ class IsloSandbox(SandboxBackend):
     _session_token: str | None = PrivateAttr(default=None)
     _session_token_expires_at: float = PrivateAttr(default=0.0)
     _session_token_api_url: str | None = PrivateAttr(default=None)
+    _session_token_api_key_fingerprint: str | None = PrivateAttr(default=None)
 
     def _resolved_api_url(self) -> str:
         """Return the API base URL, honouring the block, then the environment."""
         url = self.api_url or os.environ.get(_API_URL_ENV_VAR) or _DEFAULT_API_URL
         return url.rstrip("/")
 
-    def _api_url_signature(self, sandbox_id: str, api_url: str) -> str:
+    def _api_url_signature(
+        self, sandbox_id: str, api_url: str, *, api_key: str | None = None
+    ) -> str:
         """Bind a sandbox name and endpoint to this block's secret credential."""
         message = f"{sandbox_id}\0{api_url}".encode()
-        return hmac.new(
-            self._resolved_api_key().encode(), message, hashlib.sha256
-        ).hexdigest()
+        resolved_api_key = self._resolved_api_key() if api_key is None else api_key
+        return hmac.new(resolved_api_key.encode(), message, hashlib.sha256).hexdigest()
 
-    def _api_url_for(self, sandbox: Sandbox) -> str:
-        """Return only an authenticated handle endpoint.
+    def _authenticated_target(self, sandbox: Sandbox) -> tuple[str, str]:
+        """Return the authenticated endpoint and the key that authenticated it.
 
         `Sandbox` is serializable and may be supplied by an untrusted caller. Its URL
         and id therefore cannot decide where credentials are sent or which tenant
@@ -491,13 +493,14 @@ class IsloSandbox(SandboxBackend):
                 "Islo sandbox handle endpoint metadata is not authenticated; "
                 "recreate the handle with IsloSandbox.acreate()."
             )
-        expected = self._api_url_signature(sandbox.id, recorded)
+        api_key = self._resolved_api_key()
+        expected = self._api_url_signature(sandbox.id, recorded, api_key=api_key)
         if not hmac.compare_digest(signature, expected):
             raise SandboxError(
                 "Islo sandbox handle endpoint metadata failed authentication; "
                 "refusing to send credentials or requests to it."
             )
-        return recorded
+        return recorded, api_key
 
     def _resolved_api_key(self) -> str:
         """Return the API key.
@@ -538,7 +541,11 @@ class IsloSandbox(SandboxBackend):
         )
 
     async def _atoken(
-        self, *, force_refresh: bool = False, api_url: str | None = None
+        self,
+        *,
+        force_refresh: bool = False,
+        api_url: str | None = None,
+        api_key: str | None = None,
     ) -> str:
         """Return a session token, exchanging the API key when necessary.
 
@@ -551,22 +558,24 @@ class IsloSandbox(SandboxBackend):
                 the API could not be reached at all.
         """
         endpoint = api_url or self._resolved_api_url()
+        resolved_api_key = self._resolved_api_key() if api_key is None else api_key
+        api_key_fingerprint = hashlib.sha256(resolved_api_key.encode()).hexdigest()
         cached = self._session_token
         if (
             not force_refresh
             and cached
             and self._session_token_api_url == endpoint
+            and self._session_token_api_key_fingerprint == api_key_fingerprint
             and time.time() < self._session_token_expires_at
         ):
             return cached
 
-        api_key = self._resolved_api_key()
         async with self._new_client(
             token=None, timeout=_CONTROL_TIMEOUT, api_url=endpoint
         ) as client:
             try:
                 response = await client.post(
-                    "/auth/token", json={"access_key": api_key}
+                    "/auth/token", json={"access_key": resolved_api_key}
                 )
             except httpx.HTTPError as exc:
                 raise SandboxUnavailableError(
@@ -591,6 +600,7 @@ class IsloSandbox(SandboxBackend):
         self._session_token = token
         self._session_token_expires_at = _token_expiry(token)
         self._session_token_api_url = endpoint
+        self._session_token_api_key_fingerprint = api_key_fingerprint
         return token
 
     async def _arequest(
@@ -600,6 +610,7 @@ class IsloSandbox(SandboxBackend):
         *,
         timeout: float = _CONTROL_TIMEOUT,
         api_url: str | None = None,
+        api_key: str | None = None,
         **kwargs: Any,
     ) -> httpx.Response:
         """Make one authenticated API call, retrying once with a fresh token on 401.
@@ -614,7 +625,11 @@ class IsloSandbox(SandboxBackend):
         """
         endpoint = api_url or self._resolved_api_url()
         for attempt in (0, 1):
-            token = await self._atoken(force_refresh=attempt == 1, api_url=endpoint)
+            token = await self._atoken(
+                force_refresh=attempt == 1,
+                api_url=endpoint,
+                api_key=api_key,
+            )
             async with self._new_client(
                 token=token, timeout=timeout, api_url=endpoint
             ) as client:
@@ -638,6 +653,7 @@ class IsloSandbox(SandboxBackend):
         name: str,
         *,
         api_url: str | None = None,
+        api_key: str | None = None,
         provisioning_timeout: float = 0.0,
     ) -> None:
         """Delete one sandbox by name.
@@ -655,13 +671,17 @@ class IsloSandbox(SandboxBackend):
         deadline = time.monotonic() + provisioning_timeout
         retried_ready_immediately = False
         while True:
-            response = await self._arequest("DELETE", path, api_url=api_url)
+            response = await self._arequest(
+                "DELETE", path, api_url=api_url, api_key=api_key
+            )
             if response.status_code in (200, 202, 204) or _is_absent(response):
                 return
             if response.status_code not in (400, 409) or time.monotonic() >= deadline:
                 break
 
-            status_response = await self._arequest("GET", path, api_url=api_url)
+            status_response = await self._arequest(
+                "GET", path, api_url=api_url, api_key=api_key
+            )
             if _is_absent(status_response):
                 return
             status = str(_json_object(status_response).get("status", "")).lower()
@@ -691,7 +711,13 @@ class IsloSandbox(SandboxBackend):
         )
 
     async def _aawait_ready(
-        self, name: str, status: str, *, api_url: str, deadline: float
+        self,
+        name: str,
+        status: str,
+        *,
+        api_url: str,
+        api_key: str,
+        deadline: float,
     ) -> None:
         """Poll `name` until it can accept commands.
 
@@ -721,7 +747,10 @@ class IsloSandbox(SandboxBackend):
                 )
             await asyncio.sleep(min(_POLL_INTERVAL, remaining))
             response = await self._arequest(
-                "GET", f"/sandboxes/{quote(name, safe='')}", api_url=api_url
+                "GET",
+                f"/sandboxes/{quote(name, safe='')}",
+                api_url=api_url,
+                api_key=api_key,
             )
             if response.status_code >= 400:
                 raise SandboxCreationError(
@@ -789,8 +818,9 @@ class IsloSandbox(SandboxBackend):
         # request. `_atoken` may return a cached session without consulting the API key;
         # signing only after provisioning would then let an environment-key removal
         # turn a successful create into an unsigned-handle failure that leaks the VM.
-        api_url_signature = self._api_url_signature(name, api_url)
-        await self._atoken(api_url=api_url)
+        api_key = self._resolved_api_key()
+        api_url_signature = self._api_url_signature(name, api_url, api_key=api_key)
+        await self._atoken(api_url=api_url, api_key=api_key)
         create_deadline = time.monotonic() + self.create_timeout
 
         body: dict[str, Any] = {}
@@ -801,6 +831,7 @@ class IsloSandbox(SandboxBackend):
                 json=payload,
                 timeout=self.create_timeout,
                 api_url=api_url,
+                api_key=api_key,
             )
             if response.status_code not in (200, 201):
                 raise SandboxCreationError(
@@ -813,6 +844,7 @@ class IsloSandbox(SandboxBackend):
                 name,
                 str(body.get("status", "")),
                 api_url=api_url,
+                api_key=api_key,
                 deadline=create_deadline,
             )
         except BaseException as create_error:
@@ -826,6 +858,7 @@ class IsloSandbox(SandboxBackend):
                     self._adelete(
                         name,
                         api_url=api_url,
+                        api_key=api_key,
                         provisioning_timeout=self.create_timeout,
                     )
                 )
@@ -881,7 +914,29 @@ class IsloSandbox(SandboxBackend):
             SandboxExecutionError: If the execution stream itself failed.
         """
         validate_exec_request(command, timeout, env)
+        api_url, api_key = self._authenticated_target(sandbox)
+        return await self._aexec_authenticated(
+            sandbox,
+            command,
+            timeout=timeout,
+            env=env,
+            working_dir=working_dir,
+            api_url=api_url,
+            api_key=api_key,
+        )
 
+    async def _aexec_authenticated(
+        self,
+        sandbox: Sandbox,
+        command: Sequence[str],
+        *,
+        timeout: float,
+        env: Mapping[str, str] | None,
+        working_dir: str | None,
+        api_url: str,
+        api_key: str,
+    ) -> SandboxResult:
+        """Execute after one credential has authenticated the complete target."""
         payload: dict[str, Any] = {
             "command": list(command),
             # Sent for the provider's own bookkeeping. It is documented as a hint, so
@@ -898,18 +953,24 @@ class IsloSandbox(SandboxBackend):
 
         stdout = _CappedText(self.max_output_bytes)
         stderr = _CappedText(self.max_output_bytes)
-        api_url = self._api_url_for(sandbox)
         try:
             exit_code = await asyncio.wait_for(
                 self._astream_exec(
-                    sandbox.id, payload, stdout, stderr, api_url=api_url
+                    sandbox.id,
+                    payload,
+                    stdout,
+                    stderr,
+                    api_url=api_url,
+                    api_key=api_key,
                 ),
                 timeout,
             )
         except asyncio.TimeoutError:
             # Abandoning the stream does not prove the guest process stopped. Taking the
             # sandbox is the only honest way to enforce the requested wall clock.
-            await _shielded_cleanup(self.adestroy(sandbox))
+            await _shielded_cleanup(
+                self._adelete(sandbox.id, api_url=api_url, api_key=api_key)
+            )
             notice = (
                 f"Command did not return within {timeout:g}s; the sandbox was "
                 "destroyed."
@@ -940,6 +1001,7 @@ class IsloSandbox(SandboxBackend):
         stderr: _CappedText,
         *,
         api_url: str,
+        api_key: str,
     ) -> int:
         """Stream one command's output into `stdout`/`stderr` and return its exit code.
 
@@ -952,7 +1014,11 @@ class IsloSandbox(SandboxBackend):
         """
         path = f"/sandboxes/{quote(name, safe='')}/exec/stream"
         for attempt in (0, 1):
-            token = await self._atoken(force_refresh=attempt == 1, api_url=api_url)
+            token = await self._atoken(
+                force_refresh=attempt == 1,
+                api_url=api_url,
+                api_key=api_key,
+            )
             # No read timeout: a command may legitimately print nothing for a long
             # time, and the caller's wall clock is the only deadline that applies.
             client = self._new_client(
@@ -1056,7 +1122,8 @@ class IsloSandbox(SandboxBackend):
             SandboxError: If deletion could not be confirmed, since untrusted code may
                 still be running.
         """
-        await self._adelete(sandbox.id, api_url=self._api_url_for(sandbox))
+        api_url, api_key = self._authenticated_target(sandbox)
+        await self._adelete(sandbox.id, api_url=api_url, api_key=api_key)
 
     async def awrite_file(self, sandbox: Sandbox, path: str, content: str) -> None:
         """Write `content` to `path` inside `sandbox` using Islo's file API.
@@ -1074,12 +1141,19 @@ class IsloSandbox(SandboxBackend):
             SandboxError: If the destination directory could not be created or the
                 upload failed.
         """
+        api_url, api_key = self._authenticated_target(sandbox)
         directory = path.rsplit("/", 1)[0] if "/" in path else ""
         if directory:
             # The upload endpoint writes one file; it does not create missing parents.
             try:
-                result = await self.aexec(
-                    sandbox, ["mkdir", "-p", directory], timeout=60
+                result = await self._aexec_authenticated(
+                    sandbox,
+                    ["mkdir", "-p", directory],
+                    timeout=60,
+                    env=None,
+                    working_dir=None,
+                    api_url=api_url,
+                    api_key=api_key,
                 )
             except SandboxError as exc:
                 # `aexec` raises when the sandbox itself is unusable — a vanished
@@ -1103,7 +1177,8 @@ class IsloSandbox(SandboxBackend):
             params={"path": path},
             files={"file": (filename, content.encode(), "application/octet-stream")},
             timeout=_UPLOAD_TIMEOUT,
-            api_url=self._api_url_for(sandbox),
+            api_url=api_url,
+            api_key=api_key,
         )
         if response.status_code not in (200, 201, 204):
             raise SandboxError(
