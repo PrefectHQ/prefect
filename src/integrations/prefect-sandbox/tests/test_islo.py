@@ -1217,6 +1217,23 @@ class TestCreateFailureCleanup:
 
         assert fake_islo.requests == []
 
+    async def test_a_cached_session_cannot_bypass_pre_provision_key_resolution(
+        self, fake_islo: FakeIslo, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A handle must be signable before its sandbox is provisioned."""
+        monkeypatch.setenv("ISLO_API_KEY", ENVIRONMENT_API_KEY)
+        backend = IsloSandbox()
+        first = await backend.acreate()
+        await backend.adestroy(first)
+        fake_islo.requests.clear()
+        monkeypatch.delenv("ISLO_API_KEY")
+
+        with pytest.raises(SandboxUnavailableError):
+            await backend.acreate()
+
+        assert fake_islo.requests == []
+        assert fake_islo.live == set()
+
     async def test_a_failed_cleanup_reports_a_possibly_live_sandbox(
         self, backend: IsloSandbox, fake_islo: FakeIslo
     ) -> None:

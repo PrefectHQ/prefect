@@ -785,11 +785,11 @@ class IsloSandbox(SandboxBackend):
         if self.delete_after is not None:
             payload["lifecycle"] = {"delete_after": self.delete_after}
 
-        # Resolve a credential *before* the guarded block. A missing or rejected key is
-        # the one failure that provably cannot have provisioned anything, so failing
-        # fast here is what lets every failure below be cleaned up unconditionally —
-        # including a later token refresh dying mid-poll, which would otherwise look
-        # like "no credential, so no sandbox" long after a microVM had been created.
+        # Resolve the credential and build the handle authenticator before any create
+        # request. `_atoken` may return a cached session without consulting the API key;
+        # signing only after provisioning would then let an environment-key removal
+        # turn a successful create into an unsigned-handle failure that leaks the VM.
+        api_url_signature = self._api_url_signature(name, api_url)
         await self._atoken(api_url=api_url)
         create_deadline = time.monotonic() + self.create_timeout
 
@@ -841,7 +841,7 @@ class IsloSandbox(SandboxBackend):
 
         metadata = {
             "api_url": api_url,
-            _API_URL_SIGNATURE_KEY: self._api_url_signature(name, api_url),
+            _API_URL_SIGNATURE_KEY: api_url_signature,
         }
         sandbox_id = body.get("id")
         if isinstance(sandbox_id, str) and sandbox_id:
