@@ -20,6 +20,7 @@ import stat
 import tempfile
 from collections.abc import Mapping, Sequence
 from contextlib import suppress
+from functools import lru_cache
 from pathlib import Path
 from typing import ClassVar, Literal
 
@@ -140,6 +141,22 @@ def _unlink_quietly(path: str) -> None:
         os.unlink(path)
 
 
+async def _astage_host_temp_file(content: str) -> str:
+    """Finish staging before delivering cancellation, deleting any staged file."""
+    staging = asyncio.create_task(asyncio.to_thread(_write_host_temp_file, content))
+    cancelled = False
+    while not staging.done():
+        try:
+            await asyncio.shield(staging)
+        except asyncio.CancelledError:
+            cancelled = True
+    host_path = staging.result()
+    if cancelled:
+        await _shielded_cleanup(asyncio.to_thread(_unlink_quietly, host_path))
+        raise asyncio.CancelledError
+    return host_path
+
+
 def _validated_workspace_path(workspace: str) -> Path:
     """Return an owned workspace path or reject unsafe recursive deletion."""
     candidate = Path(workspace)
@@ -187,6 +204,24 @@ def _read_handle_key(path: Path) -> bytes:
     return key
 
 
+@lru_cache(maxsize=128)
+def _sync_handle_key_directory(directory: Path) -> None:
+    """Make the handle-key directory durable once in this host process."""
+    if os.name != "posix":
+        return
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    try:
+        fd = os.open(directory, flags)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+    except OSError as exc:
+        raise SandboxUnavailableError(
+            f"Could not sync sandbox handle key directory {str(directory)!r}: {exc}"
+        ) from exc
+
+
 def _load_or_create_handle_key() -> bytes:
     """Load the host signing key, publishing a complete 0600 file atomically."""
     path = _handle_key_path()
@@ -200,7 +235,9 @@ def _load_or_create_handle_key() -> bytes:
 
     while True:
         try:
-            return _read_handle_key(path)
+            key = _read_handle_key(path)
+            _sync_handle_key_directory(path.parent)
+            return key
         except FileNotFoundError:
             key = secrets.token_bytes(_HANDLE_KEY_BYTES)
             staging_path = path.with_name(f".{path.name}.{secrets.token_hex(8)}.tmp")
@@ -230,11 +267,15 @@ def _load_or_create_handle_key() -> bytes:
                     # install.
                     os.link(staging_path, path)
                 except FileExistsError:
+                    _sync_handle_key_directory.cache_clear()
+                    _sync_handle_key_directory(path.parent)
                     continue
                 except OSError as exc:
                     raise SandboxUnavailableError(
                         f"Could not install sandbox handle key {str(path)!r}: {exc}"
                     ) from exc
+                _sync_handle_key_directory.cache_clear()
+                _sync_handle_key_directory(path.parent)
                 return key
             finally:
                 try:
@@ -849,7 +890,7 @@ class SbxSandbox(SandboxBackend):
                     f"exit {result.exit_code} {result.stderr.strip()[:500]}"
                 )
 
-        host_path = await asyncio.to_thread(_write_host_temp_file, content)
+        host_path = await _astage_host_temp_file(content)
         try:
             try:
                 code, _, stderr, _ = await self._acli(
@@ -867,4 +908,4 @@ class SbxSandbox(SandboxBackend):
                     f"{stderr.strip()[:500]}"
                 )
         finally:
-            await asyncio.to_thread(_unlink_quietly, host_path)
+            await _shielded_cleanup(asyncio.to_thread(_unlink_quietly, host_path))

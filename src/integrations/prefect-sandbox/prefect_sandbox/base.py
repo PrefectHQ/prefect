@@ -56,6 +56,10 @@ SANDBOX_NAME_PREFIX = "prefect-sandbox-"
 #: should override `awrite_file` and are not bound by this.
 MAX_INLINE_FILE_BYTES = 256 * 1024
 
+#: Keep each base64 chunk well below Linux's per-string `MAX_ARG_STRLEN`.
+#: The full fallback remains bounded separately by `MAX_INLINE_FILE_BYTES`.
+_INLINE_FILE_ARGUMENT_BYTES = 32 * 1024
+
 
 class SandboxError(Exception):
     """Base class for every sandbox failure."""
@@ -308,11 +312,19 @@ class SandboxBackend(Block, ABC):
                 "transfer; write the data in chunks or use a backend that does."
             )
         encoded = base64.b64encode(raw).decode()
+        payload_arguments = [
+            encoded[offset : offset + _INLINE_FILE_ARGUMENT_BYTES]
+            for offset in range(0, len(encoded), _INLINE_FILE_ARGUMENT_BYTES)
+        ]
         directory = path.rsplit("/", 1)[0] if "/" in path else ""
         script = (
             f"mkdir -p {shlex.quote(directory)} && " if directory else ""
-        ) + f"printf %s {shlex.quote(encoded)} | base64 -d > {shlex.quote(path)}"
-        result = await self.aexec(sandbox, ["sh", "-c", script], timeout=60)
+        ) + f'printf %s "$@" | base64 -d > {shlex.quote(path)}'
+        result = await self.aexec(
+            sandbox,
+            ["sh", "-c", script, "prefect-sandbox-write", *payload_arguments],
+            timeout=60,
+        )
         if not result.ok:
             raise SandboxError(
                 f"Failed to write {path!r} into {sandbox}: "

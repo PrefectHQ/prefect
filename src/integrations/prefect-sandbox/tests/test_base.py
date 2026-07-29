@@ -23,6 +23,7 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import ClassVar
 
+import prefect_sandbox.base as base_module
 import pytest
 from prefect_sandbox.base import (
     DEFAULT_MAX_OUTPUT_BYTES,
@@ -342,8 +343,9 @@ class TestPortableWriteFile:
         content = "quotes ' \" and $(subshell) and\nnewlines\n"
         await backend.awrite_file(sandbox, "/work/main.py", content)
 
-        script = backend.execs[0].command[2]
-        assert base64.b64encode(content.encode()).decode() in script
+        command = backend.execs[0].command
+        script = command[2]
+        assert "".join(command[4:]) == base64.b64encode(content.encode()).decode()
         assert "base64 -d" in script
         # The payload must never appear verbatim; that is the entire point of
         # encoding it.
@@ -399,10 +401,8 @@ class TestPortableWriteFile:
         target = tmp_path / "sub" / "dir" / "out.txt"
         await backend.awrite_file(sandbox, str(target), content)
 
-        script = backend.execs[0].command[2]
-        completed = subprocess.run(
-            ["sh", "-c", script], capture_output=True, timeout=30
-        )
+        command = backend.execs[0].command
+        completed = subprocess.run(command, capture_output=True, timeout=30)
         assert completed.returncode == 0, completed.stderr
         assert target.read_text(encoding="utf-8") == content
 
@@ -425,7 +425,29 @@ class TestPortableWriteFile:
     ) -> None:
         sandbox = await backend.acreate()
         await backend.awrite_file(sandbox, "/big", "x" * MAX_INLINE_FILE_BYTES)
-        assert len(backend.execs) == 1
+        (call,) = backend.execs
+        assert len(call.command[4:]) > 1
+        assert (
+            max(map(len, call.command[4:])) <= base_module._INLINE_FILE_ARGUMENT_BYTES
+        )
+
+    @pytest.mark.skipif(
+        shutil.which("sh") is None or shutil.which("base64") is None,
+        reason="needs a POSIX shell and base64 to run the generated script",
+    )
+    async def test_the_ceiling_round_trips_without_one_oversized_argument(
+        self, backend: RecordingBackend, tmp_path: Path
+    ) -> None:
+        content = "x" * MAX_INLINE_FILE_BYTES
+        target = tmp_path / "at-ceiling"
+        sandbox = await backend.acreate()
+        await backend.awrite_file(sandbox, str(target), content)
+
+        (call,) = backend.execs
+        completed = subprocess.run(call.command, capture_output=True, timeout=30)
+
+        assert completed.returncode == 0, completed.stderr
+        assert target.read_text() == content
 
     async def test_the_ceiling_is_measured_in_encoded_bytes(
         self, backend: RecordingBackend

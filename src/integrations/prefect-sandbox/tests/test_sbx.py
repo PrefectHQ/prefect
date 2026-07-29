@@ -24,8 +24,10 @@ import dataclasses
 import json
 import os
 import re
+import stat
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -841,6 +843,21 @@ class TestHandleAuthentication:
         assert len(first) == sbx_module._HANDLE_KEY_BYTES
         assert key_path.stat().st_mode & 0o077 == 0
 
+    def test_publishing_the_host_key_syncs_its_directory(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        synced_modes: list[int] = []
+        real_fsync = os.fsync
+
+        def record_fsync(fd: int) -> None:
+            synced_modes.append(os.fstat(fd).st_mode)
+            real_fsync(fd)
+
+        monkeypatch.setattr(sbx_module.os, "fsync", record_fsync)
+        sbx_module._load_or_create_handle_key()
+
+        assert any(stat.S_ISDIR(mode) for mode in synced_modes)
+
     @pytest.mark.parametrize("failure_point", ["write", "flush", "fsync"])
     def test_a_failed_key_write_removes_its_staging_file(
         self, monkeypatch: pytest.MonkeyPatch, failure_point: str
@@ -1474,6 +1491,41 @@ class TestWriteFile:
         await backend.awrite_file(sandbox, "/tmp/prefect-sandbox/main.py", "x")
         host_path = fake_sbx.calls_for("cp")[0][1]
         assert not Path(host_path).exists()
+
+    async def test_cancellation_joins_and_removes_an_in_flight_staging_file(
+        self,
+        backend: SbxSandbox,
+        fake_sbx: FakeSbx,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        staged = tmp_path / "prefect-sandbox-sensitive"
+        started = threading.Event()
+        release = threading.Event()
+
+        def slow_stage(content: str) -> str:
+            staged.write_text(content)
+            started.set()
+            if not release.wait(5):
+                raise RuntimeError("test did not release staging")
+            return str(staged)
+
+        monkeypatch.setattr(sbx_module, "_write_host_temp_file", slow_stage)
+        sandbox = await backend.acreate()
+        writing = asyncio.create_task(
+            backend.awrite_file(sandbox, "main.py", "sensitive")
+        )
+        assert await asyncio.to_thread(started.wait, 2)
+
+        writing.cancel()
+        await asyncio.sleep(0)
+        assert not writing.done()
+        release.set()
+
+        with pytest.raises(asyncio.CancelledError):
+            await asyncio.wait_for(writing, 5)
+        assert not staged.exists()
+        assert fake_sbx.calls_for("cp") == []
 
     async def test_no_mkdir_for_a_bare_filename(
         self, backend: SbxSandbox, fake_sbx: FakeSbx
