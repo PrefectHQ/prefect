@@ -20,7 +20,7 @@ prefect-sandbox integration documentation for the onboarding contract.
 
 ## Functions
 
-### `new_sandbox_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L145" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `new_sandbox_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L146" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 new_sandbox_name() -> str
@@ -30,7 +30,7 @@ new_sandbox_name() -> str
 Generate a unique, identifiable sandbox name.
 
 
-### `validate_env` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L150" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `validate_env` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L151" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_env(env: Mapping[str, str] | None) -> None
@@ -40,7 +40,7 @@ validate_env(env: Mapping[str, str] | None) -> None
 Reject environment variables a POSIX `env` invocation cannot express.
 
 
-### `validate_exec_request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L159" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `validate_exec_request` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L160" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_exec_request(command: Sequence[str], timeout: float, env: Mapping[str, str] | None) -> None
@@ -101,7 +101,7 @@ which is what makes a single shared backend instance safe for concurrent flow
 runs — two runs cannot see, overwrite, or destroy each other's sandbox.
 
 
-### `SandboxResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L104" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SandboxResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L105" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 The outcome of one command execution inside a sandbox.
@@ -119,7 +119,7 @@ to stop the command. The handle is dead; provision a new one.
 
 **Methods:**
 
-#### `ok` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L126" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `ok` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L127" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 ok(self) -> bool
@@ -128,7 +128,7 @@ ok(self) -> bool
 True when the command completed successfully.
 
 
-#### `raise_for_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L130" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `raise_for_status` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L131" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 raise_for_status(self) -> None
@@ -137,7 +137,7 @@ raise_for_status(self) -> None
 Raise `SandboxExecutionError` unless the command succeeded.
 
 
-### `SandboxBackend` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L192" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `SandboxBackend` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L193" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Contract for provisioning sandboxes and running commands inside them.
@@ -175,7 +175,7 @@ SbxSandbox(image="python:3.12-slim", memory="4g").save("scratch")
 
 **Methods:**
 
-#### `aclose` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L273" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aclose` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L274" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aclose(self) -> None
@@ -187,7 +187,7 @@ Separate from `adestroy`, which disposes of a single sandbox. The default is
 a no-op; backends holding a client should override it.
 
 
-#### `acreate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L242" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `acreate` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L243" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 acreate(self) -> Sandbox
@@ -196,7 +196,7 @@ acreate(self) -> Sandbox
 Provision one sandbox and return its handle.
 
 
-#### `adestroy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L270" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `adestroy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L271" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 adestroy(self, sandbox: Sandbox) -> None
@@ -205,7 +205,7 @@ adestroy(self, sandbox: Sandbox) -> None
 Tear down `sandbox`. Idempotent.
 
 
-#### `aexec` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L246" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `aexec` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L247" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 aexec(self, sandbox: Sandbox, command: Sequence[str]) -> SandboxResult
@@ -225,7 +225,7 @@ not need to quote anything.
 - A `SandboxResult`. A nonzero exit code is reported here, not raised.
 
 
-#### `asession` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L309" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `asession` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L310" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 asession(self) -> AsyncIterator[Sandbox]
@@ -239,7 +239,7 @@ async with backend.asession() as sandbox:
 ```
 
 
-#### `awrite_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L280" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `awrite_file` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/prefect_sandbox/base.py#L281" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 awrite_file(self, sandbox: Sandbox, path: str, content: str) -> None
