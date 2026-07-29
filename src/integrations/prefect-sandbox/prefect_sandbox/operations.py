@@ -30,6 +30,7 @@ from prefect_sandbox.base import (
     SandboxError,
     SandboxResult,
     _shielded_cleanup,
+    _validate_command_entries,
     validate_env,
 )
 
@@ -459,9 +460,9 @@ class SandboxOperation:
         """Validate and record the operation's configuration.
 
         Raises:
-            ValueError: If `commands` is a bare string/bytes value or is empty,
-                `timeout` is not positive, or `env` holds a name a POSIX `env`
-                invocation cannot express.
+            ValueError: If `commands` is a bare string/bytes value, is empty, or
+                contains a non-string/null-bearing entry; `timeout` is not positive;
+                or `env` holds a name a POSIX `env` invocation cannot express.
         """
         if isinstance(commands, (str, bytes)):
             raise ValueError(
@@ -470,6 +471,7 @@ class SandboxOperation:
             )
         if not commands:
             raise ValueError("`commands` must contain at least one command.")
+        _validate_command_entries(commands, label="commands")
         if not math.isfinite(timeout) or timeout <= 0:
             raise ValueError(
                 f"`timeout` must be a positive, finite number, got {timeout!r}."

@@ -16,6 +16,8 @@ from __future__ import annotations
 import asyncio
 import base64
 import codecs
+import hashlib
+import hmac
 import json
 import math
 import os
@@ -49,6 +51,11 @@ _DEFAULT_API_URL = "https://api.islo.dev"
 #: Environment fallbacks, matching the names the Islo CLI itself reads.
 _API_KEY_ENV_VAR = "ISLO_API_KEY"
 _API_URL_ENV_VAR = "ISLO_API_URL"
+
+#: Authenticator for the endpoint carried by a serialized sandbox handle. The URL
+#: must survive transport to another worker, but the handle itself is caller-provided
+#: data and therefore cannot be trusted without this keyed binding.
+_API_URL_SIGNATURE_KEY = "api_url_signature"
 
 #: Reported when the wall clock expired, so the command's own status is unknown.
 _UNKNOWN_EXIT_CODE = -1
@@ -453,12 +460,42 @@ class IsloSandbox(SandboxBackend):
         url = self.api_url or os.environ.get(_API_URL_ENV_VAR) or _DEFAULT_API_URL
         return url.rstrip("/")
 
+    def _api_url_signature(self, sandbox_id: str, api_url: str) -> str:
+        """Bind a sandbox name and endpoint to this block's secret credential."""
+        message = f"{sandbox_id}\0{api_url}".encode()
+        return hmac.new(
+            self._resolved_api_key().encode(), message, hashlib.sha256
+        ).hexdigest()
+
     def _api_url_for(self, sandbox: Sandbox) -> str:
-        """Return the endpoint recorded on `sandbox`, falling back for old handles."""
+        """Return only a configured or authenticated handle endpoint.
+
+        `Sandbox` is serializable and may be supplied by an untrusted caller. Its URL
+        therefore cannot decide where the raw API key or session token is sent unless
+        it carries the HMAC written by `acreate`. Old unsigned handles safely fall
+        back to the current block configuration.
+
+        Raises:
+            SandboxError: If signed endpoint metadata was altered.
+        """
+        configured = self._resolved_api_url()
         recorded = sandbox.metadata.get("api_url")
-        if isinstance(recorded, str) and recorded.strip():
-            return recorded.strip().rstrip("/")
-        return self._resolved_api_url()
+        if not isinstance(recorded, str) or not recorded.strip():
+            return configured
+        recorded = recorded.strip().rstrip("/")
+        if recorded == configured:
+            return configured
+
+        signature = sandbox.metadata.get(_API_URL_SIGNATURE_KEY)
+        if not isinstance(signature, str) or not signature:
+            return configured
+        expected = self._api_url_signature(sandbox.id, recorded)
+        if not hmac.compare_digest(signature, expected):
+            raise SandboxError(
+                "Islo sandbox handle endpoint metadata failed authentication; "
+                "refusing to send credentials or requests to it."
+            )
+        return recorded
 
     def _resolved_api_key(self) -> str:
         """Return the API key.
@@ -800,7 +837,10 @@ class IsloSandbox(SandboxBackend):
                 ) from cleanup_error
             raise
 
-        metadata = {"api_url": api_url}
+        metadata = {
+            "api_url": api_url,
+            _API_URL_SIGNATURE_KEY: self._api_url_signature(name, api_url),
+        }
         sandbox_id = body.get("id")
         if isinstance(sandbox_id, str) and sandbox_id:
             metadata["sandbox_id"] = sandbox_id

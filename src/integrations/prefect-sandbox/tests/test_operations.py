@@ -1532,6 +1532,24 @@ class TestValidation:
             SandboxOperation(FakeSandbox(), [])
 
     @pytest.mark.parametrize(
+        ("commands", "message"),
+        [
+            ([1], r"commands\[0\] must be a string"),
+            ([b"true"], r"commands\[0\] must be a string"),
+            (["echo\0x"], r"commands\[0\] must not contain a null byte"),
+        ],
+    )
+    def test_every_command_entry_is_validated_before_provisioning(
+        self, commands: list[object], message: str
+    ) -> None:
+        backend = FakeSandbox()
+
+        with pytest.raises(ValueError, match=message):
+            SandboxOperation(backend, commands)  # type: ignore[arg-type]
+
+        assert backend.events == []
+
+    @pytest.mark.parametrize(
         "timeout", [0, -1, -0.5, float("inf"), float("-inf"), float("nan")]
     )
     def test_timeout_must_be_positive(self, timeout: float) -> None:

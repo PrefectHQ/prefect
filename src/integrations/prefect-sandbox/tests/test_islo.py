@@ -550,16 +550,11 @@ class TestApiUrl:
         self, fake_islo: FakeIslo
     ) -> None:
         """A serialized handle remains usable by a differently configured worker."""
-        name = f"{SANDBOX_NAME_PREFIX}regional"
-        fake_islo.live.add(name)
-        handle = Sandbox(
-            id=name,
-            backend="islo",
-            metadata={
-                "api_url": "https://ca.compute.islo.dev",
-                "sandbox_id": "sb_regional",
-            },
+        creator = IsloSandbox(
+            api_key=SecretStr(BLOCK_API_KEY),
+            api_url="https://ca.compute.islo.dev",
         )
+        handle = await creator.acreate()
         backend = IsloSandbox(
             api_key=SecretStr(BLOCK_API_KEY),
             api_url="https://wrong.compute.islo.dev",
@@ -572,6 +567,76 @@ class TestApiUrl:
         assert {request.url.host for request in fake_islo.requests} == {
             "ca.compute.islo.dev"
         }
+
+    async def test_unsigned_handle_url_falls_back_to_trusted_configuration(
+        self, fake_islo: FakeIslo
+    ) -> None:
+        """Handles from an older release cannot choose a credential destination."""
+        name = f"{SANDBOX_NAME_PREFIX}unsigned"
+        fake_islo.live.add(name)
+        handle = Sandbox(
+            id=name,
+            backend="islo",
+            metadata={"api_url": "https://attacker.example"},
+        )
+        backend = IsloSandbox(
+            api_key=SecretStr(BLOCK_API_KEY),
+            api_url="https://api.islo.dev",
+        )
+
+        await backend.aexec(handle, ["true"], timeout=5)
+
+        assert {request.url.host for request in fake_islo.requests} == {"api.islo.dev"}
+
+    @pytest.mark.parametrize("operation", ["exec", "write", "destroy"])
+    async def test_tampered_handle_url_is_rejected_before_any_request(
+        self, fake_islo: FakeIslo, operation: str
+    ) -> None:
+        """A caller-provided handle cannot redirect either credential to its host."""
+        handle = Sandbox(
+            id=f"{SANDBOX_NAME_PREFIX}tampered",
+            backend="islo",
+            metadata={
+                "api_url": "https://attacker.example",
+                islo._API_URL_SIGNATURE_KEY: "not-a-valid-signature",
+            },
+        )
+        backend = IsloSandbox(
+            api_key=SecretStr(BLOCK_API_KEY),
+            api_url="https://api.islo.dev",
+        )
+
+        with pytest.raises(SandboxError, match="failed authentication"):
+            if operation == "exec":
+                await backend.aexec(handle, ["true"], timeout=5)
+            elif operation == "write":
+                await backend.awrite_file(handle, "main.py", "print('hi')\n")
+            else:
+                await backend.adestroy(handle)
+
+        assert fake_islo.requests == []
+
+    async def test_handle_endpoint_signature_is_bound_to_the_sandbox_name(
+        self, backend: IsloSandbox, fake_islo: FakeIslo
+    ) -> None:
+        handle = await backend.acreate()
+        copied = Sandbox(
+            id=f"{handle.id}-different",
+            backend=handle.backend,
+            metadata={
+                **handle.metadata,
+                "api_url": "https://ca.compute.islo.dev",
+            },
+        )
+        fake_islo.requests.clear()
+
+        with pytest.raises(SandboxError, match="failed authentication"):
+            await IsloSandbox(
+                api_key=SecretStr(BLOCK_API_KEY),
+                api_url="https://wrong.compute.islo.dev",
+            ).aexec(copied, ["true"], timeout=5)
+
+        assert fake_islo.requests == []
 
 
 class TestBlockShape:
@@ -754,6 +819,9 @@ class TestCreateRequest:
         handle = await backend.acreate()
         assert handle.metadata == {
             "api_url": "https://api.islo.dev",
+            islo._API_URL_SIGNATURE_KEY: backend._api_url_signature(
+                handle.id, "https://api.islo.dev"
+            ),
             "sandbox_id": fake_islo.provider_id,
         }
 

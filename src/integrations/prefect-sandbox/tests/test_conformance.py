@@ -84,6 +84,21 @@ _INVALID_EXEC_REQUESTS = [
         id="bytes-command",
     ),
     pytest.param(
+        {"command": [1], "timeout": 5},
+        "command[0] must be a string.",
+        id="non-string-argument",
+    ),
+    pytest.param(
+        {"command": [b"true"], "timeout": 5},
+        "command[0] must be a string.",
+        id="bytes-argument",
+    ),
+    pytest.param(
+        {"command": ["echo\0x"], "timeout": 5},
+        "command[0] must not contain a null byte.",
+        id="null-byte-argument",
+    ),
+    pytest.param(
         {"command": [], "timeout": 5}, "command must not be empty.", id="empty"
     ),
     pytest.param(

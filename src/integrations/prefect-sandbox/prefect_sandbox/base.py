@@ -157,6 +157,15 @@ def validate_env(env: Mapping[str, str] | None) -> None:
             raise ValueError(f"Environment variable {key!r} contains a null byte.")
 
 
+def _validate_command_entries(commands: Sequence[str], *, label: str) -> None:
+    """Reject entries that cannot be passed as command strings."""
+    for index, entry in enumerate(commands):
+        if not isinstance(entry, str):
+            raise ValueError(f"{label}[{index}] must be a string.")
+        if "\0" in entry:
+            raise ValueError(f"{label}[{index}] must not contain a null byte.")
+
+
 def validate_exec_request(
     command: Sequence[str], timeout: float, env: Mapping[str, str] | None
 ) -> None:
@@ -166,14 +175,15 @@ def validate_exec_request(
     with the same message, which is what makes the conformance suite meaningful.
 
     Raises:
-        ValueError: If `command` is a bare string/bytes value or is empty, `timeout`
-            is not a positive finite number, or `env` cannot be expressed as POSIX
-            environment variables.
+        ValueError: If `command` is a bare string/bytes value, is empty, or contains
+            a non-string/null-bearing entry; `timeout` is not a positive finite
+            number; or `env` cannot be expressed as POSIX environment variables.
     """
     if isinstance(command, (str, bytes)):
         raise ValueError("command must be an argv sequence, not a string or bytes.")
     if not command:
         raise ValueError("command must not be empty.")
+    _validate_command_entries(command, label="command")
     if not math.isfinite(timeout) or timeout <= 0:
         raise ValueError(f"timeout must be a positive, finite number: {timeout!r}")
     validate_env(env)
