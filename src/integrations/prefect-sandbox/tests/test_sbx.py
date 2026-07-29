@@ -841,6 +841,52 @@ class TestHandleAuthentication:
         assert len(first) == sbx_module._HANDLE_KEY_BYTES
         assert key_path.stat().st_mode & 0o077 == 0
 
+    @pytest.mark.parametrize("failure_point", ["write", "flush", "fsync"])
+    def test_a_failed_key_write_removes_its_staging_file(
+        self, monkeypatch: pytest.MonkeyPatch, failure_point: str
+    ) -> None:
+        """Disk-pressure failures never accumulate partial host signing keys."""
+        key_path = sbx_module._handle_key_path()
+
+        if failure_point in {"write", "flush"}:
+
+            class FailingHandle:
+                def __init__(self, fd: int) -> None:
+                    self.fd = fd
+
+                def __enter__(self) -> FailingHandle:
+                    return self
+
+                def __exit__(self, *exc_info: object) -> bool:
+                    return False
+
+                def write(self, value: bytes) -> int:
+                    if failure_point == "write":
+                        raise OSError(28, "No space left on device")
+                    return os.write(self.fd, value)
+
+                def flush(self) -> None:
+                    if failure_point == "flush":
+                        raise OSError(28, "No space left on device")
+
+            monkeypatch.setattr(
+                sbx_module.os,
+                "fdopen",
+                lambda fd, *args, **kwargs: FailingHandle(fd),
+            )
+        else:
+
+            def fail_fsync(fd: int) -> None:
+                raise OSError(28, "No space left on device")
+
+            monkeypatch.setattr(sbx_module.os, "fsync", fail_fsync)
+
+        with pytest.raises(SandboxUnavailableError, match="Could not write"):
+            sbx_module._load_or_create_handle_key()
+
+        assert not key_path.exists()
+        assert list(key_path.parent.glob(f".{key_path.name}.*.tmp")) == []
+
 
 class TestExecResults:
     async def test_stdout_is_captured(self, backend: SbxSandbox) -> None:

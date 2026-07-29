@@ -212,26 +212,40 @@ def _load_or_create_handle_key() -> bytes:
                     f"Could not stage sandbox handle key {str(path)!r}: {exc}"
                 ) from exc
             try:
-                with os.fdopen(fd, "wb", closefd=False) as handle:
-                    handle.write(key)
-                    handle.flush()
-                    os.fsync(fd)
+                try:
+                    try:
+                        with os.fdopen(fd, "wb", closefd=False) as handle:
+                            handle.write(key)
+                            handle.flush()
+                            os.fsync(fd)
+                    except OSError as exc:
+                        raise SandboxUnavailableError(
+                            f"Could not write sandbox handle key {str(path)!r}: {exc}"
+                        ) from exc
+                finally:
+                    os.close(fd)
+                try:
+                    # A hard link publishes the already-complete inode without
+                    # replacing a key another process may have won the race to
+                    # install.
+                    os.link(staging_path, path)
+                except FileExistsError:
+                    continue
+                except OSError as exc:
+                    raise SandboxUnavailableError(
+                        f"Could not install sandbox handle key {str(path)!r}: {exc}"
+                    ) from exc
+                return key
             finally:
-                os.close(fd)
-            try:
-                # A hard link publishes the already-complete inode without replacing
-                # a key another process may have won the race to install.
-                os.link(staging_path, path)
-            except FileExistsError:
-                continue
-            except OSError as exc:
-                raise SandboxUnavailableError(
-                    f"Could not install sandbox handle key {str(path)!r}: {exc}"
-                ) from exc
-            finally:
-                with suppress(FileNotFoundError):
+                try:
                     staging_path.unlink()
-            return key
+                except FileNotFoundError:
+                    pass
+                except OSError as exc:
+                    raise SandboxUnavailableError(
+                        "Could not remove staged sandbox handle key "
+                        f"{str(staging_path)!r}: {exc}"
+                    ) from exc
         except OSError as exc:
             raise SandboxUnavailableError(
                 f"Could not read sandbox handle key {str(path)!r}: {exc}"
