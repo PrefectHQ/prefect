@@ -628,10 +628,14 @@ class IsloSandbox(SandboxBackend):
             if (
                 status_response.status_code >= 400
                 or not status
-                or status == _READY_STATUS
                 or status in _FATAL_STATUSES
             ):
                 break
+            if status == _READY_STATUS:
+                # The VM became deletable between the rejected request and this poll.
+                # Retry immediately; stopping here would leave a now-running sandbox
+                # alive until its provider-side lifecycle expires.
+                continue
             remaining = deadline - time.monotonic()
             if remaining <= 0:
                 break
