@@ -200,6 +200,21 @@ class FailOnceDestroySandbox(FakeSandbox):
         await super().adestroy(sandbox)
 
 
+class FailingWriteFailTwiceDestroySandbox(FakeSandbox):
+    """Fail setup, then fail two cleanup attempts before allowing a retry."""
+
+    _destroy_attempts: int = PrivateAttr(default=0)
+
+    async def awrite_file(self, sandbox: Sandbox, path: str, content: str) -> None:
+        raise SandboxError("disk full")
+
+    async def adestroy(self, sandbox: Sandbox) -> None:
+        self._destroy_attempts += 1
+        if self._destroy_attempts <= 2:
+            raise RuntimeError("temporary vendor outage")
+        await super().adestroy(sandbox)
+
+
 class SlowDestroySandbox(FakeSandbox):
     """A backend that pauses teardown so caller cancellation is deterministic."""
 
@@ -294,6 +309,12 @@ class UninterruptibleWriteSandbox(FakeSandbox):
         with contextlib.suppress(asyncio.CancelledError):
             await asyncio.Event().wait()
         await super().awrite_file(sandbox, path, content)
+
+
+class UninterruptibleWriteFailOnceDestroySandbox(
+    UninterruptibleWriteSandbox, FailOnceDestroySandbox
+):
+    """Finish setup after cancellation and fail the raced process's first cleanup."""
 
 
 def stream_records(
@@ -1320,6 +1341,24 @@ class TestFilesAndProvisioning:
         assert backend.event_kinds == ["create", "destroy"]
         assert backend.live == set()
 
+    async def test_failed_pre_process_cleanup_remains_retryable(self) -> None:
+        backend = FailingWriteFailTwiceDestroySandbox()
+        operation = SandboxOperation(backend, ["true"], files={"/app/x": "y"})
+
+        with pytest.raises(RuntimeError, match="temporary vendor outage"):
+            await operation.atrigger()
+        assert len(operation._retry_sandboxes) == 1
+        assert len(backend.live) == 1
+
+        with pytest.raises(SandboxError, match="Failed to destroy 1 of 1"):
+            await operation.aclose()
+        assert len(operation._retry_sandboxes) == 1
+        assert len(backend.live) == 1
+
+        await operation.aclose()
+        assert operation._retry_sandboxes == {}
+        assert backend.live == set()
+
     async def test_a_failed_trigger_is_not_registered_for_later_close(self) -> None:
         backend = FailingWriteSandbox()
         operation = SandboxOperation(backend, ["true"], files={"/app/x": "y"})
@@ -1421,6 +1460,21 @@ class TestFilesAndProvisioning:
             await trigger
         assert backend.live == set()
         # And it is not left behind as something a second `aclose` would retry.
+        assert operation._processes == []
+
+    async def test_close_retries_a_raced_process_cleanup_failure(self) -> None:
+        backend = UninterruptibleWriteFailOnceDestroySandbox()
+        operation = SandboxOperation(backend, ["true"], files={"/app/x": "y"})
+        trigger = asyncio.create_task(operation.atrigger())
+        await backend._write_started.wait()
+
+        # The provisioner absorbs cancellation, creates a process, then loses its
+        # first delete attempt. This same close generation must discover and retry it.
+        await operation.aclose()
+
+        with pytest.raises(RuntimeError, match="temporary vendor outage"):
+            await trigger
+        assert backend.live == set()
         assert operation._processes == []
 
     async def test_a_failed_cross_loop_destroy_is_reported(

@@ -495,11 +495,15 @@ class SandboxOperation:
         # this handle is the only thing that lets such a closer destroy the sandbox
         # instead of abandoning it.
         self._provisioned: dict[asyncio.Task[object], Sandbox] = {}
+        # Handles whose setup failed before a `SandboxProcess` existed and whose
+        # immediate cleanup also failed. They remain operation-owned and retryable.
+        self._retry_sandboxes: dict[str, Sandbox] = {}
         self._close_generation = 0
         self._active_closers = 0
         self._close_future: Future[None] | None = None
         self._close_loop: asyncio.AbstractEventLoop | None = None
         self._closing_processes: tuple[SandboxProcess, ...] = ()
+        self._closing_orphans: tuple[Sandbox, ...] = ()
         # Guards the list against the sync lane (which runs on a separate
         # `run_coro_as_sync` loop thread) mutating it concurrently with the async one.
         self._lock = Lock()
@@ -559,7 +563,14 @@ class SandboxOperation:
             )
             process._start()
         except BaseException:
-            await _shielded_cleanup(self.backend.adestroy(sandbox))
+            try:
+                await _shielded_cleanup(self.backend.adestroy(sandbox))
+            except BaseException:
+                # There is no `SandboxProcess` yet, so the operation itself must retain
+                # the raw handle for a later close to retry.
+                with self._lock:
+                    self._retry_sandboxes[sandbox.id] = sandbox
+                raise
             raise
 
         self.logger.info(
@@ -589,7 +600,15 @@ class SandboxOperation:
                 if not close_raced:
                     self._processes.append(process)
             if close_raced:
-                await process.aclose()
+                try:
+                    await process.aclose()
+                except BaseException:
+                    # The process was deliberately not appended before the close-race
+                    # check. Preserve it now if that raced cleanup failed.
+                    with self._lock:
+                        if process not in self._processes:
+                            self._processes.append(process)
+                    raise
                 raise SandboxError(
                     "Sandbox provisioning raced operation closure; the new sandbox "
                     "was destroyed."
@@ -725,8 +744,31 @@ class SandboxOperation:
         if local_provisioning:
             await asyncio.gather(*local_provisioning, return_exceptions=True)
 
+        # A same-loop provisioner can finish its own failed cleanup while the gather
+        # above drains it. Pull those newly published retry handles into this same
+        # generation instead of returning success with live resources still tracked.
+        with self._lock:
+            newly_tracked_processes, self._processes = self._processes, []
+            newly_tracked_orphans = list(self._retry_sandboxes.values())
+            self._retry_sandboxes.clear()
+        known_process_ids = {process.sandbox.id for process in processes}
+        processes.extend(
+            process
+            for process in newly_tracked_processes
+            if process.sandbox.id not in known_process_ids
+        )
+        orphan_by_id = {sandbox.id: sandbox for sandbox in orphans}
+        orphan_by_id.update((sandbox.id, sandbox) for sandbox in newly_tracked_orphans)
+        process_ids = {process.sandbox.id for process in processes}
+        orphans[:] = [
+            sandbox
+            for sandbox_id, sandbox in orphan_by_id.items()
+            if sandbox_id not in process_ids
+        ]
+
         failures: list[Exception] = []
         failed_processes: list[SandboxProcess] = []
+        failed_orphans: list[Sandbox] = []
         for sandbox in orphans:
             # `adestroy` is idempotent, so racing the cancelled provisioner's own
             # cleanup is harmless; both outcomes end with the sandbox gone.
@@ -734,6 +776,7 @@ class SandboxOperation:
                 await _shielded_cleanup(self.backend.adestroy(sandbox))
             except Exception as exc:
                 failures.append(exc)
+                failed_orphans.append(sandbox)
                 self.logger.exception(
                     f"Failed to destroy {sandbox}; it may still be running."
                 )
@@ -749,6 +792,9 @@ class SandboxOperation:
         if failures:
             with self._lock:
                 self._processes.extend(failed_processes)
+                self._retry_sandboxes.update(
+                    (sandbox.id, sandbox) for sandbox in failed_orphans
+                )
             raise SandboxError(
                 f"Failed to destroy {len(failures)} of "
                 f"{len(processes) + len(orphans)} sandboxes; see the preceding "
@@ -769,10 +815,19 @@ class SandboxOperation:
         """Reclaim an active generation from a loop that cannot wait for its owner."""
         current_loop = asyncio.get_running_loop()
         with self._lock:
-            processes = list(self._closing_processes)
+            processes_by_id = {
+                process.sandbox.id: process
+                for process in (*self._closing_processes, *self._processes)
+            }
+            processes = list(processes_by_id.values())
             provisioning = list(self._provisioning)
             provisioned = {
-                sandbox.id: sandbox for sandbox in self._provisioned.values()
+                sandbox.id: sandbox
+                for sandbox in (
+                    *self._closing_orphans,
+                    *self._retry_sandboxes.values(),
+                    *self._provisioned.values(),
+                )
             }
 
         local_provisioning: list[asyncio.Task[object]] = []
@@ -789,6 +844,17 @@ class SandboxOperation:
         if local_provisioning:
             await asyncio.gather(*local_provisioning, return_exceptions=True)
 
+        # Local provisioning can publish a retry handle while cancellation drains.
+        # Refresh after the gather so this out-of-band pass also sees that handle.
+        with self._lock:
+            for process in self._processes:
+                processes_by_id[process.sandbox.id] = process
+            processes = list(processes_by_id.values())
+            provisioned.update(self._retry_sandboxes)
+            provisioned.update(
+                (sandbox.id, sandbox) for sandbox in self._provisioned.values()
+            )
+
         process_ids = {process.sandbox.id for process in processes}
         for process in processes:
             try:
@@ -799,6 +865,10 @@ class SandboxOperation:
                     f"Failed to destroy {process.sandbox} from another event loop; "
                     "it may still be running."
                 )
+            else:
+                with self._lock:
+                    if process in self._processes:
+                        self._processes.remove(process)
         for sandbox_id, sandbox in provisioned.items():
             if sandbox_id in process_ids:
                 continue
@@ -810,6 +880,9 @@ class SandboxOperation:
                     f"Failed to destroy {sandbox} from another event loop; "
                     "it may still be running."
                 )
+            else:
+                with self._lock:
+                    self._retry_sandboxes.pop(sandbox_id, None)
 
         if failures:
             raise SandboxError(
@@ -835,6 +908,7 @@ class SandboxOperation:
                     self._close_future = None
                     self._close_loop = None
                     self._closing_processes = ()
+                    self._closing_orphans = ()
                 self._active_closers -= 1
             raise
         else:
@@ -844,6 +918,7 @@ class SandboxOperation:
                     self._close_future = None
                     self._close_loop = None
                     self._closing_processes = ()
+                    self._closing_orphans = ()
                 self._active_closers -= 1
 
     async def aclose(self) -> None:
@@ -882,11 +957,23 @@ class SandboxOperation:
                 # Sandboxes belonging to provisioning this closer cannot join.
                 # Destroying them here is what keeps a scheduled-but-not-awaited
                 # cancellation from abandoning a live microVM.
-                orphans = [
-                    sandbox
+                orphan_by_id = dict(self._retry_sandboxes)
+                self._retry_sandboxes.clear()
+                orphan_by_id.update(
+                    (
+                        sandbox.id,
+                        sandbox,
+                    )
                     for task, sandbox in self._provisioned.items()
                     if task.get_loop() is not current_loop
+                )
+                process_ids = {process.sandbox.id for process in processes}
+                orphans = [
+                    sandbox
+                    for sandbox_id, sandbox in orphan_by_id.items()
+                    if sandbox_id not in process_ids
                 ]
+                self._closing_orphans = tuple(orphans)
                 owns_close = True
             else:
                 owns_close = False
