@@ -77,9 +77,9 @@ This ordering is a hard constraint. Getting it wrong causes ClosedResourceError 
 - POSIX: ack only means "SIGTERM bridge is armed and intent is seeded." The runner's real `SIGTERM` is still the only trigger that interrupts blocking code. Kill happens immediately after ack.
 - Windows: ack means the child has queued `_thread.interrupt_main(SIGTERM)`. The runner gives the child a 30 s grace window to self-exit before falling back to an external kill.
 
-**Failure modes:** If the child never connects or never acks within 1 s, `signal()` returns `False` and the runner falls through to the normal kill path — the engine treats the termination as a crash, same as today.
+**Failure modes:** If the child never connects or never acks within 1 s, `signal()` returns `False`. `CancellationManager` falls through to the normal graceful kill and the engine treats the termination as a crash. The `prefect flow-run execute` supervisor instead calls `ProcessManager.kill(force=True)` (SIGKILL, no grace), because an unacked engine would propose `Crashed` and undo a `reschedule`/`relinquish`.
 
-**Extending intents:** The only intent today is `"cancel"`. The byte map (`_BYTE_FOR_INTENT` in `_control_channel.py` and `_INTENT_FOR_BYTE` in `_internal/control_listener.py`) must stay in sync when adding new intents.
+**Extending intents:** The intents today are `"cancel"`, `"reschedule"` and `"relinquish"`. The byte map (`_BYTE_FOR_INTENT` in `_control_channel.py` and `_INTENT_FOR_BYTE` in `_internal/control_listener.py`) must stay in sync when adding new intents.
 
 ## ProcessStarter Strategy Pattern
 

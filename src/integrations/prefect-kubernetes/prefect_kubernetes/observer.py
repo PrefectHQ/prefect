@@ -662,9 +662,14 @@ async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
 
     # Check current job status from the event
     current_job_failed = status.get("failed", 0) > backoff_limit
+    # A deleted job never retries, so nothing else finalizes the run — unless it
+    # succeeded, in which case the run is already terminal (TTL sweeps land here).
+    # Cancellation deletes jobs too, but leaves the run `CANCELLING`, which the check
+    # below skips, as it now also does for a job that failed while cancelling.
+    job_deleted = event["type"] == "DELETED" and not status.get("succeeded")
 
     # If the job is still active or has succeeded, don't mark as crashed
-    if not current_job_failed:
+    if not (current_job_failed or job_deleted):
         logger.debug(f"Job {name} is still active or has succeeded, skipping")
         return
 
@@ -681,15 +686,13 @@ async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
 
     assert flow_run.state is not None, "Expected flow run state to be set"
 
-    # Exit early for terminal/final/scheduled/paused states
     if (
         flow_run.state.is_final()
         or flow_run.state.is_scheduled()
         or flow_run.state.is_paused()
+        or flow_run.state.is_cancelling()
     ):
-        logger.debug(
-            f"Flow run {flow_run_id} is in final, scheduled, or paused state, skipping"
-        )
+        logger.debug(f"Flow run {flow_run_id} is in {flow_run.state.name!r}, skipping")
         return
 
     # Eagerly fetch pod logs while the flow run is still in a pre-connectivity
@@ -760,7 +763,11 @@ async def _mark_flow_run_as_crashed(  # pyright: ignore[reportUnusedFunction]
         try:
             result_state = await propose_state(
                 client=orchestration_client,
-                state=Crashed(message="No active or succeeded pods found for any job"),
+                state=Crashed(
+                    message="Kubernetes job was deleted"
+                    if job_deleted
+                    else "No active or succeeded pods found for any job"
+                ),
                 flow_run_id=uuid.UUID(flow_run_id),
             )
         except Abort:

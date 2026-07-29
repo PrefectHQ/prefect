@@ -13,7 +13,7 @@ Protocol:
    one-shot env vars without connecting yet.
 3. The outermost `capture_sigterm()` calls `start()`, which connects back to
    the runner and spawns a daemon thread blocked on the socket.
-4. The runner writes a single-byte intent (`b"c"` today).
+4. The runner writes a single-byte intent (`b"c"`, `b"r"` or `b"q"`).
 5. If Prefect still owns the live SIGTERM bridge, the child writes `b"a"`,
    commits the intent for engine dispatch, and on Windows triggers
    `_thread.interrupt_main(SIGTERM)`.
@@ -37,10 +37,12 @@ from typing import Literal
 
 from prefect.utilities.engine import commit_control_intent_and_ack
 
-Intent = Literal["cancel"]
+Intent = Literal["cancel", "reschedule", "relinquish"]
 
 _INTENT_FOR_BYTE: dict[bytes, Intent] = {
     b"c": "cancel",
+    b"r": "reschedule",
+    b"q": "relinquish",
 }
 
 _intent: Intent | None = None

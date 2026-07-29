@@ -1368,6 +1368,62 @@ class TestMarkFlowRunAsCrashed:
             await _mark_flow_run_as_crashed(**base_kwargs)
             mock_propose.assert_not_called()
 
+    async def test_marks_run_crashed_when_job_deleted(
+        self,
+        mock_orchestration_client: AsyncMock,
+        flow_run_id,
+        base_kwargs,
+        monkeypatch,
+    ):
+        """A deleted job never retries, so nothing else would finalize the run."""
+        mock_orchestration_client.read_flow_run.return_value = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="RUNNING", name="Running"),
+        )
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_k8s_jobs", AsyncMock(return_value=[])
+        )
+        mock_propose = AsyncMock()
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+
+        await _mark_flow_run_as_crashed(
+            **{**base_kwargs, "event": {"type": "DELETED"}, "status": {}}
+        )
+
+        mock_propose.assert_called_once()
+        assert (
+            mock_propose.call_args.kwargs["state"].message
+            == "Kubernetes job was deleted"
+        )
+
+    async def test_skips_cancelling_run_when_job_deleted(
+        self,
+        mock_orchestration_client: AsyncMock,
+        flow_run_id,
+        base_kwargs,
+        monkeypatch,
+    ):
+        """Cancellation deletes the job itself and finalizes the run as Cancelled."""
+        mock_orchestration_client.read_flow_run.return_value = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="CANCELLING", name="Cancelling"),
+        )
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer._get_k8s_jobs", AsyncMock(return_value=[])
+        )
+        mock_propose = AsyncMock()
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+
+        await _mark_flow_run_as_crashed(
+            **{**base_kwargs, "event": {"type": "DELETED"}, "status": {}}
+        )
+
+        mock_propose.assert_not_called()
+
     async def test_abort_on_crash_proposal_is_noop(
         self,
         mock_orchestration_client: AsyncMock,
