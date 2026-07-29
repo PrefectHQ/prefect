@@ -97,6 +97,7 @@ class Sandbox:
     metadata: Mapping[str, str] = field(default_factory=dict)
 
     def __str__(self) -> str:
+        """Render as `backend:id`, the form used in log lines and error messages."""
         return f"{self.backend}:{self.id}"
 
 

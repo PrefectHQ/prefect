@@ -29,6 +29,7 @@ import time
 from pathlib import Path
 
 import pytest
+from prefect_sandbox import sbx as sbx_module
 from prefect_sandbox.base import (
     MAX_INLINE_FILE_BYTES,
     SANDBOX_NAME_PREFIX,
@@ -37,7 +38,11 @@ from prefect_sandbox.base import (
     SandboxError,
     SandboxUnavailableError,
 )
-from prefect_sandbox.sbx import SbxSandbox, _strip_autostart_notice
+from prefect_sandbox.sbx import (
+    SbxSandbox,
+    _strip_autostart_notice,
+    _write_host_temp_file,
+)
 
 if sys.platform == "win32":  # pragma: no cover - the fake relies on POSIX exec
     pytest.skip(
@@ -471,6 +476,37 @@ class TestCreateFailureCleanup:
             await task
 
         assert fake_sbx.calls_for("rm")
+        assert fake_sbx.live_sandboxes == set()
+        workspace = fake_sbx.calls_for("create")[0][-1]
+        assert not Path(workspace).exists()
+
+    async def test_an_unlaunchable_policy_process_still_destroys_the_sandbox(
+        self, fake_sbx: FakeSbx, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A post-create availability failure is not evidence nothing was created.
+
+        `sbx create` has already succeeded by the time the deny-all rule is applied,
+        and `_acli` reports an `OSError` launching that second process as
+        `SandboxUnavailableError`. Reading the exception type as proof that no
+        microVM exists leaks a live sandbox — and one still holding exactly the
+        egress the caller asked to block.
+        """
+        launch = asyncio.create_subprocess_exec
+
+        async def refuse_policy(
+            program: str, *args: str, **kwargs: object
+        ) -> asyncio.subprocess.Process:
+            if "policy" in args:
+                raise OSError(24, "Too many open files")
+            return await launch(program, *args, **kwargs)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(sbx_module.asyncio, "create_subprocess_exec", refuse_policy)
+
+        with pytest.raises(SandboxUnavailableError):
+            await SbxSandbox(egress="deny").acreate()
+
+        name = fake_sbx.calls_for("create")[0][3]
+        assert fake_sbx.calls_for("rm") == [["rm", "-f", name]]
         assert fake_sbx.live_sandboxes == set()
         workspace = fake_sbx.calls_for("create")[0][-1]
         assert not Path(workspace).exists()
@@ -992,6 +1028,45 @@ class TestSession:
             "second",
         ]
         assert fake_sbx.live_sandboxes == set()
+
+
+class TestHostTempFile:
+    """The staging file `sbx cp` reads from is this backend's to clean up."""
+
+    def test_a_failed_write_leaves_no_partial_file(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The caller cannot clean up a path it was never given.
+
+        `awrite_file` deletes the staging file in a `finally`, but only once this
+        helper has returned the path. A write that dies partway — for a large payload
+        most plausibly a full disk — has to clean up here, or it strands a partial
+        file and makes the very condition that caused the failure worse.
+        """
+        monkeypatch.setattr(sbx_module.tempfile, "tempdir", str(tmp_path))
+
+        class FullDisk:
+            def __init__(self, fd: int) -> None:
+                self._fd = fd
+
+            def __enter__(self) -> FullDisk:
+                return self
+
+            def __exit__(self, *exc_info: object) -> bool:
+                os.close(self._fd)
+                return False
+
+            def write(self, _: str) -> int:
+                raise OSError(28, "No space left on device")
+
+        monkeypatch.setattr(
+            sbx_module.os, "fdopen", lambda fd, *args, **kwargs: FullDisk(fd)
+        )
+
+        with pytest.raises(OSError, match="No space left on device"):
+            _write_host_temp_file("a payload that never lands")
+
+        assert list(tmp_path.glob("prefect-sandbox-*")) == []
 
 
 class TestWriteFile:

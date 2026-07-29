@@ -104,11 +104,18 @@ def _write_host_temp_file(content: str) -> str:
     """Write `content` to a new host temp file and return its path.
 
     The file outlives this call because `sbx cp` reads it from a separate process, so
-    the caller owns deleting it.
+    the caller owns deleting it — but only once it has been given the path. A write that
+    dies partway, which for a large payload most likely means the disk filled up, has to
+    clean up after itself here; leaving a partial file behind would make the very
+    condition that caused the failure worse.
     """
     fd, path = tempfile.mkstemp(prefix="prefect-sandbox-")
-    with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        handle.write(content)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(content)
+    except BaseException:
+        _unlink_quietly(path)
+        raise
     return path
 
 
@@ -518,11 +525,26 @@ class SbxSandbox(SandboxBackend):
         if self.cpus is not None:
             args += ["--cpus", str(self.cpus)]
         args += ["--template", self.image, "shell", workspace]
+        # Whether `sbx create` has been launched. Once it has, a microVM may exist no
+        # matter how the rest of this fails, and cleanup has to confirm the name is
+        # gone. Tracked explicitly rather than inferred from the exception type: `_acli`
+        # reports an `OSError` from `create_subprocess_exec` as
+        # `SandboxUnavailableError`, and it does that for the *policy* subprocess too —
+        # which runs after the sandbox already exists. Keying cleanup on the type would
+        # read that as "nothing was created" and leak a live sandbox, quite possibly
+        # without the deny-all rule the caller asked for.
+        launched = False
         try:
             try:
+                launched = True
                 code, _, stderr, _ = await self._acli(
                     args, timeout=self.create_timeout, max_bytes=_CLI_OUTPUT_BYTES
                 )
+            except SandboxUnavailableError:
+                # Raised only when the binary could not be executed at all, so no
+                # microVM can exist and only the workspace is ours to remove.
+                launched = False
+                raise
             except asyncio.TimeoutError as exc:
                 raise SandboxCreationError(
                     f"'sbx create' did not finish within {self.create_timeout}s. A "
@@ -543,14 +565,11 @@ class SbxSandbox(SandboxBackend):
             # cancellation landing mid-create would otherwise abort at the first await
             # in this handler and abandon the microVM.
             cleanup = (
-                self._aremove_workspace(workspace)
-                if isinstance(create_error, SandboxUnavailableError)
-                else self._adiscard(name, workspace)
+                self._adiscard(name, workspace)
+                if launched
+                else self._aremove_workspace(workspace)
             )
             try:
-                # An OS error before `sbx` starts cannot have created a VM, so only
-                # remove the workspace in that case. Every post-spawn failure must
-                # confirm the generated sandbox name is absent.
                 await _shielded_cleanup(cleanup)
             except asyncio.CancelledError:
                 raise
