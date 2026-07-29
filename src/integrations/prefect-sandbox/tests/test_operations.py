@@ -223,6 +223,30 @@ class SlowWriteSandbox(FakeSandbox):
         await super().awrite_file(sandbox, path, content)
 
 
+class SlowWriteFailingDestroySandbox(SlowWriteSandbox, FailingDestroySandbox):
+    """A backend that pauses mid-upload *and* cannot tear anything down."""
+
+
+class UninterruptibleWriteSandbox(FakeSandbox):
+    """A backend whose in-flight upload absorbs the cancellation sent to it.
+
+    Backends that stream a file to a vendor API shield the transfer so a cancelled
+    caller cannot leave a half-written file behind; the same shape appears whenever an
+    upload is already committed to a blocking client call. The consequence for the
+    operation layer is that a provisioning task can outlive the cancellation `aclose`
+    sends it and go on to finish provisioning a sandbox nobody is tracking any more.
+    """
+
+    _write_started: asyncio.Event = PrivateAttr(default_factory=asyncio.Event)
+
+    async def awrite_file(self, sandbox: Sandbox, path: str, content: str) -> None:
+        """Wait to be cancelled, swallow the cancellation, then complete the write."""
+        self._write_started.set()
+        with contextlib.suppress(asyncio.CancelledError):
+            await asyncio.Event().wait()
+        await super().awrite_file(sandbox, path, content)
+
+
 def stream_records(
     caplog: pytest.LogCaptureFixture, marker: str
 ) -> list[logging.LogRecord]:
@@ -609,6 +633,71 @@ class TestContextManagers:
 
         assert backend.live == set()
 
+    async def test_process_context_cleanup_does_not_mask_the_body_error(
+        self, prefect_caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A failed teardown must never replace the error the body was already raising.
+
+        The body's exception is the one the caller can act on; a teardown failure that
+        overwrote it would leave them debugging the vendor API instead of their command.
+        """
+        backend = FailingDestroySandbox()
+        operation = SandboxOperation(backend, ["true"])
+        process = await operation.atrigger()
+
+        with pytest.raises(ValueError, match="body failed"):
+            async with process:
+                raise ValueError("body failed")
+
+        assert any(
+            "while handling another error" in record.message
+            for record in prefect_caplog.records
+            if record.levelno >= logging.ERROR and record.name in OPERATION_LOGGERS
+        )
+        # Silently swallowed is not the same as unnoticed: the attempt was made.
+        assert backend.event_kinds.count("destroy") == 1
+
+    async def test_process_context_cleanup_failure_surfaces_when_the_body_succeeded(
+        self,
+    ) -> None:
+        """With no error to preserve, a leaked sandbox must be the caller's problem."""
+        backend = FailingDestroySandbox()
+        operation = SandboxOperation(backend, ["true"])
+        process = await operation.atrigger()
+
+        with pytest.raises(RuntimeError, match="vendor API is down"):
+            async with process:
+                await process.await_for_completion()
+
+    def test_sync_process_context_cleanup_does_not_mask_the_body_error(
+        self, prefect_caplog: pytest.LogCaptureFixture
+    ) -> None:
+        backend = FailingDestroySandbox()
+        operation = SandboxOperation(backend, ["true"])
+        process = operation.trigger()
+
+        with pytest.raises(ValueError, match="body failed"):
+            with process:
+                raise ValueError("body failed")
+
+        assert any(
+            "while handling another error" in record.message
+            for record in prefect_caplog.records
+            if record.levelno >= logging.ERROR and record.name in OPERATION_LOGGERS
+        )
+        assert backend.event_kinds.count("destroy") == 1
+
+    def test_sync_process_context_cleanup_failure_surfaces_when_the_body_succeeded(
+        self,
+    ) -> None:
+        backend = FailingDestroySandbox()
+        operation = SandboxOperation(backend, ["true"])
+        process = operation.trigger()
+
+        with pytest.raises(RuntimeError, match="vendor API is down"):
+            with process:
+                process.wait_for_completion()
+
     async def test_aclose_skips_a_process_that_closed_itself(self) -> None:
         backend = FakeSandbox()
         operation = SandboxOperation(backend, ["true"])
@@ -666,6 +755,48 @@ class TestContextManagers:
             "cleanup failed while handling another error" in record.message.lower()
             for record in prefect_caplog.records
         )
+
+    async def test_context_cleanup_failure_surfaces_when_the_body_succeeded(
+        self,
+    ) -> None:
+        """A clean body means nothing is competing with the cleanup error, so it wins.
+
+        Suppressing it here would let a `async with` block exit successfully having
+        leaked a microVM the caller is still being billed for.
+        """
+        backend = FailingDestroySandbox()
+        operation = SandboxOperation(backend, ["true"])
+
+        with pytest.raises(SandboxError, match="Failed to destroy 1 of 1"):
+            async with operation:
+                process = await operation.atrigger()
+                await process.await_for_completion()
+
+    def test_sync_context_cleanup_does_not_mask_the_body_error(
+        self, prefect_caplog: pytest.LogCaptureFixture
+    ) -> None:
+        backend = FailingDestroySandbox()
+
+        with pytest.raises(ValueError, match="body failed"):
+            with SandboxOperation(backend, ["true"]) as operation:
+                operation.trigger()
+                raise ValueError("body failed")
+
+        assert any(
+            "cleanup failed while handling another error" in record.message.lower()
+            for record in prefect_caplog.records
+        )
+        assert backend.event_kinds.count("destroy") == 1
+
+    def test_sync_context_cleanup_failure_surfaces_when_the_body_succeeded(
+        self,
+    ) -> None:
+        backend = FailingDestroySandbox()
+
+        with pytest.raises(SandboxError, match="Failed to destroy 1 of 1"):
+            with SandboxOperation(backend, ["true"]) as operation:
+                process = operation.trigger()
+                process.wait_for_completion()
 
 
 class TestRaiseOnFailure:
@@ -1045,6 +1176,60 @@ class TestFilesAndProvisioning:
         with pytest.raises(asyncio.CancelledError):
             await trigger
         assert backend.live == set()
+
+    async def test_a_sandbox_provisioned_after_closure_began_is_destroyed(self) -> None:
+        """Provisioning that outlives its cancellation must not hand back a live sandbox.
+
+        `aclose` cancels in-flight provisioning, but cancellation is a request, not a
+        guarantee: a backend whose upload is shielded finishes anyway and the
+        provisioner reaches the end of its work after the operation stopped tracking
+        anything. Returning that `SandboxProcess` would hand the caller a sandbox no
+        `aclose` will ever reclaim, so the provisioner destroys it and says so.
+        """
+        backend = UninterruptibleWriteSandbox()
+        operation = SandboxOperation(backend, ["true"], files={"/app/x": "y"})
+        trigger = asyncio.create_task(operation.atrigger())
+        await backend._write_started.wait()
+
+        await operation.aclose()
+
+        with pytest.raises(SandboxError, match="raced operation closure"):
+            await trigger
+        assert backend.live == set()
+        # And it is not left behind as something a second `aclose` would retry.
+        assert operation._processes == []
+
+    async def test_a_failed_cross_loop_destroy_is_reported(
+        self, prefect_caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """The orphan-destroying arm of `aclose` must report failures like any other.
+
+        A sandbox provisioned on another event loop is destroyed by the closer itself
+        because nobody else can — the provisioner's own cleanup runs on a loop this
+        closer must not join. If that destroy fails and is not counted, the close
+        reports success over a microVM that is still running.
+        """
+        backend = SlowWriteFailingDestroySandbox()
+        operation = SandboxOperation(backend, ["true"], files={"/app/x": "y"})
+        trigger = asyncio.create_task(operation.atrigger())
+        await backend._write_started.wait()
+        assert len(backend.live) == 1
+
+        # As `__exit__` does: `aclose` runs on Prefect's loop, so the provisioning task
+        # belongs to a loop it can only schedule a cancellation on.
+        with pytest.raises(SandboxError, match="Failed to destroy 1 of 1"):
+            operation.close(_sync=True)
+
+        assert any(
+            "may still be running" in record.message
+            for record in prefect_caplog.records
+            if record.levelno >= logging.ERROR and record.name in OPERATION_LOGGERS
+        )
+
+        # Let the abandoned provisioner finish unwinding; its own teardown fails too.
+        backend._allow_write.set()
+        with contextlib.suppress(asyncio.CancelledError, RuntimeError):
+            await trigger
 
     async def test_close_with_nothing_open_is_harmless(self) -> None:
         backend = FakeSandbox()

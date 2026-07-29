@@ -27,6 +27,7 @@ import re
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 import pytest
 from prefect_sandbox import sbx as sbx_module
@@ -71,7 +72,9 @@ def _config():
 
 def _record(argv):
     with open(os.path.join(STATE, "calls.jsonl"), "a") as handle:
-        handle.write(json.dumps({"argv": argv, "pid": os.getpid()}) + "\n")
+        handle.write(
+            json.dumps({"argv": argv, "pid": os.getpid(), "pgid": os.getpgid(0)}) + "\n"
+        )
 
 
 def _sandbox_file(name):
@@ -97,7 +100,6 @@ def _run(command):
 
 def _create(argv, section):
     name = argv[argv.index("--name") + 1]
-    time.sleep(section.get("sleep", 0))
     _emit(section)
     exit_code = section.get("exit", 0)
     # Even a failed create can leave a live microVM behind, which is precisely
@@ -143,6 +145,7 @@ def _exec(argv, section):
 
 def _rm(argv, section):
     if "exit" in section:
+        _emit(section)
         return section["exit"]
     missing = False
     for name in [arg for arg in argv[1:] if not arg.startswith("-")]:
@@ -224,7 +227,11 @@ def main():
     if handler is None:
         sys.stderr.write("ERROR: unknown command\n")
         return 1
-    return handler(argv, _config().get(argv[0], {}))
+    section = _config().get(argv[0], {})
+    # Every subcommand can be made slow: the backend budgets each invocation
+    # separately, and `rm`, `ls`, `cp` and `policy` each have their own deadline.
+    time.sleep(section.get("sleep", 0))
+    return handler(argv, section)
 
 
 sys.exit(main())
@@ -246,7 +253,7 @@ class FakeSbx:
         """Set the behaviour of one subcommand.
 
         Args:
-            subcommand: `create`, `exec`, `rm`, `cp` or `policy`.
+            subcommand: `create`, `exec`, `ls`, `rm`, `cp` or `policy`.
             **values: `exit`, `sleep`, `stdout`, `stderr`, `mode`, `leak`,
                 `autostart_notice`, `orphan_after`.
         """
@@ -257,16 +264,19 @@ class FakeSbx:
         (self.root / "config.json").write_text(json.dumps(self.config))
 
     @property
-    def calls(self) -> list[list[str]]:
-        """Every recorded invocation's argv, in order."""
+    def records(self) -> list[dict[str, Any]]:
+        """Every recorded invocation: its argv, and the pid/pgid it ran under."""
         path = self.root / "calls.jsonl"
         if not path.exists():
             return []
         return [
-            json.loads(line)["argv"]
-            for line in path.read_text().splitlines()
-            if line.strip()
+            json.loads(line) for line in path.read_text().splitlines() if line.strip()
         ]
+
+    @property
+    def calls(self) -> list[list[str]]:
+        """Every recorded invocation's argv, in order."""
+        return [record["argv"] for record in self.records]
 
     def calls_for(self, subcommand: str) -> list[list[str]]:
         return [argv for argv in self.calls if argv and argv[0] == subcommand]
@@ -305,6 +315,17 @@ def fake_sbx(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> FakeSbx:
 def backend(fake_sbx: FakeSbx) -> SbxSandbox:
     """A backend that resolves `sbx` by name, exactly as a user's would."""
     return SbxSandbox(create_timeout=60.0)
+
+
+@pytest.fixture
+def quick_cli_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Shrink the wall clock the bookkeeping subcommands get.
+
+    `rm`, `ls`, `cp` and `policy` are budgeted by a module constant rather than a
+    block field — deliberately, since none of them is a user-supplied workload — so
+    shrinking the constant is the only way to watch one of them wedge.
+    """
+    monkeypatch.setattr(sbx_module, "_CLI_TIMEOUT", 0.5)
 
 
 def sleep_command(seconds: float) -> list[str]:
@@ -480,6 +501,34 @@ class TestCreateFailureCleanup:
         workspace = fake_sbx.calls_for("create")[0][-1]
         assert not Path(workspace).exists()
 
+    async def test_a_cancellation_landing_during_cleanup_stays_a_cancellation(
+        self, backend: SbxSandbox, fake_sbx: FakeSbx
+    ) -> None:
+        """The shield re-delivers the cancellation, and it must survive that.
+
+        A second cancellation while the shielded cleanup is in flight is held back
+        until the cleanup finishes and then re-raised. Letting the generic handler
+        catch it would relabel an ordinary cancelled flow run as a creation failure
+        and claim the microVM may still be running, when this path has just proved
+        the opposite.
+        """
+        fake_sbx.configure("create", sleep=5)
+        task = asyncio.ensure_future(backend.acreate())
+        while not fake_sbx.calls_for("create"):
+            await asyncio.sleep(0.05)
+        # The first cancellation starts the cleanup; the rest keep arriving while it
+        # runs, which is the only way to reach the re-delivery from outside.
+        while not task.done():
+            task.cancel()
+            await asyncio.sleep(0)
+
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert fake_sbx.calls_for("rm")
+        assert fake_sbx.live_sandboxes == set()
+        workspace = fake_sbx.calls_for("create")[0][-1]
+        assert not Path(workspace).exists()
+
     async def test_an_unlaunchable_policy_process_still_destroys_the_sandbox(
         self, fake_sbx: FakeSbx, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -549,6 +598,21 @@ class TestEgress:
         message = str(excinfo.value)
         assert "policy store not initialized" in message
         assert "sbx policy init" in message
+
+        assert fake_sbx.calls_for("rm")
+        assert fake_sbx.live_sandboxes == set()
+        workspace = fake_sbx.calls_for("create")[0][-1]
+        assert not Path(workspace).exists()
+
+    async def test_a_rule_that_never_landed_is_fatal_and_cleans_up(
+        self, fake_sbx: FakeSbx, quick_cli_timeout: None
+    ) -> None:
+        """A `policy deny` that wedged is no more trustworthy than one that was
+        rejected: nobody can say whether the rule applies."""
+        fake_sbx.configure("policy", sleep=30)
+
+        with pytest.raises(SandboxCreationError, match="Timed out applying"):
+            await SbxSandbox(egress="deny").acreate()
 
         assert fake_sbx.calls_for("rm")
         assert fake_sbx.live_sandboxes == set()
@@ -847,6 +911,72 @@ class TestTimeoutSemantics:
         )
 
 
+class TestProcessGroups:
+    """How the CLI child is launched, and what that buys its teardown.
+
+    `os.name` decides both: on POSIX the child leads a session of its own so the
+    whole group can be killed at once, and elsewhere — Windows, which has no
+    process group to kill — it does not. The fake binary needs POSIX `exec`, so
+    this module cannot run on Windows at all; replacing the backend's `os` reference
+    with a non-POSIX proxy is what drives that branch here without changing the
+    process-wide `os.name`, and it still launches a real child through the real call,
+    observably left in this process's group instead of a session of its own.
+    """
+
+    class NonPosixOs:
+        """Expose the real `os` API while reporting a non-POSIX platform."""
+
+        name = "nt"
+
+        def __getattr__(self, attribute: str) -> Any:
+            return getattr(os, attribute)
+
+    async def test_the_cli_child_leads_its_own_session_on_posix(
+        self, backend: SbxSandbox, fake_sbx: FakeSbx
+    ) -> None:
+        """This is what lets one `killpg` reach the CLI's own descendants, and
+        what keeps a signal aimed at the worker's group off a teardown in
+        flight."""
+        await backend.acreate()
+
+        (record,) = fake_sbx.records
+        assert record["pgid"] == record["pid"]
+        assert record["pgid"] != os.getpgid(0)
+
+    async def test_a_non_posix_host_launches_the_cli_in_the_callers_group(
+        self, backend: SbxSandbox, fake_sbx: FakeSbx, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(sbx_module, "os", self.NonPosixOs())
+
+        sandbox = await backend.acreate()
+
+        (record,) = fake_sbx.records
+        assert record["pgid"] == os.getpgid(0)
+        assert fake_sbx.live_sandboxes == {sandbox.id}
+
+    async def test_a_non_posix_timeout_still_kills_the_wedged_cli(
+        self, backend: SbxSandbox, fake_sbx: FakeSbx, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """With no group to kill, the direct kill is the only one left.
+
+        It therefore cannot live inside the POSIX branch: the timeout path reaps
+        the child before returning, so a child nobody killed hangs the call it was
+        supposed to bound.
+        """
+        sandbox = await backend.acreate()
+        fake_sbx.configure("exec", mode="hang")
+        monkeypatch.setattr(sbx_module, "os", self.NonPosixOs())
+
+        result = await backend.aexec(sandbox, ["whatever"], timeout=0.5)
+
+        assert result.timed_out
+        (wedged,) = [
+            record for record in fake_sbx.records if record["argv"][0] == "exec"
+        ]
+        with pytest.raises(ProcessLookupError):
+            os.kill(wedged["pid"], 0)
+
+
 class TestOutputCap:
     """Invariant 5: capped while streaming, never buffered then trimmed."""
 
@@ -960,6 +1090,99 @@ class TestDestroy:
 
         assert sandbox.id in fake_sbx.live_sandboxes
         assert Path(sandbox.metadata["workspace"]).exists()
+
+    async def test_a_timed_out_rm_reports_a_possibly_live_sandbox(
+        self, backend: SbxSandbox, fake_sbx: FakeSbx, quick_cli_timeout: None
+    ) -> None:
+        """A `sbx rm` that never returned says nothing about the sandbox."""
+        sandbox = await backend.acreate()
+        fake_sbx.configure("rm", sleep=30)
+
+        with pytest.raises(SandboxError) as excinfo:
+            await backend.adestroy(sandbox)
+        message = str(excinfo.value)
+        assert "Timed out removing" in message
+        assert "may still be running" in message
+
+        assert sandbox.id in fake_sbx.live_sandboxes
+        assert Path(sandbox.metadata["workspace"]).exists()
+
+    async def test_a_timed_out_ls_cannot_confirm_a_failed_removal(
+        self, backend: SbxSandbox, fake_sbx: FakeSbx, quick_cli_timeout: None
+    ) -> None:
+        """A nonzero `rm` is only benign when `ls` proves the sandbox is absent.
+
+        Without that proof the outcome is unknown, and the error has to carry the
+        `rm` failure that started it rather than the missing confirmation alone.
+        """
+        sandbox = await backend.acreate()
+        fake_sbx.configure("rm", exit=1, stderr="daemon unreachable\n")
+        fake_sbx.configure("ls", sleep=30)
+
+        with pytest.raises(SandboxError) as excinfo:
+            await backend.adestroy(sandbox)
+        message = str(excinfo.value)
+        assert "Could not confirm removal" in message
+        assert "daemon unreachable" in message
+
+        assert sandbox.id in fake_sbx.live_sandboxes
+
+    async def test_unparsable_ls_output_cannot_confirm_a_failed_removal(
+        self, backend: SbxSandbox, fake_sbx: FakeSbx
+    ) -> None:
+        sandbox = await backend.acreate()
+        fake_sbx.configure("rm", exit=1, stderr="daemon unreachable\n")
+        fake_sbx.configure("ls", exit=0, stdout="{not-json")
+
+        with pytest.raises(SandboxError, match="Could not confirm removal"):
+            await backend.adestroy(sandbox)
+
+        assert sandbox.id in fake_sbx.live_sandboxes
+
+    async def test_ls_output_of_the_wrong_shape_cannot_confirm_a_failed_removal(
+        self, backend: SbxSandbox, fake_sbx: FakeSbx
+    ) -> None:
+        """Parsable JSON is not the same as an inventory.
+
+        An absent `sandboxes` list cannot be read as "no sandboxes exist" — that
+        would turn every future CLI response change into a silent leak.
+        """
+        sandbox = await backend.acreate()
+        fake_sbx.configure("rm", exit=1, stderr="daemon unreachable\n")
+        fake_sbx.configure("ls", exit=0, stdout='["not", "an", "object"]')
+
+        with pytest.raises(SandboxError, match="invalid response"):
+            await backend.adestroy(sandbox)
+
+        assert sandbox.id in fake_sbx.live_sandboxes
+
+    async def test_a_workspace_that_cannot_be_removed_is_reported(
+        self,
+        backend: SbxSandbox,
+        fake_sbx: FakeSbx,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Only "already gone" is a benign failure to remove the workspace.
+
+        Here the workspace is no longer a directory, so `rmtree` fails with
+        `NotADirectoryError`; swallowing that alongside `FileNotFoundError` would
+        report a successful teardown while host state survives.
+        """
+        monkeypatch.setattr(sbx_module.tempfile, "tempdir", str(tmp_path))
+        workspace = tmp_path / "prefect-sandbox-ws-no-longer-a-directory"
+        workspace.write_text("")
+        handle = Sandbox(
+            id="already-gone",
+            backend="sbx",
+            metadata={"workspace": str(workspace)},
+        )
+
+        with pytest.raises(SandboxError) as excinfo:
+            await backend.adestroy(handle)
+        message = str(excinfo.value)
+        assert "Failed to remove sandbox workspace" in message
+        assert str(workspace) in message
 
     async def test_unowned_workspace_is_never_recursively_deleted(
         self, backend: SbxSandbox, fake_sbx: FakeSbx, tmp_path: Path
@@ -1142,6 +1365,19 @@ class TestWriteFile:
         with pytest.raises(SandboxError, match="/tmp/prefect-sandbox"):
             await backend.awrite_file(sandbox, "/tmp/prefect-sandbox/main.py", "x")
         assert fake_sbx.calls_for("cp") == []
+
+    async def test_a_timed_out_copy_raises_and_still_deletes_the_host_file(
+        self, backend: SbxSandbox, fake_sbx: FakeSbx, quick_cli_timeout: None
+    ) -> None:
+        """The staging file is this backend's to remove however the copy ends."""
+        sandbox = await backend.acreate()
+        fake_sbx.configure("cp", sleep=30)
+
+        with pytest.raises(SandboxError, match="Timed out copying"):
+            await backend.awrite_file(sandbox, "/tmp/prefect-sandbox/main.py", "x")
+
+        host_path = fake_sbx.calls_for("cp")[0][1]
+        assert not Path(host_path).exists()
 
     async def test_the_host_temp_file_is_deleted_even_when_the_copy_fails(
         self, backend: SbxSandbox, fake_sbx: FakeSbx
