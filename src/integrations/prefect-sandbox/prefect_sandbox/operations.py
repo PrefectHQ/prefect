@@ -477,6 +477,7 @@ class SandboxOperation:
         self._provisioned: dict[asyncio.Task[object], Sandbox] = {}
         self._close_generation = 0
         self._active_closers = 0
+        self._close_future: Future[None] | None = None
         # Guards the list against the sync lane (which runs on a separate
         # `run_coro_as_sync` loop thread) mutating it concurrently with the async one.
         self._lock = Lock()
@@ -739,6 +740,31 @@ class SandboxOperation:
         else:
             self.logger.info(f"Successfully closed {len(processes)} open sandboxes.")
 
+    async def _aclose_generation(
+        self,
+        close_future: Future[None],
+        processes: list[SandboxProcess],
+        provisioning: list[asyncio.Task[object]],
+        orphans: list[Sandbox],
+        current_loop: asyncio.AbstractEventLoop,
+    ) -> None:
+        """Run and publish one operation-wide cleanup generation."""
+        try:
+            await self._aclose_resources(processes, provisioning, orphans, current_loop)
+        except BaseException as exc:
+            with self._lock:
+                close_future.set_exception(exc)
+                if self._close_future is close_future:
+                    self._close_future = None
+                self._active_closers -= 1
+            raise
+        else:
+            with self._lock:
+                close_future.set_result(None)
+                if self._close_future is close_future:
+                    self._close_future = None
+                self._active_closers -= 1
+
     async def aclose(self) -> None:
         """Destroy every sandbox this operation created and still tracks (async version).
 
@@ -754,31 +780,48 @@ class SandboxOperation:
         is blocked here, so joining that task would deadlock. Its cancellation is
         scheduled instead, and any sandbox it had already created is destroyed by this
         call, so nothing is left running either way.
+
+        Concurrent callers join the same cleanup generation, including across the sync
+        and async dispatch lanes, and all observe its success or failure.
         """
         current_loop = asyncio.get_running_loop()
         with self._lock:
-            self._active_closers += 1
-            self._close_generation += 1
-            processes, self._processes = self._processes, []
-            provisioning = list(self._provisioning)
-            # Sandboxes belonging to provisioning this closer cannot join. Destroying
-            # them here is what keeps a scheduled-but-not-awaited cancellation from
-            # abandoning a live microVM.
-            orphans = [
-                sandbox
-                for task, sandbox in self._provisioned.items()
-                if task.get_loop() is not current_loop
-            ]
-        try:
-            # A caller cancellation must wait until *all* captured resources have been
-            # visited. Shielding only the process currently closing would drop the
-            # remaining local handles after `_processes` was moved out above.
+            close_future = self._close_future
+            if close_future is None:
+                close_future = Future()
+                self._close_future = close_future
+                self._active_closers += 1
+                self._close_generation += 1
+                processes, self._processes = self._processes, []
+                provisioning = list(self._provisioning)
+                # Sandboxes belonging to provisioning this closer cannot join.
+                # Destroying them here is what keeps a scheduled-but-not-awaited
+                # cancellation from abandoning a live microVM.
+                orphans = [
+                    sandbox
+                    for task, sandbox in self._provisioned.items()
+                    if task.get_loop() is not current_loop
+                ]
+                owns_close = True
+            else:
+                owns_close = False
+
+        if owns_close:
+            # The generation runs in its own shielded task so cancellation of its first
+            # caller cannot turn successful cleanup into a failure for other waiters.
             await _shielded_cleanup(
-                self._aclose_resources(processes, provisioning, orphans, current_loop)
+                asyncio.create_task(
+                    self._aclose_generation(
+                        close_future,
+                        processes,
+                        provisioning,
+                        orphans,
+                        current_loop,
+                    )
+                )
             )
-        finally:
-            with self._lock:
-                self._active_closers -= 1
+        else:
+            await _shielded_cleanup(asyncio.wrap_future(close_future))
 
     @async_dispatch(aclose)
     def close(self) -> None:

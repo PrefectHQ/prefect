@@ -1122,6 +1122,48 @@ class TestConcurrency:
         assert backend.live == set()
         assert operation._processes == []
 
+    async def test_concurrent_operation_closers_share_one_destroy(self) -> None:
+        backend = SlowDestroySandbox()
+        operation = SandboxOperation(backend, ["true"])
+        process = await operation.atrigger()
+        await process.await_for_completion()
+
+        first_close = asyncio.create_task(operation.aclose())
+        await backend._destroy_started.wait()
+        second_close = asyncio.create_task(operation.aclose())
+        await asyncio.sleep(0)
+
+        assert not second_close.done()
+        backend._allow_destroy.set()
+        await asyncio.gather(first_close, second_close)
+
+        assert backend.live == set()
+        assert backend.event_kinds.count("destroy") == 1
+
+    async def test_concurrent_operation_closers_share_a_failure(self) -> None:
+        backend = SlowFailOnceDestroySandbox()
+        operation = SandboxOperation(backend, ["true"])
+        process = await operation.atrigger()
+        await process.await_for_completion()
+
+        first_close = asyncio.create_task(operation.aclose())
+        await backend._destroy_started.wait()
+        second_close = asyncio.create_task(operation.aclose())
+        await asyncio.sleep(0)
+        backend._allow_destroy.set()
+
+        with pytest.raises(SandboxError, match="Failed to destroy 1 of 1"):
+            await first_close
+        with pytest.raises(SandboxError, match="Failed to destroy 1 of 1"):
+            await second_close
+
+        assert backend.live == {process.sandbox.id}
+        assert operation._processes == [process]
+
+        await operation.aclose()
+        assert backend.live == set()
+        assert operation._processes == []
+
     async def test_cancelling_aclose_still_visits_every_captured_process(
         self,
     ) -> None:
