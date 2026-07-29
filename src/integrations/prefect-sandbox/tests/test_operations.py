@@ -211,6 +211,18 @@ class SlowDestroySandbox(FakeSandbox):
         await super().adestroy(sandbox)
 
 
+class SlowFailOnceDestroySandbox(FailOnceDestroySandbox):
+    """Pause the first teardown, then fail it so concurrent closers can join it."""
+
+    _destroy_started: asyncio.Event = PrivateAttr(default_factory=asyncio.Event)
+    _allow_destroy: asyncio.Event = PrivateAttr(default_factory=asyncio.Event)
+
+    async def adestroy(self, sandbox: Sandbox) -> None:
+        self._destroy_started.set()
+        await self._allow_destroy.wait()
+        await super().adestroy(sandbox)
+
+
 class SlowCreateSandbox(FakeSandbox):
     """A backend whose create call waits so close/provision races are deterministic."""
 
@@ -1066,6 +1078,49 @@ class TestConcurrency:
         assert backend.live == set()
         assert backend.event_kinds.count("create") == 3
         assert len({call["sandbox_id"] for call in backend.execs}) == 3
+
+    async def test_concurrent_process_closers_share_one_destroy(self) -> None:
+        backend = SlowDestroySandbox()
+        operation = SandboxOperation(backend, ["true"])
+        process = await operation.atrigger()
+        await process.await_for_completion()
+
+        first_close = asyncio.create_task(process.aclose())
+        await backend._destroy_started.wait()
+        second_close = asyncio.create_task(process.aclose())
+        await asyncio.sleep(0)
+
+        assert not second_close.done()
+        backend._allow_destroy.set()
+        await asyncio.gather(first_close, second_close)
+
+        assert backend.live == set()
+        assert backend.event_kinds.count("destroy") == 1
+
+    async def test_operation_joins_an_in_flight_process_close_failure(self) -> None:
+        """The operation must retain a process whose shared destroy attempt failed."""
+        backend = SlowFailOnceDestroySandbox()
+        operation = SandboxOperation(backend, ["true"])
+        process = await operation.atrigger()
+        await process.await_for_completion()
+
+        process_close = asyncio.create_task(process.aclose())
+        await backend._destroy_started.wait()
+        operation_close = asyncio.create_task(operation.aclose())
+        await asyncio.sleep(0)
+        backend._allow_destroy.set()
+
+        with pytest.raises(RuntimeError, match="temporary vendor outage"):
+            await process_close
+        with pytest.raises(SandboxError, match="Failed to destroy 1 of 1"):
+            await operation_close
+
+        assert backend.live == {process.sandbox.id}
+        assert operation._processes == [process]
+
+        await operation.aclose()
+        assert backend.live == set()
+        assert operation._processes == []
 
     async def test_cancelling_aclose_still_visits_every_captured_process(
         self,

@@ -13,6 +13,7 @@ import asyncio
 import math
 import os
 from collections.abc import Mapping, Sequence
+from concurrent.futures import Future
 from threading import Lock
 from typing import Any
 
@@ -110,6 +111,12 @@ class SandboxProcess(JobRun[list[str]]):
         self._output: list[str] = []
         self._task: asyncio.Task[SandboxResult] | None = None
         self._closed = False
+        # A process can be closed directly while its parent operation is closing it
+        # from another task (or even another event loop). A thread-safe future lets
+        # every concurrent caller join the same destroy attempt without mistaking
+        # "cleanup started" for "cleanup succeeded".
+        self._close_lock = Lock()
+        self._close_future: Future[None] | None = None
 
     @property
     def return_code(self) -> int | None:
@@ -228,42 +235,86 @@ class SandboxProcess(JobRun[list[str]]):
         """
         return self._result_lines()
 
+    async def _aclose_once(self, close_future: Future[None]) -> None:
+        """Run one shared destroy attempt and publish its outcome to every waiter."""
+        task_error: BaseException | None = None
+        try:
+            try:
+                if self._task is not None:
+                    task_loop = self._task.get_loop()
+                    current_loop = asyncio.get_running_loop()
+                    if task_loop is current_loop:
+                        if not self._task.done():
+                            self._task.cancel()
+                        # Consume the outcome so a failed or cancelled execution cannot
+                        # resurface later as an "exception was never retrieved" warning.
+                        await asyncio.gather(self._task, return_exceptions=True)
+                    elif self._task.done():
+                        _consume_task_result(self._task)
+                    else:
+                        # A sync context manager used inside async code closes on
+                        # Prefect's sync loop thread. It cannot await a task owned by the
+                        # blocked caller loop, so queue cancellation and exception
+                        # retrieval there; destroying the sandbox below stops the actual
+                        # external command before this method returns.
+                        task_loop.call_soon_threadsafe(
+                            _cancel_and_consume_task, self._task
+                        )
+            except BaseException as exc:
+                # Teardown remains mandatory even if coordinating cancellation with
+                # the execution task failed.
+                task_error = exc
+
+            await _shielded_cleanup(self._backend.adestroy(self.sandbox))
+        except BaseException as exc:
+            with self._close_lock:
+                close_future.set_exception(exc)
+                if self._close_future is close_future:
+                    # `adestroy` is idempotent, so a later caller may safely retry.
+                    self._close_future = None
+            raise
+        else:
+            with self._close_lock:
+                self._closed = True
+                if task_error is None:
+                    close_future.set_result(None)
+                else:
+                    close_future.set_exception(task_error)
+                if self._close_future is close_future:
+                    self._close_future = None
+            self.logger.info(f"Destroyed {self.sandbox}.")
+            if task_error is not None:
+                raise task_error
+
     async def aclose(self) -> None:
         """Destroy this process's sandbox, cancelling the commands if still running.
 
         Idempotent, and safe to call while another `SandboxProcess` from the same
-        `SandboxOperation` is mid-flight.
+        `SandboxOperation` is mid-flight. Concurrent callers join the same teardown
+        attempt and all observe its success or failure.
         """
-        if self._closed:
-            return
-        self._closed = True
-        try:
-            if self._task is not None:
-                task_loop = self._task.get_loop()
-                current_loop = asyncio.get_running_loop()
-                if task_loop is current_loop:
-                    if not self._task.done():
-                        self._task.cancel()
-                    # Consume the outcome so a failed or cancelled execution cannot
-                    # resurface later as an "exception was never retrieved" warning.
-                    await asyncio.gather(self._task, return_exceptions=True)
-                elif self._task.done():
-                    _consume_task_result(self._task)
-                else:
-                    # A sync context manager used inside async code closes on
-                    # Prefect's sync loop thread. It cannot await a task owned by the
-                    # blocked caller loop, so queue cancellation and exception
-                    # retrieval there; destroying the sandbox below stops the actual
-                    # external command before this method returns.
-                    task_loop.call_soon_threadsafe(_cancel_and_consume_task, self._task)
-        finally:
-            try:
-                await _shielded_cleanup(self._backend.adestroy(self.sandbox))
-            except BaseException:
-                # A failed destroy must remain retryable; `adestroy` is idempotent.
-                self._closed = False
-                raise
-            self.logger.info(f"Destroyed {self.sandbox}.")
+        with self._close_lock:
+            if self._closed:
+                return
+            close_future = self._close_future
+            if close_future is None:
+                close_future = Future()
+                self._close_future = close_future
+                owns_close = True
+            else:
+                owns_close = False
+
+        if owns_close:
+            # Run cleanup in its own task. `_shielded_cleanup` then delays caller
+            # cancellation until destruction finishes, while the shared future still
+            # reports the actual destroy outcome to other callers.
+            await _shielded_cleanup(
+                asyncio.create_task(self._aclose_once(close_future))
+            )
+        else:
+            # `wrap_future` makes the thread-safe completion signal awaitable on
+            # whichever event loop this caller owns.
+            await _shielded_cleanup(asyncio.wrap_future(close_future))
 
     @async_dispatch(aclose)
     def close(self) -> None:
