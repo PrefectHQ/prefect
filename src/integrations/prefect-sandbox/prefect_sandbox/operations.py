@@ -629,6 +629,65 @@ class SandboxOperation:
         """
         return run_coro_as_sync(self.arun())
 
+    async def _aclose_resources(
+        self,
+        processes: list[SandboxProcess],
+        provisioning: list[asyncio.Task[object]],
+        orphans: list[Sandbox],
+        current_loop: asyncio.AbstractEventLoop,
+    ) -> None:
+        """Finish one captured generation of operation cleanup."""
+        local_provisioning: list[asyncio.Task[object]] = []
+        for task in provisioning:
+            if task.get_loop() is current_loop:
+                task.cancel()
+                local_provisioning.append(task)
+            else:
+                task_loop = task.get_loop()
+                task_loop.call_soon_threadsafe(_cancel_and_consume_task, task)
+        if local_provisioning:
+            await asyncio.gather(*local_provisioning, return_exceptions=True)
+
+        failures: list[Exception] = []
+        failed_processes: list[SandboxProcess] = []
+        for sandbox in orphans:
+            # `adestroy` is idempotent, so racing the cancelled provisioner's own
+            # cleanup is harmless; both outcomes end with the sandbox gone.
+            try:
+                await _shielded_cleanup(self.backend.adestroy(sandbox))
+            except Exception as exc:
+                failures.append(exc)
+                self.logger.exception(
+                    f"Failed to destroy {sandbox}; it may still be running."
+                )
+        for process in processes:
+            try:
+                await process.aclose()
+            except Exception as exc:
+                failures.append(exc)
+                failed_processes.append(process)
+                self.logger.exception(
+                    f"Failed to destroy {process.sandbox}; it may still be running."
+                )
+        if failures:
+            with self._lock:
+                self._processes.extend(failed_processes)
+            raise SandboxError(
+                f"Failed to destroy {len(failures)} of "
+                f"{len(processes) + len(orphans)} sandboxes; see the preceding "
+                "errors for sandbox identifiers."
+            ) from failures[0]
+        # Counting the orphans separately matters: reporting only the processes would
+        # log a confident "closed 0 open sandboxes" in exactly the case where a sandbox
+        # existed and had to be cleaned up out of band.
+        if orphans:
+            self.logger.info(
+                f"Successfully closed {len(processes)} open sandboxes and "
+                f"{len(orphans)} still being provisioned on another event loop."
+            )
+        else:
+            self.logger.info(f"Successfully closed {len(processes)} open sandboxes.")
+
     async def aclose(self) -> None:
         """Destroy every sandbox this operation created and still tracks (async version).
 
@@ -660,58 +719,12 @@ class SandboxOperation:
                 if task.get_loop() is not current_loop
             ]
         try:
-            local_provisioning: list[asyncio.Task[object]] = []
-            for task in provisioning:
-                if task.get_loop() is current_loop:
-                    task.cancel()
-                    local_provisioning.append(task)
-                else:
-                    task_loop = task.get_loop()
-                    task_loop.call_soon_threadsafe(_cancel_and_consume_task, task)
-            if local_provisioning:
-                await asyncio.gather(*local_provisioning, return_exceptions=True)
-
-            failures: list[Exception] = []
-            failed_processes: list[SandboxProcess] = []
-            for sandbox in orphans:
-                # `adestroy` is idempotent, so racing the cancelled provisioner's own
-                # cleanup is harmless; both outcomes end with the sandbox gone.
-                try:
-                    await _shielded_cleanup(self.backend.adestroy(sandbox))
-                except Exception as exc:
-                    failures.append(exc)
-                    self.logger.exception(
-                        f"Failed to destroy {sandbox}; it may still be running."
-                    )
-            for process in processes:
-                try:
-                    await process.aclose()
-                except Exception as exc:
-                    failures.append(exc)
-                    failed_processes.append(process)
-                    self.logger.exception(
-                        f"Failed to destroy {process.sandbox}; it may still be running."
-                    )
-            if failures:
-                with self._lock:
-                    self._processes.extend(failed_processes)
-                raise SandboxError(
-                    f"Failed to destroy {len(failures)} of "
-                    f"{len(processes) + len(orphans)} sandboxes; see the preceding "
-                    "errors for sandbox identifiers."
-                ) from failures[0]
-            # Counting the orphans separately matters: reporting only the processes
-            # would log a confident "closed 0 open sandboxes" in exactly the case where
-            # a sandbox existed and had to be cleaned up out of band.
-            if orphans:
-                self.logger.info(
-                    f"Successfully closed {len(processes)} open sandboxes and "
-                    f"{len(orphans)} still being provisioned on another event loop."
-                )
-            else:
-                self.logger.info(
-                    f"Successfully closed {len(processes)} open sandboxes."
-                )
+            # A caller cancellation must wait until *all* captured resources have been
+            # visited. Shielding only the process currently closing would drop the
+            # remaining local handles after `_processes` was moved out above.
+            await _shielded_cleanup(
+                self._aclose_resources(processes, provisioning, orphans, current_loop)
+            )
         finally:
             with self._lock:
                 self._active_closers -= 1

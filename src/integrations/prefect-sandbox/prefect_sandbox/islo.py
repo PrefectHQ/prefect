@@ -53,7 +53,9 @@ _API_URL_ENV_VAR = "ISLO_API_URL"
 #: Reported when the wall clock expired, so the command's own status is unknown.
 _UNKNOWN_EXIT_CODE = -1
 
-#: Per-request budget for the small control-plane calls: create, poll, delete.
+#: Per-request budget for small control-plane calls such as status and deletion.
+#: Creation uses the block's larger `create_timeout` because a cold image pull may
+#: happen before the API returns the initial response.
 _CONTROL_TIMEOUT = 60.0
 
 #: A file upload streams a whole payload, so it gets its own, larger budget.
@@ -85,6 +87,11 @@ _FATAL_STATUSES = frozenset(
 #: Cap on provider error text echoed into an exception message.
 _ERROR_DETAIL_CHARS = 2000
 
+#: Extra room around one output event for its SSE field names and line framing. The
+#: retained event payload is still governed by `max_output_bytes`; this allowance keeps
+#: the parser useful when that cap is tiny without permitting an unbounded frame.
+_SSE_FRAME_OVERHEAD_CHARS = 16 * 1024
+
 
 class _CappedText:
     """Byte-bounded accumulator for one output stream.
@@ -115,35 +122,96 @@ class _CappedText:
         return self._kept.decode(errors="replace")
 
 
-def _split_sse_events(buffer: str) -> tuple[list[tuple[str, str]], str]:
-    """Pull complete Server-Sent Events out of `buffer`.
+def _decode_sse_block(block: str) -> tuple[str, str] | None:
+    """Decode one newline-normalized SSE block."""
+    name: str | None = None
+    data: list[str] = []
+    for line in block.split("\n"):
+        field, _, value = line.partition(":")
+        if value.startswith(" "):
+            value = value[1:]
+        if field == "event":
+            name = value.strip()
+        elif field == "data":
+            data.append(value)
+    return (name, "\n".join(data)) if name is not None else None
+
+
+class _BoundedSSEDecoder:
+    """Incrementally frame SSE events without retaining an unbounded event.
 
     Args:
-        buffer: Accumulated stream text, newline-normalized.
+        max_chars: Maximum characters retained from one incomplete event.
 
-    Returns:
-        The `(event, data)` pairs that were complete, and the unconsumed remainder.
-        Multiple `data:` lines in one event are joined with newlines per the SSE
-        specification, which is how the provider encodes multi-line output.
+    Output events larger than the framing budget yield their retained prefix with the
+    truncation flag set, then the decoder discards bytes until their terminating blank
+    line. This preserves the following `exit` event without materializing the full
+    untrusted payload in memory.
     """
-    events: list[tuple[str, str]] = []
-    while True:
-        boundary = buffer.find("\n\n")
-        if boundary < 0:
-            return events, buffer
-        block, buffer = buffer[:boundary], buffer[boundary + 2 :]
-        name: str | None = None
-        data: list[str] = []
-        for line in block.split("\n"):
-            field, _, value = line.partition(":")
-            if value.startswith(" "):
-                value = value[1:]
-            if field == "event":
-                name = value.strip()
-            elif field == "data":
-                data.append(value)
-        if name is not None:
-            events.append((name, "\n".join(data)))
+
+    def __init__(self, max_chars: int) -> None:
+        self._max_chars = max_chars
+        self._buffer = ""
+        self._dropping = False
+        self._drop_tail = ""
+
+    @property
+    def buffered_chars(self) -> int:
+        """Characters retained between calls to `feed`."""
+        return len(self._buffer) + len(self._drop_tail)
+
+    def feed(self, text: str) -> list[tuple[str, str, bool]]:
+        """Consume `text` and return complete `(event, data, truncated)` tuples."""
+        pending = self._drop_tail + self._buffer + text
+        self._drop_tail = ""
+        self._buffer = ""
+        events: list[tuple[str, str, bool]] = []
+
+        while pending:
+            if self._dropping:
+                boundary = pending.find("\n\n")
+                if boundary < 0:
+                    # Retain only the one character that can form a delimiter with the
+                    # next chunk. Everything else belongs to the oversized event.
+                    self._drop_tail = "\n" if pending.endswith("\n") else ""
+                    return events
+                pending = pending[boundary + 2 :]
+                self._dropping = False
+                continue
+
+            boundary = pending.find("\n\n")
+            if boundary >= 0:
+                truncated = boundary > self._max_chars
+                block = pending[: min(boundary, self._max_chars)]
+                pending = pending[boundary + 2 :]
+                decoded = _decode_sse_block(block)
+                if decoded is None:
+                    if truncated:
+                        raise SandboxExecutionError(
+                            "Islo sent an oversized SSE event whose type could not be "
+                            "identified safely."
+                        )
+                    continue
+                events.append((*decoded, truncated))
+                continue
+
+            if len(pending) > self._max_chars:
+                block = pending[: self._max_chars]
+                pending = pending[self._max_chars :]
+                decoded = _decode_sse_block(block)
+                if decoded is None:
+                    raise SandboxExecutionError(
+                        "Islo sent an oversized SSE event whose type could not be "
+                        "identified safely."
+                    )
+                events.append((*decoded, True))
+                self._dropping = True
+                continue
+
+            self._buffer = pending
+            return events
+
+        return events
 
 
 def _token_expiry(token: str) -> float:
@@ -378,11 +446,19 @@ class IsloSandbox(SandboxBackend):
     #: on a Block would bind this instance to whichever event loop touched it first.
     _session_token: str | None = PrivateAttr(default=None)
     _session_token_expires_at: float = PrivateAttr(default=0.0)
+    _session_token_api_url: str | None = PrivateAttr(default=None)
 
     def _resolved_api_url(self) -> str:
         """Return the API base URL, honouring the block, then the environment."""
         url = self.api_url or os.environ.get(_API_URL_ENV_VAR) or _DEFAULT_API_URL
         return url.rstrip("/")
+
+    def _api_url_for(self, sandbox: Sandbox) -> str:
+        """Return the endpoint recorded on `sandbox`, falling back for old handles."""
+        recorded = sandbox.metadata.get("api_url")
+        if isinstance(recorded, str) and recorded.strip():
+            return recorded.strip().rstrip("/")
+        return self._resolved_api_url()
 
     def _resolved_api_key(self) -> str:
         """Return the API key.
@@ -402,7 +478,11 @@ class IsloSandbox(SandboxBackend):
         return key
 
     def _new_client(
-        self, *, token: str | None, timeout: float | httpx.Timeout
+        self,
+        *,
+        token: str | None,
+        timeout: float | httpx.Timeout,
+        api_url: str | None = None,
     ) -> httpx.AsyncClient:
         """Build a client for one call.
 
@@ -413,12 +493,14 @@ class IsloSandbox(SandboxBackend):
         interface. The handshake is paid a handful of times per sandbox, not per byte.
         """
         return httpx.AsyncClient(
-            base_url=self._resolved_api_url(),
+            base_url=api_url or self._resolved_api_url(),
             timeout=timeout,
             headers={"Authorization": f"Bearer {token}"} if token else {},
         )
 
-    async def _atoken(self, *, force_refresh: bool = False) -> str:
+    async def _atoken(
+        self, *, force_refresh: bool = False, api_url: str | None = None
+    ) -> str:
         """Return a session token, exchanging the API key when necessary.
 
         The raw API key is not accepted as a bearer credential; it has to be traded for
@@ -429,23 +511,27 @@ class IsloSandbox(SandboxBackend):
             SandboxUnavailableError: If no key is configured, the key was rejected, or
                 the API could not be reached at all.
         """
+        endpoint = api_url or self._resolved_api_url()
         cached = self._session_token
         if (
             not force_refresh
             and cached
+            and self._session_token_api_url == endpoint
             and time.time() < self._session_token_expires_at
         ):
             return cached
 
         api_key = self._resolved_api_key()
-        async with self._new_client(token=None, timeout=_CONTROL_TIMEOUT) as client:
+        async with self._new_client(
+            token=None, timeout=_CONTROL_TIMEOUT, api_url=endpoint
+        ) as client:
             try:
                 response = await client.post(
                     "/auth/token", json={"access_key": api_key}
                 )
             except httpx.HTTPError as exc:
                 raise SandboxUnavailableError(
-                    f"Could not reach the Islo API at {self._resolved_api_url()}: {exc}"
+                    f"Could not reach the Islo API at {endpoint}: {exc}"
                 ) from exc
 
         if response.status_code in (401, 403):
@@ -465,6 +551,7 @@ class IsloSandbox(SandboxBackend):
             )
         self._session_token = token
         self._session_token_expires_at = _token_expiry(token)
+        self._session_token_api_url = endpoint
         return token
 
     async def _arequest(
@@ -473,6 +560,7 @@ class IsloSandbox(SandboxBackend):
         path: str,
         *,
         timeout: float = _CONTROL_TIMEOUT,
+        api_url: str | None = None,
         **kwargs: Any,
     ) -> httpx.Response:
         """Make one authenticated API call, retrying once with a fresh token on 401.
@@ -485,9 +573,12 @@ class IsloSandbox(SandboxBackend):
             SandboxError: If the request could not be completed at all.
             SandboxUnavailableError: If no usable credential could be obtained.
         """
+        endpoint = api_url or self._resolved_api_url()
         for attempt in (0, 1):
-            token = await self._atoken(force_refresh=attempt == 1)
-            async with self._new_client(token=token, timeout=timeout) as client:
+            token = await self._atoken(force_refresh=attempt == 1, api_url=endpoint)
+            async with self._new_client(
+                token=token, timeout=timeout, api_url=endpoint
+            ) as client:
                 try:
                     response = await client.request(method, path, **kwargs)
                 except httpx.HTTPError as exc:
@@ -503,24 +594,57 @@ class IsloSandbox(SandboxBackend):
             f"Islo API request {method} {path} exhausted its attempts."
         )
 
-    async def _adelete(self, name: str) -> None:
+    async def _adelete(
+        self,
+        name: str,
+        *,
+        api_url: str | None = None,
+        provisioning_timeout: float = 0.0,
+    ) -> None:
         """Delete one sandbox by name.
 
         Idempotent by design: an already-absent sandbox is a success, and anything else
-        is raised, because untrusted code may still be running inside it.
+        is raised, because untrusted code may still be running inside it. During failed
+        creation, Islo can briefly reject deletion while the VM is still provisioning;
+        when `provisioning_timeout` is positive, status is polled and deletion retried
+        until that transition finishes.
 
         Raises:
             SandboxError: If deletion was neither confirmed nor already true.
         """
-        response = await self._arequest("DELETE", f"/sandboxes/{quote(name, safe='')}")
-        if response.status_code in (200, 202, 204) or _is_absent(response):
-            return
+        path = f"/sandboxes/{quote(name, safe='')}"
+        deadline = time.monotonic() + provisioning_timeout
+        while True:
+            response = await self._arequest("DELETE", path, api_url=api_url)
+            if response.status_code in (200, 202, 204) or _is_absent(response):
+                return
+            if response.status_code not in (400, 409) or time.monotonic() >= deadline:
+                break
+
+            status_response = await self._arequest("GET", path, api_url=api_url)
+            if _is_absent(status_response):
+                return
+            status = str(_json_object(status_response).get("status", "")).lower()
+            if (
+                status_response.status_code >= 400
+                or not status
+                or status == _READY_STATUS
+                or status in _FATAL_STATUSES
+            ):
+                break
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            await asyncio.sleep(min(_POLL_INTERVAL, remaining))
+
         raise SandboxError(
             f"Failed to delete Islo sandbox {name!r}; it may still be running: "
             f"{_error_detail(response)}"
         )
 
-    async def _aawait_ready(self, name: str, status: str) -> None:
+    async def _aawait_ready(
+        self, name: str, status: str, *, api_url: str, deadline: float
+    ) -> None:
         """Poll `name` until it can accept commands.
 
         Args:
@@ -532,7 +656,6 @@ class IsloSandbox(SandboxBackend):
             SandboxCreationError: If the sandbox failed, vanished, or was still not
                 ready within `create_timeout`.
         """
-        deadline = time.monotonic() + self.create_timeout
         while True:
             normalized = status.strip().lower()
             if normalized == _READY_STATUS:
@@ -549,7 +672,9 @@ class IsloSandbox(SandboxBackend):
                     "default; raise create_timeout."
                 )
             await asyncio.sleep(min(_POLL_INTERVAL, remaining))
-            response = await self._arequest("GET", f"/sandboxes/{quote(name, safe='')}")
+            response = await self._arequest(
+                "GET", f"/sandboxes/{quote(name, safe='')}", api_url=api_url
+            )
             if response.status_code >= 400:
                 raise SandboxCreationError(
                     f"Could not read the status of Islo sandbox {name!r}: "
@@ -594,6 +719,7 @@ class IsloSandbox(SandboxBackend):
             SandboxCreationError: If provisioning failed or timed out.
         """
         name = new_sandbox_name()
+        api_url = self._resolved_api_url()
         payload: dict[str, Any] = {
             "name": name,
             "image": self.image,
@@ -616,12 +742,17 @@ class IsloSandbox(SandboxBackend):
         # fast here is what lets every failure below be cleaned up unconditionally —
         # including a later token refresh dying mid-poll, which would otherwise look
         # like "no credential, so no sandbox" long after a microVM had been created.
-        await self._atoken()
+        await self._atoken(api_url=api_url)
+        create_deadline = time.monotonic() + self.create_timeout
 
         body: dict[str, Any] = {}
         try:
             response = await self._arequest(
-                "POST", "/sandboxes", json=payload, timeout=_CONTROL_TIMEOUT
+                "POST",
+                "/sandboxes",
+                json=payload,
+                timeout=self.create_timeout,
+                api_url=api_url,
             )
             if response.status_code not in (200, 201):
                 raise SandboxCreationError(
@@ -630,7 +761,12 @@ class IsloSandbox(SandboxBackend):
                 )
             body.update(_json_object(response))
             self._verify_egress(name, body)
-            await self._aawait_ready(name, str(body.get("status", "")))
+            await self._aawait_ready(
+                name,
+                str(body.get("status", "")),
+                api_url=api_url,
+                deadline=create_deadline,
+            )
         except BaseException as create_error:
             # Nothing may survive a failed create. A rejected request, a lost response,
             # a sandbox that never boots and a cancellation can all leave a live microVM
@@ -638,7 +774,13 @@ class IsloSandbox(SandboxBackend):
             # cancellation arriving here would otherwise abort at the first await and
             # abandon the sandbox.
             try:
-                await _shielded_cleanup(self._adelete(name))
+                await _shielded_cleanup(
+                    self._adelete(
+                        name,
+                        api_url=api_url,
+                        provisioning_timeout=self.create_timeout,
+                    )
+                )
             except asyncio.CancelledError:
                 raise
             except BaseException as cleanup_error:
@@ -649,7 +791,7 @@ class IsloSandbox(SandboxBackend):
                 ) from cleanup_error
             raise
 
-        metadata = {"api_url": self._resolved_api_url()}
+        metadata = {"api_url": api_url}
         sandbox_id = body.get("id")
         if isinstance(sandbox_id, str) and sandbox_id:
             metadata["sandbox_id"] = sandbox_id
@@ -705,9 +847,13 @@ class IsloSandbox(SandboxBackend):
 
         stdout = _CappedText(self.max_output_bytes)
         stderr = _CappedText(self.max_output_bytes)
+        api_url = self._api_url_for(sandbox)
         try:
             exit_code = await asyncio.wait_for(
-                self._astream_exec(sandbox.id, payload, stdout, stderr), timeout
+                self._astream_exec(
+                    sandbox.id, payload, stdout, stderr, api_url=api_url
+                ),
+                timeout,
             )
         except asyncio.TimeoutError:
             # Abandoning the stream does not prove the guest process stopped. Taking the
@@ -741,6 +887,8 @@ class IsloSandbox(SandboxBackend):
         payload: Mapping[str, Any],
         stdout: _CappedText,
         stderr: _CappedText,
+        *,
+        api_url: str,
     ) -> int:
         """Stream one command's output into `stdout`/`stderr` and return its exit code.
 
@@ -753,11 +901,13 @@ class IsloSandbox(SandboxBackend):
         """
         path = f"/sandboxes/{quote(name, safe='')}/exec/stream"
         for attempt in (0, 1):
-            token = await self._atoken(force_refresh=attempt == 1)
+            token = await self._atoken(force_refresh=attempt == 1, api_url=api_url)
             # No read timeout: a command may legitimately print nothing for a long
             # time, and the caller's wall clock is the only deadline that applies.
             client = self._new_client(
-                token=token, timeout=httpx.Timeout(_CONTROL_TIMEOUT, read=None)
+                token=token,
+                timeout=httpx.Timeout(_CONTROL_TIMEOUT, read=None),
+                api_url=api_url,
             )
             async with client:
                 try:
@@ -805,7 +955,7 @@ class IsloSandbox(SandboxBackend):
         # Incremental decoding, because a UTF-8 character can straddle two chunks and
         # decoding each chunk on its own would corrupt it.
         decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
-        buffer = ""
+        events = _BoundedSSEDecoder(self.max_output_bytes + _SSE_FRAME_OVERHEAD_CHARS)
         # A CR held back from the end of a chunk. Normalizing per chunk would leave a
         # `\r\n` split across two chunks un-normalized, and a boundary landing inside an
         # event-terminating `\r\n\r\n` would then merge two events into one — losing the
@@ -820,16 +970,21 @@ class IsloSandbox(SandboxBackend):
             carried_cr = ""
             if text.endswith("\r"):
                 text, carried_cr = text[:-1], "\r"
-            buffer += text.replace("\r\n", "\n")
-            events, buffer = _split_sse_events(buffer)
-            for event, data in events:
+            for event, data, event_truncated in events.feed(text.replace("\r\n", "\n")):
                 if event == "stdout":
                     stdout.append(data)
+                    stdout.truncated |= event_truncated
                 elif event == "stderr":
                     stderr.append(data)
+                    stderr.truncated |= event_truncated
                 elif event == "error":
                     stderr.append(f"{data}\n")
+                    stderr.truncated |= event_truncated
                 elif event == "exit":
+                    if event_truncated:
+                        raise SandboxExecutionError(
+                            f"Islo sent an oversized exit event for {name!r}."
+                        )
                     try:
                         exit_code = int(data.strip())
                     except ValueError:
@@ -850,7 +1005,7 @@ class IsloSandbox(SandboxBackend):
             SandboxError: If deletion could not be confirmed, since untrusted code may
                 still be running.
         """
-        await self._adelete(sandbox.id)
+        await self._adelete(sandbox.id, api_url=self._api_url_for(sandbox))
 
     async def awrite_file(self, sandbox: Sandbox, path: str, content: str) -> None:
         """Write `content` to `path` inside `sandbox` using Islo's file API.
@@ -897,6 +1052,7 @@ class IsloSandbox(SandboxBackend):
             params={"path": path},
             files={"file": (filename, content.encode(), "application/octet-stream")},
             timeout=_UPLOAD_TIMEOUT,
+            api_url=self._api_url_for(sandbox),
         )
         if response.status_code not in (200, 201, 204):
             raise SandboxError(

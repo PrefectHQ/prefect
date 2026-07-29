@@ -41,6 +41,32 @@ prefect block register -m prefect_sandbox
 This registers the `Sbx Sandbox` and `Islo Sandbox` block types for configuration in
 the Prefect UI and loading by name.
 
+### Run the complete demo
+
+The repository includes one flow that uploads the same Python file, executes it with
+network access denied, prints the guest kernel, and destroys the microVM:
+
+```bash
+cd src/integrations/prefect-sandbox
+uv sync
+
+# Docker Sandboxes on this worker
+uv run python examples/hello_sandbox.py sbx
+
+# Hosted at islo.dev
+ISLO_API_KEY=isk_... uv run python examples/hello_sandbox.py islo
+```
+
+The `sbx` command requires a signed-in, policy-initialized Docker Sandboxes host. The
+Islo command needs only `ISLO_API_KEY`. The
+[complete demo source](https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-sandbox/examples/hello_sandbox.py)
+changes only the backend construction:
+
+```python
+SbxSandbox(image="python:3.12-slim", egress="deny")
+IsloSandbox(egress="deny", delete_after=600)
+```
+
 ### Choose a backend
 
 |  | `SbxSandbox` | `IsloSandbox` |

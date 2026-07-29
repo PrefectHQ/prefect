@@ -199,6 +199,18 @@ class FailOnceDestroySandbox(FakeSandbox):
         await super().adestroy(sandbox)
 
 
+class SlowDestroySandbox(FakeSandbox):
+    """A backend that pauses teardown so caller cancellation is deterministic."""
+
+    _destroy_started: asyncio.Event = PrivateAttr(default_factory=asyncio.Event)
+    _allow_destroy: asyncio.Event = PrivateAttr(default_factory=asyncio.Event)
+
+    async def adestroy(self, sandbox: Sandbox) -> None:
+        self._destroy_started.set()
+        await self._allow_destroy.wait()
+        await super().adestroy(sandbox)
+
+
 class SlowCreateSandbox(FakeSandbox):
     """A backend whose create call waits so close/provision races are deterministic."""
 
@@ -1054,6 +1066,35 @@ class TestConcurrency:
         assert backend.live == set()
         assert backend.event_kinds.count("create") == 3
         assert len({call["sandbox_id"] for call in backend.execs}) == 3
+
+    async def test_cancelling_aclose_still_visits_every_captured_process(
+        self,
+    ) -> None:
+        """Cancellation is re-delivered only after the whole close generation ends."""
+        backend = SlowDestroySandbox()
+        operation = SandboxOperation(backend, ["true"])
+        processes = await asyncio.gather(
+            operation.atrigger(),
+            operation.atrigger(),
+            operation.atrigger(),
+        )
+
+        close_task = asyncio.create_task(operation.aclose())
+        await backend._destroy_started.wait()
+        close_task.cancel()
+        await asyncio.sleep(0)
+        assert not close_task.done()
+
+        backend._allow_destroy.set()
+        with pytest.raises(asyncio.CancelledError):
+            await close_task
+
+        destroyed = {
+            sandbox_id for kind, sandbox_id in backend.events if kind == "destroy"
+        }
+        assert destroyed == {process.sandbox.id for process in processes}
+        assert backend.live == set()
+        assert operation._processes == []
 
 
 class TestFilesAndProvisioning:

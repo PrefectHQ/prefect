@@ -146,6 +146,7 @@ class RecordedRequest:
     url: httpx.URL
     headers: httpx.Headers
     content: bytes
+    timeout: dict[str, float | None]
 
     @property
     def path(self) -> str:
@@ -205,6 +206,7 @@ class FakeIslo:
                 url=request.url,
                 headers=request.headers,
                 content=request.content,
+                timeout=dict(request.extensions.get("timeout", {})),
             )
         )
         queued = self._queued.get(route)
@@ -315,9 +317,13 @@ def fake_islo(monkeypatch: pytest.MonkeyPatch) -> FakeIslo:
     build_client = IsloSandbox._new_client
 
     def patched(
-        self: IsloSandbox, *, token: str | None, timeout: float | httpx.Timeout
+        self: IsloSandbox,
+        *,
+        token: str | None,
+        timeout: float | httpx.Timeout,
+        api_url: str | None = None,
     ) -> httpx.AsyncClient:
-        client = build_client(self, token=token, timeout=timeout)
+        client = build_client(self, token=token, timeout=timeout, api_url=api_url)
         client._transport = httpx.MockTransport(fake.handler)
         return client
 
@@ -540,6 +546,33 @@ class TestApiUrl:
         handle = await backend.acreate()
         assert handle.metadata["api_url"] == "https://api.islo.dev"
 
+    async def test_handle_operations_use_the_endpoint_that_created_it(
+        self, fake_islo: FakeIslo
+    ) -> None:
+        """A serialized handle remains usable by a differently configured worker."""
+        name = f"{SANDBOX_NAME_PREFIX}regional"
+        fake_islo.live.add(name)
+        handle = Sandbox(
+            id=name,
+            backend="islo",
+            metadata={
+                "api_url": "https://ca.compute.islo.dev",
+                "sandbox_id": "sb_regional",
+            },
+        )
+        backend = IsloSandbox(
+            api_key=SecretStr(BLOCK_API_KEY),
+            api_url="https://wrong.compute.islo.dev",
+        )
+
+        await backend.aexec(handle, ["true"], timeout=5)
+        await backend.awrite_file(handle, "main.py", "print('hi')\n")
+        await backend.adestroy(handle)
+
+        assert {request.url.host for request in fake_islo.requests} == {
+            "ca.compute.islo.dev"
+        }
+
 
 class TestBlockShape:
     def test_construction_resolves_nothing(self, fake_islo: FakeIslo) -> None:
@@ -704,6 +737,15 @@ class TestCreateRequest:
         assert handle.id.startswith(SANDBOX_NAME_PREFIX)
         assert handle.backend == "islo"
         assert fake_islo.live == {handle.id}
+
+    async def test_a_cold_create_gets_the_full_provisioning_timeout(
+        self, fake_islo: FakeIslo
+    ) -> None:
+        backend = IsloSandbox(api_key=SecretStr(BLOCK_API_KEY), create_timeout=137)
+
+        await backend.acreate()
+
+        assert fake_islo.requests_for("create")[0].timeout["read"] == 137
 
     async def test_the_provider_id_and_api_url_travel_on_the_handle(
         self, backend: IsloSandbox, fake_islo: FakeIslo
@@ -909,6 +951,40 @@ class TestCreateFailureCleanup:
             fake_islo.name_in("delete")
             == fake_islo.requests_for("create")[0].body["name"]
         )
+        assert fake_islo.live == set()
+
+    async def test_cleanup_retries_while_a_timed_out_create_is_still_provisioning(
+        self,
+        backend: IsloSandbox,
+        fake_islo: FakeIslo,
+        poll_delays: list[float],
+    ) -> None:
+        """The API can reject DELETE until a cold VM leaves `creating`."""
+
+        def creates_then_times_out(request: httpx.Request) -> httpx.Response:
+            fake_islo.live.add(json.loads(request.content)["name"])
+            raise httpx.ReadTimeout("create response was late")
+
+        fake_islo.replies("create", creates_then_times_out)
+        fake_islo.statuses = ["creating"]
+        fake_islo.replies(
+            "delete",
+            reply(
+                400,
+                {
+                    "code": "INVALID_REQUEST",
+                    "message": "sandbox has no running VM (status: creating)",
+                },
+            ),
+            fake_islo.default,
+        )
+
+        with pytest.raises(SandboxError, match="create response was late"):
+            await backend.acreate()
+
+        assert len(fake_islo.requests_for("delete")) == 2
+        assert len(fake_islo.requests_for("status")) == 1
+        assert poll_delays
         assert fake_islo.live == set()
 
     async def test_a_cancelled_create_still_deletes_the_sandbox(
@@ -1367,6 +1443,38 @@ class TestExecOutputCap:
         assert len(result.stdout.encode()) == 64
         assert result.truncated
         assert result.exit_code == 0
+
+    async def test_one_unterminated_output_event_is_bounded_while_streaming(
+        self, fake_islo: FakeIslo, sandbox: Sandbox
+    ) -> None:
+        """A provider must not bypass the cap by withholding the SSE blank line."""
+        backend = IsloSandbox(api_key=SecretStr(BLOCK_API_KEY), max_output_bytes=64)
+
+        async def oversized_event() -> AsyncIterator[bytes]:
+            yield b"event: stdout\ndata: "
+            for _ in range(128):
+                yield b"x" * 1024
+            yield b"\n\nevent: exit\ndata: 0\n\n"
+
+        fake_islo.events = oversized_event()
+        result = await backend.aexec(sandbox, ["true"], timeout=5)
+
+        assert result.stdout == "x" * 64
+        assert result.truncated
+        assert result.exit_code == 0
+
+    def test_incomplete_sse_storage_never_exceeds_its_budget(self) -> None:
+        decoder = islo._BoundedSSEDecoder(max_chars=64)
+        emitted: list[tuple[str, str, bool]] = []
+
+        emitted.extend(decoder.feed("event: stdout\ndata: "))
+        for _ in range(128):
+            emitted.extend(decoder.feed("x" * 1024))
+            assert decoder.buffered_chars <= 64
+
+        assert emitted
+        assert emitted[0][0] == "stdout"
+        assert emitted[0][2]
 
     async def test_each_stream_is_capped_independently(
         self, fake_islo: FakeIslo, sandbox: Sandbox

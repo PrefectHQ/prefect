@@ -377,11 +377,15 @@ class IsloProviderFake(ProviderFake):
         return len(self._requests)
 
     def _client(
-        self, *, token: str | None, timeout: float | httpx.Timeout
+        self,
+        *,
+        token: str | None,
+        timeout: float | httpx.Timeout,
+        api_url: str | None = None,
     ) -> httpx.AsyncClient:
         """Stand in for `IsloSandbox._new_client`, routing every call to this fake."""
         return httpx.AsyncClient(
-            base_url=_ISLO_BASE_URL,
+            base_url=api_url or _ISLO_BASE_URL,
             timeout=timeout,
             transport=httpx.MockTransport(self._handle),
             headers={"Authorization": f"Bearer {token}"} if token else {},
