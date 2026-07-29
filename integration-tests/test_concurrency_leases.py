@@ -117,8 +117,10 @@ async def test_async_concurrency_with_leases(concurrency_limit: GlobalConcurrenc
     # Force lease to expire immediately
     await lease_storage.renew_lease(active_lease.id, timedelta(seconds=0))
 
-    # Wait for the lease to be revoked
-    while (await lease_storage.read_expired_lease_ids()) != []:
+    # Wait for this lease to be revoked. Only this lease can be waited on: the
+    # lease storage is shared with tests running in parallel, so the set of
+    # expired leases may never be empty.
+    while (await lease_storage.read_lease(active_lease.id)) is not None:
         await asyncio.sleep(1)
 
     # Check that the concurrency limit has no slots taken after the lease is revoked
@@ -217,8 +219,10 @@ async def test_sync_concurrency_with_leases(concurrency_limit: GlobalConcurrency
     # Force lease to expire immediately
     await lease_storage.renew_lease(active_lease.id, timedelta(seconds=0))
 
-    # Wait for the lease to be revoked
-    while (await lease_storage.read_expired_lease_ids()) != []:
+    # Wait for this lease to be revoked. Only this lease can be waited on: the
+    # lease storage is shared with tests running in parallel, so the set of
+    # expired leases may never be empty.
+    while (await lease_storage.read_lease(active_lease.id)) is not None:
         await asyncio.sleep(1)
 
     # Check that the concurrency limit has no slots taken after the lease is revoked
