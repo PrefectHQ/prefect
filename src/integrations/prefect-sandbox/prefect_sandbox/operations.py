@@ -117,6 +117,7 @@ class SandboxProcess(JobRun[list[str]]):
         # "cleanup started" for "cleanup succeeded".
         self._close_lock = Lock()
         self._close_future: Future[None] | None = None
+        self._close_loop: asyncio.AbstractEventLoop | None = None
 
     @property
     def return_code(self) -> int | None:
@@ -272,6 +273,7 @@ class SandboxProcess(JobRun[list[str]]):
                 if self._close_future is close_future:
                     # `adestroy` is idempotent, so a later caller may safely retry.
                     self._close_future = None
+                    self._close_loop = None
             raise
         else:
             with self._close_lock:
@@ -282,17 +284,28 @@ class SandboxProcess(JobRun[list[str]]):
                     close_future.set_exception(task_error)
                 if self._close_future is close_future:
                     self._close_future = None
+                    self._close_loop = None
             self.logger.info(f"Destroyed {self.sandbox}.")
             if task_error is not None:
                 raise task_error
+
+    async def _aclose_out_of_band(self) -> None:
+        """Destroy from a non-owner loop without waiting for the owner to advance."""
+        await _shielded_cleanup(self._backend.adestroy(self.sandbox))
+        with self._close_lock:
+            self._closed = True
+        self.logger.info(f"Destroyed {self.sandbox} from another event loop.")
 
     async def aclose(self) -> None:
         """Destroy this process's sandbox, cancelling the commands if still running.
 
         Idempotent, and safe to call while another `SandboxProcess` from the same
         `SandboxOperation` is mid-flight. Concurrent callers join the same teardown
-        attempt and all observe its success or failure.
+        attempt on one event loop and all observe its success or failure. A caller on
+        another loop destroys idempotently instead of waiting: the dispatcher's sync
+        loop can be running precisely because its caller has blocked the owner loop.
         """
+        current_loop = asyncio.get_running_loop()
         with self._close_lock:
             if self._closed:
                 return
@@ -300,9 +313,11 @@ class SandboxProcess(JobRun[list[str]]):
             if close_future is None:
                 close_future = Future()
                 self._close_future = close_future
+                self._close_loop = current_loop
                 owns_close = True
             else:
                 owns_close = False
+            close_loop = self._close_loop
 
         if owns_close:
             # Run cleanup in its own task. `_shielded_cleanup` then delays caller
@@ -311,6 +326,11 @@ class SandboxProcess(JobRun[list[str]]):
             await _shielded_cleanup(
                 asyncio.create_task(self._aclose_once(close_future))
             )
+        elif close_loop is not current_loop:
+            # Waiting for a task owned by another loop can deadlock when this is the
+            # forced-sync dispatch lane and its caller has blocked that owner loop.
+            # Backend destruction is idempotent, so finish it from this loop instead.
+            await self._aclose_out_of_band()
         else:
             # `wrap_future` makes the thread-safe completion signal awaitable on
             # whichever event loop this caller owns.
@@ -478,6 +498,8 @@ class SandboxOperation:
         self._close_generation = 0
         self._active_closers = 0
         self._close_future: Future[None] | None = None
+        self._close_loop: asyncio.AbstractEventLoop | None = None
+        self._closing_processes: tuple[SandboxProcess, ...] = ()
         # Guards the list against the sync lane (which runs on a separate
         # `run_coro_as_sync` loop thread) mutating it concurrently with the async one.
         self._lock = Lock()
@@ -658,9 +680,12 @@ class SandboxOperation:
             try:
                 await process.aclose()
             finally:
-                with self._lock:
-                    if process in self._processes:
-                        self._processes.remove(process)
+                # A failed provider delete leaves `_closed` false. Keep the only
+                # process handle in that case so a later operation close can retry.
+                if process._closed:
+                    with self._lock:
+                        if process in self._processes:
+                            self._processes.remove(process)
 
     @async_dispatch(arun)
     def run(self) -> list[str]:
@@ -740,6 +765,58 @@ class SandboxOperation:
         else:
             self.logger.info(f"Successfully closed {len(processes)} open sandboxes.")
 
+    async def _aclose_out_of_band(self) -> None:
+        """Reclaim an active generation from a loop that cannot wait for its owner."""
+        current_loop = asyncio.get_running_loop()
+        with self._lock:
+            processes = list(self._closing_processes)
+            provisioning = list(self._provisioning)
+            provisioned = {
+                sandbox.id: sandbox for sandbox in self._provisioned.values()
+            }
+
+        local_provisioning: list[asyncio.Task[object]] = []
+        failures: list[Exception] = []
+        for task in provisioning:
+            try:
+                if task.get_loop() is current_loop:
+                    task.cancel()
+                    local_provisioning.append(task)
+                else:
+                    task.get_loop().call_soon_threadsafe(_cancel_and_consume_task, task)
+            except Exception as exc:
+                failures.append(exc)
+        if local_provisioning:
+            await asyncio.gather(*local_provisioning, return_exceptions=True)
+
+        process_ids = {process.sandbox.id for process in processes}
+        for process in processes:
+            try:
+                await process.aclose()
+            except Exception as exc:
+                failures.append(exc)
+                self.logger.exception(
+                    f"Failed to destroy {process.sandbox} from another event loop; "
+                    "it may still be running."
+                )
+        for sandbox_id, sandbox in provisioned.items():
+            if sandbox_id in process_ids:
+                continue
+            try:
+                await _shielded_cleanup(self.backend.adestroy(sandbox))
+            except Exception as exc:
+                failures.append(exc)
+                self.logger.exception(
+                    f"Failed to destroy {sandbox} from another event loop; "
+                    "it may still be running."
+                )
+
+        if failures:
+            raise SandboxError(
+                f"Failed to complete out-of-band cleanup for {len(failures)} "
+                "resources; see the preceding errors for sandbox identifiers."
+            ) from failures[0]
+
     async def _aclose_generation(
         self,
         close_future: Future[None],
@@ -756,6 +833,8 @@ class SandboxOperation:
                 close_future.set_exception(exc)
                 if self._close_future is close_future:
                     self._close_future = None
+                    self._close_loop = None
+                    self._closing_processes = ()
                 self._active_closers -= 1
             raise
         else:
@@ -763,6 +842,8 @@ class SandboxOperation:
                 close_future.set_result(None)
                 if self._close_future is close_future:
                     self._close_future = None
+                    self._close_loop = None
+                    self._closing_processes = ()
                 self._active_closers -= 1
 
     async def aclose(self) -> None:
@@ -781,8 +862,10 @@ class SandboxOperation:
         scheduled instead, and any sandbox it had already created is destroyed by this
         call, so nothing is left running either way.
 
-        Concurrent callers join the same cleanup generation, including across the sync
-        and async dispatch lanes, and all observe its success or failure.
+        Concurrent callers on one loop join the same cleanup generation and observe its
+        outcome. A caller on another loop reclaims the generation's published handles
+        idempotently instead of waiting: the dispatcher's sync loop can be running
+        precisely because its caller has blocked the owner loop.
         """
         current_loop = asyncio.get_running_loop()
         with self._lock:
@@ -790,9 +873,11 @@ class SandboxOperation:
             if close_future is None:
                 close_future = Future()
                 self._close_future = close_future
+                self._close_loop = current_loop
                 self._active_closers += 1
                 self._close_generation += 1
                 processes, self._processes = self._processes, []
+                self._closing_processes = tuple(processes)
                 provisioning = list(self._provisioning)
                 # Sandboxes belonging to provisioning this closer cannot join.
                 # Destroying them here is what keeps a scheduled-but-not-awaited
@@ -805,6 +890,7 @@ class SandboxOperation:
                 owns_close = True
             else:
                 owns_close = False
+            close_loop = self._close_loop
 
         if owns_close:
             # The generation runs in its own shielded task so cancellation of its first
@@ -820,6 +906,11 @@ class SandboxOperation:
                     )
                 )
             )
+        elif close_loop is not current_loop:
+            # The caller that dispatched this sync lane may have blocked the loop
+            # running the original generation. Reclaim its published handles here
+            # rather than waiting for a future only that blocked loop can complete.
+            await _shielded_cleanup(asyncio.create_task(self._aclose_out_of_band()))
         else:
             await _shielded_cleanup(asyncio.wrap_future(close_future))
 

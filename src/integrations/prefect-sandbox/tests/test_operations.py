@@ -17,6 +17,7 @@ import asyncio
 import contextlib
 import inspect
 import logging
+import threading
 from collections.abc import Mapping, Sequence
 from typing import Any, ClassVar
 
@@ -223,6 +224,30 @@ class SlowFailOnceDestroySandbox(FailOnceDestroySandbox):
         await super().adestroy(sandbox)
 
 
+class CrossLoopDestroySandbox(FakeSandbox):
+    """Hold the first delete until a second loop performs the idempotent delete."""
+
+    _destroy_started: threading.Event = PrivateAttr(default_factory=threading.Event)
+    _allow_first_destroy: threading.Event = PrivateAttr(default_factory=threading.Event)
+    _destroy_lock: threading.Lock = PrivateAttr(default_factory=threading.Lock)
+    _destroy_attempts: int = PrivateAttr(default=0)
+
+    @property
+    def destroy_attempts(self) -> int:
+        return self._destroy_attempts
+
+    async def adestroy(self, sandbox: Sandbox) -> None:
+        with self._destroy_lock:
+            self._destroy_attempts += 1
+            attempt = self._destroy_attempts
+        if attempt == 1:
+            self._destroy_started.set()
+            await asyncio.to_thread(self._allow_first_destroy.wait)
+        await super().adestroy(sandbox)
+        if attempt > 1:
+            self._allow_first_destroy.set()
+
+
 class SlowCreateSandbox(FakeSandbox):
     """A backend whose create call waits so close/provision races are deterministic."""
 
@@ -375,6 +400,20 @@ class TestRunAndTrigger:
 
         # One destroy, from `arun` itself: nothing was left for `aclose` to mop up.
         assert backend.event_kinds.count("destroy") == 1
+
+    async def test_arun_retains_a_failed_destroy_for_operation_retry(self) -> None:
+        backend = FailOnceDestroySandbox()
+        operation = SandboxOperation(backend, ["true"])
+
+        with pytest.raises(RuntimeError, match="temporary vendor outage"):
+            await operation.arun()
+
+        assert len(operation._processes) == 1
+        assert backend.live == {operation._processes[0].sandbox.id}
+
+        await operation.aclose()
+        assert operation._processes == []
+        assert backend.live == set()
 
     async def test_process_exposes_the_full_result(self) -> None:
         backend = FakeSandbox(stdout="out", stderr="err", exit_code=3, truncated=True)
@@ -1097,6 +1136,30 @@ class TestConcurrency:
         assert backend.live == set()
         assert backend.event_kinds.count("destroy") == 1
 
+    async def test_cross_loop_process_close_does_not_wait_for_owner_loop(
+        self,
+    ) -> None:
+        backend = CrossLoopDestroySandbox()
+        operation = SandboxOperation(backend, ["true"])
+        process = await operation.atrigger()
+        await process.await_for_completion()
+
+        owner_close = asyncio.create_task(process.aclose())
+        assert await asyncio.to_thread(backend._destroy_started.wait, 2)
+        sync_close = asyncio.create_task(
+            asyncio.to_thread(lambda: process.close(_sync=True))
+        )
+        try:
+            await asyncio.wait_for(asyncio.shield(sync_close), timeout=2)
+        finally:
+            # Release the owner even if the assertion times out, so a regression fails
+            # cleanly instead of abandoning a task on another event loop.
+            backend._allow_first_destroy.set()
+            await asyncio.gather(owner_close, sync_close, return_exceptions=True)
+
+        assert backend.live == set()
+        assert backend.destroy_attempts == 2
+
     async def test_operation_joins_an_in_flight_process_close_failure(self) -> None:
         """The operation must retain a process whose shared destroy attempt failed."""
         backend = SlowFailOnceDestroySandbox()
@@ -1163,6 +1226,29 @@ class TestConcurrency:
         await operation.aclose()
         assert backend.live == set()
         assert operation._processes == []
+
+    async def test_cross_loop_operation_close_does_not_wait_for_owner_loop(
+        self,
+    ) -> None:
+        backend = CrossLoopDestroySandbox()
+        operation = SandboxOperation(backend, ["true"])
+        process = await operation.atrigger()
+        await process.await_for_completion()
+
+        owner_close = asyncio.create_task(operation.aclose())
+        assert await asyncio.to_thread(backend._destroy_started.wait, 2)
+        sync_close = asyncio.create_task(
+            asyncio.to_thread(lambda: operation.close(_sync=True))
+        )
+        try:
+            await asyncio.wait_for(asyncio.shield(sync_close), timeout=2)
+        finally:
+            backend._allow_first_destroy.set()
+            await asyncio.gather(owner_close, sync_close, return_exceptions=True)
+
+        assert backend.live == set()
+        assert operation._processes == []
+        assert backend.destroy_attempts == 2
 
     async def test_cancelling_aclose_still_visits_every_captured_process(
         self,
