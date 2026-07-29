@@ -109,6 +109,9 @@ class TestRevokeExpiredLease:
 
         # Verify no error was raised and no leases remain
         assert len(lease_storage.leases) == 0
+        # The stale expiration entry is cleared so the lease isn't reported as
+        # expired forever
+        assert lease_storage.expirations == {}
 
     async def test_revoke_expired_lease_missing_metadata(
         self, lease_storage, concurrency_limit
