@@ -100,16 +100,14 @@ def handle_engine_signals(flow_run_id: UUID | None = None):
         engine_logger.info(msg)
         exit(0)
     except TerminationSignal:
-        # A TerminationSignal can mean either:
-        # - an expected runner-driven control action (today: cancel intent),
-        # - or a raw external termination with no runner intent attached.
-        #
-        # Only the first case should translate to a clean process exit.
-        if get_intent() == "cancel":
+        # An intent means the runner or the `prefect flow-run execute` supervisor
+        # drove this termination and owns the flow run's next state, so exit cleanly.
+        # A raw external termination has no intent and must keep propagating.
+        if get_intent() is not None:
             if flow_run_id:
-                msg = f"Execution of flow run '{flow_run_id}' was cancelled."
+                msg = f"Execution of flow run '{flow_run_id}' was terminated."
             else:
-                msg = "Execution was cancelled."
+                msg = "Execution was terminated."
             engine_logger.info(msg)
             clear_intent()
             exit(0)

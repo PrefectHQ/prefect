@@ -333,6 +333,7 @@ class WorkspaceResolvingEngineCommandStarter:
         heartbeat_seconds: int | None = None,
         deployment_name: str | None = None,
         control_channel: ControlChannel | None = None,
+        isolate_process_group: bool = False,
     ) -> None:
         self._workspace_root = workspace_root
         self._command = command
@@ -340,6 +341,7 @@ class WorkspaceResolvingEngineCommandStarter:
         self._heartbeat_seconds = heartbeat_seconds
         self._deployment_name = deployment_name
         self._control_channel = control_channel
+        self._isolate_process_group = isolate_process_group
         self._workspace: PreparedWorkspace | None = None
 
     @property
@@ -368,6 +370,7 @@ class WorkspaceResolvingEngineCommandStarter:
             heartbeat_seconds=self._heartbeat_seconds,
             deployment_name=self._deployment_name,
             control_channel=self._control_channel,
+            isolate_process_group=self._isolate_process_group,
         )
         await starter.start(flow_run, task_status=task_status)
 

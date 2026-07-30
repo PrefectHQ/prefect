@@ -6,6 +6,7 @@ import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
+import anyio
 import pytest
 
 from prefect.runner._process_manager import ProcessHandle, ProcessManager, _pid_is_alive
@@ -180,6 +181,45 @@ class TestProcessManagerKill:
                 assert call_count >= 2
 
     @pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only test")
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only signals")
+    async def test_kill_force_sends_only_sigkill_without_grace_period(self):
+        async with ProcessManager() as pm:
+            run_id = uuid4()
+            mock_proc = MagicMock()
+            mock_proc.pid = 12345
+            await pm.add(run_id, ProcessHandle(mock_proc))
+
+            sent: list[tuple[str, int]] = []
+            with (
+                patch("prefect.runner._process_manager.os.getpgid", return_value=12345),
+                patch(
+                    "prefect.runner._process_manager.os.killpg",
+                    side_effect=lambda pid, sig: sent.append(("killpg", sig)),
+                ),
+                patch(
+                    "prefect.runner._process_manager.os.kill",
+                    side_effect=lambda pid, sig: sent.append(("kill", sig)),
+                ),
+                anyio.fail_after(1),  # must not wait out the grace period
+            ):
+                await pm.kill(run_id, grace_seconds=30, force=True)
+
+            assert sent == [("killpg", signal.SIGKILL)]
+
+    async def test_kill_ignores_an_already_reaped_process(self):
+        """`__aexit__` re-kills entries whose cleanup was skipped by cancellation."""
+        async with ProcessManager() as pm:
+            run_id = uuid4()
+            mock_proc = MagicMock()
+            mock_proc.pid = 99999
+            await pm.add(run_id, ProcessHandle(mock_proc))
+
+            with patch(
+                "prefect.runner._process_manager.os.kill",
+                side_effect=ProcessLookupError("no such process"),
+            ):
+                await pm.kill(run_id, grace_seconds=1)
+
     async def test_kill_propagates_os_error_from_sigterm(self):
         async with ProcessManager() as pm:
             run_id = uuid4()
