@@ -12,7 +12,7 @@ from starlette.testclient import TestClient, WebSocketTestSession
 from prefect.client.schemas import TaskRun
 from prefect.server import models
 from prefect.server.schemas.core import TaskRun as ServerTaskRun
-from prefect.server.task_delivery import TaskRunDeliveryManager
+from prefect.server.task_delivery import schedule_task_run_delivery
 
 pytestmark = pytest.mark.clear_db
 
@@ -76,7 +76,7 @@ def drain(
 def enqueue(socket: WebSocketTestSession, *task_runs_to_enqueue: ServerTaskRun) -> None:
     with socket.portal_factory() as portal:
         for task_run in task_runs_to_enqueue:
-            portal.call(TaskRunDeliveryManager.active().publish, task_run)
+            portal.call(schedule_task_run_delivery, task_run)
 
 
 @pytest.fixture
@@ -209,9 +209,9 @@ def test_only_one_socket_gets_each_task_run(
         )
         enqueue(first, *ten_task_A_runs)
 
-        for i in range(5):
-            received1 += drain(first, 1, quit=(i == 4))
-            received2 += drain(second, 1, quit=(i == 4))
+        for _ in range(5):
+            received1 += drain(first, 1, quit=False)
+            received2 += drain(second, 1, quit=False)
 
     received1_ids = {r.id for r in received1}
     received2_ids = {r.id for r in received2}

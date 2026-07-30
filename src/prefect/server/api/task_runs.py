@@ -34,7 +34,9 @@ from prefect.server.schemas.responses import (
     OrchestrationResult,
     TaskRunPaginationResponse,
 )
-from prefect.server.task_delivery import TaskRunDeliveryManager
+from prefect.server.task_delivery import (
+    _task_run_delivery_subscription,  # pyright: ignore[reportPrivateUsage]
+)
 from prefect.server.utilities import subscriptions
 from prefect.server.utilities.server import PrefectRouter
 from prefect.types import DateTime
@@ -383,42 +385,58 @@ async def scheduled_task_subscription(websocket: WebSocket) -> None:
         )
 
     logger.info(f"Task worker {client_id!r} subscribed to task keys {task_keys!r}")
-    await models.task_workers.observe_worker(task_keys, client_id)
 
-    async with TaskRunDeliveryManager.active().subscribe(
-        task_keys
-    ) as task_subscription:
-        while True:
-            # Observe here so workers with idle WebSockets remain visible.
-            await models.task_workers.observe_worker(task_keys, client_id)
+    async with _task_run_delivery_subscription(task_keys) as task_subscription:
+        acknowledgements: set[asyncio.Task[None]] = set()
+
+        def acknowledgement_done(task: asyncio.Task[None]) -> None:
+            acknowledgements.discard(task)
             try:
-                delivery = await task_subscription.receive(timeout=1)
-            except asyncio.TimeoutError:
-                if not await subscriptions.still_connected(websocket):
-                    await models.task_workers.forget_worker(client_id)
-                    return
-                continue
-
-            try:
-                await websocket.send_json(delivery.task_run.model_dump(mode="json"))
-
-                acknowledgement = await websocket.receive_json()
-                ack_type = acknowledgement.get("type")
-                if ack_type != "ack":
-                    if ack_type == "quit":
-                        return await websocket.close()
-
-                    raise WebSocketDisconnect(
-                        code=4001,
-                        reason="Protocol violation: expected 'ack' message",
-                    )
-
-                await task_subscription.acknowledge(delivery)
-                await models.task_workers.observe_worker(
-                    [delivery.task_run.task_key], client_id
+                task.result()
+            except Exception:
+                logger.warning(
+                    "Failed to acknowledge task run delivery; it will be redelivered",
+                    exc_info=True,
                 )
 
-            except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
-                return
-            finally:
-                await models.task_workers.forget_worker(client_id)
+        try:
+            while True:
+                # Observe here so workers with idle WebSockets remain visible.
+                await models.task_workers.observe_worker(task_keys, client_id)
+                try:
+                    delivery = await task_subscription.receive(timeout=1)
+                except asyncio.TimeoutError:
+                    if not await subscriptions.still_connected(websocket):
+                        await models.task_workers.forget_worker(client_id)
+                        return
+                    continue
+
+                try:
+                    await websocket.send_json(delivery.task_run.model_dump(mode="json"))
+
+                    acknowledgement = await websocket.receive_json()
+                    ack_type = acknowledgement.get("type")
+                    if ack_type != "ack":
+                        if ack_type == "quit":
+                            return await websocket.close()
+
+                        raise WebSocketDisconnect(
+                            code=4001,
+                            reason="Protocol violation: expected 'ack' message",
+                        )
+
+                    acknowledgement_task = asyncio.create_task(
+                        task_subscription.acknowledge(delivery)
+                    )
+                    acknowledgements.add(acknowledgement_task)
+                    acknowledgement_task.add_done_callback(acknowledgement_done)
+                    await models.task_workers.observe_worker(
+                        [delivery.task_run.task_key], client_id
+                    )
+
+                except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:
+                    return
+                finally:
+                    await models.task_workers.forget_worker(client_id)
+        finally:
+            await asyncio.gather(*acknowledgements, return_exceptions=True)

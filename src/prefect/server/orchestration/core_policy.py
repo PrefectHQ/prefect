@@ -1204,14 +1204,7 @@ class EnqueueScheduledTasks(TaskRunOrchestrationRule):
             return
 
         task_run: core.TaskRun = core.TaskRun.model_validate(context.run)
-        await schedule_task_run_delivery(
-            task_run,
-            when=(
-                validated_state.state_details.scheduled_time
-                if validated_state.name == "AwaitingRetry"
-                else None
-            ),
-        )
+        await schedule_task_run_delivery(task_run)
 
 
 class RenameReruns(GenericOrchestrationRule):

@@ -10,7 +10,7 @@ Durable delivery of deferred task runs to TaskWorkers.
 
 ## Functions
 
-### `schedule_task_run_delivery` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_delivery.py#L363" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `schedule_task_run_delivery` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_delivery.py#L144" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 schedule_task_run_delivery(task_run: schemas.core.TaskRun) -> None
@@ -20,99 +20,11 @@ schedule_task_run_delivery(task_run: schemas.core.TaskRun) -> None
 Schedule a deferred task run for delivery through Docket.
 
 
-### `deliver_task_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_delivery.py#L372" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `task_run_delivery_lifespan` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_delivery.py#L155" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-deliver_task_run(task_run: schemas.core.TaskRun, visibility_timeout_seconds: float, kind: str, max_size: int, perpetual: Perpetual = Perpetual(), docket: Docket = CurrentDocket()) -> None
-```
-
-
-Offer a task run until a TaskWorker acknowledges it.
-
-
-### `task_run_delivery_lifespan` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_delivery.py#L410" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-task_run_delivery_lifespan(docket: Docket) -> AsyncGenerator[TaskRunDeliveryManager, None]
+task_run_delivery_lifespan(docket: Docket) -> AsyncGenerator[None, None]
 ```
 
 
 Configure deferred task delivery for an API process.
-
-
-## Classes
-
-### `TaskDeliveryUnavailable` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_delivery.py#L82" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-
-Raised when task delivery has not been configured.
-
-
-### `TaskRunDelivery` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_delivery.py#L96" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-### `TaskRunSubscription` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_delivery.py#L105" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-
-A TaskWorker subscription to one or more task-key queues.
-
-
-**Methods:**
-
-#### `acknowledge` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_delivery.py#L205" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-acknowledge(self, delivery: TaskRunDelivery) -> None
-```
-
-Acknowledge a task run accepted by the connected TaskWorker.
-
-
-#### `receive` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_delivery.py#L157" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-receive(self, timeout: float = 1) -> TaskRunDelivery
-```
-
-Receive a task run matching this subscription.
-
-
-### `TaskRunDeliveryManager` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_delivery.py#L266" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-
-Schedules Docket executions and creates keyed TaskWorker subscriptions.
-
-
-**Methods:**
-
-#### `active` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_delivery.py#L293" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-active(cls) -> 'TaskRunDeliveryManager'
-```
-
-#### `publish` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_delivery.py#L350" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-publish(self, task_run: schemas.core.TaskRun) -> None
-```
-
-#### `reconcile` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_delivery.py#L315" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-reconcile(self, task_run: schemas.core.TaskRun) -> bool
-```
-
-Restore delivery for a deferred task run if its execution is absent.
-
-
-#### `schedule` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_delivery.py#L298" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-schedule(self, task_run: schemas.core.TaskRun) -> None
-```
-
-#### `subscribe` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_delivery.py#L353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-subscribe(self, task_keys: list[str]) -> TaskRunSubscription
-```

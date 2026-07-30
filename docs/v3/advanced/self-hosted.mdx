@@ -197,7 +197,7 @@ Redis Cluster mode (`redis+cluster://` and `rediss+cluster://` URL schemes) is n
 
 #### Docket URL for background services
 
-Prefect uses [Docket](https://github.com/chrisguidry/docket) to coordinate background services like the scheduler, late run detection, and automation triggers. Docket also schedules deferred task runs and provides the Redis transport for task-keyed delivery to background task workers. By default, Docket uses in-memory storage (`memory://`), which only works for single-server deployments.
+Prefect uses [Docket](https://github.com/chrisguidry/docket) to coordinate background services like the scheduler, late run detection, and automation triggers. Prefect also uses the same Docket connection for durable, task-keyed background task delivery. By default, Docket uses in-memory storage (`memory://`), which only works for single-server deployments.
 
 For high-availability deployments, configure Docket to use Redis:
 
