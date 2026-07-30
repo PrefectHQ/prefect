@@ -82,7 +82,6 @@ async def test_propose_state_with_result_hydrates_accepted_proposal():
             StateWaitDetails(
                 delay_seconds=2,
                 reason="binding is not visible",
-                max_wait_seconds=17,
             ),
             None,
         ),
@@ -182,7 +181,6 @@ def test_propose_state_with_result_sync_preserves_wait_without_sleep(
     details = StateWaitDetails(
         delay_seconds=2,
         reason="binding is not visible",
-        max_wait_seconds=0,
     )
     result = _orchestration_result(SetStateStatus.WAIT, details)
     client = MagicMock()
@@ -253,7 +251,7 @@ async def test_propose_state_retries_wait_through_client_seam(
     )
     wait_result = _orchestration_result(
         SetStateStatus.WAIT,
-        StateWaitDetails(delay_seconds=3, reason="wait", max_wait_seconds=30),
+        StateWaitDetails(delay_seconds=3, reason="wait"),
     )
     accepted_state = Pending(
         id=uuid7(),
@@ -303,7 +301,7 @@ def test_propose_state_sync_retries_wait_through_client_seam(
     )
     wait_result = _orchestration_result(
         SetStateStatus.WAIT,
-        StateWaitDetails(delay_seconds=3, reason="wait", max_wait_seconds=30),
+        StateWaitDetails(delay_seconds=3, reason="wait"),
     )
     accepted_state = Pending(
         id=uuid7(),

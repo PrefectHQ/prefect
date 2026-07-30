@@ -7,7 +7,6 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 import sqlalchemy.exc
-from pydantic import ValidationError
 
 from prefect.server import models, schemas
 from prefect.server.database import provide_database_interface
@@ -93,24 +92,6 @@ class TestOrchestrationResult:
             state=None, status=status, details=response_details.model_dump()
         )
         assert isinstance(cast_result.details, response_type)
-
-    @pytest.mark.parametrize("max_wait_seconds", [None, 0, 300])
-    def test_wait_details_preserve_optional_max_wait_seconds(
-        self, max_wait_seconds: int | None
-    ):
-        details = StateWaitDetails.model_validate(
-            {
-                "delay_seconds": 1,
-                "reason": "Wait",
-                "max_wait_seconds": max_wait_seconds,
-            }
-        )
-
-        assert details.max_wait_seconds == max_wait_seconds
-
-    def test_wait_details_reject_negative_max_wait_seconds(self):
-        with pytest.raises(ValidationError):
-            StateWaitDetails(delay_seconds=1, max_wait_seconds=-1)
 
 
 class TestBaseOrchestrationRule:

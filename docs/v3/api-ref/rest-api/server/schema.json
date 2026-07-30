@@ -26433,19 +26433,6 @@
                         ],
                         "title": "Reason",
                         "description": "The reason why the state transition should wait."
-                    },
-                    "max_wait_seconds": {
-                        "anyOf": [
-                            {
-                                "type": "integer",
-                                "minimum": 0.0
-                            },
-                            {
-                                "type": "null"
-                            }
-                        ],
-                        "title": "Max Wait Seconds",
-                        "description": "The maximum remaining time in seconds that the client should retry this state transition."
                     }
                 },
                 "type": "object",

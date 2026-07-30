@@ -8482,7 +8482,7 @@ export interface components {
          */
         IntervalSchedule: {
             /** Interval */
-            interval: number;
+            interval: number | string;
             /**
              * Anchor Date
              * Format: date-time
@@ -10951,11 +10951,6 @@ export interface components {
              * @description The reason why the state transition should wait.
              */
             reason?: string | null;
-            /**
-             * Max Wait Seconds
-             * @description The maximum remaining time in seconds that the client should retry this state transition.
-             */
-            max_wait_seconds?: number | null;
         };
         /**
          * SuspendFlowRun
