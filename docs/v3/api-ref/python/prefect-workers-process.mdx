@@ -24,11 +24,11 @@ checkout out the [Prefect docs](https://docs.prefect.io/v3/concepts/work-pools/)
 
 ## Classes
 
-### `ProcessJobConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ProcessJobConfiguration` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L52" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `from_template_and_values` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L184" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `from_template_and_values` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L192" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 from_template_and_values(cls, base_job_template: dict[str, Any], values: dict[str, Any], client: 'PrefectClient | None' = None)
@@ -41,13 +41,13 @@ Important: this method expects that the base_job_template was already
 validated server-side.
 
 
-#### `is_using_a_runner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L154" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `is_using_a_runner` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L162" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 is_using_a_runner(self) -> bool
 ```
 
-#### `json_template` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L312" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `json_template` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L320" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 json_template(cls) -> dict[str, Any]
@@ -66,13 +66,13 @@ e.g.
 ```
 
 
-#### `prepare_for_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L71" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `prepare_for_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L63" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 prepare_for_flow_run(self, flow_run: 'FlowRun', deployment: 'DeploymentResponse | None' = None, flow: 'APIFlow | None' = None, work_pool: 'WorkPool | None' = None, worker_name: str | None = None, worker_id: 'UUID | None' = None) -> None
 ```
 
-#### `prepare_for_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L336" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `prepare_for_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L344" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 prepare_for_flow_run(self, flow_run: 'FlowRun', deployment: 'DeploymentResponse | None' = None, flow: 'APIFlow | None' = None, work_pool: 'WorkPool | None' = None, worker_name: str | None = None, worker_id: 'UUID | None' = None) -> None
@@ -93,7 +93,7 @@ the flow run.
 - `worker_id`: The backend ID of the worker that is submitting the flow run.
 
 
-#### `resolve_for_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L253" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `resolve_for_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L261" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resolve_for_flow_run(cls, flow_run: 'FlowRun') -> Self
@@ -107,17 +107,17 @@ base template, instantiates the configuration, and stamps
 attribution metadata via `prepare_for_flow_run`.
 
 
-#### `validate_working_dir` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L66" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `validate_working_dir` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L58" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 validate_working_dir(cls, v: Path | str | None) -> Path | None
 ```
 
-### `ProcessVariables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L106" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ProcessVariables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L98" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L561" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `model_json_schema` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/base.py#L569" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions/{model}', schema_generator: Type[GenerateJsonSchema] = GenerateJsonSchema, mode: Literal['validation', 'serialization'] = 'validation') -> dict[str, Any]
@@ -126,41 +126,18 @@ model_json_schema(cls, by_alias: bool = True, ref_template: str = '#/definitions
 TODO\: stop overriding this method - use GenerateSchema in ConfigDict instead?
 
 
-### `ProcessWorkerResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L125" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ProcessWorkerResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L117" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Contains information about the final state of a completed process
 
 
-### `ProcessWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L129" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ProcessWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L121" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L237" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L136" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run(self, flow_run: 'FlowRun', configuration: ProcessJobConfiguration, task_status: Optional[anyio.abc.TaskStatus[int]] = None) -> ProcessWorkerResult
 ```
-
-#### `start` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/workers/process.py#L144" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-start(self, run_once: bool = False, with_healthcheck: bool = False, printer: Callable[..., None] = print) -> None
-```
-
-Starts the worker and runs the main worker loops.
-
-By default, the worker will run loops to poll for scheduled/cancelled flow
-runs and sync with the Prefect API server.
-
-If `run_once` is set, the worker will only run each loop once and then return.
-
-If `with_healthcheck` is set, the worker will start a healthcheck server which
-can be used to determine if the worker is still polling for flow runs and restart
-the worker if necessary.
-
-**Args:**
-- `run_once`: If set, the worker will only run each loop once then return.
-- `with_healthcheck`: If set, the worker will start a healthcheck server.
-- `printer`: A `print`-like function where logs will be reported.
-
