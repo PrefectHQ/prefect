@@ -13,10 +13,8 @@ from prefect.client.schemas.pending_claims import (
     ExecutionLineage,
     PendingClaim,
     PendingClaimCreate,
-    PendingClaimCreateFields,
     PendingClaimOperationResult,
     PendingClaimReference,
-    PendingClaimRunningFields,
     PendingClaimStateDetails,
     PendingTimeoutCount,
 )
@@ -1254,34 +1252,11 @@ def test_pending_claim_metadata_requires_resolved_server_policy(field: str):
         ("max_timeouts", 100),
     ],
 )
-def test_initial_claim_cannot_rewrite_nested_server_fields(field: str, value: object):
+def test_initial_claim_request_rejects_server_fields(field: str, value: object):
     with pytest.raises(ValidationError):
-        PendingClaimCreateFields.model_validate(
+        PendingClaimCreate.model_validate(
             {
-                "pending_claim": {
-                    "id": uuid7(),
-                    field: value,
-                }
-            }
-        )
-
-
-@pytest.mark.parametrize(
-    ("field", "value"),
-    [
-        ("pending_timeout_count", 0),
-        ("pending_timeout_count", 999),
-        (
-            "execution_lineage",
-            {"claim_id": uuid7(), "execution_id": uuid7()},
-        ),
-    ],
-)
-def test_initial_claim_cannot_inject_sibling_server_fields(field: str, value: object):
-    with pytest.raises(ValidationError):
-        PendingClaimCreateFields.model_validate(
-            {
-                "pending_claim": {"id": uuid7()},
+                "id": uuid7(),
                 field: value,
             }
         )
@@ -1330,16 +1305,12 @@ def test_claim_execution_request_schemas_share_identifier_contract():
         ("execution_lineage", {"claim_id": uuid7(), "execution_id": uuid7()}),
     ],
 )
-def test_running_reference_rejects_stored_or_server_authored_fields(
-    field: str, value: object
-):
+def test_running_reference_rejects_server_fields(field: str, value: object):
     with pytest.raises(ValidationError):
-        PendingClaimRunningFields.model_validate(
+        PendingClaimReference.model_validate(
             {
-                "pending_claim": {
-                    "claim_id": uuid7(),
-                    "execution_id": uuid7(),
-                },
+                "claim_id": uuid7(),
+                "execution_id": uuid7(),
                 field: value,
             }
         )

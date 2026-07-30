@@ -72,12 +72,6 @@ class PendingClaimCreate(_StrictPendingClaimRequest):
     id: UUID7
 
 
-class PendingClaimCreateFields(_StrictPendingClaimRequest):
-    """Client-writable state-details fragment for an initial pending claim."""
-
-    pending_claim: PendingClaimCreate
-
-
 class _PendingClaimExecutionRequest(_StrictPendingClaimRequest):
     claim_id: UUID7
     execution_id: UUID7
@@ -85,12 +79,6 @@ class _PendingClaimExecutionRequest(_StrictPendingClaimRequest):
 
 class PendingClaimReference(_PendingClaimExecutionRequest):
     """Request-only claim reference presented by a RUNNING proposal."""
-
-
-class PendingClaimRunningFields(_StrictPendingClaimRequest):
-    """Client-writable state-details fragment for claim-aware startup."""
-
-    pending_claim: PendingClaimReference
 
 
 class BindExecutionRequest(_PendingClaimExecutionRequest):
@@ -126,11 +114,9 @@ __all__ = [
     "ExecutionLineage",
     "PendingClaim",
     "PendingClaimCreate",
-    "PendingClaimCreateFields",
     "PendingClaimOperationResult",
     "PendingClaimOperationStatus",
     "PendingClaimReference",
-    "PendingClaimRunningFields",
     "PendingClaimStartupAction",
     "PendingClaimStateDetails",
     "PendingTimeoutCount",
