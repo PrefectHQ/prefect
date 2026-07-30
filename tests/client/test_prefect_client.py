@@ -1113,11 +1113,12 @@ async def test_set_then_read_flow_run_state(prefect_client):
     assert state.state_details.flow_run_id == flow_run_id
 
 
-async def test_set_flow_run_state_preserves_explicit_transition_identity():
+async def test_set_flow_run_state_uses_proposal_transition_identity():
     api_url = "http://test/api"
     flow_run_id = uuid4()
-    transition_id = uuid4()
-    state = Running(state_details=StateDetails(transition_id=transition_id))
+    historical_transition_id = uuid4()
+    retry_transition_id = uuid4()
+    state = Running(state_details=StateDetails(transition_id=historical_transition_id))
     state_without_identity = Running()
     canonical_transition_id = uuid4()
     canonical = Running(
@@ -1146,7 +1147,16 @@ async def test_set_flow_run_state_preserves_explicit_transition_identity():
                 )
             )
             async with PrefectClient(api_url) as client:
-                await client.set_flow_run_state(flow_run_id, state)
+                await client.set_flow_run_state(
+                    flow_run_id,
+                    state,
+                    _transition_id=retry_transition_id,
+                )
+                await client.set_flow_run_state(
+                    flow_run_id,
+                    state,
+                    _transition_id=retry_transition_id,
+                )
                 await client.set_flow_run_state(flow_run_id, state)
                 await client.set_flow_run_state(flow_run_id, state_without_identity)
                 await client.set_flow_run_state(flow_run_id, state_without_identity)
@@ -1157,20 +1167,21 @@ async def test_set_flow_run_state_preserves_explicit_transition_identity():
         for call in route.calls
     ]
     assert [details["transition_id"] for details in request_details[:2]] == [
-        str(transition_id),
-        str(transition_id),
+        str(retry_transition_id),
+        str(retry_transition_id),
     ]
+    assert request_details[2]["transition_id"] != str(historical_transition_id)
     generated_transition_ids = [
-        details["transition_id"] for details in request_details[2:4]
+        details["transition_id"] for details in request_details[3:5]
     ]
     assert all(generated_transition_ids)
     assert len(set(generated_transition_ids)) == 2
-    assert request_details[4]["transition_id"] != str(canonical_transition_id)
+    assert request_details[5]["transition_id"] != str(canonical_transition_id)
     assert all(
         details["flow_run_id"] == str(flow_run_id) for details in request_details
     )
     assert state.state_details.flow_run_id is None
-    assert state.state_details.transition_id == transition_id
+    assert state.state_details.transition_id == historical_transition_id
     assert state_without_identity.state_details.flow_run_id is None
     assert state_without_identity.state_details.transition_id is None
     assert new_transition.state_details.flow_run_id == flow_run_id
@@ -3536,11 +3547,14 @@ class TestSyncClient:
         assert state.message == "Test!"
         assert state.state_details.flow_run_id == flow_run_id
 
-    def test_set_flow_run_state_preserves_explicit_transition_identity(self):
+    def test_set_flow_run_state_uses_proposal_transition_identity(self):
         api_url = "http://test/api"
         flow_run_id = uuid4()
-        transition_id = uuid4()
-        state = Running(state_details=StateDetails(transition_id=transition_id))
+        historical_transition_id = uuid4()
+        retry_transition_id = uuid4()
+        state = Running(
+            state_details=StateDetails(transition_id=historical_transition_id)
+        )
         state_without_identity = Running()
         canonical_transition_id = uuid4()
         canonical = Running(
@@ -3569,7 +3583,16 @@ class TestSyncClient:
                     )
                 )
                 with SyncPrefectClient(api_url) as client:
-                    client.set_flow_run_state(flow_run_id, state)
+                    client.set_flow_run_state(
+                        flow_run_id,
+                        state,
+                        _transition_id=retry_transition_id,
+                    )
+                    client.set_flow_run_state(
+                        flow_run_id,
+                        state,
+                        _transition_id=retry_transition_id,
+                    )
                     client.set_flow_run_state(flow_run_id, state)
                     client.set_flow_run_state(flow_run_id, state_without_identity)
                     client.set_flow_run_state(flow_run_id, state_without_identity)
@@ -3580,20 +3603,21 @@ class TestSyncClient:
             for call in route.calls
         ]
         assert [details["transition_id"] for details in request_details[:2]] == [
-            str(transition_id),
-            str(transition_id),
+            str(retry_transition_id),
+            str(retry_transition_id),
         ]
+        assert request_details[2]["transition_id"] != str(historical_transition_id)
         generated_transition_ids = [
-            details["transition_id"] for details in request_details[2:4]
+            details["transition_id"] for details in request_details[3:5]
         ]
         assert all(generated_transition_ids)
         assert len(set(generated_transition_ids)) == 2
-        assert request_details[4]["transition_id"] != str(canonical_transition_id)
+        assert request_details[5]["transition_id"] != str(canonical_transition_id)
         assert all(
             details["flow_run_id"] == str(flow_run_id) for details in request_details
         )
         assert state.state_details.flow_run_id is None
-        assert state.state_details.transition_id == transition_id
+        assert state.state_details.transition_id == historical_transition_id
         assert state_without_identity.state_details.flow_run_id is None
         assert state_without_identity.state_details.transition_id is None
         assert new_transition.state_details.flow_run_id == flow_run_id

@@ -371,6 +371,8 @@ class FlowRunClient(BaseClient):
         flow_run_id: "UUID | str",
         state: "State[T]",
         force: bool = False,
+        *,
+        _transition_id: "UUID | None" = None,
     ) -> "OrchestrationResult[T]":
         """
         Set the state of a flow run.
@@ -393,11 +395,10 @@ class FlowRunClient(BaseClient):
         )
         state_create = to_state_create(state)
         state_details = state_create.state_details.model_copy()
-        # Run-bound details describe an accepted canonical state; its transition
-        # identity must not be reused for a new proposal derived from that state.
-        if state_details.flow_run_id is not None or state_details.transition_id is None:
-            state_details.transition_id = uuid4()
         state_details.flow_run_id = flow_run_id
+        state_details.transition_id = (
+            _transition_id if _transition_id is not None else uuid4()
+        )
         state_create.state_details = state_details
         try:
             response = self.request(
@@ -904,6 +905,8 @@ class FlowRunAsyncClient(BaseAsyncClient):
         flow_run_id: "UUID | str",
         state: "State[T]",
         force: bool = False,
+        *,
+        _transition_id: "UUID | None" = None,
     ) -> "OrchestrationResult[T]":
         """
         Set the state of a flow run.
@@ -926,11 +929,10 @@ class FlowRunAsyncClient(BaseAsyncClient):
         )
         state_create = to_state_create(state)
         state_details = state_create.state_details.model_copy()
-        # Run-bound details describe an accepted canonical state; its transition
-        # identity must not be reused for a new proposal derived from that state.
-        if state_details.flow_run_id is not None or state_details.transition_id is None:
-            state_details.transition_id = uuid4()
         state_details.flow_run_id = flow_run_id
+        state_details.transition_id = (
+            _transition_id if _transition_id is not None else uuid4()
+        )
         state_create.state_details = state_details
         try:
             response = await self.request(

@@ -31,6 +31,7 @@ def _orchestration_result(
 
 async def test_propose_state_with_result_hydrates_accepted_proposal():
     flow_run_id = uuid4()
+    transition_id = uuid4()
     proposed_details = StateDetails(transition_id=uuid4())
     proposed = Running(
         message="client proposal",
@@ -50,7 +51,11 @@ async def test_propose_state_with_result_hydrates_accepted_proposal():
     client.set_flow_run_state = AsyncMock(return_value=result)
 
     returned = await engine.propose_state_with_result(
-        client, proposed, flow_run_id, force=True
+        client,
+        proposed,
+        flow_run_id,
+        force=True,
+        transition_id=transition_id,
     )
 
     assert returned is result
@@ -62,7 +67,10 @@ async def test_propose_state_with_result_hydrates_accepted_proposal():
     assert proposed.message == "client proposal"
     assert proposed.data == {"typed": "payload"}
     client.set_flow_run_state.assert_awaited_once_with(
-        flow_run_id, proposed, force=True
+        flow_run_id,
+        proposed,
+        force=True,
+        _transition_id=transition_id,
     )
 
 
@@ -97,6 +105,7 @@ async def test_propose_state_with_result_preserves_non_accept_outcomes(
     monkeypatch: pytest.MonkeyPatch,
 ):
     flow_run_id = uuid4()
+    transition_id = uuid4()
     proposed = Running()
     result = _orchestration_result(status, details, server_state)
     original_response_state = result.state
@@ -106,20 +115,28 @@ async def test_propose_state_with_result_preserves_non_accept_outcomes(
     monkeypatch.setattr(engine.anyio, "sleep", sleep)
 
     returned = await engine.propose_state_with_result(
-        client, proposed, flow_run_id, force=True
+        client,
+        proposed,
+        flow_run_id,
+        force=True,
+        transition_id=transition_id,
     )
 
     assert returned is result
     assert returned.details is details
     assert returned.state is original_response_state
     client.set_flow_run_state.assert_awaited_once_with(
-        flow_run_id, proposed, force=True
+        flow_run_id,
+        proposed,
+        force=True,
+        _transition_id=transition_id,
     )
     sleep.assert_not_awaited()
 
 
 def test_propose_state_with_result_sync_hydrates_one_accepted_attempt():
     flow_run_id = uuid4()
+    transition_id = uuid4()
     proposed = Running(message="client proposal")
     server_state = Running(
         id=uuid7(),
@@ -135,7 +152,11 @@ def test_propose_state_with_result_sync_hydrates_one_accepted_attempt():
     client.set_flow_run_state.return_value = result
 
     returned = engine.propose_state_with_result_sync(
-        client, proposed, flow_run_id, force=True
+        client,
+        proposed,
+        flow_run_id,
+        force=True,
+        transition_id=transition_id,
     )
 
     assert returned is result
@@ -144,13 +165,19 @@ def test_propose_state_with_result_sync_hydrates_one_accepted_attempt():
     assert proposed.timestamp == server_state.timestamp
     assert proposed.state_details == server_state.state_details
     assert proposed.message == "client proposal"
-    client.set_flow_run_state.assert_called_once_with(flow_run_id, proposed, force=True)
+    client.set_flow_run_state.assert_called_once_with(
+        flow_run_id,
+        proposed,
+        force=True,
+        _transition_id=transition_id,
+    )
 
 
 def test_propose_state_with_result_sync_preserves_wait_without_sleep(
     monkeypatch: pytest.MonkeyPatch,
 ):
     flow_run_id = uuid4()
+    transition_id = uuid4()
     proposed = Running()
     details = StateWaitDetails(
         delay_seconds=2,
@@ -163,12 +190,20 @@ def test_propose_state_with_result_sync_preserves_wait_without_sleep(
     sleep = MagicMock()
     monkeypatch.setattr(engine.time, "sleep", sleep)
 
-    returned = engine.propose_state_with_result_sync(client, proposed, flow_run_id)
+    returned = engine.propose_state_with_result_sync(
+        client,
+        proposed,
+        flow_run_id,
+        transition_id=transition_id,
+    )
 
     assert returned is result
     assert returned.details is details
     client.set_flow_run_state.assert_called_once_with(
-        flow_run_id, proposed, force=False
+        flow_run_id,
+        proposed,
+        force=False,
+        _transition_id=transition_id,
     )
     sleep.assert_not_called()
 
@@ -211,8 +246,11 @@ async def test_propose_state_retries_wait_through_client_seam(
     monkeypatch: pytest.MonkeyPatch,
 ):
     flow_run_id = uuid4()
-    transition_id = uuid4()
-    proposed = Pending(state_details=StateDetails(transition_id=transition_id))
+    historical_transition_id = uuid4()
+    accepted_transition_id = uuid4()
+    proposed = Pending(
+        state_details=StateDetails(transition_id=historical_transition_id)
+    )
     wait_result = _orchestration_result(
         SetStateStatus.WAIT,
         StateWaitDetails(delay_seconds=3, reason="wait", max_wait_seconds=30),
@@ -222,7 +260,7 @@ async def test_propose_state_retries_wait_through_client_seam(
         timestamp=now("UTC"),
         state_details=StateDetails(
             flow_run_id=flow_run_id,
-            transition_id=transition_id,
+            transition_id=accepted_transition_id,
         ),
     )
     accept_result = _orchestration_result(
@@ -240,11 +278,17 @@ async def test_propose_state_retries_wait_through_client_seam(
     assert state is proposed
     assert proposed.id == accepted_state.id
     assert proposed.state_details == accepted_state.state_details
-    assert proposed.state_details.transition_id == transition_id
+    assert proposed.state_details.transition_id == accepted_transition_id
     assert client.set_flow_run_state.await_count == 2
     assert all(
         call.args[1] is proposed for call in client.set_flow_run_state.await_args_list
     )
+    submitted_transition_ids = {
+        call.kwargs["_transition_id"]
+        for call in client.set_flow_run_state.await_args_list
+    }
+    assert len(submitted_transition_ids) == 1
+    assert historical_transition_id not in submitted_transition_ids
     sleep.assert_awaited_once_with(3)
 
 
@@ -252,8 +296,11 @@ def test_propose_state_sync_retries_wait_through_client_seam(
     monkeypatch: pytest.MonkeyPatch,
 ):
     flow_run_id = uuid4()
-    transition_id = uuid4()
-    proposed = Pending(state_details=StateDetails(transition_id=transition_id))
+    historical_transition_id = uuid4()
+    accepted_transition_id = uuid4()
+    proposed = Pending(
+        state_details=StateDetails(transition_id=historical_transition_id)
+    )
     wait_result = _orchestration_result(
         SetStateStatus.WAIT,
         StateWaitDetails(delay_seconds=3, reason="wait", max_wait_seconds=30),
@@ -263,7 +310,7 @@ def test_propose_state_sync_retries_wait_through_client_seam(
         timestamp=now("UTC"),
         state_details=StateDetails(
             flow_run_id=flow_run_id,
-            transition_id=transition_id,
+            transition_id=accepted_transition_id,
         ),
     )
     accept_result = _orchestration_result(
@@ -281,11 +328,17 @@ def test_propose_state_sync_retries_wait_through_client_seam(
     assert state is proposed
     assert proposed.id == accepted_state.id
     assert proposed.state_details == accepted_state.state_details
-    assert proposed.state_details.transition_id == transition_id
+    assert proposed.state_details.transition_id == accepted_transition_id
     assert client.set_flow_run_state.call_count == 2
     assert all(
         call.args[1] is proposed for call in client.set_flow_run_state.call_args_list
     )
+    submitted_transition_ids = {
+        call.kwargs["_transition_id"]
+        for call in client.set_flow_run_state.call_args_list
+    }
+    assert len(submitted_transition_ids) == 1
+    assert historical_transition_id not in submitted_transition_ids
     sleep.assert_called_once_with(3)
 
 
@@ -321,6 +374,8 @@ async def test_propose_state_preserves_legacy_terminal_outcome_behavior(
     with pytest.raises(exception):
         await engine.propose_state(client, proposed, flow_run_id)
 
-    client.set_flow_run_state.assert_awaited_once_with(
-        flow_run_id, proposed, force=False
-    )
+    client.set_flow_run_state.assert_awaited_once()
+    call = client.set_flow_run_state.await_args
+    assert call.args == (flow_run_id, proposed)
+    assert call.kwargs["force"] is False
+    assert call.kwargs["_transition_id"] is not None

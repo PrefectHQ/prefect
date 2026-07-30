@@ -16,7 +16,7 @@ from typing import (
     Union,
     cast,
 )
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import anyio
 from opentelemetry import propagate, trace
@@ -515,17 +515,27 @@ async def propose_state_with_result(
     state: State[Any],
     flow_run_id: UUID,
     force: bool = False,
+    *,
+    transition_id: UUID | None = None,
 ) -> OrchestrationResult[Any]:
     """
     Make one flow-run state proposal and preserve its raw orchestration result.
 
     Accepted proposals are hydrated with server-authored state identity, timestamp,
     and details. Other orchestration dispositions are returned unchanged.
+
+    Reuse `transition_id` when retrying the same proposal after `WAIT` or an
+    ambiguous response. Omit it for an independent one-attempt proposal.
     """
     if not flow_run_id:
         raise ValueError("You must provide a `flow_run_id`")
 
-    response = await client.set_flow_run_state(flow_run_id, state, force=force)
+    response = await client.set_flow_run_state(
+        flow_run_id,
+        state,
+        force=force,
+        _transition_id=transition_id,
+    )
 
     if response.status == SetStateStatus.ACCEPT:
         if response.state is None:
@@ -586,7 +596,14 @@ async def propose_state(
 
     # Handle repeated WAITs in a loop instead of recursively, to avoid
     # reaching max recursion depth in extreme cases.
-    response = await propose_state_with_result(client, state, flow_run_id, force=force)
+    transition_id = uuid4()
+    response = await propose_state_with_result(
+        client,
+        state,
+        flow_run_id,
+        force=force,
+        transition_id=transition_id,
+    )
     while response.status == SetStateStatus.WAIT:
         if TYPE_CHECKING:
             assert isinstance(response.details, StateWaitDetails)
@@ -596,7 +613,11 @@ async def propose_state(
         )
         await anyio.sleep(response.details.delay_seconds)
         response = await propose_state_with_result(
-            client, state, flow_run_id, force=force
+            client,
+            state,
+            flow_run_id,
+            force=force,
+            transition_id=transition_id,
         )
 
     # Parse the response to return the new state
@@ -630,17 +651,27 @@ def propose_state_with_result_sync(
     state: State[Any],
     flow_run_id: UUID,
     force: bool = False,
+    *,
+    transition_id: UUID | None = None,
 ) -> OrchestrationResult[Any]:
     """
     Make one synchronous flow-run state proposal and preserve its raw result.
 
     Accepted proposals are hydrated with server-authored state identity, timestamp,
     and details. Other orchestration dispositions are returned unchanged.
+
+    Reuse `transition_id` when retrying the same proposal after `WAIT` or an
+    ambiguous response. Omit it for an independent one-attempt proposal.
     """
     if not flow_run_id:
         raise ValueError("You must provide a `flow_run_id`")
 
-    response = client.set_flow_run_state(flow_run_id, state, force=force)
+    response = client.set_flow_run_state(
+        flow_run_id,
+        state,
+        force=force,
+        _transition_id=transition_id,
+    )
 
     if response.status == SetStateStatus.ACCEPT:
         if response.state is None:
@@ -700,7 +731,14 @@ def propose_state_sync(
 
     # Handle repeated WAITs in a loop instead of recursively, to avoid
     # reaching max recursion depth in extreme cases.
-    response = propose_state_with_result_sync(client, state, flow_run_id, force=force)
+    transition_id = uuid4()
+    response = propose_state_with_result_sync(
+        client,
+        state,
+        flow_run_id,
+        force=force,
+        transition_id=transition_id,
+    )
     while response.status == SetStateStatus.WAIT:
         if TYPE_CHECKING:
             assert isinstance(response.details, StateWaitDetails)
@@ -710,7 +748,11 @@ def propose_state_sync(
         )
         time.sleep(response.details.delay_seconds)
         response = propose_state_with_result_sync(
-            client, state, flow_run_id, force=force
+            client,
+            state,
+            flow_run_id,
+            force=force,
+            transition_id=transition_id,
         )
 
     # Parse the response to return the new state
