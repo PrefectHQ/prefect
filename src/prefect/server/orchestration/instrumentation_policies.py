@@ -8,7 +8,7 @@ from __future__ import annotations
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.database import orm_models
-from prefect.server.events.clients import PrefectServerEventsClient
+from prefect.server.events._publishing import publish_after_commit
 from prefect.server.models.events import (
     TRUNCATE_STATE_MESSAGES_AT,
     flow_run_state_change_event,
@@ -20,7 +20,6 @@ from prefect.server.orchestration.rules import (
     OrchestrationContext,
 )
 from prefect.server.schemas import core
-from prefect.server.utilities._post_commit import call_after_commit
 
 
 class InstrumentFlowRunStateTransitions(FlowRunUniversalTransform):
@@ -69,8 +68,4 @@ class InstrumentFlowRunStateTransitions(FlowRunUniversalTransform):
             validated_state=validated_state,
         )
 
-        async def publish_state_change_event() -> None:
-            async with PrefectServerEventsClient() as events:
-                await events.emit(event)
-
-        call_after_commit(context.session, publish_state_change_event)
+        publish_after_commit(context.session, event)

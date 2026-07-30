@@ -1165,7 +1165,7 @@ class TestPublishingEventsAfterCommit:
                 return await super().emit(event)
 
         monkeypatch.setattr(
-            "prefect.server.orchestration.instrumentation_policies.PrefectServerEventsClient",
+            "prefect.server.events._publishing.PrefectServerEventsClient",
             ObservingEventsClient,
         )
 
