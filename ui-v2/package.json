@@ -142,7 +142,7 @@
     "globals": "^17.7.0",
     "jsdom": "^29.1.1",
     "msw": "^2.15.0",
-    "msw-storybook-addon": "^2.0.7",
+    "msw-storybook-addon": "^3.0.0",
     "openapi-typescript": "^7.13.0",
     "postcss": "^8.5.22",
     "storybook": "^10.5.3",
