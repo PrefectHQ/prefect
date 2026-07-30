@@ -26,6 +26,30 @@ test("TimezoneSelect can select an option", async () => {
 	expect(mockOnSelectFn).toBeCalledWith("Africa/Abidjan");
 });
 
+test("TimezoneSelect can select a timezone late in the list", async () => {
+	mockPointerEvents();
+	const user = userEvent.setup();
+	const mockOnSelectFn = vi.fn();
+
+	render(<TimezoneSelect onSelect={mockOnSelectFn} selectedValue="" />);
+
+	await user.click(screen.getByLabelText(/select timezone/i));
+	await user.type(screen.getByPlaceholderText(/search/i), "Singapore");
+	await user.click(screen.getByRole("option", { name: /asia \/ singapore/i }));
+
+	expect(mockOnSelectFn).toBeCalledWith("Asia/Singapore");
+});
+
+test("TimezoneSelect displays a selected timezone that is not in the list", () => {
+	mockPointerEvents();
+
+	render(<TimezoneSelect onSelect={vi.fn()} selectedValue="US/Pacific" />);
+
+	expect(screen.getByLabelText(/select timezone/i)).toHaveTextContent(
+		"US / Pacific",
+	);
+});
+
 test("TimezoneSelect displays UTC when selectedValue is UTC", () => {
 	mockPointerEvents();
 

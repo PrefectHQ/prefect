@@ -72,8 +72,7 @@ const TIMEZONES = Intl.supportedValuesOf("timeZone")
 	.map((timezone) => ({
 		label: getTimezoneLabel(timezone),
 		value: timezone,
-	}))
-	.slice(0, 5);
+	}));
 
 const ALL_TIMEZONES = [...SUGGESTED_TIMEZONES, ...TIMEZONES];
 
@@ -107,10 +106,15 @@ export const TimezoneSelect = ({
 		);
 	}, [deferredSearch]);
 
-	const selectedTimezone = useMemo(
-		() => ALL_TIMEZONES.find(({ value }) => value === normalizedSelectedValue),
-		[normalizedSelectedValue],
-	);
+	const selectedLabel = useMemo(() => {
+		if (!normalizedSelectedValue) {
+			return undefined;
+		}
+		return (
+			ALL_TIMEZONES.find(({ value }) => value === normalizedSelectedValue)
+				?.label ?? getTimezoneLabel(normalizedSelectedValue)
+		);
+	}, [normalizedSelectedValue]);
 
 	return (
 		<Combobox>
@@ -118,7 +122,7 @@ export const TimezoneSelect = ({
 				selected={Boolean(normalizedSelectedValue)}
 				aria-label="Select timezone"
 			>
-				{selectedTimezone?.label ?? "Select timezone"}
+				{selectedLabel ?? "Select timezone"}
 			</ComboboxTrigger>
 			<ComboboxContent>
 				<ComboboxCommandInput
