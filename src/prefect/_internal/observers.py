@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import logging
+import time
 import uuid
 from contextlib import AsyncExitStack
+from datetime import datetime
 from typing import Any, Protocol
 
 from prefect._flow_run_suspension import is_suspended_flow_run_state
@@ -17,8 +20,15 @@ from prefect.client.schemas.filters import (
 from prefect.client.schemas.objects import State, StateType
 from prefect.events.clients import PrefectEventSubscriber, get_events_subscriber
 from prefect.events.filters import EventFilter, EventNameFilter
+from prefect.exceptions import ObjectNotFound
 from prefect.logging.loggers import get_logger
 from prefect.utilities.services import critical_service_loop
+
+# How long to wait before warning that a suspension state is still unavailable,
+# how often to look initially, and the retry cap after the warning.
+SUSPENSION_CONFIRMATION_WARNING_AFTER = 30.0
+SUSPENSION_CONFIRMATION_INTERVAL = 0.5
+SUSPENSION_CONFIRMATION_MAX_INTERVAL = 10.0
 
 
 class OnCancellingCallback(Protocol):
@@ -31,6 +41,133 @@ class OnSuspendedCallback(Protocol):
 
 class OnFailureCallback(Protocol):
     def __call__(self, flow_run_ids: set[uuid.UUID]) -> None: ...
+
+
+class _SuspensionWatch:
+    """Reconcile suspension events with durable states for one flow run."""
+
+    def __init__(
+        self,
+        flow_run_id: uuid.UUID,
+        client: PrefectClient,
+        on_suspended: OnSuspendedCallback,
+        logger: logging.Logger,
+    ) -> None:
+        self.flow_run_id = flow_run_id
+        self.is_suspended = False
+        self._client = client
+        self._on_suspended = on_suspended
+        self._logger = logger
+        self._initialized = asyncio.Event()
+        self._replay_checkpoint: datetime | None = None
+        self._confirmation_tasks: dict[uuid.UUID, asyncio.Task[None]] = {}
+        self._closed = False
+
+    def initialize(self, state: State | None) -> None:
+        """Set the initial server checkpoint and release waiting events."""
+        if not self._initialized.is_set():
+            self._replay_checkpoint = state.timestamp if state is not None else None
+            self._initialized.set()
+        self.notify_if_suspended(state)
+
+    def notify_if_suspended(self, state: State | None) -> None:
+        if (
+            not self.is_suspended
+            and state is not None
+            and is_suspended_flow_run_state(state)
+        ):
+            self.is_suspended = True
+            self._on_suspended(self.flow_run_id, state)
+
+    def observe(self, state_id: uuid.UUID, occurred: datetime) -> None:
+        """Confirm a new suspension event without blocking event consumption."""
+        if self._closed or self.is_suspended:
+            return
+        if state_id in self._confirmation_tasks:
+            return
+
+        task = asyncio.create_task(self._confirm(state_id, occurred))
+        self._confirmation_tasks[state_id] = task
+        task.add_done_callback(
+            lambda completed, state_id=state_id: self._confirmation_done(
+                state_id, completed
+            )
+        )
+
+    async def _confirm(self, state_id: uuid.UUID, occurred: datetime) -> None:
+        await self._initialized.wait()
+        if self._closed or self.is_suspended:
+            return
+        if self._replay_checkpoint is not None and occurred <= self._replay_checkpoint:
+            self._logger.debug(
+                "Ignoring replayed suspension event for flow run %s that occurred"
+                " at or before the initial server state.",
+                self.flow_run_id,
+            )
+            return
+
+        warning_deadline = time.monotonic() + SUSPENSION_CONFIRMATION_WARNING_AFTER
+        retry_interval = SUSPENSION_CONFIRMATION_INTERVAL
+        warned = False
+        last_error: Exception | None = None
+
+        while not self._closed and not self.is_suspended:
+            try:
+                state = await self._client.read_flow_run_state(state_id)
+            except ObjectNotFound:
+                pass
+            except Exception as exc:
+                last_error = exc
+            else:
+                if state.state_details.flow_run_id not in (None, self.flow_run_id):
+                    self._logger.warning(
+                        "Suspension event for flow run %s referred to state %s owned"
+                        " by flow run %s.",
+                        self.flow_run_id,
+                        state_id,
+                        state.state_details.flow_run_id,
+                    )
+                    return
+                self.notify_if_suspended(state)
+                return
+
+            if not warned and time.monotonic() >= warning_deadline:
+                self._logger.warning(
+                    "Received a suspension event for flow run %s, but state %s has"
+                    " not become readable within %s seconds; continuing to retry.",
+                    self.flow_run_id,
+                    state_id,
+                    SUSPENSION_CONFIRMATION_WARNING_AFTER,
+                    exc_info=last_error,
+                )
+                warned = True
+
+            await asyncio.sleep(retry_interval)
+            if warned:
+                retry_interval = min(
+                    max(retry_interval * 2, SUSPENSION_CONFIRMATION_INTERVAL),
+                    SUSPENSION_CONFIRMATION_MAX_INTERVAL,
+                )
+
+    def _confirmation_done(self, state_id: uuid.UUID, task: asyncio.Task[None]) -> None:
+        self._confirmation_tasks.pop(state_id, None)
+        if task.cancelled():
+            return
+        if error := task.exception():
+            self._logger.error(
+                "Suspension confirmation failed for flow run %s and state %s.",
+                self.flow_run_id,
+                state_id,
+                exc_info=error,
+            )
+
+    def cancel(self) -> tuple[asyncio.Task[None], ...]:
+        self._closed = True
+        tasks = tuple(self._confirmation_tasks.values())
+        self._confirmation_tasks.clear()
+        for task in tasks:
+            task.cancel()
+        return tasks
 
 
 class FlowRunCancellingObserver:
@@ -283,35 +420,59 @@ class FlowRunSuspendingObserver:
             self._event_filter = EventFilter(
                 event=EventNameFilter(name=["prefect.flow-run.Suspended"])
             )
-        self._in_flight_flow_run_ids: set[uuid.UUID] = set()
         self._events_subscriber: PrefectEventSubscriber | None
         self._exit_stack = AsyncExitStack()
         self._consumer_task: asyncio.Task[None] | None = None
         self._polling_task: asyncio.Task[None] | None = None
         self._is_shutting_down = False
         self._client: PrefectClient | None = None
-        self._suspended_flow_run_ids: set[uuid.UUID] = set()
+        self._watches: dict[uuid.UUID, _SuspensionWatch] = {}
+
+    @property
+    def _in_flight_flow_run_ids(self) -> set[uuid.UUID]:
+        return set(self._watches)
 
     def add_in_flight_flow_run_id(self, flow_run_id: uuid.UUID):
-        self.logger.debug("Adding in-flight flow run ID: %s", flow_run_id)
-        self._in_flight_flow_run_ids.add(flow_run_id)
-
-    def remove_in_flight_flow_run_id(self, flow_run_id: uuid.UUID):
-        self.logger.debug("Removing in-flight flow run ID: %s", flow_run_id)
-        self._in_flight_flow_run_ids.discard(flow_run_id)
-        self._suspended_flow_run_ids.discard(flow_run_id)
-
-    async def watch_flow_run_id(self, flow_run_id: uuid.UUID) -> None:
-        self.add_in_flight_flow_run_id(flow_run_id)
         if self._client is None:
             raise RuntimeError(
                 "Client not initialized. Please use `async with` to initialize the observer."
             )
+        self.logger.debug("Adding in-flight flow run ID: %s", flow_run_id)
+        if flow_run_id not in self._watches:
+            watch = self._watches[flow_run_id] = self._create_watch(flow_run_id)
+            watch.initialize(None)
+
+    def _create_watch(self, flow_run_id: uuid.UUID) -> _SuspensionWatch:
+        if self._client is None:
+            raise RuntimeError(
+                "Client not initialized. Please use `async with` to initialize the observer."
+            )
+        return _SuspensionWatch(
+            flow_run_id=flow_run_id,
+            client=self._client,
+            on_suspended=self.on_suspended,
+            logger=self.logger,
+        )
+
+    def remove_in_flight_flow_run_id(self, flow_run_id: uuid.UUID):
+        self.logger.debug("Removing in-flight flow run ID: %s", flow_run_id)
+        if watch := self._watches.pop(flow_run_id, None):
+            watch.cancel()
+
+    async def watch_flow_run_id(self, flow_run_id: uuid.UUID) -> None:
+        if self._client is None:
+            raise RuntimeError(
+                "Client not initialized. Please use `async with` to initialize the observer."
+            )
+        self.logger.debug("Adding in-flight flow run ID: %s", flow_run_id)
+        if flow_run_id not in self._watches:
+            self._watches[flow_run_id] = self._create_watch(flow_run_id)
         retry_interval = max(min(self.polling_interval, 1.0), 0.01)
         attempts = 0
 
         while not self._is_shutting_down:
-            if flow_run_id in self._suspended_flow_run_ids:
+            watch = self._watches.get(flow_run_id)
+            if watch is None or watch.is_suspended:
                 return
 
             try:
@@ -328,26 +489,14 @@ class FlowRunSuspendingObserver:
                 await asyncio.sleep(retry_interval)
                 continue
 
-            self._notify_if_suspended_state(flow_run_id, flow_run.state)
+            watch.initialize(flow_run.state)
             return
 
     def _notify_if_suspended_state(
         self, flow_run_id: uuid.UUID, state: State | None
     ) -> None:
-        if state is not None and is_suspended_flow_run_state(state):
-            self._suspended_flow_run_ids.add(flow_run_id)
-            self.on_suspended(flow_run_id, state)
-
-    async def _notify_if_suspended(self, flow_run_id: uuid.UUID) -> None:
-        if self._client is None:
-            raise RuntimeError(
-                "Client not initialized. Please use `async with` to initialize the observer."
-            )
-        if flow_run_id in self._suspended_flow_run_ids:
-            return
-
-        flow_run = await self._client.read_flow_run(flow_run_id)
-        self._notify_if_suspended_state(flow_run_id, flow_run.state)
+        if watch := self._watches.get(flow_run_id):
+            watch.notify_if_suspended(state)
 
     async def _consume_events(self):
         if self._events_subscriber is None:
@@ -361,9 +510,14 @@ class FlowRunSuspendingObserver:
                         "prefect.flow-run.", ""
                     )
                 )
-                if flow_run_id not in self._in_flight_flow_run_ids:
+                watch = self._watches.get(flow_run_id)
+                if watch is None:
                     continue
-                await self._notify_if_suspended(flow_run_id)
+
+                # State change events carry the ID of the state they report, so the
+                # event identifies the exact transition to confirm. Confirmation is
+                # done in a separate task to keep consuming events while we wait.
+                watch.observe(event.id, event.occurred)
             except ValueError:
                 self.logger.warning(
                     "Received event with invalid flow run ID: %s",
@@ -412,7 +566,11 @@ class FlowRunSuspendingObserver:
                 "Client not initialized. Please use `async with` to initialize the observer."
             )
 
-        flow_run_ids = self._in_flight_flow_run_ids - self._suspended_flow_run_ids
+        flow_run_ids = {
+            flow_run_id
+            for flow_run_id, watch in self._watches.items()
+            if not watch.is_suspended
+        }
         if not flow_run_ids:
             return
 
@@ -434,8 +592,7 @@ class FlowRunSuspendingObserver:
 
         for flow_run in suspended_flow_runs:
             if flow_run.state:
-                self._suspended_flow_run_ids.add(flow_run.id)
-                self.on_suspended(flow_run.id, flow_run.state)
+                self._notify_if_suspended_state(flow_run.id, flow_run.state)
 
     async def __aenter__(self):
         try:
@@ -470,6 +627,10 @@ class FlowRunSuspendingObserver:
     async def __aexit__(self, *exc_info: Any):
         self.logger.debug("Shutting down FlowRunSuspendingObserver")
         self._is_shutting_down = True
+        tasks = [task for watch in self._watches.values() for task in watch.cancel()]
+        self._watches.clear()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
         await self._exit_stack.__aexit__(*exc_info)
         if self._consumer_task is not None:
             self._consumer_task.cancel()

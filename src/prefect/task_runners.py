@@ -572,22 +572,31 @@ def _enqueue_process_pool_log(message_queue: Any, log_payload: dict[str, Any]) -
     message_queue.put((_PROCESS_POOL_MESSAGE_TYPE_LOG, log_payload))
 
 
-def _initialize_process_pool_worker(message_queue: Any | None = None) -> None:
+def _initialize_process_pool_worker(
+    message_queue: Any | None = None,
+    initializer: Callable[..., None] | None = None,
+    initargs: tuple[Any, ...] = (),
+) -> None:
     """
     Configure process-pool workers to forward emitted events and API logs back to
     the parent process.
+
+    If a user `initializer` is provided, it runs after Prefect's own setup so that
+    it can rely on event/log forwarding already being in place.
     """
     if message_queue is None:
         EventsWorker.set_client_override(None)
         set_api_log_sink(None)
-        return
+    else:
+        EventsWorker.set_client_override(
+            ProcessPoolForwardingEventsClient,
+            event_queue=message_queue,
+            item_type=_PROCESS_POOL_MESSAGE_TYPE_EVENT,
+        )
+        set_api_log_sink(partial(_enqueue_process_pool_log, message_queue))
 
-    EventsWorker.set_client_override(
-        ProcessPoolForwardingEventsClient,
-        event_queue=message_queue,
-        item_type=_PROCESS_POOL_MESSAGE_TYPE_EVENT,
-    )
-    set_api_log_sink(partial(_enqueue_process_pool_log, message_queue))
+    if initializer is not None:
+        initializer(*initargs)
 
 
 def _run_task_in_subprocess(
@@ -748,6 +757,10 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
     Attributes:
         max_workers: The maximum number of processes to use for executing tasks.
             Defaults to `multiprocessing.cpu_count()` if `PREFECT_TASKS_RUNNER_PROCESS_POOL_MAX_WORKERS` is not set.
+        initializer: An optional picklable callable run once in each worker
+            subprocess before it executes any tasks, mirroring
+            `ProcessPoolExecutor`'s `initializer`.
+        initargs: A tuple of arguments passed to `initializer`.
 
     Examples:
         Use a process pool task runner with a flow:
@@ -803,6 +816,21 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
             ...
         ```
 
+        Run custom setup in each worker subprocess:
+
+        ```python
+        import sys
+        from prefect.task_runners import ProcessPoolTaskRunner
+
+        def add_to_path(*paths):
+            sys.path[:0] = paths
+
+        runner = ProcessPoolTaskRunner(
+            initializer=add_to_path,
+            initargs=("/opt/my_app/libs",),
+        )
+        ```
+
     Note:
         Process pool task runners provide process isolation but have overhead for
         inter-process communication. They are most beneficial for CPU-bound tasks
@@ -823,6 +851,8 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
         subprocess_message_processor_factories: (
             Iterable[_SubprocessMessageProcessorFactory] | None
         ) = None,
+        initializer: Callable[..., None] | None = None,
+        initargs: tuple[Any, ...] = (),
     ):
         super().__init__()
         current_settings = get_current_settings()
@@ -833,6 +863,8 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
             or current_settings.tasks.runner.process_pool_max_workers
             or multiprocessing.cpu_count()
         )
+        self._initializer = initializer
+        self._initargs = tuple(initargs)
         self._cancel_events: dict[uuid.UUID, multiprocessing.Event] = {}
         self._subprocess_message_queue: Any | None = None
         self._message_forwarding_thread: threading.Thread | None = None
@@ -844,6 +876,9 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
 
     def duplicate(self) -> Self:
         duplicate_runner = type(self)(max_workers=self._max_workers)
+        # Set post-construction so subclasses that narrow __init__ still duplicate.
+        duplicate_runner._initializer = getattr(self, "_initializer", None)
+        duplicate_runner._initargs = getattr(self, "_initargs", ())
         duplicate_runner.subprocess_message_processor_factories = (
             self.subprocess_message_processor_factories
         )
@@ -1265,7 +1300,11 @@ class ProcessPoolTaskRunner(TaskRunner[PrefectConcurrentFuture[Any]]):
                 max_workers=self._max_workers,
                 mp_context=mp_context,
                 initializer=_initialize_process_pool_worker,
-                initargs=(self._subprocess_message_queue,),
+                initargs=(
+                    self._subprocess_message_queue,
+                    getattr(self, "_initializer", None),
+                    getattr(self, "_initargs", ()),
+                ),
             )
             # Create a thread pool for resolving futures before submitting to process pool
             self._resolver_executor = ThreadPoolExecutor(max_workers=self._max_workers)

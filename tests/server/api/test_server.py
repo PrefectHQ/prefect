@@ -273,12 +273,12 @@ def test_create_ui_app_mounts_dual_bundles_and_exposes_ui_settings(
 
     client = TestClient(ui_app)
 
-    v1_response = client.get("/dashboard")
+    v1_response = client.get("/dashboard", headers={"accept": "text/html"})
     assert v1_response.status_code == 200
     assert "V1 UI" in v1_response.text
 
     client.cookies.set("prefect_ui_version", "v2")
-    v2_response = client.get("/v2/dashboard")
+    v2_response = client.get("/v2/dashboard", headers={"accept": "text/html"})
     assert v2_response.status_code == 200
     assert "V2 UI" in v2_response.text
     assert "/v2" in v2_response.text
@@ -332,11 +332,11 @@ def test_create_ui_app_preserves_existing_v2_serve_base(
         "/ui-settings" if expected_v1_base == "/" else f"{expected_v1_base}/ui-settings"
     )
 
-    v1_response = client.get(v1_path)
+    v1_response = client.get(v1_path, headers={"accept": "text/html"})
     assert v1_response.status_code == 200
     assert "V1 UI" in v1_response.text
 
-    v2_response = client.get(v2_path)
+    v2_response = client.get(v2_path, headers={"accept": "text/html"})
     assert v2_response.status_code == 200
     assert "V2 UI" in v2_response.text
 
@@ -910,11 +910,11 @@ def test_create_ui_app_uses_legacy_static_directory_layout_for_v1(
         ui_app = create_ui_app(ephemeral=False)
 
     client = TestClient(ui_app)
-    response = client.get("/dashboard")
+    response = client.get("/dashboard", headers={"accept": "text/html"})
     assert response.status_code == 200
     assert "V1 Legacy UI" in response.text
 
-    v2_response = client.get("/v2/dashboard")
+    v2_response = client.get("/v2/dashboard", headers={"accept": "text/html"})
     assert v2_response.status_code == 200
     assert "V2 UI" in v2_response.text
 
@@ -948,7 +948,7 @@ def test_create_ui_app_does_not_reuse_unmarked_static_directory_root(
         ui_app = create_ui_app(ephemeral=False)
 
     client = TestClient(ui_app)
-    response = client.get("/dashboard")
+    response = client.get("/dashboard", headers={"accept": "text/html"})
     assert response.status_code == 200
     assert "V1 UI" in response.text
 

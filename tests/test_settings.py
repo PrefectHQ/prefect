@@ -3,8 +3,10 @@ from __future__ import annotations
 import copy
 import json
 import os
+import sys
 import textwrap
 import warnings
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from pathlib import Path
 from typing import Any, Callable, Generator
@@ -12,6 +14,7 @@ from typing import Any, Callable, Generator
 import pydantic
 import pytest
 import toml
+from cachetools import TTLCache
 from pydantic_core import to_jsonable_python
 from sqlalchemy import make_url
 
@@ -88,6 +91,7 @@ from prefect.settings.profiles import _cast_settings
 from prefect.settings.sources import (
     PrefectTomlConfigSettingsSource,
     PyprojectTomlConfigSettingsSource,
+    _read_toml_file,
 )
 from prefect.utilities.collections import get_from_dict, set_in_dict
 from prefect.utilities.filesystem import tmpchdir
@@ -381,6 +385,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_SERVER_DATABASE_ECHO": {"test_value": True},
     "PREFECT_SERVER_DATABASE_HOST": {"test_value": "localhost"},
     "PREFECT_SERVER_DATABASE_MIGRATE_ON_START": {"test_value": True},
+    "PREFECT_SERVER_DATABASE_MIGRATION_TIMEOUT": {"test_value": 10.0},
     "PREFECT_SERVER_DATABASE_NAME": {"test_value": "prefect"},
     "PREFECT_SERVER_DATABASE_PASSWORD": {"test_value": "password"},
     "PREFECT_SERVER_DATABASE_PORT": {"test_value": 5432},
@@ -930,6 +935,47 @@ class TestSettingsClass:
         with pytest.warns(UserWarning, match="Failed to load profiles from"):
             assert Settings().testing.test_setting == "FOO"
 
+    def test_read_toml_file_is_thread_safe(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Regression test for concurrent access to the TTLCache in
+        `_read_toml_file`. `TTLCache` is not thread-safe: `__setitem__` calls
+        `expire()`, which walks the cache's internal linked list. Concurrent
+        mutation corrupts that list and raises a spurious `KeyError` on a key
+        that was just present (see OSS-8092).
+
+        A near-zero TTL forces entries to expire on every access so `expire()`
+        actually deletes links, and a tiny thread switch interval makes the GIL
+        hand off inside those walks, which is what surfaces the race.
+        """
+        # replace the module-level cache with one that expires immediately so
+        # every access exercises the expire()/mutate race
+        monkeypatch.setattr(
+            "prefect.settings.sources._file_cache",
+            TTLCache(maxsize=100, ttl=0.0),
+        )
+        original_switch_interval = sys.getswitchinterval()
+        sys.setswitchinterval(1e-9)
+
+        paths: list[Path] = []
+        for i in range(50):
+            path = tmp_path / f"profiles_{i}.toml"
+            path.write_text(f"[profiles.test]\nvalue = {i}\n")
+            paths.append(path)
+
+        def read_all() -> None:
+            for _ in range(50):
+                for path in paths:
+                    _read_toml_file(path)
+
+        try:
+            with ThreadPoolExecutor(max_workers=16) as executor:
+                futures = [executor.submit(read_all) for _ in range(16)]
+                for future in futures:
+                    future.result()
+        finally:
+            sys.setswitchinterval(original_switch_interval)
+
     def test_valid_setting_names_matches_supported_settings(self):
         assert set(_get_valid_setting_names(Settings)) == set(
             SUPPORTED_SETTINGS.keys()
@@ -1269,6 +1315,26 @@ class TestSettingAccess:
 
 
 class TestDatabaseSettings:
+    def test_migration_timeout_defaults_to_none(self):
+        """Migrations are not bound by the application statement timeout.
+
+        Schema changes such as concurrent index builds on large tables can take
+        far longer than an ordinary API query, so `migration_timeout` defaults
+        to no timeout rather than inheriting `server.database.timeout`.
+        """
+        settings = get_current_settings()
+        assert settings.server.database.migration_timeout is None
+        assert settings.server.database.timeout == 10.0
+
+    @pytest.mark.parametrize("value", [0, -1.0])
+    def test_migration_timeout_rejects_non_positive(self, value: float):
+        """asyncpg's `command_timeout` requires a positive value, so a `0` or
+        negative migration timeout must be rejected up front rather than failing
+        every PostgreSQL migration connection at server startup.
+        """
+        with pytest.raises(pydantic.ValidationError):
+            ServerDatabaseSettings(migration_timeout=value)
+
     def test_database_connection_url_templates_password(self):
         with temporary_settings(
             {

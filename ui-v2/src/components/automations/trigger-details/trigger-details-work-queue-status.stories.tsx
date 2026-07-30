@@ -1,4 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { buildApiUrl } from "@tests/utils/handlers";
+import { HttpResponse, http } from "msw";
 import { createFakeWorkQueue } from "@/mocks";
 import { routerDecorator } from "@/storybook/utils";
 import { reactQueryDecorator } from "@/storybook/utils/react-query-decorator";
@@ -23,20 +25,13 @@ const meta = {
 	parameters: {
 		msw: {
 			handlers: [
-				// Mock work queue fetch by ID
-				{
-					method: "GET",
-					path: "/api/work_queues/:id",
-					response: ({ params }: { params: { id: string } }) => {
-						if (params.id === "work-queue-1") {
-							return MOCK_WORK_QUEUE_1;
-						}
-						if (params.id === "work-queue-2") {
-							return MOCK_WORK_QUEUE_2;
-						}
-						return null;
-					},
-				},
+				http.get(buildApiUrl("/work_queues/:id"), ({ params }) => {
+					const workQueue =
+						[MOCK_WORK_QUEUE_1, MOCK_WORK_QUEUE_2].find(
+							({ id }) => id === params.id,
+						) ?? null;
+					return HttpResponse.json(workQueue);
+				}),
 			],
 		},
 	},

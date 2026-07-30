@@ -20,7 +20,7 @@ exports[`property.type > array > base 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_3d_"
+              for="generated-id-0"
             >
               list (Optional)
             </label>
@@ -35,7 +35,7 @@ exports[`property.type > array > base 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_3e_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -140,7 +140,7 @@ exports[`property.type > array > with enum items 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_4b_"
+              for="generated-id-0"
             >
               list (Optional)
             </label>
@@ -155,7 +155,7 @@ exports[`property.type > array > with enum items 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_4c_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -203,7 +203,7 @@ exports[`property.type > array > with enum items 1`] = `
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background text-muted-foreground"
             data-slot="popover-trigger"
             data-state="closed"
-            id="_r_4b_"
+            id="generated-id-0"
             type="button"
           >
             foo, bar
@@ -255,7 +255,7 @@ exports[`property.type > array > with prefixItems - no drag handles on prefix it
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_3s_"
+              for="generated-id-0"
             >
               list (Optional)
             </label>
@@ -270,7 +270,7 @@ exports[`property.type > array > with prefixItems - no drag handles on prefix it
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_3t_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -328,7 +328,7 @@ exports[`property.type > array > with prefixItems - no drag handles on prefix it
                 <textarea
                   class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex field-sizing-content w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
                   data-slot="textarea"
-                  id="_r_3v_"
+                  id="generated-id-2"
                   rows="1"
                 >
                   prefix1
@@ -341,7 +341,7 @@ exports[`property.type > array > with prefixItems - no drag handles on prefix it
                 data-open="false"
                 data-slot="dropdown-menu-trigger"
                 data-state="closed"
-                id="radix-_r_40_"
+                id="generated-id-3"
                 type="button"
               >
                 <span
@@ -395,7 +395,7 @@ exports[`property.type > array > with prefixItems - no drag handles on prefix it
                   class="peer data-[state=checked]:bg-primary data-[state=unchecked]:bg-input focus-visible:border-ring focus-visible:ring-ring/50 dark:data-[state=unchecked]:bg-input/80 inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent shadow-xs transition-all outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
                   data-slot="switch"
                   data-state="checked"
-                  id="_r_42_"
+                  id="generated-id-4"
                   role="switch"
                   type="button"
                   value="on"
@@ -414,7 +414,7 @@ exports[`property.type > array > with prefixItems - no drag handles on prefix it
                 data-open="false"
                 data-slot="dropdown-menu-trigger"
                 data-state="closed"
-                id="radix-_r_43_"
+                id="generated-id-5"
                 type="button"
               >
                 <span
@@ -518,7 +518,7 @@ exports[`property.type > array > with prefixItems - no drag handles on prefix it
                 <textarea
                   class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex field-sizing-content w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
                   data-slot="textarea"
-                  id="_r_45_"
+                  id="generated-id-6"
                   rows="1"
                 >
                   regular1
@@ -531,7 +531,7 @@ exports[`property.type > array > with prefixItems - no drag handles on prefix it
                 data-open="false"
                 data-slot="dropdown-menu-trigger"
                 data-state="closed"
-                id="radix-_r_46_"
+                id="generated-id-7"
                 type="button"
               >
                 <span
@@ -635,7 +635,7 @@ exports[`property.type > array > with prefixItems - no drag handles on prefix it
                 <textarea
                   class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex field-sizing-content w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
                   data-slot="textarea"
-                  id="_r_48_"
+                  id="generated-id-8"
                   rows="1"
                 >
                   regular2
@@ -648,7 +648,7 @@ exports[`property.type > array > with prefixItems - no drag handles on prefix it
                 data-open="false"
                 data-slot="dropdown-menu-trigger"
                 data-state="closed"
-                id="radix-_r_49_"
+                id="generated-id-9"
                 type="button"
               >
                 <span
@@ -742,7 +742,7 @@ exports[`property.type > array > with values - drag handles visible 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_3g_"
+              for="generated-id-0"
             >
               list (Optional)
             </label>
@@ -757,7 +757,7 @@ exports[`property.type > array > with values - drag handles visible 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_3h_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -867,7 +867,7 @@ exports[`property.type > array > with values - drag handles visible 1`] = `
                 <textarea
                   class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex field-sizing-content w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
                   data-slot="textarea"
-                  id="_r_3j_"
+                  id="generated-id-2"
                   rows="1"
                 >
                   foo
@@ -880,7 +880,7 @@ exports[`property.type > array > with values - drag handles visible 1`] = `
                 data-open="false"
                 data-slot="dropdown-menu-trigger"
                 data-state="closed"
-                id="radix-_r_3k_"
+                id="generated-id-3"
                 type="button"
               >
                 <span
@@ -984,7 +984,7 @@ exports[`property.type > array > with values - drag handles visible 1`] = `
                 <textarea
                   class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex field-sizing-content w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
                   data-slot="textarea"
-                  id="_r_3m_"
+                  id="generated-id-4"
                   rows="1"
                 >
                   bar
@@ -997,7 +997,7 @@ exports[`property.type > array > with values - drag handles visible 1`] = `
                 data-open="false"
                 data-slot="dropdown-menu-trigger"
                 data-state="closed"
-                id="radix-_r_3n_"
+                id="generated-id-5"
                 type="button"
               >
                 <span
@@ -1101,7 +1101,7 @@ exports[`property.type > array > with values - drag handles visible 1`] = `
                 <textarea
                   class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex field-sizing-content w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
                   data-slot="textarea"
-                  id="_r_3p_"
+                  id="generated-id-6"
                   rows="1"
                 >
                   baz
@@ -1114,7 +1114,7 @@ exports[`property.type > array > with values - drag handles visible 1`] = `
                 data-open="false"
                 data-slot="dropdown-menu-trigger"
                 data-state="closed"
-                id="radix-_r_3q_"
+                id="generated-id-7"
                 type="button"
               >
                 <span
@@ -1208,7 +1208,7 @@ exports[`property.type > boolean > base 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_2j_"
+              for="generated-id-0"
             >
               bool (Optional)
             </label>
@@ -1223,7 +1223,7 @@ exports[`property.type > boolean > base 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_2k_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -1269,7 +1269,7 @@ exports[`property.type > boolean > base 1`] = `
             class="peer data-[state=checked]:bg-primary data-[state=unchecked]:bg-input focus-visible:border-ring focus-visible:ring-ring/50 dark:data-[state=unchecked]:bg-input/80 inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent shadow-xs transition-all outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
             data-slot="switch"
             data-state="unchecked"
-            id="_r_2j_"
+            id="generated-id-0"
             role="switch"
             type="button"
             value="on"
@@ -1307,7 +1307,7 @@ exports[`property.type > boolean > enum 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_2s_"
+              for="generated-id-0"
             >
               bool (Optional)
             </label>
@@ -1322,7 +1322,7 @@ exports[`property.type > boolean > enum 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_2t_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -1370,7 +1370,7 @@ exports[`property.type > boolean > enum 1`] = `
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background"
             data-slot="popover-trigger"
             data-state="closed"
-            id="_r_2s_"
+            id="generated-id-0"
             type="button"
           >
             Select
@@ -1422,7 +1422,7 @@ exports[`property.type > boolean > with default 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_2p_"
+              for="generated-id-0"
             >
               bool (Optional)
             </label>
@@ -1437,7 +1437,7 @@ exports[`property.type > boolean > with default 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_2q_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -1483,7 +1483,7 @@ exports[`property.type > boolean > with default 1`] = `
             class="peer data-[state=checked]:bg-primary data-[state=unchecked]:bg-input focus-visible:border-ring focus-visible:ring-ring/50 dark:data-[state=unchecked]:bg-input/80 inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent shadow-xs transition-all outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
             data-slot="switch"
             data-state="checked"
-            id="_r_2p_"
+            id="generated-id-0"
             role="switch"
             type="button"
             value="on"
@@ -1521,7 +1521,7 @@ exports[`property.type > boolean > with value 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_2m_"
+              for="generated-id-0"
             >
               bool (Optional)
             </label>
@@ -1536,7 +1536,7 @@ exports[`property.type > boolean > with value 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_2n_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -1582,7 +1582,7 @@ exports[`property.type > boolean > with value 1`] = `
             class="peer data-[state=checked]:bg-primary data-[state=unchecked]:bg-input focus-visible:border-ring focus-visible:ring-ring/50 dark:data-[state=unchecked]:bg-input/80 inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent shadow-xs transition-all outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50"
             data-slot="switch"
             data-state="checked"
-            id="_r_2m_"
+            id="generated-id-0"
             role="switch"
             type="button"
             value="on"
@@ -1620,7 +1620,7 @@ exports[`property.type > integer > base 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_26_"
+              for="generated-id-0"
             >
               float (Optional)
             </label>
@@ -1635,7 +1635,7 @@ exports[`property.type > integer > base 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_27_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -1678,7 +1678,8 @@ exports[`property.type > integer > base 1`] = `
         <fieldset>
           <input
             class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            id="_r_26_"
+            id="generated-id-0"
+            step="any"
             type="number"
             value=""
           />
@@ -1709,7 +1710,7 @@ exports[`property.type > integer > enum 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_2f_"
+              for="generated-id-0"
             >
               float (Optional)
             </label>
@@ -1724,7 +1725,7 @@ exports[`property.type > integer > enum 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_2g_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -1772,7 +1773,7 @@ exports[`property.type > integer > enum 1`] = `
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background"
             data-slot="popover-trigger"
             data-state="closed"
-            id="_r_2f_"
+            id="generated-id-0"
             type="button"
           >
             Select
@@ -1824,7 +1825,7 @@ exports[`property.type > integer > with default 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_2c_"
+              for="generated-id-0"
             >
               float (Optional)
             </label>
@@ -1839,7 +1840,7 @@ exports[`property.type > integer > with default 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_2d_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -1882,7 +1883,8 @@ exports[`property.type > integer > with default 1`] = `
         <fieldset>
           <input
             class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            id="_r_2c_"
+            id="generated-id-0"
+            step="any"
             type="number"
             value="123"
           />
@@ -1913,7 +1915,7 @@ exports[`property.type > integer > with value 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_29_"
+              for="generated-id-0"
             >
               float (Optional)
             </label>
@@ -1928,7 +1930,7 @@ exports[`property.type > integer > with value 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_2a_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -1971,7 +1973,8 @@ exports[`property.type > integer > with value 1`] = `
         <fieldset>
           <input
             class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            id="_r_29_"
+            id="generated-id-0"
+            step="any"
             type="number"
             value="123"
           />
@@ -2002,7 +2005,7 @@ exports[`property.type > null > base 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_30_"
+              for="generated-id-0"
             >
               None (Optional)
             </label>
@@ -2017,7 +2020,7 @@ exports[`property.type > null > base 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_31_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -2090,7 +2093,7 @@ exports[`property.type > number > base 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_1p_"
+              for="generated-id-0"
             >
               float (Optional)
             </label>
@@ -2105,7 +2108,7 @@ exports[`property.type > number > base 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_1q_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -2148,7 +2151,8 @@ exports[`property.type > number > base 1`] = `
         <fieldset>
           <input
             class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            id="_r_1p_"
+            id="generated-id-0"
+            step="any"
             type="number"
             value=""
           />
@@ -2179,7 +2183,7 @@ exports[`property.type > number > enum 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_22_"
+              for="generated-id-0"
             >
               float (Optional)
             </label>
@@ -2194,7 +2198,7 @@ exports[`property.type > number > enum 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_23_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -2242,7 +2246,7 @@ exports[`property.type > number > enum 1`] = `
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background"
             data-slot="popover-trigger"
             data-state="closed"
-            id="_r_22_"
+            id="generated-id-0"
             type="button"
           >
             Select
@@ -2294,7 +2298,7 @@ exports[`property.type > number > with default 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_1v_"
+              for="generated-id-0"
             >
               float (Optional)
             </label>
@@ -2309,7 +2313,7 @@ exports[`property.type > number > with default 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_20_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -2352,7 +2356,8 @@ exports[`property.type > number > with default 1`] = `
         <fieldset>
           <input
             class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            id="_r_1v_"
+            id="generated-id-0"
+            step="any"
             type="number"
             value="123.45"
           />
@@ -2383,7 +2388,7 @@ exports[`property.type > number > with value 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_1s_"
+              for="generated-id-0"
             >
               float (Optional)
             </label>
@@ -2398,7 +2403,7 @@ exports[`property.type > number > with value 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_1t_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -2441,7 +2446,8 @@ exports[`property.type > number > with value 1`] = `
         <fieldset>
           <input
             class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-            id="_r_1s_"
+            id="generated-id-0"
+            step="any"
             type="number"
             value="123.45"
           />
@@ -2472,7 +2478,7 @@ exports[`property.type > string >  1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_0_"
+              for="generated-id-0"
             >
               str (Optional)
             </label>
@@ -2487,7 +2493,7 @@ exports[`property.type > string >  1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_1_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -2531,7 +2537,7 @@ exports[`property.type > string >  1`] = `
           <textarea
             class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex field-sizing-content w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
             data-slot="textarea"
-            id="_r_0_"
+            id="generated-id-0"
             rows="1"
           />
         </fieldset>
@@ -2561,7 +2567,7 @@ exports[`property.type > string > enum 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_1d_"
+              for="generated-id-0"
             >
               str (Optional)
             </label>
@@ -2576,7 +2582,7 @@ exports[`property.type > string > enum 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_1e_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -2624,7 +2630,7 @@ exports[`property.type > string > enum 1`] = `
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background"
             data-slot="popover-trigger"
             data-state="closed"
-            id="_r_1d_"
+            id="generated-id-0"
             type="button"
           >
             Select
@@ -2676,7 +2682,7 @@ exports[`property.type > string > enum with default 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_1l_"
+              for="generated-id-0"
             >
               str (Optional)
             </label>
@@ -2691,7 +2697,7 @@ exports[`property.type > string > enum with default 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_1m_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -2739,7 +2745,7 @@ exports[`property.type > string > enum with default 1`] = `
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background text-muted-foreground"
             data-slot="popover-trigger"
             data-state="closed"
-            id="_r_1l_"
+            id="generated-id-0"
             type="button"
           >
             foo
@@ -2791,7 +2797,7 @@ exports[`property.type > string > enum with value 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_1h_"
+              for="generated-id-0"
             >
               str (Optional)
             </label>
@@ -2806,7 +2812,7 @@ exports[`property.type > string > enum with value 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_1i_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -2854,7 +2860,7 @@ exports[`property.type > string > enum with value 1`] = `
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background text-muted-foreground"
             data-slot="popover-trigger"
             data-state="closed"
-            id="_r_1h_"
+            id="generated-id-0"
             type="button"
           >
             foo
@@ -2906,7 +2912,7 @@ exports[`property.type > string > format:date 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_9_"
+              for="generated-id-0"
             >
               date (Optional)
             </label>
@@ -2921,7 +2927,7 @@ exports[`property.type > string > format:date 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_a_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -2968,7 +2974,7 @@ exports[`property.type > string > format:date 1`] = `
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 justify-start text-left font-normal w-full text-muted-foreground"
             data-slot="popover-trigger"
             data-state="closed"
-            id="_r_9_"
+            id="generated-id-0"
             type="button"
           >
             <svg
@@ -2985,20 +2991,20 @@ exports[`property.type > string > format:date 1`] = `
               xmlns="http://www.w3.org/2000/svg"
             >
               <path
-                d="M8 2v4"
+                d="M8 2v3"
               />
               <path
-                d="M16 2v4"
+                d="M16 2v3"
               />
               <rect
                 height="18"
                 rx="2"
                 width="18"
                 x="3"
-                y="4"
+                y="3"
               />
               <path
-                d="M3 10h18"
+                d="M3 9h18"
               />
             </svg>
             <span>
@@ -3032,7 +3038,7 @@ exports[`property.type > string > format:date with default 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_h_"
+              for="generated-id-0"
             >
               date (Optional)
             </label>
@@ -3047,7 +3053,7 @@ exports[`property.type > string > format:date with default 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_i_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -3094,7 +3100,7 @@ exports[`property.type > string > format:date with default 1`] = `
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 justify-start text-left font-normal w-full"
             data-slot="popover-trigger"
             data-state="closed"
-            id="_r_h_"
+            id="generated-id-0"
             type="button"
           >
             <svg
@@ -3111,20 +3117,20 @@ exports[`property.type > string > format:date with default 1`] = `
               xmlns="http://www.w3.org/2000/svg"
             >
               <path
-                d="M8 2v4"
+                d="M8 2v3"
               />
               <path
-                d="M16 2v4"
+                d="M16 2v3"
               />
               <rect
                 height="18"
                 rx="2"
                 width="18"
                 x="3"
-                y="4"
+                y="3"
               />
               <path
-                d="M3 10h18"
+                d="M3 9h18"
               />
             </svg>
             January 1st, 2024
@@ -3156,7 +3162,7 @@ exports[`property.type > string > format:date with value 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_d_"
+              for="generated-id-0"
             >
               date (Optional)
             </label>
@@ -3171,7 +3177,7 @@ exports[`property.type > string > format:date with value 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_e_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -3218,7 +3224,7 @@ exports[`property.type > string > format:date with value 1`] = `
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-background shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 justify-start text-left font-normal w-full"
             data-slot="popover-trigger"
             data-state="closed"
-            id="_r_d_"
+            id="generated-id-0"
             type="button"
           >
             <svg
@@ -3235,20 +3241,20 @@ exports[`property.type > string > format:date with value 1`] = `
               xmlns="http://www.w3.org/2000/svg"
             >
               <path
-                d="M8 2v4"
+                d="M8 2v3"
               />
               <path
-                d="M16 2v4"
+                d="M16 2v3"
               />
               <rect
                 height="18"
                 rx="2"
                 width="18"
                 x="3"
-                y="4"
+                y="3"
               />
               <path
-                d="M3 10h18"
+                d="M3 9h18"
               />
             </svg>
             January 1st, 2024
@@ -3280,7 +3286,7 @@ exports[`property.type > string > format:date-time 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_l_"
+              for="generated-id-0"
             >
               date-time (Optional)
             </label>
@@ -3295,7 +3301,7 @@ exports[`property.type > string > format:date-time 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_m_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -3345,7 +3351,7 @@ exports[`property.type > string > format:date-time 1`] = `
               class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-start text-left font-normal bg-card dark:bg-background text-muted-foreground"
               data-slot="popover-trigger"
               data-state="closed"
-              id="_r_l_"
+              id="generated-id-0"
               type="button"
             >
               <svg
@@ -3426,7 +3432,7 @@ exports[`property.type > string > format:date-time with default 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_v_"
+              for="generated-id-0"
             >
               date-time (Optional)
             </label>
@@ -3441,7 +3447,7 @@ exports[`property.type > string > format:date-time with default 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_10_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -3491,7 +3497,7 @@ exports[`property.type > string > format:date-time with default 1`] = `
               class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-start text-left font-normal bg-card dark:bg-background"
               data-slot="popover-trigger"
               data-state="closed"
-              id="_r_v_"
+              id="generated-id-0"
               type="button"
             >
               <svg
@@ -3570,7 +3576,7 @@ exports[`property.type > string > format:date-time with value 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_q_"
+              for="generated-id-0"
             >
               date-time (Optional)
             </label>
@@ -3585,7 +3591,7 @@ exports[`property.type > string > format:date-time with value 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_r_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -3635,7 +3641,7 @@ exports[`property.type > string > format:date-time with value 1`] = `
               class="inline-flex items-center whitespace-nowrap rounded-md text-sm transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-start text-left font-normal bg-card dark:bg-background"
               data-slot="popover-trigger"
               data-state="closed"
-              id="_r_q_"
+              id="generated-id-0"
               type="button"
             >
               <svg
@@ -3714,7 +3720,7 @@ exports[`property.type > string > format:json-string 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_14_"
+              for="generated-id-0"
             >
               json-string (Optional)
             </label>
@@ -3729,7 +3735,7 @@ exports[`property.type > string > format:json-string 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_15_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -3800,7 +3806,7 @@ exports[`property.type > string > format:json-string with default 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_1a_"
+              for="generated-id-0"
             >
               json-string (Optional)
             </label>
@@ -3815,7 +3821,7 @@ exports[`property.type > string > format:json-string with default 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_1b_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -3888,7 +3894,7 @@ exports[`property.type > string > format:json-string with value 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_17_"
+              for="generated-id-0"
             >
               json-string (Optional)
             </label>
@@ -3903,7 +3909,7 @@ exports[`property.type > string > format:json-string with value 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_18_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -3976,7 +3982,7 @@ exports[`property.type > string > with default 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_6_"
+              for="generated-id-0"
             >
               str (Optional)
             </label>
@@ -3991,7 +3997,7 @@ exports[`property.type > string > with default 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_7_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -4035,7 +4041,7 @@ exports[`property.type > string > with default 1`] = `
           <textarea
             class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex field-sizing-content w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
             data-slot="textarea"
-            id="_r_6_"
+            id="generated-id-0"
             rows="1"
           >
             foo
@@ -4067,7 +4073,7 @@ exports[`property.type > string > with value 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_3_"
+              for="generated-id-0"
             >
               str (Optional)
             </label>
@@ -4082,7 +4088,7 @@ exports[`property.type > string > with value 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_4_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -4126,7 +4132,7 @@ exports[`property.type > string > with value 1`] = `
           <textarea
             class="border-input placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive flex field-sizing-content w-full rounded-md border bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 md:text-sm min-h-min"
             data-slot="textarea"
-            id="_r_3_"
+            id="generated-id-0"
             rows="1"
           >
             foo
@@ -4158,7 +4164,7 @@ exports[`property.type > unknown > base 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_33_"
+              for="generated-id-0"
             >
               Field (Optional)
             </label>
@@ -4173,7 +4179,7 @@ exports[`property.type > unknown > base 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_34_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -4244,7 +4250,7 @@ exports[`property.type > unknown > with default 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_3a_"
+              for="generated-id-0"
             >
               Field (Optional)
             </label>
@@ -4259,7 +4265,7 @@ exports[`property.type > unknown > with default 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_3b_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -4330,7 +4336,7 @@ exports[`property.type > unknown > with value 1`] = `
             <label
               class="flex items-center gap-2 text-sm leading-none font-medium select-none group-data-[disabled=true]:pointer-events-none group-data-[disabled=true]:opacity-50 peer-disabled:cursor-not-allowed peer-disabled:opacity-50"
               data-slot="label"
-              for="_r_36_"
+              for="generated-id-0"
             >
               Field (Optional)
             </label>
@@ -4345,7 +4351,7 @@ exports[`property.type > unknown > with value 1`] = `
               data-open="false"
               data-slot="dropdown-menu-trigger"
               data-state="closed"
-              id="radix-_r_37_"
+              id="generated-id-1"
               type="button"
             >
               <span
@@ -4393,7 +4399,7 @@ exports[`property.type > unknown > with value 1`] = `
             class="inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input shadow-xs hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2 w-full justify-between bg-card dark:bg-background text-muted-foreground"
             data-slot="popover-trigger"
             data-state="closed"
-            id="_r_36_"
+            id="generated-id-0"
             type="button"
           >
             foo

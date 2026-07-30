@@ -20,7 +20,9 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import LogCreate
 from prefect.client.schemas.objects import FlowRun
 from prefect.deployments.runner import RunnerDeployment
+from prefect.runner._control_channel import ControlChannel
 from prefect.runner._flow_run_executor import FlowRunExecutorContext
+from prefect.runner._process_manager import ProcessManager
 from prefect.runner._workspace_starter import WorkspaceResolvingEngineCommandStarter
 from prefect.settings import PREFECT_UI_URL, temporary_settings
 from prefect.settings.context import get_current_settings
@@ -1900,7 +1902,7 @@ class TestFlowRunExecute:
 
 
 class TestSignalHandling:
-    @pytest.mark.parametrize("sigterm_handling", ["reschedule", None])
+    @pytest.mark.parametrize("sigterm_handling", ["reschedule", "relinquish", None])
     async def test_flow_run_execute_sigterm_handling(
         self,
         monkeypatch: pytest.MonkeyPatch,
@@ -1929,6 +1931,8 @@ class TestSignalHandling:
             ],
             env=get_current_settings().to_environment_variables(exclude_unset=True)
             | os.environ,
+            # Own group so a group-wide signal below cannot reach pytest itself.
+            start_new_session=True,
         )
 
         assert popen.pid is not None
@@ -1941,8 +1945,12 @@ class TestSignalHandling:
             if flow_run.state.is_running():
                 break
 
-        # Send the SIGTERM signal
-        popen.terminate()
+        if sigterm_handling is None:
+            popen.terminate()
+        else:
+            # Group-wide, as `tini -g` sends on an eviction: the engine child must be
+            # isolated from it so the supervisor's intent lands first.
+            os.killpg(os.getpgid(popen.pid), signal.SIGTERM)
 
         # Wait for the process to exit
         return_code = popen.wait(timeout=10)
@@ -1955,6 +1963,13 @@ class TestSignalHandling:
                 "The flow run should have been rescheduled"
             )
             assert return_code == 0, "The process should have exited with a 0 exit code"
+        elif sigterm_handling == "relinquish":
+            assert flow_run.state.is_running(), (
+                "The flow run should have been left running for a retry"
+            )
+            assert return_code != 0, (
+                "The process should have exited with a non-zero exit code"
+            )
         else:
             assert flow_run.state.is_running(), (
                 "The flow run should be stuck in running"
@@ -1963,12 +1978,60 @@ class TestSignalHandling:
                 "The process should have exited with a SIGTERM exit code"
             )
 
-    async def test_reschedule_handler_installed_even_when_submit_exits_early(
+    async def test_unacknowledged_engine_is_stopped_without_a_graceful_signal(
         self,
         monkeypatch: pytest.MonkeyPatch,
         prefect_client: PrefectClient,
     ):
-        """The SIGTERM reschedule handler is installed before submit() runs,
+        """An engine that never acknowledged the intent would crash the run, so it is
+        killed outright and the run is left nonterminal for the retry."""
+        monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "relinquish")
+
+        deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        handlers: list[Callable[[], None]] = []
+        forced: list[bool] = []
+
+        def capture_install(handler: Callable[[], None]) -> bool:
+            handlers.append(handler)
+            return True
+
+        async def fake_kill(_self, _id, grace_seconds=30, *, force=False) -> None:
+            forced.append(force)
+
+        async def fake_submit(*_: Any, **__: Any) -> None:
+            handlers[0]()  # the SIGTERM the pod would receive
+            await anyio.sleep(1)
+
+        with (
+            patch(
+                "prefect.cli.flow_run._install_termination_handler",
+                side_effect=capture_install,
+            ),
+            patch.object(ControlChannel, "signal", AsyncMock(return_value=False)),
+            patch.object(ProcessManager, "kill", fake_kill),
+            patch(
+                "prefect.runner._flow_run_executor.FlowRunExecutor.submit", fake_submit
+            ),
+            pytest.raises(SystemExit),
+        ):
+            await execute(id=flow_run.id)
+
+        assert forced == [True], "engine should be stopped without a grace period"
+        run = await prefect_client.read_flow_run(flow_run.id)
+        assert run.state and not run.state.is_final(), (
+            "the run must stay nonterminal so the infrastructure retry can resume it"
+        )
+
+    async def test_termination_handler_installed_even_when_submit_exits_early(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        prefect_client: PrefectClient,
+    ):
+        """The SIGTERM termination handler is installed before submit() runs,
         so it is active even if submit exits early (e.g. rejected by server)."""
         monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
 
@@ -1977,28 +2040,28 @@ class TestSignalHandling:
             deployment_id=deployment_id
         )
 
-        sigterm_handlers_installed: list[Any] = []
-        original_signal = signal.signal
+        events: list[str] = []
 
-        def capture_signal(signum: signal.Signals, handler: Any) -> Any:
-            if signum == signal.SIGTERM:
-                sigterm_handlers_installed.append(handler)
-            return original_signal(signum, handler)
+        def capture_install(_handler: Callable[[], None]) -> bool:
+            events.append("installed")
+            return True
 
-        # Mock submit to do nothing — simulates early exit (e.g. rejected by server)
-        mock_submit = AsyncMock(return_value=None)
+        # submit() does nothing — simulates an early exit (e.g. rejected by server)
+        async def fake_submit(*_: Any, **__: Any) -> None:
+            events.append("submitted")
 
         with (
-            patch("prefect.cli.flow_run.signal.signal", side_effect=capture_signal),
+            patch(
+                "prefect.cli.flow_run._install_termination_handler",
+                side_effect=capture_install,
+            ),
             patch(
                 "prefect.runner._flow_run_executor.FlowRunExecutor.submit",
-                mock_submit,
+                fake_submit,
             ),
         ):
             await execute(id=flow_run.id)
 
-            # The handler is installed before submit() so it covers the
-            # startup window as well.
-            assert len(sigterm_handlers_installed) == 1, (
-                "SIGTERM reschedule handler should be installed before submit()"
-            )
+        assert events == ["installed", "submitted"], (
+            "SIGTERM handler should be installed before submit() so it covers startup"
+        )

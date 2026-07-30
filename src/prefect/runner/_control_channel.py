@@ -29,13 +29,13 @@ period. What the channel adds is a pre-seeded intent on the child side: by
 the time the child's `SIGTERM` handler runs, `control_listener.get_intent()`
 already returns the pre-seeded intent, so the engine's
 `except TerminationSignal` block can dispatch on it (`on_cancellation` vs
-`on_crashed` today, with room for a third `"suspend"` branch in a follow-up).
+`on_crashed`, or leaving the state alone for `"reschedule"`/`"relinquish"`).
 
 The channel is loopback-only, per-token authenticated, and best-effort: if
-the child never connects or never acks, `signal` returns `False` and the
-runner falls through to the kill path anyway, where the engine will treat
-the resulting termination as a crash — the same behavior as today for
-unresponsive children.
+the child never connects or never acks, `signal` returns `False`. Callers
+decide what that means: cancellation falls through to a graceful kill and lets
+the engine crash the run, while `prefect flow-run execute` kills without a
+grace period so an unacked engine cannot crash a run it is about to retry.
 
 This module is deliberately generic. The set of valid intents lives in
 `prefect._internal.control_listener` as `Intent`; the wire
@@ -68,6 +68,8 @@ _DEFAULT_ACK_TIMEOUT = 1.0
 # intent is a matched one-line change on each side.
 _BYTE_FOR_INTENT: dict[Intent, bytes] = {
     "cancel": b"c",
+    "reschedule": b"r",
+    "relinquish": b"q",
 }
 
 
@@ -92,9 +94,8 @@ class ControlChannel:
     Use as an async context manager. Inside the context, `port` is the
     listener's bound port (suitable for injecting into child env vars).
 
-    The only intent exposed today is `"cancel"`. A future PR will add
-    `"suspend"` by extending the `Intent` literal, the byte map, and
-    the engine's `except TerminationSignal` dispatch.
+    Adding an intent means extending the `Intent` literal, the byte map, and the
+    engine's `except TerminationSignal` dispatch.
     """
 
     def __init__(

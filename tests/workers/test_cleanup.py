@@ -744,13 +744,17 @@ async def test_executor_keeps_renewing_until_ack_resolves():
             )
         return _operation_result(frame)
 
+    # Use a generous lease window (and a buffer that keeps the first renewal
+    # firing immediately) so the reservation is not treated as expired if the
+    # executor is scheduled slowly on a loaded runner; a tight lease here made
+    # the test skip the message and hang waiting for the renew that never sent.
     executor = WorkerCleanupExecutor(
         [RecordingCleanupHandler(result=CleanupExecutionResult.success())],
         send_operation=send,
-        lease_renewal_buffer_seconds=0.05,
-        operation_result_timeout_seconds=1,
+        lease_renewal_buffer_seconds=5,
+        operation_result_timeout_seconds=5,
     )
-    message = _message_frame(lease_expires_at=now("UTC") + timedelta(seconds=0.1))
+    message = _message_frame(lease_expires_at=now("UTC") + timedelta(seconds=5))
 
     async with anyio.create_task_group() as task_group:
         task_group.start_soon(executor.execute, message)
