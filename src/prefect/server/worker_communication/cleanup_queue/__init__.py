@@ -8,12 +8,13 @@ from uuid import NAMESPACE_URL, UUID, uuid5
 
 from pydantic import UUID7, ConfigDict, Field
 
-from prefect._internal.pending_claims import (
+from prefect._internal.schemas.bases import PrefectBaseModel
+from prefect.client.schemas.worker_channel import (
     PENDING_CLAIM_TEARDOWN,
+    CleanupKind,
+    CleanupOperationStatus,
     pending_claim_teardown_idempotency_key,
 )
-from prefect._internal.schemas.bases import PrefectBaseModel
-from prefect.client.schemas.worker_channel import CleanupKind, CleanupOperationStatus
 from prefect.logging import get_logger
 from prefect.settings.context import get_current_settings
 from prefect.types import DateTime, NonNegativeInteger, PositiveInteger

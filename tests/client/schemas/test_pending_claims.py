@@ -19,7 +19,6 @@ from prefect.client.schemas.pending_claims import (
     PendingClaimRunningFields,
     PendingClaimStateDetails,
     PendingTimeoutCount,
-    pending_claim_teardown_idempotency_key,
 )
 from prefect.client.schemas.responses import SetStateStatus
 
@@ -1541,12 +1540,3 @@ def test_binding_result_contract_distinguishes_outcomes(
 def test_binding_failures_require_a_reason(status: str):
     with pytest.raises(ValidationError, match="reason"):
         PendingClaimOperationResult.model_validate({"status": status})
-
-
-def test_pending_claim_teardown_identity_excludes_optional_targeting_fields():
-    flow_run_id = uuid4()
-    claim_id = uuid7()
-
-    assert pending_claim_teardown_idempotency_key(flow_run_id, claim_id) == (
-        f"pending_claim_teardown.v1:{flow_run_id}:{claim_id}"
-    )

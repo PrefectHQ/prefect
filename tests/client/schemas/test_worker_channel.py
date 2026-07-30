@@ -25,6 +25,7 @@ from prefect.client.schemas.worker_channel import (
     WorkerChannelProtocolError,
     WorkerHelloFrame,
     WorkerReadyFrame,
+    pending_claim_teardown_idempotency_key,
     select_worker_channel_version,
     validate_worker_channel_frame,
 )
@@ -528,6 +529,15 @@ def test_cleanup_message_validates_supported_kinds_and_kind_specific_targets():
                 },
             }
         )
+
+
+def test_pending_claim_teardown_identity_excludes_optional_targeting_fields():
+    flow_run_id = uuid4()
+    claim_id = uuid7()
+
+    assert pending_claim_teardown_idempotency_key(flow_run_id, claim_id) == (
+        f"pending_claim_teardown.v1:{flow_run_id}:{claim_id}"
+    )
 
 
 def test_pending_claim_cleanup_accepts_required_target_fields_only():

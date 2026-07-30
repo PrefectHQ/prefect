@@ -14,7 +14,6 @@ from typing_extensions import Literal, TypeAlias
 
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.client.schemas.objects import WorkPool, WorkPoolStorageConfiguration
-from prefect.client.schemas.pending_claims import PENDING_CLAIM_TEARDOWN
 from prefect.types import NonNegativeInteger, PositiveInteger
 from prefect.types._datetime import DateTime
 
@@ -89,10 +88,19 @@ SUPPORTED_WORKER_CHANNEL_CAPABILITIES: frozenset[WorkerChannelCapability] = (
 CANCELLING_TIMEOUT_TEARDOWN: Literal["cancelling_timeout_teardown.v1"] = (
     "cancelling_timeout_teardown.v1"
 )
+PENDING_CLAIM_TEARDOWN: Literal["pending_claim_teardown.v1"] = (
+    "pending_claim_teardown.v1"
+)
 SUPPORTED_CLEANUP_KINDS: tuple[CleanupKind, ...] = (
     CANCELLING_TIMEOUT_TEARDOWN,
     PENDING_CLAIM_TEARDOWN,
 )
+
+
+def pending_claim_teardown_idempotency_key(flow_run_id: UUID, claim_id: UUID) -> str:
+    """Return the stable cleanup identity for one abandoned pending claim."""
+
+    return f"{PENDING_CLAIM_TEARDOWN}:{flow_run_id}:{claim_id}"
 
 
 class WorkerChannelCloseReason(str, Enum):
@@ -583,6 +591,7 @@ __all__ = [
     "WorkerReadyPayload",
     "WorkPoolSnapshotFrame",
     "WorkPoolSnapshotPayload",
+    "pending_claim_teardown_idempotency_key",
     "select_worker_channel_version",
     "validate_worker_channel_frame",
 ]

@@ -16,10 +16,6 @@ from uuid import UUID
 from pydantic import UUID7, ConfigDict, Field, model_validator
 from typing_extensions import Literal, TypeAlias
 
-from prefect._internal.pending_claims import (
-    PENDING_CLAIM_TEARDOWN,
-    pending_claim_teardown_idempotency_key,
-)
 from prefect._internal.schemas.bases import PrefectBaseModel
 from prefect.types import NonNegativeInteger, PositiveInteger
 
@@ -125,7 +121,6 @@ class PendingClaimOperationResult(PrefectBaseModel):
 
 
 __all__ = [
-    "PENDING_CLAIM_TEARDOWN",
     "BindExecutionRequest",
     "ClaimInfrastructureRequest",
     "ExecutionLineage",
@@ -139,5 +134,4 @@ __all__ = [
     "PendingClaimStartupAction",
     "PendingClaimStateDetails",
     "PendingTimeoutCount",
-    "pending_claim_teardown_idempotency_key",
 ]
