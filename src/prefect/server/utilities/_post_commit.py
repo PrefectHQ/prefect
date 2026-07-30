@@ -26,8 +26,9 @@ def call_after_commit(session: AsyncSession, hook: PostCommitHook) -> None:
     """Call `hook` after the session's transaction commits.
 
     Hooks are awaited on the session's event loop as the commit unwinds, so anything
-    they observe or publish reflects the committed data. Hooks registered against a
-    transaction that is rolled back or never committed are never called.
+    they observe or publish reflects the committed data. A hook belongs to the
+    transaction that is active when it is registered, and is discarded if that
+    transaction, or any transaction enclosing it, is rolled back.
 
     Args:
         session: the session whose commit the hook should follow
@@ -35,13 +36,22 @@ def call_after_commit(session: AsyncSession, hook: PostCommitHook) -> None:
     """
     sync_session = session.sync_session
 
-    hooks: list[PostCommitHook] | None = sync_session.info.get(_HOOKS)
+    hooks = _hooks(sync_session)
     if hooks is None:
         hooks = sync_session.info[_HOOKS] = []
         event.listen(sync_session, "after_commit", _call_hooks)
         event.listen(sync_session, "after_soft_rollback", _discard_hooks)
 
-    hooks.append(hook)
+    transaction = (
+        sync_session.get_nested_transaction() or sync_session.get_transaction()
+    )
+    hooks.append((transaction, hook))
+
+
+def _hooks(
+    session: Session,
+) -> list[tuple[SessionTransaction | None, PostCommitHook]] | None:
+    return session.info.get(_HOOKS)
 
 
 def _call_hooks(session: Session) -> None:
@@ -49,9 +59,9 @@ def _call_hooks(session: Session) -> None:
         # releasing a savepoint isn't durable until the enclosing transaction commits
         return
 
-    hooks: list[PostCommitHook] = session.info.get(_HOOKS, [])
+    hooks = _hooks(session) or []
     while hooks:
-        hook = hooks.pop(0)
+        _, hook = hooks.pop(0)
         try:
             # `after_commit` is emitted from within the greenlet that the async
             # session used to commit, so the hook runs on the original event loop
@@ -61,7 +71,22 @@ def _call_hooks(session: Session) -> None:
 
 
 def _discard_hooks(session: Session, previous_transaction: SessionTransaction) -> None:
-    if previous_transaction.nested:
-        # rolling back to a savepoint leaves the enclosing transaction intact
+    hooks = _hooks(session)
+    if not hooks:
         return
-    session.info.get(_HOOKS, []).clear()
+
+    hooks[:] = [
+        (transaction, hook)
+        for transaction, hook in hooks
+        if not _within(transaction, previous_transaction)
+    ]
+
+
+def _within(
+    transaction: SessionTransaction | None, ancestor: SessionTransaction
+) -> bool:
+    while transaction is not None:
+        if transaction is ancestor:
+            return True
+        transaction = transaction.parent
+    return False

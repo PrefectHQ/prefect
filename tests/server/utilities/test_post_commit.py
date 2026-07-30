@@ -106,3 +106,39 @@ async def test_hooks_wait_for_the_enclosing_transaction_of_a_savepoint(
         assert called == []
 
     assert called == ["hook"]
+
+
+async def test_hooks_are_discarded_when_their_savepoint_rolls_back(
+    db: PrefectDBInterface,
+):
+    called: list[str] = []
+
+    async def hook() -> None:
+        called.append("hook")
+
+    async with db.session_context(begin_transaction=True) as session:
+        nested = await session.begin_nested()
+        await session.execute(sa.text("SELECT 1"))
+        call_after_commit(session, hook)
+        await nested.rollback()
+
+    assert called == []
+
+
+async def test_hooks_survive_the_rollback_of_a_later_savepoint(
+    db: PrefectDBInterface,
+):
+    called: list[str] = []
+
+    async def hook() -> None:
+        called.append("hook")
+
+    async with db.session_context(begin_transaction=True) as session:
+        await session.execute(sa.text("SELECT 1"))
+        call_after_commit(session, hook)
+
+        nested = await session.begin_nested()
+        await session.execute(sa.text("SELECT 1"))
+        await nested.rollback()
+
+    assert called == ["hook"]
