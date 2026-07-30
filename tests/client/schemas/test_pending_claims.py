@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID, uuid4
 
@@ -5,6 +6,7 @@ import pytest
 from pydantic import TypeAdapter, ValidationError
 
 from prefect._internal.uuid7 import uuid7
+from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.pending_claims import (
     BindExecutionRequest,
     ClaimInfrastructureRequest,
@@ -20,6 +22,21 @@ from prefect.client.schemas.pending_claims import (
     pending_claim_teardown_idempotency_key,
 )
 from prefect.client.schemas.responses import SetStateStatus
+
+
+@dataclass(frozen=True)
+class CanonicalStateSnapshot:
+    """Storage-neutral current orchestration state observed by the contract."""
+
+    state_type: StateType
+    details: PendingClaimStateDetails
+
+
+def _copy_canonical_state(state: CanonicalStateSnapshot) -> CanonicalStateSnapshot:
+    return CanonicalStateSnapshot(
+        state_type=state.state_type,
+        details=state.details.model_copy(deep=True),
+    )
 
 
 def _pending_claim(
@@ -38,8 +55,8 @@ def _pending_claim(
 class PendingClaimContractAdapter(Protocol):
     def startup_disposition(
         self,
-        canonical_state: PendingClaimStateDetails,
-        mirrored_state: PendingClaimStateDetails,
+        canonical_state: CanonicalStateSnapshot,
+        mirrored_state: CanonicalStateSnapshot,
         reference: PendingClaimReference,
     ) -> SetStateStatus: ...
 
@@ -47,15 +64,15 @@ class PendingClaimContractAdapter(Protocol):
 
     def bind_execution(
         self,
-        canonical_state: PendingClaimStateDetails,
-        mirrored_state: PendingClaimStateDetails,
+        canonical_state: CanonicalStateSnapshot,
+        mirrored_state: CanonicalStateSnapshot,
         request: BindExecutionRequest,
-    ) -> tuple[PendingClaimOperationResult, PendingClaimStateDetails]: ...
+    ) -> tuple[PendingClaimOperationResult, CanonicalStateSnapshot]: ...
 
     def claim_infrastructure(
         self,
-        canonical_state: PendingClaimStateDetails,
-        mirrored_state: PendingClaimStateDetails,
+        canonical_state: CanonicalStateSnapshot,
+        mirrored_state: CanonicalStateSnapshot,
         infrastructure_pid: str | None,
         request: ClaimInfrastructureRequest,
     ) -> tuple[PendingClaimOperationResult, str | None]: ...
@@ -80,16 +97,64 @@ class PendingClaimContractAdapter(Protocol):
     ) -> PendingClaimStateDetails: ...
 
 
+def _observe_bind_execution(
+    adapter: PendingClaimContractAdapter,
+    canonical_state: CanonicalStateSnapshot,
+    mirrored_state: CanonicalStateSnapshot,
+    request: BindExecutionRequest,
+) -> tuple[PendingClaimOperationResult, CanonicalStateSnapshot]:
+    before_canonical = _copy_canonical_state(canonical_state)
+    before_mirror = _copy_canonical_state(mirrored_state)
+    before_request = request.model_copy(deep=True)
+
+    result, observed_state = adapter.bind_execution(
+        canonical_state,
+        mirrored_state,
+        request,
+    )
+
+    assert canonical_state == before_canonical
+    assert mirrored_state == before_mirror
+    assert request == before_request
+    return result, observed_state
+
+
+def _observe_infrastructure_claim(
+    adapter: PendingClaimContractAdapter,
+    canonical_state: CanonicalStateSnapshot,
+    mirrored_state: CanonicalStateSnapshot,
+    infrastructure_pid: str | None,
+    request: ClaimInfrastructureRequest,
+) -> tuple[PendingClaimOperationResult, str | None]:
+    before_canonical = _copy_canonical_state(canonical_state)
+    before_mirror = _copy_canonical_state(mirrored_state)
+    before_request = request.model_copy(deep=True)
+
+    result, observed_pid = adapter.claim_infrastructure(
+        canonical_state,
+        mirrored_state,
+        infrastructure_pid,
+        request,
+    )
+
+    assert canonical_state == before_canonical
+    assert mirrored_state == before_mirror
+    assert request == before_request
+    return result, observed_pid
+
+
 class ReferencePendingClaimContract:
     """Test-only reference adapter for the shared conformance cases."""
 
     def startup_disposition(
         self,
-        canonical_state: PendingClaimStateDetails,
-        mirrored_state: PendingClaimStateDetails,
+        canonical_state: CanonicalStateSnapshot,
+        mirrored_state: CanonicalStateSnapshot,
         reference: PendingClaimReference,
     ) -> SetStateStatus:
-        active_claim = canonical_state.pending_claim
+        if canonical_state.state_type != StateType.PENDING:
+            return SetStateStatus.ABORT
+        active_claim = canonical_state.details.pending_claim
         if (
             active_claim is None
             or active_claim.id != reference.claim_id
@@ -112,12 +177,16 @@ class ReferencePendingClaimContract:
 
     def bind_execution(
         self,
-        canonical_state: PendingClaimStateDetails,
-        mirrored_state: PendingClaimStateDetails,
+        canonical_state: CanonicalStateSnapshot,
+        mirrored_state: CanonicalStateSnapshot,
         request: BindExecutionRequest,
-    ) -> tuple[PendingClaimOperationResult, PendingClaimStateDetails]:
-        active_claim = canonical_state.pending_claim
-        if active_claim is None or active_claim.id != request.claim_id:
+    ) -> tuple[PendingClaimOperationResult, CanonicalStateSnapshot]:
+        active_claim = canonical_state.details.pending_claim
+        if (
+            canonical_state.state_type != StateType.PENDING
+            or active_claim is None
+            or active_claim.id != request.claim_id
+        ):
             return (
                 PendingClaimOperationResult(
                     status="not_current",
@@ -126,10 +195,16 @@ class ReferencePendingClaimContract:
                 canonical_state,
             )
         if active_claim.execution_id is None:
-            bound_state = canonical_state.model_copy(deep=True)
-            assert bound_state.pending_claim is not None
-            bound_state.pending_claim.execution_id = request.execution_id
-            return PendingClaimOperationResult(status="accepted"), bound_state
+            bound_details = canonical_state.details.model_copy(deep=True)
+            assert bound_details.pending_claim is not None
+            bound_details.pending_claim.execution_id = request.execution_id
+            return (
+                PendingClaimOperationResult(status="accepted"),
+                CanonicalStateSnapshot(
+                    state_type=canonical_state.state_type,
+                    details=bound_details,
+                ),
+            )
         if active_claim.execution_id == request.execution_id:
             return PendingClaimOperationResult(status="accepted"), canonical_state
         return (
@@ -142,20 +217,22 @@ class ReferencePendingClaimContract:
 
     def claim_infrastructure(
         self,
-        canonical_state: PendingClaimStateDetails,
-        mirrored_state: PendingClaimStateDetails,
+        canonical_state: CanonicalStateSnapshot,
+        mirrored_state: CanonicalStateSnapshot,
         infrastructure_pid: str | None,
         request: ClaimInfrastructureRequest,
     ) -> tuple[PendingClaimOperationResult, str | None]:
-        active_claim = canonical_state.pending_claim
-        execution_lineage = canonical_state.execution_lineage
+        active_claim = canonical_state.details.pending_claim
+        execution_lineage = canonical_state.details.execution_lineage
         owns_pending = (
-            active_claim is not None
+            canonical_state.state_type == StateType.PENDING
+            and active_claim is not None
             and active_claim.id == request.claim_id
             and active_claim.execution_id == request.execution_id
         )
         owns_running = (
-            active_claim is None
+            canonical_state.state_type == StateType.RUNNING
+            and active_claim is None
             and execution_lineage is not None
             and execution_lineage.claim_id == request.claim_id
             and execution_lineage.execution_id == request.execution_id
@@ -222,8 +299,8 @@ class ReferencePendingClaimContract:
 class MirrorAuthorityAdapter(ReferencePendingClaimContract):
     def startup_disposition(
         self,
-        canonical_state: PendingClaimStateDetails,
-        mirrored_state: PendingClaimStateDetails,
+        canonical_state: CanonicalStateSnapshot,
+        mirrored_state: CanonicalStateSnapshot,
         reference: PendingClaimReference,
     ) -> SetStateStatus:
         return super().startup_disposition(mirrored_state, canonical_state, reference)
@@ -232,10 +309,10 @@ class MirrorAuthorityAdapter(ReferencePendingClaimContract):
 class DropExecutionBindingAdapter(ReferencePendingClaimContract):
     def bind_execution(
         self,
-        canonical_state: PendingClaimStateDetails,
-        mirrored_state: PendingClaimStateDetails,
+        canonical_state: CanonicalStateSnapshot,
+        mirrored_state: CanonicalStateSnapshot,
         request: BindExecutionRequest,
-    ) -> tuple[PendingClaimOperationResult, PendingClaimStateDetails]:
+    ) -> tuple[PendingClaimOperationResult, CanonicalStateSnapshot]:
         result, _ = super().bind_execution(
             canonical_state,
             mirrored_state,
@@ -247,8 +324,8 @@ class DropExecutionBindingAdapter(ReferencePendingClaimContract):
 class DropInfrastructureBindingAdapter(ReferencePendingClaimContract):
     def claim_infrastructure(
         self,
-        canonical_state: PendingClaimStateDetails,
-        mirrored_state: PendingClaimStateDetails,
+        canonical_state: CanonicalStateSnapshot,
+        mirrored_state: CanonicalStateSnapshot,
         infrastructure_pid: str | None,
         request: ClaimInfrastructureRequest,
     ) -> tuple[PendingClaimOperationResult, str | None]:
@@ -259,6 +336,84 @@ class DropInfrastructureBindingAdapter(ReferencePendingClaimContract):
             request,
         )
         return result, infrastructure_pid
+
+
+class MutateBindingInputsAdapter(ReferencePendingClaimContract):
+    def bind_execution(
+        self,
+        canonical_state: CanonicalStateSnapshot,
+        mirrored_state: CanonicalStateSnapshot,
+        request: BindExecutionRequest,
+    ) -> tuple[PendingClaimOperationResult, CanonicalStateSnapshot]:
+        result, observed_state = super().bind_execution(
+            canonical_state,
+            mirrored_state,
+            request,
+        )
+        canonical_state.details.pending_timeout_count = 999
+        request.execution_id = uuid7()
+        return result, observed_state
+
+
+class MutateInfrastructureInputsAdapter(ReferencePendingClaimContract):
+    def claim_infrastructure(
+        self,
+        canonical_state: CanonicalStateSnapshot,
+        mirrored_state: CanonicalStateSnapshot,
+        infrastructure_pid: str | None,
+        request: ClaimInfrastructureRequest,
+    ) -> tuple[PendingClaimOperationResult, str | None]:
+        result, observed_pid = super().claim_infrastructure(
+            canonical_state,
+            mirrored_state,
+            infrastructure_pid,
+            request,
+        )
+        canonical_state.details.pending_timeout_count = 999
+        request.infrastructure_pid = "provider/mutated"
+        return result, observed_pid
+
+
+class IgnoreBindingStateTypeAdapter(ReferencePendingClaimContract):
+    def bind_execution(
+        self,
+        canonical_state: CanonicalStateSnapshot,
+        mirrored_state: CanonicalStateSnapshot,
+        request: BindExecutionRequest,
+    ) -> tuple[PendingClaimOperationResult, CanonicalStateSnapshot]:
+        return super().bind_execution(
+            CanonicalStateSnapshot(
+                state_type=StateType.PENDING,
+                details=canonical_state.details,
+            ),
+            mirrored_state,
+            request,
+        )
+
+
+class IgnoreInfrastructureStateTypeAdapter(ReferencePendingClaimContract):
+    def claim_infrastructure(
+        self,
+        canonical_state: CanonicalStateSnapshot,
+        mirrored_state: CanonicalStateSnapshot,
+        infrastructure_pid: str | None,
+        request: ClaimInfrastructureRequest,
+    ) -> tuple[PendingClaimOperationResult, str | None]:
+        if canonical_state.state_type not in (StateType.PENDING, StateType.RUNNING):
+            canonical_state = CanonicalStateSnapshot(
+                state_type=(
+                    StateType.PENDING
+                    if canonical_state.details.pending_claim is not None
+                    else StateType.RUNNING
+                ),
+                details=canonical_state.details,
+            )
+        return super().claim_infrastructure(
+            canonical_state,
+            mirrored_state,
+            infrastructure_pid,
+            request,
+        )
 
 
 class StateRecordIdentityAdapter(ReferencePendingClaimContract):
@@ -326,43 +481,56 @@ def _assert_pending_claim_contract(adapter: PendingClaimContractAdapter) -> None
         claim_id=claim_id,
         execution_id=execution_id,
     )
-    canonical = PendingClaimStateDetails(
-        pending_claim=active_claim,
-        pending_timeout_count=1,
-        future_state_hint={"source": "canonical"},
+    canonical = CanonicalStateSnapshot(
+        state_type=StateType.PENDING,
+        details=PendingClaimStateDetails(
+            pending_claim=active_claim,
+            pending_timeout_count=1,
+            future_state_hint={"source": "canonical"},
+        ),
     )
     matching_reference = PendingClaimReference(
         claim_id=claim_id,
         execution_id=execution_id,
     )
+    empty_pending = CanonicalStateSnapshot(
+        state_type=StateType.PENDING,
+        details=PendingClaimStateDetails(),
+    )
 
     assert (
         adapter.startup_disposition(
             canonical,
-            PendingClaimStateDetails(),
+            empty_pending,
             matching_reference,
         )
         == SetStateStatus.ACCEPT
     )
 
-    unbound = PendingClaimStateDetails(
-        pending_claim=_pending_claim(claim_id=claim_id),
-        pending_timeout_count=1,
-        future_state_hint={"source": "unbound"},
+    unbound = CanonicalStateSnapshot(
+        state_type=StateType.PENDING,
+        details=PendingClaimStateDetails(
+            pending_claim=_pending_claim(claim_id=claim_id),
+            pending_timeout_count=1,
+            future_state_hint={"source": "unbound"},
+        ),
     )
     assert (
         adapter.startup_disposition(
             unbound,
-            PendingClaimStateDetails(),
+            empty_pending,
             matching_reference,
         )
         == SetStateStatus.WAIT
     )
 
-    stale_canonical = PendingClaimStateDetails(
-        pending_claim=_pending_claim(execution_id=uuid7())
+    stale_canonical = CanonicalStateSnapshot(
+        state_type=StateType.PENDING,
+        details=PendingClaimStateDetails(
+            pending_claim=_pending_claim(execution_id=uuid7())
+        ),
     )
-    matching_mirror = canonical.model_copy(deep=True)
+    matching_mirror = _copy_canonical_state(canonical)
     assert (
         adapter.startup_disposition(
             stale_canonical,
@@ -385,6 +553,19 @@ def _assert_pending_claim_contract(adapter: PendingClaimContractAdapter) -> None
         == SetStateStatus.ABORT
     )
 
+    terminal_with_claim = CanonicalStateSnapshot(
+        state_type=StateType.COMPLETED,
+        details=canonical.details.model_copy(deep=True),
+    )
+    assert (
+        adapter.startup_disposition(
+            terminal_with_claim,
+            matching_mirror,
+            matching_reference,
+        )
+        == SetStateStatus.ABORT
+    )
+
     expected_actions = {
         SetStateStatus.ACCEPT: "start_user_code",
         SetStateStatus.WAIT: "retry",
@@ -399,40 +580,45 @@ def _assert_pending_claim_contract(adapter: PendingClaimContractAdapter) -> None
         claim_id=claim_id,
         execution_id=execution_id,
     )
-    first_bind, bound_state = adapter.bind_execution(
+    expected_bound_state = _copy_canonical_state(unbound)
+    assert expected_bound_state.details.pending_claim is not None
+    expected_bound_state.details.pending_claim.execution_id = execution_id
+    first_bind, bound_state = _observe_bind_execution(
+        adapter,
         unbound,
-        PendingClaimStateDetails(),
+        empty_pending,
         unbound_request,
     )
     assert first_bind.status == "accepted"
-    expected_bound_state = unbound.model_copy(deep=True)
-    assert expected_bound_state.pending_claim is not None
-    expected_bound_state.pending_claim.execution_id = execution_id
     assert bound_state == expected_bound_state
 
-    before_duplicate = bound_state.model_copy(deep=True)
-    duplicate_bind, duplicate_state = adapter.bind_execution(
+    before_duplicate = _copy_canonical_state(bound_state)
+    duplicate_bind, duplicate_state = _observe_bind_execution(
+        adapter,
         bound_state,
-        PendingClaimStateDetails(),
+        empty_pending,
         unbound_request,
     )
     assert duplicate_bind.status == "accepted"
     assert duplicate_state == before_duplicate
 
-    before_conflict = bound_state.model_copy(deep=True)
-    conflicting_bind, conflicting_state = adapter.bind_execution(
+    conflict_request = BindExecutionRequest(
+        claim_id=claim_id,
+        execution_id=uuid7(),
+    )
+    before_conflict = _copy_canonical_state(bound_state)
+    conflicting_bind, conflicting_state = _observe_bind_execution(
+        adapter,
         bound_state,
-        PendingClaimStateDetails(),
-        BindExecutionRequest(
-            claim_id=claim_id,
-            execution_id=uuid7(),
-        ),
+        empty_pending,
+        conflict_request,
     )
     assert conflicting_bind.status == "conflict"
     assert conflicting_state == before_conflict
 
-    before_stale_bind = stale_canonical.model_copy(deep=True)
-    stale_bind, stale_state = adapter.bind_execution(
+    before_stale_bind = _copy_canonical_state(stale_canonical)
+    stale_bind, stale_state = _observe_bind_execution(
+        adapter,
         stale_canonical,
         matching_mirror,
         unbound_request,
@@ -440,29 +626,51 @@ def _assert_pending_claim_contract(adapter: PendingClaimContractAdapter) -> None
     assert stale_bind.status == "not_current"
     assert stale_state == before_stale_bind
 
+    before_terminal_bind = _copy_canonical_state(terminal_with_claim)
+    terminal_bind, terminal_state = _observe_bind_execution(
+        adapter,
+        terminal_with_claim,
+        matching_mirror,
+        unbound_request,
+    )
+    assert terminal_bind.status == "not_current"
+    assert terminal_state == before_terminal_bind
+
+    expected_infrastructure_pid = "provider/resource"
     infrastructure_request = ClaimInfrastructureRequest(
         claim_id=claim_id,
         execution_id=execution_id,
-        infrastructure_pid="provider/resource",
+        infrastructure_pid=expected_infrastructure_pid,
     )
-    pending_infrastructure, pending_binding = adapter.claim_infrastructure(
+    pending_infrastructure, pending_binding = _observe_infrastructure_claim(
+        adapter,
         canonical,
         stale_canonical,
         None,
         infrastructure_request,
     )
     assert pending_infrastructure.status == "accepted"
-    assert pending_binding == infrastructure_request.infrastructure_pid
+    assert pending_binding == expected_infrastructure_pid
 
-    running_state = PendingClaimStateDetails(
-        execution_lineage=ExecutionLineage(
-            claim_id=claim_id,
-            execution_id=execution_id,
-        )
+    running_state = CanonicalStateSnapshot(
+        state_type=StateType.RUNNING,
+        details=PendingClaimStateDetails(
+            execution_lineage=ExecutionLineage(
+                claim_id=claim_id,
+                execution_id=execution_id,
+            )
+        ),
     )
-    replacement_pending_state = PendingClaimStateDetails(
-        pending_claim=_pending_claim(execution_id=uuid7()),
-        execution_lineage=running_state.execution_lineage,
+    replacement_pending_state = CanonicalStateSnapshot(
+        state_type=StateType.PENDING,
+        details=PendingClaimStateDetails(
+            pending_claim=_pending_claim(execution_id=uuid7()),
+            execution_lineage=running_state.details.execution_lineage,
+        ),
+    )
+    terminal_running_state = CanonicalStateSnapshot(
+        state_type=StateType.COMPLETED,
+        details=running_state.details.model_copy(deep=True),
     )
     infrastructure_cases = [
         (
@@ -499,7 +707,7 @@ def _assert_pending_claim_contract(adapter: PendingClaimContractAdapter) -> None
         (
             "matching claim with wrong execution",
             canonical,
-            PendingClaimStateDetails(),
+            empty_pending,
             None,
             ClaimInfrastructureRequest(
                 claim_id=claim_id,
@@ -512,11 +720,46 @@ def _assert_pending_claim_contract(adapter: PendingClaimContractAdapter) -> None
         (
             "late exact running lineage",
             running_state,
-            PendingClaimStateDetails(),
+            empty_pending,
             None,
             infrastructure_request,
             "accepted",
-            infrastructure_request.infrastructure_pid,
+            expected_infrastructure_pid,
+        ),
+        (
+            "duplicate exact running lineage",
+            running_state,
+            empty_pending,
+            pending_binding,
+            infrastructure_request,
+            "accepted",
+            pending_binding,
+        ),
+        (
+            "conflicting running infrastructure pid",
+            running_state,
+            empty_pending,
+            pending_binding,
+            ClaimInfrastructureRequest(
+                claim_id=claim_id,
+                execution_id=execution_id,
+                infrastructure_pid="provider/other-resource",
+            ),
+            "conflict",
+            pending_binding,
+        ),
+        (
+            "running lineage with wrong execution",
+            running_state,
+            empty_pending,
+            pending_binding,
+            ClaimInfrastructureRequest(
+                claim_id=claim_id,
+                execution_id=uuid7(),
+                infrastructure_pid="provider/resource",
+            ),
+            "not_current",
+            pending_binding,
         ),
         (
             "replacement pending claim supersedes old running lineage",
@@ -526,6 +769,24 @@ def _assert_pending_claim_contract(adapter: PendingClaimContractAdapter) -> None
             infrastructure_request,
             "not_current",
             None,
+        ),
+        (
+            "terminal state retaining pending claim",
+            terminal_with_claim,
+            matching_mirror,
+            pending_binding,
+            infrastructure_request,
+            "not_current",
+            pending_binding,
+        ),
+        (
+            "terminal state retaining running lineage",
+            terminal_running_state,
+            running_state,
+            pending_binding,
+            infrastructure_request,
+            "not_current",
+            pending_binding,
         ),
     ]
     for (
@@ -537,8 +798,8 @@ def _assert_pending_claim_contract(adapter: PendingClaimContractAdapter) -> None
         expected_status,
         expected_pid,
     ) in infrastructure_cases:
-        before_claim = canonical_state.model_copy(deep=True)
-        result, observed_pid = adapter.claim_infrastructure(
+        result, observed_pid = _observe_infrastructure_claim(
+            adapter,
             canonical_state,
             mirrored_state,
             current_pid,
@@ -548,23 +809,24 @@ def _assert_pending_claim_contract(adapter: PendingClaimContractAdapter) -> None
             expected_status,
             expected_pid,
         ), scenario
-        assert canonical_state == before_claim, scenario
 
     source_state_id = uuid4()
     target_state_id = uuid4()
     assert source_state_id != target_state_id
     named_substate = adapter.preserve_pending_substate(
-        canonical,
+        canonical.details,
         source_state_id,
         target_state_id,
     )
-    assert named_substate.pending_claim == canonical.pending_claim
-    assert named_substate.pending_timeout_count == canonical.pending_timeout_count
+    assert named_substate.pending_claim == canonical.details.pending_claim
+    assert (
+        named_substate.pending_timeout_count == canonical.details.pending_timeout_count
+    )
     assert named_substate.model_dump()["future_state_hint"] == {"source": "canonical"}
 
     replacement_claim = _pending_claim()
     expired, replacement = adapter.expire_and_replace(
-        canonical,
+        canonical.details,
         replacement_claim,
     )
     assert expired.pending_claim is None
@@ -573,7 +835,7 @@ def _assert_pending_claim_contract(adapter: PendingClaimContractAdapter) -> None
     assert replacement.pending_claim.id != active_claim.id
     assert replacement.pending_timeout_count == expired.pending_timeout_count
 
-    accepted_running = adapter.accept_running(canonical, matching_reference)
+    accepted_running = adapter.accept_running(canonical.details, matching_reference)
     assert accepted_running.pending_claim is None
     assert accepted_running.pending_timeout_count is None
     assert accepted_running.execution_lineage == ExecutionLineage(
@@ -817,6 +1079,19 @@ def test_reference_adapter_satisfies_pending_claim_contract():
         pytest.param(
             DropInfrastructureBindingAdapter(),
             id="infrastructure-not-persisted",
+        ),
+        pytest.param(MutateBindingInputsAdapter(), id="binding-mutates-inputs"),
+        pytest.param(
+            MutateInfrastructureInputsAdapter(),
+            id="infrastructure-mutates-inputs",
+        ),
+        pytest.param(
+            IgnoreBindingStateTypeAdapter(),
+            id="binding-ignores-state-type",
+        ),
+        pytest.param(
+            IgnoreInfrastructureStateTypeAdapter(),
+            id="infrastructure-ignores-state-type",
         ),
         pytest.param(StateRecordIdentityAdapter(), id="state-record-identity"),
         pytest.param(ResetTimeoutCountAdapter(), id="replacement-resets-count"),
