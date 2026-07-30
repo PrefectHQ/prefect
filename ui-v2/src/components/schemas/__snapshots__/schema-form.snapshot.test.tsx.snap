@@ -1679,6 +1679,7 @@ exports[`property.type > integer > base 1`] = `
           <input
             class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             id="generated-id-0"
+            step="any"
             type="number"
             value=""
           />
@@ -1883,6 +1884,7 @@ exports[`property.type > integer > with default 1`] = `
           <input
             class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             id="generated-id-0"
+            step="any"
             type="number"
             value="123"
           />
@@ -1972,6 +1974,7 @@ exports[`property.type > integer > with value 1`] = `
           <input
             class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             id="generated-id-0"
+            step="any"
             type="number"
             value="123"
           />
@@ -2149,6 +2152,7 @@ exports[`property.type > number > base 1`] = `
           <input
             class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             id="generated-id-0"
+            step="any"
             type="number"
             value=""
           />
@@ -2353,6 +2357,7 @@ exports[`property.type > number > with default 1`] = `
           <input
             class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             id="generated-id-0"
+            step="any"
             type="number"
             value="123.45"
           />
@@ -2442,6 +2447,7 @@ exports[`property.type > number > with value 1`] = `
           <input
             class="flex h-9 w-full rounded-md border border-input bg-card dark:bg-background px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
             id="generated-id-0"
+            step="any"
             type="number"
             value="123.45"
           />
@@ -2985,20 +2991,20 @@ exports[`property.type > string > format:date 1`] = `
               xmlns="http://www.w3.org/2000/svg"
             >
               <path
-                d="M8 2v4"
+                d="M8 2v3"
               />
               <path
-                d="M16 2v4"
+                d="M16 2v3"
               />
               <rect
                 height="18"
                 rx="2"
                 width="18"
                 x="3"
-                y="4"
+                y="3"
               />
               <path
-                d="M3 10h18"
+                d="M3 9h18"
               />
             </svg>
             <span>
@@ -3111,20 +3117,20 @@ exports[`property.type > string > format:date with default 1`] = `
               xmlns="http://www.w3.org/2000/svg"
             >
               <path
-                d="M8 2v4"
+                d="M8 2v3"
               />
               <path
-                d="M16 2v4"
+                d="M16 2v3"
               />
               <rect
                 height="18"
                 rx="2"
                 width="18"
                 x="3"
-                y="4"
+                y="3"
               />
               <path
-                d="M3 10h18"
+                d="M3 9h18"
               />
             </svg>
             January 1st, 2024
@@ -3235,20 +3241,20 @@ exports[`property.type > string > format:date with value 1`] = `
               xmlns="http://www.w3.org/2000/svg"
             >
               <path
-                d="M8 2v4"
+                d="M8 2v3"
               />
               <path
-                d="M16 2v4"
+                d="M16 2v3"
               />
               <rect
                 height="18"
                 rx="2"
                 width="18"
                 x="3"
-                y="4"
+                y="3"
               />
               <path
-                d="M3 10h18"
+                d="M3 9h18"
               />
             </svg>
             January 1st, 2024
