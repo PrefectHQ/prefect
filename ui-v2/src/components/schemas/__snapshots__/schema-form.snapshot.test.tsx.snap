@@ -3382,7 +3382,7 @@ exports[`property.type > string > format:date-time 1`] = `
               data-state="closed"
               type="button"
             >
-              Australia / Melbourne
+              UTC
               <svg
                 aria-hidden="true"
                 class="lucide lucide-chevrons-up-down size-4 opacity-50"
@@ -3515,7 +3515,7 @@ exports[`property.type > string > format:date-time with default 1`] = `
                   fill-rule="evenodd"
                 />
               </svg>
-              01/01/2024 11:00 AM
+              01/01/2024 12:00 AM
             </button>
             <button
               aria-expanded="false"
@@ -3526,7 +3526,7 @@ exports[`property.type > string > format:date-time with default 1`] = `
               data-state="closed"
               type="button"
             >
-              Australia / Melbourne
+              UTC
               <svg
                 aria-hidden="true"
                 class="lucide lucide-chevrons-up-down size-4 opacity-50"
@@ -3659,7 +3659,7 @@ exports[`property.type > string > format:date-time with value 1`] = `
                   fill-rule="evenodd"
                 />
               </svg>
-              01/01/2024 11:00 AM
+              01/01/2024 12:00 AM
             </button>
             <button
               aria-expanded="false"
@@ -3670,7 +3670,7 @@ exports[`property.type > string > format:date-time with value 1`] = `
               data-state="closed"
               type="button"
             >
-              Australia / Melbourne
+              UTC
               <svg
                 aria-hidden="true"
                 class="lucide lucide-chevrons-up-down size-4 opacity-50"
