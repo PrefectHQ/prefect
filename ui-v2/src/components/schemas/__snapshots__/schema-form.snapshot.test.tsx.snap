@@ -2991,20 +2991,20 @@ exports[`property.type > string > format:date 1`] = `
               xmlns="http://www.w3.org/2000/svg"
             >
               <path
-                d="M8 2v4"
+                d="M8 2v3"
               />
               <path
-                d="M16 2v4"
+                d="M16 2v3"
               />
               <rect
                 height="18"
                 rx="2"
                 width="18"
                 x="3"
-                y="4"
+                y="3"
               />
               <path
-                d="M3 10h18"
+                d="M3 9h18"
               />
             </svg>
             <span>
@@ -3117,20 +3117,20 @@ exports[`property.type > string > format:date with default 1`] = `
               xmlns="http://www.w3.org/2000/svg"
             >
               <path
-                d="M8 2v4"
+                d="M8 2v3"
               />
               <path
-                d="M16 2v4"
+                d="M16 2v3"
               />
               <rect
                 height="18"
                 rx="2"
                 width="18"
                 x="3"
-                y="4"
+                y="3"
               />
               <path
-                d="M3 10h18"
+                d="M3 9h18"
               />
             </svg>
             January 1st, 2024
@@ -3241,20 +3241,20 @@ exports[`property.type > string > format:date with value 1`] = `
               xmlns="http://www.w3.org/2000/svg"
             >
               <path
-                d="M8 2v4"
+                d="M8 2v3"
               />
               <path
-                d="M16 2v4"
+                d="M16 2v3"
               />
               <rect
                 height="18"
                 rx="2"
                 width="18"
                 x="3"
-                y="4"
+                y="3"
               />
               <path
-                d="M3 10h18"
+                d="M3 9h18"
               />
             </svg>
             January 1st, 2024
