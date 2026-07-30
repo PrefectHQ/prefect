@@ -534,7 +534,7 @@ async def propose_state_with_result(
         flow_run_id,
         state,
         force=force,
-        _transition_id=transition_id,
+        transition_id=transition_id,
     )
 
     if response.status == SetStateStatus.ACCEPT:
@@ -670,7 +670,7 @@ def propose_state_with_result_sync(
         flow_run_id,
         state,
         force=force,
-        _transition_id=transition_id,
+        transition_id=transition_id,
     )
 
     if response.status == SetStateStatus.ACCEPT:

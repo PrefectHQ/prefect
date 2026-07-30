@@ -372,7 +372,7 @@ class FlowRunClient(BaseClient):
         state: "State[T]",
         force: bool = False,
         *,
-        _transition_id: "UUID | None" = None,
+        transition_id: "UUID | None" = None,
     ) -> "OrchestrationResult[T]":
         """
         Set the state of a flow run.
@@ -382,6 +382,8 @@ class FlowRunClient(BaseClient):
             state: the state to set
             force: if True, disregard orchestration logic when setting the state,
                 forcing the Prefect API to accept the state
+            transition_id: an optional identity for this logical proposal. Reuse the
+                same value only when retrying an identical proposal.
 
         Returns:
             an OrchestrationResult model representation of state orchestration output
@@ -397,7 +399,7 @@ class FlowRunClient(BaseClient):
         state_details = state_create.state_details.model_copy()
         state_details.flow_run_id = flow_run_id
         state_details.transition_id = (
-            _transition_id if _transition_id is not None else uuid4()
+            transition_id if transition_id is not None else uuid4()
         )
         state_create.state_details = state_details
         try:
@@ -906,7 +908,7 @@ class FlowRunAsyncClient(BaseAsyncClient):
         state: "State[T]",
         force: bool = False,
         *,
-        _transition_id: "UUID | None" = None,
+        transition_id: "UUID | None" = None,
     ) -> "OrchestrationResult[T]":
         """
         Set the state of a flow run.
@@ -916,6 +918,8 @@ class FlowRunAsyncClient(BaseAsyncClient):
             state: the state to set
             force: if True, disregard orchestration logic when setting the state,
                 forcing the Prefect API to accept the state
+            transition_id: an optional identity for this logical proposal. Reuse the
+                same value only when retrying an identical proposal.
 
         Returns:
             an OrchestrationResult model representation of state orchestration output
@@ -931,7 +935,7 @@ class FlowRunAsyncClient(BaseAsyncClient):
         state_details = state_create.state_details.model_copy()
         state_details.flow_run_id = flow_run_id
         state_details.transition_id = (
-            _transition_id if _transition_id is not None else uuid4()
+            transition_id if transition_id is not None else uuid4()
         )
         state_create.state_details = state_details
         try:

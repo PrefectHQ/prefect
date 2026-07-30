@@ -1150,12 +1150,12 @@ async def test_set_flow_run_state_uses_proposal_transition_identity():
                 await client.set_flow_run_state(
                     flow_run_id,
                     state,
-                    _transition_id=retry_transition_id,
+                    transition_id=retry_transition_id,
                 )
                 await client.set_flow_run_state(
                     flow_run_id,
                     state,
-                    _transition_id=retry_transition_id,
+                    transition_id=retry_transition_id,
                 )
                 await client.set_flow_run_state(flow_run_id, state)
                 await client.set_flow_run_state(flow_run_id, state_without_identity)
@@ -3586,12 +3586,12 @@ class TestSyncClient:
                     client.set_flow_run_state(
                         flow_run_id,
                         state,
-                        _transition_id=retry_transition_id,
+                        transition_id=retry_transition_id,
                     )
                     client.set_flow_run_state(
                         flow_run_id,
                         state,
-                        _transition_id=retry_transition_id,
+                        transition_id=retry_transition_id,
                     )
                     client.set_flow_run_state(flow_run_id, state)
                     client.set_flow_run_state(flow_run_id, state_without_identity)

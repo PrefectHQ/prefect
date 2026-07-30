@@ -70,7 +70,7 @@ async def test_propose_state_with_result_hydrates_accepted_proposal():
         flow_run_id,
         proposed,
         force=True,
-        _transition_id=transition_id,
+        transition_id=transition_id,
     )
 
 
@@ -129,7 +129,7 @@ async def test_propose_state_with_result_preserves_non_accept_outcomes(
         flow_run_id,
         proposed,
         force=True,
-        _transition_id=transition_id,
+        transition_id=transition_id,
     )
     sleep.assert_not_awaited()
 
@@ -169,7 +169,7 @@ def test_propose_state_with_result_sync_hydrates_one_accepted_attempt():
         flow_run_id,
         proposed,
         force=True,
-        _transition_id=transition_id,
+        transition_id=transition_id,
     )
 
 
@@ -203,7 +203,7 @@ def test_propose_state_with_result_sync_preserves_wait_without_sleep(
         flow_run_id,
         proposed,
         force=False,
-        _transition_id=transition_id,
+        transition_id=transition_id,
     )
     sleep.assert_not_called()
 
@@ -284,7 +284,7 @@ async def test_propose_state_retries_wait_through_client_seam(
         call.args[1] is proposed for call in client.set_flow_run_state.await_args_list
     )
     submitted_transition_ids = {
-        call.kwargs["_transition_id"]
+        call.kwargs["transition_id"]
         for call in client.set_flow_run_state.await_args_list
     }
     assert len(submitted_transition_ids) == 1
@@ -334,7 +334,7 @@ def test_propose_state_sync_retries_wait_through_client_seam(
         call.args[1] is proposed for call in client.set_flow_run_state.call_args_list
     )
     submitted_transition_ids = {
-        call.kwargs["_transition_id"]
+        call.kwargs["transition_id"]
         for call in client.set_flow_run_state.call_args_list
     }
     assert len(submitted_transition_ids) == 1
@@ -378,4 +378,4 @@ async def test_propose_state_preserves_legacy_terminal_outcome_behavior(
     call = client.set_flow_run_state.await_args
     assert call.args == (flow_run_id, proposed)
     assert call.kwargs["force"] is False
-    assert call.kwargs["_transition_id"] is not None
+    assert call.kwargs["transition_id"] is not None
