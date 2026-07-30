@@ -393,9 +393,11 @@ class FlowRunClient(BaseClient):
         )
         state_create = to_state_create(state)
         state_details = state_create.state_details.model_copy()
-        state_details.flow_run_id = flow_run_id
-        if state_details.transition_id is None:
+        # Run-bound details describe an accepted canonical state; its transition
+        # identity must not be reused for a new proposal derived from that state.
+        if state_details.flow_run_id is not None or state_details.transition_id is None:
             state_details.transition_id = uuid4()
+        state_details.flow_run_id = flow_run_id
         state_create.state_details = state_details
         try:
             response = self.request(
@@ -924,9 +926,11 @@ class FlowRunAsyncClient(BaseAsyncClient):
         )
         state_create = to_state_create(state)
         state_details = state_create.state_details.model_copy()
-        state_details.flow_run_id = flow_run_id
-        if state_details.transition_id is None:
+        # Run-bound details describe an accepted canonical state; its transition
+        # identity must not be reused for a new proposal derived from that state.
+        if state_details.flow_run_id is not None or state_details.transition_id is None:
             state_details.transition_id = uuid4()
+        state_details.flow_run_id = flow_run_id
         state_create.state_details = state_details
         try:
             response = await self.request(

@@ -1119,6 +1119,16 @@ async def test_set_flow_run_state_preserves_explicit_transition_identity():
     transition_id = uuid4()
     state = Running(state_details=StateDetails(transition_id=transition_id))
     state_without_identity = Running()
+    canonical_transition_id = uuid4()
+    canonical = Running(
+        state_details=StateDetails(
+            flow_run_id=flow_run_id,
+            transition_id=canonical_transition_id,
+        )
+    )
+    new_transition = canonical.model_copy(
+        update={"name": "Cancelling", "type": StateType.CANCELLING}
+    )
 
     with temporary_settings({PREFECT_CLIENT_CSRF_SUPPORT_ENABLED: False}):
         with respx.mock(base_url=api_url) as router:
@@ -1140,6 +1150,7 @@ async def test_set_flow_run_state_preserves_explicit_transition_identity():
                 await client.set_flow_run_state(flow_run_id, state)
                 await client.set_flow_run_state(flow_run_id, state_without_identity)
                 await client.set_flow_run_state(flow_run_id, state_without_identity)
+                await client.set_flow_run_state(flow_run_id, new_transition)
 
     request_details = [
         json.loads(call.request.content)["state"]["state_details"]
@@ -1150,10 +1161,11 @@ async def test_set_flow_run_state_preserves_explicit_transition_identity():
         str(transition_id),
     ]
     generated_transition_ids = [
-        details["transition_id"] for details in request_details[2:]
+        details["transition_id"] for details in request_details[2:4]
     ]
     assert all(generated_transition_ids)
     assert len(set(generated_transition_ids)) == 2
+    assert request_details[4]["transition_id"] != str(canonical_transition_id)
     assert all(
         details["flow_run_id"] == str(flow_run_id) for details in request_details
     )
@@ -1161,6 +1173,8 @@ async def test_set_flow_run_state_preserves_explicit_transition_identity():
     assert state.state_details.transition_id == transition_id
     assert state_without_identity.state_details.flow_run_id is None
     assert state_without_identity.state_details.transition_id is None
+    assert new_transition.state_details.flow_run_id == flow_run_id
+    assert new_transition.state_details.transition_id == canonical_transition_id
 
 
 async def test_read_flow_run_state_404_is_object_not_found(prefect_client):
@@ -3528,6 +3542,16 @@ class TestSyncClient:
         transition_id = uuid4()
         state = Running(state_details=StateDetails(transition_id=transition_id))
         state_without_identity = Running()
+        canonical_transition_id = uuid4()
+        canonical = Running(
+            state_details=StateDetails(
+                flow_run_id=flow_run_id,
+                transition_id=canonical_transition_id,
+            )
+        )
+        new_transition = canonical.model_copy(
+            update={"name": "Cancelling", "type": StateType.CANCELLING}
+        )
 
         with temporary_settings({PREFECT_CLIENT_CSRF_SUPPORT_ENABLED: False}):
             with respx.mock(base_url=api_url) as router:
@@ -3549,6 +3573,7 @@ class TestSyncClient:
                     client.set_flow_run_state(flow_run_id, state)
                     client.set_flow_run_state(flow_run_id, state_without_identity)
                     client.set_flow_run_state(flow_run_id, state_without_identity)
+                    client.set_flow_run_state(flow_run_id, new_transition)
 
         request_details = [
             json.loads(call.request.content)["state"]["state_details"]
@@ -3559,10 +3584,11 @@ class TestSyncClient:
             str(transition_id),
         ]
         generated_transition_ids = [
-            details["transition_id"] for details in request_details[2:]
+            details["transition_id"] for details in request_details[2:4]
         ]
         assert all(generated_transition_ids)
         assert len(set(generated_transition_ids)) == 2
+        assert request_details[4]["transition_id"] != str(canonical_transition_id)
         assert all(
             details["flow_run_id"] == str(flow_run_id) for details in request_details
         )
@@ -3570,6 +3596,8 @@ class TestSyncClient:
         assert state.state_details.transition_id == transition_id
         assert state_without_identity.state_details.flow_run_id is None
         assert state_without_identity.state_details.transition_id is None
+        assert new_transition.state_details.flow_run_id == flow_run_id
+        assert new_transition.state_details.transition_id == canonical_transition_id
 
     def test_read_server_default_result_storage(self, sync_prefect_client):
         configuration = sync_prefect_client.read_server_default_result_storage()

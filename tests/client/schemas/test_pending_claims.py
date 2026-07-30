@@ -152,6 +152,15 @@ class ReferencePendingClaimContract:
         mirrored_state: CanonicalStateSnapshot,
         reference: PendingClaimReference,
     ) -> SetStateStatus:
+        if canonical_state.state_type == StateType.RUNNING:
+            execution_lineage = canonical_state.details.execution_lineage
+            if (
+                execution_lineage is not None
+                and execution_lineage.claim_id == reference.claim_id
+                and execution_lineage.execution_id == reference.execution_id
+            ):
+                return SetStateStatus.ACCEPT
+            return SetStateStatus.ABORT
         if canonical_state.state_type != StateType.PENDING:
             return SetStateStatus.ABORT
         active_claim = canonical_state.details.pending_claim
@@ -474,6 +483,22 @@ class StartOnRejectAdapter(ReferencePendingClaimContract):
         return super().startup_action(status)
 
 
+class RejectRunningStartupAdapter(ReferencePendingClaimContract):
+    def startup_disposition(
+        self,
+        canonical_state: CanonicalStateSnapshot,
+        mirrored_state: CanonicalStateSnapshot,
+        reference: PendingClaimReference,
+    ) -> SetStateStatus:
+        if canonical_state.state_type == StateType.RUNNING:
+            return SetStateStatus.ABORT
+        return super().startup_disposition(
+            canonical_state,
+            mirrored_state,
+            reference,
+        )
+
+
 def _assert_pending_claim_contract(adapter: PendingClaimContractAdapter) -> None:
     claim_id = uuid7()
     execution_id = uuid7()
@@ -547,6 +572,44 @@ def _assert_pending_claim_contract(adapter: PendingClaimContractAdapter) -> None
     assert (
         adapter.startup_disposition(
             canonical,
+            matching_mirror,
+            wrong_execution,
+        )
+        == SetStateStatus.ABORT
+    )
+
+    running_state = CanonicalStateSnapshot(
+        state_type=StateType.RUNNING,
+        details=PendingClaimStateDetails(
+            execution_lineage=ExecutionLineage(
+                claim_id=claim_id,
+                execution_id=execution_id,
+            )
+        ),
+    )
+    assert (
+        adapter.startup_disposition(
+            running_state,
+            empty_pending,
+            matching_reference,
+        )
+        == SetStateStatus.ACCEPT
+    )
+    wrong_claim = PendingClaimReference(
+        claim_id=uuid7(),
+        execution_id=execution_id,
+    )
+    assert (
+        adapter.startup_disposition(
+            running_state,
+            matching_mirror,
+            wrong_claim,
+        )
+        == SetStateStatus.ABORT
+    )
+    assert (
+        adapter.startup_disposition(
+            running_state,
             matching_mirror,
             wrong_execution,
         )
@@ -652,15 +715,6 @@ def _assert_pending_claim_contract(adapter: PendingClaimContractAdapter) -> None
     assert pending_infrastructure.status == "accepted"
     assert pending_binding == expected_infrastructure_pid
 
-    running_state = CanonicalStateSnapshot(
-        state_type=StateType.RUNNING,
-        details=PendingClaimStateDetails(
-            execution_lineage=ExecutionLineage(
-                claim_id=claim_id,
-                execution_id=execution_id,
-            )
-        ),
-    )
     replacement_pending_state = CanonicalStateSnapshot(
         state_type=StateType.PENDING,
         details=PendingClaimStateDetails(
@@ -1098,6 +1152,10 @@ def test_reference_adapter_satisfies_pending_claim_contract():
         pytest.param(DoubleIncrementAdapter(), id="expiry-not-atomic"),
         pytest.param(RetainClaimOnRunningAdapter(), id="running-retains-claim"),
         pytest.param(StartOnRejectAdapter(), id="reject-starts-user-code"),
+        pytest.param(
+            RejectRunningStartupAdapter(),
+            id="running-startup-aborts",
+        ),
     ],
 )
 def test_contract_cases_reject_incorrect_implementations(
