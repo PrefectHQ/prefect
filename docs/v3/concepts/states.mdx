@@ -43,6 +43,8 @@ The full list of states and state types includes:
 | <span class="no-wrap">`AwaitingConcurrencySlot`</span> | `SCHEDULED` | No | The run is waiting to occupy a concurrency slot prior to submission. |
 | `Resuming` | `SCHEDULED` | No | The run is scheduled to resume execution. |
 | `Pending` | `PENDING` | No | The run has been submitted to execute, but is waiting on necessary preconditions to be satisfied. |
+| `Submitting` | `PENDING` | No | A worker or runner is submitting the run to its infrastructure. |
+| <span class="no-wrap">`InfrastructurePending`</span> | `PENDING` | No | The run's infrastructure has been created but is not running yet (for example, a Kubernetes pod that is still pending scheduling). |
 | `Running` | `RUNNING` | No | The run code is currently executing. |
 | `Retrying` | `RUNNING` | No | The run code is currently executing after previously not completing successfully. |
 | `Paused` | `PAUSED` | No | The run code has stopped executing until it receives manual approval to proceed. |
@@ -65,6 +67,8 @@ Here are some common state transitions and what they mean:
 | --- | --------------- | ------------ | ----------- | ----------- |
 | ✅ | None | Scheduled | Manual run, automation, or schedule | A flow run has been created and scheduled for future execution. |
 | ✅ | Scheduled | Pending | Worker | A worker is attempting to start the infrastructure for your flow run. |
+| ✅ | Pending | Submitting | Worker or runner | The run is being submitted to its infrastructure. |
+| ✅ | Submitting | InfrastructurePending | Worker | The infrastructure was created and is waiting to start (for example, a pending Kubernetes pod). |
 | ⛔ | Scheduled | Late | Cloud or self-hosted server | Typically means that a worker did not pick up the run because 1) no workers are healthy, 2) workers are not polling the right work pool or work queue, or 3) workers are concurrency limited. |
 | ✅ | Pending | Running | Worker | The infrastructure was provisioned and the flow is running |
 | ⛔ | Pending | Crashed | Worker or runner | Something went wrong. Some possibilities are 1) the worker could have failed to create the infrastructure, 2) the code is not present in storage or the worker failed to authenticate, or 3) the code has missing or broken imports, or syntax errors. |
@@ -129,6 +133,11 @@ flowchart TD
     Retrying[Retrying]:::running
     end
 
+    subgraph pending_type[Pending]
+    Submitting[Submitting]:::pending
+    InfrastructurePending[InfrastructurePending]:::pending
+    end
+
     Pending[Pending]:::pending
 
 
@@ -147,13 +156,17 @@ flowchart TD
     %% Connections
     Scheduled --> |Scheduled start time passes without entering Pending| Late
     Scheduled --> |Worker/Runner successfully submits run| Pending
+    Pending --> |Submitting run to infrastructure| Submitting
+    Submitting --> |Infrastructure created, not yet running| InfrastructurePending
     Scheduled --> |Worker encounters concurrency limit| AwaitingConcurrencySlot
 
     AwaitingConcurrencySlot --> Pending
     
     Late -->  Pending
 
-    Pending --> |Preconditions met| Running    
+    Pending --> |Preconditions met| Running
+    Submitting --> |Preconditions met| Running
+    InfrastructurePending --> |Infrastructure starts| Running
 
 
     Running -.-> |Success| Completed
