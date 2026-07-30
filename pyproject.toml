@@ -402,4 +402,4 @@ check-hidden = true
 required-version = ">=0.6.15" # make sure upload_time is included to avoid churn (see https://github.com/dependabot/dependabot-core/issues/12127)
 
 [tool.uv.sources]
-pydocket = { git = "https://github.com/chrisguidry/docket", rev = "937ef4f5caa4bf5f99eb4bdaf0f18354c2f5da68" }
+pydocket = { git = "https://github.com/chrisguidry/docket", rev = "c1a3f5234fda9f7555d11cdeb614a0a60a65b195" }

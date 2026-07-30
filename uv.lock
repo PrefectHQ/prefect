@@ -4331,7 +4331,7 @@ requires-dist = [
     { name = "pydantic-core", specifier = ">=2.12.0,<3.0.0" },
     { name = "pydantic-extra-types", specifier = ">=2.8.2,<3.0.0" },
     { name = "pydantic-settings", specifier = ">=2.9.1,<3.0.0" },
-    { name = "pydocket", git = "https://github.com/chrisguidry/docket?rev=937ef4f5caa4bf5f99eb4bdaf0f18354c2f5da68" },
+    { name = "pydocket", git = "https://github.com/chrisguidry/docket?rev=c1a3f5234fda9f7555d11cdeb614a0a60a65b195" },
     { name = "python-dateutil", specifier = ">=2.8.2,<3.0.0" },
     { name = "python-on-whales", marker = "extra == 'buildx'", specifier = ">=0.81" },
     { name = "python-slugify", specifier = ">=5.0,<9.0" },
@@ -5176,8 +5176,8 @@ wheels = [
 
 [[package]]
 name = "pydocket"
-version = "0.23.2.dev8+g937ef4f5c"
-source = { git = "https://github.com/chrisguidry/docket?rev=937ef4f5caa4bf5f99eb4bdaf0f18354c2f5da68#937ef4f5caa4bf5f99eb4bdaf0f18354c2f5da68" }
+version = "0.23.2.dev9+gc1a3f5234"
+source = { git = "https://github.com/chrisguidry/docket?rev=c1a3f5234fda9f7555d11cdeb614a0a60a65b195#c1a3f5234fda9f7555d11cdeb614a0a60a65b195" }
 dependencies = [
     { name = "burner-redis" },
     { name = "cloudpickle" },
