@@ -27,6 +27,7 @@ jobs:
   pre-commit-checks:
     name: Pre-commit checks
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - uses: actions/checkout@v7
@@ -50,9 +51,6 @@ jobs:
         with:
           node-version-file: ".nvmrc"
           cache-dependency-path: "**/package-lock.json"
-
-      - name: Install mintlify-scrape
-        run: npm install -g @mintlify/scraping
 
       - name: Run pre-commit
         run: |
