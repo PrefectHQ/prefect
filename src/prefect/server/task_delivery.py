@@ -6,13 +6,15 @@ import hashlib
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import timedelta
-from typing import AsyncGenerator, ClassVar
+from typing import TYPE_CHECKING, AsyncGenerator, ClassVar
 
 import orjson
-from docket import Docket, Queue, QueueMessage
 
 import prefect.server.schemas as schemas
 from prefect.settings import get_current_settings
+
+if TYPE_CHECKING:
+    from docket import Docket, Queue, QueueMessage
 
 _DELIVERY_QUEUE_NAME = "prefect-task-runs"
 _DELIVERY_GROUP = "prefect-task-workers"
