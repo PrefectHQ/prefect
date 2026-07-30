@@ -2107,3 +2107,82 @@ class TestMarkDeploymentsNotReady:
         )
         await session.refresh(deployment)
         assert deployment.status == DeploymentStatus.NOT_READY
+
+
+class TestSchedulePreservationHelpers:
+    """Unit coverage for the slug-less active-state preservation on redeploy
+    (https://github.com/PrefectHQ/prefect/issues/19302)."""
+
+    @staticmethod
+    def _existing(cron: str, active: bool, slug=None):
+        return schemas.core.DeploymentSchedule(
+            id=uuid4(),
+            deployment_id=uuid4(),
+            schedule=schemas.schedules.CronSchedule(cron=cron),
+            active=active,
+            slug=slug,
+        )
+
+    def test_interval_match_key_ignores_regenerated_anchor(self):
+        from prefect.server.models.deployments import _schedule_match_key
+
+        key1 = _schedule_match_key(
+            None,
+            schemas.schedules.IntervalSchedule(interval=datetime.timedelta(hours=1)),
+        )
+        key2 = _schedule_match_key(
+            None,
+            schemas.schedules.IntervalSchedule(interval=datetime.timedelta(hours=1)),
+        )
+        assert key1 == key2
+
+    def test_ambiguous_slugless_schedules_rejected(self):
+        from prefect.server.models.deployments import (
+            AmbiguousScheduleMatchError,
+            _active_state_by_match_key,
+        )
+
+        with pytest.raises(AmbiguousScheduleMatchError):
+            _active_state_by_match_key(
+                [self._existing("0 0 * * *", True), self._existing("0 0 * * *", False)]
+            )
+
+    def test_distinct_schedules_map_to_their_active_state(self):
+        from prefect.server.models.deployments import _active_state_by_match_key
+
+        mapping = _active_state_by_match_key(
+            [self._existing("0 0 * * *", False), self._existing("30 0 * * *", True)]
+        )
+        assert len(mapping) == 2
+
+    def test_omitted_active_inherits_existing_paused_state(self):
+        from prefect.server.models.deployments import (
+            _resolve_schedule_active,
+            _schedule_match_key,
+        )
+
+        incoming = schemas.actions.DeploymentScheduleCreate(
+            schedule=schemas.schedules.CronSchedule(cron="0 0 * * *")
+        )
+        existing = {
+            _schedule_match_key(
+                None, schemas.schedules.CronSchedule(cron="0 0 * * *")
+            ): False
+        }
+        assert _resolve_schedule_active(incoming, existing) is False
+
+    def test_explicit_active_overrides_existing_state(self):
+        from prefect.server.models.deployments import _resolve_schedule_active
+
+        incoming = schemas.actions.DeploymentScheduleCreate(
+            schedule=schemas.schedules.CronSchedule(cron="0 0 * * *"), active=True
+        )
+        assert _resolve_schedule_active(incoming, {}) is True
+
+    def test_unmatched_schedule_defaults_to_active(self):
+        from prefect.server.models.deployments import _resolve_schedule_active
+
+        incoming = schemas.actions.DeploymentScheduleCreate(
+            schedule=schemas.schedules.CronSchedule(cron="0 0 * * *")
+        )
+        assert _resolve_schedule_active(incoming, {}) is True

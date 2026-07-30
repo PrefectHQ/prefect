@@ -3380,6 +3380,33 @@ class TestRunnerDeployment:
         assert deployment.paused is False
         assert deployment.global_concurrency_limit is None
 
+    async def test_apply_preserves_paused_slugless_schedule_on_redeploy(
+        self, prefect_client: PrefectClient
+    ):
+        # Regression test for https://github.com/PrefectHQ/prefect/issues/19302.
+        # Re-deploying a flow must not silently re-activate a slug-less schedule
+        # that was paused after the first deploy.
+        deployment = RunnerDeployment.from_flow(
+            dummy_flow_1, "test-19302", cron="10 * * * *"
+        )
+        deployment_id = await deployment.apply()
+
+        read = await prefect_client.read_deployment(deployment_id)
+        assert read.schedules[0].active is True
+        await prefect_client.update_deployment_schedule(
+            deployment_id, read.schedules[0].id, active=False
+        )
+
+        # Re-deploy with the same flow, name, and schedule and no explicit active.
+        redeploy = RunnerDeployment.from_flow(
+            dummy_flow_1, "test-19302", cron="10 * * * *"
+        )
+        assert await redeploy.apply() == deployment_id
+
+        read = await prefect_client.read_deployment(deployment_id)
+        assert len(read.schedules) == 1
+        assert read.schedules[0].active is False
+
     async def test_apply_with_work_pool(
         self, prefect_client: PrefectClient, work_pool, process_work_pool
     ):
