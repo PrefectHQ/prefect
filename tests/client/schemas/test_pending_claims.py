@@ -50,7 +50,15 @@ class PendingClaimContractAdapter(Protocol):
         canonical_state: PendingClaimStateDetails,
         mirrored_state: PendingClaimStateDetails,
         request: BindExecutionRequest,
-    ) -> PendingClaimOperationResult: ...
+    ) -> tuple[PendingClaimOperationResult, PendingClaimStateDetails]: ...
+
+    def claim_infrastructure(
+        self,
+        canonical_state: PendingClaimStateDetails,
+        mirrored_state: PendingClaimStateDetails,
+        infrastructure_pid: str | None,
+        request: ClaimInfrastructureRequest,
+    ) -> tuple[PendingClaimOperationResult, str | None]: ...
 
     def preserve_pending_substate(
         self,
@@ -107,18 +115,72 @@ class ReferencePendingClaimContract:
         canonical_state: PendingClaimStateDetails,
         mirrored_state: PendingClaimStateDetails,
         request: BindExecutionRequest,
-    ) -> PendingClaimOperationResult:
+    ) -> tuple[PendingClaimOperationResult, PendingClaimStateDetails]:
         active_claim = canonical_state.pending_claim
         if active_claim is None or active_claim.id != request.claim_id:
-            return PendingClaimOperationResult(
-                status="not_current",
-                reason="Claim is no longer current.",
+            return (
+                PendingClaimOperationResult(
+                    status="not_current",
+                    reason="Claim is no longer current.",
+                ),
+                canonical_state,
             )
-        if active_claim.execution_id in (None, request.execution_id):
-            return PendingClaimOperationResult(status="accepted")
-        return PendingClaimOperationResult(
-            status="conflict",
-            reason="Claim is already bound to another execution.",
+        if active_claim.execution_id is None:
+            bound_state = canonical_state.model_copy(deep=True)
+            assert bound_state.pending_claim is not None
+            bound_state.pending_claim.execution_id = request.execution_id
+            return PendingClaimOperationResult(status="accepted"), bound_state
+        if active_claim.execution_id == request.execution_id:
+            return PendingClaimOperationResult(status="accepted"), canonical_state
+        return (
+            PendingClaimOperationResult(
+                status="conflict",
+                reason="Claim is already bound to another execution.",
+            ),
+            canonical_state,
+        )
+
+    def claim_infrastructure(
+        self,
+        canonical_state: PendingClaimStateDetails,
+        mirrored_state: PendingClaimStateDetails,
+        infrastructure_pid: str | None,
+        request: ClaimInfrastructureRequest,
+    ) -> tuple[PendingClaimOperationResult, str | None]:
+        active_claim = canonical_state.pending_claim
+        execution_lineage = canonical_state.execution_lineage
+        owns_pending = (
+            active_claim is not None
+            and active_claim.id == request.claim_id
+            and active_claim.execution_id == request.execution_id
+        )
+        owns_running = (
+            active_claim is None
+            and execution_lineage is not None
+            and execution_lineage.claim_id == request.claim_id
+            and execution_lineage.execution_id == request.execution_id
+        )
+        if not owns_pending and not owns_running:
+            return (
+                PendingClaimOperationResult(
+                    status="not_current",
+                    reason="Execution lineage is no longer current.",
+                ),
+                infrastructure_pid,
+            )
+        if infrastructure_pid is None:
+            return (
+                PendingClaimOperationResult(status="accepted"),
+                request.infrastructure_pid,
+            )
+        if infrastructure_pid == request.infrastructure_pid:
+            return PendingClaimOperationResult(status="accepted"), infrastructure_pid
+        return (
+            PendingClaimOperationResult(
+                status="conflict",
+                reason="Execution lineage is already bound to other infrastructure.",
+            ),
+            infrastructure_pid,
         )
 
     def preserve_pending_substate(
@@ -165,6 +227,38 @@ class MirrorAuthorityAdapter(ReferencePendingClaimContract):
         reference: PendingClaimReference,
     ) -> SetStateStatus:
         return super().startup_disposition(mirrored_state, canonical_state, reference)
+
+
+class DropExecutionBindingAdapter(ReferencePendingClaimContract):
+    def bind_execution(
+        self,
+        canonical_state: PendingClaimStateDetails,
+        mirrored_state: PendingClaimStateDetails,
+        request: BindExecutionRequest,
+    ) -> tuple[PendingClaimOperationResult, PendingClaimStateDetails]:
+        result, _ = super().bind_execution(
+            canonical_state,
+            mirrored_state,
+            request,
+        )
+        return result, canonical_state
+
+
+class DropInfrastructureBindingAdapter(ReferencePendingClaimContract):
+    def claim_infrastructure(
+        self,
+        canonical_state: PendingClaimStateDetails,
+        mirrored_state: PendingClaimStateDetails,
+        infrastructure_pid: str | None,
+        request: ClaimInfrastructureRequest,
+    ) -> tuple[PendingClaimOperationResult, str | None]:
+        result, _ = super().claim_infrastructure(
+            canonical_state,
+            mirrored_state,
+            infrastructure_pid,
+            request,
+        )
+        return result, infrastructure_pid
 
 
 class StateRecordIdentityAdapter(ReferencePendingClaimContract):
@@ -251,7 +345,11 @@ def _assert_pending_claim_contract(adapter: PendingClaimContractAdapter) -> None
         == SetStateStatus.ACCEPT
     )
 
-    unbound = PendingClaimStateDetails(pending_claim=_pending_claim(claim_id=claim_id))
+    unbound = PendingClaimStateDetails(
+        pending_claim=_pending_claim(claim_id=claim_id),
+        pending_timeout_count=1,
+        future_state_hint={"source": "unbound"},
+    )
     assert (
         adapter.startup_disposition(
             unbound,
@@ -301,41 +399,156 @@ def _assert_pending_claim_contract(adapter: PendingClaimContractAdapter) -> None
         claim_id=claim_id,
         execution_id=execution_id,
     )
-    assert (
-        adapter.bind_execution(
-            unbound,
-            PendingClaimStateDetails(),
-            unbound_request,
-        ).status
-        == "accepted"
+    first_bind, bound_state = adapter.bind_execution(
+        unbound,
+        PendingClaimStateDetails(),
+        unbound_request,
     )
-    assert (
-        adapter.bind_execution(
-            canonical,
-            PendingClaimStateDetails(),
-            unbound_request,
-        ).status
-        == "accepted"
+    assert first_bind.status == "accepted"
+    expected_bound_state = unbound.model_copy(deep=True)
+    assert expected_bound_state.pending_claim is not None
+    expected_bound_state.pending_claim.execution_id = execution_id
+    assert bound_state == expected_bound_state
+
+    before_duplicate = bound_state.model_copy(deep=True)
+    duplicate_bind, duplicate_state = adapter.bind_execution(
+        bound_state,
+        PendingClaimStateDetails(),
+        unbound_request,
     )
-    assert (
-        adapter.bind_execution(
+    assert duplicate_bind.status == "accepted"
+    assert duplicate_state == before_duplicate
+
+    before_conflict = bound_state.model_copy(deep=True)
+    conflicting_bind, conflicting_state = adapter.bind_execution(
+        bound_state,
+        PendingClaimStateDetails(),
+        BindExecutionRequest(
+            claim_id=claim_id,
+            execution_id=uuid7(),
+        ),
+    )
+    assert conflicting_bind.status == "conflict"
+    assert conflicting_state == before_conflict
+
+    before_stale_bind = stale_canonical.model_copy(deep=True)
+    stale_bind, stale_state = adapter.bind_execution(
+        stale_canonical,
+        matching_mirror,
+        unbound_request,
+    )
+    assert stale_bind.status == "not_current"
+    assert stale_state == before_stale_bind
+
+    infrastructure_request = ClaimInfrastructureRequest(
+        claim_id=claim_id,
+        execution_id=execution_id,
+        infrastructure_pid="provider/resource",
+    )
+    pending_infrastructure, pending_binding = adapter.claim_infrastructure(
+        canonical,
+        stale_canonical,
+        None,
+        infrastructure_request,
+    )
+    assert pending_infrastructure.status == "accepted"
+    assert pending_binding == infrastructure_request.infrastructure_pid
+
+    running_state = PendingClaimStateDetails(
+        execution_lineage=ExecutionLineage(
+            claim_id=claim_id,
+            execution_id=execution_id,
+        )
+    )
+    replacement_pending_state = PendingClaimStateDetails(
+        pending_claim=_pending_claim(execution_id=uuid7()),
+        execution_lineage=running_state.execution_lineage,
+    )
+    infrastructure_cases = [
+        (
+            "duplicate exact pending binding",
             canonical,
-            PendingClaimStateDetails(),
-            BindExecutionRequest(
+            stale_canonical,
+            pending_binding,
+            infrastructure_request,
+            "accepted",
+            pending_binding,
+        ),
+        (
+            "conflicting infrastructure pid",
+            canonical,
+            stale_canonical,
+            pending_binding,
+            ClaimInfrastructureRequest(
                 claim_id=claim_id,
-                execution_id=uuid7(),
+                execution_id=execution_id,
+                infrastructure_pid="provider/other-resource",
             ),
-        ).status
-        == "conflict"
-    )
-    assert (
-        adapter.bind_execution(
+            "conflict",
+            pending_binding,
+        ),
+        (
+            "stale canonical claim with matching mirror",
             stale_canonical,
             matching_mirror,
-            unbound_request,
-        ).status
-        == "not_current"
-    )
+            pending_binding,
+            infrastructure_request,
+            "not_current",
+            pending_binding,
+        ),
+        (
+            "matching claim with wrong execution",
+            canonical,
+            PendingClaimStateDetails(),
+            None,
+            ClaimInfrastructureRequest(
+                claim_id=claim_id,
+                execution_id=uuid7(),
+                infrastructure_pid="provider/resource",
+            ),
+            "not_current",
+            None,
+        ),
+        (
+            "late exact running lineage",
+            running_state,
+            PendingClaimStateDetails(),
+            None,
+            infrastructure_request,
+            "accepted",
+            infrastructure_request.infrastructure_pid,
+        ),
+        (
+            "replacement pending claim supersedes old running lineage",
+            replacement_pending_state,
+            running_state,
+            None,
+            infrastructure_request,
+            "not_current",
+            None,
+        ),
+    ]
+    for (
+        scenario,
+        canonical_state,
+        mirrored_state,
+        current_pid,
+        request,
+        expected_status,
+        expected_pid,
+    ) in infrastructure_cases:
+        before_claim = canonical_state.model_copy(deep=True)
+        result, observed_pid = adapter.claim_infrastructure(
+            canonical_state,
+            mirrored_state,
+            current_pid,
+            request,
+        )
+        assert (result.status, observed_pid) == (
+            expected_status,
+            expected_pid,
+        ), scenario
+        assert canonical_state == before_claim, scenario
 
     source_state_id = uuid4()
     target_state_id = uuid4()
@@ -600,6 +813,11 @@ def test_reference_adapter_satisfies_pending_claim_contract():
     "adapter",
     [
         pytest.param(MirrorAuthorityAdapter(), id="non-canonical-authority"),
+        pytest.param(DropExecutionBindingAdapter(), id="binding-not-persisted"),
+        pytest.param(
+            DropInfrastructureBindingAdapter(),
+            id="infrastructure-not-persisted",
+        ),
         pytest.param(StateRecordIdentityAdapter(), id="state-record-identity"),
         pytest.param(ResetTimeoutCountAdapter(), id="replacement-resets-count"),
         pytest.param(DoubleIncrementAdapter(), id="expiry-not-atomic"),
