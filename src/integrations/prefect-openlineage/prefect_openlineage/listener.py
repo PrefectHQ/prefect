@@ -11,6 +11,7 @@ from prefect.client.orchestration import get_client
 from prefect.events.clients import get_events_subscriber
 from prefect.events.filters import EventFilter, EventNameFilter
 from prefect.events.schemas.events import Event
+from prefect.exceptions import ObjectNotFound, PrefectHTTPStatusError
 from prefect_openlineage.adapter import PrefectOpenLineageAdapter
 
 JOB_NAMESPACE: str = os.environ.get("OPENLINEAGE_NAMESPACE", "default")
@@ -242,16 +243,26 @@ class PrefectOpenLineageListener:
         event_time = datetime.fromisoformat(event.resource["prefect.state-timestamp"])
         expected_start_time = event.payload["task_run"]["expected_start_time"]
         prefect_task_run_id = event.resource.id.split(".")[-1]
-        task_run = await self.client.read_task_run(prefect_task_run_id)
-
-        if task_run:
+        try:
+            task_run = await self.client.read_task_run(prefect_task_run_id)
             namespace = await self.get_job_ns(prefect_task_run_id)
-            try:
-                ol_task_run_id: str = self.build_run_id(
-                    task_run.start_time, task_name, namespace
+            print(task_run.start_time)
+            print(task_name)
+            print(namespace)
+
+            # Skip task runs without a start time
+            if task_run.start_time:
+                run_start_time = task_run.start_time
+            else:
+                logger.warning(
+                    "No start time found for task run %s. An event will not be emitted.",
+                    prefect_task_run_id,
                 )
-            except AttributeError:
-                logger.info("No Prefect run found for %s.", prefect_task_run_id)
+                return
+
+            ol_task_run_id: str = self.build_run_id(
+                run_start_time, task_name, namespace
+            )
 
             # Get datasets from Prefect Artifacts
             datasets = await self.get_artifacts_by_task_run(prefect_task_run_id)
@@ -307,7 +318,7 @@ class PrefectOpenLineageListener:
                 inputDatasets=input_datasets,
                 outputDatasets=output_datasets,
             )
-        else:
+        except (PrefectHTTPStatusError, ObjectNotFound):
             logger.info(
                 "No Prefect run found for %s, will not attempt to create OpenLineage event.",
                 prefect_task_run_id,
