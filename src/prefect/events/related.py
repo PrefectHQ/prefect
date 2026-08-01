@@ -32,6 +32,14 @@ RESOURCE_CACHE: RelatedResourceCache = {}
 
 
 def tags_as_related_resources(tags: Iterable[str]) -> List[RelatedResource]:
+    from prefect.settings.context import get_current_settings
+
+    # Events enforce a hard maximum on related resources; truncate tags so
+    # deployments with many tags do not fail event validation (#19064).
+    max_related = get_current_settings().server.events.maximum_related_resources
+    # Leave headroom for non-tag related resources attached by callers.
+    max_tags = max(0, max_related - 10)
+    tags_to_include = sorted(tags)[:max_tags]
     return [
         RelatedResource(
             {
@@ -39,7 +47,7 @@ def tags_as_related_resources(tags: Iterable[str]) -> List[RelatedResource]:
                 "prefect.resource.role": "tag",
             }
         )
-        for tag in sorted(tags)
+        for tag in tags_to_include
     ]
 
 
