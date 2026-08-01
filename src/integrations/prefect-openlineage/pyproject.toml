@@ -79,13 +79,16 @@ omit-covered-files = true
 omit = ["tests/*", "prefect_openlineage/_version.py"]
 
 [tool.setuptools]
+include-package-data = true
 
 [tool.setuptools.packages.find]
+where = ["src"]
+include = ["prefect_openlineage*"]
 exclude = ["tests*"]
 
 [tool.setuptools_scm]
 version_file = "prefect_openlineage/_version.py"
 root = "../../.."
-tag_regex = "^prefect-openlineage-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
-fallback_version = "0.0.0"
+tag_regex = "^v?(?P<version>\\d+(?:\\.\\d+){0,2}(?:[-.]?(?:a|b|c|rc|alpha|beta|pre|dev)\\d*)?)$"
+fallback_version = "0.0.1b1"
 git_describe_command = 'git describe --dirty --tags --long --match "prefect-openlineage-*[0-9]*"'
