@@ -1,0 +1,7 @@
+global-exclude .git*
+global-exclude .ipynb_checkpoints
+global-exclude *.py[co]
+global-exclude __pycache__/**
+
+include LICENSE
+include MANIFEST.in

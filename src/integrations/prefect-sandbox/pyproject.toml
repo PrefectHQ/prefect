@@ -1,0 +1,86 @@
+[build-system]
+requires = ["setuptools>=77", "wheel", "setuptools_scm>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prefect-sandbox"
+description = "Provider-neutral primitives for disposable sandbox execution with Prefect."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+keywords = ["prefect", "sandbox", "microvm", "isolation"]
+authors = [{ name = "Prefect Technologies, Inc.", email = "help@prefect.io" }]
+classifiers = [
+  "Natural Language :: English",
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Software Development :: Libraries",
+]
+dependencies = ["prefect>=3.7.8"]
+dynamic = ["version"]
+
+[dependency-groups]
+dev = [
+  "coverage",
+  "interrogate",
+  "mkdocs-gen-files",
+  "mkdocs-material",
+  "mkdocs",
+  "mkdocstrings[python]",
+  "mypy",
+  "pillow; python_version<'3.14'",
+  "pre-commit",
+  "pytest-asyncio",
+  "pytest >= 8.3",
+  "pytest-env",
+  "pytest-xdist",
+]
+
+[project.urls]
+Homepage = "https://github.com/PrefectHQ/prefect/tree/main/src/integrations/prefect-sandbox"
+
+[project.entry-points."prefect.collections"]
+prefect_sandbox = "prefect_sandbox"
+
+[tool.setuptools_scm]
+version_file = "prefect_sandbox/_version.py"
+root = "../../.."
+tag_regex = "^prefect-sandbox-(?P<version>\\d+\\.\\d+\\.\\d+(?:[a-zA-Z0-9]+(?:\\.[a-zA-Z0-9]+)*)?)$"
+fallback_version = "0.1.0"
+git_describe_command = [
+  "git",
+  "describe",
+  "--dirty",
+  "--tags",
+  "--long",
+  "--match",
+  "prefect-sandbox-*[0-9]*",
+]
+
+[tool.interrogate]
+ignore-init-module = true
+ignore_init_method = true
+exclude = ["prefect_sandbox/_version.py", "tests"]
+fail-under = 95
+omit-covered-files = true
+
+[tool.coverage.run]
+omit = ["tests/*", "prefect_sandbox/_version.py"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+env = ["PREFECT_TEST_MODE=1"]
+
+[tool.uv.sources]
+prefect = { path = "../../../" }
