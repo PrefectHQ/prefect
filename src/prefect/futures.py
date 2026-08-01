@@ -575,9 +575,7 @@ class PrefectFutureList(list[PrefectFuture[R]], Iterator[PrefectFuture[R]]):
         # Build a mapping from each unique future to every index it occupies
         # so that we can handle duplicates and preserve ordering.
         if timeout is not None and timeout < 0:
-            raise ValueError(
-                f"'timeout' must be a non-negative number, got {timeout}"
-            )
+            raise ValueError(f"'timeout' must be a non-negative number, got {timeout}")
         future_to_indices: dict[PrefectFuture[R], list[int]] = {}
         for idx, future in enumerate(self):
             future_to_indices.setdefault(future, []).append(idx)
@@ -634,9 +632,7 @@ def as_completed(
     futures: list[PrefectFuture[R]], timeout: float | None = None
 ) -> Generator[PrefectFuture[R], None]:
     if timeout is not None and timeout < 0:
-        raise ValueError(
-            f"'timeout' must be a non-negative number, got {timeout}"
-        )
+        raise ValueError(f"'timeout' must be a non-negative number, got {timeout}")
     unique_futures: set[PrefectFuture[R]] = set(futures)
     total_futures = len(unique_futures)
     pending = unique_futures
@@ -729,9 +725,7 @@ def wait(
         ```
     """
     if timeout is not None and timeout < 0:
-        raise ValueError(
-            f"'timeout' must be a non-negative number, got {timeout}"
-        )
+        raise ValueError(f"'timeout' must be a non-negative number, got {timeout}")
     _futures = set(futures)
     done = {f for f in _futures if f._final_state}
     not_done = _futures - done
