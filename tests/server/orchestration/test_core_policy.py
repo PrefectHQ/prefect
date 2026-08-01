@@ -36,6 +36,7 @@ from prefect.server.orchestration.core_policy import (
     HandleResumingPausedFlows,
     HandleTaskTerminalStateTransitions,
     PreserveDeploymentConcurrencyLeaseId,
+    PreventCrashedOverCancelledTransition,
     PreventDuplicateTransitions,
     PreventPendingTransitions,
     PreventResultDataLoss,
@@ -3531,6 +3532,64 @@ class TestHandleCancellingStateTransitions:
 
         # The rule should NOT reject transitions from CANCELLED state
         # because this rule is specifically for CANCELLING -> CANCELLED enforcement
+        assert ctx.response_status != SetStateStatus.REJECT
+
+
+class TestPreventCrashedOverCancelledTransition:
+    async def test_rejects_cancelled_to_crashed(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        """
+        A cancelled run's process can outlive the cancellation; its dying crash
+        handler force-reports Crashed, which must not overwrite the cancellation.
+        """
+        intended_transition = (states.StateType.CANCELLED, states.StateType.CRASHED)
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+
+        async with PreventCrashedOverCancelledTransition(
+            ctx, *intended_transition
+        ) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.CANCELLED
+
+    @pytest.mark.parametrize(
+        "proposed_state_type",
+        sorted(
+            list(
+                set(ALL_ORCHESTRATION_STATES)
+                - {states.StateType.CRASHED, states.StateType.CANCELLED, None}
+            )
+        ),
+    )
+    async def test_does_not_block_other_transitions_from_cancelled(
+        self,
+        session,
+        initialize_orchestration,
+        proposed_state_type,
+    ):
+        """Cancelled runs stay retryable (see #20271) — only Crashed is blocked."""
+        intended_transition = (states.StateType.CANCELLED, proposed_state_type)
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+
+        async with PreventCrashedOverCancelledTransition(
+            ctx, *intended_transition
+        ) as ctx:
+            await ctx.validate_proposed_state()
+
         assert ctx.response_status != SetStateStatus.REJECT
 
 

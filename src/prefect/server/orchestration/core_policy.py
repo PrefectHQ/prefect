@@ -272,6 +272,8 @@ class MinimalFlowPolicy(FlowRunOrchestrationPolicy):
     ]:
         return [
             PreventResultDataLoss,
+            EnforceCancellingToCancelledTransition,  # a forced crash report must not undo an in-progress cancellation
+            PreventCrashedOverCancelledTransition,  # ...nor a completed one
             BypassCancellingFlowRunsWithNoInfra,  # cancel scheduled or suspended runs from the UI
             InstrumentFlowRunStateTransitions,
             ReleaseFlowConcurrencySlots,
@@ -1913,6 +1915,12 @@ class PreventRunningTasksFromStoppedFlows(TaskRunOrchestrationRule):
 class EnforceCancellingToCancelledTransition(TaskRunOrchestrationRule):
     """
     Rejects transitions from Cancelling to any terminal state except for Cancelled.
+
+    Also part of `MinimalFlowPolicy`, so `force=True` transitions cannot undo an
+    in-progress cancellation: a SIGTERM'd flow engine's crash handler reports
+    `Crashed` with `force=True` (see `FlowRunEngine.handle_crash`), which would
+    otherwise overwrite the operator's cancellation and fire crash automations
+    for a run that was cleanly cancelled.
     """
 
     FROM_STATES = {StateType.CANCELLING}
@@ -1932,6 +1940,33 @@ class EnforceCancellingToCancelledTransition(TaskRunOrchestrationRule):
             ),
         )
         return
+
+
+class PreventCrashedOverCancelledTransition(FlowRunOrchestrationRule):
+    """
+    Rejects Cancelled -> Crashed, including under `force=True`.
+
+    A cancelled flow run's process can outlive the cancellation; when it
+    finally dies, the engine's crash handler force-reports `Crashed`
+    (see `FlowRunEngine.handle_crash`), overwriting the operator's clean
+    cancellation and firing crash automations for it. A crash report is the
+    only transition this blocks — Cancelled runs stay retryable
+    (Cancelled -> Scheduled, see #20271).
+    """
+
+    FROM_STATES = {StateType.CANCELLED}
+    TO_STATES = {StateType.CRASHED}
+
+    async def before_transition(
+        self,
+        initial_state: states.State[Any] | None,
+        proposed_state: states.State[Any] | None,
+        context: OrchestrationContext[orm_models.FlowRun, core.FlowRunPolicy],
+    ) -> None:
+        await self.reject_transition(
+            state=None,
+            reason="Cannot mark a cancelled flow run as crashed.",
+        )
 
 
 class BypassCancellingFlowRunsWithNoInfra(FlowRunOrchestrationRule):
