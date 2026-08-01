@@ -82,7 +82,6 @@ omit = ["tests/*", "prefect_openlineage/_version.py"]
 include-package-data = true
 
 [tool.setuptools.packages.find]
-where = ["src"]
 include = ["prefect_openlineage*"]
 exclude = ["tests*"]
 
