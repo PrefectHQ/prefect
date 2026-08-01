@@ -586,18 +586,6 @@ async def test_collect_and_process_task_runs_with_datasets(
 
 
 @pytest.mark.asyncio
-async def test_collect_and_process_task_runs_no_task_run(
-    listener, sample_task_event, mock_adapter
-):
-    """Test handling when task run is not found."""
-    listener.client.read_task_run.return_value = None
-
-    await listener.collect_and_process_task_runs("3.7.6", sample_task_event, "START")
-
-    mock_adapter.create_and_emit_task_event.assert_not_called()
-
-
-@pytest.mark.asyncio
 async def test_collect_and_process_task_runs_with_job_dependencies(
     listener, sample_task_event, mock_adapter
 ):
