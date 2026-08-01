@@ -99,6 +99,34 @@ def _remove_workspace(path: Path) -> None:
         raise SandboxError(f"failed to remove workspace {str(path)!r}: {exc}") from exc
 
 
+async def _make_workspace_cancellation_safe() -> Path:
+    """Finish workspace creation and remove it before delivering cancellation."""
+    task = asyncio.create_task(
+        asyncio.to_thread(tempfile.mkdtemp, prefix=_WORKSPACE_PREFIX)
+    )
+    cancelled = False
+    while not task.done():
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            cancelled = True
+    workspace = _workspace_path(task.result())
+    if cancelled:
+        await _shielded(asyncio.to_thread(_remove_workspace, workspace))
+        raise asyncio.CancelledError
+    return workspace
+
+
+def _remove_staged_file(path: str) -> None:
+    """Remove a staged upload, suppressing only an already-absent path."""
+    try:
+        os.unlink(path)
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        raise SandboxError(f"failed to remove staged file {path!r}: {exc}") from exc
+
+
 def _stage_file(content: bytes) -> str:
     """Write bytes to a restrictive host temporary file."""
     descriptor, path = tempfile.mkstemp(prefix="prefect-sandbox-upload-")
@@ -106,8 +134,7 @@ def _stage_file(content: bytes) -> str:
         with os.fdopen(descriptor, "wb") as file:
             file.write(content)
     except BaseException:
-        with suppress(FileNotFoundError):
-            os.unlink(path)
+        _remove_staged_file(path)
         raise
     return path
 
@@ -123,7 +150,7 @@ async def _stage_file_cancellation_safe(content: bytes) -> str:
             cancelled = True
     path = task.result()
     if cancelled:
-        await _shielded(asyncio.to_thread(os.unlink, path))
+        await _shielded(asyncio.to_thread(_remove_staged_file, path))
         raise asyncio.CancelledError
     return path
 
@@ -305,9 +332,7 @@ class SbxSandbox(SandboxBackend):
         """Create a usable microVM backed by an empty host workspace."""
         self._check_binary()
         sandbox_id = f"prefect-sandbox-{uuid.uuid4().hex[:12]}"
-        workspace = _workspace_path(
-            await asyncio.to_thread(tempfile.mkdtemp, prefix=_WORKSPACE_PREFIX)
-        )
+        workspace = await _make_workspace_cancellation_safe()
         args = [
             "create",
             "--quiet",
@@ -483,4 +508,4 @@ class SbxSandbox(SandboxBackend):
                     f"{detail or '<no output>'}"
                 )
         finally:
-            await _shielded(asyncio.to_thread(os.unlink, staged))
+            await _shielded(asyncio.to_thread(_remove_staged_file, staged))

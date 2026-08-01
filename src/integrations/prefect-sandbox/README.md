@@ -17,13 +17,14 @@ pip install prefect-sandbox
 brew trust docker/tap
 brew install docker/tap/sbx
 sbx login
-sbx policy init balanced
+sbx policy init deny-all
 ```
 
-`sbx policy init` is a one-time, host-wide choice. `balanced` is Docker's
-recommended development policy; choose `deny-all` or `allow-all` instead when that
-better matches the host's security requirements. Follow Docker's platform-specific
-prerequisites on Windows and Linux.
+`sbx policy init` is a one-time, host-wide choice. `deny-all` is the conservative
+baseline for arbitrary untrusted code. Docker recommends `balanced` for ordinary
+development because it permits common package registries and AI services; choose it
+only when that egress matches the workload's threat model. Follow Docker's
+platform-specific prerequisites on Windows and Linux.
 
 ## Example
 
@@ -60,14 +61,25 @@ await backend.write_file(sandbox, "/tmp/input.bin", b"input")
 
 ## Security boundary
 
-`SandboxHandle` is an opaque, trusted, process-local capability. Do not persist it,
-send it to another worker, or treat it as an authenticated token.
+`SandboxHandle` is an opaque, process-local reference, not an authorization boundary
+or authenticated token. Host-side code that can call the backend is trusted. Pass
+handles only to the backend instance that returned them, use that instance from one
+event loop, and do not persist handles or send them to another worker.
 
-The Docker adapter mounts only a newly created empty temporary directory. It does not
-forward the worker's environment to guest commands; only variables explicitly passed
-to `exec(..., env=...)` are added. The selected image and Docker Sandboxes runtime may
-still provide their own environment or host-configured proxy-backed credentials.
+The only caller-controlled host data directory the adapter asks `sbx` to mount is a
+newly created empty temporary workspace. It does not forward the worker's environment
+to guest commands; only variables explicitly passed to `exec(..., env=...)` are
+added. The selected image and Docker Sandboxes runtime still provide runtime-managed
+configuration and can expose credentials configured separately through `sbx`,
+including proxy-injected secrets or in-VM registry credentials. Audit that host-side
+configuration as part of the deployment boundary.
 
 This package does not configure host or organization network policy. Configure and
 verify egress policy with Docker Sandboxes before running untrusted code. Destroying a
-sandbox removes the microVM and the temporary host directory owned by the adapter.
+sandbox on a normal success, error, timeout, or cancellation path removes the microVM
+and the temporary host directory owned by the adapter.
+
+This first adapter layer has no durable ownership record or orphan sweeper. If the
+worker process or host terminates before cleanup finishes, inspect remaining resources
+with `sbx ls` and remove them with `sbx rm --force <name>`. Durable identity and
+server-driven cleanup belong to the later Prefect execution concept, not this package.

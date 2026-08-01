@@ -51,7 +51,7 @@ class SandboxHandleError(SandboxError):
 
 @dataclass(frozen=True)
 class SandboxHandle:
-    """Opaque, process-local capability identifying one sandbox."""
+    """Opaque, process-local reference identifying one sandbox."""
 
     id: str
 
@@ -141,7 +141,10 @@ class SandboxBackend(Block, ABC):
     It is not an authenticated or durable token. Implementations must avoid implicit
     host-environment forwarding, retain output only up to `max_output_bytes`, return
     nonzero command exits as data, clean partial creates, and make `destroy`
-    idempotent for handles they created.
+    idempotent for handles they created. A backend instance and its handles belong to
+    one event loop; concurrent tasks on that loop are supported, but sharing them
+    across loops, threads, or processes is outside this contract. Process termination
+    can orphan provider resources because durable identity and sweeping are deferred.
     """
 
     _block_schema_capabilities: ClassVar[list[str]] = ["run-in-sandbox"]

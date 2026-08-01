@@ -1,8 +1,11 @@
 import asyncio
+import os
 import sys
 import tempfile
+import threading
 from pathlib import Path
 
+import prefect_sandbox.sbx as sbx_module
 import pytest
 from prefect_sandbox import (
     SandboxCreationError,
@@ -56,6 +59,45 @@ async def test_missing_binary_fails_before_creating_workspace(
         await SbxSandbox().create()
 
     assert list(tmp_path.iterdir()) == []
+
+
+async def test_cancelling_workspace_creation_removes_the_completed_directory(
+    backend: SbxSandbox,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    workspace = tmp_path / "prefect-sandbox-slow"
+    started = threading.Event()
+    release = threading.Event()
+    cli_calls: list[list[str]] = []
+
+    def slow_mkdtemp(*, prefix: str) -> str:
+        assert prefix == sbx_module._WORKSPACE_PREFIX
+        workspace.mkdir()
+        started.set()
+        if not release.wait(5):
+            raise RuntimeError("test did not release workspace creation")
+        return str(workspace)
+
+    async def run_cli(self, args, *, timeout, max_output_bytes):
+        cli_calls.append(list(args))
+        return command_result()
+
+    monkeypatch.setattr(sbx_module.tempfile, "mkdtemp", slow_mkdtemp)
+    monkeypatch.setattr(SbxSandbox, "_run_cli", run_cli)
+    creating = asyncio.create_task(backend.create())
+    try:
+        assert await asyncio.to_thread(started.wait, 2)
+        creating.cancel()
+        await asyncio.sleep(0)
+        assert not creating.done()
+    finally:
+        release.set()
+
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(creating, 5)
+    assert not workspace.exists()
+    assert cli_calls == []
 
 
 async def test_create_uses_an_empty_workspace_and_provider_options(
@@ -467,6 +509,105 @@ async def test_write_file_uses_native_copy_and_removes_staging_file(
     assert calls[1][0] == "cp"
     assert calls[1][2] == f"{sandbox.id}:/tmp/data/input.bin"
     assert staged_path is not None and not staged_path.exists()
+
+
+def test_failed_file_staging_removes_the_partial_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+
+    class FullDisk:
+        def __init__(self, descriptor: int) -> None:
+            self._descriptor = descriptor
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc_info: object) -> bool:
+            os.close(self._descriptor)
+            return False
+
+        def write(self, content: bytes) -> int:
+            os.write(self._descriptor, content[:4])
+            raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(
+        sbx_module.os,
+        "fdopen",
+        lambda descriptor, *args, **kwargs: FullDisk(descriptor),
+    )
+
+    with pytest.raises(OSError, match="No space left on device"):
+        sbx_module._stage_file(b"sensitive payload")
+
+    assert list(tmp_path.glob("prefect-sandbox-upload-*")) == []
+
+
+async def test_staged_file_deletion_failure_is_typed(
+    backend: SbxSandbox, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    sandbox = activate(backend)
+    staged_path: Path | None = None
+    real_unlink = os.unlink
+
+    async def run_cli(self, args, *, timeout, max_output_bytes):
+        nonlocal staged_path
+        if args[0] == "cp":
+            staged_path = Path(args[1])
+        return command_result()
+
+    def fail_unlink(path: str | os.PathLike[str]) -> None:
+        raise PermissionError(13, "Permission denied", path)
+
+    monkeypatch.setattr(SbxSandbox, "_run_cli", run_cli)
+    monkeypatch.setattr(sbx_module.os, "unlink", fail_unlink)
+
+    with pytest.raises(SandboxError, match="failed to remove staged file"):
+        await backend.write_file(sandbox, "/input.bin", b"sensitive")
+
+    assert staged_path is not None and staged_path.exists()
+    real_unlink(staged_path)
+
+
+async def test_cancelling_file_staging_joins_and_removes_the_file(
+    backend: SbxSandbox,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sandbox = activate(backend)
+    staged = tmp_path / "prefect-sandbox-upload-sensitive"
+    started = threading.Event()
+    release = threading.Event()
+    cli_calls: list[list[str]] = []
+
+    def slow_stage(content: bytes) -> str:
+        staged.write_bytes(content)
+        started.set()
+        if not release.wait(5):
+            raise RuntimeError("test did not release file staging")
+        return str(staged)
+
+    async def run_cli(self, args, *, timeout, max_output_bytes):
+        cli_calls.append(list(args))
+        return command_result()
+
+    monkeypatch.setattr(sbx_module, "_stage_file", slow_stage)
+    monkeypatch.setattr(SbxSandbox, "_run_cli", run_cli)
+    writing = asyncio.create_task(
+        backend.write_file(sandbox, "/input.bin", b"sensitive")
+    )
+    try:
+        assert await asyncio.to_thread(started.wait, 2)
+        writing.cancel()
+        await asyncio.sleep(0)
+        assert not writing.done()
+    finally:
+        release.set()
+
+    with pytest.raises(asyncio.CancelledError):
+        await asyncio.wait_for(writing, 5)
+    assert not staged.exists()
+    assert cli_calls == []
 
 
 @pytest.mark.parametrize("path", ["relative", "/tmp/../secret", "/tmp/bad\0path"])
