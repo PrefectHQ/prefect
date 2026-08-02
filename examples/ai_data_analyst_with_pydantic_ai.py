@@ -280,6 +280,9 @@ if __name__ == "__main__":
     if not os.getenv("OPENAI_API_KEY"):
         print("❌ Error: OPENAI_API_KEY environment variable not set")
         print("Set it with: export OPENAI_API_KEY='your-key-here'")
+        # Optional: point at any OpenAI-compatible multi-model gateway, e.g. DaoXE:
+        #   export OPENAI_BASE_URL='https://api.daoxe.com/v1'
+        # Use a key and model ID issued by that endpoint.
         sys.exit(1)
 
     # Serve the flow - this creates a deployment and runs a worker process
@@ -336,6 +339,8 @@ if __name__ == "__main__":
 #
 # **Try it yourself:**
 # 1. Set your OpenAI API key: `export OPENAI_API_KEY='your-key'`
+#    Optional: use an OpenAI-compatible multi-model gateway (example: DaoXE):
+#    `export OPENAI_BASE_URL='https://api.daoxe.com/v1'`
 # 2. Start the Prefect server: `prefect server start`
 # 3. Serve the flow: `uv run -s examples/ai_data_analyst_with_pydantic_ai.py`
 # 4. Trigger a run from the UI (http://localhost:4200) or CLI
