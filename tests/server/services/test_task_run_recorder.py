@@ -18,8 +18,9 @@ from prefect.server.models.task_run_states import (
     read_task_run_state,
     read_task_run_states,
 )
-from prefect.server.models.task_runs import read_task_run
+from prefect.server.models.task_runs import create_task_run, read_task_run
 from prefect.server.schemas.core import FlowRun, TaskRunPolicy
+from prefect.server.schemas.core import TaskRun as CoreTaskRun
 from prefect.server.schemas.states import StateDetails, StateType
 from prefect.server.services import task_run_recorder
 from prefect.server.utilities.messaging import MessageHandler, create_publisher
@@ -1806,9 +1807,6 @@ async def test_records_state_for_task_run_without_a_state_timestamp(
     `state_timestamp` to compare against, and in SQL that comparison is never
     true, so every state it is subsequently sent would be discarded.
     """
-    from prefect.server.models.task_runs import create_task_run
-    from prefect.server.schemas.core import TaskRun as CoreTaskRun
-
     task_run_id = uuid4()
     await create_task_run(
         session=session,
