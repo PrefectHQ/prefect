@@ -548,7 +548,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             existing_volumes: list[str] = (
                 get_from_dict(
                     self.work_pool.base_job_template,
-                    "configuration.properties.volumes.default",
+                    "variables.properties.volumes.default",
                 )
                 or []
             )
