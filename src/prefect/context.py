@@ -14,6 +14,7 @@ import warnings
 from collections.abc import AsyncGenerator, Generator, Mapping
 from contextlib import ExitStack, asynccontextmanager, contextmanager
 from contextvars import ContextVar, Token
+from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -46,11 +47,13 @@ from prefect.results import (
 )
 from prefect.settings import Profile, Settings
 from prefect.settings.legacy import (
+    Setting,
     _get_settings_fields,  # type: ignore[reportPrivateUsage]
 )
 from prefect.states import State
 from prefect.task_runners import TaskRunner
 from prefect.types import DateTime
+from prefect.utilities.collections import visit_collection
 from prefect.utilities.services import start_client_metrics_server
 
 T = TypeVar("T")
@@ -824,6 +827,21 @@ class SettingsContext(ContextModel):
 
     def __hash__(self: Self) -> int:
         return hash(self.settings)
+
+    def serialize(self, include_secrets: bool = True) -> dict[str, Any]:
+        """Serialize settings without platform-specific path objects."""
+        serialized = super().serialize(include_secrets=include_secrets)
+        return visit_collection(
+            serialized,
+            visit_fn=lambda value: (
+                value.name
+                if isinstance(value, Setting)
+                else str(value)
+                if isinstance(value, Path)
+                else value
+            ),
+            return_data=True,
+        )
 
     @classmethod
     def get(cls) -> Optional["SettingsContext"]:
