@@ -29,6 +29,47 @@ and the current OCSP server for outbound-communication in a secure environment:
 - github.com
 - ocsp.pki.goog/s/gts1d4/OxYEb8XcYmo
 
+## SSL certificate verification errors
+
+If your network routes Prefect API traffic through a proxy or gateway that presents a certificate signed by
+an internal (non-system) certificate authority, the Prefect client may fail to establish a connection with an
+error like:
+
+```
+httpx.ConnectError: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate
+```
+
+This happens because the client (which uses [`httpx`](https://www.python-httpx.org/)) cannot verify the server
+certificate against the trusted certificate authorities installed on the system.
+
+To resolve this, point Prefect at a CA bundle that includes your internal certificate authority by setting the
+[`PREFECT_API_SSL_CERT_FILE`](/v3/api-ref/settings-ref#ssl-cert-file) setting to the path of the bundle:
+
+```bash
+prefect config set PREFECT_API_SSL_CERT_FILE=/path/to/ca-bundle.crt
+```
+
+Or set it as an environment variable in your execution environment:
+
+```bash
+export PREFECT_API_SSL_CERT_FILE=/path/to/ca-bundle.crt
+```
+
+The file should be a PEM-formatted bundle containing your internal CA certificate (and any intermediate
+certificates). If your organization has its own CA, ask your security or IT team for the appropriate bundle.
+
+<Warning>
+As a last resort, you can bypass certificate verification entirely by setting
+[`PREFECT_API_TLS_INSECURE_SKIP_VERIFY`](/v3/api-ref/settings-ref#tls-insecure-skip-verify) to `True`:
+
+```bash
+prefect config set PREFECT_API_TLS_INSECURE_SKIP_VERIFY=True
+```
+
+This disables SSL verification and leaves connections vulnerable to man-in-the-middle attacks, so it is
+**not recommended** outside of local development. Prefer providing a CA bundle with `PREFECT_API_SSL_CERT_FILE`.
+</Warning>
+
 ## Prefect Cloud access through the API
 
 If the Prefect Cloud API key, environment variable settings, or account login for your execution environment
