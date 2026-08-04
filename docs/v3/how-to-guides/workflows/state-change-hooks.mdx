@@ -129,6 +129,54 @@ def failing_flow():
 For more information on logging options, see [How to add logging](/v3/how-to-guides/workflows/add-logging).
 </Tip>
 
+### Emit events from state change hooks
+
+A common use of hooks is to emit a [custom event](/v3/advanced/use-custom-event-grammar)
+when a run reaches a state—for example, a failure event that other automations react to.
+Because the hook runs a fraction of a second after the state change, your custom event and
+Prefect's own state change event (like `prefect.flow-run.Failed`) occur within a second or
+two of each other, and Prefect does not guarantee the
+[order they arrive](/v3/concepts/events#event-ordering) at the automation system. If a
+trigger uses the state change event in `after` and your custom event in `expect`, that
+race can cause missed or spurious firings.
+
+To make the order deterministic, emit your event with `follows` referencing the state
+change event. The `state` argument your hook receives carries what you need: `state.id`
+is the ID of the state change event, and `state.timestamp` is when it occurred.
+
+```python
+from prefect import flow
+from prefect.events import emit_event
+from prefect.events.schemas.events import Event
+
+
+def emit_failure_event(flow, flow_run, state):
+    emit_event(
+        event="my-app.flow-run.failure-handled",
+        resource={"prefect.resource.id": f"prefect.flow-run.{flow_run.id}"},
+        follows=Event(
+            event="prefect.flow-run.Failed",
+            resource={"prefect.resource.id": f"prefect.flow-run.{flow_run.id}"},
+            id=state.id,
+            occurred=state.timestamp,
+        ),
+    )
+
+
+@flow(on_failure=[emit_failure_event])
+def failing_flow():
+    raise ValueError("oops!")
+```
+
+The `Event` passed to `follows` is a stub. `emit_event` reads only its `id` and `occurred`
+fields—to fill in the `follows` field of the emitted event and to check that the two
+events occurred within five minutes of each other. The stub is not emitted: Prefect
+already emitted the real `prefect.flow-run.Failed` event server-side, and the stub only
+identifies it.
+
+With `follows` declared, the automation system always processes your custom event after
+the state change event it follows.
+
 ### Pass `kwargs` to state change hooks
 
 You can compose the `with_options` method to effectively pass arbitrary `**kwargs` to your hooks:

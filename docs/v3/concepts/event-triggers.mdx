@@ -375,6 +375,30 @@ started this trigger with its `prefect.flow-run.Running` event could satisfy the
 }
 ```
 
+### Event ordering and `after`
+
+A trigger with an `after` clause starts watching for its `expect` events only once one of
+its `after` events has arrived. An `expect` event that arrives at the system before the
+trigger's `after` event does not count, even when the two events were emitted in the
+correct order. For a Reactive trigger this can mean a missed firing; for a Proactive
+trigger it can mean a spurious one.
+
+Prefect does not guarantee the order that unrelated events arrive at the system: events
+that occur within a second or two of each other may arrive in either order. When your
+code emits the `expect` event immediately after the `after` event—for example, from a
+[state change hook](/v3/how-to-guides/workflows/state-change-hooks#emit-events-from-state-change-hooks)
+or right after emitting the first event—declare the relationship with
+[`follows`](/v3/concepts/events#event-ordering) on the later event.
+
+Triggers hold an event that declares `follows` until the event it follows has arrived, so
+the pair is always processed in order and the race disappears. If the followed event
+never arrives, the held event is processed on its own after several minutes—a lost
+predecessor delays the follower rather than losing it.
+
+Events that are naturally separated by more time—like an `order.created` and an
+`order.complete` minutes apart—don't strictly need `follows`, but it can still be good
+practice to set it to document the relationship between the events.
+
 ### Metric triggers
 
 Metric triggers (`{"type": "metric"}`) fire when the value of a metric in your workspace crosses a threshold you defined.
