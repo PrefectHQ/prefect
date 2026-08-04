@@ -53,7 +53,9 @@ def emit_event(
             establishes that this event is known to have occurred after the
             given event, which the system can use to disambiguate the
             ordering of the two events. Only the `id` and `occurred` of the
-            given event are used; it is not emitted again.
+            given event are used; it is not emitted again. If the preceding
+            event happened more than 5 minutes prior to this event the
+            follows relationship will not be set.
 
     Returns:
         The event that was emitted if worker is using a client that emit
