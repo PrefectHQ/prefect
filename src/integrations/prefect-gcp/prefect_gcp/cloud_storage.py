@@ -27,7 +27,7 @@ except ModuleNotFoundError:
     pass
 
 try:
-    from google.cloud.storage import Bucket
+    from google.cloud.storage import Bucket, Client
     from google.cloud.storage.blob import Blob
 except ModuleNotFoundError:
     pass
@@ -132,12 +132,15 @@ async def _get_bucket_async(
     bucket: str,
     gcp_credentials: GcpCredentials,
     project: Optional[str] = None,
+    user_project: Optional[str] = None,
 ) -> "Bucket":
     """
     Helper function to retrieve a bucket.
     """
     client = gcp_credentials.get_cloud_storage_client(project=project)
-    bucket_obj = await run_sync_in_worker_thread(client.get_bucket, bucket)
+    bucket_obj = await run_sync_in_worker_thread(
+        client.get_bucket, client.bucket(bucket, user_project=user_project)
+    )
     return bucket_obj
 
 
@@ -145,12 +148,13 @@ def _get_bucket(
     bucket: str,
     gcp_credentials: GcpCredentials,
     project: Optional[str] = None,
+    user_project: Optional[str] = None,
 ) -> "Bucket":
     """
     Helper function to retrieve a bucket.
     """
     client = gcp_credentials.get_cloud_storage_client(project=project)
-    bucket_obj = client.get_bucket(bucket)
+    bucket_obj = client.get_bucket(client.bucket(bucket, user_project=user_project))
     return bucket_obj
 
 
@@ -162,6 +166,7 @@ async def _download_blob_as_bytes(
     encryption_key: Optional[str] = None,
     timeout: Union[float, Tuple[float, float]] = 60,
     project: Optional[str] = None,
+    user_project: Optional[str] = None,
     **download_kwargs: Dict[str, Any],
 ) -> bytes:
     """
@@ -170,7 +175,9 @@ async def _download_blob_as_bytes(
     This is the core implementation called by both the task wrapper
     and the GCS storage block.
     """
-    bucket_obj = await _get_bucket_async(bucket, gcp_credentials, project=project)
+    bucket_obj = await _get_bucket_async(
+        bucket, gcp_credentials, project=project, user_project=user_project
+    )
     blob_obj = bucket_obj.blob(
         blob, chunk_size=chunk_size, encryption_key=encryption_key
     )
@@ -255,12 +262,15 @@ def _download_blob_as_bytes_sync(
     encryption_key: Optional[str] = None,
     timeout: Union[float, Tuple[float, float]] = 60,
     project: Optional[str] = None,
+    user_project: Optional[str] = None,
     **download_kwargs: Dict[str, Any],
 ) -> bytes:
     """
     Internal sync function to download a blob as bytes.
     """
-    bucket_obj = _get_bucket(bucket, gcp_credentials, project=project)
+    bucket_obj = _get_bucket(
+        bucket, gcp_credentials, project=project, user_project=user_project
+    )
     blob_obj = bucket_obj.blob(
         blob, chunk_size=chunk_size, encryption_key=encryption_key
     )
@@ -345,6 +355,7 @@ async def _download_blob_to_file(
     encryption_key: Optional[str] = None,
     timeout: Union[float, Tuple[float, float]] = 60,
     project: Optional[str] = None,
+    user_project: Optional[str] = None,
     **download_kwargs: Dict[str, Any],
 ) -> Union[str, Path]:
     """
@@ -353,7 +364,9 @@ async def _download_blob_to_file(
     This is the core implementation called by both the task wrapper
     and the GCS storage block.
     """
-    bucket_obj = await _get_bucket_async(bucket, gcp_credentials, project=project)
+    bucket_obj = await _get_bucket_async(
+        bucket, gcp_credentials, project=project, user_project=user_project
+    )
     blob_obj = bucket_obj.blob(
         blob, chunk_size=chunk_size, encryption_key=encryption_key
     )
@@ -451,12 +464,15 @@ def _download_blob_to_file_sync(
     encryption_key: Optional[str] = None,
     timeout: Union[float, Tuple[float, float]] = 60,
     project: Optional[str] = None,
+    user_project: Optional[str] = None,
     **download_kwargs: Dict[str, Any],
 ) -> Union[str, Path]:
     """
     Internal sync function to download a blob to a file.
     """
-    bucket_obj = _get_bucket(bucket, gcp_credentials, project=project)
+    bucket_obj = _get_bucket(
+        bucket, gcp_credentials, project=project, user_project=user_project
+    )
     blob_obj = bucket_obj.blob(
         blob, chunk_size=chunk_size, encryption_key=encryption_key
     )
@@ -554,6 +570,7 @@ async def _upload_blob_from_string(
     encryption_key: Optional[str] = None,
     timeout: Union[float, Tuple[float, float]] = 60,
     project: Optional[str] = None,
+    user_project: Optional[str] = None,
     **upload_kwargs: Dict[str, Any],
 ) -> str:
     """
@@ -562,7 +579,9 @@ async def _upload_blob_from_string(
     This is the core implementation called by both the task wrapper
     and the GCS storage block.
     """
-    bucket_obj = await _get_bucket_async(bucket, gcp_credentials, project=project)
+    bucket_obj = await _get_bucket_async(
+        bucket, gcp_credentials, project=project, user_project=user_project
+    )
     blob_obj = bucket_obj.blob(
         blob, chunk_size=chunk_size, encryption_key=encryption_key
     )
@@ -659,12 +678,15 @@ def _upload_blob_from_string_sync(
     encryption_key: Optional[str] = None,
     timeout: Union[float, Tuple[float, float]] = 60,
     project: Optional[str] = None,
+    user_project: Optional[str] = None,
     **upload_kwargs: Dict[str, Any],
 ) -> str:
     """
     Internal sync function to upload a blob from a string or bytes.
     """
-    bucket_obj = _get_bucket(bucket, gcp_credentials, project=project)
+    bucket_obj = _get_bucket(
+        bucket, gcp_credentials, project=project, user_project=user_project
+    )
     blob_obj = bucket_obj.blob(
         blob, chunk_size=chunk_size, encryption_key=encryption_key
     )
@@ -1079,6 +1101,8 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
         gcp_credentials: The credentials to authenticate with GCP.
         bucket_folder: A default path to a folder within the GCS bucket to use
             for reading and writing objects.
+        user_project: The project to bill for requests made against
+            requester pays buckets.
 
     Example:
         Load stored GCP Cloud Storage Bucket:
@@ -1104,6 +1128,20 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
             "for reading and writing objects."
         ),
     )
+    user_project: Optional[str] = Field(
+        default=None,
+        description=(
+            "The project to bill for requests made against the bucket. "
+            "Required when the bucket has requester pays enabled."
+        ),
+    )
+
+    def _bucket_resource(self, client: "Client") -> "Bucket":
+        """
+        Builds the bucket resource used for requests, carrying the billing
+        project for requester pays buckets when one is configured.
+        """
+        return client.bucket(self.bucket, user_project=self.user_project)
 
     @property
     def basepath(self) -> str:
@@ -1184,7 +1222,7 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
         client = self.gcp_credentials.get_cloud_storage_client(project=project)
 
         blobs = await run_sync_in_worker_thread(
-            client.list_blobs, self.bucket, prefix=from_path
+            client.list_blobs, self._bucket_resource(client), prefix=from_path
         )
 
         file_paths = []
@@ -1202,6 +1240,7 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
                 blob=blob_path,
                 path=local_file_path,
                 gcp_credentials=self.gcp_credentials,
+                user_project=self.user_project,
             )
             file_paths.append(file_path)
         return file_paths
@@ -1236,7 +1275,7 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
         project = self.gcp_credentials.project
         client = self.gcp_credentials.get_cloud_storage_client(project=project)
 
-        blobs = client.list_blobs(self.bucket, prefix=from_path)
+        blobs = client.list_blobs(self._bucket_resource(client), prefix=from_path)
 
         file_paths = []
         for blob in blobs:
@@ -1252,6 +1291,7 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
                 blob=blob_path,
                 path=local_file_path,
                 gcp_credentials=self.gcp_credentials,
+                user_project=self.user_project,
             )
             file_paths.append(file_path)
         return file_paths
@@ -1309,7 +1349,9 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
         if files_to_upload:
             # Get a single client and bucket object to reuse
             client = self.gcp_credentials.get_cloud_storage_client()
-            bucket_obj = await run_sync_in_worker_thread(client.get_bucket, self.bucket)
+            bucket_obj = await run_sync_in_worker_thread(
+                client.get_bucket, self._bucket_resource(client)
+            )
 
             upload_tasks = []
             for local_file_path, remote_file_path in files_to_upload:
@@ -1388,7 +1430,7 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
         # Upload files sequentially in sync mode
         if files_to_upload:
             client = self.gcp_credentials.get_cloud_storage_client()
-            bucket_obj = client.get_bucket(self.bucket)
+            bucket_obj = client.get_bucket(self._bucket_resource(client))
 
             for local_file_path, remote_file_path in files_to_upload:
                 local_file_content = local_file_path.read_bytes()
@@ -1410,7 +1452,10 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
         """
         path = self._resolve_path(path)
         contents = await _download_blob_as_bytes(
-            bucket=self.bucket, blob=path, gcp_credentials=self.gcp_credentials
+            bucket=self.bucket,
+            blob=path,
+            gcp_credentials=self.gcp_credentials,
+            user_project=self.user_project,
         )
         return contents
 
@@ -1428,7 +1473,10 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
         """
         path = self._resolve_path(path)
         contents = _download_blob_as_bytes_sync(
-            bucket=self.bucket, blob=path, gcp_credentials=self.gcp_credentials
+            bucket=self.bucket,
+            blob=path,
+            gcp_credentials=self.gcp_credentials,
+            user_project=self.user_project,
         )
         return contents
 
@@ -1450,6 +1498,7 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
             bucket=self.bucket,
             blob=path,
             gcp_credentials=self.gcp_credentials,
+            user_project=self.user_project,
         )
         return path
 
@@ -1472,6 +1521,7 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
             bucket=self.bucket,
             blob=path,
             gcp_credentials=self.gcp_credentials,
+            user_project=self.user_project,
         )
         return path
 
@@ -1575,7 +1625,9 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
         """
         self.logger.info(f"Getting bucket {self.bucket!r}.")
         client = self.gcp_credentials.get_cloud_storage_client()
-        bucket = await run_sync_in_worker_thread(client.get_bucket, self.bucket)
+        bucket = await run_sync_in_worker_thread(
+            client.get_bucket, self._bucket_resource(client)
+        )
         return bucket
 
     @async_dispatch(aget_bucket)
@@ -1596,7 +1648,7 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
             ```
         """
         client = self.gcp_credentials.get_cloud_storage_client()
-        bucket = client.get_bucket(self.bucket)
+        bucket = client.get_bucket(self._bucket_resource(client))
         return bucket
 
     async def alist_blobs(self, folder: str = "") -> List["Blob"]:
@@ -1629,7 +1681,7 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
                 f"Listing blobs in folder {bucket_path!r} in bucket {self.bucket!r}."
             )
         blobs = await run_sync_in_worker_thread(
-            client.list_blobs, self.bucket, prefix=bucket_path
+            client.list_blobs, self._bucket_resource(client), prefix=bucket_path
         )
 
         # Ignore folders
@@ -1659,7 +1711,7 @@ class GcsBucket(WritableDeploymentStorage, WritableFileSystem, ObjectStorageBloc
         client = self.gcp_credentials.get_cloud_storage_client()
 
         bucket_path = self._join_bucket_folder(folder)
-        blobs = client.list_blobs(self.bucket, prefix=bucket_path)
+        blobs = client.list_blobs(self._bucket_resource(client), prefix=bucket_path)
 
         # Ignore folders
         return [blob for blob in blobs if not blob.name.endswith("/")]
