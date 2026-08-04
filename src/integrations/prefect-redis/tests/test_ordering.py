@@ -1,9 +1,11 @@
 import os
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Sequence
 from uuid import uuid4
 
 import pytest
+from prefect_redis.client import managed_async_redis_client
 from prefect_redis.ordering import (
     MAX_DEPTH_OF_PRECEDING_EVENT,
     CausalOrdering,
@@ -123,7 +125,6 @@ def test_causal_ordering_keys_share_cluster_hash_slot(
     monkeypatch.setenv(
         "PREFECT_REDIS_MESSAGING_URL", "redis+cluster://redis.example.com:6379"
     )
-    monkeypatch.setattr("prefect_redis.ordering.get_async_redis_client", lambda: None)
 
     ordering = CausalOrdering(scope="unit-tests")
     keys = [
@@ -171,9 +172,14 @@ async def test_causal_ordering_runs_against_real_redis_cluster(
     try:
         scope = f"cluster-ordering-{uuid4()}"
         monkeypatch.setenv("PREFECT_REDIS_MESSAGING_URL", settings_url)
+
+        @asynccontextmanager
+        async def redis_client_context():
+            yield redis_client
+
         monkeypatch.setattr(
-            "prefect_redis.ordering.get_async_redis_client",
-            lambda: redis_client,
+            "prefect_redis.ordering.managed_async_redis_client",
+            redis_client_context,
         )
         ordering = CausalOrdering(scope=scope)
 
@@ -418,7 +424,8 @@ async def test_claimed_follower_not_dropped(
 
     # Verify event data exists
     event_key = causal_ordering._key(f"event:{event_two.id}")
-    assert await causal_ordering.redis.exists(event_key) == 1
+    async with managed_async_redis_client() as redis:
+        assert await redis.exists(event_key) == 1
 
     # Step 2: Leader completes, claiming the follower
     await causal_ordering.record_event_as_processing(event_one)
@@ -435,17 +442,19 @@ async def test_claimed_follower_not_dropped(
     seen = await causal_ordering.event_has_been_seen(event_one)
     assert seen is True
 
-    still_in_followers = await causal_ordering.redis.sismember(
-        causal_ordering._key(f"followers:{event_one.id}"), str(event_two.id)
-    )
+    async with managed_async_redis_client() as redis:
+        still_in_followers = await redis.sismember(
+            causal_ordering._key(f"followers:{event_one.id}"), str(event_two.id)
+        )
     assert still_in_followers == 0  # Claimed by leader's Lua script
 
     # Step 4: Verify event data is STILL available for the leader
     # The fix ensures we don't delete event:{id} in the claimed branch
-    assert await causal_ordering.redis.exists(event_key) == 1
+    async with managed_async_redis_client() as redis:
+        assert await redis.exists(event_key) == 1
 
-    # Leader can still read the event data
-    event_json = await causal_ordering.redis.get(event_key)
+        # Leader can still read the event data
+        event_json = await redis.get(event_key)
     assert event_json is not None
 
 

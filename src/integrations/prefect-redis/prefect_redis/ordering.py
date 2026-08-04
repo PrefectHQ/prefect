@@ -26,7 +26,7 @@ from prefect.server.events.ordering import (
 )
 from prefect.server.events.ordering.memory import EventBeingProcessed
 from prefect.server.events.schemas.events import Event, ReceivedEvent
-from prefect_redis.client import cluster_key_prefix, get_async_redis_client
+from prefect_redis.client import cluster_key_prefix, managed_async_redis_client
 
 logger = get_logger(__name__)
 
@@ -82,7 +82,6 @@ return followers
 
 class CausalOrdering(_CausalOrdering):
     def __init__(self, scope: str):
-        self.redis = get_async_redis_client()
         self._cluster_key_prefix = cluster_key_prefix(
             scope or "prefect:events:ordering"
         )
@@ -100,69 +99,79 @@ class CausalOrdering(_CausalOrdering):
         Record that an event is being processed, returning False if the event is already
         being processed.
         """
-        success = await self.redis.set(
-            self._key(f"processing:{event.id}"),
-            1,
-            ex=IN_FLIGHT_EVENT_TIMEOUT * 2,
-            nx=True,
-        )
+        async with managed_async_redis_client() as redis:
+            success = await redis.set(
+                self._key(f"processing:{event.id}"),
+                1,
+                ex=IN_FLIGHT_EVENT_TIMEOUT * 2,
+                nx=True,
+            )
         return bool(success)
 
     async def event_has_started_processing(self, event: Union[UUID, Event]) -> bool:
         id = event.id if isinstance(event, Event) else event
-        return await self.redis.exists(self._key(f"processing:{id}")) == 1
+        async with managed_async_redis_client() as redis:
+            return await redis.exists(self._key(f"processing:{id}")) == 1
 
     async def forget_event_is_processing(self, event: ReceivedEvent) -> None:
-        await self.redis.delete(self._key(f"processing:{event.id}"))
+        async with managed_async_redis_client() as redis:
+            await redis.delete(self._key(f"processing:{event.id}"))
 
     async def event_has_been_seen(self, event: Union[UUID, Event]) -> bool:
         id = event.id if isinstance(event, Event) else event
-        return await self.redis.exists(self._key(f"seen:{id}")) == 1
+        async with managed_async_redis_client() as redis:
+            return await redis.exists(self._key(f"seen:{id}")) == 1
 
     async def record_event_as_seen(self, event: ReceivedEvent) -> None:
-        await self.redis.set(self._key(f"seen:{event.id}"), 1, ex=SEEN_EXPIRATION)
+        async with managed_async_redis_client() as redis:
+            await redis.set(self._key(f"seen:{event.id}"), 1, ex=SEEN_EXPIRATION)
 
     async def record_follower(self, event: ReceivedEvent):
         """Remember that this event is waiting on another event to arrive"""
         assert event.follows
 
-        async with self.redis.pipeline() as p:
-            p.set(self._key(f"event:{event.id}"), event.model_dump_json())
-            p.sadd(self._key(f"followers:{event.follows}"), str(event.id))
-            p.zadd(self._key("waitlist"), {str(event.id): event.received.timestamp()})
-            await p.execute()
+        async with managed_async_redis_client() as redis:
+            async with redis.pipeline() as p:
+                p.set(self._key(f"event:{event.id}"), event.model_dump_json())
+                p.sadd(self._key(f"followers:{event.follows}"), str(event.id))
+                p.zadd(
+                    self._key("waitlist"), {str(event.id): event.received.timestamp()}
+                )
+                await p.execute()
 
     async def forget_follower(self, follower: ReceivedEvent):
         """Forget that this event is waiting on another event to arrive"""
         assert follower.follows
 
-        async with self.redis.pipeline() as p:
-            p.zrem(self._key("waitlist"), str(follower.id))
-            p.srem(self._key(f"followers:{follower.follows}"), str(follower.id))
-            p.delete(self._key(f"event:{follower.id}"))
-            await p.execute()
+        async with managed_async_redis_client() as redis:
+            async with redis.pipeline() as p:
+                p.zrem(self._key("waitlist"), str(follower.id))
+                p.srem(self._key(f"followers:{follower.follows}"), str(follower.id))
+                p.delete(self._key(f"event:{follower.id}"))
+                await p.execute()
 
     async def get_lost_followers(self) -> list[ReceivedEvent]:
         """Returns events that were waiting on a leader event that never arrived"""
-        async with self.redis.pipeline() as p:
-            temporary_set = self._key(f"lost-followers:{uuid4()}")
-            earlier = (
-                datetime.now(timezone.utc) - PRECEDING_EVENT_LOOKBACK
-            ).timestamp()
+        async with managed_async_redis_client() as redis:
+            async with redis.pipeline() as p:
+                temporary_set = self._key(f"lost-followers:{uuid4()}")
+                earlier = (
+                    datetime.now(timezone.utc) - PRECEDING_EVENT_LOOKBACK
+                ).timestamp()
 
-            # Move all of the events that are older than the lookback period into a
-            # temporary set...
-            p.zrangestore(
-                temporary_set, self._key("waitlist"), 0, earlier, byscore=True
-            )
-            # Then remove them from the waitlist set...
-            p.zremrangebyscore(self._key("waitlist"), 0, earlier)
-            # Then return them...
-            p.zrange(temporary_set, 0, -1)
-            # And finally, remove the temporary set
-            p.delete(temporary_set)
+                # Move all of the events that are older than the lookback period into a
+                # temporary set...
+                p.zrangestore(
+                    temporary_set, self._key("waitlist"), 0, earlier, byscore=True
+                )
+                # Then remove them from the waitlist set...
+                p.zremrangebyscore(self._key("waitlist"), 0, earlier)
+                # Then return them...
+                p.zrange(temporary_set, 0, -1)
+                # And finally, remove the temporary set
+                p.delete(temporary_set)
 
-            _, _, follower_ids, _ = await p.execute()
+                _, _, follower_ids, _ = await p.execute()
 
         follower_ids = [UUID(i) for i in follower_ids]
 
@@ -170,10 +179,11 @@ class CausalOrdering(_CausalOrdering):
 
     async def followers_by_id(self, follower_ids: list[UUID]) -> list[ReceivedEvent]:
         """Returns the events with the given IDs, in the order they occurred"""
-        async with self.redis.pipeline() as p:
-            for follower_id in follower_ids:
-                p.get(self._key(f"event:{follower_id}"))
-            follower_jsons: list[str] = await p.execute()
+        async with managed_async_redis_client() as redis:
+            async with redis.pipeline() as p:
+                for follower_id in follower_ids:
+                    p.get(self._key(f"event:{follower_id}"))
+                follower_jsons: list[str] = await p.execute()
 
         return sorted(
             [ReceivedEvent.model_validate_json(f) for f in follower_jsons if f],
@@ -182,9 +192,10 @@ class CausalOrdering(_CausalOrdering):
 
     async def get_followers(self, leader: ReceivedEvent) -> list[ReceivedEvent]:
         """Returns events that were waiting on this leader event to arrive"""
-        follower_ids = [
-            i for i in await self.redis.smembers(self._key(f"followers:{leader.id}"))
-        ]
+        async with managed_async_redis_client() as redis:
+            follower_ids = [
+                i for i in await redis.smembers(self._key(f"followers:{leader.id}"))
+            ]
         follower_ids = [UUID(i) for i in follower_ids]
         return await self.followers_by_id(follower_ids)
 
@@ -198,14 +209,15 @@ class CausalOrdering(_CausalOrdering):
         This operation is atomic to prevent a race condition where a follower
         could park itself between the lock release and the followers check.
         """
-        follower_ids = await self.redis.eval(
-            COMPLETE_PROCESSING_SCRIPT,
-            3,  # number of keys
-            self._key(f"seen:{event.id}"),
-            self._key(f"followers:{event.id}"),
-            self._key(f"processing:{event.id}"),
-            int(SEEN_EXPIRATION.total_seconds()),  # seen TTL
-        )
+        async with managed_async_redis_client() as redis:
+            follower_ids = await redis.eval(
+                COMPLETE_PROCESSING_SCRIPT,
+                3,  # number of keys
+                self._key(f"seen:{event.id}"),
+                self._key(f"followers:{event.id}"),
+                self._key(f"processing:{event.id}"),
+                int(SEEN_EXPIRATION.total_seconds()),  # seen TTL
+            )
         follower_ids = [UUID(i) for i in follower_ids]
         return await self.followers_by_id(follower_ids)
 
@@ -288,9 +300,10 @@ class CausalOrdering(_CausalOrdering):
         # in the followers set (meaning leader hasn't claimed us).
         if await self.event_has_been_seen(event.follows):
             # Check if leader claimed us by checking if we're still in followers set
-            still_in_followers = await self.redis.sismember(
-                self._key(f"followers:{event.follows}"), str(event.id)
-            )
+            async with managed_async_redis_client() as redis:
+                still_in_followers = await redis.sismember(
+                    self._key(f"followers:{event.follows}"), str(event.id)
+                )
             if still_in_followers:
                 # Leader didn't claim us (or hasn't run yet), safe to unpark
                 await self.forget_follower(event)

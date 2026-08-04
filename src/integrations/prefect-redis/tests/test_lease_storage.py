@@ -16,6 +16,11 @@ from prefect.types._concurrency import ConcurrencyLeaseHolder
 class TestConcurrencyLeaseStorage:
     """Test suite for Redis-based ConcurrencyLeaseStorage implementation."""
 
+    def test_init_without_client_does_not_require_running_loop(self):
+        storage = ConcurrencyLeaseStorage()
+
+        assert storage.redis_client is None
+
     @pytest.fixture
     async def storage(self, redis: Redis) -> ConcurrencyLeaseStorage:
         """Create a ConcurrencyLeaseStorage instance with the test Redis client."""
@@ -25,9 +30,6 @@ class TestConcurrencyLeaseStorage:
         monkeypatch.setenv(
             "PREFECT_REDIS_MESSAGING_URL",
             "redis+cluster://redis.example.com:6379",
-        )
-        monkeypatch.setattr(
-            "prefect_redis.lease_storage.get_async_redis_client", lambda: None
         )
         storage = ConcurrencyLeaseStorage()
         lease_id = uuid4()
@@ -49,9 +51,6 @@ class TestConcurrencyLeaseStorage:
 
     def test_keys_preserve_standalone_names(self, monkeypatch: pytest.MonkeyPatch):
         monkeypatch.delenv("PREFECT_REDIS_MESSAGING_URL", raising=False)
-        monkeypatch.setattr(
-            "prefect_redis.lease_storage.get_async_redis_client", lambda: None
-        )
         storage = ConcurrencyLeaseStorage()
         lease_id = uuid4()
         limit_id = uuid4()

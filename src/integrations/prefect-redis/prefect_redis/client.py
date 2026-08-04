@@ -1,12 +1,12 @@
 import asyncio
-import functools
 import warnings
-from typing import Any, Callable, Optional, Union
+from contextlib import asynccontextmanager
+from typing import Any, AsyncGenerator, Optional, Union
 from urllib.parse import urlparse, urlunparse
 
 from pydantic import Field, model_validator
 from redis.asyncio import Redis
-from typing_extensions import Self, TypeAlias
+from typing_extensions import Self
 
 from prefect.settings.base import (
     PrefectBaseSettings,
@@ -93,16 +93,6 @@ class RedisMessagingSettings(PrefectBaseSettings):
         return self
 
 
-CacheKey: TypeAlias = tuple[
-    Callable[..., Any],
-    tuple[Any, ...],
-    tuple[tuple[str, Any], ...],
-    Union[asyncio.AbstractEventLoop, None],
-]
-
-_client_cache: dict[CacheKey, Redis] = {}
-
-
 def is_cluster_url(url: str) -> bool:
     """Return True if the URL uses the Redis Cluster scheme."""
     return url.partition("://")[0] in {"redis+cluster", "rediss+cluster"}
@@ -138,50 +128,35 @@ def _raise_cluster_not_supported() -> None:
     )
 
 
-def _running_loop() -> Union[asyncio.AbstractEventLoop, None]:
+def _running_loop() -> asyncio.AbstractEventLoop:
     try:
         return asyncio.get_running_loop()
     except RuntimeError as e:
         if "no running event loop" in str(e):
-            return None
+            raise RuntimeError(
+                "Async Redis clients must be created from a running event loop. "
+                "Call get_async_redis_client() from async code and close the "
+                "returned client when it is no longer needed."
+            ) from e
         raise
 
 
-def cached(fn: Callable[..., Any]) -> Callable[..., Any]:
-    @functools.wraps(fn)
-    def cached_fn(*args: Any, **kwargs: Any) -> Redis:
-        key = (fn, args, tuple(kwargs.items()), _running_loop())
-        if key not in _client_cache:
-            _client_cache[key] = fn(*args, **kwargs)
-        return _client_cache[key]
-
-    return cached_fn
-
-
 def close_all_cached_connections() -> None:
-    """Close all cached Redis connections."""
-    loop: Union[asyncio.AbstractEventLoop, None]
+    """Compatibility no-op.
 
-    for (_, _, _, loop), client in _client_cache.items():
-        if not loop or (loop and loop.is_closed()):
-            continue
-        loop.run_until_complete(client.connection_pool.disconnect())
-        loop.run_until_complete(client.aclose())
+    Redis clients are no longer cached globally; callers own and close the
+    clients they create.
+    """
 
 
 async def clear_cached_clients() -> None:
-    """Clear all cached Redis clients to force fresh connections.
+    """Compatibility no-op.
 
-    This should be called when a connection error is detected to ensure
-    subsequent calls to get_async_redis_client() return fresh clients
-    rather than stale ones with broken connections.
+    Redis clients are no longer cached globally; callers own and close the
+    clients they create.
     """
-    global _client_cache
-
-    _client_cache.clear()
 
 
-@cached
 def get_async_redis_client(
     url: Union[str, None] = None,
     host: Union[str, None] = None,
@@ -221,6 +196,7 @@ def get_async_redis_client(
     Returns:
         Redis: a Redis client
     """
+    _running_loop()
     settings = RedisMessagingSettings()
 
     resolved_socket_timeout = (
@@ -262,10 +238,10 @@ def get_async_redis_client(
     )
 
 
-@cached
 def async_redis_from_settings(
     settings: RedisMessagingSettings, **options: Any
 ) -> Redis:
+    _running_loop()
     options = {
         "decode_responses": True,
         "socket_timeout": settings.socket_timeout,
@@ -293,3 +269,15 @@ def async_redis_from_settings(
         ssl=settings.ssl,
         **options,
     )
+
+
+@asynccontextmanager
+async def managed_async_redis_client(
+    *args: Any, **kwargs: Any
+) -> AsyncGenerator[Redis, None]:
+    """Create an async Redis client and close it before leaving the current loop."""
+    client = get_async_redis_client(*args, **kwargs)
+    try:
+        yield client
+    finally:
+        await client.aclose()
