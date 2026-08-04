@@ -2,6 +2,7 @@ import multiprocessing
 import queue
 import threading
 from concurrent.futures import ProcessPoolExecutor
+from datetime import datetime, timedelta
 from functools import partial
 from time import sleep
 from uuid import uuid4
@@ -9,9 +10,11 @@ from uuid import uuid4
 import cloudpickle
 import pytest
 
+from prefect.locking import filesystem
 from prefect.locking.filesystem import FileSystemLockManager
 from prefect.locking.memory import MemoryLockManager
 from prefect.results import ResultStore
+from prefect.types._datetime import now
 from prefect.utilities.callables import cloudpickle_wrapped_call
 
 
@@ -286,10 +289,30 @@ class TestMemoryLockManager:
         assert deserialized.is_locked(key2)
 
 
+class _Clock:
+    """A clock that tracks real time with a controllable offset."""
+
+    def __init__(self) -> None:
+        self.offset = timedelta()
+
+    def now(self, tz: str = "UTC") -> datetime:
+        return now(tz) + self.offset
+
+    def advance(self, seconds: float) -> None:
+        self.offset += timedelta(seconds=seconds)
+
+
 class TestFileSystemLockManager:
     @pytest.fixture
     def store(self, tmp_path):
         return FileSystemLockManager(lock_files_directory=tmp_path)
+
+    @pytest.fixture
+    def clock(self, monkeypatch: pytest.MonkeyPatch) -> _Clock:
+        """Lets tests expire hold timeouts on demand instead of sleeping."""
+        clock = _Clock()
+        monkeypatch.setattr(filesystem, "now", clock.now)
+        return clock
 
     async def test_read_locked_key(self, store):
         key = str(uuid4())
@@ -350,13 +373,11 @@ class TestFileSystemLockManager:
         store.release_lock(key, holder="holder1")
         assert not store.is_locked(key)
 
-    def test_acquire_lock_with_hold_timeout(self, store):
+    def test_acquire_lock_with_hold_timeout(self, store, clock: _Clock):
         key = str(uuid4())
-        # Use a hold_timeout large enough that the lock won't expire before the
-        # is_locked assertion runs (0.1s races on busy CI runners).
-        assert store.acquire_lock(key=key, holder="holder1", hold_timeout=1)
+        assert store.acquire_lock(key=key, holder="holder1", hold_timeout=10)
         assert store.is_locked(key)
-        sleep(1.1)
+        clock.advance(11)
         assert not store.is_locked(key)
 
     def test_acquire_lock_with_acquire_timeout(self, store):
@@ -367,13 +388,12 @@ class TestFileSystemLockManager:
         store.release_lock(key=key, holder="holder1")
         assert not store.is_locked(key=key)
 
-    def test_acquire_lock_when_previously_holder_timed_out(self, store):
+    def test_acquire_lock_when_previously_holder_timed_out(self, store, clock: _Clock):
         key = str(uuid4())
-        # Use a hold_timeout large enough that the lock won't expire before the
-        # is_locked assertion runs (0.1s races on busy CI runners).
-        assert store.acquire_lock(key=key, holder="holder1", hold_timeout=1)
+        assert store.acquire_lock(key=key, holder="holder1", hold_timeout=10)
         assert store.is_locked(key=key)
-        # blocks and acquires the lock
+        clock.advance(11)
+        # waits for the expired lock and acquires it
         assert store.acquire_lock(key=key, holder="holder2")
         assert store.is_locked(key=key)
         store.release_lock(key=key, holder="holder2")
@@ -395,12 +415,11 @@ class TestFileSystemLockManager:
         assert store.is_lock_holder(key, holder="holder1")
         assert not store.is_lock_holder(key, holder="holder2")
 
-    def test_wait_for_lock(self, store):
+    def test_wait_for_lock(self, store, clock: _Clock):
         key = str(uuid4())
-        # Use a hold_timeout large enough that the lock won't expire before the
-        # is_locked assertion runs (0.1s races on busy CI runners).
-        assert store.acquire_lock(key, holder="holder1", hold_timeout=1)
+        assert store.acquire_lock(key, holder="holder1", hold_timeout=10)
         assert store.is_locked(key)
+        clock.advance(11)
         assert store.wait_for_lock(key)
         assert not store.is_locked(key)
 
