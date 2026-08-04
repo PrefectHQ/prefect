@@ -15,7 +15,7 @@ parameter directly — no extra K8s API calls required.
 
 ## Functions
 
-### `diagnose_k8s_pod` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/diagnostics.py#L33" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `diagnose_k8s_pod` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/diagnostics.py#L52" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 diagnose_k8s_pod(status: dict[str, Any]) -> InfrastructureDiagnosis | None
@@ -40,7 +40,17 @@ same dict kopf passes as the *status* parameter).
 Severity level for an infrastructure diagnosis.
 
 
-### `InfrastructureDiagnosis` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/diagnostics.py#L24" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `DiagnosisCategory` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/diagnostics.py#L23" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+
+Stable, machine-matchable category for a pod-failure diagnosis.
+
+These values are emitted as the `kubernetes.diagnosis` label on
+replicated pod events, so automations can match on a specific failure
+mode. Treat the values as a stable contract — do not rename them.
+
+
+### `InfrastructureDiagnosis` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/diagnostics.py#L42" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A structured diagnosis of a Kubernetes pod failure.
