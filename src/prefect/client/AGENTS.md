@@ -24,5 +24,6 @@ HTTP client for communicating with Prefect server and Prefect Cloud.
 ## Related
 
 - `_internal/version_checking.py` — Shared server version compatibility check (once-per-process, keyed by `(api_url, client_version)`). Used by HTTP clients and WebSocket clients (`events/clients.py`, `logging/clients.py`). When adding a new client type that connects to the server, call `check_server_version` from there rather than reimplementing the check.
+- **User-Agent format is duplicated, not shared.** `client/base.py` (sync and async HTTP clients) and `_internal/websockets.py` (`websocket_connect`) each independently build `f"prefect/{prefect.__version__} (API {SERVER_API_VERSION})"`. There is no shared helper — if the format changes, update all three call sites.
 - `server/schemas/` → Server-side request/response models (separate from `client/schemas/`)
 - Top-level `client/` → Build config for `prefect-client` PyPI package (see client/AGENTS.md at repo root)
