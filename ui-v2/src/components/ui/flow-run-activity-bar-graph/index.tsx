@@ -320,8 +320,8 @@ const FlowRunTooltip = ({
 
 		const chartRect = chart.getBoundingClientRect();
 		const { width, height } = ref.current.getBoundingClientRect();
-		const PADDING = 8,
-			OFFSET = 12;
+		const PADDING = 8;
+		const OFFSET = 12;
 
 		const clamp = (value: number, max: number) =>
 			Math.max(PADDING, Math.min(value, max));
