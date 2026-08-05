@@ -514,10 +514,10 @@ class VertexAIWorker(
 
         error_msg = final_job_run.error.message
 
-        # Vertex will include an error message upon valid
-        # flow cancellations, so we'll avoid raising an error in that case
+        # Vertex will include an error message upon valid flow cancellations,
+        # so only report errors for other terminal states.
         if error_msg and "CANCELED" not in error_msg:
-            raise RuntimeError(error_msg)
+            logger.error(f"Vertex AI job {job_name!r} failed: {error_msg}")
 
         status_code = 0 if final_job_run.state == JobState.JOB_STATE_SUCCEEDED else 1
 

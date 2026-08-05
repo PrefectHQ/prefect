@@ -224,7 +224,7 @@ class TestVertexAIWorker:
                 status_code=0, identifier="mock_display_name"
             )
 
-    async def test_failed_worker_run(self, flow_run, job_config):
+    async def test_failed_worker_run(self, flow_run, job_config, caplog):
         job_config.prepare_for_flow_run(flow_run, None, None)
         error_msg = "something went kablooey"
         error_job_display_name = "catastrophization"
@@ -237,8 +237,7 @@ class TestVertexAIWorker:
             )
         )
         async with VertexAIWorker("test-pool") as worker:
-            with pytest.raises(RuntimeError, match=error_msg):
-                await worker.run(flow_run=flow_run, configuration=job_config)
+            result = await worker.run(flow_run=flow_run, configuration=job_config)
 
             assert (
                 job_config.credentials.job_service_async_client.create_custom_job.call_count
@@ -248,6 +247,10 @@ class TestVertexAIWorker:
                 job_config.credentials.job_service_async_client.get_custom_job.call_count
                 == 1
             )
+            assert result == VertexAIWorkerResult(
+                status_code=1, identifier=error_job_display_name
+            )
+            assert error_msg in caplog.text
 
     async def test_cancelled_worker_run(self, flow_run, job_config):
         job_config.prepare_for_flow_run(flow_run, None, None)
