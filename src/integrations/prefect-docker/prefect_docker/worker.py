@@ -71,7 +71,6 @@ from prefect.exceptions import InfrastructureNotFound
 from prefect.settings import PREFECT_API_URL
 from prefect.states import Pending
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.collections import get_from_dict
 from prefect.utilities.dockerutils import (
     format_outlier_version_name,
     get_prefect_image_name,
@@ -545,24 +544,8 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                 {_bundle_execute_module: execute_step_args},
                 f"/tmp/{bundle_key}",
             )
-            existing_volumes: list[str] = (
-                get_from_dict(
-                    self.work_pool.base_job_template,
-                    "variables.properties.volumes.default",
-                )
-                or []
-            )
-            job_variable_volumes: list[str] = (
-                job_variables.get("volumes", []) if job_variables else []
-            )
             job_variables = (job_variables or {}) | {
                 "command": command_to_string(execute_command),
-                "volumes": [
-                    *existing_volumes,
-                    *job_variable_volumes,
-                    # This is a temporary volume for the bundle
-                    f"{self._tmp_dir}:/tmp/",
-                ],
             }
         else:
             if TYPE_CHECKING:
@@ -621,6 +604,12 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             values=job_variables,
             client=self._client,
         )
+        if not storage_configured_on_work_pool:
+            # This is a temporary volume for the bundle
+            configuration.volumes = [
+                *configuration.volumes,
+                f"{self._tmp_dir}:/tmp/",
+            ]
         configuration.prepare_for_flow_run(
             flow_run=flow_run,
             flow=api_flow,
