@@ -31,7 +31,10 @@ your configuration before using it.
 
 The launch type option can be used to run your tasks in different modes. For example,
 `FARGATE_SPOT` can be used to use spot instances for your Fargate tasks or `EC2` can be
-used to run your tasks on a cluster backed by EC2 instances.
+used to run your tasks on a cluster backed by EC2 instances. The `EXTERNAL` launch type
+runs your tasks on ECS Anywhere external instances that you have registered with your
+cluster; the worker submits and monitors those tasks but does not provision the external
+instances.
 
 Generally, it is very useful to enable CloudWatch logging for your ECS tasks; this can
 help you debug task failures. To enable CloudWatch logging, you must provide an
@@ -107,6 +110,14 @@ ECS_DEFAULT_COMMAND = "python -m prefect.engine"
 ECS_DEFAULT_MEMORY = 2048
 ECS_DEFAULT_LAUNCH_TYPE = "FARGATE"
 ECS_DEFAULT_FAMILY = "prefect"
+# Launch types that require a matching entry in 'requiresCompatibilities'
+ECS_LAUNCH_TYPE_COMPATIBILITIES = {
+    "FARGATE": "FARGATE",
+    "FARGATE_SPOT": "FARGATE",
+    "EXTERNAL": "EXTERNAL",
+}
+# Network modes supported by tasks placed on ECS Anywhere external instances
+ECS_EXTERNAL_NETWORK_MODES = ("bridge", "host", "none")
 ECS_POST_REGISTRATION_FIELDS = [
     "compatibilities",
     "taskDefinitionArn",
@@ -528,7 +539,9 @@ class ECSVariables(BaseVariables):
         description=(
             "The type of ECS task run infrastructure that should be used. Note that"
             " 'FARGATE_SPOT' is not a formal ECS launch type, but we will configure"
-            " the proper capacity provider strategy if set here."
+            " the proper capacity provider strategy if set here. 'EXTERNAL' requires"
+            " a cluster with registered ECS Anywhere external instances and does not"
+            " support capacity providers or the 'awsvpc' network mode."
         ),
     )
     capacity_provider_strategy: List[CapacityProvider] = Field(
@@ -1053,6 +1066,15 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
             if not requires_ec2:
                 launch_type = ECS_DEFAULT_LAUNCH_TYPE
 
+        # ECS Anywhere does not support capacity providers; the two options cannot be
+        # reconciled so reject the combination instead of dropping the launch type
+        if launch_type == "EXTERNAL" and capacity_provider_strategy:
+            raise ValueError(
+                "A capacity provider strategy cannot be used with launch type "
+                "'EXTERNAL'. Tasks on external instances are placed by ECS Anywhere, "
+                "which does not support capacity providers."
+            )
+
         # Fargate spot requires a launch type and a capacity provider strategy
         # otherwise we're valid with a capacity provider strategy alone
         if capacity_provider_strategy and launch_type != "FARGATE_SPOT":
@@ -1063,15 +1085,17 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
         if requires_ec2 and not launch_type:
             return
 
-        # Default launch type in compatibilities to maintain functionality with
-        # _prepare_task_definition which sets requiresCompatibilties to FARGATE
-        # which is the default launch type.
-        if launch_type != "EC2" and "FARGATE" not in task_definition.get(
-            "requiresCompatibilities", [ECS_DEFAULT_LAUNCH_TYPE]
+        # Default the compatibility to the one implied by the launch type to maintain
+        # functionality with _prepare_task_definition, which sets
+        # requiresCompatibilities to match the launch type.
+        required_compatibility = ECS_LAUNCH_TYPE_COMPATIBILITIES.get(launch_type)
+        if required_compatibility and required_compatibility not in task_definition.get(
+            "requiresCompatibilities", [required_compatibility]
         ):
             raise ValueError(
-                "Task definition does not have 'FARGATE' in 'requiresCompatibilities'"
-                f" and cannot be used with launch type {launch_type!r}"
+                f"Task definition does not have {required_compatibility!r} in"
+                " 'requiresCompatibilities' and cannot be used with launch type"
+                f" {launch_type!r}"
             )
 
         if launch_type == "FARGATE" or launch_type == "FARGATE_SPOT":
@@ -1084,6 +1108,18 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
                     f"Found network mode {network_mode!r} which is not compatible with "
                     f"launch type {launch_type!r}. Use either the 'EC2' launch "
                     "type or the 'awsvpc' network mode."
+                )
+
+        if launch_type == "EXTERNAL":
+            # External instances do not support the 'awsvpc' network mode; default to
+            # 'bridge' to match _prepare_task_definition and AWS' own default.
+            network_mode = task_definition.get("networkMode", "bridge")
+            if network_mode not in ECS_EXTERNAL_NETWORK_MODES:
+                raise ValueError(
+                    f"Found network mode {network_mode!r} which is not compatible with "
+                    f"launch type {launch_type!r}. Tasks on external instances support "
+                    f"the {', '.join(repr(m) for m in ECS_EXTERNAL_NETWORK_MODES)} "
+                    "network modes."
                 )
 
     def _register_task_definition(
@@ -1250,6 +1286,15 @@ class ECSWorker(BaseWorker[ECSJobConfiguration, ECSVariables, ECSWorkerResult]):
             # Container level memory and cpu are required when using non-FARGATE launch types
             container.setdefault("cpu", int(cpu))
             container.setdefault("memory", int(memory))
+
+            if launch_type == "EXTERNAL":
+                # The EXTERNAL compatibility is required for tasks that will be placed
+                # on ECS Anywhere external instances
+                requires_compatibilities = task_definition.setdefault(
+                    "requiresCompatibilities", []
+                )
+                if "EXTERNAL" not in requires_compatibilities:
+                    requires_compatibilities.append("EXTERNAL")
 
         # Ensure set values are cast to strings
         if task_definition.get("cpu"):

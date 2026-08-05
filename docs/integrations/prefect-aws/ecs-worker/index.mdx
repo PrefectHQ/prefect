@@ -81,6 +81,31 @@ flowchart TB
 An ECS task is **not** the same as a [Prefect task](/v3/develop/write-tasks). ECS tasks are groupings of containers that run within an ECS Cluster, defined by task definitions. They're ideal for ephemeral processes like Prefect flow runs.
 </Tip>
 
+## Launch types
+
+The `launch_type` job variable determines where flow run tasks are placed:
+
+| Launch type | Where tasks run | Notes |
+| --- | --- | --- |
+| `FARGATE` (default) | AWS-managed serverless capacity | Requires the `awsvpc` network mode and task-level CPU and memory |
+| `FARGATE_SPOT` | Fargate spot capacity | Submitted with a `FARGATE_SPOT` capacity provider strategy instead of a launch type |
+| `EC2` | EC2 container instances in your cluster | CPU and memory are set at the container level |
+| `EXTERNAL` | ECS Anywhere external instances registered with your cluster | CPU and memory are set at the container level |
+
+### Running flows on ECS Anywhere external instances
+
+Setting `launch_type` to `EXTERNAL` runs flow runs on your own servers with [Amazon ECS Anywhere](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs-anywhere.html). Prefect submits and monitors these tasks; it does not provision, register, or manage the external instances themselves. Bring your own cluster and capacity before pointing a work pool at it:
+
+- An ECS cluster in the same account and region as the worker's credentials.
+- At least one external instance registered to that cluster with the SSM agent and the ECS agent, activated through `aws ssm create-activation` and the ECS Anywhere registration script.
+- A container image and registry credentials reachable from the external instance, plus outbound network access to your Prefect API.
+- An execution role if you enable CloudWatch logging, exactly as with other launch types.
+
+Prefect generates task definitions with `requiresCompatibilities` set to `["EXTERNAL"]` and keeps CPU and memory at the container level. Two configurations are rejected before submission because ECS does not support them for external instances:
+
+- The `awsvpc` network mode. Use `bridge` (the default), `host`, or `none`.
+- A capacity provider strategy. External instances are not backed by capacity providers.
+
 ## Deployment options
 
 ### With the `prefect-aws` CLI
