@@ -80,7 +80,7 @@ def test_workspace_command_uses_uv_for_pyproject_workspace(
         return "/opt/bin/uv" if executable == "uv" else None
 
     monkeypatch.setattr(
-        "prefect.runner._workspace_starter.shutil.which",
+        "prefect.runner._uv_command.shutil.which",
         fake_which,
     )
 
@@ -106,7 +106,7 @@ def test_workspace_command_falls_back_without_pyproject(
 ):
     workspace = _prepared_workspace(tmp_path)
     monkeypatch.setattr(
-        "prefect.runner._workspace_starter.shutil.which",
+        "prefect.runner._uv_command.shutil.which",
         lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
     )
 
@@ -123,7 +123,7 @@ def test_workspace_command_falls_back_without_prefect_dependency(
         "[project]\nname = 'test-project'\nversion = '0.1.0'\ndependencies = []\n"
     )
     monkeypatch.setattr(
-        "prefect.runner._workspace_starter.shutil.which",
+        "prefect.runner._uv_command.shutil.which",
         lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
     )
 
@@ -143,7 +143,7 @@ def test_workspace_command_falls_back_without_uv(
         "dependencies = ['prefect']\n"
     )
     monkeypatch.setattr(
-        "prefect.runner._workspace_starter.shutil.which",
+        "prefect.runner._uv_command.shutil.which",
         lambda executable, path=None: None,
     )
 
@@ -167,7 +167,7 @@ def test_workspace_command_does_not_auto_install_dependencies_by_default(
         raise AssertionError("uv should not be checked unless auto-install is enabled")
 
     monkeypatch.setattr(
-        "prefect.runner._workspace_starter.shutil.which",
+        "prefect.runner._uv_command.shutil.which",
         fail_if_checked,
     )
 
@@ -325,7 +325,7 @@ async def test_workspace_resolving_starter_uses_uv_for_pyproject_workspace(
         FakeEngineCommandStarter,
     )
     monkeypatch.setattr(
-        "prefect.runner._workspace_starter.shutil.which",
+        "prefect.runner._uv_command.shutil.which",
         lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
     )
 

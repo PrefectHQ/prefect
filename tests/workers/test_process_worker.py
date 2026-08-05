@@ -486,7 +486,7 @@ async def test_process_worker_uses_auto_uv_command_for_project_working_dir(
         "dependencies = ['prefect']\n"
     )
     monkeypatch.setattr(
-        "prefect.runner._workspace_starter.shutil.which",
+        "prefect.runner._uv_command.shutil.which",
         lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
     )
 
@@ -524,6 +524,53 @@ async def test_process_worker_uses_auto_uv_command_for_project_working_dir(
     )
 
 
+async def test_process_worker_preserves_explicitly_configured_engine_command(
+    flow_run: FlowRun,
+    mock_runner_execute_flow_run: MagicMock,
+    process_work_pool: WorkPool,
+    prefect_client: PrefectClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    (tmp_path / "pyproject.toml").write_text(
+        "[project]\n"
+        "name = 'test-project'\n"
+        "version = '0.1.0'\n"
+        "dependencies = ['prefect']\n"
+    )
+    monkeypatch.setattr(
+        "prefect.runner._uv_command.shutil.which",
+        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
+    )
+
+    assert flow_run.deployment_id is not None
+    await prefect_client.update_deployment(
+        deployment_id=flow_run.deployment_id,
+        deployment=client_schemas.actions.DeploymentUpdate(
+            job_variables={
+                "working_dir": str(tmp_path),
+                "command": "python -m prefect.engine",
+            },
+        ),
+    )
+
+    with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
+        async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+            configuration = await worker.job_configuration.resolve_for_flow_run(
+                flow_run,
+                client=worker.client,
+                work_pool=worker.work_pool,
+                worker_name=worker.name,
+                worker_id=worker.backend_id,
+            )
+            await worker.run(flow_run=flow_run, configuration=configuration)
+
+    assert (
+        mock_runner_execute_flow_run.call_args.kwargs["command"]
+        == "python -m prefect.engine"
+    )
+
+
 async def test_process_worker_auto_uv_command_honors_job_variable_env(
     flow_run: FlowRun,
     mock_runner_execute_flow_run: MagicMock,
@@ -539,7 +586,7 @@ async def test_process_worker_auto_uv_command_honors_job_variable_env(
         "dependencies = ['prefect']\n"
     )
     monkeypatch.setattr(
-        "prefect.runner._workspace_starter.shutil.which",
+        "prefect.runner._uv_command.shutil.which",
         lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
     )
 

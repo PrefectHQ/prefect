@@ -25,11 +25,11 @@ from typing import TYPE_CHECKING, Any, Optional, TypeVar
 
 import anyio
 import anyio.abc
-from pydantic import Field, TypeAdapter, ValidationError, field_validator
+from pydantic import Field, PrivateAttr, TypeAdapter, ValidationError, field_validator
 
 from prefect._internal.schemas.validators import validate_working_dir
 from prefect.client.schemas.objects import Flow as APIFlow
-from prefect.runner._workspace_starter import uv_project_command
+from prefect.runner._uv_command import uv_project_command
 from prefect.runner.runner import Runner
 from prefect.states import Pending
 from prefect.utilities.processutils import command_to_string, get_sys_executable
@@ -54,6 +54,13 @@ class ProcessJobConfiguration(BaseJobConfiguration):
     stream_output: bool = Field(default=True)
     working_dir: Optional[Path] = Field(default=None)
 
+    _command_configured: bool = PrivateAttr(default=False)
+
+    @property
+    def command_configured(self) -> bool:
+        """Whether the flow run's command was configured rather than defaulted."""
+        return self._command_configured
+
     @field_validator("working_dir")
     @classmethod
     def validate_working_dir(cls, v: Path | str | None) -> Path | None:
@@ -70,6 +77,10 @@ class ProcessJobConfiguration(BaseJobConfiguration):
         worker_name: str | None = None,
         worker_id: "UUID | None" = None,
     ) -> None:
+        # The base implementation fills in `_base_flow_run_command()` when no command
+        # is configured, so provenance must be captured before delegating.
+        self._command_configured = self.command is not None
+
         super().prepare_for_flow_run(
             flow_run,
             deployment,
@@ -81,9 +92,9 @@ class ProcessJobConfiguration(BaseJobConfiguration):
 
         self.env: dict[str, str | None] = {**os.environ, **self.env}
         self.command: str | None = (
-            command_to_string([get_sys_executable(), "-m", "prefect.engine"])
-            if self.command == self._base_flow_run_command()
-            else self.command
+            self.command
+            if self._command_configured
+            else command_to_string([get_sys_executable(), "-m", "prefect.engine"])
         )
 
     @staticmethod
@@ -178,9 +189,7 @@ class ProcessWorker(
         is a project that declares `prefect` as a dependency and the deployment
         did not configure an explicit command.
         """
-        if configuration.command != command_to_string(
-            [get_sys_executable(), "-m", "prefect.engine"]
-        ):
+        if configuration.command_configured:
             return configuration.command
 
         env = configuration.env or {}
