@@ -109,7 +109,7 @@ export const columns: ColumnDef<Deployment>[] = [
 							<Icon id="MoreHorizontal" className="size-4" />
 						</Button>
 					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end">
+					<DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
 						<DropdownMenuItem
 							onClick={() =>
 								void navigator.clipboard.writeText(row.original.id)
