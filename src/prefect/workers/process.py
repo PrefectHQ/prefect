@@ -29,6 +29,7 @@ from pydantic import Field, field_validator
 
 from prefect._internal.schemas.validators import validate_working_dir
 from prefect.client.schemas.objects import Flow as APIFlow
+from prefect.runner._workspace_starter import uv_project_command
 from prefect.runner.runner import Runner
 from prefect.states import Pending
 from prefect.utilities.processutils import command_to_string, get_sys_executable
@@ -151,7 +152,7 @@ class ProcessWorker(
             warnings.simplefilter("ignore", DeprecationWarning)
             process = await self._runner.execute_flow_run(
                 flow_run_id=flow_run.id,
-                command=configuration.command,
+                command=self._resolve_command(configuration, working_dir),
                 cwd=working_dir,
                 env=configuration.env,
                 stream_output=configuration.stream_output,
@@ -168,6 +169,27 @@ class ProcessWorker(
             raise RuntimeError("Failed to start flow run process.")
 
         return ProcessWorkerResult(status_code=status_code, identifier=str(process.pid))
+
+    def _resolve_command(
+        self, configuration: ProcessJobConfiguration, working_dir: Path | str
+    ) -> str | None:
+        """
+        Use an auto-`uv run` launcher for the flow run when the working directory
+        is a project that declares `prefect` as a dependency and the deployment
+        did not configure an explicit command.
+        """
+        if configuration.command != command_to_string(
+            [get_sys_executable(), "-m", "prefect.engine"]
+        ):
+            return configuration.command
+
+        env = configuration.env or {}
+        uv_command = uv_project_command(
+            Path(working_dir),
+            ["-m", "prefect.engine"],
+            path=env.get("PATH"),
+        )
+        return uv_command or configuration.command
 
     async def _submit_adhoc_run(
         self,

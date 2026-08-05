@@ -246,11 +246,20 @@ def _pyproject_declares_prefect_dependency(pyproject: Path) -> bool:
     return _dependencies_include_prefect(project.get("dependencies"))
 
 
-def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
+def uv_project_command(
+    project_root: Path | None,
+    engine_args: Iterable[str],
+    path: str | None = None,
+) -> str | None:
+    """Build an auto-`uv run` command for a project directory, if applicable.
+
+    Returns `None` unless dependency auto-installation is enabled, `project_root`
+    contains a `pyproject.toml` declaring `prefect` as a project dependency, and
+    `uv` is discoverable on `path` (or the current `PATH` when `path` is `None`).
+    """
     if not get_current_settings().runner.auto_install_dependencies:
         return None
 
-    project_root = workspace.project_root
     if project_root is None:
         return None
 
@@ -258,11 +267,8 @@ def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
     if not pyproject.is_file() or not _pyproject_declares_prefect_dependency(pyproject):
         return None
 
-    workspace_path = workspace.environment.get("PATH")
     uv_executable = (
-        shutil.which("uv", path=workspace_path)
-        if workspace_path is not None
-        else shutil.which("uv")
+        shutil.which("uv", path=path) if path is not None else shutil.which("uv")
     )
     if uv_executable is None:
         return None
@@ -274,10 +280,16 @@ def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
             "--no-default-groups",
             "--project",
             str(project_root),
-            "-m",
-            "prefect.flow_engine",
-            workspace.runtime_entrypoint,
+            *engine_args,
         ]
+    )
+
+
+def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
+    return uv_project_command(
+        workspace.project_root,
+        ["-m", "prefect.flow_engine", workspace.runtime_entrypoint],
+        path=workspace.environment.get("PATH"),
     )
 
 

@@ -21,7 +21,12 @@ from prefect.server.schemas.actions import (
     DeploymentUpdate,
     WorkPoolCreate,
 )
+from prefect.settings import (
+    PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES,
+    temporary_settings,
+)
 from prefect.types._datetime import now
+from prefect.utilities.processutils import command_to_string, get_sys_executable
 from prefect.workers.process import (
     ProcessWorker,
     ProcessWorkerResult,
@@ -464,6 +469,80 @@ async def test_process_worker_working_dir_override(
         assert mock_runner_execute_flow_run.call_args.kwargs["cwd"] == Path(
             path_override_value
         )
+
+
+async def test_process_worker_uses_auto_uv_command_for_project_working_dir(
+    flow_run: FlowRun,
+    mock_runner_execute_flow_run: MagicMock,
+    process_work_pool: WorkPool,
+    prefect_client: PrefectClient,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    (tmp_path / "pyproject.toml").write_text(
+        "[project]\n"
+        "name = 'test-project'\n"
+        "version = '0.1.0'\n"
+        "dependencies = ['prefect']\n"
+    )
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.shutil.which",
+        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
+    )
+
+    assert flow_run.deployment_id is not None
+    await prefect_client.update_deployment(
+        deployment_id=flow_run.deployment_id,
+        deployment=client_schemas.actions.DeploymentUpdate(
+            job_variables={"working_dir": str(tmp_path)},
+        ),
+    )
+
+    with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
+        async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+            configuration = await worker.job_configuration.resolve_for_flow_run(
+                flow_run,
+                client=worker.client,
+                work_pool=worker.work_pool,
+                worker_name=worker.name,
+                worker_id=worker.backend_id,
+            )
+            await worker.run(flow_run=flow_run, configuration=configuration)
+
+    assert mock_runner_execute_flow_run.call_args.kwargs["command"] == (
+        command_to_string(
+            [
+                "/opt/bin/uv",
+                "run",
+                "--no-default-groups",
+                "--project",
+                str(tmp_path),
+                "-m",
+                "prefect.engine",
+            ]
+        )
+    )
+
+
+async def test_process_worker_keeps_engine_command_without_project(
+    flow_run: FlowRun,
+    mock_runner_execute_flow_run: MagicMock,
+    process_work_pool: WorkPool,
+):
+    with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
+        async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+            configuration = await worker.job_configuration.resolve_for_flow_run(
+                flow_run,
+                client=worker.client,
+                work_pool=worker.work_pool,
+                worker_name=worker.name,
+                worker_id=worker.backend_id,
+            )
+            await worker.run(flow_run=flow_run, configuration=configuration)
+
+    assert mock_runner_execute_flow_run.call_args.kwargs[
+        "command"
+    ] == command_to_string([get_sys_executable(), "-m", "prefect.engine"])
 
 
 async def test_process_worker_stream_output_override(
