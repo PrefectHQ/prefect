@@ -50,20 +50,6 @@ if TYPE_CHECKING:
 FR = TypeVar("FR")  # used to capture the return type of a flow
 
 
-def _auto_install_dependencies(env: dict[str, str | None]) -> bool | None:
-    """
-    Resolve `PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES` from a flow run's environment,
-    returning `None` when the run does not configure it or configures it invalidly.
-    """
-    value = env.get("PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES")
-    if value is None:
-        return None
-    try:
-        return TypeAdapter(bool).validate_python(value)
-    except ValidationError:
-        return None
-
-
 class ProcessJobConfiguration(BaseJobConfiguration):
     stream_output: bool = Field(default=True)
     working_dir: Optional[Path] = Field(default=None)
@@ -198,11 +184,23 @@ class ProcessWorker(
             return configuration.command
 
         env = configuration.env or {}
+        # A run-specific setting in the environment takes precedence over the
+        # worker process's own setting.
+        auto_install = env.get("PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES")
+        try:
+            auto_install_dependencies = (
+                TypeAdapter(bool).validate_python(auto_install)
+                if auto_install is not None
+                else None
+            )
+        except ValidationError:
+            auto_install_dependencies = None
+
         uv_command = uv_project_command(
             Path(working_dir),
             ["-m", "prefect.engine"],
             path=env.get("PATH"),
-            auto_install_dependencies=_auto_install_dependencies(env),
+            auto_install_dependencies=auto_install_dependencies,
         )
         return uv_command or configuration.command
 

@@ -40,10 +40,6 @@ When a flow is decorated with an infrastructure decorator (`@docker`, `@ecs`, `@
 
 Work-pool-level launchers are configured via `prefect work-pool storage configure s3|gcs|azure --launcher <executable>` and are stored in the step dict itself. Flow-level launchers (via the decorator) are resolved at submit time and win over the work-pool step configuration.
 
-## Process Worker Auto-`uv run`
-
-`ProcessWorker._resolve_command()` swaps the default `python -m prefect.engine` launcher for an auto-`uv run` command when the flow run's working directory is a project that satisfies the conditions in `runner/_workspace_starter.py::uv_project_command` (auto-install setting enabled, `pyproject.toml` declaring `prefect`, `uv` on the configured `PATH`). Explicit deployment commands are never overridden.
-
 ## Anti-Patterns
 
 - Do not set `PREFECT__WORKER_NAME` / `PREFECT__WORKER_ID` in `os.environ` from outside `BaseWorker` — setup/teardown own this lifecycle.
