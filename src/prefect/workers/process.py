@@ -25,7 +25,7 @@ from typing import TYPE_CHECKING, Any, Optional, TypeVar
 
 import anyio
 import anyio.abc
-from pydantic import Field, field_validator
+from pydantic import Field, TypeAdapter, ValidationError, field_validator
 
 from prefect._internal.schemas.validators import validate_working_dir
 from prefect.client.schemas.objects import Flow as APIFlow
@@ -48,6 +48,20 @@ if TYPE_CHECKING:
     from prefect.flows import Flow
 
 FR = TypeVar("FR")  # used to capture the return type of a flow
+
+
+def _auto_install_dependencies(env: dict[str, str | None]) -> bool | None:
+    """
+    Resolve `PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES` from a flow run's environment,
+    returning `None` when the run does not configure it or configures it invalidly.
+    """
+    value = env.get("PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES")
+    if value is None:
+        return None
+    try:
+        return TypeAdapter(bool).validate_python(value)
+    except ValidationError:
+        return None
 
 
 class ProcessJobConfiguration(BaseJobConfiguration):
@@ -188,6 +202,7 @@ class ProcessWorker(
             Path(working_dir),
             ["-m", "prefect.engine"],
             path=env.get("PATH"),
+            auto_install_dependencies=_auto_install_dependencies(env),
         )
         return uv_command or configuration.command
 

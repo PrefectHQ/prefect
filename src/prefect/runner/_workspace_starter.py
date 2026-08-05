@@ -250,14 +250,22 @@ def uv_project_command(
     project_root: Path | None,
     engine_args: Iterable[str],
     path: str | None = None,
+    auto_install_dependencies: bool | None = None,
 ) -> str | None:
     """Build an auto-`uv run` command for a project directory, if applicable.
 
     Returns `None` unless dependency auto-installation is enabled, `project_root`
     contains a `pyproject.toml` declaring `prefect` as a project dependency, and
     `uv` is discoverable on `path` (or the current `PATH` when `path` is `None`).
+
+    `auto_install_dependencies` overrides the current setting value, for callers
+    that resolve the setting from a run-specific environment.
     """
-    if not get_current_settings().runner.auto_install_dependencies:
+    if auto_install_dependencies is None:
+        auto_install_dependencies = (
+            get_current_settings().runner.auto_install_dependencies
+        )
+    if not auto_install_dependencies:
         return None
 
     if project_root is None:
