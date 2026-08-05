@@ -1,3 +1,4 @@
+import { useNavigate } from "@tanstack/react-router";
 import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
 import {
 	getCoreRowModel,
@@ -81,6 +82,7 @@ export const FlowDeploymentsTab = ({
 	onDeploymentPaginationChange,
 	onClearFilters,
 }: FlowDeploymentsTabProps) => {
+	const navigate = useNavigate();
 	const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 	const { deleteDeployment } = useDeleteDeployment();
@@ -243,7 +245,15 @@ export const FlowDeploymentsTab = ({
 			<FlowRunActivityBarGraphTooltipProvider>
 				{/* Override table container overflow to allow chart tooltips to escape */}
 				<div className="[&_[data-slot=table-container]]:overflow-visible">
-					<DataTable table={deploymentsTable} />
+					<DataTable
+						table={deploymentsTable}
+						onRowClick={(row) =>
+							void navigate({
+								to: "/deployments/deployment/$id",
+								params: { id: row.id },
+							})
+						}
+					/>
 				</div>
 			</FlowRunActivityBarGraphTooltipProvider>
 

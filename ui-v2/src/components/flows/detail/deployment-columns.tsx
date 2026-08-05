@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
@@ -40,7 +41,16 @@ export const columns: ColumnDef<Deployment>[] = [
 	{
 		accessorKey: "name",
 		header: "Name",
-		cell: ({ row }) => row.original.name,
+		cell: ({ row }) => (
+			<Link
+				to="/deployments/deployment/$id"
+				params={{ id: row.original.id }}
+				className="text-sm font-medium truncate text-link hover:text-link-hover"
+				title={row.original.name}
+			>
+				{row.original.name}
+			</Link>
+		),
 	},
 	{
 		accessorKey: "status",
