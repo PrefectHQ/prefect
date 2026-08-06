@@ -994,7 +994,7 @@ def use_profile(
 
     Args:
         profile: The name of the profile to load or an instance of a Profile.
-        override_environment_variable: If set, variables in the profile will take
+        override_environment_variables: If set, variables in the profile will take
             precedence over current environment variables. By default, environment
             variables will override profile settings.
         include_current_context: If set, the new settings will be constructed

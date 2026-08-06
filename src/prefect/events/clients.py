@@ -718,7 +718,6 @@ class PrefectEventSubscriber:
         """
         Args:
             api_url: The base URL for a Prefect Cloud workspace
-            api_key: The API of an actor with the manage_events scope
             reconnection_attempts: When the client is disconnected, how many times
                 the client should attempt to reconnect
             reconnect_on_clean_close: Whether to reconnect when the server closes

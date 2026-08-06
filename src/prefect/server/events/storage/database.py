@@ -139,7 +139,7 @@ async def read_events(
 
     Args:
         session: a Postgres events session.
-        filter: filter criteria for events.
+        events_filter: filter criteria for events.
         limit: limit for the query.
         offset: offset for the query.
 

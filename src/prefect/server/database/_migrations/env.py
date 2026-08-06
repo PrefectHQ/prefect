@@ -38,7 +38,7 @@ def include_object(
             sqlalchemy.schema.Index sqlalchemy.schema.UniqueConstraint, or
             sqlalchemy.schema.ForeignKeyConstraint object.
         name: the name of the object. This is typically available via object.name.
-        type: a string describing the type of object; currently "table", "column",
+        type_: a string describing the type of object; currently "table", "column",
             "index", "unique_constraint", or "foreign_key_constraint"
         reflected: True if the given object was produced based on table reflection,
             False if it's from a local .MetaData object.
