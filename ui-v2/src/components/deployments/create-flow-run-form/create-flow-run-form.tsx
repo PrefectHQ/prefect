@@ -24,16 +24,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { WorkQueueSelect } from "@/components/work-pools/work-queue-select";
 import { FlowRunNameInput } from "./flow-run-name-input";
 import { FlowRunStartInput } from "./flow-run-start-input";
-import { useCreateFlowRunForm } from "./use-create-flow-run-form";
+import {
+	type AdditionalOptionsOverrides,
+	useCreateFlowRunForm,
+} from "./use-create-flow-run-form";
 
 type CreateFlowRunFormProps = {
 	deployment: Deployment;
 	overrideParameters: Record<string, unknown> | undefined;
+	overrideAdditionalOptions?: AdditionalOptionsOverrides;
 };
 
 export const CreateFlowRunForm = ({
 	deployment,
 	overrideParameters,
+	overrideAdditionalOptions,
 }: CreateFlowRunFormProps) => {
 	const {
 		form,
@@ -41,7 +46,11 @@ export const CreateFlowRunForm = ({
 		parameterFormErrors,
 		setParametersFormValues,
 		parametersFormValues,
-	} = useCreateFlowRunForm(deployment, overrideParameters);
+	} = useCreateFlowRunForm(
+		deployment,
+		overrideParameters,
+		overrideAdditionalOptions,
+	);
 	const parametersOpenAPISchema = form.getValues("parameter_openapi_schema");
 
 	const { id, work_pool_name } = deployment;

@@ -2,6 +2,7 @@
 
 import pytest
 from prefect_kubernetes.diagnostics import (
+    DiagnosisCategory,
     DiagnosisLevel,
     InfrastructureDiagnosis,
     diagnose_k8s_pod,
@@ -64,6 +65,7 @@ class TestDiagnoseKubernetesPod:
         result = diagnose_k8s_pod(status)
         assert result is not None
         assert result.level == DiagnosisLevel.ERROR
+        assert result.category == DiagnosisCategory.IMAGE_PULL_ERROR
         assert "flow-run" in result.summary
         assert reason in result.detail
         assert "image" in result.resolution.lower()
@@ -100,6 +102,7 @@ class TestDiagnoseKubernetesPod:
         result = diagnose_k8s_pod(status)
         assert result is not None
         assert result.level == DiagnosisLevel.ERROR
+        assert result.category == DiagnosisCategory.OOM_KILLED
         assert "OOMKilled" in result.summary
         assert "worker" in result.summary
         assert "memory" in result.resolution.lower()
@@ -124,6 +127,7 @@ class TestDiagnoseKubernetesPod:
         result = diagnose_k8s_pod(status)
         assert result is not None
         assert result.level == DiagnosisLevel.ERROR
+        assert result.category == DiagnosisCategory.CRASH_LOOP_BACKOFF
         assert "crash-looping" in result.summary
         assert "logs" in result.resolution.lower()
 
@@ -143,8 +147,55 @@ class TestDiagnoseKubernetesPod:
         result = diagnose_k8s_pod(status)
         assert result is not None
         assert result.level == DiagnosisLevel.WARNING
+        assert result.category == DiagnosisCategory.UNSCHEDULABLE_INSUFFICIENT_RESOURCES
         assert "unschedulable" in result.summary.lower()
         assert "insufficient cpu" in result.detail
+
+    @pytest.mark.parametrize(
+        "message,expected_category",
+        [
+            (
+                "0/3 nodes are available: 3 insufficient memory.",
+                DiagnosisCategory.UNSCHEDULABLE_INSUFFICIENT_RESOURCES,
+            ),
+            (
+                "0/3 nodes are available: 3 node(s) didn't match Pod's node affinity/selector.",
+                DiagnosisCategory.UNSCHEDULABLE_NODE_AFFINITY,
+            ),
+            (
+                "0/3 nodes are available: 3 node(s) had untolerated taint {key: value}.",
+                DiagnosisCategory.UNSCHEDULABLE_TAINT,
+            ),
+            (
+                "0/3 nodes are available: 3 node(s) had volume node affinity conflict.",
+                DiagnosisCategory.UNSCHEDULABLE_NODE_AFFINITY,
+            ),
+            (
+                "0/3 nodes are available: 3 node(s) didn't match pod topology spread constraints.",
+                DiagnosisCategory.UNSCHEDULABLE,
+            ),
+            (
+                "0/3 nodes are available for some unknown reason.",
+                DiagnosisCategory.UNSCHEDULABLE,
+            ),
+        ],
+    )
+    def test_unschedulable_categorized_by_cause(
+        self, message: str, expected_category: DiagnosisCategory
+    ):
+        status = {
+            "conditions": [
+                {
+                    "type": "PodScheduled",
+                    "status": "False",
+                    "reason": "Unschedulable",
+                    "message": message,
+                }
+            ],
+        }
+        result = diagnose_k8s_pod(status)
+        assert result is not None
+        assert result.category == expected_category
 
     def test_unschedulable_without_message(self):
         status = {
@@ -159,6 +210,7 @@ class TestDiagnoseKubernetesPod:
         result = diagnose_k8s_pod(status)
         assert result is not None
         assert result.level == DiagnosisLevel.WARNING
+        assert result.category == DiagnosisCategory.UNSCHEDULABLE
 
     def test_scheduled_condition_is_not_flagged(self):
         """A PodScheduled condition that is not Unschedulable should be ignored."""
@@ -184,6 +236,7 @@ class TestDiagnoseKubernetesPod:
         result = diagnose_k8s_pod(status)
         assert result is not None
         assert result.level == DiagnosisLevel.WARNING
+        assert result.category == DiagnosisCategory.EVICTED
         assert "evicted" in result.summary.lower()
         assert "memory" in result.detail.lower()
 
@@ -215,6 +268,7 @@ class TestDiagnoseKubernetesPod:
         result = diagnose_k8s_pod(status)
         assert result is not None
         assert result.level == DiagnosisLevel.WARNING
+        assert result.category == DiagnosisCategory.EVICTED
         assert "evicted" in result.summary.lower()
 
     # --- Init container failures ------------------------------------------
@@ -291,6 +345,7 @@ class TestDiagnoseKubernetesPod:
     def test_diagnosis_is_frozen(self):
         d = InfrastructureDiagnosis(
             level=DiagnosisLevel.ERROR,
+            category=DiagnosisCategory.OOM_KILLED,
             summary="test",
             detail="test",
             resolution="test",
@@ -301,12 +356,14 @@ class TestDiagnoseKubernetesPod:
     def test_diagnosis_equality(self):
         a = InfrastructureDiagnosis(
             level=DiagnosisLevel.ERROR,
+            category=DiagnosisCategory.OOM_KILLED,
             summary="s",
             detail="d",
             resolution="r",
         )
         b = InfrastructureDiagnosis(
             level=DiagnosisLevel.ERROR,
+            category=DiagnosisCategory.OOM_KILLED,
             summary="s",
             detail="d",
             resolution="r",

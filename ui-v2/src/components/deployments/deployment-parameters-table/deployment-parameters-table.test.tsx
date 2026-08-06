@@ -79,4 +79,71 @@ describe("DeploymentParametersTable", () => {
 
 		expect(screen.getByText("No results.")).toBeVisible();
 	});
+
+	it("renders empty table when parameter_openapi_schema has no properties", () => {
+		// ------------ Setup
+		const deployment = createFakeDeployment({
+			parameter_openapi_schema: { title: "Parameters", type: "object" },
+			parameters: {},
+		});
+
+		// ------------ Act
+		render(<DeploymentParametersTable deployment={deployment} />);
+
+		// ------------ Assert
+		expect(screen.getByText("No results.")).toBeVisible();
+	});
+
+	it("renders empty table when parameter_openapi_schema.properties is null", () => {
+		// ------------ Setup
+		const deployment = createFakeDeployment({
+			parameter_openapi_schema: { properties: null },
+			parameters: {},
+		});
+
+		// ------------ Act
+		render(<DeploymentParametersTable deployment={deployment} />);
+
+		// ------------ Assert
+		expect(screen.getByText("No results.")).toBeVisible();
+	});
+
+	it("renders empty table when parameter_openapi_schema is missing", () => {
+		// ------------ Setup
+		const deployment = createFakeDeployment({
+			parameter_openapi_schema: undefined,
+			parameters: {},
+		});
+
+		// ------------ Act
+		render(<DeploymentParametersTable deployment={deployment} />);
+
+		// ------------ Assert
+		expect(screen.getByText("No results.")).toBeVisible();
+	});
+
+	it("renders rows when parameters is missing but properties exist", () => {
+		// ------------ Setup
+		const deployment = createFakeDeployment({
+			parameter_openapi_schema: {
+				title: "Parameters",
+				type: "object",
+				properties: {
+					name: {
+						default: "world",
+						position: 0,
+						title: "name",
+						type: "string",
+					},
+				},
+			},
+			parameters: undefined,
+		});
+
+		// ------------ Act
+		render(<DeploymentParametersTable deployment={deployment} />);
+
+		// ------------ Assert
+		expect(screen.getByRole("cell", { name: /name/i })).toBeVisible();
+	});
 });

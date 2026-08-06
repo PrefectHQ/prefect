@@ -43,6 +43,21 @@ List profile names.
 
 
 
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--output">
+    Specify an output format. Currently supports: json
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
 
 
 ## `prefect profile create`
@@ -69,7 +84,6 @@ Create a new profile.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="NAME" type="string" required>
-    \[required]
 </ResponseField>
 </Accordion>
 
@@ -111,7 +125,6 @@ Set the given profile to active.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="NAME" type="string" required>
-    \[required]
 </ResponseField>
 </Accordion>
 
@@ -145,7 +158,6 @@ Delete the given profile.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="NAME" type="string" required>
-    \[required]
 </ResponseField>
 </Accordion>
 
@@ -179,10 +191,8 @@ Change the name of a profile.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="NAME" type="string" required>
-    \[required]
 </ResponseField>
 <ResponseField name="NEW_NAME" type="string" required>
-    \[required]
 </ResponseField>
 </Accordion>
 
@@ -216,7 +226,7 @@ Display settings from a given profile; defaults to active.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="NAME" type="string">
-    Name of profile to inspect; defaults to active profile.
+    Name of profile to inspect; defaults to active.
 </ResponseField>
 </Accordion>
 
@@ -245,10 +255,6 @@ prefect profile populate-defaults [OPTIONS]
 
 
 <Info>
-Populate the profiles configuration with default base profiles, preserving existing user profiles.
+Populate the profiles configuration with default base profiles,
+preserving existing user profiles.
 </Info>
-
-
-
-
-

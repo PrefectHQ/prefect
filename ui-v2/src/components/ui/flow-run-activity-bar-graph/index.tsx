@@ -3,8 +3,16 @@ import { cva } from "class-variance-authority";
 import { scaleSymlog } from "d3-scale";
 import { format, formatDistanceStrict } from "date-fns";
 import { Calendar, ChevronRight, Clock } from "lucide-react";
-import type { ReactNode } from "react";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import type { CSSProperties, ReactNode, RefObject } from "react";
+import {
+	useCallback,
+	useContext,
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { Bar, BarChart, Cell, type TooltipContentProps } from "recharts";
 import type { components } from "@/api/prefect";
 import { DeploymentIconText } from "@/components/deployments/deployment-icon-text";
@@ -199,6 +207,7 @@ export const FlowRunActivityBarChart = ({
 	className,
 }: FlowRunActivityBarChartProps) => {
 	const [isTooltipActive, setIsTooltipActive] = useIsTooltipActive(chartId);
+	const chartRef = useRef<HTMLDivElement>(null);
 
 	// Cap flow runs to prevent crash when there are more runs than bars.
 	// The chart can only display one run per bar, so we take the first N runs
@@ -245,6 +254,7 @@ export const FlowRunActivityBarChart = ({
 
 	return (
 		<ChartContainer
+			ref={chartRef}
 			config={{
 				inactivity: {
 					color: "var(--muted-foreground)",
@@ -264,9 +274,8 @@ export const FlowRunActivityBarChart = ({
 				}}
 			>
 				<ChartTooltip
-					content={<FlowRunTooltip />}
+					content={<FlowRunTooltip chartRef={chartRef} />}
 					isAnimationActive={false}
-					allowEscapeViewBox={{ x: true, y: true }}
 					active={isTooltipActive}
 					// Allows the tooltip to react to mouse events
 					wrapperStyle={{ pointerEvents: "auto" }}
@@ -290,9 +299,39 @@ export const FlowRunActivityBarChart = ({
 
 FlowRunActivityBarChart.displayName = "FlowRunActivityBarChart";
 
-type FlowRunTooltipProps = Partial<TooltipContentProps<number, string>>;
+type FlowRunTooltipProps = Partial<TooltipContentProps<number, string>> & {
+	chartRef: RefObject<HTMLDivElement | null>;
+};
 
-const FlowRunTooltip = ({ payload, active }: FlowRunTooltipProps) => {
+const FlowRunTooltip = ({
+	payload,
+	active,
+	coordinate,
+	chartRef,
+}: FlowRunTooltipProps) => {
+	const ref = useRef<HTMLDivElement>(null);
+	const [style, setStyle] = useState<CSSProperties>({ visibility: "hidden" });
+	const { x, y } = coordinate ?? {};
+
+	// Position the tooltip next to the cursor and clamped to the viewport so it is never clipped
+	useLayoutEffect(() => {
+		const chart = chartRef.current;
+		if (!ref.current || !chart || x === undefined || y === undefined) return;
+
+		const chartRect = chart.getBoundingClientRect();
+		const { width, height } = ref.current.getBoundingClientRect();
+		const PADDING = 8;
+		const OFFSET = 12;
+
+		const clamp = (value: number, max: number) =>
+			Math.max(PADDING, Math.min(value, max));
+
+		setStyle({
+			left: clamp(chartRect.left + x + OFFSET, innerWidth - PADDING - width),
+			top: clamp(chartRect.top + y + OFFSET, innerHeight - PADDING - height),
+		});
+	}, [chartRef, x, y]);
+
 	if (!active || !payload?.length) {
 		return null;
 	}
@@ -320,7 +359,7 @@ const FlowRunTooltip = ({ payload, active }: FlowRunTooltipProps) => {
 			: null;
 
 	return (
-		<Card>
+		<Card ref={ref} className="fixed z-50" style={style}>
 			<CardHeader>
 				<CardTitle className="flex items-center gap-1">
 					{flow?.id && (

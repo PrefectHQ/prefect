@@ -1044,7 +1044,7 @@ async def paginate_flow_runs(
         results=results,
         count=count,
         limit=limit,
-        pages=(count + limit - 1) // limit,
+        pages=(count + limit - 1) // limit if limit > 0 else 0,
         page=page,
     ).model_dump(mode="json")
 

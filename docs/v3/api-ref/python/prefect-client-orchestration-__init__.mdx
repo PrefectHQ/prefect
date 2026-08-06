@@ -115,7 +115,7 @@ clear_server_default_result_storage(self) -> None
 client_version(self) -> str
 ```
 
-#### `count_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L821" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `count_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L849" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 count_flow_runs(self) -> int
@@ -302,7 +302,7 @@ Create a flow in the Prefect API.
 - the ID of the flow in the backend
 
 
-#### `create_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L539" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L567" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_flow_run(self, flow: 'FlowObject[Any, R]', name: str | None = None, parameters: dict[str, Any] | None = None, context: dict[str, Any] | None = None, tags: 'Iterable[str] | None' = None, parent_task_run_id: 'UUID | None' = None, state: 'State[R] | None' = None, work_pool_name: str | None = None, work_queue_name: str | None = None, job_variables: dict[str, Any] | None = None) -> 'FlowRun'
@@ -367,7 +367,7 @@ exist, a new work queue will be created within the deployment's work pool.
 - The flow run model
 
 
-#### `create_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L948" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L1004" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_flow_run_input(self, flow_run_id: 'UUID', key: str, value: str, sender: str | None = None) -> None
@@ -585,7 +585,7 @@ Raises:
     httpx.RequestError: If requests fail
 
 
-#### `delete_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L684" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L712" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_flow_run(self, flow_run_id: 'UUID') -> None
@@ -601,7 +601,7 @@ Raises:
     httpx.RequestError: If requests fails
 
 
-#### `delete_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L1008" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L1064" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_flow_run_input(self, flow_run_id: 'UUID', key: str) -> None
@@ -679,7 +679,7 @@ Delete a work queue by its ID.
 - `httpx.RequestError`: If requests fails
 
 
-#### `filter_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L974" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `filter_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L1030" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 filter_flow_run_input(self, flow_run_id: 'UUID', key_prefix: str, limit: int, exclude_keys: 'set[str]') -> 'list[FlowRunInput]'
@@ -1141,7 +1141,7 @@ the provided criteria will be returned.
 - `work_pool_filter`: filter criteria for work pools
 - `work_queue_filter`: filter criteria for work pool queues
 - `limit`: maximum number of deployments to return. When `None`, the server
-applies `PREFECT_API_DEFAULT_LIMIT` (200 by default).
+applies `PREFECT_SERVER_API_DEFAULT_LIMIT` (200 by default).
 - `offset`: an offset for the deployment query.
 
 **Returns:**
@@ -1210,7 +1210,7 @@ Query the Prefect API for a flow by name.
 - a fully hydrated Flow model
 
 
-#### `read_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L707" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L735" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_flow_run(self, flow_run_id: 'UUID') -> 'FlowRun'
@@ -1225,7 +1225,7 @@ Query the Prefect API for a flow run by id.
 - a Flow Run model representation of the flow run
 
 
-#### `read_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L992" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L1048" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_flow_run_input(self, flow_run_id: 'UUID', key: str) -> str
@@ -1238,7 +1238,25 @@ Reads a flow run input.
 - `key`: The input key.
 
 
-#### `read_flow_run_states` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L919" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_flow_run_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L947" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_flow_run_state(self, flow_run_state_id: 'UUID') -> 'State'
+```
+
+Read a flow run state by ID.
+
+**Args:**
+- `flow_run_state_id`: The flow run state ID.
+
+**Returns:**
+- A State model representation of the flow run state.
+
+**Raises:**
+- `ObjectNotFound`: If the flow run state does not exist.
+
+
+#### `read_flow_run_states` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L975" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_flow_run_states(self, flow_run_id: 'UUID') -> 'list[State]'
@@ -1254,7 +1272,7 @@ Query for the states of a flow run
 of the flow run states
 
 
-#### `read_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L759" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_flow_runs` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L787" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_flow_runs(self) -> 'list[FlowRun]'
@@ -1272,7 +1290,7 @@ be returned.
 - `work_queue_filter`: filter criteria for work pool queues
 - `sort`: sort criteria for the flow runs
 - `limit`: maximum number of flow runs to return. When `None`, the server
-applies `PREFECT_API_DEFAULT_LIMIT` (200 by default).
+applies `PREFECT_SERVER_API_DEFAULT_LIMIT` (200 by default).
 - `offset`: an offset for the flow run query.
 
 **Returns:**
@@ -1298,7 +1316,7 @@ be returned.
 - `work_queue_filter`: filter criteria for work pool queues
 - `sort`: sort criteria for the flows
 - `limit`: maximum number of flows to return. When `None`, the server
-applies `PREFECT_API_DEFAULT_LIMIT` (200 by default).
+applies `PREFECT_SERVER_API_DEFAULT_LIMIT` (200 by default).
 - `offset`: an offset for the flow query.
 
 **Returns:**
@@ -1390,7 +1408,7 @@ be returned.
 - `deployment_filter`: filter criteria for deployments
 - `sort`: sort criteria for the task runs
 - `limit`: maximum number of task runs to return. When `None`, the server
-applies `PREFECT_API_DEFAULT_LIMIT` (200 by default).
+applies `PREFECT_SERVER_API_DEFAULT_LIMIT` (200 by default).
 - `offset`: an offset for the task run query.
 
 **Returns:**
@@ -1559,7 +1577,7 @@ Retrieves queues for a work pool.
 - `work_pool_name`: Name of the work pool for which to get queues.
 - `work_queue_filter`: Criteria by which to filter queues.
 - `limit`: maximum number of work queues to return. When `None`, the server
-applies `PREFECT_API_DEFAULT_LIMIT` (200 by default).
+applies `PREFECT_SERVER_API_DEFAULT_LIMIT` (200 by default).
 - `offset`: an offset for the work queue query.
 
 **Returns:**
@@ -1676,7 +1694,7 @@ Resume (unpause) a deployment by ID.
 - `RequestError`: If request fails
 
 
-#### `resume_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L730" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `resume_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L758" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 resume_flow_run(self, flow_run_id: 'UUID', run_input: dict[str, Any] | None = None) -> 'OrchestrationResult[Any]'
@@ -1722,13 +1740,13 @@ Set the paused state of a deployment.
 - `paused`: whether the deployment should be paused
 
 
-#### `set_flow_run_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L937" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_flow_run_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L993" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_flow_run_name(self, flow_run_id: 'UUID', name: str) -> httpx.Response
 ```
 
-#### `set_flow_run_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L869" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_flow_run_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L897" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_flow_run_state(self, flow_run_id: 'UUID | str', state: 'State[T]', force: bool = False) -> 'OrchestrationResult[T]'
@@ -1827,7 +1845,7 @@ Update a deployment schedule by ID.
 - `slug`: A unique identifier for the schedule.
 
 
-#### `update_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L628" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_flow_run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L656" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_flow_run(self, flow_run_id: 'UUID', flow_version: str | None = None, parameters: dict[str, Any] | None = None, name: str | None = None, tags: 'Iterable[str] | None' = None, empirical_policy: 'FlowRunPolicy | None' = None, infrastructure_pid: str | None = None, job_variables: dict[str, Any] | None = None) -> httpx.Response
@@ -1852,7 +1870,7 @@ infrastructure block.
 - an `httpx.Response` object from the PATCH request
 
 
-#### `update_flow_run_labels` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L1023" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_flow_run_labels` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L1079" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_flow_run_labels(self, flow_run_id: 'UUID', labels: 'KeyValueLabelsField') -> None
@@ -2266,7 +2284,7 @@ exist, a new work queue will be created within the deployment's work pool.
 - The flow run model
 
 
-#### `create_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L448" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `create_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L476" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_flow_run_input(self, flow_run_id: 'UUID', key: str, value: str, sender: str | None = None) -> None
@@ -2503,7 +2521,7 @@ Raises:
     httpx.RequestError: If requests fails
 
 
-#### `delete_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L507" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `delete_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L535" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_flow_run_input(self, flow_run_id: 'UUID', key: str) -> None
@@ -2581,7 +2599,7 @@ Delete a work queue by its ID.
 - `httpx.RequestError`: If requests fails
 
 
-#### `filter_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L473" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `filter_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L501" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 filter_flow_run_input(self, flow_run_id: 'UUID', key_prefix: str, limit: int, exclude_keys: 'set[str]') -> 'list[FlowRunInput]'
@@ -3037,7 +3055,7 @@ the provided criteria will be returned.
 - `work_pool_filter`: filter criteria for work pools
 - `work_queue_filter`: filter criteria for work pool queues
 - `limit`: maximum number of deployments to return. When `None`, the server
-applies `PREFECT_API_DEFAULT_LIMIT` (200 by default).
+applies `PREFECT_SERVER_API_DEFAULT_LIMIT` (200 by default).
 - `offset`: an offset for the deployment query.
 
 **Returns:**
@@ -3121,7 +3139,7 @@ Query the Prefect API for a flow run by id.
 - a Flow Run model representation of the flow run
 
 
-#### `read_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L491" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_flow_run_input` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L519" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_flow_run_input(self, flow_run_id: 'UUID', key: str) -> str
@@ -3134,7 +3152,25 @@ Reads a flow run input.
 - `key`: The input key.
 
 
-#### `read_flow_run_states` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L419" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `read_flow_run_state` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L419" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+read_flow_run_state(self, flow_run_state_id: 'UUID') -> 'State'
+```
+
+Read a flow run state by ID.
+
+**Args:**
+- `flow_run_state_id`: The flow run state ID.
+
+**Returns:**
+- A State model representation of the flow run state.
+
+**Raises:**
+- `ObjectNotFound`: If the flow run state does not exist.
+
+
+#### `read_flow_run_states` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L447" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_flow_run_states(self, flow_run_id: 'UUID') -> 'list[State]'
@@ -3168,7 +3204,7 @@ be returned.
 - `work_queue_filter`: filter criteria for work pool queues
 - `sort`: sort criteria for the flow runs
 - `limit`: maximum number of flow runs to return. When `None`, the server
-applies `PREFECT_API_DEFAULT_LIMIT` (200 by default).
+applies `PREFECT_SERVER_API_DEFAULT_LIMIT` (200 by default).
 - `offset`: an offset for the flow run query.
 
 **Returns:**
@@ -3194,7 +3230,7 @@ be returned.
 - `work_queue_filter`: filter criteria for work pool queues
 - `sort`: sort criteria for the flows
 - `limit`: maximum number of flows to return. When `None`, the server
-applies `PREFECT_API_DEFAULT_LIMIT` (200 by default).
+applies `PREFECT_SERVER_API_DEFAULT_LIMIT` (200 by default).
 - `offset`: an offset for the flow query.
 
 **Returns:**
@@ -3286,7 +3322,7 @@ be returned.
 - `deployment_filter`: filter criteria for deployments
 - `sort`: sort criteria for the task runs
 - `limit`: maximum number of task runs to return. When `None`, the server
-applies `PREFECT_API_DEFAULT_LIMIT` (200 by default).
+applies `PREFECT_SERVER_API_DEFAULT_LIMIT` (200 by default).
 - `offset`: an offset for the task run query.
 
 **Returns:**
@@ -3455,7 +3491,7 @@ Retrieves queues for a work pool.
 - `work_pool_name`: Name of the work pool for which to get queues.
 - `work_queue_filter`: Criteria by which to filter queues.
 - `limit`: maximum number of work queues to return. When `None`, the server
-applies `PREFECT_API_DEFAULT_LIMIT` (200 by default).
+applies `PREFECT_SERVER_API_DEFAULT_LIMIT` (200 by default).
 - `offset`: an offset for the work queue query.
 
 **Returns:**
@@ -3618,7 +3654,7 @@ Set the paused state of a deployment.
 - `paused`: whether the deployment should be paused
 
 
-#### `set_flow_run_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L437" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `set_flow_run_name` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L465" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 set_flow_run_name(self, flow_run_id: 'UUID', name: str) -> httpx.Response
@@ -3748,7 +3784,7 @@ infrastructure block.
 - an `httpx.Response` object from the PATCH request
 
 
-#### `update_flow_run_labels` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L522" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `update_flow_run_labels` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/client/orchestration/_flow_runs/client.py#L550" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_flow_run_labels(self, flow_run_id: 'UUID', labels: 'KeyValueLabelsField') -> None

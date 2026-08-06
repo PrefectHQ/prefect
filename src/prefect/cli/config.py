@@ -121,23 +121,23 @@ def unset(
     settings_context = prefect.context.get_settings_context()
     profiles = prefect.settings.load_profiles()
     profile = profiles[settings_context.profile.name]
-    parsed: set[Setting] = set()
+    parsed: dict[str, Setting] = {}
 
-    for setting_name in setting_names:
+    for setting_name in dict.fromkeys(setting_names):
         if setting_name not in valid_setting_names:
             exit_with_error(f"Unknown setting name {setting_name!r}.")
-        parsed.add(_get_settings_fields(Settings)[setting_name])
+        parsed[setting_name] = _get_settings_fields(Settings)[setting_name]
 
-    for setting in parsed:
+    for setting_name, setting in parsed.items():
         if setting not in profile.settings:
-            exit_with_error(f"{setting.name!r} is not set in profile {profile.name!r}.")
+            exit_with_error(f"{setting_name!r} is not set in profile {profile.name!r}.")
 
     if not yes and _cli.is_interactive():
         from rich.prompt import Confirm
 
         if not Confirm.ask(
             f"Are you sure you want to unset the following setting(s): "
-            f"{listrepr(setting_names)}?",
+            f"{listrepr(parsed.keys())}?",
             console=_cli.console,
         ):
             exit_with_error("Unset aborted.")
@@ -146,7 +146,7 @@ def unset(
         name=profile.name, settings={setting_name: None for setting_name in parsed}
     )
 
-    for setting_name in setting_names:
+    for setting_name in parsed:
         _cli.console.print(f"Unset {setting_name!r}.")
         if setting_name in os.environ:
             _cli.console.print(
@@ -201,6 +201,16 @@ def view(
         exit_with_error("Only 'json' output format is supported.")
 
     valid_setting_names = _get_valid_setting_names(Settings)
+    settings_fields = _get_settings_fields(Settings)
+
+    # Group valid names by their canonical Setting, with the canonical name first.
+    setting_names_by_setting: dict[Setting, list[str]] = {}
+    for name in sorted(valid_setting_names):
+        setting = settings_fields[name]
+        setting_names_by_setting.setdefault(setting, []).append(name)
+    for setting, names in setting_names_by_setting.items():
+        names.sort(key=lambda n: (n != setting.name, n))
+    settings_order = sorted(setting_names_by_setting, key=lambda setting: setting.name)
 
     if show_secrets:
         dump_context = dict(include_secrets=True)
@@ -284,21 +294,24 @@ def view(
                     _process_setting(setting, value, source)
 
     # Environment variables
-    for setting_name in valid_setting_names:
-        setting = _get_settings_fields(Settings)[setting_name]
+    for setting in settings_order:
         if setting.name in processed_settings:
             continue
-        if (env_value := os.getenv(setting.name)) is None:
-            continue
-        _process_setting(setting, env_value, "env")
+        for setting_name in setting_names_by_setting[setting]:
+            if (env_value := os.getenv(setting_name)) is not None:
+                _process_setting(setting, env_value, "env")
+                break
 
     # .env file
-    for key, value in (dotenv_values(".env") if Path(".env").is_file() else {}).items():
-        if key in valid_setting_names:
-            setting = _get_settings_fields(Settings)[key]
-            if setting.name in processed_settings or value is None:
-                continue
-            _process_setting(setting, value, ".env file")
+    dotenv = dotenv_values(".env") if Path(".env").is_file() else {}
+    for setting in settings_order:
+        if setting.name in processed_settings:
+            continue
+        for setting_name in setting_names_by_setting[setting]:
+            value = dotenv.get(setting_name)
+            if value is not None:
+                _process_setting(setting, value, ".env file")
+                break
 
     # prefect.toml
     if Path("prefect.toml").exists():

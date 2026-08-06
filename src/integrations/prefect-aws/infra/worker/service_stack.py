@@ -67,6 +67,7 @@ class EcsServiceStack(Stack):
             type="String",
             description="ARN of existing AWS Secrets Manager secret containing Prefect API key (leave empty to create new)",
             default="",
+            no_echo=True,
         )
 
         self.prefect_api_key = CfnParameter(
@@ -85,6 +86,7 @@ class EcsServiceStack(Stack):
             type="String",
             description="ARN of existing AWS Secrets Manager secret containing Prefect auth string for self-hosted servers (leave empty to create new)",
             default="",
+            no_echo=True,
         )
 
         self.prefect_auth_string = CfnParameter(
@@ -707,7 +709,7 @@ class EcsServiceStack(Stack):
         CfnOutput(
             self,
             "PrefectApiKeySecretArnOutput",
-            value=self.get_api_key_secret_arn(),
+            value=self.api_key_secret.secret_arn,
             description="ARN of the Prefect API key secret",
             condition=self.create_new_api_key_secret_condition,
         )
@@ -715,7 +717,7 @@ class EcsServiceStack(Stack):
         CfnOutput(
             self,
             "PrefectAuthStringSecretArnOutput",
-            value=self.get_auth_string_secret_arn(),
+            value=self.auth_string_secret.secret_arn,
             description="ARN of the Prefect auth string secret",
             condition=self.create_new_auth_string_secret_condition,
         )

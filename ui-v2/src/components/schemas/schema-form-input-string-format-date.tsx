@@ -98,6 +98,7 @@ export function SchemaFormInputStringFormatDate({
 						className="p-0"
 						mode="single"
 						selected={date}
+						defaultMonth={date}
 						onSelect={handleDateChange}
 						required={true}
 						autoFocus

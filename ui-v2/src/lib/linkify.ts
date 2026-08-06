@@ -2,7 +2,15 @@ import { createElement, Fragment, type ReactNode } from "react";
 
 const URL_REGEX = /(https?:\/\/[^\s/$.?#].[^\s)"('[{<>}]*)/g;
 
-export function linkify(text: string): ReactNode {
+/**
+ * Converts URLs within a string of text into clickable anchor elements.
+ *
+ * @param text - The text to scan for URLs.
+ * @param className - Optional class applied to the plain-text spans (and merged
+ *   into the anchor styling), used by callers that need to carry styling — such
+ *   as ANSI colors — through the linkified output.
+ */
+export function linkify(text: string, className?: string): ReactNode {
 	const children: ReactNode[] = [];
 	let lastIndex = 0;
 
@@ -14,7 +22,7 @@ export function linkify(text: string): ReactNode {
 			children.push(
 				createElement(
 					"span",
-					{ key: `text-${lastIndex}` },
+					{ key: `text-${lastIndex}`, className },
 					text.slice(lastIndex, index),
 				),
 			);
@@ -30,15 +38,21 @@ export function linkify(text: string): ReactNode {
 					href,
 					target: "_blank",
 					rel: "noopener noreferrer",
-					className:
+					className: [
 						"text-link hover:text-link-hover hover:underline break-all",
+						className,
+					]
+						.filter(Boolean)
+						.join(" "),
 				},
 				href,
 			),
 		);
 
 		if (tail.length > 0) {
-			children.push(createElement("span", { key: `tail-${index}` }, tail));
+			children.push(
+				createElement("span", { key: `tail-${index}`, className }, tail),
+			);
 		}
 
 		lastIndex = index + url.length;
@@ -48,7 +62,7 @@ export function linkify(text: string): ReactNode {
 		children.push(
 			createElement(
 				"span",
-				{ key: `text-${lastIndex}` },
+				{ key: `text-${lastIndex}`, className },
 				text.slice(lastIndex),
 			),
 		);

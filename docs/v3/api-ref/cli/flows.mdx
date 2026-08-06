@@ -51,7 +51,11 @@ View flows.
 <Accordion title="Options" defaultOpen>
 
 <ResponseField name="--limit">
-    
+    Maximum number of flows to list.
+</ResponseField>
+
+<ResponseField name="--output">
+    Specify an output format. Currently supports: json
 </ResponseField>
 
 </Accordion>
@@ -84,7 +88,6 @@ Serve a flow via an entrypoint.
 
 <Accordion title="Arguments" defaultOpen>
 <ResponseField name="ENTRYPOINT" type="string" required>
-    The path to a file containing a flow and the name of the flow function in the format `./path/to/file.py:flow_func_name`.  \[required]
 </ResponseField>
 </Accordion>
 
@@ -100,11 +103,11 @@ Serve a flow via an entrypoint.
     The description to give the created deployment. If not provided, the description will be populated from the flow's description.
 </ResponseField>
 
-<ResponseField name="-v">
+<ResponseField name="--version">
     A version to give the created deployment.
 </ResponseField>
 
-<ResponseField name="-t">
+<ResponseField name="--tag">
     One or more optional tags to apply to the created deployment.
 </ResponseField>
 

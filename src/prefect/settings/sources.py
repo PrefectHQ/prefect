@@ -1,5 +1,6 @@
 import os
 import sys
+import threading
 import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple, Type, get_origin
@@ -26,16 +27,23 @@ from prefect.settings.constants import DEFAULT_PREFECT_HOME, DEFAULT_PROFILES_PA
 from prefect.utilities.collections import get_from_dict
 
 _file_cache: TTLCache[str, dict[str, Any]] = TTLCache(maxsize=100, ttl=60)
+_file_cache_lock = threading.Lock()
 
 
 def _read_toml_file(path: Path) -> dict[str, Any]:
-    """use ttl cache to cache toml files"""
+    """use ttl cache to cache toml files
+
+    `TTLCache` is not thread-safe, so all access is guarded by a lock to avoid
+    corrupting its internal state under concurrent settings loads.
+    """
     modified_time = path.stat().st_mtime
     cache_key = f"toml_file:{path}:{modified_time}"
-    if value := _file_cache.get(cache_key):
-        return value
+    with _file_cache_lock:
+        if value := _file_cache.get(cache_key):
+            return value
     data = tomllib.loads(path.read_text(encoding="utf-8"))  # type: ignore
-    _file_cache[cache_key] = data
+    with _file_cache_lock:
+        _file_cache[cache_key] = data
     return data
 
 

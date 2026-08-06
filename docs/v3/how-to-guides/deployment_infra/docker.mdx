@@ -78,7 +78,7 @@ prefect worker start --pool my-docker-pool --type docker
 </Tip>
 
 Keep this terminal session active for the worker to continue to pick up jobs.
-Since you are running this worker locally, the worker will if you close the terminal.
+Since you are running this worker locally, the worker will stop if you close the terminal.
 In a production setting this worker should run as a [daemonized or managed process](/v3/deploy/daemonize-processes/).
 
 ## Create the deployment
@@ -255,13 +255,13 @@ See all the optional keyword arguments for the [`DockerImage` class](https://doc
 <Tip>
 **Default Docker namespace**
 
-    You can set the `PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE` setting to append a default Docker namespace to all images
+    You can set the `PREFECT_DEPLOYMENTS_DEFAULT_DOCKER_BUILD_NAMESPACE` setting to append a default Docker namespace to all images
     you build with `.deploy`. This is helpful if you use a private registry to store your images.
 
     To set a default Docker namespace for your current profile run:
 
     ```bash
-    prefect config set PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE=<docker-registry-url>/<organization-or-username>
+    prefect config set PREFECT_DEPLOYMENTS_DEFAULT_DOCKER_BUILD_NAMESPACE=<docker-registry-url>/<organization-or-username>
     ```
 
     Once set, you can omit the namespace from your image name when creating a deployment:
@@ -276,7 +276,7 @@ See all the optional keyword arguments for the [`DockerImage` class](https://doc
     ```
 
     The above code builds an image with the format `<docker-registry-url>/<organization-or-username>/my_image:my_image_tag`
-    when `PREFECT_DEFAULT_DOCKER_BUILD_NAMESPACE` is set.
+    when `PREFECT_DEPLOYMENTS_DEFAULT_DOCKER_BUILD_NAMESPACE` is set.
 </Tip>
 
 ### Store your code in git-based cloud storage
@@ -336,7 +336,7 @@ The `job_variables` parameter allows you to fine-tune the infrastructure setting
 The values passed in override default values in the specified work pool's
 [base job template](/v3/deploy/infrastructure-concepts/work-pools/#base-job-template).
 
-You can override environment variables, such as `image_pull_policy` and `image`, for a specific deployment with the `job_variables`
+You can override job variables, such as `image_pull_policy` and `image`, for a specific deployment with the `job_variables`
 argument. Valid values for `image_pull_policy` are `IfNotPresent`, `Always`, `IfPossible`, and `Never`. `IfPossible` always attempts to
 pull the image, but falls back to a local copy if the pull fails instead of raising an error.
 

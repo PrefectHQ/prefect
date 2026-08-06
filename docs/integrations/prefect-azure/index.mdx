@@ -167,7 +167,7 @@ Before using managed identity authentication, configure Azure:
 
 4. Configure a password-less database connection URL (the plugin supplies the token):
    ```bash
-   export PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://<identity-name>@<host>:5432/prefect"
+   export PREFECT_SERVER_DATABASE_CONNECTION_URL="postgresql+asyncpg://<identity-name>@<host>:5432/prefect"
    ```
 
 The plugin will automatically acquire and inject a Microsoft Entra token as the password when connecting to the database.

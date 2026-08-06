@@ -273,19 +273,19 @@ def test_create_ui_app_mounts_dual_bundles_and_exposes_ui_settings(
 
     client = TestClient(ui_app)
 
-    v1_response = client.get("/dashboard")
+    v1_response = client.get("/dashboard", headers={"accept": "text/html"})
     assert v1_response.status_code == 200
     assert "V1 UI" in v1_response.text
 
     client.cookies.set("prefect_ui_version", "v2")
-    v2_response = client.get("/v2/dashboard")
+    v2_response = client.get("/v2/dashboard", headers={"accept": "text/html"})
     assert v2_response.status_code == 200
     assert "V2 UI" in v2_response.text
     assert "/v2" in v2_response.text
 
     settings_response = client.get("/ui-settings")
     settings_response.raise_for_status()
-    assert settings_response.json()["default_ui"] == "v1"
+    assert settings_response.json()["default_ui"] == "v2"
     assert settings_response.json()["available_uis"] == ["v1", "v2"]
     assert settings_response.json()["v1_base_url"] == "/"
     assert settings_response.json()["v2_base_url"] == "/v2"
@@ -332,11 +332,11 @@ def test_create_ui_app_preserves_existing_v2_serve_base(
         "/ui-settings" if expected_v1_base == "/" else f"{expected_v1_base}/ui-settings"
     )
 
-    v1_response = client.get(v1_path)
+    v1_response = client.get(v1_path, headers={"accept": "text/html"})
     assert v1_response.status_code == 200
     assert "V1 UI" in v1_response.text
 
-    v2_response = client.get(v2_path)
+    v2_response = client.get(v2_path, headers={"accept": "text/html"})
     assert v2_response.status_code == 200
     assert "V2 UI" in v2_response.text
 
@@ -593,7 +593,6 @@ def test_create_ui_app_uses_default_ui_for_neutral_entrypoints_without_saved_pre
     with temporary_settings(
         {
             PREFECT_UI_ENABLED: True,
-            PREFECT_SERVER_UI_V2_ENABLED: True,
             PREFECT_UI_SERVE_BASE: serve_base,
             PREFECT_UI_STATIC_DIRECTORY: str(tmp_path / "ui-static"),
         }
@@ -609,6 +608,112 @@ def test_create_ui_app_uses_default_ui_for_neutral_entrypoints_without_saved_pre
 
     assert response.status_code == status.HTTP_307_TEMPORARY_REDIRECT
     assert response.headers["location"].endswith(expected_location)
+
+
+@pytest.mark.parametrize(
+    ("serve_base", "request_path"),
+    [
+        ("/", "/"),
+        ("/prefect", "/prefect/"),
+    ],
+)
+def test_create_ui_app_uses_v1_default_when_v2_disabled(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    serve_base: str,
+    request_path: str,
+):
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI")
+    v2_source = _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI")
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", v2_source)
+
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_SERVER_UI_V2_ENABLED: False,
+            PREFECT_UI_SERVE_BASE: serve_base,
+            PREFECT_UI_STATIC_DIRECTORY: str(tmp_path / "ui-static"),
+        }
+    ):
+        ui_app = create_ui_app(ephemeral=False)
+
+    client = TestClient(ui_app)
+    response = client.get(
+        request_path,
+        headers={"accept": "text/html"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 200
+    assert "location" not in response.headers
+    assert "V1 UI" in response.text
+
+    settings_path = "/ui-settings" if serve_base == "/" else f"{serve_base}/ui-settings"
+    settings_response = client.get(settings_path)
+    settings_response.raise_for_status()
+    assert settings_response.json()["default_ui"] == "v1"
+    assert settings_response.json()["available_uis"] == ["v1", "v2"]
+
+
+def test_create_ui_app_respects_v1_cookie_at_neutral_root(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI")
+    v2_source = _write_fake_ui_bundle(tmp_path / "v2-source", "V2 UI")
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", v2_source)
+
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_UI_STATIC_DIRECTORY: str(tmp_path / "ui-static"),
+        }
+    ):
+        ui_app = create_ui_app(ephemeral=False)
+
+    client = TestClient(ui_app)
+    client.cookies.set("prefect_ui_version", "v1")
+    response = client.get(
+        "/",
+        headers={"accept": "text/html"},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 200
+    assert "location" not in response.headers
+    assert "V1 UI" in response.text
+
+
+def test_create_ui_app_fallback_to_v1_when_v2_bundle_unavailable(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    v1_source = _write_fake_ui_bundle(tmp_path / "v1-source", "V1 UI")
+    monkeypatch.setattr(prefect, "__ui_static_path__", v1_source)
+    monkeypatch.setattr(prefect, "__ui_v2_static_path__", str(tmp_path / "missing-v2"))
+
+    with temporary_settings(
+        {
+            PREFECT_UI_ENABLED: True,
+            PREFECT_UI_STATIC_DIRECTORY: str(tmp_path / "ui-static"),
+        }
+    ):
+        ui_app = create_ui_app(ephemeral=False)
+
+    client = TestClient(ui_app)
+    response = client.get("/", headers={"accept": "text/html"})
+
+    assert response.status_code == 200
+    assert "location" not in response.headers
+    assert "V1 UI" in response.text
+
+    settings_response = client.get("/ui-settings")
+    settings_response.raise_for_status()
+    assert settings_response.json()["default_ui"] == "v1"
+    assert settings_response.json()["available_uis"] == ["v1"]
+    assert settings_response.json()["v2_base_url"] is None
 
 
 @pytest.mark.parametrize(
@@ -676,7 +781,6 @@ def test_create_ui_app_keeps_v1_deep_links_on_v1_for_default_v2_preference(
     with temporary_settings(
         {
             PREFECT_UI_ENABLED: True,
-            PREFECT_SERVER_UI_V2_ENABLED: True,
             PREFECT_UI_SERVE_BASE: serve_base,
             PREFECT_UI_STATIC_DIRECTORY: str(tmp_path / "ui-static"),
         }
@@ -806,11 +910,11 @@ def test_create_ui_app_uses_legacy_static_directory_layout_for_v1(
         ui_app = create_ui_app(ephemeral=False)
 
     client = TestClient(ui_app)
-    response = client.get("/dashboard")
+    response = client.get("/dashboard", headers={"accept": "text/html"})
     assert response.status_code == 200
     assert "V1 Legacy UI" in response.text
 
-    v2_response = client.get("/v2/dashboard")
+    v2_response = client.get("/v2/dashboard", headers={"accept": "text/html"})
     assert v2_response.status_code == 200
     assert "V2 UI" in v2_response.text
 
@@ -844,7 +948,7 @@ def test_create_ui_app_does_not_reuse_unmarked_static_directory_root(
         ui_app = create_ui_app(ephemeral=False)
 
     client = TestClient(ui_app)
-    response = client.get("/dashboard")
+    response = client.get("/dashboard", headers={"accept": "text/html"})
     assert response.status_code == 200
     assert "V1 UI" in response.text
 

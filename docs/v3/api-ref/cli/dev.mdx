@@ -15,9 +15,6 @@ prefect dev [OPTIONS] COMMAND [ARGS]...
 
 <Info>
 Internal Prefect development.
-
-Note that many of these commands require extra dependencies (such as npm and MkDocs)
-to function properly.
 </Info>
 
 
@@ -32,7 +29,7 @@ to function properly.
 
 
 ```command
-prefect dev build-docs [OPTIONS]
+prefect dev build-docs [OPTIONS] [SCHEMA_PATH]
 ```
 
 
@@ -49,15 +46,12 @@ Builds REST API reference documentation for static display.
 <AccordionGroup>
 
 
-
-
-<Accordion title="Options" defaultOpen>
-
-<ResponseField name="--schema-path">
-    
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="SCHEMA_PATH" type="string">
 </ResponseField>
-
 </Accordion>
+
+
 
 </AccordionGroup>
 
@@ -151,19 +145,19 @@ Starts a hot-reloading development API.
 <Accordion title="Options" defaultOpen>
 
 <ResponseField name="--host">
-    
+    API host address.
 </ResponseField>
 
 <ResponseField name="--port">
-    
+    API port number.
 </ResponseField>
 
 <ResponseField name="--log-level">
-    
+    Log level for the server.
 </ResponseField>
 
-<ResponseField name="--services">
-    
+<ResponseField name="--services/--no-services">
+    Run services in app.
 </ResponseField>
 
 </Accordion>
@@ -184,9 +178,6 @@ prefect dev start [OPTIONS]
 
 <Info>
 Starts a hot-reloading development server with API, UI, and agent processes.
-
-Each service has an individual command if you wish to start them separately.
-Each service can be excluded here as well.
 </Info>
 
 
@@ -202,11 +193,11 @@ Each service can be excluded here as well.
 <Accordion title="Options" defaultOpen>
 
 <ResponseField name="--no-api">
-    
+    Exclude the API service.
 </ResponseField>
 
 <ResponseField name="--no-ui">
-    
+    Exclude the UI service.
 </ResponseField>
 
 </Accordion>
@@ -246,7 +237,7 @@ Build a docker image for development.
 </ResponseField>
 
 <ResponseField name="--python-version">
-    The Python version to build the container for. Defaults to the version of the host Python. [default: 3.12]
+    The Python version to build the container for. Defaults to the version of the host Python.
 </ResponseField>
 
 <ResponseField name="--flavor">
@@ -258,7 +249,7 @@ Build a docker image for development.
 </ResponseField>
 
 <ResponseField name="--dry-run">
-    
+    Print the command instead of running.
 </ResponseField>
 
 </Accordion>
@@ -294,19 +285,19 @@ Run a docker container with local code mounted and installed.
 <Accordion title="Options" defaultOpen>
 
 <ResponseField name="--bg">
-    
+    Run in background.
 </ResponseField>
 
 <ResponseField name="--name">
-    
+    Container name.
 </ResponseField>
 
-<ResponseField name="--api">
-    
+<ResponseField name="--api/--no-api">
+    Start API in container.
 </ResponseField>
 
 <ResponseField name="--tag">
-    
+    Docker image tag.
 </ResponseField>
 
 </Accordion>

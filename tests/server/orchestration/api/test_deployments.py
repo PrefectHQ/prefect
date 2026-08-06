@@ -1690,6 +1690,18 @@ class TestPaginateDeployments:
         assert response.status_code == status.HTTP_200_OK
         assert response.json()["count"] == 2
 
+    async def test_paginate_deployments_zero_limit(self, deployments, client):
+        response = await client.post("/deployments/paginate", json=dict(limit=0))
+        assert response.status_code == status.HTTP_200_OK
+
+        json = response.json()
+
+        assert json["results"] == []
+        assert json["count"] == 2
+        assert json["limit"] == 0
+        assert json["pages"] == 0
+        assert json["page"] == 1
+
 
 class TestUpdateDeployment:
     async def test_update_deployment_with_schedule_allows_addition_of_concurrency(

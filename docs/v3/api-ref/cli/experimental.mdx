@@ -24,6 +24,126 @@ Access experimental features (subject to change).
 
 
 
+## `prefect experimental result-storage`
+
+
+
+```command
+prefect experimental result-storage [OPTIONS] COMMAND [ARGS]...
+```
+
+
+
+<Info>
+Manage default result storage.
+</Info>
+
+
+
+
+
+
+
+
+### `prefect experimental result-storage inspect`
+
+
+
+```command
+prefect experimental result-storage inspect [OPTIONS]
+```
+
+
+
+<Info>
+Inspect the configured default result storage.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--output">
+    Specify an output format. Currently supports: json
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+### `prefect experimental result-storage set`
+
+
+
+```command
+prefect experimental result-storage set [OPTIONS] [BLOCK]
+```
+
+
+
+<Info>
+Set the default result storage block.
+</Info>
+
+
+
+
+
+
+<AccordionGroup>
+
+
+<Accordion title="Arguments" defaultOpen>
+<ResponseField name="BLOCK" type="string">
+    A block slug in the form &lt;BLOCK_TYPE_SLUG&gt;/&lt;BLOCK_NAME&gt;.
+</ResponseField>
+</Accordion>
+
+
+
+<Accordion title="Options" defaultOpen>
+
+<ResponseField name="--id">
+    A block document id.
+</ResponseField>
+
+</Accordion>
+
+</AccordionGroup>
+
+
+
+### `prefect experimental result-storage clear`
+
+
+
+```command
+prefect experimental result-storage clear [OPTIONS]
+```
+
+
+
+<Info>
+Clear the configured default result storage.
+</Info>
+
+
+
+
+
+
+
+
 ## `prefect experimental plugins`
 
 
@@ -35,7 +155,7 @@ prefect experimental plugins [OPTIONS] COMMAND [ARGS]...
 
 
 <Info>
-Plugin system diagnostics.
+[deprecated] Plugin system diagnostics. Use `prefect plugins diagnose`.
 </Info>
 
 
@@ -56,19 +176,5 @@ prefect experimental plugins diagnose [OPTIONS]
 
 
 <Info>
-Diagnose the experimental plugin system.
-
-This command provides information about:
-- Whether the plugin system is enabled
-- What plugins are discoverable via entry points
-- Current configuration (timeouts, allow/deny lists)
-
-Note: This runs the plugin discovery but does not execute hooks.
-Use safe mode (PREFECT_EXPERIMENTS_PLUGINS_SAFE_MODE=1) to test plugin loading
-without executing hooks.
+[deprecated] Diagnose the plugin system.
 </Info>
-
-
-
-
-

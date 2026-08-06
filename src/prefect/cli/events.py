@@ -143,7 +143,20 @@ async def emit(
         ),
     ] = None,
 ):
-    """Emit a single event to Prefect."""
+    """Emit a single event to Prefect.
+
+    Examples:
+        ```bash
+        # Simple event with resource ID
+        $ prefect event emit user.logged_in --resource-id user-123
+
+        # Event with payload
+        $ prefect event emit order.shipped --resource-id order-456 --payload '{"tracking": "ABC123"}'
+
+        # Event with full resource specification
+        $ prefect event emit customer.subscribed --resource '{"prefect.resource.id": "customer-789", "prefect.resource.name": "ACME Corp"}'
+        ```
+    """
     from prefect.events import Event as EventModel
 
     resource_dict: dict[str, str] = {}

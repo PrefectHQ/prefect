@@ -1,28 +1,294 @@
+import contextlib
+import importlib.util
 import json
 import textwrap
+from pathlib import Path
+from types import ModuleType, SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
+import alembic.context
 import alembic.script
 import pytest
 import sqlalchemy as sa
 
+from prefect.server.database import dependencies
 from prefect.server.database.alembic_commands import (
     alembic_config,
     alembic_downgrade,
     alembic_upgrade,
 )
-from prefect.server.database.interface import PrefectDBInterface
+from prefect.server.database.interface import DBSingleton, PrefectDBInterface
 from prefect.server.database.orm_models import (
     AioSqliteORMConfiguration,
     AsyncPostgresORMConfiguration,
 )
 from prefect.server.models.variables import read_variables
 from prefect.server.utilities.database import get_dialect
-from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
+from prefect.settings import (
+    PREFECT_API_DATABASE_CONNECTION_URL,
+    PREFECT_SERVER_DATABASE_CONNECTION_URL,
+    temporary_settings,
+)
 from prefect.types._datetime import now
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 pytestmark = [pytest.mark.service("database"), pytest.mark.clear_db]
+
+
+@pytest.fixture
+def migration_environment(monkeypatch: pytest.MonkeyPatch) -> ModuleType:
+    """Load the Alembic environment without running migrations at import time."""
+    monkeypatch.setitem(vars(alembic.context), "config", SimpleNamespace())
+    monkeypatch.setitem(vars(alembic.context), "is_offline_mode", lambda: False)
+    monkeypatch.setattr(
+        "prefect.utilities.asyncutils.run_async_from_worker_thread", lambda _: None
+    )
+
+    path = Path(__file__).parents[3] / "src/prefect/server/database/_migrations/env.py"
+    spec = importlib.util.spec_from_file_location("test_migration_environment", path)
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.fixture
+def event_resource_index_migration() -> ModuleType:
+    path = (
+        Path(__file__).parents[3]
+        / "src/prefect/server/database/_migrations/versions/postgresql"
+        / "2026_07_20_000000_50737cdaee36_add_event_resources_event_id_index.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "test_event_resource_index_migration", path
+    )
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@pytest.mark.parametrize("migration_timeout", [None, 60.0])
+async def test_postgres_migration_engine_uses_migration_timeout(
+    migration_environment: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    migration_timeout: float | None,
+):
+    dedicated_engine = object()
+    observed_timeouts: list[float | None] = []
+
+    class DatabaseConfig:
+        connection_url = "postgresql+asyncpg://user:password@localhost/prefect"
+        timeout: float | None = 10.0
+
+        async def engine(self):
+            observed_timeouts.append(self.timeout)
+            return dedicated_engine
+
+    database_config = DatabaseConfig()
+    database_interface = SimpleNamespace(
+        database_config=database_config,
+        engine=AsyncMock(),
+    )
+    settings = SimpleNamespace(
+        server=SimpleNamespace(
+            database=SimpleNamespace(migration_timeout=migration_timeout)
+        )
+    )
+    monkeypatch.setattr(migration_environment, "db_interface", database_interface)
+    monkeypatch.setattr(migration_environment, "get_current_settings", lambda: settings)
+
+    engine = await migration_environment.migration_engine()
+
+    assert engine is dedicated_engine
+    assert observed_timeouts == [migration_timeout]
+    assert database_config.timeout == 10.0
+    database_interface.engine.assert_not_awaited()
+
+
+async def test_sqlite_migration_engine_reuses_application_engine(
+    migration_environment: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    application_engine = object()
+    database_interface = SimpleNamespace(
+        database_config=SimpleNamespace(
+            connection_url="sqlite+aiosqlite:///prefect.db"
+        ),
+        engine=AsyncMock(return_value=application_engine),
+    )
+    monkeypatch.setattr(migration_environment, "db_interface", database_interface)
+
+    engine = await migration_environment.migration_engine()
+
+    assert engine is application_engine
+    database_interface.engine.assert_awaited_once_with()
+
+
+@pytest.mark.parametrize("migration_fails", [False, True])
+async def test_apply_migrations_disposes_dedicated_engine(
+    migration_environment: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    migration_fails: bool,
+):
+    connection = SimpleNamespace(run_sync=AsyncMock())
+    if migration_fails:
+        connection.run_sync.side_effect = RuntimeError("migration failed")
+
+    connection_context = MagicMock()
+    connection_context.__aenter__ = AsyncMock(return_value=connection)
+    connection_context.__aexit__ = AsyncMock(return_value=None)
+
+    dedicated_engine = SimpleNamespace(
+        connect=MagicMock(return_value=connection_context),
+        dispose=AsyncMock(),
+    )
+    application_engine = object()
+    database_interface = SimpleNamespace(
+        engine=AsyncMock(return_value=application_engine),
+        orm=SimpleNamespace(versions_dir="versions"),
+    )
+    engines = {
+        "dedicated": dedicated_engine,
+        "application": application_engine,
+    }
+    script = SimpleNamespace(version_locations=None)
+    monkeypatch.setattr(migration_environment, "db_interface", database_interface)
+    monkeypatch.setattr(
+        migration_environment,
+        "migration_engine",
+        AsyncMock(return_value=dedicated_engine),
+    )
+    monkeypatch.setattr(migration_environment, "ENGINES", engines)
+    monkeypatch.setitem(vars(alembic.context), "script", script)
+
+    if migration_fails:
+        with pytest.raises(RuntimeError, match="migration failed"):
+            await migration_environment.apply_migrations()
+    else:
+        await migration_environment.apply_migrations()
+
+    assert script.version_locations == ["versions"]
+    assert engines == {"application": application_engine}
+    connection.run_sync.assert_awaited_once_with(
+        migration_environment.do_run_migrations
+    )
+    dedicated_engine.dispose.assert_awaited_once_with()
+
+
+async def test_apply_migrations_preserves_shared_engine(
+    migration_environment: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    connection = SimpleNamespace(run_sync=AsyncMock())
+    connection_context = MagicMock()
+    connection_context.__aenter__ = AsyncMock(return_value=connection)
+    connection_context.__aexit__ = AsyncMock(return_value=None)
+    shared_engine = SimpleNamespace(
+        connect=MagicMock(return_value=connection_context),
+        dispose=AsyncMock(),
+    )
+    database_interface = SimpleNamespace(
+        engine=AsyncMock(return_value=shared_engine),
+        orm=SimpleNamespace(versions_dir="versions"),
+    )
+    engines = {"shared": shared_engine}
+    monkeypatch.setattr(migration_environment, "db_interface", database_interface)
+    monkeypatch.setattr(
+        migration_environment,
+        "migration_engine",
+        AsyncMock(return_value=shared_engine),
+    )
+    monkeypatch.setattr(migration_environment, "ENGINES", engines)
+    monkeypatch.setitem(
+        vars(alembic.context),
+        "script",
+        SimpleNamespace(version_locations=None),
+    )
+
+    await migration_environment.apply_migrations()
+
+    assert engines == {"shared": shared_engine}
+    shared_engine.dispose.assert_not_awaited()
+
+
+def test_event_resource_index_migration_rebuilds_invalid_index(
+    event_resource_index_migration: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    catalog_queries: list[str] = []
+    statements: list[str] = []
+
+    class Result:
+        def scalar(self) -> int:
+            return 1
+
+    class Bind:
+        def exec_driver_sql(self, statement: str) -> Result:
+            catalog_queries.append(" ".join(statement.split()))
+            return Result()
+
+    @contextlib.contextmanager
+    def autocommit_block():
+        yield
+
+    operation = SimpleNamespace(
+        get_context=lambda: SimpleNamespace(
+            as_sql=False,
+            autocommit_block=autocommit_block,
+        ),
+        get_bind=lambda: Bind(),
+        execute=lambda statement: statements.append(" ".join(statement.split())),
+    )
+    monkeypatch.setattr(event_resource_index_migration, "op", operation)
+
+    event_resource_index_migration.upgrade()
+
+    assert catalog_queries == [
+        "SELECT 1 FROM pg_class c JOIN pg_index i ON i.indexrelid = c.oid "
+        "WHERE c.relname = 'ix_event_resources__event_id' AND NOT i.indisvalid"
+    ]
+    assert statements == [
+        "DROP INDEX CONCURRENTLY IF EXISTS ix_event_resources__event_id",
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
+        "ix_event_resources__event_id ON event_resources (event_id)",
+    ]
+
+
+def test_event_resource_index_migration_supports_postgres_dry_run(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    monkeypatch.setattr(
+        dependencies,
+        "MODELS_DEPENDENCIES",
+        {
+            "database_config": None,
+            "query_components": None,
+            "orm": None,
+            "interface_class": None,
+        },
+    )
+    monkeypatch.setattr(DBSingleton, "_instances", {})
+
+    with temporary_settings(
+        {
+            PREFECT_SERVER_DATABASE_CONNECTION_URL: (
+                "postgresql+asyncpg://localhost/prefect"
+            )
+        }
+    ):
+        alembic_upgrade("bad1e352c597:50737cdaee36", dry_run=True)
+
+    output = capsys.readouterr().out
+    assert (
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
+        "ix_event_resources__event_id ON event_resources (event_id)"
+        in " ".join(output.split())
+    )
 
 
 @pytest.fixture

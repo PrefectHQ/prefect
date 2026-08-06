@@ -160,7 +160,7 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
             prefect.settings.temporary_settings(
                 # Use a temporary directory for the database
                 updates={
-                    prefect.settings.PREFECT_API_DATABASE_CONNECTION_URL: DB_PATH,
+                    prefect.settings.PREFECT_SERVER_DATABASE_CONNECTION_URL: DB_PATH,
                 },
             )
         )

@@ -2114,11 +2114,14 @@ class TestRunFlowBaseExceptionErrorLogger:
 
 
 class TestHandleEngineSignals:
-    def test_cancel_intent_exits_zero_on_termination_signal(
-        self, monkeypatch: pytest.MonkeyPatch
+    @pytest.mark.parametrize("intent", ["cancel", "reschedule", "relinquish"])
+    def test_intent_exits_zero_on_termination_signal(
+        self, intent: str, monkeypatch: pytest.MonkeyPatch
     ):
+        """Any intent means someone else owns the run's state, so the engine exits
+        cleanly instead of letting a non-zero code imply a crash."""
         clear_intent = MagicMock()
-        monkeypatch.setattr("prefect.engine.get_intent", lambda: "cancel")
+        monkeypatch.setattr("prefect.engine.get_intent", lambda: intent)
         monkeypatch.setattr("prefect.engine.clear_intent", clear_intent)
 
         with pytest.raises(SystemExit) as exc:
@@ -2211,8 +2214,9 @@ class TestDriveRunFlowResult:
 
 
 class TestCaptureSigterm:
-    def test_raw_sigterm_reschedule_mode_bubbles_in_sync_initialize_run(
-        self, monkeypatch: pytest.MonkeyPatch
+    @pytest.mark.parametrize("intent", ["reschedule", "relinquish"])
+    def test_supervisor_owned_intent_bubbles_in_sync_initialize_run(
+        self, intent: str, monkeypatch: pytest.MonkeyPatch
     ):
         @contextmanager
         def _fake_sync_client_context():
@@ -2225,7 +2229,7 @@ class TestCaptureSigterm:
         engine = FlowRunEngine(flow=foo, flow_run=MagicMock(state=states.Pending()))
         engine.cancel_all_tasks = MagicMock()
         engine.handle_crash = MagicMock()
-        monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
+        monkeypatch.setattr("prefect.flow_engine._termination_intent", lambda: intent)
         monkeypatch.setattr(
             "prefect.flow_engine.SyncClientContext.get_or_create",
             _fake_sync_client_context,
@@ -2245,7 +2249,7 @@ class TestCaptureSigterm:
 
         engine.handle_crash.assert_not_called()
 
-    async def test_raw_sigterm_reschedule_mode_bubbles_in_async_initialize_run(
+    async def test_supervisor_owned_intent_bubbles_in_async_initialize_run(
         self, monkeypatch: pytest.MonkeyPatch
     ):
         @asynccontextmanager
@@ -2262,7 +2266,9 @@ class TestCaptureSigterm:
         )
         engine.cancel_all_tasks = MagicMock()
         engine.handle_crash = AsyncMock()
-        monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
+        monkeypatch.setattr(
+            "prefect.flow_engine._termination_intent", lambda: "relinquish"
+        )
         monkeypatch.setattr(
             "prefect.flow_engine.AsyncClientContext.get_or_create",
             _fake_async_client_context,
@@ -2281,6 +2287,71 @@ class TestCaptureSigterm:
                 raise TerminationSignal(signal.SIGTERM)
 
         engine.handle_crash.assert_not_called()
+
+    @pytest.fixture
+    def async_cancellation_engine(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> AsyncFlowRunEngine:
+        """Async engine set up to reach the `except BaseException` dispatch by
+        raising inside `initialize_run`."""
+
+        @asynccontextmanager
+        async def _fake_async_client_context():
+            yield MagicMock(client=AsyncMock())
+
+        @contextmanager
+        def _fake_hydrated_context(_context: object | None = None):
+            yield
+
+        engine = AsyncFlowRunEngine(
+            flow=foo, flow_run=MagicMock(state=states.Pending())
+        )
+        engine.cancel_all_tasks = MagicMock()
+        engine.handle_crash = AsyncMock()
+        engine.handle_cancellation = AsyncMock()
+        monkeypatch.setattr(
+            "prefect.flow_engine.AsyncClientContext.get_or_create",
+            _fake_async_client_context,
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine.hydrated_context", _fake_hydrated_context
+        )
+        monkeypatch.setattr(engine._telemetry, "async_start_span", AsyncMock())
+        return engine
+
+    async def test_async_cancellation_bubbles_for_supervisor_owned_intent(
+        self,
+        async_cancellation_engine: AsyncFlowRunEngine,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """A supervisor-driven SIGTERM can surface as a cancellation instead of a
+        TerminationSignal; it must bubble rather than crash the run."""
+        engine = async_cancellation_engine
+        monkeypatch.setattr(
+            "prefect.flow_engine._termination_intent", lambda: "relinquish"
+        )
+
+        with pytest.raises(TerminationSignal):
+            async with engine.initialize_run():
+                raise anyio.get_cancelled_exc_class()()
+
+        engine.handle_crash.assert_not_called()
+
+    async def test_async_cancellation_crashes_without_intent(
+        self,
+        async_cancellation_engine: AsyncFlowRunEngine,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """An ordinary cancellation (e.g. a flow timeout) carries no intent, so it
+        must still crash rather than be mistaken for a supervisor termination."""
+        engine = async_cancellation_engine
+        monkeypatch.setattr("prefect.flow_engine._termination_intent", lambda: None)
+
+        with pytest.raises(anyio.get_cancelled_exc_class()):
+            async with engine.initialize_run():
+                raise anyio.get_cancelled_exc_class()()
+
+        engine.handle_crash.assert_awaited_once()
 
     def test_can_ack_control_intent_requires_prefect_handler(
         self, monkeypatch: pytest.MonkeyPatch
