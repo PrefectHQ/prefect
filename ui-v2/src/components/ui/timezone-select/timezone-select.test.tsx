@@ -34,9 +34,10 @@ test("TimezoneSelect can select a timezone late in the list", async () => {
 	render(<TimezoneSelect onSelect={mockOnSelectFn} selectedValue="" />);
 
 	await user.click(screen.getByLabelText(/select timezone/i));
-	// Select without searching: every keystroke re-renders all ~400 options,
-	// which is slow enough to exceed the test timeout on loaded CI machines.
-	await user.click(screen.getByRole("option", { name: /asia \/ singapore/i }));
+	await user.type(screen.getByPlaceholderText(/search/i), "Singapore");
+	await user.click(
+		await screen.findByRole("option", { name: /asia \/ singapore/i }),
+	);
 
 	expect(mockOnSelectFn).toBeCalledWith("Asia/Singapore");
 });
