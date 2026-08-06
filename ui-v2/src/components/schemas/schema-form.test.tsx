@@ -318,5 +318,4 @@ describe("property.type", () => {
 			expect(hasJsonKind).toBe(false);
 		});
 	});
-
 });
