@@ -194,9 +194,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # is installed via egg-info, so uninstalling it leaves its
 # distutils-precedence.pth behind. That orphaned .pth then fails to import the
 # now-removed _distutils_hack module on every interpreter startup
-# (ModuleNotFoundError: No module named '_distutils_hack'), so remove it too.
+# (ModuleNotFoundError: No module named '_distutils_hack'). Remove it from the
+# active environment's site-packages, but only once the shim is actually gone.
 RUN uv pip uninstall setuptools && \
-    find / -xdev -name "distutils-precedence.pth" -delete
+    python -c "import importlib.util, pathlib, sysconfig; p = pathlib.Path(sysconfig.get_path('purelib')) / 'distutils-precedence.pth'; p.exists() and importlib.util.find_spec('_distutils_hack') is None and p.unlink()"
 
 # Install any extra packages
 ARG EXTRA_PIP_PACKAGES
