@@ -190,8 +190,13 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     UV_COMPILE_BYTECODE=1 uv pip install "./dist/prefect.tar.gz${PREFECT_EXTRAS:-""}" && \
     rm -rf dist/
 
-# Remove setuptools
-RUN uv pip uninstall setuptools
+# Remove setuptools. On some base images (notably the conda flavor) setuptools
+# is installed via egg-info, so uninstalling it leaves its
+# distutils-precedence.pth behind. That orphaned .pth then fails to import the
+# now-removed _distutils_hack module on every interpreter startup
+# (ModuleNotFoundError: No module named '_distutils_hack'), so remove it too.
+RUN uv pip uninstall setuptools && \
+    find / -xdev -name "distutils-precedence.pth" -delete
 
 # Install any extra packages
 ARG EXTRA_PIP_PACKAGES
