@@ -56,11 +56,6 @@ class ProcessJobConfiguration(BaseJobConfiguration):
 
     _command_configured: bool = PrivateAttr(default=False)
 
-    @property
-    def command_configured(self) -> bool:
-        """Whether the flow run's command was configured rather than defaulted."""
-        return self._command_configured
-
     @field_validator("working_dir")
     @classmethod
     def validate_working_dir(cls, v: Path | str | None) -> Path | None:
@@ -105,6 +100,38 @@ class ProcessJobConfiguration(BaseJobConfiguration):
         instead of the newer `prefect flow-run execute` path.
         """
         return "python -m prefect.engine"
+
+    def _resolve_command(self, working_dir: Path | str) -> str | None:
+        """
+        Use an auto-`uv run` launcher for the flow run when the working directory
+        is a project that declares `prefect` as a dependency and the deployment
+        did not configure an explicit command.
+        """
+        if self._command_configured:
+            return self.command
+
+        env = self.env or {}
+        # A run-specific setting in the environment takes precedence over the
+        # worker process's own setting.
+        auto_install = env.get("PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES")
+        try:
+            auto_install_dependencies = (
+                TypeAdapter(bool).validate_python(auto_install)
+                if auto_install is not None
+                else None
+            )
+        except ValidationError:
+            auto_install_dependencies = None
+
+        uv_command = uv_project_command(
+            # `uv` resolves `--project` relative to the flow run's working
+            # directory, so the project root must be absolute.
+            Path(working_dir).resolve(),
+            ["-m", "prefect.engine"],
+            path=env.get("PATH"),
+            auto_install_dependencies=auto_install_dependencies,
+        )
+        return uv_command or self.command
 
 
 class ProcessVariables(BaseVariables):
@@ -163,7 +190,7 @@ class ProcessWorker(
             warnings.simplefilter("ignore", DeprecationWarning)
             process = await self._runner.execute_flow_run(
                 flow_run_id=flow_run.id,
-                command=self._resolve_command(configuration, working_dir),
+                command=configuration._resolve_command(working_dir),
                 cwd=working_dir,
                 env=configuration.env,
                 stream_output=configuration.stream_output,
@@ -180,38 +207,6 @@ class ProcessWorker(
             raise RuntimeError("Failed to start flow run process.")
 
         return ProcessWorkerResult(status_code=status_code, identifier=str(process.pid))
-
-    def _resolve_command(
-        self, configuration: ProcessJobConfiguration, working_dir: Path | str
-    ) -> str | None:
-        """
-        Use an auto-`uv run` launcher for the flow run when the working directory
-        is a project that declares `prefect` as a dependency and the deployment
-        did not configure an explicit command.
-        """
-        if configuration.command_configured:
-            return configuration.command
-
-        env = configuration.env or {}
-        # A run-specific setting in the environment takes precedence over the
-        # worker process's own setting.
-        auto_install = env.get("PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES")
-        try:
-            auto_install_dependencies = (
-                TypeAdapter(bool).validate_python(auto_install)
-                if auto_install is not None
-                else None
-            )
-        except ValidationError:
-            auto_install_dependencies = None
-
-        uv_command = uv_project_command(
-            Path(working_dir),
-            ["-m", "prefect.engine"],
-            path=env.get("PATH"),
-            auto_install_dependencies=auto_install_dependencies,
-        )
-        return uv_command or configuration.command
 
     async def _submit_adhoc_run(
         self,

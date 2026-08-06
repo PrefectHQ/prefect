@@ -2,6 +2,7 @@ import sys
 import uuid
 from datetime import timedelta
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import anyio
@@ -471,14 +472,9 @@ async def test_process_worker_working_dir_override(
         )
 
 
-async def test_process_worker_uses_auto_uv_command_for_project_working_dir(
-    flow_run: FlowRun,
-    mock_runner_execute_flow_run: MagicMock,
-    process_work_pool: WorkPool,
-    prefect_client: PrefectClient,
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-):
+@pytest.fixture
+def uv_project(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
+    """A project directory that satisfies every auto-`uv run` condition."""
     (tmp_path / "pyproject.toml").write_text(
         "[project]\n"
         "name = 'test-project'\n"
@@ -489,39 +485,90 @@ async def test_process_worker_uses_auto_uv_command_for_project_working_dir(
         "prefect.runner._uv_command.shutil.which",
         lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
     )
+    return tmp_path
 
+
+def expected_uv_command(project_root: Path) -> str:
+    return command_to_string(
+        [
+            "/opt/bin/uv",
+            "run",
+            "--no-default-groups",
+            "--project",
+            str(project_root),
+            "-m",
+            "prefect.engine",
+        ]
+    )
+
+
+async def run_flow_run_with_job_variables(
+    flow_run: FlowRun,
+    process_work_pool: WorkPool,
+    prefect_client: PrefectClient,
+    job_variables: dict[str, Any],
+) -> None:
     assert flow_run.deployment_id is not None
     await prefect_client.update_deployment(
         deployment_id=flow_run.deployment_id,
         deployment=client_schemas.actions.DeploymentUpdate(
-            job_variables={"working_dir": str(tmp_path)},
+            job_variables=job_variables,
         ),
     )
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        configuration = await worker.job_configuration.resolve_for_flow_run(
+            flow_run,
+            client=worker.client,
+            work_pool=worker.work_pool,
+            worker_name=worker.name,
+            worker_id=worker.backend_id,
+        )
+        await worker.run(flow_run=flow_run, configuration=configuration)
+
+
+async def test_process_worker_uses_auto_uv_command_for_project_working_dir(
+    flow_run: FlowRun,
+    mock_runner_execute_flow_run: MagicMock,
+    process_work_pool: WorkPool,
+    prefect_client: PrefectClient,
+    uv_project: Path,
+):
+    with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
+        await run_flow_run_with_job_variables(
+            flow_run,
+            process_work_pool,
+            prefect_client,
+            {"working_dir": str(uv_project)},
+        )
+
+    assert mock_runner_execute_flow_run.call_args.kwargs[
+        "command"
+    ] == expected_uv_command(uv_project)
+
+
+async def test_process_worker_auto_uv_command_uses_absolute_project_path(
+    flow_run: FlowRun,
+    mock_runner_execute_flow_run: MagicMock,
+    process_work_pool: WorkPool,
+    prefect_client: PrefectClient,
+    monkeypatch: pytest.MonkeyPatch,
+    uv_project: Path,
+):
+    # `uv` resolves `--project` relative to the flow run's working directory, so a
+    # relative working directory must still produce an absolute project path
+    monkeypatch.chdir(uv_project.parent)
 
     with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
-        async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
-            configuration = await worker.job_configuration.resolve_for_flow_run(
-                flow_run,
-                client=worker.client,
-                work_pool=worker.work_pool,
-                worker_name=worker.name,
-                worker_id=worker.backend_id,
-            )
-            await worker.run(flow_run=flow_run, configuration=configuration)
-
-    assert mock_runner_execute_flow_run.call_args.kwargs["command"] == (
-        command_to_string(
-            [
-                "/opt/bin/uv",
-                "run",
-                "--no-default-groups",
-                "--project",
-                str(tmp_path),
-                "-m",
-                "prefect.engine",
-            ]
+        await run_flow_run_with_job_variables(
+            flow_run,
+            process_work_pool,
+            prefect_client,
+            {"working_dir": uv_project.name},
         )
-    )
+
+    assert mock_runner_execute_flow_run.call_args.kwargs[
+        "command"
+    ] == expected_uv_command(uv_project)
 
 
 async def test_process_worker_preserves_explicitly_configured_engine_command(
@@ -529,41 +576,18 @@ async def test_process_worker_preserves_explicitly_configured_engine_command(
     mock_runner_execute_flow_run: MagicMock,
     process_work_pool: WorkPool,
     prefect_client: PrefectClient,
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
+    uv_project: Path,
 ):
-    (tmp_path / "pyproject.toml").write_text(
-        "[project]\n"
-        "name = 'test-project'\n"
-        "version = '0.1.0'\n"
-        "dependencies = ['prefect']\n"
-    )
-    monkeypatch.setattr(
-        "prefect.runner._uv_command.shutil.which",
-        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
-    )
-
-    assert flow_run.deployment_id is not None
-    await prefect_client.update_deployment(
-        deployment_id=flow_run.deployment_id,
-        deployment=client_schemas.actions.DeploymentUpdate(
-            job_variables={
-                "working_dir": str(tmp_path),
+    with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
+        await run_flow_run_with_job_variables(
+            flow_run,
+            process_work_pool,
+            prefect_client,
+            {
+                "working_dir": str(uv_project),
                 "command": "python -m prefect.engine",
             },
-        ),
-    )
-
-    with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
-        async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
-            configuration = await worker.job_configuration.resolve_for_flow_run(
-                flow_run,
-                client=worker.client,
-                work_pool=worker.work_pool,
-                worker_name=worker.name,
-                worker_id=worker.backend_id,
-            )
-            await worker.run(flow_run=flow_run, configuration=configuration)
+        )
 
     assert (
         mock_runner_execute_flow_run.call_args.kwargs["command"]
@@ -576,44 +600,23 @@ async def test_process_worker_auto_uv_command_honors_job_variable_env(
     mock_runner_execute_flow_run: MagicMock,
     process_work_pool: WorkPool,
     prefect_client: PrefectClient,
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
+    uv_project: Path,
 ):
-    (tmp_path / "pyproject.toml").write_text(
-        "[project]\n"
-        "name = 'test-project'\n"
-        "version = '0.1.0'\n"
-        "dependencies = ['prefect']\n"
-    )
-    monkeypatch.setattr(
-        "prefect.runner._uv_command.shutil.which",
-        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
-    )
-
-    assert flow_run.deployment_id is not None
-    await prefect_client.update_deployment(
-        deployment_id=flow_run.deployment_id,
-        deployment=client_schemas.actions.DeploymentUpdate(
-            job_variables={
-                "working_dir": str(tmp_path),
-                "env": {"PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES": "true"},
-            },
-        ),
-    )
-
     # The worker process itself does not have auto-install enabled
     with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: False}):
-        async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
-            configuration = await worker.job_configuration.resolve_for_flow_run(
-                flow_run,
-                client=worker.client,
-                work_pool=worker.work_pool,
-                worker_name=worker.name,
-                worker_id=worker.backend_id,
-            )
-            await worker.run(flow_run=flow_run, configuration=configuration)
+        await run_flow_run_with_job_variables(
+            flow_run,
+            process_work_pool,
+            prefect_client,
+            {
+                "working_dir": str(uv_project),
+                "env": {"PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES": "true"},
+            },
+        )
 
-    assert "uv" in mock_runner_execute_flow_run.call_args.kwargs["command"]
+    assert mock_runner_execute_flow_run.call_args.kwargs[
+        "command"
+    ] == expected_uv_command(uv_project)
 
 
 async def test_process_worker_keeps_engine_command_without_project(
