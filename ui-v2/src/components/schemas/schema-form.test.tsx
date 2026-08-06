@@ -1,7 +1,17 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { mockPointerEvents } from "@tests/utils/browser";
 import type { SchemaObject } from "openapi-typescript";
 import { act, useState } from "react";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import {
+	afterEach,
+	beforeAll,
+	beforeEach,
+	describe,
+	expect,
+	test,
+	vi,
+} from "vitest";
 import "@/mocks/mock-json-input";
 import type { SchemaFormProps } from "./schema-form";
 import { SchemaForm } from "./schema-form";
@@ -316,6 +326,57 @@ describe("property.type", () => {
 				);
 			});
 			expect(hasJsonKind).toBe(false);
+		});
+	});
+
+	describe("array", () => {
+		beforeAll(mockPointerEvents);
+
+		test("clearing all enum selections sends [] instead of omitting the field", async () => {
+			vi.useRealTimers();
+			const user = userEvent.setup();
+			const spy = vi.fn();
+
+			function Wrapper() {
+				const [values, setValues] = useState<Record<string, unknown>>({
+					tags: ["foo"],
+				});
+				spy.mockImplementation((value: Record<string, unknown>) =>
+					setValues(value),
+				);
+
+				const schema: SchemaObject = {
+					type: "object",
+					properties: {
+						tags: {
+							type: "array",
+							title: "Tags",
+							items: { type: "string", enum: ["foo", "bar", "baz"] },
+						},
+					},
+				};
+
+				return (
+					<TestSchemaForm
+						schema={schema}
+						values={values}
+						onValuesChange={spy}
+					/>
+				);
+			}
+
+			render(<Wrapper />);
+
+			// Open the combobox
+			await user.click(screen.getByRole("button", { name: /select tags/i }));
+
+			// Deselect the currently selected item "foo"
+			await user.click(screen.getByRole("option", { name: /^foo$/i }));
+
+			// tags key must be present with [] — not omitted (which would fall back to deployment default)
+			await waitFor(() => {
+				expect(spy).toHaveBeenLastCalledWith({ tags: [] });
+			});
 		});
 	});
 });
