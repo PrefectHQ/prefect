@@ -12,6 +12,7 @@ from uuid import UUID
 import anyio
 from pydantic import BaseModel
 
+from prefect._internal.loop_factory import get_loop_factory
 from prefect.client.orchestration import get_client
 from prefect.deployments.steps.core import (
     _PULL_STEP_SOURCE_CWD,
@@ -449,7 +450,11 @@ async def _main_async(argv: list[str] | None = None) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    return anyio.run(_main_async, argv)
+    return anyio.run(
+        _main_async,
+        argv,
+        backend_options={"loop_factory": factory} if (factory := get_loop_factory()) else None,
+    )
 
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ from fastapi import APIRouter, FastAPI, status
 from fastapi.responses import JSONResponse
 from typing_extensions import Literal
 
+from prefect._internal.loop_factory import uvicorn_loop
 from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_RUNNER_POLL_FREQUENCY,
@@ -116,5 +117,5 @@ def start_webserver(runner: "Runner", log_level: str | None = None) -> None:
         assert log_level is not None, "log_level should be set"
 
     uvicorn.run(
-        webserver, host=host, port=port, log_level=log_level.lower()
+        webserver, host=host, port=port, loop=uvicorn_loop(), log_level=log_level.lower()
     )  # Uvicorn supports only lowercase log_level

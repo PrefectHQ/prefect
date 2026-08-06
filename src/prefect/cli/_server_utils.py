@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Callable
 
 import uvicorn
 
+from prefect._internal.loop_factory import uvicorn_loop
 import prefect
 import prefect.settings
 from prefect.cli._cloud_utils import prompt_select_from_list
@@ -294,6 +295,8 @@ def _run_in_background(
         str(keep_alive_timeout),
         "--workers",
         str(workers),
+        "--loop",
+        uvicorn_loop(),
     ]
     command.extend(["--ws-ping-interval", str(ws_ping_interval)])
     command.extend(["--ws-ping-timeout", str(ws_ping_timeout)])
@@ -340,6 +343,7 @@ def _run_in_foreground(
             if workers == 1:
                 uvicorn.run(
                     app=create_app(final=True, webserver_only=no_services),
+                    loop=uvicorn_loop(),
                     app_dir=str(prefect.__module_path__.parent),
                     host=host,
                     port=port,
@@ -358,6 +362,7 @@ def _run_in_foreground(
                 uvicorn.run(
                     app="prefect.server.api.server:create_app",
                     factory=True,
+                    loop=uvicorn_loop(),
                     host=host,
                     port=port,
                     timeout_keep_alive=keep_alive_timeout,

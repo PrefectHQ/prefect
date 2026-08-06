@@ -93,6 +93,7 @@ def _initialize_plugins() -> None:
 
         import anyio
 
+        from prefect._internal.loop_factory import get_loop_factory
         from prefect.context import refresh_global_settings_context
         from prefect.logging import get_logger
         from prefect.plugins import HookContext, run_startup_hooks
@@ -105,7 +106,13 @@ def _initialize_plugins() -> None:
         )
 
         # Run plugin hooks synchronously during import
-        anyio.run(run_startup_hooks, ctx)
+        anyio.run(
+            run_startup_hooks,
+            ctx,
+            backend_options={"loop_factory": factory}
+            if (factory := get_loop_factory())
+            else None,
+        )
 
         # Refresh global settings context to pick up any env vars set by plugins
         refresh_global_settings_context()

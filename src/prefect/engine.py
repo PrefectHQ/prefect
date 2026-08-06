@@ -9,6 +9,7 @@ from types import GeneratorType
 from typing import TYPE_CHECKING, Any, Callable
 from uuid import UUID
 
+from prefect._internal.loop_factory import run_coro
 from prefect._internal.compatibility.migration import getattr_migration
 from prefect._internal.control_listener import (
     clear_intent,
@@ -42,7 +43,7 @@ def _drive_run_flow_result(flow: Any, run_result: object) -> None:
             async for _ in run_result:
                 pass
 
-        asyncio.run(_consume_asyncgen())
+        run_coro(_consume_asyncgen())
         return
 
     if not getattr(flow, "isasync", False) and getattr(flow, "isgenerator", False):
@@ -55,7 +56,7 @@ def _drive_run_flow_result(flow: Any, run_result: object) -> None:
     if getattr(flow, "isasync", False) and not getattr(flow, "isgenerator", False):
         if not asyncio.iscoroutine(run_result):
             return
-        asyncio.run(run_result)
+        run_coro(run_result)
 
 
 @contextmanager

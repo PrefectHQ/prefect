@@ -43,6 +43,7 @@ from anyio import CancelScope
 from opentelemetry import propagate, trace
 from typing_extensions import ParamSpec
 
+from prefect._internal.loop_factory import run_coro
 from prefect import Task, __version__
 from prefect._flow_run_suspension import (
     FlowRunSuspensionRequest,
@@ -2284,7 +2285,7 @@ def run_flow_in_subprocess(
                 if asyncio.iscoroutine(maybe_coro):
                     # This is running in a brand new process, so there won't be an existing
                     # event loop.
-                    asyncio.run(maybe_coro)
+                    run_coro(maybe_coro)
 
     ctx = multiprocessing.get_context("spawn")
 

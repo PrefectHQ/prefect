@@ -47,6 +47,7 @@ from exceptiongroup import BaseExceptionGroup, ExceptionGroup
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec
 
+from prefect._internal.loop_factory import run_coro
 from prefect._experimental.sla.objects import SlaTypes
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.launchers import (
@@ -1172,7 +1173,7 @@ class Flow(Generic[P, R]):
             if loop is not None:
                 loop.run_until_complete(runner.start(webserver=webserver))
             else:
-                asyncio.run(runner.start(webserver=webserver))
+                run_coro(runner.start(webserver=webserver))
         except (KeyboardInterrupt, TerminationSignal) as exc:
             logger.info(f"Received {type(exc).__name__}, shutting down...")
             if loop is not None:
@@ -3070,7 +3071,7 @@ def serve(
         _display_serve_start_message(*args)
 
     try:
-        asyncio.run(runner.start())
+        run_coro(runner.start())
     except (KeyboardInterrupt, TerminationSignal) as exc:
         logger.info(f"Received {type(exc).__name__}, shutting down...")
 
