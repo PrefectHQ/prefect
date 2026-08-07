@@ -2,6 +2,46 @@
 title: 3.8
 ---
 
+## 3.8.2 - Every Timezone Under the Sun
+
+*Released on August 07, 2026*
+
+**Enhancements ➕➕**
+
+* Add removable chips for multi-select enum array fields by [@vyagubov](https://github.com/vyagubov) in [#22738](https://github.com/PrefectHQ/prefect/pull/22738)
+* Send a Prefect `User-Agent` on WebSocket handshakes by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22706](https://github.com/PrefectHQ/prefect/pull/22706)
+* Virtualize the timezone select option list by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22740](https://github.com/PrefectHQ/prefect/pull/22740)
+
+**Bug Fixes 🐞**
+
+* Show all timezones in the timezone select by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22686](https://github.com/PrefectHQ/prefect/pull/22686)
+* Propagate array item edits and link deployments from the flow page by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22726](https://github.com/PrefectHQ/prefect/pull/22726)
+* Preserve an empty array when clearing list parameter selections by [@vyagubov](https://github.com/vyagubov) in [#22737](https://github.com/PrefectHQ/prefect/pull/22737)
+* Open the date picker calendar on the selected date's month by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22699](https://github.com/PrefectHQ/prefect/pull/22699)
+* Normalize settings paths for cross-OS context transport by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22700](https://github.com/PrefectHQ/prefect/pull/22700)
+* Raise `ValueError` for negative timeouts in `PrefectFutureList.result`, `as_completed`, and `wait` by [@kingsley-123](https://github.com/kingsley-123) in [#22692](https://github.com/PrefectHQ/prefect/pull/22692)
+* Fix a tooltip hiding behind a chart row by [@uinstinct](https://github.com/uinstinct) in [#22707](https://github.com/PrefectHQ/prefect/pull/22707)
+* Release concurrency leases granted to callers that were cancelled mid-acquire by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22621](https://github.com/PrefectHQ/prefect/pull/22621)
+* Keep `setuptools` in conda Docker images by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22743](https://github.com/PrefectHQ/prefect/pull/22743)
+
+**Development & Tidiness 🧹**
+
+* Migrate to Renovate and retire Dependabot by [@jamiezieziula](https://github.com/jamiezieziula) in [#22719](https://github.com/PrefectHQ/prefect/pull/22719)
+
+**Documentation 📓**
+
+* Document how `follows` establishes event ordering for automation triggers by [@chrisguidry](https://github.com/chrisguidry) in [#22710](https://github.com/PrefectHQ/prefect/pull/22710)
+* Correct event trigger examples to match actual matching semantics by [@bunchesofdonald](https://github.com/bunchesofdonald) in [#22690](https://github.com/PrefectHQ/prefect/pull/22690)
+* Fix incorrect examples in the global concurrency limits docs by [@uinstinct](https://github.com/uinstinct) in [#22724](https://github.com/PrefectHQ/prefect/pull/22724)
+* Fix text not visible in an image by [@uinstinct](https://github.com/uinstinct) in [#22661](https://github.com/PrefectHQ/prefect/pull/22661)
+* Fix docstring `Args` entries that name a parameter the function does not take by [@darkdi](https://github.com/darkdi) in [#22733](https://github.com/PrefectHQ/prefect/pull/22733)
+* List 3.7 and 3.8 release notes and link the Prefect Cloud changelog by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22702](https://github.com/PrefectHQ/prefect/pull/22702)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.8.1...3.8.2
+
+
+---
+
 ## 3.8.1 - To relinquish, perchance to retry
 
 *Released on July 30, 2026*
