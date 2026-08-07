@@ -72,7 +72,8 @@ export function getIndexForAnyOfPropertyValue({
 
 /**
  * Get the index of the definition that matches a primitive value, preferring an
- * enum definition that includes the value over a definition without an enum
+ * enum definition that includes the value over a definition without an enum.
+ * Enum definitions without a type, like referenced python enums, are eligible.
  * @param value - The value to match
  * @param definitions - The definitions to match
  * @param matchesType - Whether a definition has the same type as the value
@@ -85,7 +86,7 @@ function getPrimitiveDefinitionIndex(
 ): number {
 	const enumIndex = definitions.findIndex(
 		(definition) =>
-			matchesType(definition) &&
+			(matchesType(definition) || !isDefined(definition.type)) &&
 			isArray(definition.enum) &&
 			definition.enum.includes(value),
 	);

@@ -80,6 +80,31 @@ describe("getIndexForAnyOfPropertyValue", () => {
 		).toBe(1);
 	});
 
+	test("returns index of referenced enum definition without a type", () => {
+		const schemaWithDefinitions = {
+			type: "object",
+			properties: {},
+			definitions: {
+				AsyncDriver: { enum: ["postgresql+asyncpg", "sqlite+aiosqlite"] },
+				SyncDriver: { enum: ["postgresql+psycopg2", "sqlite+pysqlite"] },
+			},
+		} as unknown as SchemaObject;
+		const property = {
+			anyOf: [
+				{ $ref: "#/definitions/AsyncDriver" },
+				{ $ref: "#/definitions/SyncDriver" },
+				{ type: "string" },
+			],
+		} as unknown as SchemaObject;
+		expect(
+			getIndexForAnyOfPropertyValue({
+				value: "sqlite+pysqlite",
+				property,
+				schema: schemaWithDefinitions,
+			}),
+		).toBe(1);
+	});
+
 	test("returns index of enum definition for number value in the enum", () => {
 		const property = {
 			anyOf: [{ type: "integer" }, { type: "integer", enum: [1, 2, 3] }],
