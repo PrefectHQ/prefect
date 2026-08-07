@@ -25,10 +25,11 @@ from typing import TYPE_CHECKING, Any, Optional, TypeVar
 
 import anyio
 import anyio.abc
-from pydantic import Field, field_validator
+from pydantic import Field, PrivateAttr, TypeAdapter, ValidationError, field_validator
 
 from prefect._internal.schemas.validators import validate_working_dir
 from prefect.client.schemas.objects import Flow as APIFlow
+from prefect.runner._uv_command import uv_project_command
 from prefect.runner.runner import Runner
 from prefect.states import Pending
 from prefect.utilities.processutils import command_to_string, get_sys_executable
@@ -53,6 +54,8 @@ class ProcessJobConfiguration(BaseJobConfiguration):
     stream_output: bool = Field(default=True)
     working_dir: Optional[Path] = Field(default=None)
 
+    _command_configured: bool = PrivateAttr(default=False)
+
     @field_validator("working_dir")
     @classmethod
     def validate_working_dir(cls, v: Path | str | None) -> Path | None:
@@ -69,6 +72,10 @@ class ProcessJobConfiguration(BaseJobConfiguration):
         worker_name: str | None = None,
         worker_id: "UUID | None" = None,
     ) -> None:
+        # The base implementation fills in `_base_flow_run_command()` when no command
+        # is configured, so provenance must be captured before delegating.
+        self._command_configured = self.command is not None
+
         super().prepare_for_flow_run(
             flow_run,
             deployment,
@@ -80,9 +87,9 @@ class ProcessJobConfiguration(BaseJobConfiguration):
 
         self.env: dict[str, str | None] = {**os.environ, **self.env}
         self.command: str | None = (
-            command_to_string([get_sys_executable(), "-m", "prefect.engine"])
-            if self.command == self._base_flow_run_command()
-            else self.command
+            self.command
+            if self._command_configured
+            else command_to_string([get_sys_executable(), "-m", "prefect.engine"])
         )
 
     @staticmethod
@@ -93,6 +100,38 @@ class ProcessJobConfiguration(BaseJobConfiguration):
         instead of the newer `prefect flow-run execute` path.
         """
         return "python -m prefect.engine"
+
+    def _resolve_command(self, working_dir: Path | str) -> str | None:
+        """
+        Use an auto-`uv run` launcher for the flow run when the working directory
+        is a project that declares `prefect` as a dependency and the deployment
+        did not configure an explicit command.
+        """
+        if self._command_configured:
+            return self.command
+
+        env = self.env or {}
+        # A run-specific setting in the environment takes precedence over the
+        # worker process's own setting.
+        auto_install = env.get("PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES")
+        try:
+            auto_install_dependencies = (
+                TypeAdapter(bool).validate_python(auto_install)
+                if auto_install is not None
+                else None
+            )
+        except ValidationError:
+            auto_install_dependencies = None
+
+        uv_command = uv_project_command(
+            # `uv` resolves `--project` relative to the flow run's working
+            # directory, so the project root must be absolute.
+            Path(working_dir).resolve(),
+            ["-m", "prefect.engine"],
+            path=env.get("PATH"),
+            auto_install_dependencies=auto_install_dependencies,
+        )
+        return uv_command or self.command
 
 
 class ProcessVariables(BaseVariables):
@@ -151,7 +190,7 @@ class ProcessWorker(
             warnings.simplefilter("ignore", DeprecationWarning)
             process = await self._runner.execute_flow_run(
                 flow_run_id=flow_run.id,
-                command=configuration.command,
+                command=configuration._resolve_command(working_dir),
                 cwd=working_dir,
                 env=configuration.env,
                 stream_output=configuration.stream_output,
