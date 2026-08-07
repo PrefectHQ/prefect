@@ -260,7 +260,9 @@ def run_async_in_new_loop(
 ) -> R:
     return anyio.run(
         partial(__fn, *args, **kwargs),
-        backend_options={"loop_factory": factory} if (factory := get_loop_factory()) else None,
+        backend_options={"loop_factory": factory}
+        if (factory := get_loop_factory())
+        else None,
     )
 
 

@@ -9,13 +9,13 @@ from types import GeneratorType
 from typing import TYPE_CHECKING, Any, Callable
 from uuid import UUID
 
-from prefect._internal.loop_factory import run_with_selected_loop
 from prefect._internal.compatibility.migration import getattr_migration
 from prefect._internal.control_listener import (
     clear_intent,
     configure_from_env,
     get_intent,
 )
+from prefect._internal.loop_factory import run_with_selected_loop
 from prefect.exceptions import (
     Abort,
     Pause,

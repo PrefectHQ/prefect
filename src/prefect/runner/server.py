@@ -117,5 +117,9 @@ def start_webserver(runner: "Runner", log_level: str | None = None) -> None:
         assert log_level is not None, "log_level should be set"
 
     uvicorn.run(
-        webserver, host=host, port=port, loop=uvicorn_loop(), log_level=log_level.lower()
+        webserver,
+        host=host,
+        port=port,
+        loop=uvicorn_loop(),
+        log_level=log_level.lower(),
     )  # Uvicorn supports only lowercase log_level

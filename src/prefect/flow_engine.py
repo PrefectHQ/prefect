@@ -43,7 +43,6 @@ from anyio import CancelScope
 from opentelemetry import propagate, trace
 from typing_extensions import ParamSpec
 
-from prefect._internal.loop_factory import run_with_selected_loop
 from prefect import Task, __version__
 from prefect._flow_run_suspension import (
     FlowRunSuspensionRequest,
@@ -55,6 +54,7 @@ from prefect._flow_run_suspension import (
 from prefect._internal.compatibility.deprecated import deprecated_callable
 from prefect._internal.control_listener import Intent, configure_from_env, get_intent
 from prefect._internal.engine import get_hook_name, resolve_custom_flow_run_name
+from prefect._internal.loop_factory import run_with_selected_loop
 from prefect._internal.metrics import RunMetrics
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun

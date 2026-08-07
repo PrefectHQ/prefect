@@ -70,7 +70,6 @@ import anyio.abc
 import anyio.to_thread
 from typing_extensions import Self
 
-from prefect._internal.loop_factory import run_with_selected_loop
 from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.compatibility.deprecated import (
     PrefectDeprecationWarning,

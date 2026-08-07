@@ -47,13 +47,13 @@ from exceptiongroup import BaseExceptionGroup, ExceptionGroup
 from rich.console import Console
 from typing_extensions import Literal, ParamSpec
 
-from prefect._internal.loop_factory import run_with_selected_loop
 from prefect._experimental.sla.objects import SlaTypes
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.launchers import (
     normalize_launcher,
     resolve_bundle_step_with_launcher,
 )
+from prefect._internal.loop_factory import run_with_selected_loop
 from prefect._internal.versioning import VersionType
 from prefect.client.schemas.filters import WorkerFilter, WorkerFilterStatus
 from prefect.client.schemas.objects import ConcurrencyLimitConfig, FlowRun

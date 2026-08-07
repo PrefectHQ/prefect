@@ -19,8 +19,8 @@ import orjson
 from rich.table import Table
 from rich.text import Text
 
-from prefect._internal.loop_factory import run_with_selected_loop
 import prefect.cli._app as _cli
+from prefect._internal.loop_factory import run_with_selected_loop
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,

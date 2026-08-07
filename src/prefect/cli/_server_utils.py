@@ -14,9 +14,9 @@ from typing import TYPE_CHECKING, Callable
 
 import uvicorn
 
-from prefect._internal.loop_factory import uvicorn_loop
 import prefect
 import prefect.settings
+from prefect._internal.loop_factory import uvicorn_loop
 from prefect.cli._cloud_utils import prompt_select_from_list
 from prefect.cli._prompts import prompt
 from prefect.logging import get_logger
