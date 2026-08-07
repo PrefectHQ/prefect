@@ -7884,7 +7884,7 @@ wheels = [
 [[package]]
 name = "zuvloop"
 version = "0.0.1"
-source = { git = "https://github.com/zzstoatzz/zuvloop.git#38c442cbe4940ee8f32b432a4b13e0dab32aaa59" }
+source = { git = "https://github.com/zzstoatzz/zuvloop.git#9afba5167fb71a933baa86b13a2a05b0061b8215" }
 dependencies = [
     { name = "opentelemetry-api", marker = "python_full_version >= '3.14'" },
 ]
