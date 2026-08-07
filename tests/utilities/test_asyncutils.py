@@ -614,3 +614,22 @@ class TestRunCoroAsSync:
         assert result["bar"][1] != run_sync_loop._loop
         assert result["foo"][0] == run_sync_loop.thread
         assert result["foo"][1] == run_sync_loop._loop
+
+
+async def test_sync_compatible_call_with_running_async_flag_false():
+    from prefect.utilities.asyncutils import RUNNING_ASYNC_FLAG, sync_compatible
+
+    @sync_compatible
+    async def sample_fn():
+        return 42
+
+    def sync_caller():
+        return sample_fn()
+
+    token = RUNNING_ASYNC_FLAG.set(False)
+    try:
+        res = sync_caller()
+    finally:
+        RUNNING_ASYNC_FLAG.reset(token)
+
+    assert res == 42

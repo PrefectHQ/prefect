@@ -1226,3 +1226,25 @@ class TestHooks:
 
             assert txn is not None
             spy.assert_called_once_with(txn)
+
+        async def test_sync_on_rollback_hook_calling_sync_compatible(self):
+            from prefect.utilities.asyncutils import sync_compatible
+
+            results = []
+
+            @sync_compatible
+            async def my_sync_compat_func():
+                return "success"
+
+            def sync_hook(txn: AsyncTransaction):
+                res = my_sync_compat_func()
+                results.append(res)
+
+            with pytest.raises(RuntimeError, match="Trigger rollback"):
+                async with atransaction(
+                    key="test_sync_on_rollback_hook_sync_compat"
+                ) as txn:
+                    txn.stage("foo", on_rollback_hooks=[sync_hook])
+                    raise RuntimeError("Trigger rollback")
+
+            assert results == ["success"]
