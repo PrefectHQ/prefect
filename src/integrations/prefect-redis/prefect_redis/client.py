@@ -178,7 +178,21 @@ async def clear_cached_clients() -> None:
     """
     global _client_cache
 
+    clients_to_cleanup = list(_client_cache.items())
     _client_cache.clear()
+
+    for (_, _, _, loop), client in clients_to_cleanup:
+        if loop and loop.is_closed():
+            continue
+        try:
+            if hasattr(client, "connection_pool") and client.connection_pool:
+                await client.connection_pool.disconnect()
+        except Exception:
+            pass
+        try:
+            await client.aclose()
+        except Exception:
+            pass
 
 
 @cached
