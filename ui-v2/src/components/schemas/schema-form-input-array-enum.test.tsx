@@ -149,4 +149,122 @@ describe("SchemaFormInputArray enum", () => {
 			expect(spy).toHaveBeenLastCalledWith({ tags: [] });
 		});
 	});
+
+	test("clearing all selections sends [] for an optional constrained array", async () => {
+		const user = userEvent.setup();
+		const spy = vi.fn();
+
+		function Wrapper() {
+			const [values, setValues] = useState<Record<string, unknown>>({
+				tags: ["foo"],
+			});
+			spy.mockImplementation((value: Record<string, unknown>) =>
+				setValues(value),
+			);
+
+			const schema: SchemaObject = {
+				type: "object",
+				properties: {
+					tags: {
+						type: "array",
+						title: "Tags",
+						minItems: 1,
+						items: { type: "string", enum: ["foo", "bar", "baz"] },
+					},
+				},
+			};
+
+			return (
+				<TestSchemaForm schema={schema} values={values} onValuesChange={spy} />
+			);
+		}
+
+		render(<Wrapper />);
+
+		await user.click(screen.getByRole("button", { name: /select tags/i }));
+		await user.click(screen.getByRole("option", { name: /^foo$/i }));
+
+		await waitFor(() => {
+			expect(spy).toHaveBeenLastCalledWith({ tags: [] });
+		});
+	});
+
+	test("clearing a required anyOf array honors the active branch minItems", async () => {
+		const user = userEvent.setup();
+		const spy = vi.fn();
+
+		function Wrapper() {
+			const [values, setValues] = useState<Record<string, unknown>>({
+				tags: ["foo"],
+			});
+			spy.mockImplementation((value: Record<string, unknown>) =>
+				setValues(value),
+			);
+
+			const schema: SchemaObject = {
+				type: "object",
+				required: ["tags"],
+				properties: {
+					tags: {
+						title: "Tags",
+						anyOf: [
+							{
+								type: "array",
+								minItems: 0,
+								items: { type: "string", enum: ["foo", "bar", "baz"] },
+							},
+							{ type: "null" },
+						],
+					},
+				},
+			};
+
+			return (
+				<TestSchemaForm schema={schema} values={values} onValuesChange={spy} />
+			);
+		}
+
+		render(<Wrapper />);
+
+		await user.click(screen.getByRole("button", { name: /remove foo tag/i }));
+
+		await waitFor(() => {
+			expect(spy).toHaveBeenLastCalledWith({ tags: [] });
+		});
+	});
+
+	test("omits a required array that is initially empty", async () => {
+		const spy = vi.fn();
+
+		function Wrapper() {
+			const [values, setValues] = useState<Record<string, unknown>>({
+				tags: [],
+			});
+			spy.mockImplementation((value: Record<string, unknown>) =>
+				setValues(value),
+			);
+
+			const schema: SchemaObject = {
+				type: "object",
+				required: ["tags"],
+				properties: {
+					tags: {
+						type: "array",
+						title: "Tags",
+						items: { type: "string", enum: ["foo", "bar", "baz"] },
+					},
+				},
+			};
+
+			return (
+				<TestSchemaForm schema={schema} values={values} onValuesChange={spy} />
+			);
+		}
+
+		render(<Wrapper />);
+
+		await waitFor(() => {
+			expect(spy).toHaveBeenLastCalledWith({});
+		});
+	});
 });

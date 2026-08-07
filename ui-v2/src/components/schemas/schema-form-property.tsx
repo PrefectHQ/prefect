@@ -14,6 +14,7 @@ import {
 	type SchemaValuePropertyError,
 } from "./types/errors";
 import { useSchemaFormContext } from "./use-schema-form-context";
+import { getIndexForAnyOfPropertyValue } from "./utilities/getIndexForAnyOfPropertyValue";
 import { isArray, isDefined } from "./utilities/guards";
 import { mergeSchemaPropertyDefinition } from "./utilities/mergeSchemaPropertyDefinition";
 
@@ -58,29 +59,40 @@ export function SchemaFormProperty({
 	const [omitted, setOmitted] = useState(false);
 	const id = useId();
 
+	const shouldOmitRequiredArray = useCallback(
+		(value: unknown) => {
+			if (!required || !isArray(value)) {
+				return false;
+			}
+
+			const anyOfIndex = getIndexForAnyOfPropertyValue({
+				value,
+				property,
+				schema,
+			});
+			const arrayProperty = property.anyOf?.[anyOfIndex]
+				? mergeSchemaPropertyDefinition(property.anyOf[anyOfIndex], schema)
+				: property;
+			const minItems =
+				typeof arrayProperty.minItems === "number" ? arrayProperty.minItems : 1;
+
+			return value.length < minItems;
+		},
+		[property, required, schema],
+	);
+
 	const handleValueChange = useCallback(
 		(value: unknown) => {
 			setInternalValue(value);
 
-			// An array shorter than minItems is omitted so validation reports it as
-			// missing. A required array without an explicit minItems is treated as
-			// minItems 1, since an empty array satisfies json schema's "required"
-			// check and would otherwise submit successfully.
-			const minItems =
-				"minItems" in property && typeof property.minItems === "number"
-					? property.minItems
-					: required
-						? 1
-						: 0;
-
-			if (isArray(value) && value.length < minItems) {
+			if (shouldOmitRequiredArray(value)) {
 				onValueChange(undefined);
 				return;
 			}
 
 			onValueChange(value);
 		},
-		[onValueChange, required, property],
+		[onValueChange, shouldOmitRequiredArray],
 	);
 
 	const handleOmittedChange = useCallback(() => {
@@ -102,14 +114,14 @@ export function SchemaFormProperty({
 		}
 
 		if (isDefined(property.default) && !isDefined(value)) {
-			onValueChange(property.default);
+			handleValueChange(property.default);
 		}
 
 		setInitialized(true);
 	}, [
 		initialized,
 		skipDefaultValueInitialization,
-		onValueChange,
+		handleValueChange,
 		property.default,
 		value,
 	]);
@@ -117,8 +129,12 @@ export function SchemaFormProperty({
 	useEffect(() => {
 		if (isDefined(value)) {
 			setInternalValue(value);
+
+			if (shouldOmitRequiredArray(value)) {
+				onValueChange(undefined);
+			}
 		}
-	}, [value]);
+	}, [onValueChange, shouldOmitRequiredArray, value]);
 
 	function getInitialValue() {
 		if (isDefined(value)) {
