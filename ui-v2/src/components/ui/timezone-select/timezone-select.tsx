@@ -180,9 +180,12 @@ export const TimezoneSelect = ({
 								return (
 									<div
 										key={value}
+										data-index={virtualOption.index}
+										// Options with long labels wrap on narrow triggers, so
+										// measure rather than assume every option's height
+										ref={virtualizer.measureElement}
 										className="absolute inset-x-0 top-0"
 										style={{
-											height: `${virtualOption.size}px`,
 											transform: `translateY(${virtualOption.start}px)`,
 										}}
 									>
