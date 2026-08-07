@@ -122,6 +122,7 @@ SHELL ["/bin/bash", "--login", "-c"]
 FROM ${BASE_IMAGE} AS final
 
 # Redeclare ARGs needed in this stage
+ARG BASE_IMAGE
 ARG PYTHON_VERSION
 ARG SQLITE_VERSION
 
@@ -190,14 +191,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     UV_COMPILE_BYTECODE=1 uv pip install "./dist/prefect.tar.gz${PREFECT_EXTRAS:-""}" && \
     rm -rf dist/
 
-# Remove setuptools. On some base images (notably the conda flavor) setuptools
-# is installed via egg-info, so uninstalling it leaves its
-# distutils-precedence.pth behind. That orphaned .pth then fails to import the
-# now-removed _distutils_hack module on every interpreter startup
-# (ModuleNotFoundError: No module named '_distutils_hack'). Remove it from the
-# active environment's site-packages, but only once the shim is actually gone.
-RUN uv pip uninstall setuptools && \
-    python -c "import importlib.util, pathlib, sysconfig; p = pathlib.Path(sysconfig.get_path('purelib')) / 'distutils-precedence.pth'; p.exists() and importlib.util.find_spec('_distutils_hack') is None and p.unlink()"
+# Setuptools is required by pip in the conda environment. Remove it only from
+# base images where it is not managed as part of the environment.
+RUN if [ "${BASE_IMAGE}" != "prefect-conda" ]; then \
+        uv pip uninstall setuptools; \
+    fi
 
 # Install any extra packages
 ARG EXTRA_PIP_PACKAGES
