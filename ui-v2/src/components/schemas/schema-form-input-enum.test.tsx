@@ -1,14 +1,14 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { mockPointerEvents } from "@tests/utils/browser";
-import type { SchemaObject } from "openapi-typescript";
 import { useState } from "react";
 import { beforeAll, describe, expect, test, vi } from "vitest";
 import type { SchemaFormProps } from "./schema-form";
 import { SchemaForm } from "./schema-form";
+import type { PrefectSchemaObject } from "./types/schemas";
 
 function TestSchemaForm({
-	schema = { type: "object", properties: {} },
+	schema = { type: "object", properties: {} } as PrefectSchemaObject,
 	kinds = [],
 	errors = [],
 	values = {},
@@ -26,7 +26,7 @@ function TestSchemaForm({
 }
 
 // Array property has a title so the combobox trigger reads "Select Colors"
-const multiEnumSchema: SchemaObject = {
+const multiEnumSchema: PrefectSchemaObject = {
 	type: "object",
 	properties: {
 		colors: {
@@ -37,7 +37,7 @@ const multiEnumSchema: SchemaObject = {
 	},
 };
 
-const singleEnumSchema: SchemaObject = {
+const singleEnumSchema: PrefectSchemaObject = {
 	type: "object",
 	properties: {
 		name: { type: "string", title: "Name", enum: ["foo", "bar", "baz"] },
