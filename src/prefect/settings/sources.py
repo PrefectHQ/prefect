@@ -143,17 +143,17 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
 
     def _load_profile_settings(self) -> Dict[str, Any]:
         """Helper method to load the profile settings from the profiles.toml file"""
-        if not self.profiles_path.exists():
-            return self._get_default_profile()
+        all_profile_data: dict[str, Any] = {}
+        if self.profiles_path.exists():
+            try:
+                all_profile_data = _read_toml_file(self.profiles_path)
+            except tomllib.TOMLDecodeError:
+                warnings.warn(
+                    f"Failed to load profiles from {self.profiles_path}. Please ensure the file is valid TOML."
+                )
+                return {}
 
-        try:
-            all_profile_data = _read_toml_file(self.profiles_path)
-        except tomllib.TOMLDecodeError:
-            warnings.warn(
-                f"Failed to load profiles from {self.profiles_path}. Please ensure the file is valid TOML."
-            )
-            return {}
-
+        active_profile: str | None
         if (
             sys.argv[0].endswith("/prefect")
             and len(sys.argv) >= 3
@@ -162,22 +162,29 @@ class ProfileSettingsTomlLoader(PydanticBaseSettingsSource):
             active_profile = sys.argv[2]
 
         else:
-            active_profile = os.environ.get("PREFECT_PROFILE") or all_profile_data.get(
-                "active"
-            )
+            active_profile = os.environ.get("PREFECT_PROFILE")
+            if not active_profile:
+                configured_profile = all_profile_data.get("active")
+                active_profile = (
+                    configured_profile if isinstance(configured_profile, str) else None
+                )
 
         profiles_data = all_profile_data.get("profiles", {})
 
-        if not active_profile or active_profile not in profiles_data:
-            return self._get_default_profile()
-        return profiles_data[active_profile]
+        if active_profile and active_profile in profiles_data:
+            return profiles_data[active_profile]
+        return self._get_bundled_profile(active_profile)
 
-    def _get_default_profile(self) -> Dict[str, Any]:
-        """Helper method to get the default profile"""
-        default_profile_data = _read_toml_file(DEFAULT_PROFILES_PATH)
-        default_profile = default_profile_data.get("active", "ephemeral")
+    def _get_bundled_profile(self, profile_name: str | None) -> Dict[str, Any]:
+        """Get a named bundled profile, falling back to the bundled default."""
+        bundled_profile_data = _read_toml_file(DEFAULT_PROFILES_PATH)
+        bundled_profiles = bundled_profile_data.get("profiles", {})
+        if profile_name in bundled_profiles:
+            return bundled_profiles[profile_name]
+
+        default_profile = bundled_profile_data.get("active", "ephemeral")
         assert isinstance(default_profile, str)
-        return default_profile_data.get("profiles", {}).get(default_profile, {})
+        return bundled_profiles.get(default_profile, {})
 
     def get_field_value(
         self, field: FieldInfo, field_name: str
