@@ -40,6 +40,17 @@ test("TimezoneSelect can select a timezone late in the list", async () => {
 	expect(mockOnSelectFn).toBeCalledWith("Asia/Singapore");
 });
 
+test("TimezoneSelect hints that searching reveals more timezones", async () => {
+	mockPointerEvents();
+	const user = userEvent.setup();
+
+	render(<TimezoneSelect onSelect={vi.fn()} selectedValue="" />);
+
+	await user.click(screen.getByLabelText(/select timezone/i));
+
+	expect(screen.getByText(/search to see more timezones/i)).toBeVisible();
+});
+
 test("TimezoneSelect displays a selected timezone that is not in the list", () => {
 	mockPointerEvents();
 

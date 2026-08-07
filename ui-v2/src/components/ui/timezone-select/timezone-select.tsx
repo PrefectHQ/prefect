@@ -76,6 +76,11 @@ const TIMEZONES = Intl.supportedValuesOf("timeZone")
 
 const ALL_TIMEZONES = [...SUGGESTED_TIMEZONES, ...TIMEZONES];
 
+// Rendering every supported timezone at once makes each keystroke re-render
+// hundreds of command items, which is slow enough to be noticeable. Any
+// timezone past the limit is still reachable by searching for it.
+const MAX_VISIBLE_TIMEZONES = 100;
+
 type TimezoneSelectProps = {
 	selectedValue: string | undefined | null;
 	onSelect: (value: string) => void;
@@ -99,11 +104,15 @@ export const TimezoneSelect = ({
 	}, [deferredSearch]);
 
 	const filteredTimezones = useMemo(() => {
-		return TIMEZONES.filter(
+		const matches = TIMEZONES.filter(
 			(timeZone) =>
 				timeZone.label.toLowerCase().includes(deferredSearch.toLowerCase()) ||
 				timeZone.value.toLowerCase().includes(deferredSearch.toLowerCase()),
 		);
+		return {
+			timezones: matches.slice(0, MAX_VISIBLE_TIMEZONES),
+			truncated: matches.length > MAX_VISIBLE_TIMEZONES,
+		};
 	}, [deferredSearch]);
 
 	const selectedLabel = useMemo(() => {
@@ -152,10 +161,10 @@ export const TimezoneSelect = ({
 							);
 						})}
 						<DropdownMenuSeparator />
-						{filteredTimezones.length > 0 && (
+						{filteredTimezones.timezones.length > 0 && (
 							<DropdownMenuLabel>All timezones</DropdownMenuLabel>
 						)}
-						{filteredTimezones.map(({ label, value }) => {
+						{filteredTimezones.timezones.map(({ label, value }) => {
 							return (
 								<ComboboxCommandItem
 									key={value}
@@ -170,6 +179,11 @@ export const TimezoneSelect = ({
 								</ComboboxCommandItem>
 							);
 						})}
+						{filteredTimezones.truncated && (
+							<div className="px-2 py-1.5 text-xs text-muted-foreground">
+								Search to see more timezones
+							</div>
+						)}
 					</ComboboxCommandGroup>
 				</ComboboxCommandList>
 			</ComboboxContent>
