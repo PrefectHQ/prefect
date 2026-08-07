@@ -1507,7 +1507,7 @@ class Flow(Generic[P, R]):
                 parameter schema for the created deployment.
             entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
                 entrypoint, ensure that the module will be importable in the execution environment.
-            print_next_steps_message: Whether or not to print a message with next steps
+            print_next_steps: Whether or not to print a message with next steps
                 after deploying the deployments.
             ignore_warnings: Whether or not to ignore warnings about the work pool type.
             _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
@@ -1705,7 +1705,7 @@ class Flow(Generic[P, R]):
                 parameter schema for the created deployment.
             entrypoint_type: Type of entrypoint to use for the deployment. When using a module path
                 entrypoint, ensure that the module will be importable in the execution environment.
-            print_next_steps_message: Whether or not to print a message with next steps
+            print_next_steps: Whether or not to print a message with next steps
                 after deploying the deployments.
             ignore_warnings: Whether or not to ignore warnings about the work pool type.
             _sla: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
@@ -2562,7 +2562,6 @@ class InfrastructureBoundFlow(Flow[P, R]):
 
         Args:
             flow_run: The existing flow run to retry
-            return_state: If True, return the final state instead of the result
 
         Returns:
             The flow result or final state

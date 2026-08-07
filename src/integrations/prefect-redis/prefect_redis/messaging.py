@@ -51,6 +51,11 @@ logger = get_logger(__name__)
 M = TypeVar("M", bound=Message)
 
 
+def _is_missing_stream_error(exc: ResponseError) -> bool:
+    """Whether a Redis error indicates the stream key does not exist."""
+    return "no such key" in str(exc).lower()
+
+
 def _interpret_string_as_timedelta_seconds(value: timedelta | str) -> timedelta:
     """Interpret a string as a timedelta in seconds."""
     if isinstance(value, str):
@@ -703,7 +708,7 @@ async def ephemeral_subscription(
         stream_info = await redis_client.xinfo_stream(source_stream)
         starting_message_id = stream_info["last-generated-id"]
     except ResponseError as exc:
-        if "no such key" not in str(exc).lower():
+        if not _is_missing_stream_error(exc):
             raise
         starting_message_id = "0-0"
 
@@ -763,7 +768,14 @@ async def _trim_stream_to_lowest_delivered_id(
         delivered_ids.append(latest_delivered_id)
 
     # Get information about all consumer groups for this stream
-    groups = await redis_client.xinfo_groups(stream_name)
+    try:
+        groups = await redis_client.xinfo_groups(stream_name)
+    except ResponseError as exc:
+        if not _is_missing_stream_error(exc):
+            raise
+        # Nothing has been published to this stream yet, so there is nothing to trim
+        logger.debug(f"Stream {stream_name} does not exist yet, skipping trim")
+        return
     if not groups:
         logger.debug(f"No consumer groups found for stream {stream_name}")
         if not delivered_ids:

@@ -237,8 +237,10 @@ class TestVertexAIWorker:
             )
         )
         async with VertexAIWorker("test-pool") as worker:
-            with pytest.raises(RuntimeError, match=error_msg):
-                await worker.run(flow_run=flow_run, configuration=job_config)
+            result = await worker.run(flow_run=flow_run, configuration=job_config)
+            assert result == VertexAIWorkerResult(
+                status_code=1, identifier=error_job_display_name
+            )
 
             assert (
                 job_config.credentials.job_service_async_client.create_custom_job.call_count
