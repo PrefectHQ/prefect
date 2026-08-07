@@ -12,6 +12,7 @@ from exceptiongroup import ExceptionGroup, catch
 from moto import mock_aws
 from moto.backends import get_backend
 from moto.ec2.utils import generate_instance_identity_document
+from moto.ecs import models as ecs_models
 from moto.moto_api import state_manager
 from prefect_aws.workers.ecs_worker import (
     _TAG_REGEX,
@@ -48,6 +49,20 @@ TEST_TASK_DEFINITION = {
         },
     ],
     "family": "prefect",
+}
+
+EXTERNAL_TASK_DEFINITION = {
+    "containerDefinitions": [
+        {
+            "cpu": 1024,
+            "image": "prefecthq/prefect:3-latest",
+            "memory": 2048,
+            "name": "prefect",
+        },
+    ],
+    "family": "prefect-external",
+    "requiresCompatibilities": ["EXTERNAL"],
+    "networkMode": "bridge",
 }
 
 state_manager.set_transition(
@@ -3249,3 +3264,198 @@ class TestReportTaskRunCreationFailure:
         exc = Exception("Something completely unexpected")
         with pytest.raises(Exception, match="Something completely unexpected"):
             self._call(MagicMock(), {}, exc)
+
+
+class TestExternalLaunchType:
+    """
+    Behavior of the 'EXTERNAL' launch type, which places tasks on ECS Anywhere
+    external instances registered with the cluster.
+
+    Regression tests for https://github.com/PrefectHQ/prefect/issues/13019
+    """
+
+    @pytest.fixture(autouse=True)
+    def moto_external_compatibility(self, monkeypatch: pytest.MonkeyPatch):
+        """
+        moto treats any task definition that is not exactly ['EC2'] compatible as a
+        Fargate definition and forces the 'awsvpc' network mode, which AWS does not do
+        for EXTERNAL definitions.
+        """
+        original_init = ecs_models.TaskDefinition.__init__
+
+        def patched_init(self, *args, **kwargs):
+            original_init(self, *args, **kwargs)
+            if self.requires_compatibilities == ["EXTERNAL"]:
+                self.compatibilities = ["EXTERNAL"]
+                self.network_mode = kwargs.get("network_mode") or "bridge"
+
+        monkeypatch.setattr(ecs_models.TaskDefinition, "__init__", patched_init)
+
+    @pytest.mark.usefixtures("ecs_mocks")
+    async def test_generated_task_definition_requires_external_compatibility(
+        self, aws_credentials: AwsCredentials, flow_run: FlowRun
+    ):
+        configuration = await construct_configuration(
+            aws_credentials=aws_credentials, launch_type="EXTERNAL"
+        )
+
+        session = aws_credentials.get_boto3_session()
+        ecs_client = session.client("ecs")
+
+        async with ECSWorker(work_pool_name="test") as worker:
+            original_run_task = worker._create_task_run
+            mock_run_task = MagicMock(side_effect=original_run_task)
+            worker._create_task_run = mock_run_task
+
+            result = await worker.run(flow_run, configuration)
+
+        assert result.status_code == 0
+
+        # The launch type must survive templating and reach RunTask
+        assert mock_run_task.call_args[0][1]["launchType"] == "EXTERNAL"
+
+        _, task_arn = parse_identifier(result.identifier)
+        task_definition = describe_task_definition(
+            ecs_client, describe_task(ecs_client, task_arn)
+        )
+        assert task_definition["requiresCompatibilities"] == ["EXTERNAL"]
+        assert task_definition["networkMode"] != "awsvpc"
+
+        # External tasks require container level cpu and memory
+        container_definition = _get_container(
+            task_definition["containerDefinitions"], ECS_DEFAULT_CONTAINER_NAME
+        )
+        assert container_definition["cpu"] == ECS_DEFAULT_CPU
+        assert container_definition["memory"] == ECS_DEFAULT_MEMORY
+
+    @pytest.mark.usefixtures("ecs_mocks")
+    async def test_supplied_external_task_definition_is_accepted(
+        self, aws_credentials: AwsCredentials, flow_run: FlowRun
+    ):
+        session = aws_credentials.get_boto3_session()
+        ecs_client = session.client("ecs")
+
+        task_definition_arn = ecs_client.register_task_definition(
+            **EXTERNAL_TASK_DEFINITION
+        )["taskDefinition"]["taskDefinitionArn"]
+
+        configuration = await construct_configuration(
+            aws_credentials=aws_credentials,
+            launch_type="EXTERNAL",
+            task_definition_arn=task_definition_arn,
+        )
+
+        async with ECSWorker(work_pool_name="test") as worker:
+            result = await worker.run(flow_run, configuration)
+
+        assert result.status_code == 0
+
+        _, task_arn = parse_identifier(result.identifier)
+        task = describe_task(ecs_client, task_arn)
+        assert task["taskDefinitionArn"] == task_definition_arn
+
+    @pytest.mark.usefixtures("ecs_mocks")
+    async def test_task_definition_without_external_compatibility_is_rejected(
+        self, aws_credentials: AwsCredentials, flow_run: FlowRun
+    ):
+        session = aws_credentials.get_boto3_session()
+        ecs_client = session.client("ecs")
+
+        task_definition_arn = ecs_client.register_task_definition(
+            **{
+                **EXTERNAL_TASK_DEFINITION,
+                "family": "prefect-fargate-only",
+                "requiresCompatibilities": ["FARGATE"],
+            }
+        )["taskDefinition"]["taskDefinitionArn"]
+
+        configuration = await construct_configuration(
+            aws_credentials=aws_credentials,
+            launch_type="EXTERNAL",
+            task_definition_arn=task_definition_arn,
+        )
+
+        def handle_error(exc_group: ExceptionGroup):
+            assert len(exc_group.exceptions) == 1
+            assert (
+                "Task definition does not have 'EXTERNAL' in"
+                " 'requiresCompatibilities' and cannot be used with launch type"
+                " 'EXTERNAL'" in str(exc_group.exceptions[0])
+            )
+
+        with catch({ValueError: handle_error}):
+            async with ECSWorker(work_pool_name="test") as worker:
+                await worker.run(flow_run, configuration)
+
+    @pytest.mark.usefixtures("ecs_mocks")
+    async def test_awsvpc_network_mode_is_rejected(
+        self, aws_credentials: AwsCredentials, flow_run: FlowRun
+    ):
+        configuration = await construct_configuration_with_job_template(
+            template_overrides={
+                "task_definition": {
+                    **EXTERNAL_TASK_DEFINITION,
+                    "networkMode": "awsvpc",
+                }
+            },
+            aws_credentials=aws_credentials,
+            launch_type="EXTERNAL",
+        )
+
+        def handle_error(exc_group: ExceptionGroup):
+            assert len(exc_group.exceptions) == 1
+            assert (
+                "Found network mode 'awsvpc' which is not compatible with launch type"
+                " 'EXTERNAL'" in str(exc_group.exceptions[0])
+            )
+
+        with catch({ValueError: handle_error}):
+            async with ECSWorker(work_pool_name="test") as worker:
+                await worker.run(flow_run, configuration)
+
+    @pytest.mark.usefixtures("ecs_mocks")
+    async def test_capacity_provider_strategy_is_rejected(
+        self, aws_credentials: AwsCredentials, flow_run: FlowRun
+    ):
+        configuration = await construct_configuration(
+            aws_credentials=aws_credentials,
+            launch_type="EXTERNAL",
+            capacity_provider_strategy=[
+                {"capacityProvider": "my-provider", "weight": 1, "base": 0}
+            ],
+        )
+
+        def handle_error(exc_group: ExceptionGroup):
+            assert len(exc_group.exceptions) == 1
+            assert (
+                "A capacity provider strategy cannot be used with launch type"
+                " 'EXTERNAL'" in str(exc_group.exceptions[0])
+            )
+
+        with catch({ValueError: handle_error}):
+            async with ECSWorker(work_pool_name="test") as worker:
+                await worker.run(flow_run, configuration)
+
+    @pytest.mark.usefixtures("ecs_mocks")
+    async def test_kill_infrastructure_stops_external_task(
+        self, aws_credentials: AwsCredentials, flow_run: FlowRun
+    ):
+        configuration = await construct_configuration(
+            aws_credentials=aws_credentials, launch_type="EXTERNAL"
+        )
+
+        session = aws_credentials.get_boto3_session()
+        ecs_client = session.client("ecs")
+
+        async with ECSWorker(work_pool_name="test") as worker:
+            result = await worker.run(flow_run, configuration)
+
+            await worker.kill_infrastructure(
+                infrastructure_pid=result.identifier,
+                configuration=configuration,
+                grace_seconds=30,
+            )
+
+        _, task_arn = parse_identifier(result.identifier)
+        task = describe_task(ecs_client, task_arn)
+        assert task["lastStatus"] in ("STOPPED", "DEPROVISIONING")
