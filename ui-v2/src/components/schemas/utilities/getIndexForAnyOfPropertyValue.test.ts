@@ -44,6 +44,51 @@ describe("getIndexForAnyOfPropertyValue", () => {
 		).toBe(1);
 	});
 
+	test("returns index of enum definition for string value in the enum", () => {
+		const property = {
+			anyOf: [
+				{ type: "string", format: "date" },
+				{ type: "string", enum: ["today", "prev", "prev_td"] },
+			],
+		} as unknown as SchemaObject;
+		expect(
+			getIndexForAnyOfPropertyValue({ value: "prev_td", property, schema }),
+		).toBe(1);
+	});
+
+	test("returns index of non enum definition for string value not in the enum", () => {
+		const property = {
+			anyOf: [
+				{ type: "string", format: "date" },
+				{ type: "string", enum: ["today", "prev", "prev_td"] },
+			],
+		} as unknown as SchemaObject;
+		expect(
+			getIndexForAnyOfPropertyValue({ value: "2024-01-15", property, schema }),
+		).toBe(0);
+	});
+
+	test("returns index of matching enum definition when every definition is an enum", () => {
+		const property = {
+			anyOf: [
+				{ type: "string", enum: ["a", "b"] },
+				{ type: "string", enum: ["c", "d"] },
+			],
+		} as unknown as SchemaObject;
+		expect(
+			getIndexForAnyOfPropertyValue({ value: "c", property, schema }),
+		).toBe(1);
+	});
+
+	test("returns index of enum definition for number value in the enum", () => {
+		const property = {
+			anyOf: [{ type: "integer" }, { type: "integer", enum: [1, 2, 3] }],
+		} as unknown as SchemaObject;
+		expect(getIndexForAnyOfPropertyValue({ value: 2, property, schema })).toBe(
+			1,
+		);
+	});
+
 	describe("prefect kind values", () => {
 		test("returns index of typeless definition for json prefect kind value", () => {
 			const property = {

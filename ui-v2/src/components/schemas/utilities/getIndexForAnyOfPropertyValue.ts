@@ -45,16 +45,22 @@ export function getIndexForAnyOfPropertyValue({
 
 	switch (typeof valueOrDefaultValue) {
 		case "string":
-			return definitions.findIndex(
+			return getPrimitiveDefinitionIndex(
+				valueOrDefaultValue,
+				definitions,
 				(definition) => definition.type === "string",
 			);
 		case "number":
-			return definitions.findIndex(
+			return getPrimitiveDefinitionIndex(
+				valueOrDefaultValue,
+				definitions,
 				(definition) =>
 					definition.type === "number" || definition.type === "integer",
 			);
 		case "boolean":
-			return definitions.findIndex(
+			return getPrimitiveDefinitionIndex(
+				valueOrDefaultValue,
+				definitions,
 				(definition) => definition.type === "boolean",
 			);
 		case "object":
@@ -62,6 +68,41 @@ export function getIndexForAnyOfPropertyValue({
 		default:
 			return -1;
 	}
+}
+
+/**
+ * Get the index of the definition that matches a primitive value, preferring an
+ * enum definition that includes the value over a definition without an enum
+ * @param value - The value to match
+ * @param definitions - The definitions to match
+ * @param matchesType - Whether a definition has the same type as the value
+ * @returns The index of the definition that matches the value
+ */
+function getPrimitiveDefinitionIndex(
+	value: string | number | boolean,
+	definitions: SchemaObject[],
+	matchesType: (definition: SchemaObject) => boolean,
+): number {
+	const enumIndex = definitions.findIndex(
+		(definition) =>
+			matchesType(definition) &&
+			isArray(definition.enum) &&
+			definition.enum.includes(value),
+	);
+
+	if (enumIndex >= 0) {
+		return enumIndex;
+	}
+
+	const nonEnumIndex = definitions.findIndex(
+		(definition) => matchesType(definition) && !isDefined(definition.enum),
+	);
+
+	if (nonEnumIndex >= 0) {
+		return nonEnumIndex;
+	}
+
+	return definitions.findIndex(matchesType);
 }
 
 /**
