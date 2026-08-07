@@ -70,7 +70,7 @@ import anyio.abc
 import anyio.to_thread
 from typing_extensions import Self
 
-from prefect._internal.loop_factory import run_coro
+from prefect._internal.loop_factory import run_with_selected_loop
 from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.compatibility.deprecated import (
     PrefectDeprecationWarning,
@@ -225,7 +225,7 @@ class Runner:
                     # Run on a cron schedule
                     runner.add_flow(goodbye_flow, schedule={"cron": "0 * * * *"})
 
-                    run_coro(runner.start())
+                    run_with_selected_loop(runner.start())
                 ```
         """
         self._heartbeat_seconds = heartbeat_seconds
@@ -624,7 +624,7 @@ class Runner:
                     # Run on a cron schedule
                     runner.add_flow(goodbye_flow, schedule={"cron": "0 * * * *"})
 
-                    run_coro(runner.start())
+                    run_with_selected_loop(runner.start())
                 ```
         """
         from prefect.runner.server import start_webserver

@@ -24,7 +24,7 @@ from typing import (
 
 from typing_extensions import ParamSpec, Self, TypeVar
 
-from prefect._internal.loop_factory import run_coro
+from prefect._internal.loop_factory import run_with_selected_loop
 from prefect._flow_run_suspension import raise_if_flow_run_suspension_requested
 from prefect._internal.uuid7 import uuid7
 from prefect.client.schemas.objects import RunInput
@@ -627,7 +627,7 @@ def _run_task_in_subprocess(
                 import asyncio
 
                 maybe_coro = run_task_async(*args, **kwargs)
-                result = run_coro(maybe_coro)
+                result = run_with_selected_loop(maybe_coro)
             else:
                 result = run_task_sync(*args, **kwargs)
 

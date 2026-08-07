@@ -28,7 +28,7 @@ WORKER = """
 import asyncio, json, os, sys, time
 
 from prefect import flow
-from prefect._internal.loop_factory import run_coro
+from prefect._internal.loop_factory import run_with_selected_loop
 from prefect.utilities.processutils import run_process
 
 
@@ -86,7 +86,7 @@ async def main() -> None:
     print(json.dumps({"seconds": seconds}))
 
 
-run_coro(main())
+run_with_selected_loop(main())
 """
 
 

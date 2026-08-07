@@ -13,7 +13,7 @@ import anyio
 from cachetools import TTLCache
 from typing_extensions import Self
 
-from prefect._internal.loop_factory import run_coro
+from prefect._internal.loop_factory import run_with_selected_loop
 from prefect._internal.concurrency.api import create_call, from_async, from_sync
 from prefect._internal.concurrency.threads import get_global_loop
 from prefect.client.schemas.objects import (
@@ -71,7 +71,7 @@ class FlowRunWaiter:
 
 
     if __name__ == "__main__":
-        run_coro(main())
+        run_with_selected_loop(main())
     ```
     """
 

@@ -26,7 +26,7 @@ import cloudpickle  # pyright: ignore[reportMissingTypeStubs]
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.version import Version
 
-from prefect._internal.loop_factory import run_coro
+from prefect._internal.loop_factory import run_with_selected_loop
 import prefect
 from prefect._internal.control_listener import configure_from_env
 from prefect.client.schemas.objects import FlowRun
@@ -571,7 +571,7 @@ def _extract_and_run_flow(
             if asyncio.iscoroutine(maybe_coro):
                 # This is running in a brand new process, so there won't be an existing
                 # event loop.
-                run_coro(maybe_coro)
+                run_with_selected_loop(maybe_coro)
 
 
 def execute_bundle_in_subprocess(

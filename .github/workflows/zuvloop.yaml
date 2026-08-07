@@ -1,0 +1,61 @@
+name: zuvloop opt-in
+
+env:
+  PY_COLORS: 1
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/zuvloop.yaml
+      - src/prefect/_internal/loop_factory.py
+      - tests/_internal/test_loop_factory.py
+      - benches/bench_event_loop.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  test-and-bench:
+    name: Test and benchmark under zuvloop
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.14"
+          enable-cache: true
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Install the project with the zuvloop extra
+        run: uv sync --locked --extra zuvloop --compile-bytecode
+
+      - name: Run loop-sensitive tests on the default loop
+        run: >
+          uv run pytest
+          tests/_internal/test_loop_factory.py
+          tests/utilities/test_processutils.py
+          tests/utilities/test_asyncutils.py
+          -q
+
+      - name: Run loop-sensitive tests under zuvloop
+        env:
+          PREFECT_EVENT_LOOP: zuvloop
+        run: >
+          uv run pytest
+          tests/_internal/test_loop_factory.py
+          tests/utilities/test_processutils.py
+          tests/utilities/test_asyncutils.py
+          -q
+
+      - name: Benchmark loop-bound flow regions
+        run: uv run python benches/bench_event_loop.py
