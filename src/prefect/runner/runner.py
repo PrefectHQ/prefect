@@ -224,7 +224,7 @@ class Runner:
                     # Run on a cron schedule
                     runner.add_flow(goodbye_flow, schedule={"cron": "0 * * * *"})
 
-                    asyncio.run(runner.start())
+                    run_with_selected_loop(runner.start())
                 ```
         """
         self._heartbeat_seconds = heartbeat_seconds
@@ -623,7 +623,7 @@ class Runner:
                     # Run on a cron schedule
                     runner.add_flow(goodbye_flow, schedule={"cron": "0 * * * *"})
 
-                    asyncio.run(runner.start())
+                    run_with_selected_loop(runner.start())
                 ```
         """
         from prefect.runner.server import start_webserver

@@ -21,6 +21,7 @@ from prefect._internal.concurrency.calls import Call, Portal
 from prefect._internal.concurrency.cancellation import CancelledError
 from prefect._internal.concurrency.event_loop import get_running_loop
 from prefect._internal.concurrency.primitives import Event
+from prefect._internal.loop_factory import run_with_selected_loop
 
 T = TypeVar("T", infer_variance=True)
 
@@ -269,7 +270,7 @@ class EventLoopThread(Portal):
         Immediately create a new event loop and pass control to `run_until_shutdown`.
         """
         try:
-            asyncio.run(self._run_until_shutdown())
+            run_with_selected_loop(self._run_until_shutdown())
         except BaseException:
             # Log exceptions that crash the thread
             logger.exception("%s encountered exception", self.name)

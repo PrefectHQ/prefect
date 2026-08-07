@@ -25,6 +25,7 @@ from typing import (
 from typing_extensions import ParamSpec, Self, TypeVar
 
 from prefect._flow_run_suspension import raise_if_flow_run_suspension_requested
+from prefect._internal.loop_factory import run_with_selected_loop
 from prefect._internal.uuid7 import uuid7
 from prefect.client.schemas.objects import RunInput
 from prefect.events.schemas.events import Event
@@ -623,10 +624,9 @@ def _run_task_in_subprocess(
             task = kwargs.get("task")
             if task and task.isasync:
                 # For async tasks, we need to create a new event loop
-                import asyncio
 
                 maybe_coro = run_task_async(*args, **kwargs)
-                result = asyncio.run(maybe_coro)
+                result = run_with_selected_loop(maybe_coro)
             else:
                 result = run_task_sync(*args, **kwargs)
 

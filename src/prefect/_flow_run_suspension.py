@@ -7,6 +7,7 @@ from contextlib import contextmanager
 from typing import Generator
 from uuid import UUID
 
+from prefect._internal.loop_factory import run_with_selected_loop
 from prefect.client.schemas.objects import State
 from prefect.exceptions import Pause
 from prefect.logging.loggers import get_logger
@@ -116,7 +117,7 @@ def observe_flow_run_suspension(
 
     def observer_thread() -> None:
         try:
-            context.run(lambda: asyncio.run(run_observer()))
+            context.run(lambda: run_with_selected_loop(run_observer()))
         except Exception:
             logger.debug(
                 "Flow run suspension observer exited with an exception",

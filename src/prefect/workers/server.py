@@ -4,6 +4,7 @@ import uvicorn
 from fastapi import APIRouter, FastAPI, status
 from fastapi.responses import JSONResponse
 
+from prefect._internal.loop_factory import uvicorn_loop
 from prefect.settings import get_current_settings
 from prefect.workers.base import BaseWorker
 
@@ -45,7 +46,7 @@ def build_healthcheck_server(
         host=settings.worker.webserver.host,
         port=settings.worker.webserver.port,
         log_level=log_level,
-        loop="asyncio",  # prevent uvloop from setting global policy
+        loop=uvicorn_loop(),
     )
     return uvicorn.Server(config=config)
 
