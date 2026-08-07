@@ -14,7 +14,7 @@ import {
 	type SchemaValuePropertyError,
 } from "./types/errors";
 import { useSchemaFormContext } from "./use-schema-form-context";
-import { isDefined } from "./utilities/guards";
+import { isArray, isDefined } from "./utilities/guards";
 import { mergeSchemaPropertyDefinition } from "./utilities/mergeSchemaPropertyDefinition";
 
 export type SchemaFormPropertyProps = {
@@ -61,9 +61,17 @@ export function SchemaFormProperty({
 	const handleValueChange = useCallback(
 		(value: unknown) => {
 			setInternalValue(value);
+
+			// An empty array satisfies json schema's "required" check, so a required
+			// array that gets emptied must be omitted to surface a required error.
+			if (required && isArray(value) && value.length === 0) {
+				onValueChange(undefined);
+				return;
+			}
+
 			onValueChange(value);
 		},
-		[onValueChange],
+		[onValueChange, required],
 	);
 
 	const handleOmittedChange = useCallback(() => {

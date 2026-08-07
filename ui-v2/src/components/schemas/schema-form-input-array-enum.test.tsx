@@ -68,4 +68,45 @@ describe("SchemaFormInputArray enum", () => {
 			expect(spy).toHaveBeenLastCalledWith({ tags: [] });
 		});
 	});
+
+	test("clearing all selections omits the field when it is required", async () => {
+		const user = userEvent.setup();
+		const spy = vi.fn();
+
+		function Wrapper() {
+			const [values, setValues] = useState<Record<string, unknown>>({
+				tags: ["foo"],
+			});
+			spy.mockImplementation((value: Record<string, unknown>) =>
+				setValues(value),
+			);
+
+			const schema: SchemaObject = {
+				type: "object",
+				required: ["tags"],
+				properties: {
+					tags: {
+						type: "array",
+						title: "Tags",
+						items: { type: "string", enum: ["foo", "bar", "baz"] },
+					},
+				},
+			};
+
+			return (
+				<TestSchemaForm schema={schema} values={values} onValuesChange={spy} />
+			);
+		}
+
+		render(<Wrapper />);
+
+		await user.click(screen.getByRole("button", { name: /select tags/i }));
+		await user.click(screen.getByRole("option", { name: /^foo$/i }));
+
+		// an empty array satisfies json schema's "required" check, so the field is
+		// omitted instead to surface a "required property" validation error
+		await waitFor(() => {
+			expect(spy).toHaveBeenLastCalledWith({});
+		});
+	});
 });
