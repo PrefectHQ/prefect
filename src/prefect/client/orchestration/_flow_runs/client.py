@@ -371,6 +371,8 @@ class FlowRunClient(BaseClient):
         flow_run_id: "UUID | str",
         state: "State[T]",
         force: bool = False,
+        *,
+        transition_id: "UUID | None" = None,
     ) -> "OrchestrationResult[T]":
         """
         Set the state of a flow run.
@@ -380,6 +382,8 @@ class FlowRunClient(BaseClient):
             state: the state to set
             force: if True, disregard orchestration logic when setting the state,
                 forcing the Prefect API to accept the state
+            transition_id: an optional identity for this logical proposal. Reuse the
+                same value only when retrying an identical proposal.
 
         Returns:
             an OrchestrationResult model representation of state orchestration output
@@ -392,8 +396,12 @@ class FlowRunClient(BaseClient):
             flow_run_id if isinstance(flow_run_id, UUID) else UUID(flow_run_id)
         )
         state_create = to_state_create(state)
-        state_create.state_details.flow_run_id = flow_run_id
-        state_create.state_details.transition_id = uuid4()
+        state_details = state_create.state_details.model_copy()
+        state_details.flow_run_id = flow_run_id
+        state_details.transition_id = (
+            transition_id if transition_id is not None else uuid4()
+        )
+        state_create.state_details = state_details
         try:
             response = self.request(
                 "POST",
@@ -899,6 +907,8 @@ class FlowRunAsyncClient(BaseAsyncClient):
         flow_run_id: "UUID | str",
         state: "State[T]",
         force: bool = False,
+        *,
+        transition_id: "UUID | None" = None,
     ) -> "OrchestrationResult[T]":
         """
         Set the state of a flow run.
@@ -908,6 +918,8 @@ class FlowRunAsyncClient(BaseAsyncClient):
             state: the state to set
             force: if True, disregard orchestration logic when setting the state,
                 forcing the Prefect API to accept the state
+            transition_id: an optional identity for this logical proposal. Reuse the
+                same value only when retrying an identical proposal.
 
         Returns:
             an OrchestrationResult model representation of state orchestration output
@@ -920,8 +932,12 @@ class FlowRunAsyncClient(BaseAsyncClient):
             flow_run_id if isinstance(flow_run_id, UUID) else UUID(flow_run_id)
         )
         state_create = to_state_create(state)
-        state_create.state_details.flow_run_id = flow_run_id
-        state_create.state_details.transition_id = uuid4()
+        state_details = state_create.state_details.model_copy()
+        state_details.flow_run_id = flow_run_id
+        state_details.transition_id = (
+            transition_id if transition_id is not None else uuid4()
+        )
+        state_create.state_details = state_details
         try:
             response = await self.request(
                 "POST",
