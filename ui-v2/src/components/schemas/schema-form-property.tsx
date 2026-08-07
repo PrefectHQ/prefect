@@ -78,8 +78,14 @@ export function SchemaFormProperty({
 		const isOmitted = !omitted;
 
 		setOmitted(isOmitted);
-		onValueChange(isOmitted ? undefined : internalValue);
-	}, [omitted, onValueChange, internalValue]);
+
+		if (isOmitted) {
+			onValueChange(undefined);
+			return;
+		}
+
+		handleValueChange(internalValue);
+	}, [omitted, onValueChange, handleValueChange, internalValue]);
 
 	useEffect(() => {
 		if (initialized || skipDefaultValueInitialization) {
