@@ -201,21 +201,22 @@ describe("SchemaFormInputArray enum", () => {
 				setValues(value),
 			);
 
+			const tagsProperty = {
+				title: "Tags",
+				anyOf: [
+					{
+						type: "array",
+						minItems: 0,
+						items: { type: "string", enum: ["foo", "bar", "baz"] },
+					},
+					{ type: "null" },
+				],
+			} as SchemaObject & { anyOf: SchemaObject[] };
 			const schema: SchemaObject = {
 				type: "object",
 				required: ["tags"],
 				properties: {
-					tags: {
-						title: "Tags",
-						anyOf: [
-							{
-								type: "array",
-								minItems: 0,
-								items: { type: "string", enum: ["foo", "bar", "baz"] },
-							},
-							{ type: "null" },
-						],
-					},
+					tags: tagsProperty,
 				},
 			};
 

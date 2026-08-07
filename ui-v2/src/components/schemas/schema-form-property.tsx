@@ -74,7 +74,10 @@ export function SchemaFormProperty({
 				? mergeSchemaPropertyDefinition(property.anyOf[anyOfIndex], schema)
 				: property;
 			const minItems =
-				typeof arrayProperty.minItems === "number" ? arrayProperty.minItems : 1;
+				"minItems" in arrayProperty &&
+				typeof arrayProperty.minItems === "number"
+					? arrayProperty.minItems
+					: 1;
 
 			return value.length < minItems;
 		},
@@ -114,14 +117,14 @@ export function SchemaFormProperty({
 		}
 
 		if (isDefined(property.default) && !isDefined(value)) {
-			handleValueChange(property.default);
+			onValueChange(property.default);
 		}
 
 		setInitialized(true);
 	}, [
 		initialized,
 		skipDefaultValueInitialization,
-		handleValueChange,
+		onValueChange,
 		property.default,
 		value,
 	]);
