@@ -248,7 +248,7 @@ test.describe("Runs Page - Flow Runs List & Filters", () => {
 
 		await expect(async () => {
 			await page.goto(
-				`/runs?flow-run-search=${encodeURIComponent(`${prefix}pc-`)}`,
+				`/runs?flow-run-search=${encodeURIComponent(`${prefix}pc-`)}&hide-subflows=false`,
 			);
 			await expect(page.getByText(parentName)).toBeVisible({
 				timeout: 2000,
@@ -367,7 +367,7 @@ test.describe("Runs Page - Flow Runs List & Filters", () => {
 
 		await expect(async () => {
 			await page.goto(
-				`/runs?flow-run-search=${encodeURIComponent(`${prefix}pc-`)}`,
+				`/runs?flow-run-search=${encodeURIComponent(`${prefix}pc-`)}&hide-subflows=false`,
 			);
 			await expect(page.getByText(parentName)).toBeVisible({
 				timeout: 2000,

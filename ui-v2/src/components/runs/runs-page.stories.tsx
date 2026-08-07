@@ -139,7 +139,7 @@ const RunsPageWithState = ({
 		limit: 10,
 	});
 	const [sort, setSort] = useState<SortFilters>("START_TIME_DESC");
-	const [hideSubflows, setHideSubflows] = useState(false);
+	const [hideSubflows, setHideSubflows] = useState(true);
 	const [flowRunSearch, setFlowRunSearch] = useState(initialFlowRunSearch);
 	const [selectedStates, setSelectedStates] = useState<Set<FlowRunState>>(
 		initialSelectedStates,

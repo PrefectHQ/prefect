@@ -53,7 +53,7 @@ const searchParams = z.object({
 	page: z.number().int().positive().optional().default(1).catch(1),
 	limit: z.number().int().positive().optional().catch(undefined),
 	sort: z.enum(SORT_FILTERS).optional().default("START_TIME_DESC"),
-	"hide-subflows": z.boolean().optional().default(false),
+	"hide-subflows": z.boolean().optional().default(true),
 	"flow-run-search": z.string().optional().default(""),
 	state: z.string().optional().default(""),
 	flows: z.string().optional().default(""),

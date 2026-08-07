@@ -132,7 +132,7 @@ type FlowRunStateTab = (typeof FLOW_RUN_STATE_TABS)[number];
 
 // Search params for dashboard filters (flat structure)
 const searchParams = z.object({
-	hideSubflows: z.boolean().optional().catch(false),
+	hideSubflows: z.boolean().optional().default(true).catch(true),
 	tags: z.array(z.string()).optional().catch(undefined),
 	// Flow run state tab selection (defaults to FAILED-CRASHED)
 	tab: z.enum(FLOW_RUN_STATE_TABS).optional().catch(undefined),
@@ -771,7 +771,7 @@ export function RouteComponent() {
 	const isEmpty = totalFlowRuns === 0;
 
 	// Derive UI states with sensible defaults
-	const hideSubflows = search.hideSubflows ?? false;
+	const hideSubflows = search.hideSubflows ?? true;
 	const tags = search.tags ?? [];
 	const dateRangeValue = useMemo<DateRangeSelectValue>(() => {
 		switch (search.rangeType) {
