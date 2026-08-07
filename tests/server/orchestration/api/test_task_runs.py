@@ -336,6 +336,7 @@ class TestReadTaskRuns:
                 flow_run_id=flow_run.id,
                 task_key="my-key",
                 expected_start_time=now + datetime.timedelta(minutes=5),
+                start_time=now - datetime.timedelta(minutes=6),
                 dynamic_key="1",
             ),
         )
@@ -382,6 +383,28 @@ class TestReadTaskRuns:
         )
         assert response.status_code == status.HTTP_200_OK
         assert response.json()[0]["id"] == str(task_run_2.id)
+
+        # start_time asc should use actual start time when present,
+        # otherwise fall back to expected start time
+        response = await client.post(
+            "/task_runs/filter",
+            json=dict(
+                limit=1,
+                sort=schemas.sorting.TaskRunSort.START_TIME_ASC.value,
+            ),
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()[0]["id"] == str(task_run_2.id)
+
+        response = await client.post(
+            "/task_runs/filter",
+            json=dict(
+                limit=1,
+                sort=schemas.sorting.TaskRunSort.START_TIME_DESC.value,
+            ),
+        )
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()[0]["id"] == str(task_run_1.id)
 
     @pytest.mark.parametrize(
         "sort", [sort_option.value for sort_option in schemas.sorting.TaskRunSort]
@@ -595,6 +618,7 @@ class TestPaginateTaskRuns:
                 flow_run_id=flow_run.id,
                 task_key="my-key",
                 expected_start_time=now + datetime.timedelta(minutes=5),
+                start_time=now - datetime.timedelta(minutes=6),
                 dynamic_key="1",
             ),
         )
@@ -656,6 +680,33 @@ class TestPaginateTaskRuns:
         data = response.json()
         assert len(data["results"]) == 1
         assert data["results"][0]["id"] == str(task_run_2.id)
+
+        # start_time asc/desc should use effective start time
+        response = await client.post(
+            "/task_runs/paginate",
+            json=dict(
+                limit=1,
+                sort=schemas.sorting.TaskRunSort.START_TIME_ASC.value,
+            ),
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert len(data["results"]) == 1
+        assert data["results"][0]["id"] == str(task_run_2.id)
+
+        response = await client.post(
+            "/task_runs/paginate",
+            json=dict(
+                limit=1,
+                sort=schemas.sorting.TaskRunSort.START_TIME_DESC.value,
+            ),
+        )
+        assert response.status_code == status.HTTP_200_OK
+
+        data = response.json()
+        assert len(data["results"]) == 1
+        assert data["results"][0]["id"] == str(task_run_1.id)
 
     @pytest.mark.parametrize(
         "sort", [sort_option.value for sort_option in schemas.sorting.TaskRunSort]

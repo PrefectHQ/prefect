@@ -60,6 +60,8 @@ class TaskRunSort(AutoEnum):
     """Defines task run sorting options."""
 
     ID_DESC = AutoEnum.auto()
+    START_TIME_ASC = AutoEnum.auto()
+    START_TIME_DESC = AutoEnum.auto()
     EXPECTED_START_TIME_ASC = AutoEnum.auto()
     EXPECTED_START_TIME_DESC = AutoEnum.auto()
     NAME_ASC = AutoEnum.auto()
@@ -74,6 +76,16 @@ class TaskRunSort(AutoEnum):
         db = provide_database_interface()
         sort_mapping: dict[str, Iterable[sa.ColumnElement[Any]]] = {
             "ID_DESC": [db.TaskRun.id.desc()],
+            "START_TIME_ASC": [
+                sa.func.coalesce(
+                    db.TaskRun.start_time, db.TaskRun.expected_start_time
+                ).asc()
+            ],
+            "START_TIME_DESC": [
+                sa.func.coalesce(
+                    db.TaskRun.start_time, db.TaskRun.expected_start_time
+                ).desc()
+            ],
             "EXPECTED_START_TIME_ASC": [db.TaskRun.expected_start_time.asc()],
             "EXPECTED_START_TIME_DESC": [db.TaskRun.expected_start_time.desc()],
             "NAME_ASC": [db.TaskRun.name.asc()],

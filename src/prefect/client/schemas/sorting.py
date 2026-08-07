@@ -19,6 +19,8 @@ class TaskRunSort(AutoEnum):
     """Defines task run sorting options."""
 
     ID_DESC = AutoEnum.auto()
+    START_TIME_ASC = AutoEnum.auto()
+    START_TIME_DESC = AutoEnum.auto()
     EXPECTED_START_TIME_ASC = AutoEnum.auto()
     EXPECTED_START_TIME_DESC = AutoEnum.auto()
     NAME_ASC = AutoEnum.auto()
