@@ -3,7 +3,27 @@ import userEvent from "@testing-library/user-event";
 import { mockPointerEvents } from "@tests/utils/browser";
 import { expect, test, vi } from "vitest";
 
-import { TimezoneSelect } from "./timezone-select";
+// The platform reports ~450 timezones, and rendering all of them makes opening
+// the combobox and typing in it slow enough to time out in CI. Exercise the
+// component against a small, deterministic list instead.
+const SUPPORTED_TIMEZONES = [
+	"Africa/Abidjan",
+	"America/Chicago",
+	"America/New_York",
+	"Asia/Kolkata",
+	"Asia/Tokyo",
+	"Australia/Sydney",
+	"Europe/London",
+	"Europe/Paris",
+	"Pacific/Auckland",
+	"Asia/Singapore",
+];
+
+vi.spyOn(Intl, "supportedValuesOf").mockImplementation((key) =>
+	key === "timeZone" ? SUPPORTED_TIMEZONES : [],
+);
+
+const { TimezoneSelect } = await import("./timezone-select");
 
 test("TimezoneSelect can select an option", async () => {
 	mockPointerEvents();
