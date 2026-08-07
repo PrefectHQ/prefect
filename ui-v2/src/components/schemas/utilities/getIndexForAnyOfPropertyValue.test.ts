@@ -1,4 +1,4 @@
-import type { SchemaObject } from "openapi-typescript";
+import type { ReferenceObject, SchemaObject } from "openapi-typescript";
 import { describe, expect, test } from "vitest";
 import { getIndexForAnyOfPropertyValue } from "./getIndexForAnyOfPropertyValue";
 
@@ -50,7 +50,7 @@ describe("getIndexForAnyOfPropertyValue", () => {
 				{ type: "string", format: "date" },
 				{ type: "string", enum: ["today", "prev", "prev_td"] },
 			],
-		} as unknown as SchemaObject;
+		} as SchemaObject & { anyOf: SchemaObject[] };
 		expect(
 			getIndexForAnyOfPropertyValue({ value: "prev_td", property, schema }),
 		).toBe(1);
@@ -62,7 +62,7 @@ describe("getIndexForAnyOfPropertyValue", () => {
 				{ type: "string", format: "date" },
 				{ type: "string", enum: ["today", "prev", "prev_td"] },
 			],
-		} as unknown as SchemaObject;
+		} as SchemaObject & { anyOf: SchemaObject[] };
 		expect(
 			getIndexForAnyOfPropertyValue({ value: "2024-01-15", property, schema }),
 		).toBe(0);
@@ -74,7 +74,7 @@ describe("getIndexForAnyOfPropertyValue", () => {
 				{ type: "string", enum: ["a", "b"] },
 				{ type: "string", enum: ["c", "d"] },
 			],
-		} as unknown as SchemaObject;
+		} as SchemaObject & { anyOf: SchemaObject[] };
 		expect(
 			getIndexForAnyOfPropertyValue({ value: "c", property, schema }),
 		).toBe(1);
@@ -88,14 +88,18 @@ describe("getIndexForAnyOfPropertyValue", () => {
 				AsyncDriver: { enum: ["postgresql+asyncpg", "sqlite+aiosqlite"] },
 				SyncDriver: { enum: ["postgresql+psycopg2", "sqlite+pysqlite"] },
 			},
-		} as unknown as SchemaObject;
+		} as SchemaObject & {
+			definitions: Record<string, { enum: string[] }>;
+		};
 		const property = {
 			anyOf: [
 				{ $ref: "#/definitions/AsyncDriver" },
 				{ $ref: "#/definitions/SyncDriver" },
 				{ type: "string" },
 			],
-		} as unknown as SchemaObject;
+		} as SchemaObject & {
+			anyOf: (SchemaObject | ReferenceObject)[];
+		};
 		expect(
 			getIndexForAnyOfPropertyValue({
 				value: "sqlite+pysqlite",
@@ -108,7 +112,7 @@ describe("getIndexForAnyOfPropertyValue", () => {
 	test("returns index of enum definition for number value in the enum", () => {
 		const property = {
 			anyOf: [{ type: "integer" }, { type: "integer", enum: [1, 2, 3] }],
-		} as unknown as SchemaObject;
+		} as SchemaObject & { anyOf: SchemaObject[] };
 		expect(getIndexForAnyOfPropertyValue({ value: 2, property, schema })).toBe(
 			1,
 		);
