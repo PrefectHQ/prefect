@@ -9,8 +9,8 @@ import { SchemaFormInputStringFormatTimeDelta } from "./schema-form-input-string
 import { isWithPrimitiveEnum } from "./types/schemas";
 
 export type SchemaFormInputStringProps = {
-	value: string | undefined;
-	onValueChange: (value: string | undefined) => void;
+	value: string | null | undefined;
+	onValueChange: (value: string | null | undefined) => void;
 	property: SchemaObject & StringSubtype;
 	id: string;
 };
@@ -21,8 +21,16 @@ export function SchemaFormInputString({
 	property,
 	id,
 }: SchemaFormInputStringProps) {
-	function handleChange(value: string | undefined) {
-		onValueChange(value || undefined);
+	function handleChange(next: string | undefined) {
+		// Empty input must report explicit null so optional fields can clear a
+		// non-null default. Using `|| undefined` collapses "" to undefined, which
+		// the object form then deletes — and the saved document reverts to the
+		// Pydantic default instead of null.
+		if (next === undefined || next === "") {
+			onValueChange(null);
+			return;
+		}
+		onValueChange(next);
 	}
 
 	if (isWithPrimitiveEnum(property)) {

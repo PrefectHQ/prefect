@@ -50,6 +50,8 @@ export function SchemaFormInputObject({
 			for (const { key, value } of patches.current) {
 				newValues[key] = value;
 
+				// Only drop keys that were never set. Explicit null must be kept so
+				// optional fields can clear a non-null default on save.
 				if (value === undefined) {
 					delete newValues[key];
 				}
