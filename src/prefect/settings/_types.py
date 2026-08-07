@@ -188,6 +188,7 @@ SettingAccessor: TypeAlias = Literal[
     "server.services.triggers.pg_notify_reconnect_interval_seconds",
     "server.services.triggers.read_batch_size",
     "server.tasks.max_cache_key_length",
+    "server.tasks.scheduling.delivery_visibility_timeout",
     "server.tasks.scheduling.max_retry_queue_size",
     "server.tasks.scheduling.max_scheduled_queue_size",
     "server.tasks.scheduling.pending_task_timeout",

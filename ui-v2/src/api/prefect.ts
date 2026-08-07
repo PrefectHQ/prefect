@@ -10546,6 +10546,13 @@ export interface components {
              */
             max_retry_queue_size: number;
             /**
+             * Delivery Visibility Timeout
+             * Format: duration
+             * @description How long a deferred task delivery may remain unacknowledged before another TaskWorker can claim it.
+             * @default PT30S
+             */
+            delivery_visibility_timeout: string;
+            /**
              * Pending Task Timeout
              * Format: duration
              * @description How long before a PENDING task are made available to another task worker.

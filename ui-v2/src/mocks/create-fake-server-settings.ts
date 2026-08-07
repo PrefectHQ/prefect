@@ -197,6 +197,7 @@ export const createFakeServerSettings = (
 				scheduling: {
 					max_scheduled_queue_size: 1000,
 					max_retry_queue_size: 100,
+					delivery_visibility_timeout: "PT30S",
 					pending_task_timeout: "PT0S",
 				},
 			},

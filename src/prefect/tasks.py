@@ -6,6 +6,7 @@ Module containing the base workflow task class and decorator - for most use case
 # See https://github.com/python/mypy/issues/8645
 from __future__ import annotations
 
+import asyncio
 import datetime
 import inspect
 from copy import copy
@@ -1634,8 +1635,13 @@ class Task(Generic[P, R]):
         if deferred:
             parameters_list = expand_mapping_parameters(self.fn, parameters)
             futures = PrefectFutureList(
-                self.apply_async(kwargs=parameters, wait_for=wait_for)
-                for parameters in parameters_list
+                self._future_from_deferred_run(task_run)
+                for task_run in run_coro_as_sync(
+                    self._create_deferred_runs(
+                        parameters_list,
+                        wait_for=list(wait_for) if wait_for else None,
+                    )
+                )
             )
         elif task_runner := getattr(flow_run_context, "task_runner", None):
             assert isinstance(task_runner, TaskRunner)
@@ -1657,6 +1663,48 @@ class Task(Generic[P, R]):
             return futures
 
     # Background task methods
+
+    async def _create_deferred_runs(
+        self,
+        parameters: list[dict[str, Any]],
+        *,
+        wait_for: Optional[Iterable[PrefectFuture[R]]] = None,
+    ) -> list[TaskRun]:
+        """Create mapped deferred runs concurrently through one API client."""
+        semaphore = asyncio.Semaphore(2)
+
+        async with get_client() as client:
+
+            async def create(parameters: dict[str, Any]) -> TaskRun:
+                async with semaphore:
+                    return await self.create_run(
+                        client=client,
+                        parameters=parameters,
+                        deferred=True,
+                        wait_for=wait_for,
+                    )
+
+            return list(await asyncio.gather(*(create(item) for item in parameters)))
+
+    def _future_from_deferred_run(
+        self, task_run: TaskRun
+    ) -> PrefectDistributedFuture[R]:
+        """Emit submission telemetry and return a future for a deferred run."""
+        from prefect.utilities.engine import emit_task_run_state_change_event
+
+        emit_task_run_state_change_event(
+            task_run=task_run,
+            initial_state=None,
+            validated_state=task_run.state,
+        )
+
+        if get_current_settings().ui_url and (task_run_url := url_for(task_run)):
+            logger.info(
+                f"Created task run {task_run.name!r}. View it in the UI at "
+                f"{task_run_url!r}"
+            )
+
+        return PrefectDistributedFuture(task_run_id=task_run.id)
 
     def apply_async(
         self,
@@ -1758,21 +1806,7 @@ class Task(Generic[P, R]):
             )
         )  # type: ignore
 
-        from prefect.utilities.engine import emit_task_run_state_change_event
-
-        # emit a `SCHEDULED` event for the task run
-        emit_task_run_state_change_event(
-            task_run=task_run,
-            initial_state=None,
-            validated_state=task_run.state,
-        )
-
-        if get_current_settings().ui_url and (task_run_url := url_for(task_run)):
-            logger.info(
-                f"Created task run {task_run.name!r}. View it in the UI at {task_run_url!r}"
-            )
-
-        return PrefectDistributedFuture(task_run_id=task_run.id)
+        return self._future_from_deferred_run(task_run)
 
     def delay(self, *args: P.args, **kwargs: P.kwargs) -> PrefectDistributedFuture[R]:
         """

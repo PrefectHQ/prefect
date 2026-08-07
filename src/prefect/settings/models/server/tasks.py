@@ -46,6 +46,15 @@ class ServerTasksSchedulingSettings(PrefectBaseSettings):
         ),
     )
 
+    delivery_visibility_timeout: timedelta = Field(
+        default=timedelta(seconds=30),
+        gt=timedelta(0),
+        description=(
+            "How long a deferred task delivery may remain unacknowledged before "
+            "another TaskWorker can claim it."
+        ),
+    )
+
 
 class ServerTasksSettings(PrefectBaseSettings):
     """

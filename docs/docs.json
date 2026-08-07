@@ -1613,7 +1613,7 @@
                           "v3/api-ref/python/prefect-server-services-telemetry"
                         ]
                       },
-                      "v3/api-ref/python/prefect-server-task_queue",
+                      "v3/api-ref/python/prefect-server-task_delivery",
                       {
                         "group": "utilities",
                         "pages": [

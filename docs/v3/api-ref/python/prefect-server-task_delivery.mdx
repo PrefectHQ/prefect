@@ -1,0 +1,30 @@
+---
+title: task_delivery
+sidebarTitle: task_delivery
+---
+
+# `prefect.server.task_delivery`
+
+
+Durable delivery of deferred task runs to TaskWorkers.
+
+## Functions
+
+### `schedule_task_run_delivery` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_delivery.py#L144" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+schedule_task_run_delivery(task_run: schemas.core.TaskRun) -> None
+```
+
+
+Schedule a deferred task run for delivery through Docket.
+
+
+### `task_run_delivery_lifespan` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/task_delivery.py#L155" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+task_run_delivery_lifespan(docket: Docket) -> AsyncGenerator[None, None]
+```
+
+
+Configure deferred task delivery for an API process.

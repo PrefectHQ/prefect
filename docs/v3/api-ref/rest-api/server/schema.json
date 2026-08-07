@@ -25606,6 +25606,16 @@
                             "PREFECT_SERVER_TASKS_SCHEDULING_PENDING_TASK_TIMEOUT",
                             "PREFECT_TASK_SCHEDULING_PENDING_TASK_TIMEOUT"
                         ]
+                    },
+                    "delivery_visibility_timeout": {
+                        "type": "string",
+                        "format": "duration",
+                        "title": "Delivery Visibility Timeout",
+                        "description": "How long a deferred task delivery may remain unacknowledged before another TaskWorker can claim it.",
+                        "default": "PT30S",
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_TASKS_SCHEDULING_DELIVERY_VISIBILITY_TIMEOUT"
+                        ]
                     }
                 },
                 "type": "object",
