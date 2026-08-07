@@ -5,7 +5,7 @@ description: Connect AI assistants to Prefect using the Model Context Protocol.
 keywords: ["MCP server", "Model Context Protocol", "AI assistant", "Claude", "integration"]
 ---
 
-The Prefect MCP server enables AI assistants to interact with your Prefect workflows and infrastructure through the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/). This integration allows AI tools like Claude Code, Cursor, and Codex CLI to help you monitor deployments, debug flow runs, query infrastructure, and more.
+The Prefect MCP server lets AI assistants inspect your Prefect workflows and infrastructure through the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/). You can connect tools like Claude Code, Cursor, and Codex CLI to monitor deployments, debug flow runs, and query infrastructure.
 
 <Warning>
 The Prefect MCP server is currently in beta. APIs, features, and behaviors may change without notice. We encourage you to try it out and provide feedback through [GitHub issues](https://github.com/PrefectHQ/prefect-mcp-server/issues).
@@ -13,41 +13,61 @@ The Prefect MCP server is currently in beta. APIs, features, and behaviors may c
 
 ## What is the Prefect MCP server?
 
-The Prefect MCP server is an [MCP](https://modelcontextprotocol.io/) server that provides AI assistants with tools to:
+The Prefect MCP server is an [MCP](https://modelcontextprotocol.io/) server that gives AI assistants tools to:
 
-- **Monitor & inspect**: View system health, query deployments, flow runs, task runs, work pools, and execution logs
-- **Debug intelligently**: Get contextual guidance for troubleshooting failed flows and deployment issues
+- **Monitor and inspect**: View system health, query deployments, flow runs, task runs, work pools, and execution logs
+- **Debug**: Get context for failed flows and deployment issues
 - **Access documentation**: Query up-to-date Prefect documentation through an integrated docs proxy
 
-The MCP tools are primarily designed for reading data and monitoring your Prefect instance. For creating or updating resources, the integrated docs proxy provides AI assistants with current information on how to use the `prefect` CLI.
+The MCP tools read and monitor your Prefect instance. They do not create or update resources. The docs proxy can show your assistant how to use the `prefect` CLI for write operations.
 
 ## Security considerations
 
-The Prefect MCP server provides **read-only access** to your Prefect instance. It can only access information available to the account you authenticate with—it cannot access data outside those bounds.
+The Prefect MCP server provides **read-only access** to your Prefect instance. It can only access information available to the account you authenticate with.
 
 <Warning>
-**Important:** The MCP server does not operate in isolation. MCP clients (such as Claude Code, Cursor, or Codex CLI) may have additional capabilities beyond the MCP server's read-only tools. For example, an AI assistant with terminal access could execute destructive CLI commands like `prefect deployment delete` independently of the MCP server.
+**Important:** MCP clients, such as Claude Code, Cursor, or Codex CLI, can have other tools. For example, an assistant with terminal access could run `prefect deployment delete` without using the MCP server.
 
-When using AI agents autonomously, consider the Prefect Role associated with your API key and what actions the agent could take through other means (CLI, SDK, etc.).
+Before you run an agent without supervision, check the Prefect role for its API key. Also check what the agent can do with the CLI, SDK, or other tools.
 </Warning>
 
-For detailed answers to common security questions—including authentication patterns, RBAC, file access requirements, and recommendations for internal pilots—see the [Security FAQ](https://github.com/PrefectHQ/prefect-mcp-server/blob/main/SECURITY.md).
+For answers to common security questions, see the [Security FAQ](https://github.com/PrefectHQ/prefect-mcp-server/blob/main/SECURITY.md). It covers authentication, RBAC, file access, and internal pilots.
 
 ## Installation
 
+### Hosted Prefect Cloud server
+
+<span class="badge cloud"></span>
+
+Use the hosted Prefect Cloud MCP server if your MCP client supports remote HTTP servers and OAuth.
+
+The hosted server URL is:
+
+```text
+https://prefect.fastmcp.app/mcp
+```
+
+When you add this URL to your client, the client starts a browser sign-in flow. Sign in to Prefect Cloud, then choose the workspaces that the client can read.
+
+The hosted server does not use your local Prefect profile. You do not need to copy a Prefect API key into your MCP client.
+
+<Note>
+The hosted Prefect Cloud MCP server is in beta. It gives read-only access to the workspaces that you authorize during sign-in.
+</Note>
+
 ### Local installation
 
-Install and run the MCP server locally using `uvx`:
+Use the local server with Prefect Cloud or a self-hosted Prefect server. Install and run it with `uvx`:
 
 ```bash
 uvx --from prefect-mcp prefect-mcp-server
 ```
 
-When running locally with stdio transport, the server automatically inherits credentials from your active Prefect profile (`~/.prefect/profiles.toml`).
+When you run the server locally with stdio transport, the server uses credentials from your active Prefect profile (`~/.prefect/profiles.toml`).
 
-### Cloud deployment
+### Self-managed remote deployment
 
-Deploy the MCP server to [Prefect Horizon](https://horizon.prefect.io/) for remote access:
+Deploy the MCP server to [Prefect Horizon](https://horizon.prefect.io/) if you want to manage your own remote MCP server. This setup can connect to Prefect Cloud or to a self-hosted Prefect server.
 
 1. Fork the [prefect-mcp-server repository](https://github.com/PrefectHQ/prefect-mcp-server) on GitHub
 2. Sign in to [horizon.prefect.io](https://horizon.prefect.io/)
@@ -58,32 +78,50 @@ Deploy the MCP server to [Prefect Horizon](https://horizon.prefect.io/) for remo
 
    | Environment Variable | Prefect Cloud | Self-hosted Prefect |
    |---------------------|---------------|---------------------|
-   | `PREFECT_API_URL` | `https://api.prefect.cloud/api/`<br/>`accounts/[ACCOUNT_ID]/`<br/>`workspaces/[WORKSPACE_ID]` | Your Prefect server URL (e.g., `http://your-server:4200/api`) |
+   | `PREFECT_API_URL` | `https://api.prefect.cloud/api/`<br/>`accounts/[ACCOUNT_ID]/`<br/>`workspaces/[WORKSPACE_ID]` | Your Prefect server URL. For example, `http://your-server:4200/api`. |
    | `PREFECT_API_KEY` | Your Prefect Cloud API key | Not used |
    | `PREFECT_API_AUTH_STRING` | Not used | Your authentication string (if using basic auth) |
-5. Get your server URL (e.g., `https://your-server-name.fastmcp.app/mcp`)
+5. Get your server URL. For example, `https://your-server-name.fastmcp.app/mcp`.
 
 <Note>
-When deploying to Prefect Horizon, environment variables are configured on the Prefect Horizon server itself (step 4 above), not in your client configuration. FastMCP's authentication secures access to your MCP server, while the MCP server uses your Prefect API key to access your Prefect instance.
+Set these environment variables on the Prefect Horizon server, not in your MCP client. FastMCP authentication controls access to the MCP server. The MCP server uses your Prefect API key to access Prefect.
 </Note>
 
 <Tip>
-Prefect Cloud users on Team, Pro, and Enterprise plans can use service accounts for API authentication. Pro and Enterprise users can restrict service accounts to read-only access (only `see_*` permissions) since the Prefect MCP server requires no write permissions.
+Prefect Cloud users on Team, Pro, and Enterprise plans can use service accounts for API authentication. Pro and Enterprise users can restrict service accounts to read-only access. The MCP server only needs `see_*` permissions.
 </Tip>
 
 ## Client setup
 
 Configure your AI assistant to connect to the Prefect MCP server.
 
-### General setup
+### Hosted Prefect Cloud setup
 
-All MCP clients need three pieces of information to connect to the Prefect MCP server:
+Use the hosted Prefect Cloud server URL with HTTP transport:
+
+```text
+https://prefect.fastmcp.app/mcp
+```
+
+For example, add the hosted server to Claude Code:
+
+```bash
+claude mcp add prefect-cloud --transport http https://prefect.fastmcp.app/mcp
+```
+
+Then run `/mcp` in Claude Code and select **Authenticate**. Claude Code opens Prefect Cloud in your browser. Sign in and choose the workspaces that Claude Code can read.
+
+Use this setup when you want Prefect Cloud to manage authentication. Use the local server or a self-managed remote server for self-hosted Prefect.
+
+### Local server setup
+
+All MCP clients need three pieces of information to run the local Prefect MCP server:
 
 1. **Command**: `uvx`
 2. **Arguments**: `--from prefect-mcp prefect-mcp-server`
 3. **Environment variables** (optional): Credentials for your Prefect instance
 
-The configuration format varies by client. Choose your client below for specific setup instructions:
+The configuration format varies by client. Choose your client below for setup instructions:
 
 <AccordionGroup>
 
@@ -112,7 +150,7 @@ The plugin uses your local Prefect configuration from `~/.prefect/profiles.toml`
 Alternatively, add the Prefect MCP server to Claude Code using the CLI:
 
 ```bash
-# Minimal setup - inherits from local Prefect profile
+# Minimal setup - uses the local Prefect profile
 claude mcp add prefect -- uvx --from prefect-mcp prefect-mcp-server
 
 # With explicit Prefect Cloud credentials
@@ -121,7 +159,7 @@ claude mcp add prefect \
   -e PREFECT_API_KEY=your-cloud-api-key \
   -- uvx --from prefect-mcp prefect-mcp-server
 
-# With Prefect Horizon deployment (HTTP transport)
+# With a remote HTTP server
 claude mcp add prefect --transport http https://your-server-name.fastmcp.app/mcp
 ```
 
@@ -259,11 +297,11 @@ Alternatively, edit `~/.gemini/settings.json` directly:
 
 ## Credentials configuration
 
-The Prefect MCP server authenticates with your Prefect instance using the same configuration as the Prefect SDK.
+The local Prefect MCP server authenticates with your Prefect instance using the same configuration as the Prefect SDK.
 
 ### Default behavior
 
-When running locally without environment variables, the server inherits credentials from your active Prefect profile:
+When you run the local server without environment variables, the server uses credentials from your active Prefect profile:
 
 - Profile configuration: `~/.prefect/profiles.toml`
 - Uses the same API URL and authentication as your current `prefect` CLI commands
@@ -303,7 +341,7 @@ Environment variables take precedence over profile settings:
 
 The Prefect MCP server provides these main capabilities:
 
-### Read-only monitoring & inspection
+### Read-only monitoring and inspection
 
 - View dashboard overviews with flow run statistics and work pool status
 - Query deployments, flow runs, task runs, and work pools with advanced filtering
@@ -320,7 +358,7 @@ The Prefect MCP server provides these main capabilities:
 
 ### Documentation access
 
-The MCP server includes a built-in docs proxy that provides AI assistants with up-to-date information from the Prefect documentation. This enables your AI assistant to:
+The MCP server includes a built-in docs proxy that gives AI assistants up-to-date information from the Prefect documentation. Your AI assistant can:
 
 - Look up current API syntax and usage patterns
 - Find the correct `prefect` CLI commands for creating and updating resources
@@ -340,10 +378,10 @@ The MCP tools are optimized for reading and monitoring. For creating or updating
 
 **Example prompts:**
 - "Use the `prefect` CLI to create a new deployment"
-- "Show me how to update this deployment's schedule using `prefect`"
+- "Show how to update this deployment's schedule using `prefect`"
 - "Create an automation using the `prefect` CLI"
 
-### Leverage the docs proxy
+### Use the docs proxy
 
 The integrated docs proxy gives your assistant access to current Prefect documentation:
 
@@ -354,13 +392,13 @@ The integrated docs proxy gives your assistant access to current Prefect documen
 
 ### Ask diagnostic questions
 
-The MCP server excels at helping diagnose issues:
+Use the MCP server to diagnose issues:
 
 **Example prompts:**
 - "Why is my deployment not running?"
 - "Debug the last failed flow run"
 - "Why are my flow runs delayed?"
-- "Show me which work pools have no active workers"
+- "Show which work pools have no active workers"
 
 ## Learn more
 
