@@ -99,8 +99,14 @@ const ComboboxCommandInput = ({
 	);
 };
 
-const ComboboxCommandList = ({ children }: { children: React.ReactNode }) => {
-	return <CommandList>{children}</CommandList>;
+const ComboboxCommandList = ({
+	ref,
+	children,
+}: {
+	ref?: React.Ref<HTMLDivElement>;
+	children: React.ReactNode;
+}) => {
+	return <CommandList ref={ref}>{children}</CommandList>;
 };
 
 const ComboboxCommandEmtpy = ({ children }: { children: React.ReactNode }) => {
