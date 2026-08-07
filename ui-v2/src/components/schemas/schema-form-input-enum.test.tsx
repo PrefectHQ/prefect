@@ -8,7 +8,7 @@ import { SchemaForm } from "./schema-form";
 import type { PrefectSchemaObject } from "./types/schemas";
 
 function TestSchemaForm({
-	schema = { type: "object", properties: {} } as PrefectSchemaObject,
+	schema = { type: "object", properties: {} },
 	kinds = [],
 	errors = [],
 	values = {},
