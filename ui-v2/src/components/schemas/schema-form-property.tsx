@@ -62,16 +62,25 @@ export function SchemaFormProperty({
 		(value: unknown) => {
 			setInternalValue(value);
 
-			// An empty array satisfies json schema's "required" check, so a required
-			// array that gets emptied must be omitted to surface a required error.
-			if (required && isArray(value) && value.length === 0) {
+			// An array shorter than minItems is omitted so validation reports it as
+			// missing. A required array without an explicit minItems is treated as
+			// minItems 1, since an empty array satisfies json schema's "required"
+			// check and would otherwise submit successfully.
+			const minItems =
+				"minItems" in property && typeof property.minItems === "number"
+					? property.minItems
+					: required
+						? 1
+						: 0;
+
+			if (isArray(value) && value.length < minItems) {
 				onValueChange(undefined);
 				return;
 			}
 
 			onValueChange(value);
 		},
-		[onValueChange, required],
+		[onValueChange, required, property],
 	);
 
 	const handleOmittedChange = useCallback(() => {

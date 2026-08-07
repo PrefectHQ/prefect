@@ -109,4 +109,44 @@ describe("SchemaFormInputArray enum", () => {
 			expect(spy).toHaveBeenLastCalledWith({});
 		});
 	});
+
+	test("clearing all selections sends [] when a required field allows minItems 0", async () => {
+		const user = userEvent.setup();
+		const spy = vi.fn();
+
+		function Wrapper() {
+			const [values, setValues] = useState<Record<string, unknown>>({
+				tags: ["foo"],
+			});
+			spy.mockImplementation((value: Record<string, unknown>) =>
+				setValues(value),
+			);
+
+			const schema: SchemaObject = {
+				type: "object",
+				required: ["tags"],
+				properties: {
+					tags: {
+						type: "array",
+						title: "Tags",
+						minItems: 0,
+						items: { type: "string", enum: ["foo", "bar", "baz"] },
+					},
+				},
+			};
+
+			return (
+				<TestSchemaForm schema={schema} values={values} onValuesChange={spy} />
+			);
+		}
+
+		render(<Wrapper />);
+
+		await user.click(screen.getByRole("button", { name: /select tags/i }));
+		await user.click(screen.getByRole("option", { name: /^foo$/i }));
+
+		await waitFor(() => {
+			expect(spy).toHaveBeenLastCalledWith({ tags: [] });
+		});
+	});
 });
