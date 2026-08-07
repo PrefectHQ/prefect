@@ -7,6 +7,7 @@ from uuid import UUID
 import pytest
 from websockets.exceptions import ConnectionClosedError
 
+from prefect._internal.testing import retry_asserts
 from prefect.events import Event, get_events_client
 from prefect.events.clients import (
     PrefectCloudEventsClient,
@@ -807,9 +808,12 @@ async def test_background_checkpoint_reconnects_after_connection_loss(
         assert client._unconfirmed_events == [example_event_1]
 
         # Wait for the background checkpoint to notice the dead connection,
-        # reconnect, resend, and confirm
-        await asyncio.sleep(0.5)
-        assert len(client._unconfirmed_events) == 0
+        # reconnect, resend, and confirm. The reconnect involves a fresh
+        # connection and auth handshake, so how many intervals it takes varies
+        # with load.
+        async for attempt in retry_asserts(max_attempts=20, delay=0.1):
+            with attempt:
+                assert len(client._unconfirmed_events) == 0
 
     # The event was received once before the disconnect and once as a resend
     assert recorder.events == [example_event_1, example_event_1]
