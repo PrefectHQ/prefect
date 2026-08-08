@@ -291,5 +291,13 @@ describe("ResumeFlowRunDialog", () => {
 		expect(
 			screen.getByLabelText(/Field 10/).closest(".overflow-y-auto"),
 		).not.toBe(descriptionScroller);
+
+		// The footer sits outside both scroll regions, so neither a long
+		// description nor a long form can push Resume/Cancel off screen.
+		for (const name of [/Resume/, /Cancel/]) {
+			const button = screen.getByRole("button", { name });
+			expect(button).toBeVisible();
+			expect(button.closest(".overflow-y-auto")).toBeNull();
+		}
 	});
 });
