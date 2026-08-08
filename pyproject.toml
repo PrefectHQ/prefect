@@ -42,7 +42,7 @@ dependencies = [
     # Client dependencies
     # If you modify this list, make the same modification in client/pyproject.toml
     "amplitude-analytics>=1.2.1,<2.0.0",
-    "anyio>=4.4.0,<5.0.0,!=4.14.2",
+    "anyio>=4.4.0,<5.0.0",
     "asgi-lifespan>=1.0,<3.0",
     "cachetools>=5.3,<8.0",
     "cloudpickle>=2.0,<4.0",
@@ -174,7 +174,7 @@ dev = [
     "yamllint>=1.35.1",
     "respx>=0.22.0",
     "codespell==2.4.3",
-    "ruff==0.15.22",
+    "ruff==0.16.0",
     "mypy==2.3.0",
     "types-cachetools>=5.3.1",
     "types-PyYAML>=6.0.12",
@@ -377,7 +377,7 @@ skip = [
     "pyproject.toml",
 ]
 # from https://github.com/PrefectHQ/prefect/pull/10813#issuecomment-1732676130
-ignore-regex = ".*lazy=\"selectin\"|.*e import Bloc$|America/Nome"
+ignore-regex = ".*lazy=\"selectin\"|.*e import Bloc\\s*$|America/Nome"
 
 ignore-words-list = [
     "selectin",

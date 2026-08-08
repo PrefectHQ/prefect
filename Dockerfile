@@ -122,6 +122,7 @@ SHELL ["/bin/bash", "--login", "-c"]
 FROM ${BASE_IMAGE} AS final
 
 # Redeclare ARGs needed in this stage
+ARG BASE_IMAGE
 ARG PYTHON_VERSION
 ARG SQLITE_VERSION
 
@@ -190,8 +191,11 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     UV_COMPILE_BYTECODE=1 uv pip install "./dist/prefect.tar.gz${PREFECT_EXTRAS:-""}" && \
     rm -rf dist/
 
-# Remove setuptools
-RUN uv pip uninstall setuptools
+# Setuptools is required by pip in the conda environment. Remove it only from
+# base images where it is not managed as part of the environment.
+RUN if [ "${BASE_IMAGE}" != "prefect-conda" ]; then \
+        uv pip uninstall setuptools; \
+    fi
 
 # Install any extra packages
 ARG EXTRA_PIP_PACKAGES

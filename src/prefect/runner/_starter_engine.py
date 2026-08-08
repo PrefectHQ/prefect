@@ -47,6 +47,7 @@ class EngineCommandStarter:
         stream_output: bool = True,
         heartbeat_seconds: int | None = None,
         control_channel: ControlChannel | None = None,
+        isolate_process_group: bool = False,
     ) -> None:
         self._tmp_dir = tmp_dir
         self._storage = storage
@@ -58,6 +59,7 @@ class EngineCommandStarter:
         self._stream_output = stream_output
         self._heartbeat_seconds = heartbeat_seconds
         self._control_channel = control_channel
+        self._isolate_process_group = isolate_process_group
 
     async def start(
         self,
@@ -76,6 +78,9 @@ class EngineCommandStarter:
         kwargs: dict[str, object] = {}
         if sys.platform == "win32":
             kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+        elif self._isolate_process_group:
+            # So a group-wide SIGTERM cannot beat the caller's intent to the child.
+            kwargs["start_new_session"] = True
 
         # Register the flow run with the control channel before spawning so
         # the child can connect back as soon as it starts. Returned port +

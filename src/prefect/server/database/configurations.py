@@ -214,14 +214,6 @@ class AsyncPostgresConfiguration(BaseDatabaseConfiguration):
     async def engine(self) -> AsyncEngine:
         """Retrieves an async SQLAlchemy engine.
 
-        Args:
-            connection_url (str, optional): The database connection string.
-                Defaults to self.connection_url
-            echo (bool, optional): Whether to echo SQL sent
-                to the database. Defaults to self.echo
-            timeout (float, optional): The database statement timeout, in seconds.
-                Defaults to self.timeout
-
         Returns:
             AsyncEngine: a SQLAlchemy engine
         """
@@ -452,14 +444,6 @@ class AioSqliteConfiguration(BaseDatabaseConfiguration):
 
     async def engine(self) -> AsyncEngine:
         """Retrieves an async SQLAlchemy engine.
-
-        Args:
-            connection_url (str, optional): The database connection string.
-                Defaults to self.connection_url
-            echo (bool, optional): Whether to echo SQL sent
-                to the database. Defaults to self.echo
-            timeout (float, optional): The database statement timeout, in seconds.
-                Defaults to self.timeout
 
         Returns:
             AsyncEngine: a SQLAlchemy engine

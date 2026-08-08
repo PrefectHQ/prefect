@@ -7,17 +7,17 @@ sidebarTitle: services
 
 ## Classes
 
-### `ConcurrencySlotAcquisitionService` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/services.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ConcurrencySlotAcquisitionService` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/services.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 **Methods:**
 
-#### `acquire` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/services.py#L60" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `acquire` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/services.py#L61" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 acquire(self, slots: int, mode: Literal['concurrency', 'rate_limit'], timeout_seconds: Optional[float] = None, max_retries: Optional[int] = None) -> httpx.Response
 ```
 
-### `ConcurrencySlotAcquisitionWithLeaseService` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/services.py#L90" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `ConcurrencySlotAcquisitionWithLeaseService` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/services.py#L91" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A service that acquires concurrency slots with leases.
@@ -32,7 +32,7 @@ Each unique set of limit names gets its own singleton service instance.
 
 **Methods:**
 
-#### `acquire` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/services.py#L114" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `acquire` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/services.py#L128" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 acquire(self, slots: int, mode: Literal['concurrency', 'rate_limit'], timeout_seconds: Optional[float] = None, max_retries: Optional[int] = None, lease_duration: float = 300, strict: bool = False, holder: Optional['ConcurrencyLeaseHolder'] = None) -> httpx.Response
@@ -55,4 +55,17 @@ Acquire concurrency slots with a lease, with retry logic for 423 responses.
 **Raises:**
 - `httpx.HTTPStatusError`: If the server returns an error other than 423 LOCKED
 - `TimeoutError`: If acquisition times out
+
+
+#### `release_orphaned_lease` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/concurrency/services.py#L221" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+
+```python
+release_orphaned_lease(self, response: httpx.Response) -> 'concurrent.futures.Future[None]'
+```
+
+Release a lease that was delivered to a caller which is already gone.
+
+The release is scheduled on the service's own loop so it reuses the client
+that acquired the slots, keeping acquisition and cleanup on the same API, and
+is tracked so that draining the service waits for it.
 

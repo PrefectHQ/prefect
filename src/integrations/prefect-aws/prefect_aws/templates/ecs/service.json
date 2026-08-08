@@ -13,7 +13,8 @@
   "PrefectApiKeySecretArn": {
    "Type": "String",
    "Default": "",
-   "Description": "ARN of existing AWS Secrets Manager secret containing Prefect API key (leave empty to create new)"
+   "Description": "ARN of existing AWS Secrets Manager secret containing Prefect API key (leave empty to create new)",
+   "NoEcho": true
   },
   "PrefectApiKey": {
    "Type": "String",
@@ -24,7 +25,8 @@
   "PrefectAuthStringSecretArn": {
    "Type": "String",
    "Default": "",
-   "Description": "ARN of existing AWS Secrets Manager secret containing Prefect auth string for self-hosted servers (leave empty to create new)"
+   "Description": "ARN of existing AWS Secrets Manager secret containing Prefect auth string for self-hosted servers (leave empty to create new)",
+   "NoEcho": true
   },
   "PrefectAuthString": {
    "Type": "String",
@@ -1230,30 +1232,14 @@
   "PrefectApiKeySecretArnOutput": {
    "Description": "ARN of the Prefect API key secret",
    "Value": {
-    "Fn::If": [
-     "CreateNewApiKeySecret",
-     {
-      "Ref": "PrefectApiKeySecretF70903D4"
-     },
-     {
-      "Ref": "PrefectApiKeySecretArn"
-     }
-    ]
+    "Ref": "PrefectApiKeySecretF70903D4"
    },
    "Condition": "CreateNewApiKeySecret"
   },
   "PrefectAuthStringSecretArnOutput": {
    "Description": "ARN of the Prefect auth string secret",
    "Value": {
-    "Fn::If": [
-     "CreateNewAuthStringSecret",
-     {
-      "Ref": "PrefectAuthStringSecret99214447"
-     },
-     {
-      "Ref": "PrefectAuthStringSecretArn"
-     }
-    ]
+    "Ref": "PrefectAuthStringSecret99214447"
    },
    "Condition": "CreateNewAuthStringSecret"
   },

@@ -6,17 +6,18 @@ Interact with flow runs.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import signal
 import tempfile
-import threading
 import webbrowser
+from collections.abc import Callable
 from pathlib import Path
-from types import FrameType
-from typing import TYPE_CHECKING, Annotated, Any, Optional
+from typing import TYPE_CHECKING, Annotated, Any, Optional, cast
 from uuid import UUID
 
+import anyio
 import cyclopts
 import httpx
 import orjson
@@ -26,6 +27,7 @@ from rich.table import Table
 from starlette import status
 
 import prefect.cli._app as _cli
+from prefect._internal.control_listener import Intent
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
@@ -37,19 +39,45 @@ from prefect.client.schemas.filters import FlowFilter, FlowRunFilter, LogFilter
 from prefect.client.schemas.objects import StateType
 from prefect.client.schemas.responses import SetStateStatus
 from prefect.client.schemas.sorting import FlowRunSort, LogSort
-from prefect.exceptions import Abort, FlowRunWatchError, ObjectNotFound
+from prefect.exceptions import Abort, FlowRunWatchError, ObjectNotFound, Pause
 from prefect.logging import get_logger
 from prefect.runner._flow_run_executor import FlowRunExecutorContext
 from prefect.runner._workspace_starter import WorkspaceResolvingEngineCommandStarter
 from prefect.states import AwaitingRetry, State, exception_to_crashed_state
 from prefect.types._datetime import human_friendly_diff
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
-from prefect.utilities.engine import propose_state_sync
+from prefect.utilities.engine import propose_state
 from prefect.utilities.urls import url_for
 
 if TYPE_CHECKING:
     from prefect.client.orchestration import PrefectClient
     from prefect.client.schemas.objects import FlowRun, Log
+
+
+def _termination_intent() -> Intent | None:
+    """Resolve the control-channel intent for this supervisor's SIGTERM behavior.
+
+    `PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR` names the intent to signal, except
+    for `crash`, which has none and so leaves the engine to mark the run `Crashed`.
+    """
+    behavior = os.environ.get("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "").lower()
+    return (
+        cast("Intent", behavior) if behavior in ("reschedule", "relinquish") else None
+    )
+
+
+def _install_termination_handler(handler: Callable[[], None]) -> bool:
+    """Install `handler` for SIGTERM on the running loop, returning whether it took.
+
+    The handler runs as a loop callback so it can await the control channel, which a
+    `signal.signal` handler cannot do.
+    """
+    try:
+        asyncio.get_running_loop().add_signal_handler(signal.SIGTERM, handler)
+    except (NotImplementedError, RuntimeError):
+        return False
+    return True
+
 
 flow_run_app: cyclopts.App = cyclopts.App(
     name="flow-run",
@@ -729,43 +757,17 @@ async def execute(
     if id is None:
         exit_with_error("Could not determine the ID of the flow run to execute.")
 
+    intent = _termination_intent()
+    terminated = False
+
     with tempfile.TemporaryDirectory(prefix="prefect-flow-run-") as workspace_root:
         async with FlowRunExecutorContext() as ctx:
             flow_run = await ctx.client.read_flow_run(id)
 
-            on_sigterm = os.environ.get(
-                "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", ""
-            ).lower()
-            reschedule_mode = (
-                threading.current_thread() is threading.main_thread()
-                and on_sigterm == "reschedule"
-            )
-
-            def _handle_reschedule_sigterm(_signal: int, _frame: FrameType | None):
-                """Reschedule the flow run and kill the child process (if running)."""
-                logger.info("SIGTERM received, initiating graceful shutdown...")
-                with get_client(sync_client=True) as sync_client:
-                    try:
-                        propose_state_sync(sync_client, AwaitingRetry(), flow_run_id=id)
-                    except Abort:
-                        pass
-                    except Exception:
-                        logger.exception("Failed to reschedule flow run")
-
-                handle = ctx.process_manager.get(id)
-                if handle and handle.pid:
-                    try:
-                        os.kill(handle.pid, signal.SIGTERM)
-                    except ProcessLookupError:
-                        pass
-                exit_with_success("Flow run successfully rescheduled.")
-
-            if reschedule_mode:
-                signal.signal(signal.SIGTERM, _handle_reschedule_sigterm)
-
             starter = WorkspaceResolvingEngineCommandStarter(
                 workspace_root=Path(workspace_root),
                 control_channel=ctx.control_channel,
+                isolate_process_group=intent is not None,
             )
             executor = ctx.create_executor(
                 flow_run,
@@ -773,4 +775,58 @@ async def execute(
                 resolve_flow=starter.resolve_flow,
                 propose_submitting=False,
             )
-            await executor.submit()
+
+            terminating = anyio.Event()
+            if intent is None or not _install_termination_handler(terminating.set):
+                await executor.submit()
+                return
+
+            async with anyio.create_task_group() as tg:
+
+                async def _terminate_on_signal() -> None:
+                    nonlocal terminated
+                    await terminating.wait()
+                    logger.info("SIGTERM received, initiating graceful shutdown...")
+
+                    # The engine must learn the intent before it sees a SIGTERM so it
+                    # exits without proposing a state we then override; one that never
+                    # acknowledged gets no chance to propose at all.
+                    acknowledged = await ctx.control_channel.signal(id, intent)
+                    if not acknowledged:
+                        logger.warning(
+                            "Engine did not acknowledge %s intent; stopping it without"
+                            " a graceful signal.",
+                            intent,
+                        )
+
+                    if intent == "reschedule":
+                        try:
+                            await propose_state(
+                                ctx.client, AwaitingRetry(), flow_run_id=id
+                            )
+                        except (Abort, Pause):
+                            pass
+                        except Exception:
+                            logger.exception("Failed to reschedule flow run")
+
+                    await ctx.process_manager.kill(id, force=not acknowledged)
+                    terminated = True
+                    # We own the run's next state now, so stop the executor before it
+                    # can start a process or propose a state of its own. Do not await
+                    # between the kill and this cancel, or the executor will observe
+                    # the exit code and propose `Crashed` from it.
+                    tg.cancel_scope.cancel()
+
+                tg.start_soon(_terminate_on_signal)
+                await executor.submit()
+                # Leave a shutdown already in flight alone; it cancels the group itself.
+                if not terminating.is_set():
+                    tg.cancel_scope.cancel()
+
+    # Exits go here, not inside the context: a `SystemExit` unwinding through an
+    # anyio task group gets wrapped in an exception group, losing the exit code.
+    if terminated:
+        if intent == "reschedule":
+            exit_with_success("Flow run successfully rescheduled.")
+        # Non-zero so the terminating infrastructure retries this attempt.
+        exit_with_error("Flow run relinquished to infrastructure retry.")

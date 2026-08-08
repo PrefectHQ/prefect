@@ -2,6 +2,25 @@
 title: prefect-kubernetes
 ---
 
+## 0.7.12
+
+_Released on August 04, 2026_
+
+**Enhancements**
+
+- Expose Kubernetes pod-failure diagnosis as the `kubernetes.diagnosis` event label [#22577](https://github.com/PrefectHQ/prefect/pull/22577) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+
+**Bug Fixes**
+
+- Catch `Abort` when marking a flow run as `Crashed` in the Kubernetes observer to keep the Jobs watcher alive [#22555](https://github.com/PrefectHQ/prefect/pull/22555) by [@devin-ai-integration](https://github.com/apps/devin-ai-integration)
+- Relinquish evicted flow runs to infrastructure retry when `backoffLimit` is not 0 [#22622](https://github.com/PrefectHQ/prefect/pull/22622) by [@chuqCTC](https://github.com/chuqCTC)
+
+**Maintenance**
+
+- Bump `prefect` lower bound to `>=3.8.1`
+
+---
+
 ## 0.7.11
 
 _Released on July 15, 2026_
