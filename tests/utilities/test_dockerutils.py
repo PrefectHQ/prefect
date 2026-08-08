@@ -27,24 +27,24 @@ PYTHON_VERSION = f"{sys.version_info.major}.{sys.version_info.minor}"
             None,
             None,
             None,
-            f"prefecthq/prefect-dev:sha-{COMMIT_SHA}-python{PYTHON_VERSION}",
+            f"prefecthq/prefect:sha-{COMMIT_SHA}-python{PYTHON_VERSION}",
         ),
-        (None, "3.9", None, f"prefecthq/prefect-dev:sha-{COMMIT_SHA}-python3.9"),
-        (None, "3.10", None, f"prefecthq/prefect-dev:sha-{COMMIT_SHA}-python3.10"),
-        (None, "3.11", None, f"prefecthq/prefect-dev:sha-{COMMIT_SHA}-python3.11"),
-        (None, "3.12", None, f"prefecthq/prefect-dev:sha-{COMMIT_SHA}-python3.12"),
+        (None, "3.9", None, f"prefecthq/prefect:sha-{COMMIT_SHA}-python3.9"),
+        (None, "3.10", None, f"prefecthq/prefect:sha-{COMMIT_SHA}-python3.10"),
+        (None, "3.11", None, f"prefecthq/prefect:sha-{COMMIT_SHA}-python3.11"),
+        (None, "3.12", None, f"prefecthq/prefect:sha-{COMMIT_SHA}-python3.12"),
         (
             None,
             None,
             "conda",
-            f"prefecthq/prefect-dev:sha-{COMMIT_SHA}-python{PYTHON_VERSION}-conda",
+            f"prefecthq/prefect:sha-{COMMIT_SHA}-python{PYTHON_VERSION}-conda",
         ),
         ("3.0.0", None, None, f"prefecthq/prefect:3.0.0-python{PYTHON_VERSION}"),
         (
             f"3.0.0+1.g{COMMIT_SHA}",
             None,
             None,
-            f"prefecthq/prefect-dev:sha-{COMMIT_SHA}-python{PYTHON_VERSION}",
+            f"prefecthq/prefect:sha-{COMMIT_SHA}-python{PYTHON_VERSION}",
         ),
     ],
 )
@@ -68,11 +68,11 @@ def test_get_prefect_image_name(
         # Test that local versions still use SHA tagging
         (
             f"3.0.0.dev0+1.g{COMMIT_SHA}",
-            f"prefecthq/prefect-dev:sha-{COMMIT_SHA}-python{PYTHON_VERSION}",
+            f"prefecthq/prefect:sha-{COMMIT_SHA}-python{PYTHON_VERSION}",
         ),
         (
             f"3.0.0a1+1.g{COMMIT_SHA}",
-            f"prefecthq/prefect-dev:sha-{COMMIT_SHA}-python{PYTHON_VERSION}",
+            f"prefecthq/prefect:sha-{COMMIT_SHA}-python{PYTHON_VERSION}",
         ),
         # Test stable versions remain unchanged
         ("3.0.0", f"prefecthq/prefect:3.0.0-python{PYTHON_VERSION}"),
