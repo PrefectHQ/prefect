@@ -31,7 +31,25 @@ MAX_CACHE_SIZE = 100
 RESOURCE_CACHE: RelatedResourceCache = {}
 
 
-def tags_as_related_resources(tags: Iterable[str]) -> List[RelatedResource]:
+def tags_as_related_resources(
+    tags: Iterable[str], reserved: int = 0
+) -> List[RelatedResource]:
+    """Represent `tags` as related resources, truncated to fit the event limit.
+
+    Events enforce a hard maximum on related resources, so deployments carrying more
+    tags than an event can represent would otherwise fail validation (#19064).
+
+    Args:
+        tags: the tags to represent.
+        reserved: how many related-resource slots the caller has already used for
+            non-tag resources. Tags are truncated to whatever is left, so an event
+            stays under the maximum without discarding tags that would have fit.
+    """
+    from prefect.settings.context import get_current_settings
+
+    max_related = get_current_settings().server.events.maximum_related_resources
+    max_tags = max(0, max_related - reserved)
+    tags_to_include = sorted(tags)[:max_tags]
     return [
         RelatedResource(
             {
@@ -39,7 +57,7 @@ def tags_as_related_resources(tags: Iterable[str]) -> List[RelatedResource]:
                 "prefect.resource.role": "tag",
             }
         )
-        for tag in sorted(tags)
+        for tag in tags_to_include
     ]
 
 
@@ -183,7 +201,7 @@ async def related_resources_from_run_context(
 
     related += [
         resource
-        for resource in tags_as_related_resources(tags)
+        for resource in tags_as_related_resources(tags, reserved=len(related))
         if resource.id not in exclude
     ]
 

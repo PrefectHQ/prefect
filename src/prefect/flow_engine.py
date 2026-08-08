@@ -494,7 +494,7 @@ class BaseFlowRunEngine(Generic[P, R]):
                 )
             )
 
-        related += tags_as_related_resources(set(tags))
+        related += tags_as_related_resources(set(tags), reserved=len(related))
 
         return resource, related
 
