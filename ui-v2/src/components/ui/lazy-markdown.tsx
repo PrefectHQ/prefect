@@ -3,8 +3,16 @@ import type { Components, Options } from "react-markdown";
 import { MermaidDiagram } from "@/components/ui/mermaid-diagram";
 import { Skeleton } from "@/components/ui/skeleton";
 
+type Pluggable = NonNullable<Options["rehypePlugins"]>[number];
+
 type LazyMarkdownProps = Omit<Options, "children"> & {
 	children: string;
+};
+
+type MarkdownModules = {
+	Markdown: React.ComponentType<Options>;
+	remarkPlugins: Pluggable[];
+	rehypePlugins: Pluggable[];
 };
 
 function reactNodeToString(node: React.ReactNode): string {
@@ -38,21 +46,31 @@ const mermaidComponents: Components = {
 export function LazyMarkdown({
 	children,
 	components,
+	remarkPlugins,
+	rehypePlugins,
 	...props
 }: LazyMarkdownProps) {
-	const [Component, setComponent] =
-		useState<React.ComponentType<Options> | null>(null);
-	const [plugin, setPlugin] = useState<
-		typeof import("remark-gfm").default | null
-	>(null);
+	const [modules, setModules] = useState<MarkdownModules | null>(null);
 
 	useEffect(() => {
-		void Promise.all([import("react-markdown"), import("remark-gfm")]).then(
-			([md, gfm]) => {
-				setComponent(() => md.default);
-				setPlugin(() => gfm.default);
-			},
-		);
+		void Promise.all([
+			import("react-markdown"),
+			import("remark-gfm"),
+			import("rehype-raw"),
+			import("rehype-sanitize"),
+		]).then(([md, gfm, raw, sanitize]) => {
+			setModules({
+				Markdown: md.default,
+				remarkPlugins: [gfm.default],
+				// `rehype-raw` parses HTML embedded in the markdown so it renders as
+				// markup instead of text; `rehype-sanitize` runs after it to drop
+				// anything unsafe.
+				rehypePlugins: [
+					raw.default,
+					[sanitize.default, sanitize.defaultSchema],
+				],
+			});
+		});
 	}, []);
 
 	const mergedComponents = useMemo<Components>(
@@ -60,17 +78,30 @@ export function LazyMarkdown({
 		[components],
 	);
 
-	if (!Component || !plugin) {
+	const mergedRemarkPlugins = useMemo(
+		() => [...(modules?.remarkPlugins ?? []), ...(remarkPlugins ?? [])],
+		[modules, remarkPlugins],
+	);
+
+	const mergedRehypePlugins = useMemo(
+		() => [...(modules?.rehypePlugins ?? []), ...(rehypePlugins ?? [])],
+		[modules, rehypePlugins],
+	);
+
+	if (!modules) {
 		return <Skeleton className="min-h-[100px]" />;
 	}
 
+	const { Markdown } = modules;
+
 	return (
-		<Component
-			remarkPlugins={[plugin]}
+		<Markdown
+			remarkPlugins={mergedRemarkPlugins}
+			rehypePlugins={mergedRehypePlugins}
 			components={mergedComponents}
 			{...props}
 		>
 			{children}
-		</Component>
+		</Markdown>
 	);
 }
