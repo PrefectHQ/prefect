@@ -31,6 +31,21 @@ describe("LazyMarkdown", () => {
 		expect(screen.getByRole("cell", { name: "This deployment allows..." }));
 	});
 
+	it("keeps footnote links pointing at their footnote", async () => {
+		const { container } = render(
+			<LazyMarkdown>{"note[^1]\n\n[^1]: the footnote"}</LazyMarkdown>,
+		);
+
+		await waitFor(() => {
+			expect(screen.getByText("note")).toBeInTheDocument();
+		});
+
+		const reference = screen.getByRole("link", { name: "1" });
+		const href = reference.getAttribute("href") ?? "";
+		expect(href).toMatch(/^#\S+$/);
+		expect(container.querySelector(href)).toHaveTextContent("the footnote");
+	});
+
 	it("strips unsafe html", async () => {
 		const { container } = render(
 			<LazyMarkdown>

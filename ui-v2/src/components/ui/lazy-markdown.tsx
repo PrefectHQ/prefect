@@ -67,7 +67,16 @@ export function LazyMarkdown({
 				// anything unsafe.
 				rehypePlugins: [
 					raw.default,
-					[sanitize.default, sanitize.defaultSchema],
+					[
+						sanitize.default,
+						{
+							...sanitize.defaultSchema,
+							// `remark-rehype` already prefixes the ids it generates for GFM
+							// footnotes. Prefixing them again here would leave the footnote
+							// links pointing at ids that no longer exist.
+							clobberPrefix: "",
+						},
+					],
 				],
 			});
 		});
