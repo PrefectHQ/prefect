@@ -244,9 +244,7 @@ def test_tags_as_related_resources_keeps_every_tag_that_fits():
     tags; truncating below that silently drops tag relationships, so automations
     matching a dropped tag stop seeing the event.
     """
-    maximum = (
-        get_current_settings().server.events.maximum_related_resources
-    )
+    maximum = get_current_settings().server.events.maximum_related_resources
     tags = [f"tag-{i:04d}" for i in range(maximum + 5)]
 
     resources = tags_as_related_resources(tags)
@@ -257,9 +255,7 @@ def test_tags_as_related_resources_keeps_every_tag_that_fits():
 
 def test_tags_as_related_resources_reserves_for_the_caller():
     """`reserved` accounts for related resources the caller has already composed."""
-    maximum = (
-        get_current_settings().server.events.maximum_related_resources
-    )
+    maximum = get_current_settings().server.events.maximum_related_resources
     tags = [f"tag-{i:04d}" for i in range(maximum + 5)]
 
     resources = tags_as_related_resources(tags, reserved=3)
@@ -268,9 +264,7 @@ def test_tags_as_related_resources_reserves_for_the_caller():
 
 
 def test_tags_as_related_resources_reserved_beyond_maximum_yields_nothing():
-    maximum = (
-        get_current_settings().server.events.maximum_related_resources
-    )
+    maximum = get_current_settings().server.events.maximum_related_resources
 
     assert tags_as_related_resources(["a", "b"], reserved=maximum) == []
     assert tags_as_related_resources(["a", "b"], reserved=maximum + 10) == []
