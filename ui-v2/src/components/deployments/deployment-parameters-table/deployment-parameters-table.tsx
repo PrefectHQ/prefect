@@ -30,6 +30,10 @@ type ParametersTableColumns = {
 
 const columnHelper = createColumnHelper<ParametersTableColumns>();
 
+/**
+ * Formats object-valued parameters as JSON while preserving existing scalar and
+ * array output.
+ */
 const formatParameterValue = (value: unknown): string => {
 	if (value === null || value === undefined) {
 		return "";
