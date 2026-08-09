@@ -71,12 +71,8 @@ describe("DeploymentParametersTable", () => {
 		expect(
 			screen.getByRole("cell", { name: '{"day":"prev_td"}' }),
 		).toBeVisible();
-		expect(
-			screen.getByRole("cell", { name: '{"day":"today"}' }),
-		).toBeVisible();
-		expect(
-			screen.getByRole("cell", { name: "prev_td,next_td" }),
-		).toBeVisible();
+		expect(screen.getByRole("cell", { name: '{"day":"today"}' })).toBeVisible();
+		expect(screen.getByRole("cell", { name: "prev_td,next_td" })).toBeVisible();
 		expect(screen.queryByText("[object Object]")).not.toBeInTheDocument();
 	});
 
