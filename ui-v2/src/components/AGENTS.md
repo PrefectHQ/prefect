@@ -44,6 +44,10 @@ This directory contains React components for the Prefect UI migration from Vue t
   - Common pattern: icon components should accept `status` or similar prop, not full entity objects
   - Use wrapper components to transform entity data into icon props
 
+## Markdown Rendering
+
+Route markdown containing API-supplied content (descriptions, artifacts, docs) through `LazyMarkdown` (`@/components/ui/lazy-markdown`) rather than `react-markdown` directly or `dangerouslySetInnerHTML` — it sanitizes embedded HTML via `rehype-sanitize` by default. Custom `remarkPlugins`/`rehypePlugins` passed in merge after the built-ins rather than replacing them.
+
 ## Cron Expression Divergence
 
 `cronstrue.toString()` can successfully describe cron expressions that behave differently on the server, which schedules on `croniter` (e.g., slash-steps starting at a field's max value like `23/6 * * *`, equal low/high ranges, or 6-field crons). Guard any cron string from user input or the API with `divergesFromServerCron()` from `@/components/ui/cron-input` before trusting `cronstrue` output — reject on input forms, but fall back to rendering the raw cron string when displaying an already-saved schedule.
