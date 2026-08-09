@@ -34,7 +34,10 @@ from prefect.events.clients import get_events_client
 from prefect.events.schemas.events import Event, RelatedResource, Resource
 from prefect.logging.loggers import get_logger
 from prefect.settings import PREFECT_DEBUG_MODE
-from prefect.utilities.importtools import import_object
+from prefect.utilities.importtools import (
+    import_object,
+    safe_current_working_directory,
+)
 from prefect.utilities.templating import (
     apply_values,
     resolve_block_document_references,
@@ -62,13 +65,6 @@ class StepExecutionError(Exception):
     """
     Raised when a step fails to execute.
     """
-
-
-def _safe_current_working_directory() -> Path | None:
-    try:
-        return Path.cwd().resolve()
-    except OSError:
-        return None
 
 
 @contextmanager
@@ -213,7 +209,7 @@ async def run_steps(
         try:
             # catch warnings to ensure deprecation warnings are printed
             step_start_cwd = (
-                _safe_current_working_directory()
+                safe_current_working_directory()
                 if step_completion_observer is not None
                 else None
             )
@@ -246,7 +242,7 @@ async def run_steps(
                     step,
                     step_output,
                     step_start_cwd,
-                    _safe_current_working_directory(),
+                    safe_current_working_directory(),
                 )
 
             if not isinstance(step_output, dict):

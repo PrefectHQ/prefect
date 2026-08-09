@@ -77,6 +77,21 @@ def from_qualified_name(name: str) -> Any:
     return getattr(module, attr_name)
 
 
+def safe_current_working_directory() -> Path | None:
+    """The current working directory, or `None` if it no longer exists.
+
+    Removing the working directory out from under a process makes `Path.cwd()`
+    raise. The loaders below put the cwd on `sys.path` so relative imports
+    inside a user's module resolve, so reading it unguarded turns that
+    convenience into a hard failure in which nothing can be imported at all —
+    including the machinery that would set a valid working directory again.
+    """
+    try:
+        return Path.cwd().resolve()
+    except OSError:
+        return None
+
+
 def load_script_as_module(path: str) -> ModuleType:
     """Execute a script at the given path.
 
@@ -136,7 +151,11 @@ def load_module(module_name: str) -> ModuleType:
     """
     # Ensure relative imports within the imported module work if the user is in the
     # correct working directory
-    working_directory = os.getcwd()
+    cwd = safe_current_working_directory()
+    if cwd is None:
+        return importlib.import_module(module_name)
+
+    working_directory = str(cwd)
     sys.path.insert(0, working_directory)
 
     try:

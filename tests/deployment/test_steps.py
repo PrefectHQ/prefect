@@ -862,7 +862,7 @@ class TestRunSteps:
             }[fqn],
         )
         monkeypatch.setattr(
-            "prefect.deployments.steps.core._safe_current_working_directory",
+            "prefect.deployments.steps.core.safe_current_working_directory",
             lambda: (_ for _ in ()).throw(
                 AssertionError("cwd should not be probed without a step observer")
             ),

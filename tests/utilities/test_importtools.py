@@ -1,5 +1,7 @@
 import asyncio
+import importlib
 import importlib.util
+import os
 import runpy
 import sys
 from pathlib import Path
@@ -16,6 +18,7 @@ from prefect.utilities.importtools import (
     from_qualified_name,
     import_object,
     lazy_import,
+    load_module,
     load_script_as_module,
     safe_load_namespace,
     to_qualified_name,
@@ -484,3 +487,55 @@ def hello():
 
     module_names = [m.__name__ for m in loaded_modules]
     assert len(module_names) == len(set(module_names)), "Duplicate module names found"
+
+
+class TestLoadModuleWithMissingWorkingDirectory:
+    """`load_module` inserts the cwd on `sys.path` so relative imports inside a
+    user's module resolve. Reading it with a bare `os.getcwd()` makes importing
+    *any* module fail once the directory has been removed out from under the
+    process.
+
+    That is reachable in normal operation: `Runner._run_on_crashed_hooks` calls
+    `load_flow_from_flow_run`, which re-runs the deployment's pull steps, and
+    running a step imports the step function through `import_object` ->
+    `load_module`. If the run's working directory is already gone by then, the
+    import of `prefect.deployments.steps.set_working_directory` raises
+    FileNotFoundError before that step can correct the cwd — so the recovery
+    path is broken by the thing it exists to recover from, and on_crashed hooks
+    silently never run.
+    """
+
+    @pytest.fixture
+    def deleted_cwd(self, tmp_path: Path):
+        original = os.getcwd()
+        doomed = tmp_path / "doomed"
+        doomed.mkdir()
+        os.chdir(doomed)
+        doomed.rmdir()
+        try:
+            yield
+        finally:
+            os.chdir(original)
+
+    def test_can_import_when_the_working_directory_is_gone(self, deleted_cwd):
+        assert load_module("prefect.deployments.steps") is not None
+
+    def test_import_object_still_resolves(self, deleted_cwd):
+        from prefect.deployments.steps import set_working_directory
+
+        assert (
+            import_object("prefect.deployments.steps.set_working_directory")
+            is set_working_directory
+        )
+
+    def test_cwd_is_still_used_for_imports_when_it_exists(self, tmp_path: Path):
+        """The normal case must keep working: a module that is only importable
+        because it sits in the cwd still resolves, and sys.path is left clean."""
+        (tmp_path / "only_findable_via_cwd.py").write_text("value = 7\n")
+        before = list(sys.path)
+
+        with tmpchdir(str(tmp_path)):
+            module = load_module("only_findable_via_cwd")
+
+        assert module.value == 7
+        assert sys.path == before
