@@ -9,7 +9,14 @@ from uuid import UUID, uuid4
 
 import pytest
 from packaging.version import Version
-from pydantic import BaseModel, Field, SecretBytes, SecretStr, ValidationError
+from pydantic import (
+    AliasPath,
+    BaseModel,
+    Field,
+    SecretBytes,
+    SecretStr,
+    ValidationError,
+)
 from pydantic import Secret as PydanticSecret
 from pydantic_core import to_json
 from pydantic_extra_types.semantic_version import SemanticVersion
@@ -3484,6 +3491,32 @@ class TestUnexpectedFields:
 
         assert isinstance(block, Discriminated)
         assert block.x == 2
+
+    def test_does_not_warn_for_alias_paths(self):
+        class Pathed(Block):
+            x: int = Field(validation_alias=AliasPath("payload", "x"), default=0)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            pathed = Pathed(payload={"x": 1})
+
+        assert pathed.x == 1
+
+    def test_does_not_warn_for_other_members_of_a_union(self):
+        class Left(Block):
+            left: int = 1
+
+        class Right(Block):
+            right: int = 2
+
+        class Holder(BaseModel):
+            block: Union[Left, Right]
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            holder = Holder(block={"right": 4})
+
+        assert isinstance(holder.block, (Left, Right))
 
     async def test_does_not_warn_when_loading_document_with_removed_field(
         self, unique_block_slug

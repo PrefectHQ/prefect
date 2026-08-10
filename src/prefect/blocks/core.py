@@ -29,6 +29,7 @@ from griffe import Docstring, DocstringSection, DocstringSectionKind, Parser, pa
 from packaging.version import InvalidVersion, Version
 from pydantic import (
     AliasChoices,
+    AliasPath,
     BaseModel,
     ConfigDict,
     HttpUrl,
@@ -93,6 +94,23 @@ NestedTypes: tuple[type, ...] = (list, dict, tuple, *UnionTypes)
 _hydrating_block_document: ContextVar[bool] = ContextVar(
     "hydrating_block_document", default=False
 )
+
+
+def _called_by_pydantic_validation() -> bool:
+    """
+    Whether `Block.__init__` was invoked by pydantic validating data into a block
+    rather than by a direct call to a block class.
+    """
+    caller = sys._getframe(3)
+    return caller.f_globals.get("__name__", "").partition(".")[0] == "pydantic"
+
+
+def _alias_path_input_key(alias_path: AliasPath) -> list[str]:
+    """
+    The top-level input key consumed by an `AliasPath`, if it has one.
+    """
+    first = alias_path.path[0] if alias_path.path else None
+    return [first] if isinstance(first, str) else []
 
 
 def block_schema_to_key(schema: BlockSchema) -> str:
@@ -355,8 +373,8 @@ class Block(BaseModel, ABC):
         return super().__new__(cls)
 
     def __init__(self, *args: Any, **kwargs: Any):
-        self._warn_on_unexpected_fields(kwargs)
         super().__init__(*args, **kwargs)
+        self._warn_on_unexpected_fields(kwargs)
         self.block_initialization()
 
     @classmethod
@@ -369,6 +387,11 @@ class Block(BaseModel, ABC):
         can still be loaded, so unexpected keywords cannot be rejected outright.
         """
         if _hydrating_block_document.get():
+            return
+
+        if _called_by_pydantic_validation():
+            # Pydantic is validating data into a block, e.g. a nested block or a
+            # candidate member of a union, where the data may belong to another type.
             return
 
         slug = kwargs.get("block_type_slug")
@@ -391,12 +414,14 @@ class Block(BaseModel, ABC):
                 known_names.add(field.alias)
             if isinstance(field.validation_alias, str):
                 known_names.add(field.validation_alias)
+            elif isinstance(field.validation_alias, AliasPath):
+                known_names.update(_alias_path_input_key(field.validation_alias))
             elif isinstance(field.validation_alias, AliasChoices):
-                known_names.update(
-                    choice
-                    for choice in field.validation_alias.choices
-                    if isinstance(choice, str)
-                )
+                for choice in field.validation_alias.choices:
+                    if isinstance(choice, str):
+                        known_names.add(choice)
+                    else:
+                        known_names.update(_alias_path_input_key(choice))
 
         unexpected = [name for name in kwargs if name not in known_names]
         if unexpected:
@@ -407,6 +432,18 @@ class Block(BaseModel, ABC):
                 UserWarning,
                 stacklevel=3,
             )
+
+    @classmethod
+    def _validate_block_document_data(cls, data: dict[str, Any]) -> Self:
+        """
+        Validate data from a persisted block document, which may contain fields that
+        have since been removed from the block class.
+        """
+        token = _hydrating_block_document.set(True)
+        try:
+            return cls.model_validate(data)
+        finally:
+            _hydrating_block_document.reset(token)
 
     def __str__(self) -> str:
         return self.__repr__()
@@ -915,11 +952,7 @@ class Block(BaseModel, ABC):
             else cls.get_block_class_from_schema(block_document.block_schema)
         )
 
-        token = _hydrating_block_document.set(True)
-        try:
-            block = block_cls.model_validate(block_document.data)
-        finally:
-            _hydrating_block_document.reset(token)
+        block = block_cls._validate_block_document_data(block_document.data)
         block._block_document_id = block_document.id
         block.__class__._block_schema_id = block_document.block_schema_id
         block.__class__._block_type_id = block_document.block_type_id
