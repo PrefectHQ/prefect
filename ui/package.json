@@ -18,7 +18,7 @@
     "axios": "^1.18.1",
     "lodash.debounce": "4.0.8",
     "lodash.merge": "^4.6.2",
-    "tailwindcss": "3.4.16",
+    "tailwindcss": "4.3.3",
     "vue": "3.5.24",
     "vue-router": "4.5.0"
   },
