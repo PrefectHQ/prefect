@@ -43,7 +43,7 @@ COPY ./ui-v2 .
 RUN npm run build
 
 # Build the Python distributable
-FROM python:3.10-slim AS python-builder
+FROM python:3.14-slim AS python-builder
 
 WORKDIR /opt/prefect
 
@@ -71,7 +71,7 @@ RUN PREFECT_REQUIRE_PACKAGED_UI_BUNDLES=1 uv build --sdist --wheel --out-dir dis
     mv "dist/prefect-"*".tar.gz" "dist/prefect.tar.gz"
 
 # Final image
-FROM python:3.10-slim
+FROM python:3.14-slim
 COPY --from=python-builder /bin/uv /bin/uv
 
 # Accept SQLite version as build argument
