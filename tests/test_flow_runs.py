@@ -219,6 +219,16 @@ class TestPauseFlowRunAsyncDispatch:
         with pytest.raises(ValueError, match="'timeout' must be a non-negative number"):
             pause_flow_run(timeout=-1)
 
+    @pytest.mark.asyncio
+    async def test_apause_flow_run_raises_value_error_for_negative_timeout(self):
+        """Test that apause_flow_run raises ValueError for negative timeout values."""
+        with pytest.raises(ValueError, match="'timeout' must be a non-negative number"):
+            await apause_flow_run(timeout=-1)
+
+    def test_suspend_flow_run_raises_value_error_for_negative_timeout(self):
+        """Test that suspend_flow_run raises ValueError for negative timeout values."""
+        with pytest.raises(ValueError, match="'timeout' must be a non-negative number"):
+            suspend_flow_run(timeout=-1)
 
 class TestSuspendFlowRunAsyncDispatch:
     """Tests for the async_dispatch migration of suspend_flow_run."""
@@ -246,3 +256,5 @@ class TestSuspendFlowRunAsyncDispatch:
             RuntimeError, match="Flow runs can only be suspended from within a flow run"
         ):
             suspend_flow_run()
+
+   
