@@ -1,7 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { SchemaObject } from "openapi-typescript";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { describe, expect, test, vi } from "vitest";
 import "@/mocks/mock-json-input";
 import { SchemaFormInputAnyOf } from "./schema-form-input-any-of";
@@ -173,5 +173,49 @@ describe("SchemaFormInputAnyOf", () => {
 			"aria-selected",
 			"true",
 		);
+	});
+
+	test("selects the matching branch when a controlled value arrives after mount", async () => {
+		const schema: PrefectSchemaObject = {
+			type: "object",
+			properties: {},
+		};
+		const property = {
+			anyOf: [
+				{ type: "string", format: "date", title: "Date" },
+				{
+					type: "string",
+					title: "Relative date",
+					enum: ["today", "prev_td"],
+				},
+			],
+		} as SchemaObject & { anyOf: SchemaObject[] };
+
+		function Wrapper() {
+			const [value, setValue] = useState<unknown>(undefined);
+
+			useEffect(() => {
+				setValue("prev_td");
+			}, []);
+
+			return (
+				<SchemaFormProvider schema={schema} kinds={[]}>
+					<SchemaFormInputAnyOf
+						value={value}
+						property={property}
+						onValueChange={setValue}
+						errors={[]}
+					/>
+				</SchemaFormProvider>
+			);
+		}
+
+		render(<Wrapper />);
+
+		await waitFor(() => {
+			expect(
+				screen.getByRole("tab", { name: "Relative date" }),
+			).toHaveAttribute("aria-selected", "true");
+		});
 	});
 });
