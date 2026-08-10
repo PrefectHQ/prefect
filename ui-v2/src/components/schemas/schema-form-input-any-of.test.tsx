@@ -175,6 +175,84 @@ describe("SchemaFormInputAnyOf", () => {
 		);
 	});
 
+	test("reports null when switching to the None branch", async () => {
+		const user = userEvent.setup();
+		const onValueChange = vi.fn();
+
+		const schema: PrefectSchemaObject = {
+			type: "object",
+			properties: {},
+		};
+		const property = {
+			anyOf: [{ type: "string" }, { type: "null" }],
+			default: "value.split(',')",
+		} as SchemaObject & { anyOf: SchemaObject[] };
+
+		function Wrapper() {
+			const [value, setValue] = useState<unknown>("value.split(',')");
+
+			onValueChange.mockImplementation((newValue: unknown) =>
+				setValue(newValue),
+			);
+
+			return (
+				<SchemaFormProvider schema={schema} kinds={[]}>
+					<SchemaFormInputAnyOf
+						value={value}
+						property={property}
+						onValueChange={onValueChange}
+						errors={[]}
+					/>
+				</SchemaFormProvider>
+			);
+		}
+
+		render(<Wrapper />);
+
+		await user.click(screen.getByRole("tab", { name: "None" }));
+
+		await waitFor(() => {
+			expect(onValueChange).toHaveBeenLastCalledWith(null);
+		});
+
+		expect(screen.getByRole("tab", { name: "None" })).toHaveAttribute(
+			"aria-selected",
+			"true",
+		);
+	});
+
+	test("keeps the None branch selected for an existing null value", async () => {
+		const onValueChange = vi.fn();
+
+		const schema: PrefectSchemaObject = {
+			type: "object",
+			properties: {},
+		};
+		const property = {
+			anyOf: [{ type: "string" }, { type: "null" }],
+			default: "value.split(',')",
+		} as SchemaObject & { anyOf: SchemaObject[] };
+
+		renderWithSchemaContext(
+			<SchemaFormInputAnyOf
+				value={null}
+				property={property}
+				onValueChange={onValueChange}
+				errors={[]}
+			/>,
+			schema,
+		);
+
+		expect(screen.getByRole("tab", { name: "None" })).toHaveAttribute(
+			"aria-selected",
+			"true",
+		);
+
+		await waitFor(() => {
+			expect(onValueChange).not.toHaveBeenCalled();
+		});
+	});
+
 	test("selects the matching branch when a controlled value arrives after mount", async () => {
 		const schema: PrefectSchemaObject = {
 			type: "object",
