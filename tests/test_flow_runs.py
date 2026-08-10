@@ -230,6 +230,7 @@ class TestPauseFlowRunAsyncDispatch:
         with pytest.raises(ValueError, match="'timeout' must be a non-negative number"):
             suspend_flow_run(timeout=-1)
 
+
 class TestSuspendFlowRunAsyncDispatch:
     """Tests for the async_dispatch migration of suspend_flow_run."""
 
@@ -256,5 +257,3 @@ class TestSuspendFlowRunAsyncDispatch:
             RuntimeError, match="Flow runs can only be suspended from within a flow run"
         ):
             suspend_flow_run()
-
-   
