@@ -3134,6 +3134,7 @@ async def aserve(
 
         if __name__ == "__main__":
             asyncio.run(main())
+        ```
     """
 
     from prefect.runner import Runner
