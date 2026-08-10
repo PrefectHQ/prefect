@@ -85,4 +85,3 @@ class TestStatementCacheSizeZero:
             connection_url="postgresql+asyncpg://u:p@localhost/db", **{field: 100}
         )
         assert getattr(config, field) == 100
-
