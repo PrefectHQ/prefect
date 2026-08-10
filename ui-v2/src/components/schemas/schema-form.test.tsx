@@ -318,4 +318,69 @@ describe("property.type", () => {
 			expect(hasJsonKind).toBe(false);
 		});
 	});
+
+	describe("optional property with a non-null default", () => {
+		const schema: SchemaObject = {
+			type: "object",
+			properties: {
+				format_rule: {
+					anyOf: [{ type: "string" }, { type: "null" }],
+					default: "value.split(',')",
+				},
+			},
+		};
+
+		function renderWithValues(
+			spy: ReturnType<typeof vi.fn>,
+			initialValues: Record<string, unknown>,
+		) {
+			function Wrapper() {
+				const [values, setValues] =
+					useState<Record<string, unknown>>(initialValues);
+				spy.mockImplementation((value: Record<string, unknown>) =>
+					setValues(value),
+				);
+
+				return (
+					<TestSchemaForm
+						schema={schema}
+						values={values}
+						onValuesChange={spy}
+					/>
+				);
+			}
+
+			render(<Wrapper />);
+		}
+
+		test("keeps an explicit null value", async () => {
+			const spy = vi.fn();
+
+			renderWithValues(spy, { format_rule: null });
+
+			// eslint-disable-next-line @typescript-eslint/require-await
+			await act(async () => {
+				vi.runAllTimers();
+			});
+
+			for (const [values] of spy.mock.calls as [Record<string, unknown>][]) {
+				expect(values).toEqual({ format_rule: null });
+			}
+		});
+
+		test("reports null when the None definition is selected", async () => {
+			const spy = vi.fn();
+
+			renderWithValues(spy, { format_rule: "value.split(',')" });
+
+			fireEvent.mouseDown(screen.getByRole("tab", { name: "None" }));
+
+			// eslint-disable-next-line @typescript-eslint/require-await
+			await act(async () => {
+				vi.runAllTimers();
+			});
+
+			expect(spy).toHaveBeenLastCalledWith({ format_rule: null });
+		});
+	});
 });
