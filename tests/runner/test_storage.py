@@ -111,6 +111,7 @@ def mock_run_process(monkeypatch):
 
 class MockCredentials(Block):
     token: Optional[SecretStr] = None
+    access_token: Optional[SecretStr] = None
     username: Optional[str] = None
     password: Optional[SecretStr] = None
 
