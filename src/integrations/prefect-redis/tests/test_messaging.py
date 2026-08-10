@@ -727,6 +727,43 @@ async def test_trimming_with_no_delivered_messages(redis: Redis):
     assert length == 2
 
 
+async def test_trimming_nonexistent_stream(redis: Redis):
+    """Test that trimming a stream that has never been published to is a no-op."""
+    await _trim_stream_to_lowest_delivered_id("test-trim-stream-that-does-not-exist")
+
+
+async def test_ephemeral_subscription_on_empty_topic_does_not_error(broker: str):
+    """Ephemeral consumers on a topic that has never been published to should not
+    treat the missing stream as a connection error and reconnect in a loop."""
+    captured_messages: list[Message] = []
+
+    async def handler(message: Message):
+        captured_messages.append(message)
+        raise StopConsumer(ack=True)
+
+    with patch("prefect_redis.messaging.logger.warning") as mock_warning:
+        async with ephemeral_subscription("never-published-topic") as consumer_kwargs:
+            consumer = create_consumer(
+                **consumer_kwargs,
+                block=timedelta(milliseconds=50),
+                trim_every=timedelta(seconds=0),
+            )
+            consumer_task = asyncio.create_task(consumer.run(handler))
+
+            try:
+                # give the consumer a chance to attempt a few empty reads and trims
+                await asyncio.sleep(0.5)
+                async with create_publisher(
+                    "never-published-topic", cache=create_cache()
+                ) as p:
+                    await p.publish_data(b"hello", {"message": "hello"})
+            finally:
+                await consumer_task
+
+    assert [message.data for message in captured_messages] == ["hello"]
+    mock_warning.assert_not_called()
+
+
 async def test_trimming_skips_idle_consumer_groups(
     redis: Redis, monkeypatch: pytest.MonkeyPatch
 ):

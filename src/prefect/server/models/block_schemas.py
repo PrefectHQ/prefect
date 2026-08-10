@@ -575,7 +575,7 @@ def _construct_block_schema_fields_with_block_references(
 
     Args:
         parent_block_schema: The block schema that needs block references populated.
-        block_schema_with_references: A list of tuples with the structure:
+        block_schemas_with_references: A list of tuples with the structure:
             - A block schema object
             - The name the block schema lives under in the parent block schema
             - The ID of the block schema's parent block schema
