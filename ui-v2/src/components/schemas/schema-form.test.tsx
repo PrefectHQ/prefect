@@ -1,10 +1,20 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { SchemaObject } from "openapi-typescript";
 import { act, useState } from "react";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import {
+	afterEach,
+	beforeEach,
+	describe,
+	expect,
+	type Mock,
+	test,
+	vi,
+} from "vitest";
 import "@/mocks/mock-json-input";
 import type { SchemaFormProps } from "./schema-form";
 import { SchemaForm } from "./schema-form";
+import type { PrefectSchemaObject } from "./types/schemas";
+import type { SchemaFormValues } from "./types/values";
 
 function TestSchemaForm({
 	schema = { type: "object", properties: {} },
@@ -320,9 +330,10 @@ describe("property.type", () => {
 	});
 
 	describe("optional property with a non-null default", () => {
-		const schema: SchemaObject = {
+		const schema: PrefectSchemaObject = {
 			type: "object",
 			properties: {
+				// @ts-expect-error pydantic creates optional properties without a type
 				format_rule: {
 					anyOf: [{ type: "string" }, { type: "null" }],
 					default: "value.split(',')",
@@ -331,15 +342,12 @@ describe("property.type", () => {
 		};
 
 		function renderWithValues(
-			spy: ReturnType<typeof vi.fn>,
-			initialValues: Record<string, unknown>,
+			spy: Mock<(values: SchemaFormValues) => void>,
+			initialValues: SchemaFormValues,
 		) {
 			function Wrapper() {
-				const [values, setValues] =
-					useState<Record<string, unknown>>(initialValues);
-				spy.mockImplementation((value: Record<string, unknown>) =>
-					setValues(value),
-				);
+				const [values, setValues] = useState<SchemaFormValues>(initialValues);
+				spy.mockImplementation((value: SchemaFormValues) => setValues(value));
 
 				return (
 					<TestSchemaForm
@@ -354,7 +362,7 @@ describe("property.type", () => {
 		}
 
 		test("keeps an explicit null value", async () => {
-			const spy = vi.fn();
+			const spy = vi.fn<(values: SchemaFormValues) => void>();
 
 			renderWithValues(spy, { format_rule: null });
 
@@ -363,13 +371,13 @@ describe("property.type", () => {
 				vi.runAllTimers();
 			});
 
-			for (const [values] of spy.mock.calls as [Record<string, unknown>][]) {
+			for (const [values] of spy.mock.calls) {
 				expect(values).toEqual({ format_rule: null });
 			}
 		});
 
 		test("reports null when the None definition is selected", async () => {
-			const spy = vi.fn();
+			const spy = vi.fn<(values: SchemaFormValues) => void>();
 
 			renderWithValues(spy, { format_rule: "value.split(',')" });
 
