@@ -98,7 +98,7 @@
     "remark-gfm": "^4.0.1",
     "rrule": "^2.8.1",
     "sonner": "^2.0.7",
-    "tailwind-merge": "^2.6.0",
+    "tailwind-merge": "^3.0.0",
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^14.0.1",
     "zod": "^3.25.76"
