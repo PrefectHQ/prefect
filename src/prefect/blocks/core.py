@@ -8,6 +8,7 @@ import types
 import uuid
 import warnings
 from abc import ABC
+from contextvars import ContextVar
 from functools import partial
 from textwrap import dedent
 from typing import (
@@ -27,6 +28,7 @@ from uuid import UUID, uuid4
 from griffe import Docstring, DocstringSection, DocstringSectionKind, Parser, parse
 from packaging.version import InvalidVersion, Version
 from pydantic import (
+    AliasChoices,
     BaseModel,
     ConfigDict,
     HttpUrl,
@@ -85,6 +87,12 @@ if hasattr(types, "UnionType"):
     # Python 3.10+ only
     UnionTypes = (*UnionTypes, types.UnionType)
 NestedTypes: tuple[type, ...] = (list, dict, tuple, *UnionTypes)
+
+# Set while a block is being hydrated from a persisted block document, which may
+# contain fields that no longer exist on the current version of the block class.
+_hydrating_block_document: ContextVar[bool] = ContextVar(
+    "hydrating_block_document", default=False
+)
 
 
 def block_schema_to_key(schema: BlockSchema) -> str:
@@ -347,8 +355,51 @@ class Block(BaseModel, ABC):
         return super().__new__(cls)
 
     def __init__(self, *args: Any, **kwargs: Any):
+        self._warn_on_unexpected_fields(kwargs)
         super().__init__(*args, **kwargs)
         self.block_initialization()
+
+    @classmethod
+    def _warn_on_unexpected_fields(cls, kwargs: dict[str, Any]) -> None:
+        """
+        Warn when a block is constructed with keywords that don't correspond to any
+        field on the class, which is usually a typo in a field name.
+
+        Blocks allow extra fields so that block documents saved with an older schema
+        can still be loaded, so unexpected keywords cannot be rejected outright.
+        """
+        if _hydrating_block_document.get():
+            return
+
+        slug = kwargs.get("block_type_slug")
+        if slug and slug != cls.get_block_type_slug():
+            # Data for another block type, e.g. while discriminating a union of
+            # blocks; `validate_block_type_slug` reports the mismatch instead.
+            return
+
+        known_names: set[str] = {"block_type_slug"}
+        for name, field in cls.model_fields.items():
+            known_names.add(name)
+            if field.alias:
+                known_names.add(field.alias)
+            if isinstance(field.validation_alias, str):
+                known_names.add(field.validation_alias)
+            elif isinstance(field.validation_alias, AliasChoices):
+                known_names.update(
+                    choice
+                    for choice in field.validation_alias.choices
+                    if isinstance(choice, str)
+                )
+
+        unexpected = [name for name in kwargs if name not in known_names]
+        if unexpected:
+            warnings.warn(
+                f"{cls.__name__} received unexpected field(s):"
+                f" {listrepr(sorted(unexpected))}. They will be stored as extra data"
+                " and ignored by this block. Check for typos in field names.",
+                UserWarning,
+                stacklevel=3,
+            )
 
     def __str__(self) -> str:
         return self.__repr__()
@@ -857,7 +908,11 @@ class Block(BaseModel, ABC):
             else cls.get_block_class_from_schema(block_document.block_schema)
         )
 
-        block = block_cls.model_validate(block_document.data)
+        token = _hydrating_block_document.set(True)
+        try:
+            block = block_cls.model_validate(block_document.data)
+        finally:
+            _hydrating_block_document.reset(token)
         block._block_document_id = block_document.id
         block.__class__._block_schema_id = block_document.block_schema_id
         block.__class__._block_type_id = block_document.block_type_id
