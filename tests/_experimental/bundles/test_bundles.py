@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from zipfile import ZipFile
 
 import pytest
 
@@ -321,6 +322,47 @@ def my_flow():
         if result["zip_path"]:
             result["zip_path"].unlink(missing_ok=True)
             result["zip_path"].parent.rmdir()
+
+    def test_include_files_base_dir_overrides_flow_file_directory(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        custom_base_dir = tmp_path / "assets"
+        custom_base_dir.mkdir()
+        (custom_base_dir / "config.yaml").write_text("source: custom")
+
+        flow_dir = tmp_path / "flows"
+        flow_dir.mkdir()
+        flow_file = flow_dir / "my_flow.py"
+        flow_file.write_text("from prefect import flow")
+        (flow_dir / "config.yaml").write_text("source: flow")
+
+        monkeypatch.setattr(
+            bundles_module.subprocess,
+            "check_output",
+            lambda *args, **kwargs: b"prefect>=3.0.0\n",
+        )
+
+        @flow
+        def test_flow():
+            pass
+
+        test_flow.include_files = ["config.yaml"]  # type: ignore[attr-defined]
+        test_flow.include_files_base_dir = custom_base_dir  # type: ignore[attr-defined]
+
+        with patch("prefect.bundles.inspect.getfile", return_value=str(flow_file)):
+            flow_run = MagicMock()
+            flow_run.model_dump.return_value = {"id": "test-123"}
+            result = create_bundle_for_flow_run(test_flow, flow_run)
+
+        zip_path = result["zip_path"]
+        assert zip_path is not None
+
+        try:
+            with ZipFile(zip_path) as archive:
+                assert archive.read("config.yaml") == b"source: custom"
+        finally:
+            zip_path.unlink(missing_ok=True)
+            zip_path.parent.rmdir()
 
     def test_files_key_none_when_no_include_files(self, monkeypatch) -> None:
         """files_key is None when flow has no include_files."""

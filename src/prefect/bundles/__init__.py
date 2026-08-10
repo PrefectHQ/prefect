@@ -466,9 +466,12 @@ def create_bundle_for_flow_run(
 
     if include_files:
         try:
-            # Get base directory from flow file location
-            flow_file = Path(inspect.getfile(flow.fn))
-            base_dir = flow_file.parent.resolve()
+            configured_base_dir = getattr(flow, "include_files_base_dir", None)
+            if configured_base_dir is None:
+                flow_file = Path(inspect.getfile(flow.fn))
+                base_dir = flow_file.parent.resolve()
+            else:
+                base_dir = Path(configured_base_dir).expanduser().resolve()
 
             # Pipeline: collect -> filter -> check -> zip
             collector = FileCollector(base_dir)

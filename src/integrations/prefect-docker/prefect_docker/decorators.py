@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Sequence, TypeVar
 
 from typing_extensions import ParamSpec
@@ -47,6 +48,7 @@ def docker(
     work_pool: str,
     include_files: Sequence[str] | None = None,
     launcher: BundleLauncher | None = None,
+    include_files_base_dir: Path | str | None = None,
     **job_variables: Any,
 ) -> Callable[[Flow[P, R]], InfrastructureBoundFlow[P, R]]:
     """
@@ -55,10 +57,13 @@ def docker(
     Args:
         work_pool: The name of the Docker work pool to use
         include_files: Optional sequence of file patterns to include in the bundle.
-            Patterns are relative to the flow file location. Supports glob patterns
-            (e.g., "*.yaml", "data/**/*.csv"). Files matching these patterns will
-            be bundled and available in the remote execution environment.
+            Patterns are relative to `include_files_base_dir`, which defaults to the
+            flow file location. Supports glob patterns (e.g., "*.yaml",
+            "data/**/*.csv"). Files matching these patterns will be bundled and
+            available in the remote execution environment.
         launcher: Optional upload and execution launcher override.
+        include_files_base_dir: Optional base directory for resolving `include_files`.
+            Defaults to the directory containing the flow file.
         **job_variables: Additional job variables to use for infrastructure configuration
 
     Example:
@@ -93,6 +98,7 @@ def docker(
             worker_cls=DockerWorker,
             launcher=launcher,
             include_files=list(include_files) if include_files is not None else None,
+            include_files_base_dir=include_files_base_dir,
         )
 
     return decorator

@@ -314,6 +314,26 @@ def my_flow():
 
 The `include_files` parameter accepts a list of relative paths and glob patterns. Paths are resolved relative to the directory containing the flow file.
 
+To resolve the patterns from another location, set `include_files_base_dir` to a string or [`pathlib.Path`](https://docs.python.org/3/library/pathlib.html#pathlib.Path). Relative base directories are resolved from the current working directory when the bundle is created. Included files retain their paths relative to this directory when extracted in the remote execution environment.
+
+{/* pmd-metadata: notest */}
+```python
+from pathlib import Path
+
+from prefect import flow
+from prefect_docker.decorators import docker
+
+
+@docker(
+    work_pool="my-pool",
+    include_files=["config.yaml", "data/"],
+    include_files_base_dir=Path("/my/custom/base-dir"),
+)
+@flow
+def my_flow():
+    ...
+```
+
 ### Supported patterns
 
 | Pattern | Description |
@@ -345,7 +365,7 @@ This example includes all JSON files except those in the `fixtures/` directory.
 
 ### Filtering with `.prefectignore`
 
-If a `.prefectignore` file exists in the flow file's directory or at the project root (detected via `pyproject.toml`), its patterns are applied to filter out matching files. The `.prefectignore` file uses gitignore-style syntax:
+If a `.prefectignore` file exists in the base directory used for included files or at that directory's project root (detected via `pyproject.toml`), its patterns are applied to filter out matching files. The `.prefectignore` file uses gitignore-style syntax:
 
 ```text
 # .prefectignore

@@ -7,10 +7,10 @@ sidebarTitle: decorators
 
 ## Functions
 
-### `docker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/decorators.py#L46" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `docker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-docker/prefect_docker/decorators.py#L47" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-docker(work_pool: str, include_files: Sequence[str] | None = None, launcher: BundleLauncher | None = None, **job_variables: Any) -> Callable[[Flow[P, R]], InfrastructureBoundFlow[P, R]]
+docker(work_pool: str, include_files: Sequence[str] | None = None, launcher: BundleLauncher | None = None, include_files_base_dir: Path | str | None = None, **job_variables: Any) -> Callable[[Flow[P, R]], InfrastructureBoundFlow[P, R]]
 ```
 
 
@@ -19,9 +19,12 @@ Decorator that binds execution of a flow to a Docker work pool
 **Args:**
 - `work_pool`: The name of the Docker work pool to use
 - `include_files`: Optional sequence of file patterns to include in the bundle.
-Patterns are relative to the flow file location. Supports glob patterns
-(e.g., "*.yaml", "data/**/*.csv"). Files matching these patterns will
-be bundled and available in the remote execution environment.
+Patterns are relative to `include_files_base_dir`, which defaults to the
+flow file location. Supports glob patterns (e.g., "*.yaml",
+"data/**/*.csv"). Files matching these patterns will be bundled and
+available in the remote execution environment.
 - `launcher`: Optional upload and execution launcher override.
+- `include_files_base_dir`: Optional base directory for resolving `include_files`.
+Defaults to the directory containing the flow file.
 - `**job_variables`: Additional job variables to use for infrastructure configuration
 
