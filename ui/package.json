@@ -27,7 +27,7 @@
     "@types/lodash.merge": "^4.6.9",
     "@vitejs/plugin-vue": "^6.0.7",
     "autoprefixer": "10.4.21",
-    "eslint": "^8.57.1",
+    "eslint": "^10.0.0",
     "ts-node": "10.9.2",
     "typescript": "^5.9.2",
     "vite": "^8.0.16",
