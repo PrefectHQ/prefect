@@ -377,7 +377,14 @@ class Block(BaseModel, ABC):
             # blocks; `validate_block_type_slug` reports the mismatch instead.
             return
 
-        known_names: set[str] = {"block_type_slug"}
+        # `ser_model` adds these to serialized blocks, so they can appear in data
+        # round-tripped back into a block.
+        known_names: set[str] = {
+            "block_type_slug",
+            "_block_document_id",
+            "_block_document_name",
+            "_is_anonymous",
+        }
         for name, field in cls.model_fields.items():
             known_names.add(name)
             if field.alias:
