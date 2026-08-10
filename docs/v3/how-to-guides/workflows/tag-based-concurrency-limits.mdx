@@ -82,23 +82,32 @@ prefect concurrency-limit delete database
 ### Python client
 
 ```python
+import asyncio
+
 from prefect import get_client
 
-async with get_client() as client:
-    # Set a concurrency limit of 10 on the "database" tag
-    await client.create_concurrency_limit(
-        tag="database",
-        concurrency_limit=10
-    )
 
-    # Read current limit for a tag
-    limit = await client.read_concurrency_limit_by_tag(tag="database")
+async def manage_concurrency_limits():
+    async with get_client() as client:
+        # Set a concurrency limit of 10 on the "database" tag
+        await client.create_concurrency_limit(
+            tag="database",
+            concurrency_limit=10
+        )
 
-    # Delete a concurrency limit
-    await client.delete_concurrency_limit_by_tag(tag="database")
+        # Read current limit for a tag
+        limit = await client.read_concurrency_limit_by_tag(tag="database")
+        print(limit)
 
-    # View all concurrency limits
-    limits = await client.read_concurrency_limits()
+        # View all concurrency limits
+        limits = await client.read_concurrency_limits(limit=10, offset=0)
+        print(limits)
+
+        # Delete a concurrency limit
+        await client.delete_concurrency_limit_by_tag(tag="database")
+
+
+asyncio.run(manage_concurrency_limits())
 ```
 
 ### API
