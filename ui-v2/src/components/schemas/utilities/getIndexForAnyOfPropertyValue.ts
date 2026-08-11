@@ -205,8 +205,19 @@ function getRecordDefinitionIndex(
 	);
 
 	// definitions that don't declare properties, like an untyped `dict`, can
-	// still hold any record value
+	// hold any record value, so they're preferred over a structured definition
+	// the value shares no keys with
 	if (keysInCommon === 0) {
+		const openObjectIndex = definitions.findIndex(
+			(definition) =>
+				definition.type === "object" &&
+				(!("properties" in definition) || !definition.properties),
+		);
+
+		if (openObjectIndex >= 0) {
+			return openObjectIndex;
+		}
+
 		return definitions.findIndex((definition) => definition.type === "object");
 	}
 

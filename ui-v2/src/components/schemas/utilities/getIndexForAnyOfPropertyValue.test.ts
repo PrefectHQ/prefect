@@ -199,6 +199,22 @@ describe("getIndexForAnyOfPropertyValue", () => {
 			).toBe(1);
 		});
 
+		test("returns index of the dict definition over a structured definition with no property keys in common", () => {
+			const property = {
+				anyOf: [
+					{ type: "object", properties: { a: { type: "string" } } },
+					{ type: "object" },
+				],
+			} as unknown as SchemaObject;
+			expect(
+				getIndexForAnyOfPropertyValue({
+					value: { unexpected: "value" },
+					property,
+					schema,
+				}),
+			).toBe(1);
+		});
+
 		test("returns index of the object definition when no property keys are in common", () => {
 			const property = {
 				anyOf: [
