@@ -18,8 +18,9 @@ from prefect.server.models.task_run_states import (
     read_task_run_state,
     read_task_run_states,
 )
-from prefect.server.models.task_runs import read_task_run
+from prefect.server.models.task_runs import create_task_run, read_task_run
 from prefect.server.schemas.core import FlowRun, TaskRunPolicy
+from prefect.server.schemas.core import TaskRun as CoreTaskRun
 from prefect.server.schemas.states import StateDetails, StateType
 from prefect.server.services import task_run_recorder
 from prefect.server.utilities.messaging import MessageHandler, create_publisher
@@ -1793,3 +1794,49 @@ async def test_bulk_upsert_raises_after_max_retries_on_integrity_error(
         await task_run_recorder.record_bulk_task_run_events([event])
 
     assert call_count == 2
+
+
+async def test_records_state_for_task_run_without_a_state_timestamp(
+    session: AsyncSession,
+    flow_run,
+):
+    """A task run that has no state yet must still accept the one it is sent.
+
+    The upsert only overwrites a task run whose recorded state is older than the
+    incoming one. A task run created before any state was recorded has no
+    `state_timestamp` to compare against, and in SQL that comparison is never
+    true, so every state it is subsequently sent would be discarded.
+    """
+    task_run_id = uuid4()
+    await create_task_run(
+        session=session,
+        task_run=CoreTaskRun(
+            id=task_run_id,
+            flow_run_id=flow_run.id,
+            task_key="task-run-without-a-state",
+            dynamic_key="1",
+        ),
+    )
+    await session.commit()
+
+    task_run = await read_task_run(session=session, task_run_id=str(task_run_id))
+    assert task_run is not None
+    assert task_run.state_timestamp is None
+
+    await task_run_recorder.record_bulk_task_run_events(
+        [
+            make_event_with_flow_run(
+                task_run_id=str(task_run_id),
+                flow_run_id=str(flow_run.id),
+                task_key="task-run-without-a-state",
+                dynamic_key="1",
+                state_ts=datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc),
+                state_type=StateType.COMPLETED,
+            )
+        ]
+    )
+
+    session.expire_all()
+    task_run = await read_task_run(session=session, task_run_id=str(task_run_id))
+    assert task_run is not None
+    assert task_run.state_type == StateType.COMPLETED

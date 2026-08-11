@@ -378,8 +378,11 @@ async def _record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
                         if col.name in (update_cols | {"updated"}) - {"id"}
                     },
                 },
-                where=db.TaskRun.state_timestamp
-                < insert_statement.excluded.state_timestamp,
+                where=sa.or_(
+                    db.TaskRun.state_timestamp.is_(None),
+                    db.TaskRun.state_timestamp
+                    < insert_statement.excluded.state_timestamp,
+                ),
             )
             await session.execute(upsert_statement)
 
