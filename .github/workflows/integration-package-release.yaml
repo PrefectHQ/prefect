@@ -43,7 +43,7 @@ jobs:
           cache-dependency-path: "requirements*.txt"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v9.0.0
         if: steps.package_name.outputs.PACKAGE_NAME == 'prefect-aws'
         with:
           version: latest
