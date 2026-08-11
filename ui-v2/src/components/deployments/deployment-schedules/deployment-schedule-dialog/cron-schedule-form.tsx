@@ -249,7 +249,12 @@ export const CronScheduleForm = ({
 					<DialogTrigger asChild>
 						<Button variant="outline">Close</Button>
 					</DialogTrigger>
-					<Button type="submit" loading={createPending || updatePending}>
+					<Button
+						type="submit"
+						loading={
+							createPending || updatePending || form.formState.isSubmitting
+						}
+					>
 						Save
 					</Button>
 				</DialogFooter>

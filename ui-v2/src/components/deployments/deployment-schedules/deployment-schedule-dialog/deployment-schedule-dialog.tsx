@@ -52,7 +52,10 @@ export const DeploymentScheduleDialog = ({
 	onSubmit,
 }: DeploymentScheduleDialogProps) => (
 	<Dialog open={open} onOpenChange={onOpenChange}>
-		<DialogContent aria-describedby={undefined}>
+		<DialogContent
+			aria-describedby={undefined}
+			className="max-h-[85vh] overflow-y-auto"
+		>
 			<DialogHeader>
 				<DialogTitle>{scheduleToEdit ? "Edit" : "Add"} Schedule</DialogTitle>
 			</DialogHeader>

@@ -2,15 +2,25 @@ import { useMemo } from "react";
 import { toast } from "sonner";
 import type { Deployment, DeploymentSchedule } from "@/api/deployments";
 import {
+	type PrefectSchemaObject,
 	useSchemaFormErrors,
 	useSchemaFormValues,
 	validateSchemaValues,
 } from "@/components/schemas";
 import type { SchemaFormErrors } from "@/components/schemas/types/errors";
 import type { SchemaFormValues } from "@/components/schemas/types/values";
+import { isRecord } from "@/components/schemas/utilities/guards";
+
+type ParameterSchema = Record<string, unknown> & PrefectSchemaObject;
+
+const isObjectSchema = (
+	schema: Record<string, unknown>,
+): schema is ParameterSchema =>
+	schema.type === "object" &&
+	(schema.properties === undefined || isRecord(schema.properties));
 
 export type ScheduleParameterOverrides = {
-	schema: Record<string, unknown> | undefined;
+	schema: ParameterSchema | undefined;
 	values: SchemaFormValues;
 	errors: SchemaFormErrors;
 	setValues: (values: SchemaFormValues) => void;
@@ -33,14 +43,15 @@ export const useScheduleParameterOverrides = (
 		if (!parameter_openapi_schema) {
 			return undefined;
 		}
-		return { ...parameter_openapi_schema, required: [] };
+		const relaxedSchema = { ...parameter_openapi_schema, required: [] };
+		return isObjectSchema(relaxedSchema) ? relaxedSchema : undefined;
 	}, [deployment]);
 
 	const [values, setValues] = useSchemaFormValues(scheduleToEdit?.parameters);
 	const [errors, setErrors] = useSchemaFormErrors();
 
 	const validate = async () => {
-		if (!schema) {
+		if (!schema || !deployment.enforce_parameter_schema) {
 			return true;
 		}
 		try {

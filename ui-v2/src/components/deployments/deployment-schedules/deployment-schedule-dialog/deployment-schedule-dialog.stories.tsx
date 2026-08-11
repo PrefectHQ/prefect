@@ -1,4 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/react";
+import { buildApiUrl } from "@tests/utils/handlers";
+import { HttpResponse, http } from "msw";
 import { fn } from "storybook/test";
 import { createFakeDeployment } from "@/mocks";
 import {
@@ -25,6 +27,22 @@ const meta = {
 	title: "Components/Deployments/DeploymentScheduleDialog",
 	component: DeploymentScheduleDialog,
 	decorators: [toastDecorator, routerDecorator, reactQueryDecorator],
+	parameters: {
+		msw: {
+			handlers: [
+				http.post(buildApiUrl("/ui/schemas/validate"), () =>
+					HttpResponse.json({ valid: true, errors: [] }),
+				),
+				http.post(buildApiUrl("/deployments/:id/schedules"), () =>
+					HttpResponse.json([], { status: 201 }),
+				),
+				http.patch(
+					buildApiUrl("/deployments/:id/schedules/:schedule_id"),
+					() => new HttpResponse(null, { status: 204 }),
+				),
+			],
+		},
+	},
 	args: {
 		deployment: MOCK_DEPLOYMENT,
 		open: true,

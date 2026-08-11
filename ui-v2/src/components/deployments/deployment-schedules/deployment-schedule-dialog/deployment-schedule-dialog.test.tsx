@@ -20,6 +20,7 @@ const PARAMETER_SCHEMA = {
 const MOCK_DEPLOYMENT = createFakeDeployment({
 	parameter_openapi_schema: PARAMETER_SCHEMA,
 	parameters: { name: "deployment default" },
+	enforce_parameter_schema: true,
 });
 
 const MOCK_SCHEDULE: DeploymentSchedule = {
@@ -167,5 +168,47 @@ describe("DeploymentScheduleDialog", () => {
 
 		expect(await screen.findByText(/is not of type 'string'/i)).toBeVisible();
 		expect(createSchedule).not.toHaveBeenCalled();
+	});
+
+	it("does not validate overrides when the deployment does not enforce its parameter schema", async () => {
+		const user = userEvent.setup();
+		const validateSchema = vi.fn();
+		let createdSchedules: unknown;
+		server.use(
+			http.post(
+				buildApiUrl("/deployments/:id/schedules"),
+				async ({ request }) => {
+					createdSchedules = await request.json();
+					return HttpResponse.json([], { status: 201 });
+				},
+			),
+			http.post(buildApiUrl("/ui/schemas/validate"), () => {
+				validateSchema();
+				return HttpResponse.json({ valid: true, errors: [] });
+			}),
+		);
+
+		render(
+			<DeploymentScheduleDialogTest
+				deployment={createFakeDeployment({
+					parameter_openapi_schema: PARAMETER_SCHEMA,
+					enforce_parameter_schema: false,
+				})}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		await user.type(
+			await screen.findByLabelText(/name \(optional\)/i),
+			"my override",
+		);
+		await user.click(screen.getByRole("button", { name: /save/i }));
+
+		await vi.waitFor(() =>
+			expect(createdSchedules).toEqual([
+				expect.objectContaining({ parameters: { name: "my override" } }),
+			]),
+		);
+		expect(validateSchema).not.toHaveBeenCalled();
 	});
 });
