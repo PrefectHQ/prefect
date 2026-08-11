@@ -20,7 +20,8 @@ type InitialIndexContext = {
  * @param value - The value to match
  * @param property - The property to match
  * @param schema - The schema to match
- * @returns The index of the definition that matches the value
+ * @returns The index of the definition that matches the value, or 0 when no
+ * definition matches
  */
 export function getIndexForAnyOfPropertyValue({
 	value,
@@ -35,12 +36,25 @@ export function getIndexForAnyOfPropertyValue({
 	}
 
 	const definitions = getSchemaPropertyAnyOfDefinitions(property, schema);
+	const index = getMatchingDefinitionIndex(valueOrDefaultValue, definitions);
 
+	// values that don't match any definition default to showing the first one
+	return index >= 0 ? index : 0;
+}
+
+/**
+ * Get the index of the definition that matches a defined value
+ * @param valueOrDefaultValue - The value to match
+ * @param definitions - The definitions to match
+ * @returns The index of the definition that matches the value, or -1 when no
+ * definition matches
+ */
+function getMatchingDefinitionIndex(
+	valueOrDefaultValue: unknown,
+	definitions: SchemaObject[],
+): number {
 	if (isPrefectKindValue(valueOrDefaultValue)) {
-		const index = definitions.findIndex(
-			(definition) => !isDefined(definition.type),
-		);
-		return index >= 0 ? index : 0;
+		return definitions.findIndex((definition) => !isDefined(definition.type));
 	}
 
 	switch (typeof valueOrDefaultValue) {
@@ -190,8 +204,21 @@ function getRecordDefinitionIndex(
 		[0, 0],
 	);
 
+	// definitions that don't declare properties, like an untyped `dict`, can
+	// hold any record value, so they're preferred over a structured definition
+	// the value shares no keys with
 	if (keysInCommon === 0) {
-		return -1;
+		const openObjectIndex = definitions.findIndex(
+			(definition) =>
+				definition.type === "object" &&
+				(!("properties" in definition) || !definition.properties),
+		);
+
+		if (openObjectIndex >= 0) {
+			return openObjectIndex;
+		}
+
+		return definitions.findIndex((definition) => definition.type === "object");
 	}
 
 	return index;

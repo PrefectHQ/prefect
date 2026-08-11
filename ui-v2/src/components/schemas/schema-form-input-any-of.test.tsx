@@ -253,6 +253,61 @@ describe("SchemaFormInputAnyOf", () => {
 		});
 	});
 
+	test("selects the object branch for a record value when no branch declares properties", () => {
+		const onValueChange = vi.fn();
+
+		const schema: PrefectSchemaObject = {
+			type: "object",
+			properties: {},
+		};
+		const property = {
+			anyOf: [{ type: "null" }, { type: "object", title: "dict" }],
+			default: null,
+		} as SchemaObject & { anyOf: SchemaObject[] };
+
+		renderWithSchemaContext(
+			<SchemaFormInputAnyOf
+				value={{ retries: 2 }}
+				property={property}
+				onValueChange={onValueChange}
+				errors={[]}
+			/>,
+			schema,
+		);
+
+		expect(screen.getByRole("tab", { name: "dict" })).toHaveAttribute(
+			"aria-selected",
+			"true",
+		);
+	});
+
+	test("selects the first branch when the value matches no branch", () => {
+		const onValueChange = vi.fn();
+
+		const schema: PrefectSchemaObject = {
+			type: "object",
+			properties: {},
+		};
+		const property = {
+			anyOf: [{ type: "string", title: "str" }, { type: "null" }],
+		} as SchemaObject & { anyOf: SchemaObject[] };
+
+		renderWithSchemaContext(
+			<SchemaFormInputAnyOf
+				value={{ unexpected: "value" }}
+				property={property}
+				onValueChange={onValueChange}
+				errors={[]}
+			/>,
+			schema,
+		);
+
+		expect(screen.getByRole("tab", { name: "str" })).toHaveAttribute(
+			"aria-selected",
+			"true",
+		);
+	});
+
 	test("selects the matching branch when a controlled value arrives after mount", async () => {
 		const schema: PrefectSchemaObject = {
 			type: "object",

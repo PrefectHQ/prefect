@@ -166,6 +166,85 @@ describe("getIndexForAnyOfPropertyValue", () => {
 		});
 	});
 
+	describe("record values", () => {
+		test("returns index of the definition with the most properties in common", () => {
+			const property = {
+				anyOf: [
+					{ type: "object", properties: { a: { type: "string" } } },
+					{
+						type: "object",
+						properties: { a: { type: "string" }, b: { type: "string" } },
+					},
+				],
+			} as unknown as SchemaObject;
+			expect(
+				getIndexForAnyOfPropertyValue({
+					value: { a: "1", b: "2" },
+					property,
+					schema,
+				}),
+			).toBe(1);
+		});
+
+		test("returns index of the object definition when no definition declares properties", () => {
+			const property = {
+				anyOf: [{ type: "null" }, { type: "object" }],
+			} as unknown as SchemaObject;
+			expect(
+				getIndexForAnyOfPropertyValue({
+					value: { retries: 2 },
+					property,
+					schema,
+				}),
+			).toBe(1);
+		});
+
+		test("returns index of the dict definition over a structured definition with no property keys in common", () => {
+			const property = {
+				anyOf: [
+					{ type: "object", properties: { a: { type: "string" } } },
+					{ type: "object" },
+				],
+			} as unknown as SchemaObject;
+			expect(
+				getIndexForAnyOfPropertyValue({
+					value: { unexpected: "value" },
+					property,
+					schema,
+				}),
+			).toBe(1);
+		});
+
+		test("returns index of the object definition when no property keys are in common", () => {
+			const property = {
+				anyOf: [
+					{ type: "null" },
+					{ type: "object", properties: { a: { type: "string" } } },
+				],
+			} as unknown as SchemaObject;
+			expect(
+				getIndexForAnyOfPropertyValue({
+					value: { unexpected: "value" },
+					property,
+					schema,
+				}),
+			).toBe(1);
+		});
+	});
+
+	test("returns 0 when no definition matches the value", () => {
+		const property = {
+			anyOf: [{ type: "string" }, { type: "null" }],
+		} as unknown as SchemaObject;
+		expect(
+			getIndexForAnyOfPropertyValue({
+				value: { unexpected: "value" },
+				property,
+				schema,
+			}),
+		).toBe(0);
+	});
+
 	test("returns 0 when using default value and value is undefined", () => {
 		const property = {
 			anyOf: [{ type: "string" }, { type: "number" }],
