@@ -302,6 +302,29 @@ class TestFlowRunExecutorSubmit:
             "run_crashed_hooks"
         )
 
+    async def test_submit_keeps_handle_registered_until_crashed_hooks_finish(self):
+        executor, m = _make_executor(handle_returncode=1)
+        crashed_state = MagicMock()
+        hook_started = anyio.Event()
+        hook_can_finish = anyio.Event()
+
+        m["state_proposer"].propose_crashed = AsyncMock(return_value=crashed_state)
+
+        async def run_crashed_hooks(*_args: object, **_kwargs: object) -> None:
+            hook_started.set()
+            await hook_can_finish.wait()
+
+        m["hook_runner"].run_crashed_hooks = AsyncMock(side_effect=run_crashed_hooks)
+
+        async with anyio.create_task_group() as task_group:
+            task_group.start_soon(executor.submit)
+            await hook_started.wait()
+
+            m["process_manager"].remove.assert_not_awaited()
+            hook_can_finish.set()
+
+        m["process_manager"].remove.assert_awaited_once_with(m["flow_run"].id)
+
     async def test_submit_signals_task_status_with_handle(self):
         """Outer task_status.started(handle) called with ProcessHandle."""
         executor, m = _make_executor()
