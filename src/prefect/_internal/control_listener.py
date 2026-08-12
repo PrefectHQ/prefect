@@ -1,11 +1,16 @@
 """
-Child-process runner-control intent listener.
+Child side of the internal Attempt Control Session.
 
 This module is intentionally small. It only supports steady-state graceful
 control delivery after Prefect has already installed its SIGTERM bridge via
 `capture_sigterm()`.
 
-Protocol:
+The version-one protocol remains intact: the supervisor sends one-byte control
+intents and the child acknowledges a committed intent with `b"a"`. Version-two
+peers additionally negotiate outcome receipts over the same authenticated,
+full-duplex loopback connection.
+
+Session outline:
 
 1. The runner injects `PREFECT__CONTROL_PORT` and `PREFECT__CONTROL_TOKEN`
    into the child environment.
@@ -13,12 +18,13 @@ Protocol:
    one-shot env vars without connecting yet.
 3. The outermost `capture_sigterm()` calls `start()`, which connects back to
    the runner and spawns a daemon thread blocked on the socket.
-4. The runner writes a single-byte intent (`b"c"`, `b"r"` or `b"q"`).
-5. If Prefect still owns the live SIGTERM bridge, the child writes `b"a"`,
-   commits the intent for engine dispatch, and on Windows triggers
-   `_thread.interrupt_main(SIGTERM)`.
-6. The runner then sends its normal external termination signal. On POSIX,
-   that real `SIGTERM` is the only trigger that interrupts blocking code.
+4. The child sends a reserved negotiation hello. A version-one supervisor
+   ignores it; a version-two supervisor selects the protocol and capabilities.
+5. The first terminal exchange is either an existing control intent plus
+   `b"a"`, or a structured engine outcome receipt plus a receipt ack.
+6. For control, the runner then sends its normal external termination signal.
+   On POSIX, that real `SIGTERM` remains the only trigger that interrupts
+   blocking code.
 
 If the child is not connected yet, or can no longer safely acknowledge the
 intent, the runner sees no ack and falls back to its existing crash-style
@@ -33,17 +39,27 @@ import os
 import signal
 import socket
 import threading
-from typing import Literal
 
+from prefect._internal.attempt_control import (
+    CURRENT_PROTOCOL_VERSION,
+    INTENT_FOR_BYTE,
+    NEGOTIATION_FRAME_SIZE,
+    NEGOTIATION_PREFIX,
+    RECEIPT_ACK,
+    RECEIPT_CAPABILITY,
+    EngineOutcomeReceipt,
+    Intent,
+    decode_negotiation,
+    encode_negotiation,
+    encode_receipt,
+)
+from prefect.logging import get_logger
 from prefect.utilities.engine import commit_control_intent_and_ack
 
-Intent = Literal["cancel", "reschedule", "relinquish"]
+_NEGOTIATION_TIMEOUT = 0.25
+_RECEIPT_ACK_TIMEOUT = 1.0
 
-_INTENT_FOR_BYTE: dict[bytes, Intent] = {
-    b"c": "cancel",
-    b"r": "reschedule",
-    b"q": "relinquish",
-}
+_logger = get_logger("control_listener")
 
 _intent: Intent | None = None
 _intent_lock = threading.Lock()
@@ -56,6 +72,14 @@ _started = False
 _started_lock = threading.Lock()
 _socket: socket.socket | None = None
 _reader_thread: threading.Thread | None = None
+_send_lock = threading.Lock()
+_negotiation_complete = threading.Event()
+_receipt_acked = threading.Event()
+_receipt_capable = False
+_terminal_lock = threading.Lock()
+_terminal_claimed = False
+_receipt_in_flight = False
+_outcome_report_started = False
 
 
 def get_intent() -> Intent | None:
@@ -107,24 +131,98 @@ def configure_from_env() -> None:
 
 def _acknowledge_intent(sock: socket.socket, intent: Intent) -> bool:
     """Commit intent and acknowledge it to the runner."""
-    if not commit_control_intent_and_ack(
+    return commit_control_intent_and_ack(
         commit_intent=lambda: _set_intent(intent),
         clear_intent=_clear_intent,
-        send_ack=lambda: sock.sendall(b"a"),
+        send_ack=lambda: _send(sock, b"a"),
         trigger_cancel=(
             (lambda: _thread.interrupt_main(signal.SIGTERM))
             if os.name == "nt"
             else None
         ),
-    ):
-        return False
+    )
 
-    return True
+
+def _send(sock: socket.socket, data: bytes) -> None:
+    with _send_lock:
+        sock.sendall(data)
+
+
+def _recv_exactly(sock: socket.socket, size: int) -> bytes:
+    chunks = bytearray()
+    while len(chunks) < size:
+        chunk = sock.recv(size - len(chunks))
+        if not chunk:
+            raise OSError("Control session closed")
+        chunks.extend(chunk)
+    return bytes(chunks)
+
+
+def _handle_intent_byte(sock: socket.socket, data: bytes) -> bool | None:
+    """Handle an intent, returning whether the reader should close the session."""
+    global _terminal_claimed
+
+    intent = INTENT_FOR_BYTE.get(data)
+    if intent is None:
+        return None
+
+    with _terminal_lock:
+        if _terminal_claimed or _receipt_in_flight:
+            _logger.debug(
+                "Ignoring control intent after a terminal exchange has started"
+            )
+            return False
+        if _acknowledge_intent(sock, intent):
+            _terminal_claimed = True
+        return True
 
 
 def _reader_loop(sock: socket.socket) -> None:
-    """Block on the runner's control channel and act on a single intent byte."""
+    """Negotiate receipt support, then handle session responses and intent."""
+    global _receipt_capable
+
     try:
+        first = b""
+        try:
+            _send(
+                sock,
+                encode_negotiation(CURRENT_PROTOCOL_VERSION, RECEIPT_CAPABILITY),
+            )
+            sock.settimeout(_NEGOTIATION_TIMEOUT)
+            first = sock.recv(1)
+            if not first:
+                return
+            intent_handled = _handle_intent_byte(sock, first)
+            if intent_handled is not None:
+                if intent_handled:
+                    return
+                first = b""
+            if first != NEGOTIATION_PREFIX[:1]:
+                _logger.warning("Attempt control negotiation response was malformed")
+                return
+            response = first + _recv_exactly(sock, NEGOTIATION_FRAME_SIZE - 1)
+            version, capabilities = decode_negotiation(response)
+            _receipt_capable = (
+                version == CURRENT_PROTOCOL_VERSION
+                and capabilities & RECEIPT_CAPABILITY != 0
+            )
+            _logger.debug(
+                "Attempt control negotiation selected protocol %d with receipt support %s",
+                version,
+                _receipt_capable,
+            )
+        except TimeoutError:
+            if first:
+                _logger.warning("Attempt control negotiation response was malformed")
+            # A version-one supervisor sends no response to the reserved hello.
+            _receipt_capable = False
+        except ValueError:
+            _logger.warning("Attempt control negotiation response was malformed")
+            return
+        finally:
+            sock.settimeout(None)
+            _negotiation_complete.set()
+
         while True:
             try:
                 data = sock.recv(1)
@@ -132,23 +230,73 @@ def _reader_loop(sock: socket.socket) -> None:
                 return
             if not data:
                 return
-
-            intent = _INTENT_FOR_BYTE.get(data)
-            if intent is None:
+            intent_handled = _handle_intent_byte(sock, data)
+            if intent_handled is not None:
+                if intent_handled:
+                    return
+                continue
+            if data == RECEIPT_ACK:
+                global _receipt_in_flight, _terminal_claimed
+                with _terminal_lock:
+                    if not _receipt_in_flight:
+                        _logger.debug(
+                            "Ignoring receipt acknowledgement after terminal exchange"
+                        )
+                        continue
+                    _receipt_in_flight = False
+                    _terminal_claimed = True
+                    _receipt_acked.set()
                 return
-
-            _acknowledge_intent(sock, intent)
+            _logger.warning("Attempt control session received a malformed message")
             return
     finally:
+        _negotiation_complete.set()
         try:
             sock.close()
         except OSError:
             pass
 
 
+def report_engine_outcome(receipt: EngineOutcomeReceipt) -> bool:
+    """Send one negotiated outcome receipt without changing engine semantics."""
+    global _outcome_report_started, _receipt_in_flight
+
+    sock = _socket
+    if sock is None:
+        return False
+
+    _negotiation_complete.wait(_NEGOTIATION_TIMEOUT + 0.1)
+    if not _receipt_capable:
+        return False
+
+    with _terminal_lock:
+        if _terminal_claimed or _outcome_report_started:
+            return False
+        _outcome_report_started = True
+        _receipt_in_flight = True
+        _receipt_acked.clear()
+
+    try:
+        _send(sock, encode_receipt(receipt))
+    except (OSError, ValueError):
+        with _terminal_lock:
+            _receipt_in_flight = False
+        _logger.warning("Failed to send engine outcome receipt")
+        return False
+
+    if _receipt_acked.wait(_RECEIPT_ACK_TIMEOUT):
+        return True
+
+    with _terminal_lock:
+        _receipt_in_flight = False
+    _logger.warning("Engine outcome receipt was not acknowledged")
+    return False
+
+
 def start() -> None:
     """Connect to the runner's control channel if bootstrap config is present."""
-    global _started, _socket, _reader_thread
+    global _started, _socket, _reader_thread, _receipt_capable
+    global _terminal_claimed, _receipt_in_flight, _outcome_report_started
 
     configure_from_env()
 
@@ -161,6 +309,13 @@ def start() -> None:
         # A new listener session must not inherit a committed intent from an
         # earlier flow run in the same interpreter.
         _clear_intent()
+        _negotiation_complete.clear()
+        _receipt_acked.clear()
+        _receipt_capable = False
+        with _terminal_lock:
+            _terminal_claimed = False
+            _receipt_in_flight = False
+            _outcome_report_started = False
 
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -188,7 +343,8 @@ def start() -> None:
 def stop() -> None:
     """Close the active control connection, if any."""
     global _configured, _configured_port, _configured_token
-    global _started, _socket, _reader_thread
+    global _started, _socket, _reader_thread, _receipt_capable
+    global _terminal_claimed, _receipt_in_flight, _outcome_report_started
 
     with _started_lock:
         sock = _socket
@@ -198,6 +354,13 @@ def stop() -> None:
         _configured = False
         _configured_port = None
         _configured_token = None
+        _receipt_capable = False
+        _negotiation_complete.clear()
+        _receipt_acked.clear()
+        with _terminal_lock:
+            _terminal_claimed = False
+            _receipt_in_flight = False
+            _outcome_report_started = False
 
     if sock is not None:
         try:

@@ -64,9 +64,11 @@ Services enter in this order during `Runner.__aenter__` (teardown is exact rever
 
 This ordering is a hard constraint. Getting it wrong causes ClosedResourceError during shutdown. Place new services carefully in this sequence.
 
-## ControlChannel: Intent Before Kill
+## Attempt Control Session: Intent or Receipt
 
-`ControlChannel` (`_control_channel.py`) is a TCP loopback socket server that delivers a single-byte *intent* to child processes before the runner sends the actual kill signal. The child-side counterpart lives in `prefect._internal.control_listener`.
+`ControlChannel` (`_control_channel.py`) and the child-side `prefect._internal.control_listener` form an authenticated, attempt-scoped TCP loopback session. Version-one peers retain the single-byte control protocol. Version-two peers negotiate receipt support in-band and may instead conclude the session with one structured Engine Outcome Receipt. The first valid receipt or acknowledged control intent wins; `ControlChannel.get_conclusion()` exposes that immutable evidence, and `unregister()` returns it while cleaning up the registration.
+
+The first authenticated connection consumes its attempt token. Replay and connection replacement are rejected. Wire constants, receipt types, and the shared intent byte map live in `prefect._internal.attempt_control`.
 
 **How cancellation uses it:**
 1. Runner signals `"cancel"` intent over the channel and waits up to 1 s for the child's `b'a'` ack.
@@ -79,7 +81,7 @@ This ordering is a hard constraint. Getting it wrong causes ClosedResourceError 
 
 **Failure modes:** If the child never connects or never acks within 1 s, `signal()` returns `False`. `CancellationManager` falls through to the normal graceful kill and the engine treats the termination as a crash. The `prefect flow-run execute` supervisor instead calls `ProcessManager.kill(force=True)` (SIGKILL, no grace), because an unacked engine would propose `Crashed` and undo a `reschedule`/`relinquish`.
 
-**Extending intents:** The intents today are `"cancel"`, `"reschedule"` and `"relinquish"`. The byte map (`_BYTE_FOR_INTENT` in `_control_channel.py` and `_INTENT_FOR_BYTE` in `_internal/control_listener.py`) must stay in sync when adding new intents.
+**Extending intents:** The intents today are `"cancel"`, `"reschedule"` and `"relinquish"`. Update the single shared map in `prefect._internal.attempt_control` and the engine's `TerminationSignal` dispatch together.
 
 ## ProcessStarter Strategy Pattern
 
