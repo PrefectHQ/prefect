@@ -583,17 +583,17 @@ class BaseFlowRunEngine(Generic[P, R]):
                         f"Tried to set traceparent {carrier[TRACEPARENT_KEY]} for flow run, but None was found"
                     )
 
-    def _engine_owns_cancellation_and_crash_handling(self) -> bool:
-        """Return whether this engine owns cancel/crash handling.
+    def _engine_owns_cancellation_handling(self) -> bool:
+        """Return whether this engine owns cancellation state and hooks.
 
         Runner-managed subprocesses set `PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS=false`
-        and execute those hooks plus terminal cancellation state proposals
-        externally after the child exits. Same-process nested subflows are
-        the exception: no external runner fires their hooks or owns their
-        cancellation state, so the engine must ignore the env suppression
-        only when it started inside a non-detached parent `FlowRunContext`.
-        Top-level non-runner flows also fall through to engine ownership
-        because the env defaults to enabled.
+        and retain ownership of acknowledged cancellation state and hooks.
+        Engine-reported Crashed states are different: their hooks remain
+        engine-owned and are not governed by this switch. Same-process nested
+        subflows have no external supervisor, so the engine ignores suppression
+        when it started inside a non-detached parent `FlowRunContext`. Top-level
+        non-runner flows also fall through to engine ownership because the env
+        defaults to enabled.
         """
 
         return self._started_with_in_process_parent_flow_run_context or (
@@ -912,7 +912,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         """
         msg = "Flow run was cancelled."
         self.logger.info(msg)
-        if self._engine_owns_cancellation_and_crash_handling():
+        if self._engine_owns_cancellation_handling():
             self.set_state(Cancelling(message=msg), force=True)
             self.set_state(Cancelled(message=msg), force=True)
         self._raised = exc
@@ -1025,25 +1025,19 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         if not flow_run:
             raise ValueError("Flow run is not set")
 
-        engine_owns_cancellation_and_crash_handling = (
-            self._engine_owns_cancellation_and_crash_handling()
-        )
+        engine_owns_cancellation_handling = self._engine_owns_cancellation_handling()
 
         if state.is_failed() and flow.on_failure_hooks:
             hooks = flow.on_failure_hooks
         elif state.is_completed() and flow.on_completion_hooks:
             hooks = flow.on_completion_hooks
         elif (
-            engine_owns_cancellation_and_crash_handling
+            engine_owns_cancellation_handling
             and state.is_cancelling()
             and flow.on_cancellation_hooks
         ):
             hooks = flow.on_cancellation_hooks
-        elif (
-            engine_owns_cancellation_and_crash_handling
-            and state.is_crashed()
-            and flow.on_crashed_hooks
-        ):
+        elif state.is_crashed() and flow.on_crashed_hooks:
             hooks = flow.on_crashed_hooks
         elif state.is_running() and flow.on_running_hooks:
             hooks = flow.on_running_hooks
@@ -1616,7 +1610,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         with CancelScope(shield=True):
             msg = "Flow run was cancelled."
             self.logger.info(msg)
-            if self._engine_owns_cancellation_and_crash_handling():
+            if self._engine_owns_cancellation_handling():
                 await self.set_state(Cancelling(message=msg), force=True)
                 await self.set_state(Cancelled(message=msg), force=True)
             self._raised = exc
@@ -1727,25 +1721,19 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         if not flow_run:
             raise ValueError("Flow run is not set")
 
-        engine_owns_cancellation_and_crash_handling = (
-            self._engine_owns_cancellation_and_crash_handling()
-        )
+        engine_owns_cancellation_handling = self._engine_owns_cancellation_handling()
 
         if state.is_failed() and flow.on_failure_hooks:
             hooks = flow.on_failure_hooks
         elif state.is_completed() and flow.on_completion_hooks:
             hooks = flow.on_completion_hooks
         elif (
-            engine_owns_cancellation_and_crash_handling
+            engine_owns_cancellation_handling
             and state.is_cancelling()
             and flow.on_cancellation_hooks
         ):
             hooks = flow.on_cancellation_hooks
-        elif (
-            engine_owns_cancellation_and_crash_handling
-            and state.is_crashed()
-            and flow.on_crashed_hooks
-        ):
+        elif state.is_crashed() and flow.on_crashed_hooks:
             hooks = flow.on_crashed_hooks
         elif state.is_running() and flow.on_running_hooks:
             hooks = flow.on_running_hooks

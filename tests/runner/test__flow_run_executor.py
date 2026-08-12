@@ -259,6 +259,31 @@ class TestFlowRunExecutorSubmit:
         m["state_proposer"].propose_crashed.assert_not_awaited()
         m["hook_runner"].run_crashed_hooks.assert_not_awaited()
 
+    @pytest.mark.parametrize(
+        "attempt_conclusion",
+        [
+            EngineOutcomeReceipt.state_reported(
+                state_id=uuid4(),
+                state_type="COMPLETED",
+                state_name="Completed",
+            ),
+            StateOwnershipDelegation("cancel"),
+        ],
+    )
+    async def test_submit_treats_terminal_evidence_as_handled_with_zero_exit(
+        self, attempt_conclusion: AttemptConclusion
+    ):
+        executor, m = _make_executor(
+            handle_returncode=0,
+            attempt_conclusion=attempt_conclusion,
+        )
+
+        await executor.submit()
+
+        m["get_attempt_conclusion"].assert_called_once_with(m["flow_run"].id)
+        m["state_proposer"].propose_crashed.assert_not_awaited()
+        m["hook_runner"].run_crashed_hooks.assert_not_awaited()
+
     @pytest.mark.parametrize("intent", ["cancel", "reschedule", "relinquish"])
     async def test_submit_treats_acknowledged_control_as_handled_despite_nonzero_exit(
         self, intent: Intent

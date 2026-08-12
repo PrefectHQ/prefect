@@ -365,7 +365,7 @@ class TestAsyncFlowRunEngine:
 
 
 class TestCancellationAndCrashedHookGating:
-    def test_runner_managed_subflows_respect_env_suppression(
+    def test_runner_managed_subflows_suppress_only_cancellation_hooks(
         self, monkeypatch: pytest.MonkeyPatch
     ):
         hook_calls: list[str] = []
@@ -391,7 +391,35 @@ class TestCancellationAndCrashedHookGating:
         engine.call_hooks(states.Cancelling())
         engine.call_hooks(states.Crashed(message="boom"))
 
-        assert hook_calls == []
+        assert hook_calls == ["crash"]
+
+    async def test_async_runner_managed_subflows_suppress_only_cancellation_hooks(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        hook_calls: list[str] = []
+        monkeypatch.setenv("PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "false")
+
+        async def on_cancellation(flow, flow_run, state):
+            hook_calls.append("cancel")
+
+        async def on_crashed(flow, flow_run, state):
+            hook_calls.append("crash")
+
+        @flow(on_cancellation=[on_cancellation], on_crashed=[on_crashed])
+        async def child_flow():
+            return None
+
+        flow_run = MagicMock()
+        flow_run.parent_task_run_id = uuid.uuid4()
+        flow_run.deployment_id = uuid.uuid4()
+
+        engine = AsyncFlowRunEngine(flow=child_flow, flow_run=flow_run)
+        engine._started_with_in_process_parent_flow_run_context = False
+
+        await engine.call_hooks(states.Cancelling())
+        await engine.call_hooks(states.Crashed(message="boom"))
+
+        assert hook_calls == ["crash"]
 
     def test_same_process_subflows_ignore_env_suppression(
         self, monkeypatch: pytest.MonkeyPatch

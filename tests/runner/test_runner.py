@@ -27,6 +27,7 @@ from pydantic import BaseModel
 from starlette import status
 
 import prefect.runner
+import prefect.runner._starter_bundle as bundle_starter_mod
 import prefect.runner._starter_direct as starter_mod
 from prefect import __version__, aserve, flow, serve, task
 from prefect._internal.attempt_control import (
@@ -2737,7 +2738,7 @@ class TestRunner:
 
             execute_bundle_in_subprocess = MagicMock(return_value=process)
             monkeypatch.setattr(
-                prefect.runner.runner,
+                bundle_starter_mod,
                 "execute_bundle_in_subprocess",
                 execute_bundle_in_subprocess,
             )
@@ -2777,13 +2778,13 @@ class TestRunner:
             )
             process = MagicMock(pid=12345, exitcode=1, join=MagicMock())
             monkeypatch.setattr(
-                prefect.runner.runner,
+                bundle_starter_mod,
                 "execute_bundle_in_subprocess",
                 MagicMock(return_value=process),
             )
 
             async with Runner() as runner:
-                runner._control_channel.unregister = MagicMock(return_value=receipt)
+                runner._control_channel.get_conclusion = MagicMock(return_value=receipt)
                 runner._state_proposer.propose_crashed = AsyncMock()
                 runner._hook_runner.run_crashed_hooks = AsyncMock()
 
@@ -2792,10 +2793,11 @@ class TestRunner:
             runner._state_proposer.propose_crashed.assert_not_awaited()
             runner._hook_runner.run_crashed_hooks.assert_not_awaited()
 
-        async def test_handled_crashed_bundle_execution_does_not_repeat_hook(
-            self, prefect_client: PrefectClient, caplog: pytest.LogCaptureFixture
+        async def test_handled_crashed_bundle_execution_runs_engine_hook_once(
+            self, prefect_client: PrefectClient, tmp_path: Path
         ):
             runner = Runner()
+            hook_marker = tmp_path / "crashed-hook.txt"
 
             @flow
             def crashed_flow():
@@ -2805,7 +2807,8 @@ class TestRunner:
             def da_hook(
                 flow: "Flow[Any, Any]", flow_run: "FlowRun", state: "State[Any]"
             ):
-                flow_run_logger(flow_run, flow).info("This flow crashed!")
+                with hook_marker.open("a") as marker:
+                    marker.write("ran\n")
 
             flow_run = await prefect_client.create_flow_run(crashed_flow)
 
@@ -2817,7 +2820,7 @@ class TestRunner:
             assert flow_run.state
             assert flow_run.state.is_crashed()
 
-            assert "This flow crashed!" not in caplog.text
+            assert hook_marker.read_text().splitlines() == ["ran"]
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")

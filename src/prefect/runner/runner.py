@@ -87,7 +87,6 @@ from prefect._internal.infrastructure_exit_codes import get_infrastructure_exit_
 from prefect._internal.observers import FlowRunCancellingObserver
 from prefect.bundles import (
     SerializedBundle,
-    execute_bundle_in_subprocess,
     extract_flow_from_bundle,
 )
 from prefect.client.orchestration import get_client
@@ -113,11 +112,12 @@ from prefect.runner._cancellation_manager import CancellationManager
 from prefect.runner._control_channel import ControlChannel
 from prefect.runner._deployment_registry import DeploymentRegistry
 from prefect.runner._event_emitter import EventEmitter
-from prefect.runner._flow_run_executor import ProcessStarter
+from prefect.runner._flow_run_executor import FlowRunExecutor, ProcessStarter
 from prefect.runner._hook_runner import HookRunner
 from prefect.runner._limit_manager import LimitManager
 from prefect.runner._process_manager import ProcessManager, _pid_is_alive
 from prefect.runner._scheduled_run_poller import ScheduledRunPoller
+from prefect.runner._starter_bundle import BundleExecutionStarter
 from prefect.runner._starter_direct import DirectSubprocessStarter
 from prefect.runner._starter_engine import EngineCommandStarter
 from prefect.runner._state_proposer import StateProposer
@@ -278,6 +278,7 @@ class Runner:
         # HookRunner is constructed in __aenter__ once the client is available,
         # so we can build a storage-aware flow resolver closure.
         self._hook_runner: HookRunner | None = None
+        self._state_proposer: StateProposer
         # Cross-platform IPC channel for delivering control intent (cancel
         # today; suspend in a follow-up) into child subprocesses; see
         # prefect.runner._control_channel.
@@ -871,79 +872,26 @@ class Runner:
             if not self._acquire_limit_slot(flow_run.id):
                 return
 
-            # Register the flow run with the control channel before spawning
-            # so the child can connect back as soon as it starts.
-            control_env: dict[str, str] = {}
-            control_registered = False
             try:
-                port, token = self._control_channel.register(flow_run.id)
-                control_env["PREFECT__CONTROL_PORT"] = str(port)
-                control_env["PREFECT__CONTROL_TOKEN"] = token
-                control_registered = True
-            except RuntimeError:
-                # Channel not entered (e.g. tests using the legacy facade
-                # without __aenter__); silently skip.
-                pass
-
-            if control_env:
-                env = dict(env or {})
-                env.update(control_env)
-
-            try:
-                process = execute_bundle_in_subprocess(bundle, cwd=cwd, env=env)
-            except BaseException:
-                if control_registered:
-                    self._control_channel.unregister(flow_run.id)
-                raise
-
-            if process.pid is None:
-                if control_registered:
-                    self._control_channel.unregister(flow_run.id)
-                # This shouldn't happen because `execute_bundle_in_subprocess` starts the process
-                # but we'll handle it gracefully anyway
-                msg = "Failed to start process for flow execution. No PID returned."
-                await self._propose_crashed_state(flow_run, msg)
-                raise RuntimeError(msg)
-
-            await self._add_flow_run_process_map_entry(
-                flow_run.id, ProcessMapEntry(pid=process.pid, flow_run=flow_run)
-            )
-            self._flow_run_bundle_map[flow_run.id] = bundle
-
-            await anyio.to_thread.run_sync(process.join)
-
-            attempt_conclusion = await self._remove_flow_run_process_map_entry(
-                flow_run.id
-            )
-
-            flow_run_logger = self._get_flow_run_logger(flow_run)
-            if process.exitcode is None:
-                raise RuntimeError("Process has no exit code")
-
-            if attempt_conclusion is not None:
-                flow_run_logger.info(
-                    f"Process for flow run {flow_run.name!r} reported a handled outcome."
+                self._flow_run_bundle_map[flow_run.id] = bundle
+                assert self._hook_runner is not None
+                executor = FlowRunExecutor(
+                    flow_run=flow_run,
+                    starter=BundleExecutionStarter(
+                        bundle=bundle,
+                        cwd=cwd,
+                        env=env,
+                        control_channel=self._control_channel,
+                    ),
+                    process_manager=self._process_manager,
+                    state_proposer=self._state_proposer,
+                    hook_runner=self._hook_runner,
+                    propose_submitting=False,
+                    get_attempt_conclusion=self._control_channel.get_conclusion,
                 )
-            elif process.exitcode:
-                info = get_infrastructure_exit_info(process.exitcode)
-                flow_run_logger.log(
-                    info.log_level,
-                    f"Process for flow run {flow_run.name!r} exited with status code:"
-                    f" {process.exitcode}; {info.explanation}",
-                )
-                if info.resolution:
-                    flow_run_logger.info(info.resolution)
-                terminal_state = await self._propose_crashed_state(
-                    flow_run, info.explanation
-                )
-                if terminal_state:
-                    await self._run_on_crashed_hooks(
-                        flow_run=flow_run, state=terminal_state
-                    )
-            else:
-                flow_run_logger.info(
-                    f"Process for flow run {flow_run.name!r} exited cleanly."
-                )
+                await executor.submit()
+            finally:
+                self._release_limit_slot(flow_run.id)
 
     def _get_flow_run_logger(self, flow_run: "FlowRun") -> PrefectLogAdapter:
         return flow_run_logger(
