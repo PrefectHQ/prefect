@@ -1450,6 +1450,16 @@ class TestRunner:
         temp_storage: MockStorage,
         caplog: pytest.LogCaptureFixture,
     ):
+        observed_exit_codes: list[int | None] = []
+        original_run_process = processutils.run_process
+
+        async def run_process_and_record_exit_code(
+            *args: Any, **kwargs: Any
+        ) -> anyio.abc.Process:
+            process = await original_run_process(*args, **kwargs)
+            observed_exit_codes.append(process.returncode)
+            return process
+
         temp_storage.code = dedent(
             """\
             from prefect import flow
@@ -1475,11 +1485,16 @@ class TestRunner:
             deployment_id=deployment_id
         )
 
-        await runner.start(run_once=True)
+        with patch(
+            "prefect.runner._starter_engine.run_process",
+            side_effect=run_process_and_record_exit_code,
+        ):
+            await runner.start(run_once=True)
 
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
         assert flow_run.state is not None
         assert flow_run.state.is_failed()
+        assert observed_exit_codes == [0]
         assert "runner crash hook ran" not in caplog.text
         assert "Process exited with status code: 1" not in caplog.text
 
@@ -2743,6 +2758,39 @@ class TestRunner:
                 "PREFECT__CONTROL_PORT": "4321",
                 "PREFECT__CONTROL_TOKEN": "token-123",
             }
+
+        async def test_execute_bundle_preserves_receipt_with_nonzero_child_exit(
+            self,
+            prefect_client: PrefectClient,
+            monkeypatch: pytest.MonkeyPatch,
+        ):
+            @flow
+            def failed_flow():
+                raise ValueError("application failure")
+
+            flow_run = await prefect_client.create_flow_run(failed_flow)
+            bundle = create_bundle_for_flow_run(failed_flow, flow_run)["bundle"]
+            receipt = EngineOutcomeReceipt.state_reported(
+                state_id=uuid.uuid4(),
+                state_type="FAILED",
+                state_name="Failed",
+            )
+            process = MagicMock(pid=12345, exitcode=1, join=MagicMock())
+            monkeypatch.setattr(
+                prefect.runner.runner,
+                "execute_bundle_in_subprocess",
+                MagicMock(return_value=process),
+            )
+
+            async with Runner() as runner:
+                runner._control_channel.unregister = MagicMock(return_value=receipt)
+                runner._state_proposer.propose_crashed = AsyncMock()
+                runner._hook_runner.run_crashed_hooks = AsyncMock()
+
+                await runner.execute_bundle(bundle)
+
+            runner._state_proposer.propose_crashed.assert_not_awaited()
+            runner._hook_runner.run_crashed_hooks.assert_not_awaited()
 
         async def test_handled_crashed_bundle_execution_does_not_repeat_hook(
             self, prefect_client: PrefectClient, caplog: pytest.LogCaptureFixture
@@ -5538,7 +5586,7 @@ class TestResolveStarter:
             infrastructure_result = await runner.start(run_once=True)
 
         flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
-        assert processes[0].exitcode == 1
+        assert processes[0].exitcode == 0
         assert infrastructure_result is None
         assert flow_run.state is not None
         assert flow_run.state.is_failed()

@@ -2575,10 +2575,22 @@ class TestHandleEngineSignals:
         self, monkeypatch: pytest.MonkeyPatch
     ):
         monkeypatch.setattr("prefect.engine.get_intent", lambda: None)
+        monkeypatch.setattr("prefect.engine.engine_outcome_is_handled", lambda: False)
 
         with pytest.raises(TerminationSignal):
             with handle_engine_signals(uuid.uuid4()):
                 raise TerminationSignal(signal=signal.SIGTERM)
+
+    def test_handled_engine_outcome_exits_zero_on_exception(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setattr("prefect.engine.engine_outcome_is_handled", lambda: True)
+
+        with pytest.raises(SystemExit) as exc:
+            with handle_engine_signals(uuid.uuid4()):
+                raise ValueError("application failure")
+
+        assert exc.value.code == 0
 
 
 class TestDriveRunFlowResult:
@@ -5150,7 +5162,7 @@ class TestRunFlowInSubprocess:
         process = run_flow_in_subprocess(foo)
 
         process.join()
-        assert process.exitcode == 1
+        assert process.exitcode == 0
 
         flow_run = await self.get_flow_run_for_flow(foo.name)
 
@@ -5376,7 +5388,7 @@ class TestRunFlowInSubprocess:
 
         process = run_flow_in_subprocess(foo)
         process.join()
-        assert process.exitcode == 1
+        assert process.exitcode == 0
 
         flow_run = await self.get_flow_run_for_flow(foo.name)
         assert flow_run.state.is_crashed()

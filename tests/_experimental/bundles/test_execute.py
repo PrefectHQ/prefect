@@ -90,7 +90,7 @@ async def test_execute_bundle_preserves_failed_outcome(
         infrastructure_result = await execute_bundle(bundle)
 
     flow_run = await prefect_client.read_flow_run(flow_run.id)
-    assert processes[0].exitcode == 1
+    assert processes[0].exitcode == 0
     assert infrastructure_result is None
     assert flow_run.state is not None
     assert flow_run.state.is_failed()

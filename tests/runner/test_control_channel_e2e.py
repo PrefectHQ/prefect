@@ -160,20 +160,15 @@ RACING_ENGINE_PROGRAM = textwrap.dedent(
     from prefect.utilities.engine import capture_sigterm
 
     control_listener.configure_from_env()
-    original_send = control_listener._send
+    original_encode_receipt = control_listener.encode_receipt
 
-    def coordinated_send(sock, data):
-        if os.environ["RACE_ORDER"] == "receipt-first" and data.startswith(
-            RECEIPT_PREFIX
-        ):
+    def coordinated_encode_receipt(receipt):
+        if os.environ["RACE_ORDER"] == "intent-before-receipt-send":
             print("receipt-ready", flush=True)
             sys.stdin.readline()
-        elif os.environ["RACE_ORDER"] == "intent-first" and data == b"a":
-            print("intent-committed", flush=True)
-            sys.stdin.readline()
-        original_send(sock, data)
+        return original_encode_receipt(receipt)
 
-    control_listener._send = coordinated_send
+    control_listener.encode_receipt = coordinated_encode_receipt
     receipt = (
         EngineOutcomeReceipt.state_reported(
             state_id=UUID("33333333-3333-3333-3333-333333333333"),
@@ -182,14 +177,11 @@ RACING_ENGINE_PROGRAM = textwrap.dedent(
         )
     )
     with capture_sigterm():
-        if os.environ["RACE_ORDER"] == "intent-first":
-            deadline = time.monotonic() + 5
-            while control_listener.get_intent() is None and time.monotonic() < deadline:
-                time.sleep(0.01)
-            print("receipt-attempting", flush=True)
         acknowledged = control_listener.report_engine_outcome(receipt)
 
-    if os.environ["RACE_ORDER"] == "receipt-first":
+    if os.environ["RACE_ORDER"] == "receipt-recorded-first":
+        print("receipt-recorded", flush=True)
+        sys.stdin.readline()
         sys.exit(0 if acknowledged and control_listener.get_intent() is None else 14)
     sys.exit(
         0
@@ -510,7 +502,7 @@ async def test_old_engine_retains_control_protocol_with_new_supervisor():
 @pytest.mark.parametrize("intent", ["cancel", "reschedule", "relinquish"])
 @pytest.mark.parametrize(
     ("order", "intent_acknowledged"),
-    [("receipt-first", False), ("intent-first", True)],
+    [("receipt-recorded-first", False), ("intent-before-receipt-send", True)],
 )
 async def test_first_terminal_message_wins_real_process_race(
     intent: Intent, order: str, intent_acknowledged: bool
@@ -540,29 +532,24 @@ async def test_first_terminal_message_wins_real_process_race(
 
             assert proc.stdout is not None
             assert proc.stdin is not None
-            if order == "receipt-first":
+            if order == "receipt-recorded-first":
+                assert (
+                    await asyncio.to_thread(proc.stdout.readline)
+                    == b"receipt-recorded\n"
+                )
+                assert await channel.signal(flow_run_id, intent) is False
+                await asyncio.to_thread(proc.stdin.write, b"continue\n")
+                await asyncio.to_thread(proc.stdin.flush)
+            else:
                 assert (
                     await asyncio.to_thread(proc.stdout.readline) == b"receipt-ready\n"
                 )
                 signal_task = asyncio.create_task(channel.signal(flow_run_id, intent))
                 while channel._registrations[flow_run_id].pending_intent is None:
                     await asyncio.sleep(0)
-                await asyncio.to_thread(proc.stdin.write, b"continue\n")
-                await asyncio.to_thread(proc.stdin.flush)
-                assert await signal_task is False
-            else:
-                signal_task = asyncio.create_task(channel.signal(flow_run_id, intent))
-                assert (
-                    await asyncio.to_thread(proc.stdout.readline)
-                    == b"intent-committed\n"
-                )
-                assert (
-                    await asyncio.to_thread(proc.stdout.readline)
-                    == b"receipt-attempting\n"
-                )
-                await asyncio.to_thread(proc.stdin.write, b"continue\n")
-                await asyncio.to_thread(proc.stdin.flush)
                 assert await signal_task is True
+                await asyncio.to_thread(proc.stdin.write, b"continue\n")
+                await asyncio.to_thread(proc.stdin.flush)
             expected = (
                 StateOwnershipDelegation(intent) if intent_acknowledged else receipt
             )

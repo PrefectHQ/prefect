@@ -59,7 +59,7 @@ from prefect.utilities.engine import commit_control_intent_and_ack
 _NEGOTIATION_TIMEOUT = 0.25
 _RECEIPT_ACK_TIMEOUT = 1.0
 
-_logger = get_logger("control_listener")
+_logger = get_logger(__name__)
 
 _intent: Intent | None = None
 _intent_lock = threading.Lock()
@@ -80,12 +80,18 @@ _terminal_lock = threading.Lock()
 _terminal_claimed = False
 _receipt_in_flight = False
 _outcome_report_started = False
+_engine_outcome_handled = False
 
 
 def get_intent() -> Intent | None:
     """Return the committed control intent, if any."""
     with _intent_lock:
         return _intent
+
+
+def engine_outcome_is_handled() -> bool:
+    """Return whether the engine concluded the current execution attempt."""
+    return _engine_outcome_handled
 
 
 def _set_intent(value: Intent) -> None:
@@ -107,13 +113,14 @@ def clear_intent() -> None:
 
 def configure_from_env() -> None:
     """Consume one-shot control-channel env vars without connecting yet."""
-    global _configured, _configured_port, _configured_token
+    global _configured, _configured_port, _configured_token, _engine_outcome_handled
 
     with _started_lock:
         if _configured:
             return
 
         _configured = True
+        _engine_outcome_handled = False
         port_str = os.environ.pop("PREFECT__CONTROL_PORT", None)
         token = os.environ.pop("PREFECT__CONTROL_TOKEN", None)
         if not port_str or not token:
@@ -134,7 +141,7 @@ def _acknowledge_intent(sock: socket.socket, intent: Intent) -> bool:
     return commit_control_intent_and_ack(
         commit_intent=lambda: _set_intent(intent),
         clear_intent=_clear_intent,
-        send_ack=lambda: _send(sock, b"a"),
+        send_ack=lambda: sock.sendall(b"a"),
         trigger_cancel=(
             (lambda: _thread.interrupt_main(signal.SIGTERM))
             if os.name == "nt"
@@ -166,7 +173,10 @@ def _handle_intent_byte(sock: socket.socket, data: bytes) -> bool | None:
     if intent is None:
         return None
 
-    with _terminal_lock:
+    # Serialize terminal writes so the wire order matches the local decision:
+    # an intent that claims this lock before receipt transmission wins, while
+    # an already-transmitted receipt remains authoritative.
+    with _send_lock, _terminal_lock:
         if _terminal_claimed or _receipt_in_flight:
             _logger.debug(
                 "Ignoring control intent after a terminal exchange has started"
@@ -259,7 +269,12 @@ def _reader_loop(sock: socket.socket) -> None:
 
 def report_engine_outcome(receipt: EngineOutcomeReceipt) -> bool:
     """Send one negotiated outcome receipt without changing engine semantics."""
-    global _outcome_report_started, _receipt_in_flight
+    global _outcome_report_started, _receipt_in_flight, _engine_outcome_handled
+
+    # The immediate first-party engine process treats a concluded attempt as
+    # successful infrastructure execution even when its supervisor cannot
+    # negotiate or acknowledge the optional receipt transport.
+    _engine_outcome_handled = True
 
     sock = _socket
     if sock is None:
@@ -269,16 +284,21 @@ def report_engine_outcome(receipt: EngineOutcomeReceipt) -> bool:
     if not _receipt_capable:
         return False
 
-    with _terminal_lock:
-        if _terminal_claimed or _outcome_report_started:
-            return False
-        _outcome_report_started = True
-        _receipt_in_flight = True
-        _receipt_acked.clear()
+    try:
+        encoded_receipt = encode_receipt(receipt)
+    except ValueError:
+        _logger.warning("Failed to encode engine outcome receipt")
+        return False
 
     try:
-        _send(sock, encode_receipt(receipt))
-    except (OSError, ValueError):
+        with _send_lock, _terminal_lock:
+            if _terminal_claimed or _outcome_report_started:
+                return False
+            _outcome_report_started = True
+            _receipt_in_flight = True
+            _receipt_acked.clear()
+            sock.sendall(encoded_receipt)
+    except OSError:
         with _terminal_lock:
             _receipt_in_flight = False
         _logger.warning("Failed to send engine outcome receipt")
@@ -376,6 +396,7 @@ def stop() -> None:
 def reset_for_testing() -> None:
     """Reset module state. Tests only."""
     global _intent, _configured, _configured_port, _configured_token
+    global _engine_outcome_handled
 
     with _intent_lock:
         _intent = None
@@ -386,3 +407,4 @@ def reset_for_testing() -> None:
         _configured = False
         _configured_port = None
         _configured_token = None
+        _engine_outcome_handled = False

@@ -912,13 +912,19 @@ class Runner:
 
             await anyio.to_thread.run_sync(process.join)
 
-            await self._remove_flow_run_process_map_entry(flow_run.id)
+            attempt_conclusion = await self._remove_flow_run_process_map_entry(
+                flow_run.id
+            )
 
             flow_run_logger = self._get_flow_run_logger(flow_run)
             if process.exitcode is None:
                 raise RuntimeError("Process has no exit code")
 
-            if process.exitcode:
+            if attempt_conclusion is not None:
+                flow_run_logger.info(
+                    f"Process for flow run {flow_run.name!r} reported a handled outcome."
+                )
+            elif process.exitcode:
                 info = get_infrastructure_exit_info(process.exitcode)
                 flow_run_logger.log(
                     info.log_level,
