@@ -207,8 +207,8 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 						<Icon id="Clock" className="size-4" />
 						<span>
 							{secondsToApproximateString(
-							(flowRun.estimated_run_time || flowRun.total_run_time) ?? 0,
-						)}
+								(flowRun.estimated_run_time || flowRun.total_run_time) ?? 0,
+							)}
 						</span>
 					</div>
 					<div
