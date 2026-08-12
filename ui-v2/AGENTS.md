@@ -106,6 +106,7 @@ Before committing any changes, always run:
 - **Mutation hooks** in `/api` directories
 - **No data transformation** in query factories - do it in components
 - **Duration fields** (`estimated_run_time`, `total_run_time`, etc.) are returned in **seconds** by the API; `humanizeDuration` and similar JS libraries expect milliseconds — always multiply by 1000 before passing to them
+- **`total_run_time` stays `0` while a run is in progress** — it's only accumulated once the run finishes. For components displaying an in-progress duration, use `estimated_run_time` (a live estimate) when the run is in a running state, falling back to `total_run_time` otherwise
 
 ## Forms
 
