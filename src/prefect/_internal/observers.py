@@ -113,13 +113,6 @@ class _SuspensionWatch:
         last_error: Exception | None = None
 
         while not self._closed and not self.is_suspended:
-            # Confirm against the flow run rather than the state-by-id endpoint:
-            # the run is the observer's own resource, and its current state
-            # carries the id and timestamp needed to recognize the reported
-            # transition. Backends that keep in-flight state outside the state
-            # archive (e.g. Prefect Cloud's run-keyed live state) always serve
-            # the run's current state, while an individual superseded state may
-            # never become readable by id.
             try:
                 flow_run = await self._client.read_flow_run(self.flow_run_id)
             except ObjectNotFound:
@@ -137,11 +130,9 @@ class _SuspensionWatch:
                         self.notify_if_suspended(state)
                         return
                     if state.timestamp >= occurred:
-                        # The run has already moved past the reported suspension
-                        # (e.g. it was resumed before this observer confirmed
-                        # it). The suspension still happened, and a resumed run
-                        # gets a fresh submission — this engine must stop at the
-                        # next boundary so the two cannot double-execute.
+                        # Superseded (e.g. resumed) before confirmation: still
+                        # stop, or this engine could double-execute alongside
+                        # the resumed run's fresh submission.
                         self.notify_if_suspended(
                             State(
                                 id=state_id,
@@ -151,8 +142,6 @@ class _SuspensionWatch:
                             )
                         )
                         return
-                # The current state is missing or older than the reported
-                # transition: the event outran readability; keep retrying.
 
             if not warned and time.monotonic() >= warning_deadline:
                 self._logger.warning(
