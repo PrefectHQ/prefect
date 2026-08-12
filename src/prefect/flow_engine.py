@@ -423,6 +423,7 @@ class BaseFlowRunEngine(Generic[P, R]):
     _flow_run_suspension_request: FlowRunSuspensionRequest = field(
         default_factory=FlowRunSuspensionRequest
     )
+    _attempt_conclusion: EngineOutcomeReceipt | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
         if self.flow is None and self.flow_run_id is None:
@@ -456,6 +457,27 @@ class BaseFlowRunEngine(Generic[P, R]):
     def cancel_all_tasks(self) -> None:
         if hasattr(self.flow.task_runner, "cancel_all"):
             self.flow.task_runner.cancel_all()  # type: ignore
+
+    def _capture_state_report(self, state: State) -> None:
+        if (
+            (state.is_final() or state.is_paused())
+            and state.id is not None
+            and state.name is not None
+        ):
+            self._attempt_conclusion = EngineOutcomeReceipt.state_reported(
+                state_id=state.id,
+                state_type=state.type.value,
+                state_name=state.name,
+            )
+        else:
+            self._attempt_conclusion = None
+
+    def _report_attempt_conclusion(self) -> None:
+        if (
+            not self._started_with_in_process_parent_flow_run_context
+            and self._attempt_conclusion is not None
+        ):
+            report_engine_outcome(self._attempt_conclusion)
 
     def _build_heartbeat_event_template(
         self,
@@ -742,6 +764,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         self.flow_run.state_name = state.name  # type: ignore
         self.flow_run.state_type = state.type  # type: ignore
 
+        self._capture_state_report(state)
         self._telemetry.update_state(state)
         self.call_hooks(state)
 
@@ -1214,10 +1237,15 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     # regular exceptions are caught and re-raised to the user
                     raise
                 except (Abort, Pause) as exc:
-                    if getattr(exc, "state", None):
+                    if state := getattr(exc, "state", None):
                         # we set attribute explicitly because
                         # internals will have already called the state change API
-                        self.flow_run.state = exc.state
+                        self.flow_run.state = state
+                        self._capture_state_report(state)
+                    elif isinstance(exc, Abort):
+                        self._attempt_conclusion = (
+                            EngineOutcomeReceipt.orchestration_aborted()
+                        )
                     raise
                 except GeneratorExit:
                     # Do not capture generator exits as crashes
@@ -1234,6 +1262,8 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                             exc_info=exc,
                         )
                 finally:
+                    self._report_attempt_conclusion()
+
                     # If debugging, use the more complete `repr` than the usual `str` description
                     display_state = (
                         repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
@@ -1286,21 +1316,6 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             except Exception as exc:
                 self.logger.exception("Encountered exception during execution: %r", exc)
                 self.handle_exception(exc)
-
-            state = self.state
-            if (
-                not self._started_with_in_process_parent_flow_run_context
-                and state.is_failed()
-                and state.id is not None
-                and state.name is not None
-            ):
-                report_engine_outcome(
-                    EngineOutcomeReceipt.state_reported(
-                        state_id=state.id,
-                        state_type=state.type.value,
-                        state_name=state.name,
-                    )
-                )
 
     def call_flow_fn(self) -> Union[R, Coroutine[Any, Any, R]]:
         """
@@ -1456,6 +1471,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         self.flow_run.state_name = state.name  # type: ignore
         self.flow_run.state_type = state.type  # type: ignore
 
+        self._capture_state_report(state)
         self._telemetry.update_state(state)
         await self.call_hooks(state)
 
@@ -1921,10 +1937,15 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     # regular exceptions are caught and re-raised to the user
                     raise
                 except (Abort, Pause) as exc:
-                    if getattr(exc, "state", None):
+                    if state := getattr(exc, "state", None):
                         # we set attribute explicitly because
                         # internals will have already called the state change API
-                        self.flow_run.state = exc.state
+                        self.flow_run.state = state
+                        self._capture_state_report(state)
+                    elif isinstance(exc, Abort):
+                        self._attempt_conclusion = (
+                            EngineOutcomeReceipt.orchestration_aborted()
+                        )
                     raise
                 except GeneratorExit:
                     # Do not capture generator exits as crashes
@@ -1962,6 +1983,8 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                             exc_info=exc,
                         )
                 finally:
+                    self._report_attempt_conclusion()
+
                     # If debugging, use the more complete `repr` than the usual `str` description
                     display_state = (
                         repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
