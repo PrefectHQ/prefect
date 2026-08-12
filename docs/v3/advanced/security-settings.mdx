@@ -16,6 +16,8 @@ Self-hosted Prefect servers can be equipped with Basic Authentication through tw
 
 With these settings, the UI will prompt for the full authentication string `"admin:pass"` (no quotes) upon first load. It is recommended to store this information in a secure way, such as a Kubernetes Secret or in a private `.env` file.
 
+The client also sends this authentication string as a `Basic` `Authorization` header when opening the WebSocket connection used for [events](/v3/concepts/events), so servers or proxies that require basic authentication before allowing the connection upgrade authenticate correctly.
+
 <Warning>
 **Note on API keys**
 
