@@ -5479,11 +5479,6 @@ class TestResolveStarter:
         prefect_client: PrefectClient,
         caplog: pytest.LogCaptureFixture,
     ):
-        import prefect.runner._starter_direct as starter_mod
-        from prefect.flow_engine import (
-            run_flow_in_subprocess as original_run_flow_in_subprocess,
-        )
-
         @flow(on_crashed=[on_crashed])
         def crashed_flow():
             os._exit(7)
