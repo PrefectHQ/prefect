@@ -903,12 +903,12 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
 
         Used when `capture_sigterm` has determined (via the cancellation
         listener) that the SIGTERM was the runner asking for cancellation,
-        not an unrelated termination. Transitioning through Cancelling first
-        The same ownership rule also governs `on_cancellation` / `on_crashed`
-        hooks: if the engine owns cancellation/crash handling, it must
-        drive the `Cancelling -> Cancelled` transitions locally; if an
-        external runner owns them, the child should avoid duplicating
-        state history.
+        not an unrelated termination. The same ownership rule governs the
+        `on_cancellation` hook: if the engine owns cancellation handling, it
+        must drive `Cancelling -> Cancelled` and run the hook locally; if an
+        external runner owns cancellation, the child avoids duplicating state
+        history and hooks. Engine-reported Crashed states and `on_crashed`
+        hooks always remain engine-owned.
         """
         msg = "Flow run was cancelled."
         self.logger.info(msg)
