@@ -188,7 +188,7 @@ class ProcessWorker(
         )
         with working_dir_ctx as working_dir, warnings.catch_warnings():
             warnings.simplefilter("ignore", DeprecationWarning)
-            process = await self._runner.execute_flow_run(
+            execution = await self._runner._execute_flow_run(
                 flow_run_id=flow_run.id,
                 command=configuration._resolve_command(working_dir),
                 cwd=working_dir,
@@ -197,16 +197,13 @@ class ProcessWorker(
                 task_status=task_status,
             )
 
-        status_code = (
-            getattr(process, "returncode", None)
-            if getattr(process, "returncode", None) is not None
-            else getattr(process, "exitcode", None)
-        )
-
-        if process is None or status_code is None:
+        if execution is None or execution.status_code is None:
             raise RuntimeError("Failed to start flow run process.")
 
-        return ProcessWorkerResult(status_code=status_code, identifier=str(process.pid))
+        return ProcessWorkerResult(
+            status_code=execution.status_code,
+            identifier=str(execution.process.pid),
+        )
 
     async def _submit_adhoc_run(
         self,

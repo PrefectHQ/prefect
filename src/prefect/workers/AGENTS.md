@@ -48,7 +48,7 @@ Work-pool-level launchers are configured via `prefect work-pool storage configur
 ## Pitfalls
 
 - `backend_id` is `None` until the first heartbeat succeeds; `PREFECT__WORKER_ID` is not set until then. Code that reads `self.backend_id` early in the lifecycle may get `None`.
-- `ProcessWorker` calls the deprecated `Runner.execute_flow_run()` / `Runner.execute_bundle()` paths (suppressing `PrefectDeprecationWarning` with `warnings.catch_warnings()`). It bypasses `FlowRunExecutor` and `ProcessStarter` — this is a known migration gap (see `runner/AGENTS.md`).
+- `ProcessWorker` calls the internal legacy `Runner._execute_flow_run()` path and deprecated `Runner.execute_bundle()` path. It bypasses `FlowRunExecutor` and `ProcessStarter` — this is a known migration gap (see `runner/AGENTS.md`). The flow-run path returns the raw process plus a normalized infrastructure status derived from Attempt Control Session evidence; BaseWorker must consume the normalized status, not the raw child exit code.
 
 ## Related
 

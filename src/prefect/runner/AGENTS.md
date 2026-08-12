@@ -45,7 +45,7 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 - `execute_bundle()` -- deprecated (Mar 2026); use `execute_bundle()` from `prefect.bundles.execute`
 - `reschedule_current_flow_runs()` -- deprecated (Mar 2026); SIGTERM rescheduling is now handled inline by the CLI execute path
 
-These will be removed once internal callers (notably ProcessWorker) are migrated. ProcessWorker currently suppresses the deprecation warnings via `warnings.catch_warnings()`.
+These will be removed once internal callers are migrated. ProcessWorker uses the same legacy implementation through `_execute_flow_run()` so it can also receive the normalized infrastructure status without changing the deprecated public method's process return type.
 
 ## EventEmitter WebSocket Degradation
 
@@ -107,7 +107,7 @@ The cancelling precheck (step 1a) still runs unconditionally even when `propose_
 
 ## ProcessWorker Migration (Known Gap)
 
-ProcessWorker (src/prefect/workers/process.py) calls `Runner.execute_flow_run()` and `Runner.execute_bundle()` via the deprecated path, suppressing `PrefectDeprecationWarning` with `warnings.catch_warnings()`. It bypasses FlowRunExecutor, ProcessManager, and ProcessStarter entirely. This is a known migration target.
+ProcessWorker (src/prefect/workers/process.py) calls the internal legacy `Runner._execute_flow_run()` path and `Runner.execute_bundle()`, suppressing deprecation warnings around the bundle path. It bypasses FlowRunExecutor, ProcessManager, and ProcessStarter entirely. The legacy flow-run path snapshots Attempt Control Session evidence before cleanup and returns a normalized infrastructure status alongside the raw process so BaseWorker cannot reinterpret a handled engine outcome. This remains a migration target.
 
 ## BlockStorageAdapter Pull Behavior
 

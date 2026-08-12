@@ -29,6 +29,11 @@ from starlette import status
 import prefect.runner
 import prefect.runner._starter_direct as starter_mod
 from prefect import __version__, aserve, flow, serve, task
+from prefect._internal.attempt_control import (
+    AttemptConclusion,
+    EngineOutcomeReceipt,
+    StateOwnershipDelegation,
+)
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.versioning import VersionType
 from prefect.blocks.core import BlockNotSavedError
@@ -1134,7 +1139,6 @@ class TestRunner:
         temp_storage.code = dedent(
             """\
         import os
-        import signal
 
         from prefect import flow
         from prefect.logging.loggers import flow_run_logger
@@ -1146,7 +1150,7 @@ class TestRunner:
         @flow(on_crashed=[on_crashed], log_prints=True)
         def crashing_flow():
             print("Oh boy, here I go crashing again...")
-            os.kill(os.getpid(), signal.SIGTERM)
+            os._exit(7)
         """
         )
 
@@ -2224,6 +2228,100 @@ class TestRunner:
             assert record.levelname == "INFO"
         else:
             assert record.levelname == "ERROR"
+
+    @pytest.mark.parametrize(
+        "attempt_conclusion",
+        [
+            EngineOutcomeReceipt.state_reported(
+                state_id=uuid.uuid4(),
+                state_type="FAILED",
+                state_name="Failed",
+            ),
+            StateOwnershipDelegation("cancel"),
+        ],
+    )
+    async def test_legacy_execution_normalizes_handled_outcomes(
+        self,
+        attempt_conclusion: AttemptConclusion,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        runner = Runner()
+        flow_run = MagicMock(id=uuid.uuid4(), name="test-flow-run")
+        task_status = MagicMock(spec=anyio.abc.TaskStatus)
+        completion_status: asyncio.Future[int | None] = (
+            asyncio.get_running_loop().create_future()
+        )
+        propose_crashed = AsyncMock()
+        run_crashed_hooks = AsyncMock()
+        client = MagicMock()
+        client.read_flow_run = AsyncMock()
+
+        monkeypatch.setattr(runner, "_run_process", AsyncMock(return_value=1))
+        monkeypatch.setattr(runner, "_release_limit_slot", MagicMock())
+        monkeypatch.setattr(
+            runner,
+            "_remove_flow_run_process_map_entry",
+            AsyncMock(return_value=attempt_conclusion),
+        )
+        monkeypatch.setattr(runner, "_get_flow_run_logger", MagicMock())
+        monkeypatch.setattr(runner, "_propose_crashed_state", propose_crashed)
+        monkeypatch.setattr(runner, "_run_on_crashed_hooks", run_crashed_hooks)
+        runner._client = client
+
+        status_code = await runner._submit_run_and_capture_errors(
+            flow_run,
+            task_status,
+            completion_status=completion_status,
+        )
+
+        assert status_code == 0
+        assert completion_status.result() == 0
+        propose_crashed.assert_not_awaited()
+        run_crashed_hooks.assert_not_awaited()
+        client.read_flow_run.assert_not_awaited()
+
+    async def test_legacy_execution_preserves_nonzero_exit_fallback(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        runner = Runner()
+        flow_run = MagicMock(id=uuid.uuid4(), name="test-flow-run")
+        task_status = MagicMock(spec=anyio.abc.TaskStatus)
+        completion_status: asyncio.Future[int | None] = (
+            asyncio.get_running_loop().create_future()
+        )
+        crashed_state = Crashed(message="Process crashed")
+        propose_crashed = AsyncMock(return_value=crashed_state)
+        run_crashed_hooks = AsyncMock()
+        client = MagicMock()
+        client.read_flow_run = AsyncMock()
+
+        monkeypatch.setattr(runner, "_run_process", AsyncMock(return_value=7))
+        monkeypatch.setattr(runner, "_release_limit_slot", MagicMock())
+        monkeypatch.setattr(
+            runner,
+            "_remove_flow_run_process_map_entry",
+            AsyncMock(return_value=None),
+        )
+        monkeypatch.setattr(runner, "_get_flow_run_logger", MagicMock())
+        monkeypatch.setattr(runner, "_propose_crashed_state", propose_crashed)
+        monkeypatch.setattr(runner, "_run_on_crashed_hooks", run_crashed_hooks)
+        runner._client = client
+
+        status_code = await runner._submit_run_and_capture_errors(
+            flow_run,
+            task_status,
+            completion_status=completion_status,
+        )
+
+        assert status_code == 7
+        assert completion_status.result() == 7
+        propose_crashed.assert_awaited_once()
+        run_crashed_hooks.assert_awaited_once_with(
+            flow_run=flow_run,
+            state=crashed_state,
+        )
+        client.read_flow_run.assert_not_awaited()
 
     @pytest.mark.skipif(
         sys.platform != "win32",

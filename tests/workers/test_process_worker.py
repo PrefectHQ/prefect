@@ -16,6 +16,7 @@ from prefect.client import schemas as client_schemas
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import State
 from prefect.client.schemas.objects import Deployment, FlowRun, StateType, WorkPool
+from prefect.runner.runner import _FlowRunProcessResult
 from prefect.server import models
 from prefect.server.database.orm_models import Flow
 from prefect.server.schemas.actions import (
@@ -166,9 +167,12 @@ def mock_open_process(monkeypatch: pytest.MonkeyPatch):
 def mock_runner_execute_flow_run(monkeypatch: pytest.MonkeyPatch):
     mock_process = MagicMock(returncode=0, pid=1000)
     mock_execute_flow_run = AsyncMock()
-    mock_execute_flow_run.return_value = mock_process
+    mock_execute_flow_run.return_value = _FlowRunProcessResult(
+        process=mock_process,
+        status_code=0,
+    )
     monkeypatch.setattr(
-        "prefect.runner.runner.Runner.execute_flow_run", mock_execute_flow_run
+        "prefect.runner.runner.Runner._execute_flow_run", mock_execute_flow_run
     )
     return mock_execute_flow_run
 
@@ -243,6 +247,47 @@ async def test_worker_process_run_flow_run(
         flow_run = await prefect_client.read_flow_run(flow_run.id)
         assert flow_run.state is not None
         assert flow_run.state.type == StateType.COMPLETED
+
+
+async def test_process_worker_preserves_handled_failed_outcome(
+    prefect_client: PrefectClient,
+    process_work_pool: WorkPool,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    flow_id = await prefect_client.create_flow(flow=example_process_worker_flow)
+    deployment_id = await prefect_client.create_deployment(
+        flow_id=flow_id,
+        name=f"test-process-worker-failed-deployment-{uuid.uuid4()}",
+        path=str(
+            prefect.__development_base_path__
+            / "tests"
+            / "test-projects"
+            / "import-project"
+        ),
+        entrypoint="my_module/flow.py:failed_flow",
+    )
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment_id=deployment_id,
+        state=State(
+            type=client_schemas.StateType.SCHEDULED,
+            state_details=client_schemas.StateDetails(
+                scheduled_time=now("UTC") - timedelta(minutes=5)
+            ),
+        ),
+    )
+    crash_marker = tmp_path / "crash-hook-ran"
+    monkeypatch.setenv("PREFECT_TEST_PROCESS_WORKER_CRASH_MARKER", str(crash_marker))
+
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        result = await worker._submit_run_and_capture_errors(flow_run)
+
+    assert isinstance(result, ProcessWorkerResult)
+    assert result.status_code == 0
+    flow_run = await prefect_client.read_flow_run(flow_run.id)
+    assert flow_run.state is not None
+    assert flow_run.state.is_failed()
+    assert not crash_marker.exists()
 
 
 async def test_worker_process_run_flow_run_with_env_variables_job_config_defaults(
