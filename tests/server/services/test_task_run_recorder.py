@@ -1,16 +1,20 @@
 import asyncio
-from contextlib import contextmanager
+import re
+from collections.abc import Mapping, Sequence
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from itertools import permutations
 from pathlib import Path
-from typing import Any, AsyncGenerator, Iterator, Optional
+from typing import Any, AsyncGenerator, Optional
 from unittest.mock import patch
 from uuid import UUID, uuid4
 
 import pytest
+import sqlalchemy as sa
+from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql.dml import Insert
 
 from prefect._internal.testing import retry_asserts
 from prefect.server.database import provide_database_interface
@@ -1706,26 +1710,109 @@ async def test_bulk_insert_handles_shuffled_interleaved_events(
         }
 
 
+TASK_RUN_INSERT = re.compile(
+    r"INSERT INTO task_run \((?P<columns>[^)]*)\) VALUES (?P<values>.*?)"
+    r"(?: ON CONFLICT|$)",
+    re.DOTALL,
+)
+VALUES_ROW = re.compile(r"\(([^()]*)\)")
+
+
+@dataclass(frozen=True)
+class ExecutedUpsert:
+    """One `task_run` upsert, as the database driver received it."""
+
+    sql: str
+    parameters: Sequence[Any] | Mapping[str, Any]
+
+    @property
+    def columns(self) -> list[str]:
+        """The single column list every row of the statement shares."""
+        return [column.strip() for column in self._match["columns"].split(",")]
+
+    @property
+    def rows(self) -> list[dict[str, Any]]:
+        """The `VALUES` rows, re-read from the statement and its bind values.
+
+        Values are the ones the driver was given, so a column carrying a
+        database type decorator (`id`, `flow_run_id`) arrives in its stored
+        form. A driver taking positional parameters gets them flattened, in the
+        order the placeholders appear.
+        """
+        columns = self.columns
+        remaining = (
+            None
+            if isinstance(self.parameters, Mapping)
+            else iter(self.parameters)  # positional paramstyle
+        )
+
+        rows: list[dict[str, Any]] = []
+        for row in VALUES_ROW.findall(self._match["values"]):
+            placeholders = [placeholder.strip() for placeholder in row.split(",")]
+            assert len(placeholders) == len(columns), self.sql
+            if remaining is None:
+                assert isinstance(self.parameters, Mapping)
+                # a value SQLAlchemy repeats across rows keeps one bind, so read
+                # each row through its own placeholders rather than by column
+                values = [
+                    self.parameters[placeholder.removeprefix(":")]
+                    for placeholder in placeholders
+                ]
+            else:
+                values = [next(remaining) for _ in placeholders]
+            rows.append(dict(zip(columns, values)))
+        return rows
+
+    @property
+    def _match(self) -> re.Match[str]:
+        match = TASK_RUN_INSERT.search(self.sql)
+        assert match is not None, self.sql
+        return match
+
+
+@asynccontextmanager
+async def capture_task_run_upserts() -> AsyncGenerator[list[ExecutedUpsert], None]:
+    """Every `task_run` upsert the recorder executes, in order.
+
+    Listens for SQLAlchemy's `before_cursor_execute` event, which is documented
+    engine instrumentation and fires with the final SQL text and bind values,
+    after compilation. So these are the statements the database ran, whatever
+    they were built from.
+    """
+    captured: list[ExecutedUpsert] = []
+    engine = await provide_database_interface().engine()
+
+    def before_cursor_execute(
+        conn: Connection,
+        cursor: Any,
+        statement: str,
+        parameters: Any,
+        context: Any,
+        executemany: bool,
+    ) -> None:
+        if TASK_RUN_INSERT.search(statement):
+            snapshot = (
+                dict(parameters)
+                if isinstance(parameters, Mapping)
+                else list(parameters)
+            )
+            captured.append(ExecutedUpsert(statement, snapshot))
+
+    sa.event.listen(engine.sync_engine, "before_cursor_execute", before_cursor_execute)
+    try:
+        yield captured
+    finally:
+        sa.event.remove(
+            engine.sync_engine, "before_cursor_execute", before_cursor_execute
+        )
+
+
 async def test_bulk_upserts_are_sorted_by_conflict_key(
     session: AsyncSession,
     flow_run,
 ):
     """Bulk upsert VALUES are sorted by conflict key so concurrent recorders
     acquire row-level locks in the same order, preventing deadlocks."""
-    captured_key_orders: list[list[tuple[UUID, str, str]]] = []
-    original_values = Insert.values
-
-    def spy_values(self, *args, **kwargs):
-        if args and isinstance(args[0], list) and args[0]:
-            if isinstance(args[0][0], dict) and "task_key" in args[0][0]:
-                captured_key_orders.append(
-                    [
-                        (row["flow_run_id"], row["task_key"], row["dynamic_key"])
-                        for row in args[0]
-                    ]
-                )
-        return original_values(self, *args, **kwargs)
-
     base_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
     flow_run_id = str(flow_run.id)
     task_run_ids = [str(uuid4()) for _ in range(10)]
@@ -1742,11 +1829,15 @@ async def test_bulk_upserts_are_sorted_by_conflict_key(
         for tid in task_run_ids
     ]
 
-    with patch.object(Insert, "values", spy_values):
+    async with capture_task_run_upserts() as statements:
         await task_run_recorder.record_bulk_task_run_events(events)
 
-    assert len(captured_key_orders) > 0
-    for keys in captured_key_orders:
+    assert len(statements) > 0
+    for statement in statements:
+        keys = [
+            (row["flow_run_id"], row["task_key"], row["dynamic_key"])
+            for row in statement.rows
+        ]
         assert keys == sorted(keys)
 
 
@@ -1760,18 +1851,6 @@ async def test_bulk_upserts_preserve_global_conflict_key_order_across_column_gro
     signatures together can reorder already-sorted conflict keys and reintroduce
     lock-order inversions across concurrent recorders.
     """
-    captured_keys: list[tuple[UUID, str, str]] = []
-    original_values = Insert.values
-
-    def spy_values(self, *args, **kwargs):
-        if args and isinstance(args[0], list) and args[0]:
-            if isinstance(args[0][0], dict) and "task_key" in args[0][0]:
-                captured_keys.extend(
-                    (row["flow_run_id"], row["task_key"], row["dynamic_key"])
-                    for row in args[0]
-                )
-        return original_values(self, *args, **kwargs)
-
     base_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
     flow_run_id = str(flow_run.id)
     events: list[ReceivedEvent] = []
@@ -1789,9 +1868,14 @@ async def test_bulk_upserts_preserve_global_conflict_key_order_across_column_gro
             event.payload["task_run"]["run_count"] = i + 1
         events.append(event)
 
-    with patch.object(Insert, "values", spy_values):
+    async with capture_task_run_upserts() as statements:
         await task_run_recorder.record_bulk_task_run_events(events)
 
+    captured_keys = [
+        (row["flow_run_id"], row["task_key"], row["dynamic_key"])
+        for statement in statements
+        for row in statement.rows
+    ]
     assert [key[1] for key in captured_keys] == [f"task-{i:02d}" for i in range(6)]
     assert captured_keys == sorted(captured_keys)
 
@@ -1872,22 +1956,6 @@ async def test_bulk_upsert_raises_after_max_retries_on_integrity_error(
     assert call_count == 2
 
 
-@contextmanager
-def capture_upsert_rows() -> Iterator[list[list[dict[str, Any]]]]:
-    """The VALUES payload of each `task_run` upsert, in the order they are built."""
-    captured: list[list[dict[str, Any]]] = []
-    original_values = Insert.values
-
-    def spy_values(self, *args, **kwargs):
-        rows = args[0] if args and isinstance(args[0], list) else []
-        if rows and isinstance(rows[0], dict) and "task_key" in rows[0]:
-            captured.append([dict(row) for row in rows])
-        return original_values(self, *args, **kwargs)
-
-    with patch.object(Insert, "values", spy_values):
-        yield captured
-
-
 def upsert_sort_key(row: dict[str, Any]) -> tuple[Any, ...]:
     """The conflict key the recorder sorts by, recovered from an inserted row."""
     if row.get("flow_run_id") is None:
@@ -1912,7 +1980,7 @@ async def test_bulk_upsert_never_repeats_a_conflict_target_in_one_statement(
         [upsert_event(flow_run_id, task_run_id=canonical, state_type=StateType.PENDING)]
     )
 
-    with capture_upsert_rows() as statements:
+    async with capture_task_run_upserts() as statements:
         await task_run_recorder.record_bulk_task_run_events(
             [
                 # already exists under its own id; `start_time` keeps the column
@@ -1936,8 +2004,9 @@ async def test_bulk_upsert_never_repeats_a_conflict_target_in_one_statement(
         )
 
     assert len(statements) == 2
-    for rows in statements:
-        assert len({row["id"] for row in rows}) == len(rows)
+    for statement in statements:
+        ids = [row["id"] for row in statement.rows]
+        assert len(set(ids)) == len(ids)
 
     session.expire_all()
     task_run = await read_task_run(session=session, task_run_id=canonical)
@@ -1974,33 +2043,24 @@ async def test_bulk_upsert_statements_stay_within_the_parameter_budget(
     session: AsyncSession,
     flow_run: FlowRun,
 ):
-    """`max_rows` must bound compiled bind parameters, not rows times keys.
+    """`max_rows` must bound the bind parameters a statement carries, not rows
+    times keys.
 
     SQLAlchemy renders a parameter for every column carrying a Python-side
     default whether or not the row supplies it, so a budget derived from the
     keys actually inserted would be breached silently.
     """
     budget = 200
-    dialect = (await provide_database_interface().engine()).dialect
-    executed: list[Insert] = []
-    original_execute = AsyncSession.execute
 
-    async def spy_execute(self, statement, *args, **kwargs):
-        if isinstance(statement, Insert) and statement.table.name == "task_run":
-            executed.append(statement)
-        return await original_execute(self, statement, *args, **kwargs)
+    with patch.object(task_run_recorder, "get_max_query_parameters", lambda: budget):
+        async with capture_task_run_upserts() as statements:
+            await task_run_recorder.record_bulk_task_run_events(
+                [upsert_event(str(flow_run.id), i) for i in range(20)]
+            )
 
-    with (
-        patch.object(task_run_recorder, "get_max_query_parameters", lambda: budget),
-        patch.object(AsyncSession, "execute", spy_execute),
-    ):
-        await task_run_recorder.record_bulk_task_run_events(
-            [upsert_event(str(flow_run.id), i) for i in range(20)]
-        )
-
-    assert len(executed) > 1, "the flush must be split for this to prove anything"
-    for statement in executed:
-        assert len(statement.compile(dialect=dialect).params) <= budget
+    assert len(statements) > 1, "the flush must be split for this to prove anything"
+    for statement in statements:
+        assert len(statement.parameters) <= budget
 
 
 async def test_bulk_upserts_preserve_global_order_across_conflict_targets(
@@ -2018,15 +2078,15 @@ async def test_bulk_upserts_preserve_global_order_across_conflict_targets(
         for i in range(12)
     ]
 
-    with capture_upsert_rows() as statements:
+    async with capture_task_run_upserts() as statements:
         await task_run_recorder.record_bulk_task_run_events(events)
 
     assert {
-        "id" if rows[0].get("flow_run_id") is None else "natural-key"
-        for rows in statements
+        "id" if statement.rows[0].get("flow_run_id") is None else "natural-key"
+        for statement in statements
     } == {"id", "natural-key"}, "the flush must exercise both conflict targets"
 
-    keys = [upsert_sort_key(row) for rows in statements for row in rows]
+    keys = [upsert_sort_key(row) for statement in statements for row in statement.rows]
     assert len(keys) == 12
     assert keys == sorted(keys)
 
@@ -2043,7 +2103,7 @@ async def test_bulk_upsert_unions_fillable_columns_and_splits_on_defaulted_ones(
     flow_run_id = str(flow_run.id)
     bare, versioned, counted = str(uuid4()), str(uuid4()), str(uuid4())
 
-    with capture_upsert_rows() as statements:
+    async with capture_task_run_upserts() as statements:
         await task_run_recorder.record_bulk_task_run_events(
             [
                 upsert_event(flow_run_id, 0, task_run_id=bare),
@@ -2052,8 +2112,8 @@ async def test_bulk_upsert_unions_fillable_columns_and_splits_on_defaulted_ones(
             ]
         )
 
-    assert [len(rows) for rows in statements] == [2, 1]
-    assert all("task_version" in row for row in statements[0])
+    assert [len(statement.rows) for statement in statements] == [2, 1]
+    assert "task_version" in statements[0].columns
 
     session.expire_all()
     persisted = {
@@ -2085,7 +2145,7 @@ async def test_bulk_upsert_does_not_clobber_values_a_sibling_row_omits(
         [upsert_event(flow_run_id, 0, task_run_id=established, **stored)]
     )
 
-    with capture_upsert_rows() as statements:
+    async with capture_task_run_upserts() as statements:
         await task_run_recorder.record_bulk_task_run_events(
             [
                 # carries neither of those...
@@ -2104,7 +2164,7 @@ async def test_bulk_upsert_does_not_clobber_values_a_sibling_row_omits(
         )
 
     # pin the composition: without both rows in one statement this asserts nothing
-    assert [len(rows) for rows in statements] == [2]
+    assert [len(statement.rows) for statement in statements] == [2]
 
     session.expire_all()
     task_run = await read_task_run(session=session, task_run_id=established)
@@ -2133,7 +2193,7 @@ async def test_bulk_upsert_clears_a_column_a_payload_sets_to_null(
         ]
     )
 
-    with capture_upsert_rows() as statements:
+    async with capture_task_run_upserts() as statements:
         await task_run_recorder.record_bulk_task_run_events(
             [
                 upsert_event(
