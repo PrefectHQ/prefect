@@ -206,7 +206,9 @@ export function FlowRunHeader({ flowRun, onDeleteClick }: FlowRunHeaderProps) {
 					<div className="flex items-center gap-1">
 						<Icon id="Clock" className="size-4" />
 						<span>
-							{secondsToApproximateString(flowRun.total_run_time ?? 0)}
+							{secondsToApproximateString(
+							(flowRun.estimated_run_time || flowRun.total_run_time) ?? 0,
+						)}
 						</span>
 					</div>
 					<div
