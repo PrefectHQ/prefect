@@ -35,7 +35,7 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 - Cancellation -> CancellationManager
 - Hooks -> HookRunner
 
-**Legacy methods on Runner exist only for backward compatibility.** Do not add new behavior to:
+**Legacy methods on Runner exist only for backward compatibility.** Except for the narrow ProcessWorker status bridge below, do not add new behavior to:
 - `_submit_run_and_capture_errors()` -- replaced by FlowRunExecutor.submit()
 - `_run_process()` -- replaced by ProcessStarter implementations
 - `_flow_run_process_map` dict -- replaced by ProcessManager
@@ -45,7 +45,7 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 - `execute_bundle()` -- deprecated (Mar 2026); use `execute_bundle()` from `prefect.bundles.execute`
 - `reschedule_current_flow_runs()` -- deprecated (Mar 2026); SIGTERM rescheduling is now handled inline by the CLI execute path
 
-These will be removed once internal callers are migrated. ProcessWorker uses the same legacy implementation through `_execute_flow_run()` so it can also receive the normalized infrastructure status without changing the deprecated public method's process return type.
+These will be removed once internal callers are migrated. ProcessWorker uses the same legacy implementation through `_execute_flow_run()` so it can also receive the normalized infrastructure status without changing the deprecated public method's process return type. Until ProcessWorker migrates, `_submit_run_and_capture_errors()` may use Attempt Control Session evidence only to suppress its own crash inference and return normalized infrastructure status; keep all other lifecycle changes in the extracted classes.
 
 ## EventEmitter WebSocket Degradation
 
