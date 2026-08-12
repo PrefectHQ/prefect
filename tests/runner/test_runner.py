@@ -27,6 +27,7 @@ from pydantic import BaseModel
 from starlette import status
 
 import prefect.runner
+import prefect.runner._starter_direct as starter_mod
 from prefect import __version__, aserve, flow, serve, task
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.versioning import VersionType
@@ -58,6 +59,9 @@ from prefect.events.clients import (
 from prefect.events.schemas.automations import Posture
 from prefect.events.schemas.deployment_triggers import DeploymentEventTrigger
 from prefect.exceptions import ScriptError
+from prefect.flow_engine import (
+    run_flow_in_subprocess as original_run_flow_in_subprocess,
+)
 from prefect.flows import Flow
 from prefect.logging.loggers import flow_run_logger
 from prefect.runner.runner import Runner
@@ -5411,11 +5415,6 @@ class TestResolveStarter:
         not via `python -m prefect.engine`. Patches the direct starter module
         to prove the in-memory path is taken.
         """
-        import prefect.runner._starter_direct as starter_mod
-        from prefect.flow_engine import (
-            run_flow_in_subprocess as original_run_flow_in_subprocess,
-        )
-
         called = False
 
         def tracking_run_flow(*args, **kwargs):
@@ -5444,11 +5443,6 @@ class TestResolveStarter:
         prefect_client: PrefectClient,
         caplog: pytest.LogCaptureFixture,
     ):
-        import prefect.runner._starter_direct as starter_mod
-        from prefect.flow_engine import (
-            run_flow_in_subprocess as original_run_flow_in_subprocess,
-        )
-
         @flow(on_crashed=[on_crashed])
         def failed_flow():
             raise ValueError("application failure")

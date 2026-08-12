@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 import prefect.bundles as bundles_module
+import prefect.runner._starter_bundle as starter_module
 from prefect import flow
 from prefect.bundles import create_bundle_for_flow_run
 from prefect.bundles.execute import execute_bundle
@@ -61,8 +62,6 @@ async def test_execute_bundle_preserves_failed_outcome(
     prefect_client: PrefectClient,
     caplog: pytest.LogCaptureFixture,
 ):
-    import prefect.runner._starter_bundle as starter_module
-
     @flow(on_crashed=[_log_bundle_crashed_hook])
     def failed_flow() -> None:
         raise ValueError("application failure")
@@ -104,8 +103,6 @@ async def test_execute_bundle_preserves_crash_fallback(
     prefect_client: PrefectClient,
     caplog: pytest.LogCaptureFixture,
 ):
-    import prefect.runner._starter_bundle as starter_module
-
     @flow(on_crashed=[_log_bundle_crashed_hook])
     def crashed_flow() -> None:
         os._exit(7)
