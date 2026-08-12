@@ -693,9 +693,11 @@ class TestEngineOutcomeReceipts:
             )
         )
 
-    async def test_reports_empty_authoritative_state_name(
+    @pytest.mark.parametrize("state_name", ["", "x" * 257])
+    async def test_reports_authoritative_state_name_without_altering_it(
         self,
         engine_type: Literal["sync", "async"],
+        state_name: str,
         monkeypatch: pytest.MonkeyPatch,
     ):
         report_engine_outcome = MagicMock(return_value=True)
@@ -709,14 +711,14 @@ class TestEngineOutcomeReceipts:
 
             @flow
             def test_flow() -> states.State[str]:
-                return states.Completed(name="", data="private result")
+                return states.Completed(name=state_name, data="private result")
 
             state = run_flow_sync(test_flow, return_type="state")
         else:
 
             @flow
             async def test_flow() -> states.State[str]:
-                return states.Completed(name="", data="private result")
+                return states.Completed(name=state_name, data="private result")
 
             state = await run_flow_async(test_flow, return_type="state")
 
@@ -725,7 +727,7 @@ class TestEngineOutcomeReceipts:
             EngineOutcomeReceipt.state_reported(
                 state_id=state.id,
                 state_type=state.type.value,
-                state_name="",
+                state_name=state_name,
             )
         )
 
