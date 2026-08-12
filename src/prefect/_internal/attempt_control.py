@@ -60,10 +60,10 @@ class EngineOutcomeReceipt:
                 self.state_name, str
             ):
                 raise TypeError("Receipt state type and name must be strings")
-            if not self.state_type or not self.state_name:
-                raise ValueError("Receipt state type and name must not be empty")
-            if len(self.state_type) > 64 or len(self.state_name) > 256:
-                raise ValueError("Receipt state type or name is too long")
+            if not self.state_type:
+                raise ValueError("Receipt state type must not be empty")
+            if len(self.state_type) > 64:
+                raise ValueError("Receipt state type is too long")
         elif any(value is not None for value in state_fields):
             raise ValueError(
                 "ORCHESTRATION_ABORTED receipts cannot include state fields"
