@@ -38,6 +38,7 @@ from prefect._internal.attempt_control import (
     RECEIPT_CAPABILITY,
     RECEIPT_PREFIX,
     EngineOutcomeReceipt,
+    Intent,
     StateOwnershipDelegation,
     decode_receipt,
     encode_negotiation,
@@ -64,7 +65,7 @@ CHILD_PROGRAM = textwrap.dedent(
             while time.monotonic() < deadline:
                 time.sleep(0.05)
     except TerminationSignal:
-        if control_listener.get_intent() == "cancel":
+        if control_listener.get_intent() == os.environ["EXPECTED_INTENT"]:
             sys.exit(7)
         sys.exit(8)
 
@@ -192,7 +193,8 @@ RACING_ENGINE_PROGRAM = textwrap.dedent(
         sys.exit(0 if acknowledged and control_listener.get_intent() is None else 14)
     sys.exit(
         0
-        if not acknowledged and control_listener.get_intent() == "cancel"
+        if not acknowledged
+        and control_listener.get_intent() == os.environ["EXPECTED_INTENT"]
         else 15
     )
     """
@@ -356,12 +358,20 @@ def _ensure_child_stopped(proc: subprocess.Popen[bytes]) -> None:
 
 
 @pytest.mark.timeout(60)
-async def test_cancel_intent_reaches_real_subprocess():
+@pytest.mark.parametrize("intent", ["cancel", "reschedule", "relinquish"])
+async def test_acknowledged_intent_records_delegation_before_real_process_termination(
+    intent: Intent,
+):
     async with ControlChannel(ack_timeout=5.0) as channel:
         flow_run_id = uuid4()
         port, token = channel.register(flow_run_id)
 
-        proc = _start_child(CHILD_PROGRAM, port=port, token=token)
+        proc = _start_child(
+            CHILD_PROGRAM,
+            port=port,
+            token=token,
+            env_overrides={"EXPECTED_INTENT": intent},
+        )
 
         try:
             # Give the child time to connect back to the channel before we
@@ -374,16 +384,19 @@ async def test_cancel_intent_reaches_real_subprocess():
                         break
                 await asyncio.sleep(0.1)
 
-            acked = await channel.signal(flow_run_id, "cancel")
-            assert acked, "child failed to ack cancel intent over loopback"
+            acked = await channel.signal(flow_run_id, intent)
+            assert acked, f"child failed to ack {intent} intent over loopback"
+            assert channel.get_conclusion(flow_run_id) == StateOwnershipDelegation(
+                intent
+            )
 
             if os.name != "nt":
                 proc.send_signal(signal.SIGTERM)
 
-            # The handler exits 7 on cancel intent.
+            # The handler exits 7 when the acknowledged intent is visible.
             _stdout, stderr = await _wait_for_child(proc)
             assert proc.returncode == 7, (
-                f"expected exit code 7 (cancel intent visible), got "
+                f"expected exit code 7 ({intent} intent visible), got "
                 f"{proc.returncode}; stderr: {stderr.decode(errors='replace')}"
             )
         finally:
@@ -494,12 +507,13 @@ async def test_old_engine_retains_control_protocol_with_new_supervisor():
 
 
 @pytest.mark.timeout(60)
+@pytest.mark.parametrize("intent", ["cancel", "reschedule", "relinquish"])
 @pytest.mark.parametrize(
     ("order", "intent_acknowledged"),
     [("receipt-first", False), ("intent-first", True)],
 )
 async def test_first_terminal_message_wins_real_process_race(
-    order: str, intent_acknowledged: bool
+    intent: Intent, order: str, intent_acknowledged: bool
 ):
     receipt = EngineOutcomeReceipt.state_reported(
         state_id=UUID("33333333-3333-3333-3333-333333333333"),
@@ -514,7 +528,7 @@ async def test_first_terminal_message_wins_real_process_race(
             RACING_ENGINE_PROGRAM,
             port=port,
             token=token,
-            env_overrides={"RACE_ORDER": order},
+            env_overrides={"EXPECTED_INTENT": intent, "RACE_ORDER": order},
         )
 
         try:
@@ -530,14 +544,14 @@ async def test_first_terminal_message_wins_real_process_race(
                 assert (
                     await asyncio.to_thread(proc.stdout.readline) == b"receipt-ready\n"
                 )
-                signal_task = asyncio.create_task(channel.signal(flow_run_id, "cancel"))
+                signal_task = asyncio.create_task(channel.signal(flow_run_id, intent))
                 while channel._registrations[flow_run_id].pending_intent is None:
                     await asyncio.sleep(0)
                 await asyncio.to_thread(proc.stdin.write, b"continue\n")
                 await asyncio.to_thread(proc.stdin.flush)
                 assert await signal_task is False
             else:
-                signal_task = asyncio.create_task(channel.signal(flow_run_id, "cancel"))
+                signal_task = asyncio.create_task(channel.signal(flow_run_id, intent))
                 assert (
                     await asyncio.to_thread(proc.stdout.readline)
                     == b"intent-committed\n"
@@ -550,7 +564,7 @@ async def test_first_terminal_message_wins_real_process_race(
                 await asyncio.to_thread(proc.stdin.flush)
                 assert await signal_task is True
             expected = (
-                StateOwnershipDelegation("cancel") if intent_acknowledged else receipt
+                StateOwnershipDelegation(intent) if intent_acknowledged else receipt
             )
             assert channel.get_conclusion(flow_run_id) == expected
 

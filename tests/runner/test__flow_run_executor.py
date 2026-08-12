@@ -9,7 +9,12 @@ import anyio
 import anyio.abc
 import pytest
 
-from prefect._internal.attempt_control import EngineOutcomeReceipt
+from prefect._internal.attempt_control import (
+    AttemptConclusion,
+    EngineOutcomeReceipt,
+    Intent,
+    StateOwnershipDelegation,
+)
 from prefect._internal.infrastructure_exit_codes import get_infrastructure_exit_info
 from prefect.runner._flow_run_executor import FlowRunExecutor, ProcessStarter
 from prefect.runner._process_manager import ProcessHandle
@@ -254,20 +259,43 @@ class TestFlowRunExecutorSubmit:
         m["state_proposer"].propose_crashed.assert_not_awaited()
         m["hook_runner"].run_crashed_hooks.assert_not_awaited()
 
-    async def test_submit_snapshots_engine_receipt_before_process_cleanup(self):
-        receipt = EngineOutcomeReceipt.state_reported(
-            state_id=uuid4(),
-            state_type="FAILED",
-            state_name="Failed",
+    @pytest.mark.parametrize("intent", ["cancel", "reschedule", "relinquish"])
+    async def test_submit_treats_acknowledged_control_as_handled_despite_nonzero_exit(
+        self, intent: Intent
+    ):
+        executor, m = _make_executor(
+            handle_returncode=1,
+            attempt_conclusion=StateOwnershipDelegation(intent),
         )
+
+        await executor.submit()
+
+        m["get_attempt_conclusion"].assert_called_once_with(m["flow_run"].id)
+        m["state_proposer"].propose_crashed.assert_not_awaited()
+        m["hook_runner"].run_crashed_hooks.assert_not_awaited()
+
+    @pytest.mark.parametrize(
+        "attempt_conclusion",
+        [
+            EngineOutcomeReceipt.state_reported(
+                state_id=uuid4(),
+                state_type="FAILED",
+                state_name="Failed",
+            ),
+            StateOwnershipDelegation("cancel"),
+        ],
+    )
+    async def test_submit_snapshots_terminal_conclusion_before_process_cleanup(
+        self, attempt_conclusion: AttemptConclusion
+    ):
         flow_run = _make_flow_run()
         process_removed = False
 
         def get_attempt_conclusion(
             flow_run_id: UUID,
-        ) -> EngineOutcomeReceipt | None:
+        ) -> AttemptConclusion | None:
             assert flow_run_id == flow_run.id
-            return None if process_removed else receipt
+            return None if process_removed else attempt_conclusion
 
         executor, m = _make_executor(
             flow_run=flow_run,

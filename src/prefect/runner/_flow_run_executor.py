@@ -7,7 +7,7 @@ from uuid import UUID
 import anyio
 import anyio.abc
 
-from prefect._internal.attempt_control import AttemptConclusion, EngineOutcomeReceipt
+from prefect._internal.attempt_control import AttemptConclusion
 from prefect._internal.infrastructure_exit_codes import get_infrastructure_exit_info
 from prefect._internal.observers import FlowRunCancellingObserver
 from prefect.client.orchestration import PrefectClient, get_client
@@ -171,10 +171,10 @@ class FlowRunExecutor:
                 attempt_conclusion = self._get_attempt_conclusion(self._flow_run.id)
                 await self._process_manager.remove(self._flow_run.id)
 
-        # Step 7: a receipt proves the engine handled orchestration regardless of
-        # process status. Without one, preserve the exit-code fallback.
+        # Step 7: terminal evidence proves the attempt was handled regardless of
+        # process status. Without it, preserve the exit-code fallback.
         exit_code = handle.returncode if handle else None
-        if isinstance(attempt_conclusion, EngineOutcomeReceipt):
+        if attempt_conclusion is not None:
             return
         if exit_code is not None and exit_code != 0:
             info = get_infrastructure_exit_info(exit_code)
