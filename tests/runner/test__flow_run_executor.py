@@ -3,12 +3,13 @@ from __future__ import annotations
 import inspect
 import logging
 from unittest.mock import AsyncMock, MagicMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import anyio
 import anyio.abc
 import pytest
 
+from prefect._internal.attempt_control import EngineOutcomeReceipt
 from prefect._internal.infrastructure_exit_codes import get_infrastructure_exit_info
 from prefect.runner._flow_run_executor import FlowRunExecutor, ProcessStarter
 from prefect.runner._process_manager import ProcessHandle
@@ -39,6 +40,8 @@ def _make_executor(
     cancelled: bool = False,
     cancelling: bool = False,
     propose_submitting: bool = True,
+    attempt_conclusion=None,
+    get_attempt_conclusion=None,
 ):
     """Build a `FlowRunExecutor` with all-mock dependencies.
 
@@ -79,6 +82,9 @@ def _make_executor(
     process_manager.remove = AsyncMock()
     process_manager.get = MagicMock(return_value=None)
 
+    if get_attempt_conclusion is None:
+        get_attempt_conclusion = MagicMock(return_value=attempt_conclusion)
+
     executor = FlowRunExecutor(
         flow_run=flow_run,
         starter=mock_starter,
@@ -86,6 +92,7 @@ def _make_executor(
         state_proposer=state_proposer,
         hook_runner=hook_runner,
         propose_submitting=propose_submitting,
+        get_attempt_conclusion=get_attempt_conclusion,
     )
 
     mocks = dict(
@@ -95,6 +102,7 @@ def _make_executor(
         state_proposer=state_proposer,
         hook_runner=hook_runner,
         process_manager=process_manager,
+        get_attempt_conclusion=get_attempt_conclusion,
     )
     return executor, mocks
 
@@ -228,6 +236,57 @@ class TestFlowRunExecutorSubmit:
         call_args = m["state_proposer"].propose_crashed.call_args
         assert m["flow_run"] == call_args[0][0]
         assert "1" in call_args[1]["message"]
+
+    async def test_submit_treats_engine_receipt_as_handled_despite_nonzero_exit(self):
+        receipt = EngineOutcomeReceipt.state_reported(
+            state_id=uuid4(),
+            state_type="FAILED",
+            state_name="Failed",
+        )
+        executor, m = _make_executor(
+            handle_returncode=1,
+            attempt_conclusion=receipt,
+        )
+
+        await executor.submit()
+
+        m["get_attempt_conclusion"].assert_called_once_with(m["flow_run"].id)
+        m["state_proposer"].propose_crashed.assert_not_awaited()
+        m["hook_runner"].run_crashed_hooks.assert_not_awaited()
+
+    async def test_submit_snapshots_engine_receipt_before_process_cleanup(self):
+        receipt = EngineOutcomeReceipt.state_reported(
+            state_id=uuid4(),
+            state_type="FAILED",
+            state_name="Failed",
+        )
+        flow_run = _make_flow_run()
+        process_removed = False
+
+        def get_attempt_conclusion(
+            flow_run_id: UUID,
+        ) -> EngineOutcomeReceipt | None:
+            assert flow_run_id == flow_run.id
+            return None if process_removed else receipt
+
+        executor, m = _make_executor(
+            flow_run=flow_run,
+            handle_returncode=1,
+            get_attempt_conclusion=get_attempt_conclusion,
+        )
+
+        async def remove_process(flow_run_id: UUID) -> None:
+            nonlocal process_removed
+            assert flow_run_id == flow_run.id
+            process_removed = True
+
+        m["process_manager"].remove = AsyncMock(side_effect=remove_process)
+
+        await executor.submit()
+
+        assert process_removed
+        m["state_proposer"].propose_crashed.assert_not_awaited()
+        m["hook_runner"].run_crashed_hooks.assert_not_awaited()
 
     async def test_submit_crashed_message_includes_registry_explanation(self):
         """The crashed state message should include the explanation from

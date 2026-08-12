@@ -51,8 +51,14 @@ from prefect._flow_run_suspension import (
     raise_if_flow_run_suspension_requested,
     register_flow_run_suspension_request,
 )
+from prefect._internal.attempt_control import EngineOutcomeReceipt
 from prefect._internal.compatibility.deprecated import deprecated_callable
-from prefect._internal.control_listener import Intent, configure_from_env, get_intent
+from prefect._internal.control_listener import (
+    Intent,
+    configure_from_env,
+    get_intent,
+    report_engine_outcome,
+)
 from prefect._internal.engine import get_hook_name, resolve_custom_flow_run_name
 from prefect._internal.metrics import RunMetrics
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
@@ -1280,6 +1286,21 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             except Exception as exc:
                 self.logger.exception("Encountered exception during execution: %r", exc)
                 self.handle_exception(exc)
+
+            state = self.state
+            if (
+                not self._started_with_in_process_parent_flow_run_context
+                and state.is_failed()
+                and state.id is not None
+                and state.name is not None
+            ):
+                report_engine_outcome(
+                    EngineOutcomeReceipt.state_reported(
+                        state_id=state.id,
+                        state_type=state.type.value,
+                        state_name=state.name,
+                    )
+                )
 
     def call_flow_fn(self) -> Union[R, Coroutine[Any, Any, R]]:
         """

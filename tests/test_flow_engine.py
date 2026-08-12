@@ -23,6 +23,7 @@ from prefect._flow_run_suspension import (
     FlowRunSuspensionRequest,
     mark_flow_run_suspension_requested,
 )
+from prefect._internal.attempt_control import EngineOutcomeReceipt
 from prefect.cache_policies import INPUTS
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas.filters import FlowFilter, FlowFilterName, FlowRunFilter
@@ -918,6 +919,63 @@ class TestFlowRunsSync:
         run = sync_prefect_client.read_flow_run(ID)
 
         assert run.state_type == StateType.FAILED
+
+    async def test_failed_flow_reports_authoritative_state_before_raising(
+        self,
+        sync_prefect_client: SyncPrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        flow_run_id: UUID | None = None
+        report_engine_outcome = MagicMock(return_value=True)
+        monkeypatch.setattr(
+            flow_engine_module,
+            "report_engine_outcome",
+            report_engine_outcome,
+        )
+
+        @flow
+        def fails():
+            nonlocal flow_run_id
+            flow_run_id = FlowRunContext.get().flow_run.id
+            raise ValueError("application failure")
+
+        with pytest.raises(ValueError, match="application failure"):
+            run_flow_sync(fails)
+
+        assert flow_run_id is not None
+        flow_run = sync_prefect_client.read_flow_run(flow_run_id)
+        assert flow_run.state is not None
+        report_engine_outcome.assert_called_once_with(
+            EngineOutcomeReceipt.state_reported(
+                state_id=flow_run.state.id,
+                state_type=flow_run.state.type.value,
+                state_name=flow_run.state.name,
+            )
+        )
+
+    async def test_failed_subflow_does_not_report_parent_attempt_outcome(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        report_engine_outcome = MagicMock(return_value=True)
+        monkeypatch.setattr(
+            flow_engine_module,
+            "report_engine_outcome",
+            report_engine_outcome,
+        )
+
+        @flow
+        def child():
+            raise ValueError("child failure")
+
+        @flow
+        def parent():
+            with pytest.raises(ValueError, match="child failure"):
+                child()
+
+        run_flow_sync(parent)
+
+        report_engine_outcome.assert_not_called()
 
     async def test_with_provided_context(self, prefect_client: PrefectClient):
         tags_context = TagsContext(current_tags={"foo", "bar"})

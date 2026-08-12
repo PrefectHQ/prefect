@@ -1436,6 +1436,46 @@ class TestRunner:
         assert flow_run.state.is_completed()
 
     @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_runner_preserves_failed_engine_command_outcome(
+        self,
+        prefect_client: PrefectClient,
+        temp_storage: MockStorage,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        temp_storage.code = dedent(
+            """\
+            from prefect import flow
+            from prefect.logging.loggers import flow_run_logger
+
+            def on_crashed(flow, flow_run, state):
+                flow_run_logger(flow_run, flow).error("runner crash hook ran")
+
+            @flow(on_crashed=[on_crashed])
+            def failed_flow():
+                raise ValueError("application failure")
+            """
+        )
+        runner = Runner()
+        deployment = await (
+            await flow.from_source(
+                source=temp_storage,
+                entrypoint="flows.py:failed_flow",
+            )
+        ).to_deployment(__file__)
+        deployment_id = await runner.add_deployment(deployment)
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        await runner.start(run_once=True)
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state is not None
+        assert flow_run.state.is_failed()
+        assert "runner crash hook ran" not in caplog.text
+        assert "Process exited with status code: 1" not in caplog.text
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_caches_adhoc_pulls(self, prefect_client):
         runner = Runner()
 

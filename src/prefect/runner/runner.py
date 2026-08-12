@@ -1792,6 +1792,7 @@ class Runner:
             state_proposer=self._state_proposer,
             hook_runner=self._hook_runner,
             cancellation_manager=self._cancellation_manager,
+            get_attempt_conclusion=self._control_channel.get_conclusion,
         )
 
         # Step 6: Enter observer context manager last

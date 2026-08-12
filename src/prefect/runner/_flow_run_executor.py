@@ -7,6 +7,7 @@ from uuid import UUID
 import anyio
 import anyio.abc
 
+from prefect._internal.attempt_control import AttemptConclusion, EngineOutcomeReceipt
 from prefect._internal.infrastructure_exit_codes import get_infrastructure_exit_info
 from prefect._internal.observers import FlowRunCancellingObserver
 from prefect.client.orchestration import PrefectClient, get_client
@@ -61,9 +62,9 @@ class FlowRunExecutor:
     3. start process via starter — `task_status.started(handle)` signals caller early
     4. add handle to `process_manager`
     5. block until process exits (starter.start blocks after signaling started)
-    6. remove handle from `process_manager` (in finally)
-    7. interpret exit code -> propose terminal state (crashed) if non-zero
-    8. run crashed hooks if exit was non-zero
+    6. snapshot terminal attempt evidence, then remove the process registration
+    7. treat an engine receipt as handled; otherwise interpret a non-zero exit
+    8. run crashed hooks only when the runner proposes Crashed
 
     ASYNCEXITSTACK 6-STEP DEPENDENCY ORDER (for Phase 5 `Runner.__aenter__`):
     Entry order (LIFO teardown is exact reverse):
@@ -83,6 +84,7 @@ class FlowRunExecutor:
         process_manager: ProcessManager,
         state_proposer: StateProposer,
         hook_runner: HookRunner,
+        get_attempt_conclusion: Callable[[UUID], AttemptConclusion | None],
         propose_submitting: bool = True,
     ) -> None:
         self._flow_run = flow_run
@@ -91,6 +93,7 @@ class FlowRunExecutor:
         self._state_proposer = state_proposer
         self._hook_runner = hook_runner
         self._propose_submitting = propose_submitting
+        self._get_attempt_conclusion = get_attempt_conclusion
         self._logger = get_logger("runner.flow_run_executor")
 
     async def submit(
@@ -109,6 +112,7 @@ class FlowRunExecutor:
         exits.
         """
         handle: ProcessHandle | None = None
+        attempt_conclusion: AttemptConclusion | None = None
         try:
             # Step 1a: already-cancelling precheck (runs regardless of propose_submitting)
             if self._flow_run.state and self._flow_run.state.is_cancelling():
@@ -161,12 +165,17 @@ class FlowRunExecutor:
             )
             return
         finally:
-            # Step 6: remove handle from process_manager
+            # Step 6: snapshot terminal evidence before process cleanup unregisters
+            # the attempt control session, then remove the process handle.
             if handle is not None:
+                attempt_conclusion = self._get_attempt_conclusion(self._flow_run.id)
                 await self._process_manager.remove(self._flow_run.id)
 
-        # Step 7: interpret exit code and propose terminal state
+        # Step 7: a receipt proves the engine handled orchestration regardless of
+        # process status. Without one, preserve the exit-code fallback.
         exit_code = handle.returncode if handle else None
+        if isinstance(attempt_conclusion, EngineOutcomeReceipt):
+            return
         if exit_code is not None and exit_code != 0:
             info = get_infrastructure_exit_info(exit_code)
             msg = f"Process exited with status code: {exit_code}. {info.explanation}"
@@ -349,4 +358,5 @@ class FlowRunExecutorContext:
             state_proposer=self._state_proposer,
             hook_runner=hook_runner,
             propose_submitting=propose_submitting,
+            get_attempt_conclusion=self.control_channel.get_conclusion,
         )
