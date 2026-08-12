@@ -2668,7 +2668,7 @@ class TestRunner:
                 "PREFECT__CONTROL_TOKEN": "token-123",
             }
 
-        async def test_crashed_bundle_execution(
+        async def test_handled_crashed_bundle_execution_does_not_repeat_hook(
             self, prefect_client: PrefectClient, caplog: pytest.LogCaptureFixture
         ):
             runner = Runner()
@@ -2693,7 +2693,7 @@ class TestRunner:
             assert flow_run.state
             assert flow_run.state.is_crashed()
 
-            assert "This flow crashed!" in caplog.text
+            assert "This flow crashed!" not in caplog.text
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
@@ -5437,6 +5437,87 @@ class TestResolveStarter:
         assert flow_run.state
         assert flow_run.state.is_completed()
         assert called, "run_flow_in_subprocess was not called — add_flow path is broken"
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_add_flow_preserves_failed_direct_subprocess_outcome(
+        self,
+        prefect_client: PrefectClient,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        import prefect.runner._starter_direct as starter_mod
+        from prefect.flow_engine import (
+            run_flow_in_subprocess as original_run_flow_in_subprocess,
+        )
+
+        @flow(on_crashed=[on_crashed])
+        def failed_flow():
+            raise ValueError("application failure")
+
+        processes: list[Any] = []
+
+        def tracking_run_flow(*args: Any, **kwargs: Any):
+            process = original_run_flow_in_subprocess(*args, **kwargs)
+            processes.append(process)
+            return process
+
+        runner = Runner()
+        deployment_id = await runner.add_flow(failed_flow, __file__, interval=3600)
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+        with patch.object(
+            starter_mod,
+            "run_flow_in_subprocess",
+            side_effect=tracking_run_flow,
+        ):
+            infrastructure_result = await runner.start(run_once=True)
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert processes[0].exitcode == 1
+        assert infrastructure_result is None
+        assert flow_run.state is not None
+        assert flow_run.state.is_failed()
+        assert "This flow crashed!" not in caplog.text
+        assert "Process exited with status code: 1" not in caplog.text
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_add_flow_preserves_direct_subprocess_crash_fallback(
+        self,
+        prefect_client: PrefectClient,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        import prefect.runner._starter_direct as starter_mod
+        from prefect.flow_engine import (
+            run_flow_in_subprocess as original_run_flow_in_subprocess,
+        )
+
+        @flow(on_crashed=[on_crashed])
+        def crashed_flow():
+            os._exit(7)
+
+        processes: list[Any] = []
+
+        def tracking_run_flow(*args: Any, **kwargs: Any):
+            process = original_run_flow_in_subprocess(*args, **kwargs)
+            processes.append(process)
+            return process
+
+        runner = Runner()
+        deployment_id = await runner.add_flow(crashed_flow, __file__, interval=3600)
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+        with patch.object(
+            starter_mod,
+            "run_flow_in_subprocess",
+            side_effect=tracking_run_flow,
+        ):
+            await runner.start(run_once=True)
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert processes[0].exitcode == 7
+        assert flow_run.state is not None
+        assert flow_run.state.is_crashed()
+        assert "This flow crashed!" in caplog.text
+        assert "Process exited with status code: 7" in caplog.text
 
     async def test_storage_deployment_uses_engine_command_starter(
         self, prefect_client: PrefectClient

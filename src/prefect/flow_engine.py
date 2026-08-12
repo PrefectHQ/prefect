@@ -1089,7 +1089,6 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         with ExitStack() as stack:
             # TODO: Explore closing task runner before completing the flow to
             # wait for futures to complete
-            stack.enter_context(capture_sigterm())
             if log_prints:
                 stack.enter_context(patch_print())
             task_runner = stack.enter_context(self.flow.task_runner.duplicate())
@@ -1209,72 +1208,75 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     parameters=self.parameters,
                 )
 
-                try:
-                    yield self
+                # Keep the control session open until the terminal outcome receipt
+                # has been acknowledged by the supervising process.
+                with capture_sigterm():
+                    try:
+                        yield self
 
-                except TerminationSignal as exc:
-                    self.cancel_all_tasks()
-                    intent = _termination_intent()
-                    if intent == "cancel":
-                        self.handle_cancellation(exc)
-                    elif intent is None:
-                        self.handle_crash(exc)
-                    elif intent not in _SUPERVISOR_OWNED_INTENTS:
-                        # Defensive: an unknown intent means the control
-                        # listener was extended (e.g. "suspend" in a
-                        # follow-up PR) without extending this dispatch.
-                        # Treat as crash so the flow run still reaches a
-                        # terminal state rather than silently hanging.
-                        self.logger.error(
-                            "Unhandled termination intent %r; treating as"
-                            " crash. A follow-up PR needs to add a matching"
-                            " dispatch branch.",
-                            intent,
-                        )
-                        self.handle_crash(exc)
-                    raise
-                except Exception:
-                    # regular exceptions are caught and re-raised to the user
-                    raise
-                except (Abort, Pause) as exc:
-                    if state := getattr(exc, "state", None):
-                        # we set attribute explicitly because
-                        # internals will have already called the state change API
-                        self.flow_run.state = state
-                        self._capture_state_report(state)
-                    elif isinstance(exc, Abort):
-                        self._attempt_conclusion = (
-                            EngineOutcomeReceipt.orchestration_aborted()
-                        )
-                    raise
-                except GeneratorExit:
-                    # Do not capture generator exits as crashes
-                    raise
-                except BaseException as exc:
-                    # We don't want to crash a flow run if the user code finished executing
-                    if self.flow_run.state and not self.flow_run.state.is_final():
-                        # BaseExceptions are caught and handled as crashes
-                        self.handle_crash(exc)
+                    except TerminationSignal as exc:
+                        self.cancel_all_tasks()
+                        intent = _termination_intent()
+                        if intent == "cancel":
+                            self.handle_cancellation(exc)
+                        elif intent is None:
+                            self.handle_crash(exc)
+                        elif intent not in _SUPERVISOR_OWNED_INTENTS:
+                            # Defensive: an unknown intent means the control
+                            # listener was extended (e.g. "suspend" in a
+                            # follow-up PR) without extending this dispatch.
+                            # Treat as crash so the flow run still reaches a
+                            # terminal state rather than silently hanging.
+                            self.logger.error(
+                                "Unhandled termination intent %r; treating as"
+                                " crash. A follow-up PR needs to add a matching"
+                                " dispatch branch.",
+                                intent,
+                            )
+                            self.handle_crash(exc)
                         raise
-                    else:
-                        self.logger.debug(
-                            "BaseException was raised after user code finished executing",
-                            exc_info=exc,
+                    except Exception:
+                        # regular exceptions are caught and re-raised to the user
+                        raise
+                    except (Abort, Pause) as exc:
+                        if state := getattr(exc, "state", None):
+                            # we set attribute explicitly because
+                            # internals will have already called the state change API
+                            self.flow_run.state = state
+                            self._capture_state_report(state)
+                        elif isinstance(exc, Abort):
+                            self._attempt_conclusion = (
+                                EngineOutcomeReceipt.orchestration_aborted()
+                            )
+                        raise
+                    except GeneratorExit:
+                        # Do not capture generator exits as crashes
+                        raise
+                    except BaseException as exc:
+                        # We don't want to crash a flow run if the user code finished executing
+                        if self.flow_run.state and not self.flow_run.state.is_final():
+                            # BaseExceptions are caught and handled as crashes
+                            self.handle_crash(exc)
+                            raise
+                        else:
+                            self.logger.debug(
+                                "BaseException was raised after user code finished executing",
+                                exc_info=exc,
+                            )
+                    finally:
+                        self._report_attempt_conclusion()
+
+                        # If debugging, use the more complete `repr` than the usual `str` description
+                        display_state = (
+                            repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
                         )
-                finally:
-                    self._report_attempt_conclusion()
+                        self.logger.log(
+                            level=logging.INFO,
+                            msg=f"Finished in state {display_state}",
+                        )
 
-                    # If debugging, use the more complete `repr` than the usual `str` description
-                    display_state = (
-                        repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
-                    )
-                    self.logger.log(
-                        level=logging.INFO,
-                        msg=f"Finished in state {display_state}",
-                    )
-
-                    self._is_started = False
-                    self._client = None
+                        self._is_started = False
+                        self._client = None
 
     # --------------------------
     #
@@ -1789,7 +1791,6 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         async with AsyncExitStack() as stack:
             # TODO: Explore closing task runner before completing the flow to
             # wait for futures to complete
-            stack.enter_context(capture_sigterm())
             if log_prints:
                 stack.enter_context(patch_print())
             task_runner = stack.enter_context(self.flow.task_runner.duplicate())
@@ -1913,91 +1914,97 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     parameters=self.parameters,
                 )
 
-                try:
-                    yield self
+                # Keep the control session open until the terminal outcome receipt
+                # has been acknowledged by the supervising process.
+                with capture_sigterm():
+                    try:
+                        yield self
 
-                except TerminationSignal as exc:
-                    self.cancel_all_tasks()
-                    intent = _termination_intent()
-                    if intent == "cancel":
-                        await self.handle_cancellation(exc)
-                    elif intent is None:
-                        await self.handle_crash(exc)
-                    elif intent not in _SUPERVISOR_OWNED_INTENTS:
-                        # Defensive: see sync engine's dispatch for why.
-                        self.logger.error(
-                            "Unhandled termination intent %r; treating as"
-                            " crash. A follow-up PR needs to add a matching"
-                            " dispatch branch.",
-                            intent,
-                        )
-                        await self.handle_crash(exc)
-                    raise
-                except Exception:
-                    # regular exceptions are caught and re-raised to the user
-                    raise
-                except (Abort, Pause) as exc:
-                    if state := getattr(exc, "state", None):
-                        # we set attribute explicitly because
-                        # internals will have already called the state change API
-                        self.flow_run.state = state
-                        self._capture_state_report(state)
-                    elif isinstance(exc, Abort):
-                        self._attempt_conclusion = (
-                            EngineOutcomeReceipt.orchestration_aborted()
-                        )
-                    raise
-                except GeneratorExit:
-                    # Do not capture generator exits as crashes
-                    raise
-                except BaseException as exc:
-                    if (
-                        _is_async_runtime_cancellation(exc)
-                        and _termination_intent() == "cancel"
-                    ):
-                        if self.flow_run.state and not self.flow_run.state.is_final():
+                    except TerminationSignal as exc:
+                        self.cancel_all_tasks()
+                        intent = _termination_intent()
+                        if intent == "cancel":
                             await self.handle_cancellation(exc)
+                        elif intent is None:
+                            await self.handle_crash(exc)
+                        elif intent not in _SUPERVISOR_OWNED_INTENTS:
+                            # Defensive: see sync engine's dispatch for why.
+                            self.logger.error(
+                                "Unhandled termination intent %r; treating as"
+                                " crash. A follow-up PR needs to add a matching"
+                                " dispatch branch.",
+                                intent,
+                            )
+                            await self.handle_crash(exc)
+                        raise
+                    except Exception:
+                        # regular exceptions are caught and re-raised to the user
+                        raise
+                    except (Abort, Pause) as exc:
+                        if state := getattr(exc, "state", None):
+                            # we set attribute explicitly because
+                            # internals will have already called the state change API
+                            self.flow_run.state = state
+                            self._capture_state_report(state)
+                        elif isinstance(exc, Abort):
+                            self._attempt_conclusion = (
+                                EngineOutcomeReceipt.orchestration_aborted()
+                            )
+                        raise
+                    except GeneratorExit:
+                        # Do not capture generator exits as crashes
+                        raise
+                    except BaseException as exc:
+                        if (
+                            _is_async_runtime_cancellation(exc)
+                            and _termination_intent() == "cancel"
+                        ):
+                            if (
+                                self.flow_run.state
+                                and not self.flow_run.state.is_final()
+                            ):
+                                await self.handle_cancellation(exc)
+                                raise TerminationSignal(signal.SIGTERM) from exc
+                            else:
+                                self.logger.debug(
+                                    "Async cancellation was raised after user code"
+                                    " finished executing",
+                                    exc_info=exc,
+                                )
+                                raise
+                        if (
+                            _is_async_runtime_cancellation(exc)
+                            and _termination_intent() in _SUPERVISOR_OWNED_INTENTS
+                        ):
+                            # A supervisor-driven SIGTERM can surface here as a cancellation
+                            # rather than a TerminationSignal.
                             raise TerminationSignal(signal.SIGTERM) from exc
+                        # We don't want to crash a flow run if the user code finished executing
+                        if self.flow_run.state and not self.flow_run.state.is_final():
+                            # BaseExceptions are caught and handled as crashes
+                            await self.handle_crash(exc)
+                            raise
                         else:
                             self.logger.debug(
-                                "Async cancellation was raised after user code"
-                                " finished executing",
+                                "BaseException was raised after user code finished executing",
                                 exc_info=exc,
                             )
-                            raise
-                    if (
-                        _is_async_runtime_cancellation(exc)
-                        and _termination_intent() in _SUPERVISOR_OWNED_INTENTS
-                    ):
-                        # A supervisor-driven SIGTERM can surface here as a cancellation
-                        # rather than a TerminationSignal.
-                        raise TerminationSignal(signal.SIGTERM) from exc
-                    # We don't want to crash a flow run if the user code finished executing
-                    if self.flow_run.state and not self.flow_run.state.is_final():
-                        # BaseExceptions are caught and handled as crashes
-                        await self.handle_crash(exc)
-                        raise
-                    else:
-                        self.logger.debug(
-                            "BaseException was raised after user code finished executing",
-                            exc_info=exc,
+                    finally:
+                        self._report_attempt_conclusion()
+
+                        # If debugging, use the more complete `repr` than the usual `str` description
+                        display_state = (
+                            repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
                         )
-                finally:
-                    self._report_attempt_conclusion()
+                        self.logger.log(
+                            level=logging.INFO
+                            if self.state.is_completed()
+                            else logging.ERROR,
+                            msg=f"Finished in state {display_state}",
+                        )
 
-                    # If debugging, use the more complete `repr` than the usual `str` description
-                    display_state = (
-                        repr(self.state) if PREFECT_DEBUG_MODE else str(self.state)
-                    )
-                    self.logger.log(
-                        level=logging.INFO
-                        if self.state.is_completed()
-                        else logging.ERROR,
-                        msg=f"Finished in state {display_state}",
-                    )
-
-                    self._is_started = False
-                    self._client = None
+                        self._is_started = False
+                        self._client = None
 
     # --------------------------
     #
