@@ -1,7 +1,7 @@
-"""Call-site typing contracts for ``@task`` and ``@flow`` calls.
+"""Call-site typing contracts for `@task` and `@flow` calls.
 
-Never executed — checked by pyright and mypy in CI. Each ``assert_type`` pins
-how a public call shape resolves; ``--verifytypes`` cannot see these (#16547
+Never executed — checked by pyright and mypy in CI. Each `assert_type` pins
+how a public call shape resolves; `--verifytypes` cannot see these (#16547
 was a pyright call-site regression, #17379 a mypy-only one). Calls that must
 STAY errors carry suppression comments: both checkers flag unused
 suppressions, so a lost error fails CI too.
