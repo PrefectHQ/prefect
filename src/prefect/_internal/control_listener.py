@@ -39,6 +39,7 @@ import os
 import signal
 import socket
 import threading
+import time
 
 from prefect._internal.attempt_control import (
     CURRENT_PROTOCOL_VERSION,
@@ -56,7 +57,8 @@ from prefect._internal.attempt_control import (
 from prefect.logging import get_logger
 from prefect.utilities.engine import commit_control_intent_and_ack
 
-_NEGOTIATION_TIMEOUT = 0.25
+_NEGOTIATION_PROBE_TIMEOUT = 0.25
+_NEGOTIATION_RESPONSE_TIMEOUT = 1.0
 _RECEIPT_ACK_TIMEOUT = 1.0
 
 _logger = get_logger(__name__)
@@ -75,6 +77,7 @@ _socket: socket.socket | None = None
 _reader_thread: threading.Thread | None = None
 _send_lock = threading.Lock()
 _negotiation_complete = threading.Event()
+_negotiation_deadline: float | None = None
 _receipt_acked = threading.Event()
 _receipt_capable = False
 _terminal_lock = threading.Lock()
@@ -166,6 +169,23 @@ def _recv_exactly(sock: socket.socket, size: int) -> bytes:
     return bytes(chunks)
 
 
+def _receive_negotiation_response(sock: socket.socket, first: bytes) -> None:
+    """Apply one complete negotiation response from the supervisor."""
+    global _receipt_capable
+
+    response = first + _recv_exactly(sock, NEGOTIATION_FRAME_SIZE - 1)
+    version, capabilities = decode_negotiation(response)
+    _receipt_capable = (
+        version == CURRENT_PROTOCOL_VERSION and capabilities & RECEIPT_CAPABILITY != 0
+    )
+    _negotiation_complete.set()
+    _logger.debug(
+        "Attempt control negotiation selected protocol %d with receipt support %s",
+        version,
+        _receipt_capable,
+    )
+
+
 def _handle_intent_byte(sock: socket.socket, data: bytes) -> bool | None:
     """Handle an intent, returning whether the reader should close the session."""
     global _terminal_claimed
@@ -192,6 +212,7 @@ def _reader_loop(sock: socket.socket) -> None:
     """Negotiate receipt support, then handle session responses and intent."""
     global _receipt_capable
 
+    negotiation_pending = True
     try:
         first = b""
         try:
@@ -199,7 +220,7 @@ def _reader_loop(sock: socket.socket) -> None:
                 sock,
                 encode_negotiation(CURRENT_PROTOCOL_VERSION, RECEIPT_CAPABILITY),
             )
-            sock.settimeout(_NEGOTIATION_TIMEOUT)
+            sock.settimeout(_NEGOTIATION_PROBE_TIMEOUT)
             first = sock.recv(1)
             if not first:
                 return
@@ -211,21 +232,14 @@ def _reader_loop(sock: socket.socket) -> None:
             if first != NEGOTIATION_PREFIX[:1]:
                 _logger.warning("Attempt control negotiation response was malformed")
                 return
-            response = first + _recv_exactly(sock, NEGOTIATION_FRAME_SIZE - 1)
-            version, capabilities = decode_negotiation(response)
-            _receipt_capable = (
-                version == CURRENT_PROTOCOL_VERSION
-                and capabilities & RECEIPT_CAPABILITY != 0
-            )
-            _logger.debug(
-                "Attempt control negotiation selected protocol %d with receipt support %s",
-                version,
-                _receipt_capable,
-            )
+            _receive_negotiation_response(sock, first)
+            negotiation_pending = False
         except TimeoutError:
             if first:
                 _logger.warning("Attempt control negotiation response was malformed")
             # A version-one supervisor sends no response to the reserved hello.
+            # Keep accepting a late response so scheduler latency does not
+            # permanently downgrade a version-two peer.
             _receipt_capable = False
         except OSError:
             # The owning context may close the socket while negotiation is blocked.
@@ -238,7 +252,6 @@ def _reader_loop(sock: socket.socket) -> None:
                 sock.settimeout(None)
             except OSError:
                 pass
-            _negotiation_complete.set()
 
         while True:
             try:
@@ -251,6 +264,18 @@ def _reader_loop(sock: socket.socket) -> None:
             if intent_handled is not None:
                 if intent_handled:
                     return
+                continue
+            if data == NEGOTIATION_PREFIX[:1] and negotiation_pending:
+                try:
+                    _receive_negotiation_response(sock, data)
+                except OSError:
+                    return
+                except ValueError:
+                    _logger.warning(
+                        "Attempt control negotiation response was malformed"
+                    )
+                    return
+                negotiation_pending = False
                 continue
             if data == RECEIPT_ACK:
                 global _receipt_in_flight, _terminal_claimed
@@ -293,7 +318,9 @@ def report_engine_outcome(receipt: EngineOutcomeReceipt) -> bool:
     if sock is None:
         return False
 
-    _negotiation_complete.wait(_NEGOTIATION_TIMEOUT + 0.1)
+    negotiation_deadline = _negotiation_deadline
+    if negotiation_deadline is not None:
+        _negotiation_complete.wait(max(0.0, negotiation_deadline - time.monotonic()))
     if not _receipt_capable:
         return False
 
@@ -330,6 +357,7 @@ def start() -> None:
     """Connect to the runner's control channel if bootstrap config is present."""
     global _started, _owner_thread_id, _socket, _reader_thread, _receipt_capable
     global _terminal_claimed, _receipt_in_flight, _outcome_report_started
+    global _negotiation_deadline
 
     configure_from_env()
 
@@ -343,6 +371,7 @@ def start() -> None:
         # earlier flow run in the same interpreter.
         _clear_intent()
         _negotiation_complete.clear()
+        _negotiation_deadline = None
         _receipt_acked.clear()
         _receipt_capable = False
         with _terminal_lock:
@@ -370,6 +399,7 @@ def start() -> None:
         _socket = sock
         _reader_thread = thread
         _owner_thread_id = threading.get_ident()
+        _negotiation_deadline = time.monotonic() + _NEGOTIATION_RESPONSE_TIMEOUT
         _started = True
         thread.start()
 
@@ -379,6 +409,7 @@ def stop() -> None:
     global _configured, _configured_port, _configured_token
     global _started, _owner_thread_id, _socket, _reader_thread, _receipt_capable
     global _terminal_claimed, _receipt_in_flight, _outcome_report_started
+    global _negotiation_deadline
 
     with _started_lock:
         sock = _socket
@@ -391,6 +422,7 @@ def stop() -> None:
         _configured_token = None
         _receipt_capable = False
         _negotiation_complete.clear()
+        _negotiation_deadline = None
         _receipt_acked.clear()
         with _terminal_lock:
             _terminal_claimed = False

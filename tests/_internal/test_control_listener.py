@@ -15,9 +15,12 @@ from prefect._internal import control_listener
 from prefect._internal.attempt_control import (
     CURRENT_PROTOCOL_VERSION,
     NEGOTIATION_FRAME_SIZE,
+    RECEIPT_ACK,
     RECEIPT_CAPABILITY,
+    RECEIPT_PREFIX,
     EngineOutcomeReceipt,
     encode_negotiation,
+    encode_receipt,
 )
 
 
@@ -117,6 +120,77 @@ class TestControlListener:
                 pass
 
         control_listener._reader_loop(ClosingSocket())  # type: ignore[arg-type]
+
+    def test_late_negotiation_response_remains_receipt_capable(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        receipt = EngineOutcomeReceipt.state_reported(
+            state_id=uuid.uuid4(),
+            state_type="COMPLETED",
+            state_name="Completed",
+        )
+        response = encode_negotiation(CURRENT_PROTOCOL_VERSION, RECEIPT_CAPABILITY)
+
+        class LateNegotiationSocket:
+            def __init__(self) -> None:
+                self.sent: list[bytes] = []
+                self.recv_count = 0
+                self.ready_for_receipt = threading.Event()
+                self.receipt_sent = threading.Event()
+
+            def connect(self, address: tuple[str, int]) -> None:
+                pass
+
+            def sendall(self, data: bytes) -> None:
+                self.sent.append(data)
+                if data.startswith(RECEIPT_PREFIX):
+                    self.receipt_sent.set()
+
+            def recv(self, size: int) -> bytes:
+                self.recv_count += 1
+                if self.recv_count == 1:
+                    raise TimeoutError
+                if self.recv_count == 2:
+                    return response[:1]
+                if self.recv_count == 3:
+                    return response[1:]
+                if self.recv_count == 4:
+                    self.ready_for_receipt.set()
+                    assert self.receipt_sent.wait(timeout=1.0) is True
+                    return RECEIPT_ACK
+                return b""
+
+            def settimeout(self, value: float | None) -> None:
+                pass
+
+            def shutdown(self, how: int) -> None:
+                pass
+
+            def close(self) -> None:
+                pass
+
+        sock = LateNegotiationSocket()
+        monkeypatch.setattr(
+            control_listener.socket,
+            "socket",
+            lambda *args, **kwargs: sock,
+        )
+        os.environ["PREFECT__CONTROL_PORT"] = "4201"
+        os.environ["PREFECT__CONTROL_TOKEN"] = "late-negotiation-token"
+
+        control_listener.start()
+
+        assert sock.ready_for_receipt.wait(timeout=1.0) is True
+        assert control_listener.report_engine_outcome(receipt) is True
+        reader_thread = control_listener._reader_thread
+        assert reader_thread is not None
+        reader_thread.join(timeout=1.0)
+        assert reader_thread.is_alive() is False
+        assert sock.sent == [
+            b"late-negotiation-token\n",
+            encode_negotiation(CURRENT_PROTOCOL_VERSION, RECEIPT_CAPABILITY),
+            encode_receipt(receipt),
+        ]
 
     async def test_configure_from_env_consumes_env_and_defers_connection(
         self,
