@@ -37,7 +37,7 @@ jobs:
           filter: blob:none
 
       - name: Install uv and set the python version
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v9.0.0
         with:
           python-version: "3.10"
           enable-cache: true
@@ -75,7 +75,7 @@ jobs:
           filter: blob:none
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v9.0.0
         with:
           python-version: "3.12"
           enable-cache: true

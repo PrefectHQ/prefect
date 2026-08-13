@@ -1,17 +1,23 @@
 import asyncio
+import re
+from collections.abc import Mapping, Sequence
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from itertools import permutations
 from pathlib import Path
-from typing import AsyncGenerator
+from typing import Any, AsyncGenerator, Optional
 from unittest.mock import patch
 from uuid import UUID, uuid4
 
 import pytest
+import sqlalchemy as sa
+from sqlalchemy.engine import Connection
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.sql.dml import Insert
 
 from prefect._internal.testing import retry_asserts
+from prefect.server.database import provide_database_interface
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.models.flow_runs import create_flow_run
 from prefect.server.models.task_run_states import (
@@ -1205,12 +1211,16 @@ async def test_periodic_flush_survives_dropped_events(
 
 def make_event_with_flow_run(
     task_run_id: str,
-    flow_run_id: str,
+    flow_run_id: Optional[str],
     task_key: str,
     dynamic_key: str,
     state_ts: datetime,
     state_type: StateType = StateType.RUNNING,
+    task_run_fields: Optional[dict[str, Any]] = None,
 ) -> ReceivedEvent:
+    """`flow_run_id=None` omits the `flow-run` related resource entirely, which is
+    how an event for a task run with no flow run arrives.
+    """
     state_ts_str = state_ts.isoformat()
     return ReceivedEvent(
         occurred=state_ts_str,
@@ -1229,7 +1239,9 @@ def make_event_with_flow_run(
                 "prefect.resource.id": f"prefect.flow-run.{flow_run_id}",
                 "prefect.resource.role": "flow-run",
             },
-        ],
+        ]
+        if flow_run_id is not None
+        else [],
         payload={
             "intended": {"from": "PENDING", "to": state_type.name},
             "validated_state": {
@@ -1241,6 +1253,7 @@ def make_event_with_flow_run(
                 "name": "test-task-run",
                 "task_key": task_key,
                 "dynamic_key": dynamic_key,
+                **(task_run_fields or {}),
             },
         },
         account=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
@@ -1248,6 +1261,30 @@ def make_event_with_flow_run(
         received=state_ts_str,
         id=uuid4(),
         follows=None,
+    )
+
+
+BASE_TIME = datetime(2024, 1, 1, tzinfo=timezone.utc)
+
+
+def upsert_event(
+    flow_run_id: Optional[str],
+    key: Any = 0,
+    *,
+    task_run_id: Optional[str] = None,
+    minutes: int = 0,
+    state_type: StateType = StateType.RUNNING,
+    **task_run_fields: Any,
+) -> ReceivedEvent:
+    """A task run event whose natural key is derived from `key`."""
+    return make_event_with_flow_run(
+        task_run_id=task_run_id or str(uuid4()),
+        flow_run_id=flow_run_id,
+        task_key=f"task-{key}",
+        dynamic_key=f"dyn-{key}",
+        state_ts=BASE_TIME + timedelta(minutes=minutes),
+        state_type=state_type,
+        task_run_fields=task_run_fields or None,
     )
 
 
@@ -1528,6 +1565,50 @@ async def test_bulk_upsert_keeps_existing_id_hidden_by_same_batch_conflict(
     assert {state.state_details.task_run_id for state in states} == {task_run.id}
 
 
+async def test_bulk_upsert_canonical_id_rewrite_does_not_raise_key_error(
+    session: AsyncSession,
+    flow_run: FlowRun,
+):
+    """A conflict-target rewrite must not strand the row's canonical-id lookup.
+
+    The rewrite changes `task_run.id`, and so the upsert key of a winning row
+    that has no flow run. That raised `KeyError`, which is not an `IntegrityError`
+    and so was never retried: `flush()` requeued the batch and eventually dropped
+    every event in it.
+    """
+    flow_run_id = str(flow_run.id)
+    canonical, orphan = str(uuid4()), str(uuid4())
+
+    # An existing task run holds the natural key under an id this flush never sees.
+    await task_run_recorder.record_bulk_task_run_events(
+        [upsert_event(flow_run_id, task_run_id=canonical, state_type=StateType.PENDING)]
+    )
+
+    # Two events share an id but disagree about the flow run. The later one wins
+    # the coalesce, and it has no flow run, so it keys on ("id", orphan).
+    await task_run_recorder.record_bulk_task_run_events(
+        [
+            upsert_event(flow_run_id, task_run_id=orphan, minutes=1),
+            upsert_event(
+                None, task_run_id=orphan, minutes=2, state_type=StateType.COMPLETED
+            ),
+        ]
+    )
+
+    session.expire_all()
+    task_run = await read_task_run(session=session, task_run_id=canonical)
+    assert task_run is not None
+    assert task_run.state_type == StateType.COMPLETED
+    assert await read_task_run(session=session, task_run_id=orphan) is None
+
+    states = await read_task_run_states(session, task_run.id)
+    assert [state.type for state in states] == [
+        StateType.PENDING,
+        StateType.RUNNING,
+        StateType.COMPLETED,
+    ]
+
+
 async def test_bulk_upsert_coalesces_natural_key_conflicts_in_same_batch(
     session: AsyncSession,
     flow_run,
@@ -1629,26 +1710,109 @@ async def test_bulk_insert_handles_shuffled_interleaved_events(
         }
 
 
+TASK_RUN_INSERT = re.compile(
+    r"INSERT INTO task_run \((?P<columns>[^)]*)\) VALUES (?P<values>.*?)"
+    r"(?: ON CONFLICT|$)",
+    re.DOTALL,
+)
+VALUES_ROW = re.compile(r"\(([^()]*)\)")
+
+
+@dataclass(frozen=True)
+class ExecutedUpsert:
+    """One `task_run` upsert, as the database driver received it."""
+
+    sql: str
+    parameters: Sequence[Any] | Mapping[str, Any]
+
+    @property
+    def columns(self) -> list[str]:
+        """The single column list every row of the statement shares."""
+        return [column.strip() for column in self._match["columns"].split(",")]
+
+    @property
+    def rows(self) -> list[dict[str, Any]]:
+        """The `VALUES` rows, re-read from the statement and its bind values.
+
+        Values are the ones the driver was given, so a column carrying a
+        database type decorator (`id`, `flow_run_id`) arrives in its stored
+        form. A driver taking positional parameters gets them flattened, in the
+        order the placeholders appear.
+        """
+        columns = self.columns
+        remaining = (
+            None
+            if isinstance(self.parameters, Mapping)
+            else iter(self.parameters)  # positional paramstyle
+        )
+
+        rows: list[dict[str, Any]] = []
+        for row in VALUES_ROW.findall(self._match["values"]):
+            placeholders = [placeholder.strip() for placeholder in row.split(",")]
+            assert len(placeholders) == len(columns), self.sql
+            if remaining is None:
+                assert isinstance(self.parameters, Mapping)
+                # a value SQLAlchemy repeats across rows keeps one bind, so read
+                # each row through its own placeholders rather than by column
+                values = [
+                    self.parameters[placeholder.removeprefix(":")]
+                    for placeholder in placeholders
+                ]
+            else:
+                values = [next(remaining) for _ in placeholders]
+            rows.append(dict(zip(columns, values)))
+        return rows
+
+    @property
+    def _match(self) -> re.Match[str]:
+        match = TASK_RUN_INSERT.search(self.sql)
+        assert match is not None, self.sql
+        return match
+
+
+@asynccontextmanager
+async def capture_task_run_upserts() -> AsyncGenerator[list[ExecutedUpsert], None]:
+    """Every `task_run` upsert the recorder executes, in order.
+
+    Listens for SQLAlchemy's `before_cursor_execute` event, which is documented
+    engine instrumentation and fires with the final SQL text and bind values,
+    after compilation. So these are the statements the database ran, whatever
+    they were built from.
+    """
+    captured: list[ExecutedUpsert] = []
+    engine = await provide_database_interface().engine()
+
+    def before_cursor_execute(
+        conn: Connection,
+        cursor: Any,
+        statement: str,
+        parameters: Any,
+        context: Any,
+        executemany: bool,
+    ) -> None:
+        if TASK_RUN_INSERT.search(statement):
+            snapshot = (
+                dict(parameters)
+                if isinstance(parameters, Mapping)
+                else list(parameters)
+            )
+            captured.append(ExecutedUpsert(statement, snapshot))
+
+    sa.event.listen(engine.sync_engine, "before_cursor_execute", before_cursor_execute)
+    try:
+        yield captured
+    finally:
+        sa.event.remove(
+            engine.sync_engine, "before_cursor_execute", before_cursor_execute
+        )
+
+
 async def test_bulk_upserts_are_sorted_by_conflict_key(
     session: AsyncSession,
     flow_run,
 ):
     """Bulk upsert VALUES are sorted by conflict key so concurrent recorders
     acquire row-level locks in the same order, preventing deadlocks."""
-    captured_key_orders: list[list[tuple[UUID, str, str]]] = []
-    original_values = Insert.values
-
-    def spy_values(self, *args, **kwargs):
-        if args and isinstance(args[0], list) and args[0]:
-            if isinstance(args[0][0], dict) and "task_key" in args[0][0]:
-                captured_key_orders.append(
-                    [
-                        (row["flow_run_id"], row["task_key"], row["dynamic_key"])
-                        for row in args[0]
-                    ]
-                )
-        return original_values(self, *args, **kwargs)
-
     base_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
     flow_run_id = str(flow_run.id)
     task_run_ids = [str(uuid4()) for _ in range(10)]
@@ -1665,11 +1829,15 @@ async def test_bulk_upserts_are_sorted_by_conflict_key(
         for tid in task_run_ids
     ]
 
-    with patch.object(Insert, "values", spy_values):
+    async with capture_task_run_upserts() as statements:
         await task_run_recorder.record_bulk_task_run_events(events)
 
-    assert len(captured_key_orders) > 0
-    for keys in captured_key_orders:
+    assert len(statements) > 0
+    for statement in statements:
+        keys = [
+            (row["flow_run_id"], row["task_key"], row["dynamic_key"])
+            for row in statement.rows
+        ]
         assert keys == sorted(keys)
 
 
@@ -1683,18 +1851,6 @@ async def test_bulk_upserts_preserve_global_conflict_key_order_across_column_gro
     signatures together can reorder already-sorted conflict keys and reintroduce
     lock-order inversions across concurrent recorders.
     """
-    captured_keys: list[tuple[UUID, str, str]] = []
-    original_values = Insert.values
-
-    def spy_values(self, *args, **kwargs):
-        if args and isinstance(args[0], list) and args[0]:
-            if isinstance(args[0][0], dict) and "task_key" in args[0][0]:
-                captured_keys.extend(
-                    (row["flow_run_id"], row["task_key"], row["dynamic_key"])
-                    for row in args[0]
-                )
-        return original_values(self, *args, **kwargs)
-
     base_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
     flow_run_id = str(flow_run.id)
     events: list[ReceivedEvent] = []
@@ -1712,9 +1868,14 @@ async def test_bulk_upserts_preserve_global_conflict_key_order_across_column_gro
             event.payload["task_run"]["run_count"] = i + 1
         events.append(event)
 
-    with patch.object(Insert, "values", spy_values):
+    async with capture_task_run_upserts() as statements:
         await task_run_recorder.record_bulk_task_run_events(events)
 
+    captured_keys = [
+        (row["flow_run_id"], row["task_key"], row["dynamic_key"])
+        for statement in statements
+        for row in statement.rows
+    ]
     assert [key[1] for key in captured_keys] == [f"task-{i:02d}" for i in range(6)]
     assert captured_keys == sorted(captured_keys)
 
@@ -1793,3 +1954,259 @@ async def test_bulk_upsert_raises_after_max_retries_on_integrity_error(
         await task_run_recorder.record_bulk_task_run_events([event])
 
     assert call_count == 2
+
+
+def upsert_sort_key(row: dict[str, Any]) -> tuple[Any, ...]:
+    """The conflict key the recorder sorts by, recovered from an inserted row."""
+    if row.get("flow_run_id") is None:
+        return ("id", row["id"])
+    return ("natural-key", row["flow_run_id"], row["task_key"], row["dynamic_key"])
+
+
+async def test_bulk_upsert_never_repeats_a_conflict_target_in_one_statement(
+    session: AsyncSession,
+    flow_run: FlowRun,
+):
+    """Two distinct conflict groups can resolve to the same canonical id.
+
+    Merged into one statement, PostgreSQL raises `ON CONFLICT DO UPDATE command
+    cannot affect row a second time`, which is not an `IntegrityError` and so is
+    never retried. SQLite silently applies last-write-wins instead.
+    """
+    flow_run_id = str(flow_run.id)
+    canonical, orphan = str(uuid4()), str(uuid4())
+
+    await task_run_recorder.record_bulk_task_run_events(
+        [upsert_event(flow_run_id, task_run_id=canonical, state_type=StateType.PENDING)]
+    )
+
+    async with capture_task_run_upserts() as statements:
+        await task_run_recorder.record_bulk_task_run_events(
+            [
+                # already exists under its own id; `start_time` keeps the column
+                # sets apart, so only the repeated-target rule can split these
+                upsert_event(
+                    None,
+                    task_run_id=canonical,
+                    minutes=1,
+                    start_time=BASE_TIME.isoformat(),
+                ),
+                # a separate group, rewritten onto `canonical` because its
+                # sibling contributes the natural key that already exists
+                upsert_event(flow_run_id, task_run_id=orphan, minutes=2),
+                upsert_event(
+                    None,
+                    task_run_id=orphan,
+                    minutes=3,
+                    state_type=StateType.COMPLETED,
+                ),
+            ]
+        )
+
+    assert len(statements) == 2
+    for statement in statements:
+        ids = [row["id"] for row in statement.rows]
+        assert len(set(ids)) == len(ids)
+
+    session.expire_all()
+    task_run = await read_task_run(session=session, task_run_id=canonical)
+    assert task_run is not None
+    assert task_run.state_type == StateType.COMPLETED
+    assert await read_task_run(session=session, task_run_id=orphan) is None
+    assert len(await read_task_run_states(session, task_run.id)) == 4
+
+
+async def test_bulk_upsert_detaches_a_task_run_from_its_flow_run(
+    session: AsyncSession,
+    flow_run: FlowRun,
+):
+    """`flow_run_id` is held out of `fillable`, so it keeps a plain
+    `excluded.flow_run_id` and an event that drops its `flow-run` related
+    resource still clears the column rather than coalescing the old value back.
+    """
+    task_run_id = str(uuid4())
+
+    await task_run_recorder.record_bulk_task_run_events(
+        [upsert_event(str(flow_run.id), task_run_id=task_run_id)]
+    )
+    await task_run_recorder.record_bulk_task_run_events(
+        [upsert_event(None, task_run_id=task_run_id, minutes=1)]
+    )
+
+    session.expire_all()
+    task_run = await read_task_run(session=session, task_run_id=task_run_id)
+    assert task_run is not None
+    assert task_run.flow_run_id is None
+
+
+async def test_bulk_upsert_statements_stay_within_the_parameter_budget(
+    session: AsyncSession,
+    flow_run: FlowRun,
+):
+    """`max_rows` must bound the bind parameters a statement carries, not rows
+    times keys.
+
+    SQLAlchemy renders a parameter for every column carrying a Python-side
+    default whether or not the row supplies it, so a budget derived from the
+    keys actually inserted would be breached silently.
+    """
+    budget = 200
+
+    with patch.object(task_run_recorder, "get_max_query_parameters", lambda: budget):
+        async with capture_task_run_upserts() as statements:
+            await task_run_recorder.record_bulk_task_run_events(
+                [upsert_event(str(flow_run.id), i) for i in range(20)]
+            )
+
+    assert len(statements) > 1, "the flush must be split for this to prove anything"
+    for statement in statements:
+        assert len(statement.parameters) <= budget
+
+
+async def test_bulk_upserts_preserve_global_order_across_conflict_targets(
+    session: AsyncSession,
+    flow_run: FlowRun,
+):
+    """Segments are contiguous blocks, so mixed conflict targets stay in order."""
+    events = [
+        upsert_event(
+            # every other event has no flow run, so takes an "id" conflict target
+            str(flow_run.id) if i % 2 else None,
+            f"{i:02d}",
+            **({"start_time": BASE_TIME.isoformat()} if i % 3 else {}),
+        )
+        for i in range(12)
+    ]
+
+    async with capture_task_run_upserts() as statements:
+        await task_run_recorder.record_bulk_task_run_events(events)
+
+    assert {
+        "id" if statement.rows[0].get("flow_run_id") is None else "natural-key"
+        for statement in statements
+    } == {"id", "natural-key"}, "the flush must exercise both conflict targets"
+
+    keys = [upsert_sort_key(row) for statement in statements for row in statement.rows]
+    assert len(keys) == 12
+    assert keys == sorted(keys)
+
+
+async def test_bulk_upsert_unions_fillable_columns_and_splits_on_defaulted_ones(
+    session: AsyncSession,
+    flow_run: FlowRun,
+):
+    """`task_version` is fillable, so it widens a segment. SQLAlchemy builds a
+    statement's column list from its first row, so the value only the second row
+    supplies would otherwise vanish. `run_count` is NOT NULL with a Python-side
+    default, so filling it would raise instead, and that segment has to close.
+    """
+    flow_run_id = str(flow_run.id)
+    bare, versioned, counted = str(uuid4()), str(uuid4()), str(uuid4())
+
+    async with capture_task_run_upserts() as statements:
+        await task_run_recorder.record_bulk_task_run_events(
+            [
+                upsert_event(flow_run_id, 0, task_run_id=bare),
+                upsert_event(flow_run_id, 1, task_run_id=versioned, task_version="v2"),
+                upsert_event(flow_run_id, 2, task_run_id=counted, run_count=3),
+            ]
+        )
+
+    assert [len(statement.rows) for statement in statements] == [2, 1]
+    assert "task_version" in statements[0].columns
+
+    session.expire_all()
+    persisted = {
+        task_run_id: await read_task_run(session=session, task_run_id=task_run_id)
+        for task_run_id in (bare, versioned, counted)
+    }
+    assert persisted[versioned].task_version == "v2"
+    assert persisted[bare].task_version is None
+    # the omitted column took its default rather than a NULL fill
+    assert persisted[bare].run_count == 0
+    assert persisted[counted].run_count == 3
+
+
+async def test_bulk_upsert_does_not_clobber_values_a_sibling_row_omits(
+    session: AsyncSession,
+    flow_run: FlowRun,
+):
+    """Sharing a segment must not let one row's missing keys wipe another row's
+    stored values. `labels` is the only fillable JSON column: SQLAlchemy would persist
+    a `None` fill as JSON `null`, defeating `coalesce`, were it not for
+    Prefect's `JSON` type setting `none_as_null=True`.
+    """
+    flow_run_id = str(flow_run.id)
+    established, sibling = str(uuid4()), str(uuid4())
+    stored = {"labels": {"team": "platform"}, "task_version": "v1"}
+    overwrites = {"labels": {"team": "infra"}, "task_version": "v9"}
+
+    await task_run_recorder.record_bulk_task_run_events(
+        [upsert_event(flow_run_id, 0, task_run_id=established, **stored)]
+    )
+
+    async with capture_task_run_upserts() as statements:
+        await task_run_recorder.record_bulk_task_run_events(
+            [
+                # carries neither of those...
+                upsert_event(
+                    flow_run_id,
+                    0,
+                    task_run_id=established,
+                    minutes=1,
+                    state_type=StateType.COMPLETED,
+                ),
+                # ...but shares a segment with a row that sets both
+                upsert_event(
+                    flow_run_id, 1, task_run_id=sibling, minutes=1, **overwrites
+                ),
+            ]
+        )
+
+    # pin the composition: without both rows in one statement this asserts nothing
+    assert [len(statement.rows) for statement in statements] == [2]
+
+    session.expire_all()
+    task_run = await read_task_run(session=session, task_run_id=established)
+    assert task_run is not None
+    assert task_run.state_type == StateType.COMPLETED
+    assert {key: getattr(task_run, key) for key in stored} == stored
+
+
+async def test_bulk_upsert_clears_a_column_a_payload_sets_to_null(
+    session: AsyncSession,
+    flow_run: FlowRun,
+):
+    """`coalesce` must not swallow a real NULL.
+
+    A row that omits `cache_key` has it NULL-filled and coalesced back, but a row
+    that sets it to `null` is asking to clear it. With both in one flush the
+    batch has to split, since one statement cannot mean both.
+    """
+    flow_run_id = str(flow_run.id)
+    clears, keeps = str(uuid4()), str(uuid4())
+
+    await task_run_recorder.record_bulk_task_run_events(
+        [
+            upsert_event(flow_run_id, 0, task_run_id=clears, cache_key="cache-000"),
+            upsert_event(flow_run_id, 1, task_run_id=keeps, cache_key="cache-001"),
+        ]
+    )
+
+    async with capture_task_run_upserts() as statements:
+        await task_run_recorder.record_bulk_task_run_events(
+            [
+                upsert_event(
+                    flow_run_id, 0, task_run_id=clears, minutes=1, cache_key=None
+                ),
+                upsert_event(flow_run_id, 1, task_run_id=keeps, minutes=1),
+            ]
+        )
+
+    assert len(statements) == 2, "a real NULL and a NULL fill cannot share a statement"
+
+    session.expire_all()
+    cleared = await read_task_run(session=session, task_run_id=clears)
+    kept = await read_task_run(session=session, task_run_id=keeps)
+    assert cleared is not None and cleared.cache_key is None
+    assert kept is not None and kept.cache_key == "cache-001"

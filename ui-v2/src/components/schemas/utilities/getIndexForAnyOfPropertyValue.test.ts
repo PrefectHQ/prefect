@@ -1,4 +1,4 @@
-import type { SchemaObject } from "openapi-typescript";
+import type { ReferenceObject, SchemaObject } from "openapi-typescript";
 import { describe, expect, test } from "vitest";
 import { getIndexForAnyOfPropertyValue } from "./getIndexForAnyOfPropertyValue";
 
@@ -42,6 +42,80 @@ describe("getIndexForAnyOfPropertyValue", () => {
 		expect(
 			getIndexForAnyOfPropertyValue({ value: true, property, schema }),
 		).toBe(1);
+	});
+
+	test("returns index of enum definition for string value in the enum", () => {
+		const property = {
+			anyOf: [
+				{ type: "string", format: "date" },
+				{ type: "string", enum: ["today", "prev", "prev_td"] },
+			],
+		} as SchemaObject & { anyOf: SchemaObject[] };
+		expect(
+			getIndexForAnyOfPropertyValue({ value: "prev_td", property, schema }),
+		).toBe(1);
+	});
+
+	test("returns index of non enum definition for string value not in the enum", () => {
+		const property = {
+			anyOf: [
+				{ type: "string", format: "date" },
+				{ type: "string", enum: ["today", "prev", "prev_td"] },
+			],
+		} as SchemaObject & { anyOf: SchemaObject[] };
+		expect(
+			getIndexForAnyOfPropertyValue({ value: "2024-01-15", property, schema }),
+		).toBe(0);
+	});
+
+	test("returns index of matching enum definition when every definition is an enum", () => {
+		const property = {
+			anyOf: [
+				{ type: "string", enum: ["a", "b"] },
+				{ type: "string", enum: ["c", "d"] },
+			],
+		} as SchemaObject & { anyOf: SchemaObject[] };
+		expect(
+			getIndexForAnyOfPropertyValue({ value: "c", property, schema }),
+		).toBe(1);
+	});
+
+	test("returns index of referenced enum definition without a type", () => {
+		const schemaWithDefinitions = {
+			type: "object",
+			properties: {},
+			definitions: {
+				AsyncDriver: { enum: ["postgresql+asyncpg", "sqlite+aiosqlite"] },
+				SyncDriver: { enum: ["postgresql+psycopg2", "sqlite+pysqlite"] },
+			},
+		} as SchemaObject & {
+			definitions: Record<string, { enum: string[] }>;
+		};
+		const property = {
+			anyOf: [
+				{ $ref: "#/definitions/AsyncDriver" },
+				{ $ref: "#/definitions/SyncDriver" },
+				{ type: "string" },
+			],
+		} as SchemaObject & {
+			anyOf: (SchemaObject | ReferenceObject)[];
+		};
+		expect(
+			getIndexForAnyOfPropertyValue({
+				value: "sqlite+pysqlite",
+				property,
+				schema: schemaWithDefinitions,
+			}),
+		).toBe(1);
+	});
+
+	test("returns index of enum definition for number value in the enum", () => {
+		const property = {
+			anyOf: [{ type: "integer" }, { type: "integer", enum: [1, 2, 3] }],
+		} as SchemaObject & { anyOf: SchemaObject[] };
+		expect(getIndexForAnyOfPropertyValue({ value: 2, property, schema })).toBe(
+			1,
+		);
 	});
 
 	describe("prefect kind values", () => {
@@ -90,6 +164,85 @@ describe("getIndexForAnyOfPropertyValue", () => {
 				0,
 			);
 		});
+	});
+
+	describe("record values", () => {
+		test("returns index of the definition with the most properties in common", () => {
+			const property = {
+				anyOf: [
+					{ type: "object", properties: { a: { type: "string" } } },
+					{
+						type: "object",
+						properties: { a: { type: "string" }, b: { type: "string" } },
+					},
+				],
+			} as unknown as SchemaObject;
+			expect(
+				getIndexForAnyOfPropertyValue({
+					value: { a: "1", b: "2" },
+					property,
+					schema,
+				}),
+			).toBe(1);
+		});
+
+		test("returns index of the object definition when no definition declares properties", () => {
+			const property = {
+				anyOf: [{ type: "null" }, { type: "object" }],
+			} as unknown as SchemaObject;
+			expect(
+				getIndexForAnyOfPropertyValue({
+					value: { retries: 2 },
+					property,
+					schema,
+				}),
+			).toBe(1);
+		});
+
+		test("returns index of the dict definition over a structured definition with no property keys in common", () => {
+			const property = {
+				anyOf: [
+					{ type: "object", properties: { a: { type: "string" } } },
+					{ type: "object" },
+				],
+			} as unknown as SchemaObject;
+			expect(
+				getIndexForAnyOfPropertyValue({
+					value: { unexpected: "value" },
+					property,
+					schema,
+				}),
+			).toBe(1);
+		});
+
+		test("returns index of the object definition when no property keys are in common", () => {
+			const property = {
+				anyOf: [
+					{ type: "null" },
+					{ type: "object", properties: { a: { type: "string" } } },
+				],
+			} as unknown as SchemaObject;
+			expect(
+				getIndexForAnyOfPropertyValue({
+					value: { unexpected: "value" },
+					property,
+					schema,
+				}),
+			).toBe(1);
+		});
+	});
+
+	test("returns 0 when no definition matches the value", () => {
+		const property = {
+			anyOf: [{ type: "string" }, { type: "null" }],
+		} as unknown as SchemaObject;
+		expect(
+			getIndexForAnyOfPropertyValue({
+				value: { unexpected: "value" },
+				property,
+				schema,
+			}),
+		).toBe(0);
 	});
 
 	test("returns 0 when using default value and value is undefined", () => {

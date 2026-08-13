@@ -14,7 +14,8 @@ import {
 	type SchemaValuePropertyError,
 } from "./types/errors";
 import { useSchemaFormContext } from "./use-schema-form-context";
-import { isDefined } from "./utilities/guards";
+import { getIndexForAnyOfPropertyValue } from "./utilities/getIndexForAnyOfPropertyValue";
+import { isArray, isDefined } from "./utilities/guards";
 import { mergeSchemaPropertyDefinition } from "./utilities/mergeSchemaPropertyDefinition";
 
 export type SchemaFormPropertyProps = {
@@ -58,20 +59,57 @@ export function SchemaFormProperty({
 	const [omitted, setOmitted] = useState(false);
 	const id = useId();
 
+	const shouldOmitRequiredArray = useCallback(
+		(value: unknown) => {
+			if (!required || !isArray(value)) {
+				return false;
+			}
+
+			const anyOfIndex = getIndexForAnyOfPropertyValue({
+				value,
+				property,
+				schema,
+			});
+			const arrayProperty = property.anyOf?.[anyOfIndex]
+				? mergeSchemaPropertyDefinition(property.anyOf[anyOfIndex], schema)
+				: property;
+			const minItems =
+				"minItems" in arrayProperty &&
+				typeof arrayProperty.minItems === "number"
+					? arrayProperty.minItems
+					: 1;
+
+			return value.length < minItems;
+		},
+		[property, required, schema],
+	);
+
 	const handleValueChange = useCallback(
 		(value: unknown) => {
 			setInternalValue(value);
+
+			if (shouldOmitRequiredArray(value)) {
+				onValueChange(undefined);
+				return;
+			}
+
 			onValueChange(value);
 		},
-		[onValueChange],
+		[onValueChange, shouldOmitRequiredArray],
 	);
 
 	const handleOmittedChange = useCallback(() => {
 		const isOmitted = !omitted;
 
 		setOmitted(isOmitted);
-		onValueChange(isOmitted ? undefined : internalValue);
-	}, [omitted, onValueChange, internalValue]);
+
+		if (isOmitted) {
+			onValueChange(undefined);
+			return;
+		}
+
+		handleValueChange(internalValue);
+	}, [omitted, onValueChange, handleValueChange, internalValue]);
 
 	useEffect(() => {
 		if (initialized || skipDefaultValueInitialization) {
@@ -94,8 +132,12 @@ export function SchemaFormProperty({
 	useEffect(() => {
 		if (isDefined(value)) {
 			setInternalValue(value);
+
+			if (shouldOmitRequiredArray(value)) {
+				onValueChange(undefined);
+			}
 		}
-	}, [value]);
+	}, [onValueChange, shouldOmitRequiredArray, value]);
 
 	function getInitialValue() {
 		if (isDefined(value)) {
