@@ -549,6 +549,66 @@ async def test_updates_task_run_on_subsequent_state_changes(
     )
 
 
+async def test_duplicate_state_timestamps_are_advanced(
+    session: AsyncSession,
+    running_event: ReceivedEvent,
+    completed_event: ReceivedEvent,
+):
+    """A later state that shares the prior state's timestamp must still persist.
+
+    https://github.com/PrefectHQ/prefect/issues/19261
+    """
+    completed_event.occurred = running_event.occurred
+    completed_event.resource["prefect.state-timestamp"] = (
+        running_event.occurred.isoformat()
+    )
+
+    await task_run_recorder.record_bulk_task_run_events([running_event])
+    await task_run_recorder.record_bulk_task_run_events([completed_event])
+
+    task_run = await read_task_run(
+        session=session,
+        task_run_id=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+    )
+    assert task_run is not None
+    assert task_run.state_type == StateType.COMPLETED
+
+    states = await read_task_run_states(session, task_run.id)
+    running = next(state for state in states if state.type == StateType.RUNNING)
+    completed = next(state for state in states if state.type == StateType.COMPLETED)
+    assert completed.timestamp == running.timestamp + timedelta(microseconds=1)
+
+
+async def test_duplicate_state_timestamps_in_one_batch_are_advanced(
+    session: AsyncSession,
+    running_event: ReceivedEvent,
+    completed_event: ReceivedEvent,
+):
+    completed_event.occurred = running_event.occurred
+    completed_event.resource["prefect.state-timestamp"] = (
+        running_event.occurred.isoformat()
+    )
+
+    await task_run_recorder.record_bulk_task_run_events(
+        [running_event, completed_event]
+    )
+
+    task_run = await read_task_run(
+        session=session,
+        task_run_id=UUID("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+    )
+    assert task_run is not None
+    assert task_run.state_type == StateType.COMPLETED
+
+    states = await read_task_run_states(session, task_run.id)
+    timestamps = {state.timestamp for state in states}
+    assert len(states) == 2
+    assert len(timestamps) == 2
+    completed = next(state for state in states if state.type == StateType.COMPLETED)
+    running = next(state for state in states if state.type == StateType.RUNNING)
+    assert completed.timestamp == running.timestamp + timedelta(microseconds=1)
+
+
 async def test_updates_only_fields_that_are_set(
     session: AsyncSession,
     pending_event: ReceivedEvent,
@@ -766,13 +826,18 @@ async def test_task_run_recorder_handles_all_out_of_order_permutations(
 async def test_task_run_recorder_sends_repeated_failed_messages_to_dead_letter(
     pending_event: ReceivedEvent,
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ):
+    """Unrecoverable persist errors still go to the dead letter queue (#15607).
+
+    Same-timestamp collisions are no longer an IntegrityError (see #19261); this
+    covers the remaining drop path with a persist failure that retries cannot fix.
     """
-    Test to ensure situations like the one described in https://github.com/PrefectHQ/prefect/issues/15607
-    don't overwhelm the task run recorder.
-    """
-    pending_transition_time = datetime(2024, 1, 1, 0, 0, 0, 0, tzinfo=timezone.utc)
-    assert pending_event.occurred == pending_transition_time
+
+    async def boom(events: list[ReceivedEvent]) -> None:
+        raise IntegrityError("simulated", None, Exception("unrecoverable"))
+
+    monkeypatch.setattr(task_run_recorder, "record_bulk_task_run_events", boom)
 
     service = task_run_recorder.TaskRunRecorder()
 
@@ -783,15 +848,6 @@ async def test_task_run_recorder_sends_repeated_failed_messages_to_dead_letter(
     async with create_publisher("events") as publisher:
         await publisher.publish_data(
             message(pending_event).data, message(pending_event).attributes
-        )
-        # Sending a task run event with the same task run id and timestamp but
-        # a different id will raise an error when trying to insert it into the
-        # database
-        duplicate_pending_event = pending_event.model_copy()
-        duplicate_pending_event.id = UUID("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
-        await publisher.publish_data(
-            message(duplicate_pending_event).data,
-            message(duplicate_pending_event).attributes,
         )
 
     while not list(service.consumer.subscription.dead_letter_queue_path.glob("*")):
