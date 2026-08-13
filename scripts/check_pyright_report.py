@@ -1,16 +1,21 @@
 """
-Report on a pyright JSON report and fail if it found errors or analyzed no files.
+Report on a pyright JSON report and fail if the run was not a clean, real run.
 
 Pyright exits 0 when its configuration matches no files at all, so a
 misconfigured `include` silently turns the CI check into a no-op. Running with
 `--outputjson` and checking the summary here catches that case.
 
-Usage: python scripts/check_pyright_report.py <report.json>
+Usage: python scripts/check_pyright_report.py <report.json> [--pyright-status N]
 """
 
+import argparse
 import json
 import sys
 from typing import Any
+
+# pyright exits 0 with no diagnostics and 1 when it reports diagnostics; anything
+# higher is a pyright failure, e.g. an unparseable config file
+MAX_EXPECTED_PYRIGHT_STATUS = 1
 
 
 def format_diagnostic(diagnostic: dict[str, Any]) -> str:
@@ -23,9 +28,12 @@ def format_diagnostic(diagnostic: dict[str, Any]) -> str:
     )
 
 
-def check_report(report: dict[str, Any]) -> list[str]:
+def check_report(report: dict[str, Any], pyright_status: int = 0) -> list[str]:
     """Return the reasons the pyright run should be considered a failure."""
     failures: list[str] = []
+
+    if pyright_status > MAX_EXPECTED_PYRIGHT_STATUS:
+        failures.append(f"pyright exited with status {pyright_status}")
 
     summary = report.get("summary", {})
     if not summary.get("filesAnalyzed"):
@@ -40,7 +48,7 @@ def check_report(report: dict[str, Any]) -> list[str]:
     return failures
 
 
-def main(report_path: str) -> int:
+def main(report_path: str, pyright_status: int) -> int:
     with open(report_path) as f:
         report = json.load(f)
 
@@ -49,7 +57,7 @@ def main(report_path: str) -> int:
 
     print(json.dumps(report.get("summary", {}), indent=2))
 
-    failures = check_report(report)
+    failures = check_report(report, pyright_status)
     for failure in failures:
         print(f"error: {failure}", file=sys.stderr)
 
@@ -57,8 +65,14 @@ def main(report_path: str) -> int:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python scripts/check_pyright_report.py <report.json>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("report", help="path to a pyright --outputjson report")
+    parser.add_argument(
+        "--pyright-status",
+        type=int,
+        default=0,
+        help="exit status of the pyright run that produced the report",
+    )
+    args = parser.parse_args()
 
-    sys.exit(main(sys.argv[1]))
+    sys.exit(main(args.report, args.pyright_status))
