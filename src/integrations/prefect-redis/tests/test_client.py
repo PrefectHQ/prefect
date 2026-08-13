@@ -401,14 +401,17 @@ def test_close_all_cached_connections(mock_cache):
 def _fake_client_with_sockets(n_conns: int = 2):
     """Build a MagicMock Redis whose pool mirrors redis.asyncio internals.
 
-    Each connection exposes ``_writer.transport.get_extra_info("socket")`` so
-    the dead-loop cleanup path can reach and close the underlying socket.
+    `get_extra_info("socket")` returns an asyncio TransportSocket wrapper whose
+    real socket is on `_sock`, so each connection nests the closable socket the
+    same way and the cleanup path can reach and close it.
     """
     sockets = [MagicMock(name=f"socket_{i}") for i in range(n_conns)]
     connections = []
     for sock in sockets:
         connection = MagicMock()
-        connection._writer.transport.get_extra_info.return_value = sock
+        transport_socket = MagicMock(name="transport_socket")
+        transport_socket._sock = sock
+        connection._writer.transport.get_extra_info.return_value = transport_socket
         connections.append(connection)
     client = MagicMock()
     client.connection_pool._available_connections = connections
@@ -482,3 +485,26 @@ async def test_clear_cached_clients_frees_dead_loop_sockets():
         sock.close.assert_called_once()
     client.aclose.assert_not_awaited()
     assert _client_cache == {}
+
+
+async def test_clear_cached_clients_frees_idle_loop_sockets():
+    """A client on an open-but-never-running loop must be socket-closed.
+
+    Scheduling aclose() on such a loop with run_coroutine_threadsafe would never
+    execute, so its sockets have to be closed directly instead.
+    """
+    _client_cache.clear()
+    idle_loop = asyncio.new_event_loop()  # open, but never run -> not running
+    try:
+        client, sockets = _fake_client_with_sockets()
+        client.aclose = AsyncMock()
+        _client_cache[(get_async_redis_client, (), (), idle_loop)] = client
+
+        await clear_cached_clients()
+
+        for sock in sockets:
+            sock.close.assert_called_once()
+        client.aclose.assert_not_awaited()
+        assert _client_cache == {}
+    finally:
+        idle_loop.close()
