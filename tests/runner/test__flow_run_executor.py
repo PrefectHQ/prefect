@@ -253,8 +253,11 @@ class TestFlowRunExecutorSubmit:
             attempt_conclusion=receipt,
         )
 
-        await executor.submit()
+        result = await executor.submit()
 
+        assert result is not None
+        assert result.handle is m["handle"]
+        assert result.status_code == 0
         m["get_attempt_conclusion"].assert_called_once_with(m["flow_run"].id)
         m["state_proposer"].propose_crashed.assert_not_awaited()
         m["hook_runner"].run_crashed_hooks.assert_not_awaited()
@@ -353,6 +356,15 @@ class TestFlowRunExecutorSubmit:
         info = get_infrastructure_exit_info(-9)
         assert str(-9) in msg
         assert info.explanation in msg
+
+    async def test_submit_returns_raw_unhandled_exit_status(self):
+        executor, m = _make_executor(handle_returncode=7)
+
+        result = await executor.submit()
+
+        assert result is not None
+        assert result.handle is m["handle"]
+        assert result.status_code == 7
 
     async def test_submit_logs_resolution_separately(
         self, caplog: "pytest.LogCaptureFixture"

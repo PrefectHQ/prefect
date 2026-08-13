@@ -29,6 +29,13 @@ from pydantic import Field, PrivateAttr, TypeAdapter, ValidationError, field_val
 
 from prefect._internal.schemas.validators import validate_working_dir
 from prefect.client.schemas.objects import Flow as APIFlow
+from prefect.flows import load_flow_from_flow_run
+from prefect.runner._flow_run_executor import (
+    FlowRunExecutionResult,
+    FlowRunExecutorContext,
+)
+from prefect.runner._process_manager import ProcessHandle
+from prefect.runner._starter_engine import EngineCommandStarter
 from prefect.runner._uv_command import uv_project_command
 from prefect.runner.runner import Runner
 from prefect.states import Pending
@@ -188,21 +195,42 @@ class ProcessWorker(
         )
         with working_dir_ctx as working_dir, warnings.catch_warnings():
             warnings.simplefilter("ignore", DeprecationWarning)
-            execution = await self._runner._execute_flow_run(
-                flow_run_id=flow_run.id,
-                command=configuration._resolve_command(working_dir),
-                cwd=working_dir,
-                env=configuration.env,
-                stream_output=configuration.stream_output,
-                task_status=task_status,
-            )
+            async with FlowRunExecutorContext() as ctx:
+                executor = ctx.create_executor(
+                    flow_run,
+                    EngineCommandStarter(
+                        command=configuration._resolve_command(working_dir),
+                        cwd=working_dir,
+                        env=configuration.env,
+                        stream_output=configuration.stream_output,
+                        control_channel=ctx.control_channel,
+                    ),
+                    resolve_flow=load_flow_from_flow_run,
+                    propose_submitting=False,
+                )
+                execution: FlowRunExecutionResult | None = None
+
+                async def execute(
+                    *,
+                    task_status: anyio.abc.TaskStatus[
+                        ProcessHandle
+                    ] = anyio.TASK_STATUS_IGNORED,
+                ) -> None:
+                    nonlocal execution
+                    execution = await executor.submit(task_status=task_status)
+
+                async with anyio.create_task_group() as task_group:
+                    handle = await task_group.start(execute)
+                    if handle.pid is None:
+                        raise RuntimeError("Flow run process has no PID")
+                    task_status.started(handle.pid)
 
         if execution is None or execution.status_code is None:
             raise RuntimeError("Failed to start flow run process.")
 
         return ProcessWorkerResult(
             status_code=execution.status_code,
-            identifier=str(execution.process.pid),
+            identifier=str(execution.handle.pid),
         )
 
     async def _submit_adhoc_run(

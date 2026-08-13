@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from contextlib import AsyncExitStack
-from typing import TYPE_CHECKING, Callable, Protocol
+from dataclasses import dataclass
+from types import TracebackType
+from typing import TYPE_CHECKING, Any, Protocol
 from uuid import UUID
 
 import anyio
@@ -44,6 +47,14 @@ class ProcessStarter(Protocol):
         flow_run: FlowRun,
         task_status: anyio.abc.TaskStatus[ProcessHandle] = anyio.TASK_STATUS_IGNORED,
     ) -> None: ...
+
+
+@dataclass(frozen=True)
+class FlowRunExecutionResult:
+    """Process handle plus the infrastructure status for a completed attempt."""
+
+    handle: ProcessHandle
+    status_code: int | None
 
 
 class FlowRunExecutor:
@@ -99,8 +110,8 @@ class FlowRunExecutor:
     async def submit(
         self,
         task_status: anyio.abc.TaskStatus[ProcessHandle] = anyio.TASK_STATUS_IGNORED,
-    ) -> None:
-        """Execute the full run lifecycle. Returns None.
+    ) -> FlowRunExecutionResult | None:
+        """Execute the full run lifecycle and return its infrastructure result.
 
         Designed to be called via `runs_task_group.start(executor.submit)` so
         the caller receives the `ProcessHandle` before the process exits.
@@ -173,9 +184,10 @@ class FlowRunExecutor:
 
         # Step 7: terminal evidence proves the attempt was handled regardless of
         # process status. Without it, preserve the exit-code fallback.
-        exit_code = handle.returncode if handle else None
+        assert handle is not None
+        exit_code = handle.returncode
         if attempt_conclusion is not None:
-            return
+            return FlowRunExecutionResult(handle=handle, status_code=0)
         if exit_code is not None and exit_code != 0:
             info = get_infrastructure_exit_info(exit_code)
             msg = f"Process exited with status code: {exit_code}. {info.explanation}"
@@ -193,6 +205,8 @@ class FlowRunExecutor:
             # Step 8: run crashed hooks
             if crashed_state is not None:
                 await self._hook_runner.run_crashed_hooks(self._flow_run, crashed_state)
+
+        return FlowRunExecutionResult(handle=handle, status_code=exit_code)
 
     async def _start_process(
         self,
@@ -219,6 +233,10 @@ class FlowRunExecutor:
         async with anyio.create_task_group() as inner_tg:
             # inner_tg.start() returns when starter calls task_status.started(handle)
             captured_handle = await inner_tg.start(_run_starter)
+            assert captured_handle is not None, (
+                "Starter did not call task_status.started() -- violates"
+                " ProcessStarter contract"
+            )
 
             # Handle is now available; process is still running
             await self._process_manager.add(self._flow_run.id, captured_handle)
@@ -226,9 +244,7 @@ class FlowRunExecutor:
 
             # inner_tg waits for _run_starter to complete (process exits)
 
-        assert captured_handle is not None, (
-            "Starter did not call task_status.started() -- violates ProcessStarter contract"
-        )
+        assert captured_handle is not None
         return captured_handle
 
 
@@ -264,10 +280,13 @@ class FlowRunExecutorContext:
 
         # Create observer object early so we can wire ProcessManager callbacks.
         # on_cancelling lambda captures self._cancellation_manager (assigned in step 4).
+        def _on_cancelling(flow_run_id: UUID) -> None:
+            self._cancellation_task_group.start_soon(
+                self._cancellation_manager.cancel_by_id, flow_run_id
+            )
+
         self._observer = FlowRunCancellingObserver(
-            on_cancelling=lambda frid: self._cancellation_task_group.start_soon(
-                self._cancellation_manager.cancel_by_id, frid
-            ),
+            on_cancelling=_on_cancelling,
             on_failure=lambda flow_run_ids: self._handle_cancellation_observer_failure(
                 flow_run_ids
             ),
@@ -314,8 +333,13 @@ class FlowRunExecutorContext:
 
         return self
 
-    async def __aexit__(self, *exc_info: object) -> bool | None:
-        return await self._stack.__aexit__(*exc_info)
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> bool | None:
+        return await self._stack.__aexit__(exc_type, exc_value, traceback)
 
     def _handle_cancellation_observer_failure(self, flow_run_ids: set) -> None:
         """Handle failure of both cancellation observer mechanisms.
@@ -345,7 +369,7 @@ class FlowRunExecutorContext:
         self,
         flow_run: FlowRun,
         starter: ProcessStarter,
-        resolve_flow: Callable[[FlowRun], Flow[..., ...]],
+        resolve_flow: Callable[[FlowRun], Awaitable[Flow[Any, Any]]],
         propose_submitting: bool = True,
     ) -> FlowRunExecutor:
         hook_runner = HookRunner(resolve_flow=resolve_flow)
