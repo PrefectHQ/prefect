@@ -92,4 +92,15 @@ jobs:
         run: >-
           uv run pyright -p .github/pyrightconfig-ci.json --level error
 
+      # Call-site typing contracts (assert_type pins), under both checkers:
+      # `--verifytypes` checks declarations, not call resolution — #16547 was
+      # a pyright call-site regression, #17379 a mypy-only one.
+      - name: Run call-site typing checks (pyright)
+        run: >-
+          uv run pyright tests/typing --level error
+
+      - name: Run call-site typing checks (mypy)
+        run: >-
+          uv run --with mypy mypy --follow-imports=silent --warn-unused-ignores tests/typing/
+
 
