@@ -14,7 +14,7 @@ import sys
 from typing import Any
 
 # pyright exits 0 with no diagnostics and 1 when it reports diagnostics; anything
-# higher is a pyright failure, e.g. an unparseable config file
+# higher is a pyright failure, e.g. a config file that cannot be parsed
 MAX_EXPECTED_PYRIGHT_STATUS = 1
 
 
