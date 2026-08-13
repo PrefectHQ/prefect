@@ -41,6 +41,7 @@ import socket
 import time
 import uuid
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import TYPE_CHECKING
 
 from typing_extensions import Self
@@ -69,6 +70,14 @@ if TYPE_CHECKING:
 
 # How long to wait for the child to ack an intent byte once it is connected.
 _DEFAULT_ACK_TIMEOUT = 1.0
+
+
+class ControlSignalStatus(str, Enum):
+    """Result of trying to delegate state ownership to a child process."""
+
+    ACKNOWLEDGED = "acknowledged"
+    ALREADY_CONCLUDED = "already_concluded"
+    NOT_ACKNOWLEDGED = "not_acknowledged"
 
 
 @dataclass
@@ -216,12 +225,14 @@ class ControlChannel:
             reg_writer.close()
         return reg.conclusion
 
-    async def signal(self, flow_run_id: uuid.UUID, intent: Intent) -> bool:
+    async def signal(
+        self, flow_run_id: uuid.UUID, intent: Intent
+    ) -> ControlSignalStatus:
         """Deliver a control intent byte to the child and wait for ack.
 
-        Returns `True` only when the child acknowledges this intent and the
-        corresponding ownership delegation wins the terminal race. A `False`
-        return tells the caller to use its existing fallback path.
+        Returns `ACKNOWLEDGED` when the child accepts ownership,
+        `ALREADY_CONCLUDED` when an engine receipt already won, and
+        `NOT_ACKNOWLEDGED` when the caller should use its fallback path.
 
         If the child has not yet connected, the runner immediately falls
         through to its existing kill/crash path.
@@ -233,7 +244,7 @@ class ControlChannel:
                 intent,
                 flow_run_id,
             )
-            return False
+            return ControlSignalStatus.NOT_ACKNOWLEDGED
 
         if reg.conclusion is not None:
             reg.intent_acked.clear()
@@ -242,7 +253,7 @@ class ControlChannel:
                 intent,
                 flow_run_id,
             )
-            return False
+            return ControlSignalStatus.ALREADY_CONCLUDED
 
         if reg.disconnected.is_set():
             reg.connected.clear()
@@ -255,7 +266,7 @@ class ControlChannel:
                 flow_run_id,
                 intent,
             )
-            return False
+            return ControlSignalStatus.NOT_ACKNOWLEDGED
 
         intent_byte = BYTE_FOR_INTENT.get(intent)
         if intent_byte is None:
@@ -267,11 +278,15 @@ class ControlChannel:
                 intent,
                 flow_run_id,
             )
-            return False
+            return ControlSignalStatus.NOT_ACKNOWLEDGED
 
         try:
             if not await self._deliver_intent(reg, intent, intent_byte):
-                return False
+                return (
+                    ControlSignalStatus.ALREADY_CONCLUDED
+                    if reg.conclusion is not None
+                    else ControlSignalStatus.NOT_ACKNOWLEDGED
+                )
 
             ack_wait_timeout = await self._wait_for_intent_ack(reg)
             if ack_wait_timeout is None:
@@ -285,13 +300,21 @@ class ControlChannel:
                     intent,
                     self._ack_timeout,
                 )
-                return False
-            return True
+                return (
+                    ControlSignalStatus.ALREADY_CONCLUDED
+                    if reg.conclusion is not None
+                    else ControlSignalStatus.NOT_ACKNOWLEDGED
+                )
+            return ControlSignalStatus.ACKNOWLEDGED
         except Exception:
             self._logger.exception(
                 "Error delivering %s intent for flow run '%s'", intent, flow_run_id
             )
-            return False
+            return (
+                ControlSignalStatus.ALREADY_CONCLUDED
+                if reg.conclusion is not None
+                else ControlSignalStatus.NOT_ACKNOWLEDGED
+            )
 
     async def _wait_for_intent_ack(self, reg: _Registration) -> float | None:
         deadline = time.monotonic() + self._ack_timeout

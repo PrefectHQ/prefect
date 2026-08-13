@@ -270,11 +270,19 @@ class ProcessWorker(
             logger.debug("Flow run bundle execution complete")
 
     async def __aenter__(self) -> ProcessWorker:
-        await super().__aenter__()
-        self._runner = await self._exit_stack.enter_async_context(
-            Runner(pause_on_shutdown=False, limit=None)
-        )
+        runner = Runner(pause_on_shutdown=False, limit=None)
+        self._runner = await runner.__aenter__()
+        try:
+            await super().__aenter__()
+        except BaseException as exc:
+            await runner.__aexit__(type(exc), exc, exc.__traceback__)
+            raise
         return self
 
     async def __aexit__(self, *exc_info: Any) -> None:
-        await super().__aexit__(*exc_info)
+        try:
+            # The worker task group owns ad-hoc submissions. Let those finish
+            # while the runner is still available to supervise their children.
+            await super().__aexit__(*exc_info)
+        finally:
+            await self._runner.__aexit__(*exc_info)

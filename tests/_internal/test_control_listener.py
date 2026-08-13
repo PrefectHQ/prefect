@@ -6,6 +6,7 @@ import asyncio
 import os
 import signal
 import threading
+import uuid
 from collections.abc import AsyncIterator
 
 import pytest
@@ -15,6 +16,7 @@ from prefect._internal.attempt_control import (
     CURRENT_PROTOCOL_VERSION,
     NEGOTIATION_FRAME_SIZE,
     RECEIPT_CAPABILITY,
+    EngineOutcomeReceipt,
     encode_negotiation,
 )
 
@@ -78,6 +80,43 @@ class TestControlListener:
     def test_start_is_noop_without_env_vars(self) -> None:
         control_listener.start()
         assert control_listener.get_intent() is None
+
+    def test_non_owner_thread_cannot_report_engine_outcome(self) -> None:
+        control_listener._owner_thread_id = threading.get_ident()
+        result: list[bool] = []
+        receipt = EngineOutcomeReceipt.state_reported(
+            state_id=uuid.uuid4(),
+            state_type="COMPLETED",
+            state_name="Completed",
+        )
+
+        thread = threading.Thread(
+            target=lambda: result.append(
+                control_listener.report_engine_outcome(receipt)
+            )
+        )
+        thread.start()
+        thread.join()
+
+        assert result == [False]
+        assert control_listener.engine_outcome_is_handled() is False
+
+    def test_reader_tolerates_socket_close_during_negotiation_cleanup(self) -> None:
+        class ClosingSocket:
+            def sendall(self, data: bytes) -> None:
+                pass
+
+            def settimeout(self, timeout: float | None) -> None:
+                if timeout is None:
+                    raise OSError("socket closed")
+
+            def recv(self, size: int) -> bytes:
+                return b""
+
+            def close(self) -> None:
+                pass
+
+        control_listener._reader_loop(ClosingSocket())  # type: ignore[arg-type]
 
     async def test_configure_from_env_consumes_env_and_defers_connection(
         self,

@@ -43,7 +43,7 @@ from prefect._internal.attempt_control import (
     decode_receipt,
     encode_negotiation,
 )
-from prefect.runner._control_channel import ControlChannel
+from prefect.runner._control_channel import ControlChannel, ControlSignalStatus
 
 pytestmark = pytest.mark.clear_db
 
@@ -377,7 +377,9 @@ async def test_acknowledged_intent_records_delegation_before_real_process_termin
                 await asyncio.sleep(0.1)
 
             acked = await channel.signal(flow_run_id, intent)
-            assert acked, f"child failed to ack {intent} intent over loopback"
+            assert acked is ControlSignalStatus.ACKNOWLEDGED, (
+                f"child failed to ack {intent} intent over loopback"
+            )
             assert channel.get_conclusion(flow_run_id) == StateOwnershipDelegation(
                 intent
             )
@@ -487,7 +489,10 @@ async def test_old_engine_retains_control_protocol_with_new_supervisor():
                     break
                 await asyncio.sleep(0.05)
 
-            assert await channel.signal(flow_run_id, "cancel") is True
+            assert (
+                await channel.signal(flow_run_id, "cancel")
+                is ControlSignalStatus.ACKNOWLEDGED
+            )
             _stdout, stderr = await _wait_for_child(proc)
             assert proc.returncode == 0, stderr.decode(errors="replace")
             assert channel.get_conclusion(flow_run_id) == StateOwnershipDelegation(
@@ -537,7 +542,10 @@ async def test_first_terminal_message_wins_real_process_race(
                     await asyncio.to_thread(proc.stdout.readline)
                     == b"receipt-recorded\n"
                 )
-                assert await channel.signal(flow_run_id, intent) is False
+                assert (
+                    await channel.signal(flow_run_id, intent)
+                    is ControlSignalStatus.ALREADY_CONCLUDED
+                )
                 await asyncio.to_thread(proc.stdin.write, b"continue\n")
                 await asyncio.to_thread(proc.stdin.flush)
             else:
@@ -547,7 +555,7 @@ async def test_first_terminal_message_wins_real_process_race(
                 signal_task = asyncio.create_task(channel.signal(flow_run_id, intent))
                 while channel._registrations[flow_run_id].pending_intent is None:
                     await asyncio.sleep(0)
-                assert await signal_task is True
+                assert await signal_task is ControlSignalStatus.ACKNOWLEDGED
                 await asyncio.to_thread(proc.stdin.write, b"continue\n")
                 await asyncio.to_thread(proc.stdin.flush)
             expected = (
@@ -656,7 +664,10 @@ async def test_first_authenticated_connection_consumes_token():
             assert proc.stdout is not None
             assert await asyncio.to_thread(proc.stdout.readline) == b"replay-rejected\n"
 
-            assert await channel.signal(flow_run_id, "cancel") is True
+            assert (
+                await channel.signal(flow_run_id, "cancel")
+                is ControlSignalStatus.ACKNOWLEDGED
+            )
             assert channel.get_conclusion(flow_run_id) == StateOwnershipDelegation(
                 "cancel"
             )

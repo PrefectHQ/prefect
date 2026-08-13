@@ -70,6 +70,7 @@ _configured_token: str | None = None
 
 _started = False
 _started_lock = threading.Lock()
+_owner_thread_id: int | None = None
 _socket: socket.socket | None = None
 _reader_thread: threading.Thread | None = None
 _send_lock = threading.Lock()
@@ -230,7 +231,10 @@ def _reader_loop(sock: socket.socket) -> None:
             _logger.warning("Attempt control negotiation response was malformed")
             return
         finally:
-            sock.settimeout(None)
+            try:
+                sock.settimeout(None)
+            except OSError:
+                pass
             _negotiation_complete.set()
 
         while True:
@@ -270,6 +274,12 @@ def _reader_loop(sock: socket.socket) -> None:
 def report_engine_outcome(receipt: EngineOutcomeReceipt) -> bool:
     """Send one negotiated outcome receipt without changing engine semantics."""
     global _outcome_report_started, _receipt_in_flight, _engine_outcome_handled
+
+    if _owner_thread_id is not None and threading.get_ident() != _owner_thread_id:
+        _logger.debug(
+            "Ignoring engine outcome from a thread that does not own the control session"
+        )
+        return False
 
     # The immediate first-party engine process treats a concluded attempt as
     # successful infrastructure execution even when its supervisor cannot
@@ -315,7 +325,7 @@ def report_engine_outcome(receipt: EngineOutcomeReceipt) -> bool:
 
 def start() -> None:
     """Connect to the runner's control channel if bootstrap config is present."""
-    global _started, _socket, _reader_thread, _receipt_capable
+    global _started, _owner_thread_id, _socket, _reader_thread, _receipt_capable
     global _terminal_claimed, _receipt_in_flight, _outcome_report_started
 
     configure_from_env()
@@ -356,6 +366,7 @@ def start() -> None:
         )
         _socket = sock
         _reader_thread = thread
+        _owner_thread_id = threading.get_ident()
         _started = True
         thread.start()
 
@@ -363,13 +374,14 @@ def start() -> None:
 def stop() -> None:
     """Close the active control connection, if any."""
     global _configured, _configured_port, _configured_token
-    global _started, _socket, _reader_thread, _receipt_capable
+    global _started, _owner_thread_id, _socket, _reader_thread, _receipt_capable
     global _terminal_claimed, _receipt_in_flight, _outcome_report_started
 
     with _started_lock:
         sock = _socket
         _socket = None
         _reader_thread = None
+        _owner_thread_id = None
         _started = False
         _configured = False
         _configured_port = None

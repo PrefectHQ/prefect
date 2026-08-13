@@ -20,7 +20,7 @@ from prefect.client.orchestration import PrefectClient, SyncPrefectClient
 from prefect.client.schemas.actions import LogCreate
 from prefect.client.schemas.objects import FlowRun
 from prefect.deployments.runner import RunnerDeployment
-from prefect.runner._control_channel import ControlChannel
+from prefect.runner._control_channel import ControlChannel, ControlSignalStatus
 from prefect.runner._flow_run_executor import FlowRunExecutorContext
 from prefect.runner._process_manager import ProcessManager
 from prefect.runner._workspace_starter import WorkspaceResolvingEngineCommandStarter
@@ -2011,7 +2011,11 @@ class TestSignalHandling:
                 "prefect.cli.flow_run._install_termination_handler",
                 side_effect=capture_install,
             ),
-            patch.object(ControlChannel, "signal", AsyncMock(return_value=False)),
+            patch.object(
+                ControlChannel,
+                "signal",
+                AsyncMock(return_value=ControlSignalStatus.NOT_ACKNOWLEDGED),
+            ),
             patch.object(ProcessManager, "kill", fake_kill),
             patch(
                 "prefect.runner._flow_run_executor.FlowRunExecutor.submit", fake_submit
@@ -2025,6 +2029,51 @@ class TestSignalHandling:
         assert run.state and not run.state.is_final(), (
             "the run must stay nonterminal so the infrastructure retry can resume it"
         )
+
+    async def test_engine_receipt_wins_over_late_termination_signal(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        prefect_client: PrefectClient,
+    ):
+        monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
+
+        deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        handlers: list[Callable[[], None]] = []
+        kill = AsyncMock()
+        propose = AsyncMock()
+
+        def capture_install(handler: Callable[[], None]) -> bool:
+            handlers.append(handler)
+            return True
+
+        async def fake_submit(*_: Any, **__: Any) -> None:
+            handlers[0]()
+            await anyio.sleep(0)
+
+        with (
+            patch(
+                "prefect.cli.flow_run._install_termination_handler",
+                side_effect=capture_install,
+            ),
+            patch.object(
+                ControlChannel,
+                "signal",
+                AsyncMock(return_value=ControlSignalStatus.ALREADY_CONCLUDED),
+            ),
+            patch.object(ProcessManager, "kill", kill),
+            patch("prefect.cli.flow_run.propose_state", propose),
+            patch(
+                "prefect.runner._flow_run_executor.FlowRunExecutor.submit", fake_submit
+            ),
+        ):
+            await execute(id=flow_run.id)
+
+        kill.assert_not_awaited()
+        propose.assert_not_awaited()
 
     async def test_termination_handler_installed_even_when_submit_exits_early(
         self,
