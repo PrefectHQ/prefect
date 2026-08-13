@@ -96,3 +96,10 @@ Element.prototype.getBoundingClientRect = vi.fn(() => ({
 	y: 0,
 	toJSON: () => {},
 }));
+
+// jsdom reports 0 for offset dimensions, which makes virtualized lists measure
+// their scroll element as empty and render no items
+Object.defineProperties(HTMLElement.prototype, {
+	offsetWidth: { configurable: true, value: 500 },
+	offsetHeight: { configurable: true, value: 300 },
+});

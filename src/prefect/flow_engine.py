@@ -195,26 +195,17 @@ def _termination_intent() -> Intent | None:
     for the outermost flow run as well as nested subflows running in the
     same process.
 
-    Today the only non-None value returned is `"cancel"`. A follow-up PR
-    will add `"suspend"` by extending
-    `Intent` in `prefect._internal.control_listener`; the engine's
-    `except TerminationSignal` dispatch below will gain a matching branch.
+    Adding an intent means extending `Intent` in
+    `prefect._internal.control_listener` and the `except TerminationSignal`
+    dispatch below with a matching branch.
     """
     return get_intent()
 
 
-def _should_bubble_raw_sigterm_for_reschedule() -> bool:
-    """Return whether raw SIGTERM should bypass crash handling.
-
-    `prefect flow-run execute` supports a reschedule mode where the parent
-    process proposes `AwaitingRetry` and then sends a plain SIGTERM to the
-    child. That path does not use the control channel, so the child must not
-    reinterpret the resulting `TerminationSignal` as a crash.
-    """
-    return (
-        os.environ.get("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "").lower()
-        == "reschedule"
-    )
+# Intents where the `prefect flow-run execute` supervisor owns the run's next state
+# (`reschedule` proposes it; `relinquish` leaves it to retrying infrastructure), so
+# the engine must exit without proposing one.
+_SUPERVISOR_OWNED_INTENTS: frozenset[Intent] = frozenset({"reschedule", "relinquish"})
 
 
 def _is_async_runtime_cancellation(exc: BaseException) -> bool:
@@ -1198,10 +1189,8 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                     if intent == "cancel":
                         self.handle_cancellation(exc)
                     elif intent is None:
-                        if _should_bubble_raw_sigterm_for_reschedule():
-                            raise
                         self.handle_crash(exc)
-                    else:
+                    elif intent not in _SUPERVISOR_OWNED_INTENTS:
                         # Defensive: an unknown intent means the control
                         # listener was extended (e.g. "suspend" in a
                         # follow-up PR) without extending this dispatch.
@@ -1896,10 +1885,8 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     if intent == "cancel":
                         await self.handle_cancellation(exc)
                     elif intent is None:
-                        if _should_bubble_raw_sigterm_for_reschedule():
-                            raise
                         await self.handle_crash(exc)
-                    else:
+                    elif intent not in _SUPERVISOR_OWNED_INTENTS:
                         # Defensive: see sync engine's dispatch for why.
                         self.logger.error(
                             "Unhandled termination intent %r; treating as"
@@ -1936,6 +1923,13 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                                 exc_info=exc,
                             )
                             raise
+                    if (
+                        _is_async_runtime_cancellation(exc)
+                        and _termination_intent() in _SUPERVISOR_OWNED_INTENTS
+                    ):
+                        # A supervisor-driven SIGTERM can surface here as a cancellation
+                        # rather than a TerminationSignal.
+                        raise TerminationSignal(signal.SIGTERM) from exc
                     # We don't want to crash a flow run if the user code finished executing
                     if self.flow_run.state and not self.flow_run.state.is_final():
                         # BaseExceptions are caught and handled as crashes

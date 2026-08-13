@@ -9,6 +9,7 @@ import {
 	ComboboxContent,
 	ComboboxTrigger,
 } from "../ui/combobox";
+import { TagBadge } from "../ui/tag-badge";
 import type { PrimitiveProperty } from "./types/primitives";
 import type { WithPrimitiveEnum } from "./types/schemas";
 
@@ -90,35 +91,48 @@ export function SchemaFormInputEnum<T extends PrimitiveProperty>({
 	}
 
 	return (
-		<Combobox>
-			<ComboboxTrigger
-				selected={selected}
-				aria-label={`Select ${property.title}`}
-				id={id}
-			>
-				{selected ? label : "Select"}
-			</ComboboxTrigger>
-			<ComboboxContent>
-				<ComboboxCommandInput
-					value={search}
-					onValueChange={setSearch}
-					placeholder="Search..."
-				/>
-				<ComboboxCommandEmtpy>No values found</ComboboxCommandEmtpy>
-				<ComboboxCommandList>
-					{Object.entries(options).map(([index, value]) => (
-						<ComboboxCommandItem
-							key={index}
-							value={index}
-							onSelect={onSelect}
-							selected={isSelected(index)}
-							closeOnSelect={!props.multiple}
-						>
-							{String(value)}
-						</ComboboxCommandItem>
+		<div className="flex flex-col gap-1">
+			<Combobox>
+				<ComboboxTrigger
+					selected={selected && !props.multiple}
+					aria-label={`Select ${property.title}`}
+					id={id}
+				>
+					{selected && !props.multiple ? label : "Select"}
+				</ComboboxTrigger>
+				<ComboboxContent>
+					<ComboboxCommandInput
+						value={search}
+						onValueChange={setSearch}
+						placeholder="Search..."
+					/>
+					<ComboboxCommandEmtpy>No values found</ComboboxCommandEmtpy>
+					<ComboboxCommandList>
+						{Object.entries(options).map(([index, value]) => (
+							<ComboboxCommandItem
+								key={index}
+								value={index}
+								onSelect={onSelect}
+								selected={isSelected(index)}
+								closeOnSelect={!props.multiple}
+							>
+								{String(value)}
+							</ComboboxCommandItem>
+						))}
+					</ComboboxCommandList>
+				</ComboboxContent>
+			</Combobox>
+			{props.multiple && props.values && props.values.length > 0 && (
+				<div className="flex flex-wrap gap-1">
+					{props.values.map((value) => (
+						<TagBadge
+							key={String(value)}
+							tag={String(value)}
+							onRemove={() => onSelectMultiple(value)}
+						/>
 					))}
-				</ComboboxCommandList>
-			</ComboboxContent>
-		</Combobox>
+				</div>
+			)}
+		</div>
 	);
 }

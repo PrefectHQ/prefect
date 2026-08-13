@@ -138,7 +138,7 @@ def my_flow():
 
 
 if __name__ == "__main__":
-    asyncio.run(my_flow())
+    my_flow()
 ```
 
 In both examples, the `concurrency` context manager occupies one slot on the `database` concurrency limit. If no slots are available, execution blocks until a slot becomes available.
@@ -227,7 +227,7 @@ def my_flow():
 
 
 if __name__ == "__main__":
-    asyncio.run(my_flow())
+    my_flow()
 ```
 
 The `rate_limit` function ensures requests are made at a controlled pace based on the concurrency limit's `slot_decay_per_second` setting.

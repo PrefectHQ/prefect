@@ -16,12 +16,12 @@ from prefect.server.events.filters import (
 )
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.storage.database import (
-    get_max_query_parameters,
     get_number_of_event_fields,
     get_number_of_resource_fields,
     read_events,
     write_events,
 )
+from prefect.server.utilities.database import get_max_query_parameters
 from prefect.types._datetime import DateTime, now
 
 pytestmark = pytest.mark.clear_db

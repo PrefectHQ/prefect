@@ -36,6 +36,22 @@ describe("SchemaFormInputStringFormatDate", () => {
 		).toBeInTheDocument();
 	});
 
+	test("renders the placeholder when the value is not a valid date", () => {
+		const onValueChange = vi.fn();
+
+		render(
+			<SchemaFormInputStringFormatDate
+				value="prev_td"
+				onValueChange={onValueChange}
+				id="test-id"
+			/>,
+		);
+
+		expect(
+			screen.getByRole("button", { name: /Pick a date/i }),
+		).toBeInTheDocument();
+	});
+
 	test("has correct id attribute on date picker", () => {
 		const onValueChange = vi.fn();
 

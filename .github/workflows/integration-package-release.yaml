@@ -38,12 +38,12 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.10"
+          python-version: "3.14"
           cache: "pip"
           cache-dependency-path: "requirements*.txt"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v9.0.0
         if: steps.package_name.outputs.PACKAGE_NAME == 'prefect-aws'
         with:
           version: latest

@@ -446,7 +446,6 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
             flow_run, deployment, flow, work_pool, worker_name, worker_id=worker_id
         )
 
-        self._configure_eviction_handling()
         self._update_prefect_api_url_if_local_server()
 
         # Restore any special env vars with valueFrom before populating the manifest
@@ -456,6 +455,10 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
             # Add special env vars back in
             env_list.extend(special_env_vars)
             self.env = env_list
+
+        # After the restore, so a `valueFrom` behavior is visible here instead of
+        # being appended back on top of what we set.
+        self._configure_eviction_handling()
 
         self._populate_env_in_manifest()
         self._slugify_labels()
@@ -474,9 +477,9 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
         not set in env, we'll tell the Runner to reschedule its flow run when it receives
         a SIGTERM.
 
-        If `backoffLimit` is set to a positive number, we'll ensure that the
-        reschedule SIGTERM handling is not set. Having both a `backoffLimit` and
-        reschedule handling set can cause duplicate flow run execution.
+        If `backoffLimit` is anything other than 0 (including absent, where Kubernetes
+        defaults it to 6), Kubernetes owns Job retries, so we tell the supervisor to
+        `relinquish` the run on SIGTERM instead of proposing a terminal state.
         """
         # If backoffLimit is set to 0, we'll tell the Runner to reschedule
         # its flow run when it receives a SIGTERM.
@@ -494,19 +497,22 @@ class KubernetesWorkerJobConfiguration(BaseJobConfiguration):
                         "value": "reschedule",
                     }
                 )
-        # Otherwise, we'll ensure that the reschedule SIGTERM handling is not set.
+        # Otherwise Kubernetes owns retries, so the run must not be finalized.
         else:
             if isinstance(self.env, dict):
-                self.env.pop("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", None)
-            elif any(
-                v.get("name") == "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"
-                for v in self.env
-            ):
+                self.env["PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"] = "relinquish"
+            else:
                 self.env = [
                     v
                     for v in self.env
                     if v.get("name") != "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"
                 ]
+                self.env.append(
+                    {
+                        "name": "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR",
+                        "value": "relinquish",
+                    }
+                )
 
     def _populate_env_in_manifest(self):
         """
@@ -737,8 +743,8 @@ class KubernetesWorkerVariables(BaseVariables):
         description=(
             "The number of times Kubernetes will retry a job after pod eviction. "
             "If set to 0, Prefect will reschedule the flow run when the pod is evicted "
-            "unless PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR is set to value "
-            "different from 'reschedule'."
+            "unless PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR is already set. "
+            "Otherwise Kubernetes retries the Job and Prefect relinquishes the run."
         ),
     )
     finished_job_ttl: Optional[int] = Field(

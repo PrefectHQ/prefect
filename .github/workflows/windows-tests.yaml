@@ -5,7 +5,9 @@ on:
   pull_request:
     paths:
       - "pyproject.toml"
+      - "src/prefect/futures.py"
       - "src/prefect/testing/**/*.py"
+      - "tests/test_futures.py"
       - "tests/testing/**/*.py"
       - "src/prefect/utilities/processutils/**/*.py"
       - "src/prefect/cli/work_pool.py"
@@ -58,7 +60,7 @@ jobs:
           filter: blob:none
 
       - name: Set up uv and Python ${{ matrix.python-version }}
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v9.0.0
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
@@ -68,6 +70,12 @@ jobs:
         run: |
           # Only run tests marked with @pytest.mark.windows
           uv run pytest tests -vv -m windows --durations=25
+
+      - name: Run futures tests
+        run: |
+          # Run the complete futures module on Windows for full coverage of
+          # as_completed / PrefectFutureList timeout behavior.
+          uv run pytest tests/test_futures.py -vv --durations=25
 
   test-unc-paths:
     name: Test Windows UNC Paths
@@ -85,7 +93,7 @@ jobs:
           filter: blob:none
 
       - name: Set up Python
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v9.0.0
         with:
           enable-cache: true
           python-version: "3.12"

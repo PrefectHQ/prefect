@@ -394,7 +394,7 @@ will be inferred if not provided.
 parameter schema for the created deployment.
 - `entrypoint_type`: Type of entrypoint to use for the deployment. When using a module path
 entrypoint, ensure that the module will be importable in the execution environment.
-- `print_next_steps_message`: Whether or not to print a message with next steps
+- `print_next_steps`: Whether or not to print a message with next steps
 after deploying the deployments.
 - `ignore_warnings`: Whether or not to ignore warnings about the work pool type.
 - `_sla`: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
@@ -500,7 +500,7 @@ if __name__ == "__main__":
 ```
 
 
-#### `agenerate_mermaid_graph` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2017" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `agenerate_mermaid_graph` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2018" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 agenerate_mermaid_graph(self, *args: 'P.args', **kwargs: 'P.kwargs') -> str
@@ -578,7 +578,7 @@ if __name__ == "__main__":
 ```
 
 
-#### `avisualize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L1893" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `avisualize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L1894" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 avisualize(self, *args: 'P.args', **kwargs: 'P.kwargs') -> None
@@ -593,7 +593,7 @@ graphviz output is rendered inline, otherwise in a new window as a PNG.
 - `- FlowVisualizationError`: If the flow can't be visualized for any other reason.
 
 
-#### `deploy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L1628" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `deploy` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L1629" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 deploy(self, name: str, work_pool_name: Optional[str] = None, image: Optional[Union[str, 'DockerImage']] = None, build: bool = True, push: bool = True, work_queue_name: Optional[str] = None, job_variables: Optional[dict[str, Any]] = None, interval: Optional[Union[int, float, datetime.timedelta]] = None, cron: Optional[str] = None, rrule: Optional[str] = None, paused: Optional[bool] = None, schedule: Optional[Schedule] = None, schedules: Optional[list[Schedule]] = None, concurrency_limit: Optional[Union[int, ConcurrencyLimitConfig, None]] = None, triggers: Optional[list[Union[DeploymentTriggerTypes, TriggerTypes]]] = None, parameters: Optional[dict[str, Any]] = None, description: Optional[str] = None, tags: Optional[list[str]] = None, version: Optional[str] = None, version_type: Optional[VersionType] = None, enforce_parameter_schema: bool = True, entrypoint_type: EntrypointType = EntrypointType.FILE_PATH, print_next_steps: bool = True, ignore_warnings: bool = False, _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = None) -> UUID
@@ -649,7 +649,7 @@ will be inferred if not provided.
 parameter schema for the created deployment.
 - `entrypoint_type`: Type of entrypoint to use for the deployment. When using a module path
 entrypoint, ensure that the module will be importable in the execution environment.
-- `print_next_steps_message`: Whether or not to print a message with next steps
+- `print_next_steps`: Whether or not to print a message with next steps
 after deploying the deployments.
 - `ignore_warnings`: Whether or not to ignore warnings about the work pool type.
 - `_sla`: (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
@@ -770,7 +770,7 @@ if __name__ == "__main__":
 ```
 
 
-#### `generate_mermaid_graph` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2070" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `generate_mermaid_graph` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2071" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 generate_mermaid_graph(self, *args: 'P.args', **kwargs: 'P.kwargs') -> str
@@ -995,7 +995,7 @@ associated types specified by the function's type annotations.
 - `ParameterTypeError`: if the provided parameters are not valid
 
 
-#### `visualize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L1955" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `visualize` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L1956" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 visualize(self, *args: 'P.args', **kwargs: 'P.kwargs') -> None
@@ -1076,9 +1076,9 @@ Examples:
     ```
 
 
-### `FlowDecorator` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2124" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `FlowDecorator` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2125" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
-### `InfrastructureBoundFlow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2388" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `InfrastructureBoundFlow` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2389" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 A flow that is bound to running on a specific infrastructure.
@@ -1096,7 +1096,7 @@ the flow to it.
 
 **Methods:**
 
-#### `retry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2552" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `retry` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2553" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 retry(self, flow_run: 'FlowRun') -> R | State[R]
@@ -1109,13 +1109,12 @@ reusing the same flow run ID and incrementing the run_count.
 
 **Args:**
 - `flow_run`: The existing flow run to retry
-- `return_state`: If True, return the final state instead of the result
 
 **Returns:**
 - The flow result or final state
 
 
-#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2508" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `submit` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/flows.py#L2509" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 submit(self, *args: P.args, **kwargs: P.kwargs) -> PrefectFlowRunFuture[R]

@@ -175,7 +175,7 @@ preparation.
 - `worker_name`: The name of the worker used for preparation.
 
 
-### `KubernetesWorkerVariables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/worker.py#L704" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `KubernetesWorkerVariables` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/worker.py#L710" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Default variables for the Kubernetes worker.
@@ -184,13 +184,13 @@ The schema for this class is used to populate the `variables` section of the def
 base job template.
 
 
-### `KubernetesWorkerResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/worker.py#L810" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `KubernetesWorkerResult` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/worker.py#L816" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Contains information about the final state of a completed process
 
 
-### `KubernetesWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/worker.py#L814" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `KubernetesWorker` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/worker.py#L820" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 
 Prefect worker that executes flow runs within Kubernetes Jobs.
@@ -198,7 +198,7 @@ Prefect worker that executes flow runs within Kubernetes Jobs.
 
 **Methods:**
 
-#### `kill_infrastructure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/worker.py#L920" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `kill_infrastructure` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/worker.py#L926" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 kill_infrastructure(self, infrastructure_pid: str, configuration: KubernetesWorkerJobConfiguration, grace_seconds: int = 30) -> None
@@ -216,7 +216,7 @@ Kill a Kubernetes job by deleting it.
 - `InfrastructureNotAvailable`: If unable to connect to the cluster.
 
 
-#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/worker.py#L861" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `run` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/worker.py#L867" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 run(self, flow_run: 'FlowRun', configuration: KubernetesWorkerJobConfiguration, task_status: anyio.abc.TaskStatus[int] | None = None) -> KubernetesWorkerResult
@@ -236,7 +236,7 @@ the task will be marked as started.
 final state of the flow run
 
 
-#### `teardown` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/worker.py#L900" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+#### `teardown` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/integrations/prefect-kubernetes/prefect_kubernetes/worker.py#L906" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 teardown(self, *exc_info: Any)

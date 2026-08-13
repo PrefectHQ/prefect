@@ -53,6 +53,8 @@ from pydantic import (
     ConfigDict,
     Field,
     PrivateAttr,
+    TypeAdapter,
+    field_serializer,
     field_validator,
     model_validator,
 )
@@ -69,6 +71,7 @@ from prefect._internal.schemas.validators import (
     reconcile_schedules_runner,
 )
 from prefect._internal.versioning import VersionType, get_inferred_version_info
+from prefect.blocks.core import Block, BlockNotSavedError
 from prefect.client.base import ServerType
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas.actions import (
@@ -106,7 +109,12 @@ from prefect.types.entrypoint import EntrypointType
 from prefect.utilities.annotations import freeze
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import ParameterSchema, parameter_schema
-from prefect.utilities.collections import get_from_dict, isiterable
+from prefect.utilities.collections import (
+    StopVisiting,
+    get_from_dict,
+    isiterable,
+    visit_collection,
+)
 from prefect.utilities.dockerutils import (
     parse_image_tag,
 )
@@ -116,6 +124,11 @@ if TYPE_CHECKING:
     from prefect.flows import Flow
 
 __all__ = ["RunnerDeployment"]
+
+_DEPLOYMENT_PARAMETER_SERIALIZER = TypeAdapter(
+    dict[str, Any],
+    config=ConfigDict(ser_json_timedelta="float"),
+)
 
 
 def _extract_concurrency_options(
@@ -296,6 +309,47 @@ class RunnerDeployment(BaseModel):
     def full_name(self) -> str:
         return f"{self.flow_name}/{self.name}"
 
+    @field_validator("parameters", "schedules", mode="before")
+    @classmethod
+    def validate_block_parameters(cls, value: Any) -> Any:
+        def ensure_block_is_saved(value: Any) -> Any:
+            if isinstance(value, Block):
+                if value._block_document_id is None:
+                    raise BlockNotSavedError(
+                        "Block must be saved with `.save()` before it can be used as a "
+                        "deployment parameter."
+                    )
+                raise StopVisiting()
+            return value
+
+        visit_collection(value, ensure_block_is_saved)
+        return value
+
+    @field_serializer("parameters", when_used="json")
+    def serialize_block_parameters(self, parameters: dict[str, Any]) -> dict[str, Any]:
+        return _DEPLOYMENT_PARAMETER_SERIALIZER.dump_python(
+            parameters,
+            mode="json",
+            context={"serialize_blocks_as_references": True},
+        )
+
+    def _schedules_with_serialized_block_parameters(
+        self,
+    ) -> Optional[List[Union[DeploymentScheduleCreate, DeploymentScheduleUpdate]]]:
+        if self.schedules is None:
+            return None
+
+        return [
+            schedule.model_copy(
+                update={
+                    "parameters": self.serialize_block_parameters(schedule.parameters)
+                }
+            )
+            if schedule.parameters
+            else schedule
+            for schedule in self.schedules
+        ]
+
     def _get_deployment_version_info(
         self, version_type: Optional[VersionType] = None
     ) -> VersionInfo:
@@ -378,6 +432,9 @@ class RunnerDeployment(BaseModel):
                 " with a work pool."
             )
 
+        parameters = self.model_dump(mode="json", include={"parameters"})["parameters"]
+        schedules = self._schedules_with_serialized_block_parameters()
+
         async with get_client() as client:
             flow_id = await client.create_flow_from_name(self.flow_name)
 
@@ -389,10 +446,10 @@ class RunnerDeployment(BaseModel):
                 version=self.version,
                 version_info=version_info,
                 paused=self.paused,
-                schedules=self.schedules,
+                schedules=schedules,
                 concurrency_limit=self.concurrency_limit,
                 concurrency_options=self.concurrency_options,
-                parameters=self.parameters,
+                parameters=parameters,
                 description=self.description,
                 tags=self.tags,
                 path=self._path,
@@ -481,6 +538,9 @@ class RunnerDeployment(BaseModel):
                 " with a work pool."
             )
 
+        parameters = self.model_dump(mode="json", include={"parameters"})["parameters"]
+        schedules = self._schedules_with_serialized_block_parameters()
+
         with get_client(sync_client=True) as client:
             flow_id = client.create_flow_from_name(self.flow_name)
 
@@ -492,10 +552,10 @@ class RunnerDeployment(BaseModel):
                 version=self.version,
                 version_info=version_info,
                 paused=self.paused,
-                schedules=self.schedules,
+                schedules=schedules,
                 concurrency_limit=self.concurrency_limit,
                 concurrency_options=self.concurrency_options,
-                parameters=self.parameters,
+                parameters=parameters,
                 description=self.description,
                 tags=self.tags,
                 path=self._path,
@@ -579,7 +639,7 @@ class RunnerDeployment(BaseModel):
         if self.schedules:
             update_payload["schedules"] = [
                 schedule.model_dump(mode="json", exclude_unset=True)
-                for schedule in self.schedules
+                for schedule in self._schedules_with_serialized_block_parameters() or []
             ]
 
         await client.update_deployment(
@@ -631,7 +691,7 @@ class RunnerDeployment(BaseModel):
         if self.schedules:
             update_payload["schedules"] = [
                 schedule.model_dump(mode="json", exclude_unset=True)
-                for schedule in self.schedules
+                for schedule in self._schedules_with_serialized_block_parameters() or []
             ]
 
         client.update_deployment(

@@ -69,6 +69,18 @@ def _pid_is_alive(pid: int) -> bool:
         kernel32.CloseHandle(handle)
 
 
+def _hard_kill(pid: int) -> None:
+    """Stop `pid` immediately, taking its process group when it leads one so a
+    wrapper command cannot leave the real process running orphaned."""
+    if sys.platform == "win32":
+        # Any signal other than the CTRL_* events is a TerminateProcess here.
+        os.kill(pid, signal.SIGTERM)
+    elif os.getpgid(pid) == pid:
+        os.killpg(pid, signal.SIGKILL)
+    else:
+        os.kill(pid, signal.SIGKILL)
+
+
 @dataclass
 class ProcessHandle:
     _process: anyio.abc.Process | multiprocessing.context.SpawnProcess
@@ -197,7 +209,14 @@ class ProcessManager:
 
             await anyio.sleep(min(check_interval, remaining))
 
-    async def kill(self, flow_run_id: UUID, grace_seconds: float = 30) -> None:
+    async def kill(
+        self, flow_run_id: UUID, grace_seconds: float = 30, *, force: bool = False
+    ) -> None:
+        """Stop the process for `flow_run_id`.
+
+        `force` skips the graceful signal, for callers that must not let the process
+        run any more code; `grace_seconds` is unused in that case.
+        """
         handle = self._process_map.get(flow_run_id)
         if handle is None:
             self._logger.warning(
@@ -214,10 +233,22 @@ class ProcessManager:
             )
             return
 
+        if force:
+            try:
+                _hard_kill(pid)
+            except ProcessLookupError:
+                pass
+            return
+
         if sys.platform == "win32":
             os.kill(pid, signal.CTRL_BREAK_EVENT)
         else:
-            os.kill(pid, signal.SIGTERM)
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except ProcessLookupError:
+                # Already reaped, e.g. re-killed from `__aexit__` after a cancelled
+                # executor skipped its cleanup.
+                return
 
             check_interval = max(grace_seconds / 10, 1)
             with anyio.move_on_after(grace_seconds):

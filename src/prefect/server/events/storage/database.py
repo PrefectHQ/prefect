@@ -20,7 +20,7 @@ from prefect.server.events.storage import (
     process_time_based_counts,
     to_page_token,
 )
-from prefect.server.utilities.database import get_dialect
+from prefect.server.utilities.database import get_dialect, get_max_query_parameters
 from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 
 if TYPE_CHECKING:
@@ -139,7 +139,7 @@ async def read_events(
 
     Args:
         session: a Postgres events session.
-        filter: filter criteria for events.
+        events_filter: filter criteria for events.
         limit: limit for the query.
         offset: offset for the query.
 
@@ -283,14 +283,6 @@ async def _write_postgres_events(
             continue
 
         await session.execute(db.queries.insert(db.EventResource).values(resource_rows))
-
-
-def get_max_query_parameters() -> int:
-    dialect = get_dialect(PREFECT_API_DATABASE_CONNECTION_URL.value())
-    if dialect.name == "postgresql":
-        return 32_767
-    else:
-        return 999
 
 
 # Events require a fixed number of parameters per event,...

@@ -14,6 +14,8 @@ from urllib.parse import urlparse
 import certifi
 from websockets.asyncio.client import connect
 
+import prefect
+from prefect.client.constants import SERVER_API_VERSION
 from prefect.settings import get_current_settings
 
 
@@ -50,6 +52,13 @@ def websocket_connect(uri: str, **kwargs: Any) -> connect:
     ssl_context = create_ssl_context_for_websocket(uri)
     if ssl_context:
         kwargs.setdefault("ssl", ssl_context)
+
+    # Identify ourselves to the server the same way the HTTP client does so that
+    # the client version can be parsed from the handshake
+    kwargs.setdefault(
+        "user_agent_header",
+        f"prefect/{prefect.__version__} (API {SERVER_API_VERSION})",
+    )
 
     # Add custom headers from settings
     custom_headers = get_current_settings().client.custom_headers

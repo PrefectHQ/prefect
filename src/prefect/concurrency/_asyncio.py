@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import logging
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, AsyncGenerator, Literal, Optional
@@ -150,6 +151,9 @@ async def aacquire_concurrency_slots_with_lease(
     )
     try:
         response = await asyncio.wrap_future(future)
+    except asyncio.CancelledError:
+        _release_lease_when_granted(service, future)
+        raise
     except TimeoutError as timeout:
         raise AcquireConcurrencySlotTimeoutError(
             f"Attempt to acquire concurrency slots timed out after {timeout_seconds} second(s)"
@@ -223,6 +227,28 @@ def _discard_cleanup_lease(lease_id: UUID) -> None:
     ctx = ConcurrencyContext.get()
     if ctx is not None and lease_id in ctx.cleanup_lease_ids:
         ctx.cleanup_lease_ids.remove(lease_id)
+
+
+def _release_lease_when_granted(
+    service: ConcurrencySlotAcquisitionWithLeaseService,
+    future: "concurrent.futures.Future[httpx.Response]",
+) -> None:
+    """Release the lease for an acquisition whose caller has been cancelled.
+
+    The acquisition may still be granted after the caller is gone, and the lease
+    id never reaches the `ConcurrencyContext`, so the slots would stay occupied
+    until the lease expires. The cancelled caller cannot do the release itself, so
+    the service that acquired the slots is asked to release them.
+    """
+
+    def _release(completed: "concurrent.futures.Future[httpx.Response]") -> None:
+        if completed.cancelled() or completed.exception() is not None:
+            # Nothing was granted, so there is nothing to release.
+            return
+
+        service.release_orphaned_lease(completed.result())
+
+    future.add_done_callback(_release)
 
 
 def _response_to_minimal_concurrency_limit_response(

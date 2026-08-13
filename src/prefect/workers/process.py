@@ -19,27 +19,20 @@ from __future__ import annotations
 import contextlib
 import os
 import tempfile
-import threading
 import warnings
-from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Optional, TypeVar
 
 import anyio
 import anyio.abc
-from pydantic import Field, field_validator
+from pydantic import Field, PrivateAttr, TypeAdapter, ValidationError, field_validator
 
 from prefect._internal.schemas.validators import validate_working_dir
 from prefect.client.schemas.objects import Flow as APIFlow
+from prefect.runner._uv_command import uv_project_command
 from prefect.runner.runner import Runner
-from prefect.settings import PREFECT_WORKER_QUERY_SECONDS
 from prefect.states import Pending
 from prefect.utilities.processutils import command_to_string, get_sys_executable
-from prefect.utilities.services import (
-    critical_service_loop,
-    start_client_metrics_server,
-    stop_client_metrics_server,
-)
 from prefect.workers.base import (
     BaseJobConfiguration,
     BaseVariables,
@@ -61,6 +54,8 @@ class ProcessJobConfiguration(BaseJobConfiguration):
     stream_output: bool = Field(default=True)
     working_dir: Optional[Path] = Field(default=None)
 
+    _command_configured: bool = PrivateAttr(default=False)
+
     @field_validator("working_dir")
     @classmethod
     def validate_working_dir(cls, v: Path | str | None) -> Path | None:
@@ -77,6 +72,10 @@ class ProcessJobConfiguration(BaseJobConfiguration):
         worker_name: str | None = None,
         worker_id: "UUID | None" = None,
     ) -> None:
+        # The base implementation fills in `_base_flow_run_command()` when no command
+        # is configured, so provenance must be captured before delegating.
+        self._command_configured = self.command is not None
+
         super().prepare_for_flow_run(
             flow_run,
             deployment,
@@ -88,9 +87,9 @@ class ProcessJobConfiguration(BaseJobConfiguration):
 
         self.env: dict[str, str | None] = {**os.environ, **self.env}
         self.command: str | None = (
-            command_to_string([get_sys_executable(), "-m", "prefect.engine"])
-            if self.command == self._base_flow_run_command()
-            else self.command
+            self.command
+            if self._command_configured
+            else command_to_string([get_sys_executable(), "-m", "prefect.engine"])
         )
 
     @staticmethod
@@ -101,6 +100,38 @@ class ProcessJobConfiguration(BaseJobConfiguration):
         instead of the newer `prefect flow-run execute` path.
         """
         return "python -m prefect.engine"
+
+    def _resolve_command(self, working_dir: Path | str) -> str | None:
+        """
+        Use an auto-`uv run` launcher for the flow run when the working directory
+        is a project that declares `prefect` as a dependency and the deployment
+        did not configure an explicit command.
+        """
+        if self._command_configured:
+            return self.command
+
+        env = self.env or {}
+        # A run-specific setting in the environment takes precedence over the
+        # worker process's own setting.
+        auto_install = env.get("PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES")
+        try:
+            auto_install_dependencies = (
+                TypeAdapter(bool).validate_python(auto_install)
+                if auto_install is not None
+                else None
+            )
+        except ValidationError:
+            auto_install_dependencies = None
+
+        uv_command = uv_project_command(
+            # `uv` resolves `--project` relative to the flow run's working
+            # directory, so the project root must be absolute.
+            Path(working_dir).resolve(),
+            ["-m", "prefect.engine"],
+            path=env.get("PATH"),
+            auto_install_dependencies=auto_install_dependencies,
+        )
+        return uv_command or self.command
 
 
 class ProcessVariables(BaseVariables):
@@ -141,99 +172,6 @@ class ProcessWorker(
     _documentation_url = "https://docs.prefect.io/latest/get-started/quickstart"
     _logo_url = "https://cdn.sanity.io/images/3ugk85nk/production/356e6766a91baf20e1d08bbe16e8b5aaef4d8643-48x48.png"
 
-    async def start(
-        self,
-        run_once: bool = False,
-        with_healthcheck: bool = False,
-        printer: Callable[..., None] = print,
-    ) -> None:
-        """
-        Starts the worker and runs the main worker loops.
-
-        By default, the worker will run loops to poll for scheduled/cancelled flow
-        runs and sync with the Prefect API server.
-
-        If `run_once` is set, the worker will only run each loop once and then return.
-
-        If `with_healthcheck` is set, the worker will start a healthcheck server which
-        can be used to determine if the worker is still polling for flow runs and restart
-        the worker if necessary.
-
-        Args:
-            run_once: If set, the worker will only run each loop once then return.
-            with_healthcheck: If set, the worker will start a healthcheck server.
-            printer: A `print`-like function where logs will be reported.
-        """
-        healthcheck_server = None
-        healthcheck_thread = None
-        try:
-            async with self as worker:
-                # wait for an initial heartbeat to configure the worker
-                await worker.sync_with_backend()
-                # schedule the scheduled flow run polling loop
-                async with anyio.create_task_group() as loops_task_group:
-                    loops_task_group.start_soon(
-                        partial(
-                            critical_service_loop,
-                            workload=self.get_and_submit_flow_runs,
-                            interval=PREFECT_WORKER_QUERY_SECONDS.value(),
-                            run_once=run_once,
-                            jitter_range=0.3,
-                            backoff=4,  # Up to ~1 minute interval during backoff
-                        )
-                    )
-                    # schedule the sync loop
-                    loops_task_group.start_soon(
-                        partial(
-                            critical_service_loop,
-                            workload=self.sync_with_backend,
-                            interval=self.heartbeat_interval_seconds,
-                            run_once=run_once,
-                            jitter_range=0.3,
-                            backoff=4,
-                        )
-                    )
-
-                    self._started_event = await self._emit_worker_started_event()
-
-                    start_client_metrics_server()
-
-                    if with_healthcheck:
-                        from prefect.workers.server import build_healthcheck_server
-
-                        # we'll start the ASGI server in a separate thread so that
-                        # uvicorn does not block the main thread
-                        healthcheck_server = build_healthcheck_server(
-                            worker=worker,
-                            query_interval_seconds=PREFECT_WORKER_QUERY_SECONDS.value(),
-                        )
-                        healthcheck_thread = threading.Thread(
-                            name="healthcheck-server-thread",
-                            target=healthcheck_server.run,
-                            daemon=True,
-                        )
-                        healthcheck_thread.start()
-                    printer(f"Worker {worker.name!r} started!")
-
-                # If running once, wait for active runs to complete before exiting
-                if run_once and self._limiter:
-                    while self.limiter.borrowed_tokens > 0:
-                        self._logger.debug(
-                            "Waiting for %s active run(s) to finish before shutdown...",
-                            self.limiter.borrowed_tokens,
-                        )
-                        await anyio.sleep(0.1)
-        finally:
-            stop_client_metrics_server()
-
-            if healthcheck_server and healthcheck_thread:
-                self._logger.debug("Stopping healthcheck server...")
-                healthcheck_server.should_exit = True
-                healthcheck_thread.join()
-                self._logger.debug("Healthcheck server stopped.")
-
-        printer(f"Worker {worker.name!r} stopped!")
-
     async def run(
         self,
         flow_run: "FlowRun",
@@ -252,7 +190,7 @@ class ProcessWorker(
             warnings.simplefilter("ignore", DeprecationWarning)
             process = await self._runner.execute_flow_run(
                 flow_run_id=flow_run.id,
-                command=configuration.command,
+                command=configuration._resolve_command(working_dir),
                 cwd=working_dir,
                 env=configuration.env,
                 stream_output=configuration.stream_output,

@@ -23,12 +23,15 @@ from unittest.mock import ANY, AsyncMock, MagicMock, patch
 import anyio
 import pytest
 import uv
+from pydantic import BaseModel
 from starlette import status
 
 import prefect.runner
 from prefect import __version__, aserve, flow, serve, task
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.versioning import VersionType
+from prefect.blocks.core import BlockNotSavedError
+from prefect.blocks.system import Secret
 from prefect.bundles import create_bundle_for_flow_run
 from prefect.cli.deploy._storage import _PullStepStorage
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
@@ -2888,6 +2891,12 @@ async def test_run_hooks_with_partial_hooks(
 
 class TestRunnerDeployment:
     @pytest.fixture
+    async def saved_secret_block(self) -> tuple[Secret[Any], uuid.UUID]:
+        block = Secret(value="issue-13122-secret")
+        block_document_id = await block.save(f"deployment-parameter-{uuid.uuid4()}")
+        return block, block_document_id
+
+    @pytest.fixture
     def relative_file_path(self):
         return Path(__file__).relative_to(Path.cwd())
 
@@ -3379,6 +3388,227 @@ class TestRunnerDeployment:
         assert deployment.job_variables == {}
         assert deployment.paused is False
         assert deployment.global_concurrency_limit is None
+
+    async def test_saved_block_parameters_are_converted_to_references(
+        self, saved_secret_block: tuple[Secret[Any], uuid.UUID]
+    ):
+        block, block_document_id = saved_secret_block
+
+        class BlockParameterModel(BaseModel):
+            block: Secret
+
+        deployment = RunnerDeployment(
+            name="saved-block-parameter",
+            flow_name="flow-with-block",
+            parameters={
+                "nested": {
+                    "blocks": [block],
+                    "model": BlockParameterModel(block=block),
+                }
+            },
+        )
+
+        assert deployment.parameters["nested"]["blocks"][0] is block
+        assert deployment.model_dump(mode="json")["parameters"] == {
+            "nested": {
+                "blocks": [
+                    {
+                        "$ref": {
+                            "block_document_id": str(block_document_id),
+                        }
+                    }
+                ],
+                "model": {
+                    "block": {
+                        "$ref": {
+                            "block_document_id": str(block_document_id),
+                        }
+                    }
+                },
+            }
+        }
+
+    def test_unsaved_block_parameters_are_rejected(self):
+        with pytest.raises(
+            BlockNotSavedError,
+            match=re.escape(
+                "Block must be saved with `.save()` before it can be used as a "
+                "deployment parameter."
+            ),
+        ):
+            RunnerDeployment(
+                name="unsaved-block-parameter",
+                flow_name="flow-with-block",
+                parameters={"block": Secret(value="secret")},
+            )
+
+    def test_unsaved_block_schedule_parameters_are_rejected(self):
+        with pytest.raises(
+            BlockNotSavedError,
+            match=re.escape(
+                "Block must be saved with `.save()` before it can be used as a "
+                "deployment parameter."
+            ),
+        ):
+            RunnerDeployment(
+                name="unsaved-block-schedule-parameter",
+                flow_name="flow-with-block",
+                schedules=[
+                    DeploymentScheduleCreate(
+                        schedule=IntervalSchedule(interval=datetime.timedelta(days=1)),
+                        parameters={"block": Secret(value="secret")},
+                    )
+                ],
+            )
+
+    async def test_applied_deployment_preserves_temporal_parameter_encoding(
+        self, prefect_client: PrefectClient
+    ):
+        scheduled_at = datetime.datetime(
+            2024, 1, 2, 3, 4, 5, tzinfo=datetime.timezone.utc
+        )
+        delay = datetime.timedelta(seconds=90)
+
+        @flow
+        def flow_with_temporal_parameters(
+            scheduled_at: str | datetime.datetime,
+            delay: datetime.timedelta,
+        ) -> None:
+            pass
+
+        deployment = await flow_with_temporal_parameters.ato_deployment(
+            name="temporal-parameters",
+            parameters={"scheduled_at": scheduled_at, "delay": delay},
+            enforce_parameter_schema=False,
+        )
+
+        deployment_id = await deployment.apply()
+        stored_deployment = await prefect_client.read_deployment(deployment_id)
+
+        assert stored_deployment.parameters == {
+            "scheduled_at": scheduled_at.timestamp(),
+            "delay": delay.total_seconds(),
+        }
+        validated_parameters = flow_with_temporal_parameters.validate_parameters(
+            stored_deployment.parameters
+        )
+        assert validated_parameters == {
+            "scheduled_at": scheduled_at,
+            "delay": delay,
+        }
+
+    async def test_applied_deployment_stores_and_resolves_saved_block_parameter(
+        self,
+        prefect_client: PrefectClient,
+        saved_secret_block: tuple[Secret[Any], uuid.UUID],
+    ):
+        block, block_document_id = saved_secret_block
+
+        @flow
+        def flow_with_block(credentials: Secret[Any]) -> str:
+            return str(credentials.get())
+
+        deployment = await flow_with_block.ato_deployment(
+            name="saved-block-parameter",
+            parameters={"credentials": block},
+        )
+
+        deployment_id = await deployment.apply()
+        stored_deployment = await prefect_client.read_deployment(deployment_id)
+
+        assert stored_deployment.parameters == {
+            "credentials": {
+                "$ref": {
+                    "block_document_id": str(block_document_id),
+                }
+            }
+        }
+        validated_parameters = flow_with_block.validate_parameters(
+            stored_deployment.parameters
+        )
+        assert validated_parameters["credentials"].get() == "issue-13122-secret"
+
+        updated_block = Secret(value="updated-secret")
+        updated_block_document_id = await updated_block.save(
+            f"updated-deployment-parameter-{uuid.uuid4()}"
+        )
+        deployment.parameters = {"credentials": updated_block}
+
+        updated_deployment_id = await deployment.apply()
+        updated_deployment = await prefect_client.read_deployment(updated_deployment_id)
+
+        assert updated_deployment_id == deployment_id
+        assert updated_deployment.parameters == {
+            "credentials": {
+                "$ref": {
+                    "block_document_id": str(updated_block_document_id),
+                }
+            }
+        }
+        updated_parameters = flow_with_block.validate_parameters(
+            updated_deployment.parameters
+        )
+        assert updated_parameters["credentials"].get() == "updated-secret"
+
+    async def test_applied_deployment_stores_saved_block_schedule_parameter(
+        self,
+        prefect_client: PrefectClient,
+        saved_secret_block: tuple[Secret[Any], uuid.UUID],
+    ):
+        block, block_document_id = saved_secret_block
+
+        @flow
+        def flow_with_block(credentials: Secret[Any]) -> str:
+            return str(credentials.get())
+
+        deployment = await flow_with_block.ato_deployment(
+            name="saved-block-schedule-parameter",
+            schedules=[
+                DeploymentScheduleCreate(
+                    schedule=IntervalSchedule(interval=datetime.timedelta(days=1)),
+                    parameters={"credentials": block},
+                    slug="saved-block",
+                )
+            ],
+        )
+
+        deployment_id = await deployment.apply()
+        stored_deployment = await prefect_client.read_deployment(deployment_id)
+
+        assert stored_deployment.schedules[0].parameters == {
+            "credentials": {
+                "$ref": {
+                    "block_document_id": str(block_document_id),
+                }
+            }
+        }
+        validated_parameters = flow_with_block.validate_parameters(
+            stored_deployment.schedules[0].parameters
+        )
+        assert validated_parameters["credentials"].get() == "issue-13122-secret"
+
+        updated_block = Secret(value="updated-schedule-secret")
+        updated_block_document_id = await updated_block.save(
+            f"updated-schedule-parameter-{uuid.uuid4()}"
+        )
+        assert deployment.schedules is not None
+        deployment.schedules[0].parameters = {"credentials": updated_block}
+
+        updated_deployment_id = await deployment.apply()
+        updated_deployment = await prefect_client.read_deployment(updated_deployment_id)
+
+        assert updated_deployment_id == deployment_id
+        assert updated_deployment.schedules[0].parameters == {
+            "credentials": {
+                "$ref": {
+                    "block_document_id": str(updated_block_document_id),
+                }
+            }
+        }
+        updated_parameters = flow_with_block.validate_parameters(
+            updated_deployment.schedules[0].parameters
+        )
+        assert updated_parameters["credentials"].get() == "updated-schedule-secret"
 
     async def test_apply_with_work_pool(
         self, prefect_client: PrefectClient, work_pool, process_work_pool
@@ -4941,6 +5171,35 @@ class TestAsyncDispatch:
 
         result = sync_prefect_client.read_deployment(deployment_id)
         assert result.name == "test_runner"
+
+    def test_apply_saved_block_parameter_in_sync_context(
+        self, sync_prefect_client: SyncPrefectClient
+    ):
+        block = Secret(value="sync-secret")
+        block_document_id = block.save(
+            f"sync-deployment-parameter-{uuid.uuid4()}",
+            client=sync_prefect_client,
+        )
+
+        @flow
+        def flow_with_block(credentials: Secret[Any]) -> str:
+            return str(credentials.get())
+
+        deployment = flow_with_block.to_deployment(
+            name="sync-saved-block-parameter",
+            parameters={"credentials": block},
+        )
+
+        deployment_id = deployment.apply()
+        stored_deployment = sync_prefect_client.read_deployment(deployment_id)
+
+        assert stored_deployment.parameters == {
+            "credentials": {
+                "$ref": {
+                    "block_document_id": str(block_document_id),
+                }
+            }
+        }
 
     async def test_deploy_in_async_context(
         self,

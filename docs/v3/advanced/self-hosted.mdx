@@ -512,13 +512,13 @@ Deploying Prefect self-hosted somehow else? Consider [opening a PR](/contribute/
 
 #### Handling large databases
 
-When running migrations on large database instances (especially where tables like `events`, `flow_runs`, or `task_runs` can reach millions of rows), the default database timeout of 10 seconds may not be sufficient for creating indexes.
+When running migrations on large database instances (especially where tables like `events`, `flow_runs`, or `task_runs` can reach millions of rows), creating indexes can take a long time. On PostgreSQL, migrations use a dedicated statement timeout (`PREFECT_SERVER_DATABASE_MIGRATION_TIMEOUT`) instead of the general database timeout (`PREFECT_SERVER_DATABASE_TIMEOUT`), and have no timeout by default.
 
-If you encounter a `TimeoutError` during migrations, increase the database timeout:
+If you want to bound how long a migration can run, set a migration timeout:
 
 ```bash
 # Set timeout to 10 minutes (adjust based on your database size)
-export PREFECT_SERVER_DATABASE_TIMEOUT=600
+export PREFECT_SERVER_DATABASE_MIGRATION_TIMEOUT=600
 
 # Then run the migration
 prefect server database upgrade -y
@@ -527,7 +527,7 @@ prefect server database upgrade -y
 For Docker deployments:
 
 ```bash
-docker run -e PREFECT_SERVER_DATABASE_TIMEOUT=600 prefecthq/prefect:latest prefect server database upgrade -y
+docker run -e PREFECT_SERVER_DATABASE_MIGRATION_TIMEOUT=600 prefecthq/prefect:latest prefect server database upgrade -y
 ```
 
 <Note>
