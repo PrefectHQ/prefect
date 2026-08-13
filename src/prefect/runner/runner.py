@@ -1422,6 +1422,7 @@ class Runner:
         stream_output: bool = True,
     ) -> Union[Optional[int], Exception]:
         run_logger = self._get_flow_run_logger(flow_run)
+        finalize_after_hooks = False
 
         try:
             exit_code = await self._run_process(
@@ -1447,6 +1448,7 @@ class Runner:
                 flow_run_logger.info(
                     f"Process for flow run {flow_run.name!r} exited cleanly."
                 )
+            finalize_after_hooks = True
         except Exception as exc:
             if not task_status._future.done():  # type: ignore
                 # This flow run was being submitted and did not start successfully
@@ -1466,30 +1468,33 @@ class Runner:
             return exc
         finally:
             self._release_limit_slot(flow_run.id)
-
-            await self._remove_flow_run_process_map_entry(flow_run.id)
-
-        if exit_code != 0 and not self._rescheduling:
-            await self._propose_crashed_state(
-                flow_run,
-                f"Flow run process exited with non-zero status code {exit_code}.",
-            )
+            if not finalize_after_hooks:
+                await self._remove_flow_run_process_map_entry(flow_run.id)
 
         try:
-            api_flow_run = await self._client.read_flow_run(flow_run_id=flow_run.id)
-            terminal_state = api_flow_run.state
-            if terminal_state and terminal_state.is_crashed():
-                await self._run_on_crashed_hooks(
-                    flow_run=flow_run, state=terminal_state
+            if exit_code != 0 and not self._rescheduling:
+                await self._propose_crashed_state(
+                    flow_run,
+                    f"Flow run process exited with non-zero status code {exit_code}.",
                 )
-        except ObjectNotFound:
-            # Flow run was deleted - log it but don't crash the runner
-            run_logger = self._get_flow_run_logger(flow_run)
-            run_logger.debug(
-                f"Flow run '{flow_run.id}' was deleted before final state could be checked"
-            )
 
-        return exit_code
+            try:
+                api_flow_run = await self._client.read_flow_run(flow_run_id=flow_run.id)
+                terminal_state = api_flow_run.state
+                if terminal_state and terminal_state.is_crashed():
+                    await self._run_on_crashed_hooks(
+                        flow_run=flow_run, state=terminal_state
+                    )
+            except ObjectNotFound:
+                # Flow run was deleted - log it but don't crash the runner
+                run_logger = self._get_flow_run_logger(flow_run)
+                run_logger.debug(
+                    f"Flow run '{flow_run.id}' was deleted before final state could be checked"
+                )
+
+            return exit_code
+        finally:
+            await self._remove_flow_run_process_map_entry(flow_run.id)
 
     async def _propose_pending_state(self, flow_run: "FlowRun") -> bool:
         return await self._state_proposer.propose_pending(flow_run)

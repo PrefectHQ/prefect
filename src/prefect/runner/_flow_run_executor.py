@@ -61,9 +61,9 @@ class FlowRunExecutor:
     3. start process via starter — `task_status.started(handle)` signals caller early
     4. add handle to `process_manager`
     5. block until process exits (starter.start blocks after signaling started)
-    6. remove handle from `process_manager` (in finally)
-    7. interpret exit code -> propose terminal state (crashed) if non-zero
-    8. run crashed hooks if exit was non-zero
+    6. interpret exit code -> propose terminal state (crashed) if non-zero
+    7. run crashed hooks if exit was non-zero
+    8. remove handle from `process_manager` (in finally)
 
     ASYNCEXITSTACK 6-STEP DEPENDENCY ORDER (for Phase 5 `Runner.__aenter__`):
     Entry order (LIFO teardown is exact reverse):
@@ -160,30 +160,34 @@ class FlowRunExecutor:
                 message=f"Flow run could not start: {exc}",
             )
             return
+        try:
+            # Step 6: interpret exit code and propose terminal state
+            exit_code = handle.returncode if handle else None
+            if exit_code is not None and exit_code != 0:
+                info = get_infrastructure_exit_info(exit_code)
+                msg = (
+                    f"Process exited with status code: {exit_code}. {info.explanation}"
+                )
+                self._logger.log(
+                    info.log_level, msg, extra={"flow_run_id": self._flow_run.id}
+                )
+                if info.resolution:
+                    self._logger.info(
+                        info.resolution,
+                        extra={"flow_run_id": self._flow_run.id},
+                    )
+                crashed_state = await self._state_proposer.propose_crashed(
+                    self._flow_run, message=msg
+                )
+                # Step 7: run crashed hooks
+                if crashed_state is not None:
+                    await self._hook_runner.run_crashed_hooks(
+                        self._flow_run, crashed_state
+                    )
         finally:
-            # Step 6: remove handle from process_manager
+            # Step 8: keep the handle registered until post-process hooks finish.
             if handle is not None:
                 await self._process_manager.remove(self._flow_run.id)
-
-        # Step 7: interpret exit code and propose terminal state
-        exit_code = handle.returncode if handle else None
-        if exit_code is not None and exit_code != 0:
-            info = get_infrastructure_exit_info(exit_code)
-            msg = f"Process exited with status code: {exit_code}. {info.explanation}"
-            self._logger.log(
-                info.log_level, msg, extra={"flow_run_id": self._flow_run.id}
-            )
-            if info.resolution:
-                self._logger.info(
-                    info.resolution,
-                    extra={"flow_run_id": self._flow_run.id},
-                )
-            crashed_state = await self._state_proposer.propose_crashed(
-                self._flow_run, message=msg
-            )
-            # Step 8: run crashed hooks
-            if crashed_state is not None:
-                await self._hook_runner.run_crashed_hooks(self._flow_run, crashed_state)
 
     async def _start_process(
         self,

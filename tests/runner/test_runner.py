@@ -60,7 +60,7 @@ from prefect.events.schemas.deployment_triggers import DeploymentEventTrigger
 from prefect.exceptions import ScriptError
 from prefect.flows import Flow
 from prefect.logging.loggers import flow_run_logger
-from prefect.runner.runner import Runner
+from prefect.runner.runner import ProcessMapEntry, Runner
 from prefect.runner.server import perform_health_check
 from prefect.schedules import Cron, Interval
 from prefect.settings import (
@@ -1163,6 +1163,48 @@ class TestRunner:
         assert flow_run.state.is_crashed()
         # check to make sure on_cancellation hook was called
         assert "This flow crashed!" in caplog.text
+
+    async def test_process_entry_remains_until_crashed_hooks_finish(self):
+        runner = Runner()
+        flow_run = FlowRun(
+            id=uuid.uuid4(),
+            flow_id=uuid.uuid4(),
+            name="crashed-flow-run",
+        )
+        crashed_flow_run = flow_run.model_copy(update={"state": Crashed()})
+        hook_started = asyncio.Event()
+        hook_can_finish = asyncio.Event()
+
+        async def run_crashed_hooks(*_args: Any, **_kwargs: Any) -> None:
+            hook_started.set()
+            await hook_can_finish.wait()
+
+        runner._client = MagicMock()
+        runner._client.read_flow_run = AsyncMock(return_value=crashed_flow_run)
+        runner._cancelling_observer = MagicMock()
+        runner._control_channel.unregister = MagicMock()
+        runner._release_limit_slot = MagicMock()
+        runner._run_process = AsyncMock(return_value=1)
+        runner._propose_crashed_state = AsyncMock(return_value=Crashed())
+        runner._run_on_crashed_hooks = AsyncMock(side_effect=run_crashed_hooks)
+        runner._flow_run_process_map[flow_run.id] = ProcessMapEntry(
+            pid=1234, flow_run=flow_run
+        )
+
+        finalize_task = asyncio.create_task(
+            runner._submit_run_and_capture_errors(
+                flow_run=flow_run, task_status=MagicMock()
+            )
+        )
+        await hook_started.wait()
+
+        assert flow_run.id in runner._flow_run_process_map
+        assert not finalize_task.done()
+
+        hook_can_finish.set()
+        await finalize_task
+
+        assert flow_run.id not in runner._flow_run_process_map
 
     @pytest.mark.parametrize(
         "exception,hook_type",
