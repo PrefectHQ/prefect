@@ -3,7 +3,7 @@ import uuid
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import ANY, AsyncMock, MagicMock
 
 import anyio
 import anyio.abc
@@ -16,6 +16,7 @@ from prefect.client import schemas as client_schemas
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import State
 from prefect.client.schemas.objects import Deployment, FlowRun, StateType, WorkPool
+from prefect.runner._process_manager import ProcessHandle
 from prefect.server import models
 from prefect.server.database.orm_models import Flow
 from prefect.server.schemas.actions import (
@@ -163,14 +164,18 @@ def mock_open_process(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-def mock_runner_execute_flow_run(monkeypatch: pytest.MonkeyPatch):
+def mock_engine_command_starter(monkeypatch: pytest.MonkeyPatch):
     mock_process = MagicMock(returncode=0, pid=1000)
-    mock_execute_flow_run = AsyncMock()
-    mock_execute_flow_run.return_value = mock_process
-    monkeypatch.setattr(
-        "prefect.runner.runner.Runner.execute_flow_run", mock_execute_flow_run
-    )
-    return mock_execute_flow_run
+    handle = ProcessHandle(mock_process)
+    starter = MagicMock()
+
+    async def start(_flow_run, task_status=anyio.TASK_STATUS_IGNORED):
+        task_status.started(handle)
+
+    starter.start = AsyncMock(side_effect=start)
+    starter_factory = MagicMock(return_value=starter)
+    monkeypatch.setattr("prefect.workers.process.EngineCommandStarter", starter_factory)
+    return starter_factory
 
 
 @pytest.fixture(autouse=True)
@@ -245,9 +250,50 @@ async def test_worker_process_run_flow_run(
         assert flow_run.state.type == StateType.COMPLETED
 
 
+async def test_process_worker_preserves_handled_failed_outcome(
+    prefect_client: PrefectClient,
+    process_work_pool: WorkPool,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    flow_id = await prefect_client.create_flow(flow=example_process_worker_flow)
+    deployment_id = await prefect_client.create_deployment(
+        flow_id=flow_id,
+        name=f"test-process-worker-failed-deployment-{uuid.uuid4()}",
+        path=str(
+            prefect.__development_base_path__
+            / "tests"
+            / "test-projects"
+            / "import-project"
+        ),
+        entrypoint="my_module/flow.py:failed_flow",
+    )
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment_id=deployment_id,
+        state=State(
+            type=client_schemas.StateType.SCHEDULED,
+            state_details=client_schemas.StateDetails(
+                scheduled_time=now("UTC") - timedelta(minutes=5)
+            ),
+        ),
+    )
+    crash_marker = tmp_path / "crash-hook-ran"
+    monkeypatch.setenv("PREFECT_TEST_PROCESS_WORKER_CRASH_MARKER", str(crash_marker))
+
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        result = await worker._submit_run_and_capture_errors(flow_run)
+
+    assert isinstance(result, ProcessWorkerResult)
+    assert result.status_code == 0
+    flow_run = await prefect_client.read_flow_run(flow_run.id)
+    assert flow_run.state is not None
+    assert flow_run.state.is_failed()
+    assert not crash_marker.exists()
+
+
 async def test_worker_process_run_flow_run_with_env_variables_job_config_defaults(
     flow_run: FlowRun,
-    mock_runner_execute_flow_run: MagicMock,
+    mock_engine_command_starter: MagicMock,
     work_pool_with_default_env: WorkPool,
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -274,16 +320,15 @@ async def test_worker_process_run_flow_run_with_env_variables_job_config_default
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
 
-    call_kwargs = mock_runner_execute_flow_run.call_args[1]
+    call_kwargs = mock_engine_command_starter.call_args.kwargs
 
     # should always execute in a tmp directory if working_dir not provided
     assert "tmp" in call_kwargs.pop("cwd")
     assert call_kwargs == dict(
-        flow_run_id=flow_run.id,
         command=configuration.command,
         env=configuration.env,
         stream_output=configuration.stream_output,
-        task_status=anyio.TASK_STATUS_IGNORED,
+        control_channel=ANY,
     )
 
     assert configuration.env["CONFIG_ENV_VAR"] == "from_job_configuration"
@@ -292,7 +337,7 @@ async def test_worker_process_run_flow_run_with_env_variables_job_config_default
 
 async def test_worker_process_run_flow_run_with_env_variables_from_overrides(
     flow_run_with_deployment_overrides: FlowRun,
-    mock_runner_execute_flow_run: MagicMock,
+    mock_engine_command_starter: MagicMock,
     work_pool_with_default_env: WorkPool,
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -316,13 +361,12 @@ async def test_worker_process_run_flow_run_with_env_variables_from_overrides(
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
 
-    mock_runner_execute_flow_run.assert_awaited_once_with(
-        flow_run_id=flow_run_with_deployment_overrides.id,
+    mock_engine_command_starter.assert_called_once_with(
         command=configuration.command,
         cwd=configuration.working_dir,
         env=configuration.env,
         stream_output=configuration.stream_output,
-        task_status=anyio.TASK_STATUS_IGNORED,
+        control_channel=mock_engine_command_starter.call_args.kwargs["control_channel"],
     )
     assert configuration.env["NEW_ENV_VAR"] == "from_deployment"
     assert configuration.env["EXISTING_ENV_VAR"] == "from_os"
@@ -418,7 +462,7 @@ async def test_flow_run_vars_and_deployment_vars_get_merged(
 
 async def test_process_worker_working_dir_override(
     flow_run: FlowRun,
-    mock_runner_execute_flow_run: MagicMock,
+    mock_engine_command_starter: MagicMock,
     process_work_pool: WorkPool,
     prefect_client: PrefectClient,
 ):
@@ -440,7 +484,7 @@ async def test_process_worker_working_dir_override(
 
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
-        assert mock_runner_execute_flow_run.call_args.kwargs["cwd"] != Path(
+        assert mock_engine_command_starter.call_args.kwargs["cwd"] != Path(
             path_override_value
         )
 
@@ -467,7 +511,7 @@ async def test_process_worker_working_dir_override(
 
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
-        assert mock_runner_execute_flow_run.call_args.kwargs["cwd"] == Path(
+        assert mock_engine_command_starter.call_args.kwargs["cwd"] == Path(
             path_override_value
         )
 
@@ -528,7 +572,7 @@ async def run_flow_run_with_job_variables(
 
 async def test_process_worker_uses_auto_uv_command_for_project_working_dir(
     flow_run: FlowRun,
-    mock_runner_execute_flow_run: MagicMock,
+    mock_engine_command_starter: MagicMock,
     process_work_pool: WorkPool,
     prefect_client: PrefectClient,
     uv_project: Path,
@@ -541,14 +585,14 @@ async def test_process_worker_uses_auto_uv_command_for_project_working_dir(
             {"working_dir": str(uv_project)},
         )
 
-    assert mock_runner_execute_flow_run.call_args.kwargs[
+    assert mock_engine_command_starter.call_args.kwargs[
         "command"
     ] == expected_uv_command(uv_project)
 
 
 async def test_process_worker_auto_uv_command_uses_absolute_project_path(
     flow_run: FlowRun,
-    mock_runner_execute_flow_run: MagicMock,
+    mock_engine_command_starter: MagicMock,
     process_work_pool: WorkPool,
     prefect_client: PrefectClient,
     monkeypatch: pytest.MonkeyPatch,
@@ -566,14 +610,14 @@ async def test_process_worker_auto_uv_command_uses_absolute_project_path(
             {"working_dir": uv_project.name},
         )
 
-    assert mock_runner_execute_flow_run.call_args.kwargs[
+    assert mock_engine_command_starter.call_args.kwargs[
         "command"
     ] == expected_uv_command(uv_project)
 
 
 async def test_process_worker_preserves_explicitly_configured_engine_command(
     flow_run: FlowRun,
-    mock_runner_execute_flow_run: MagicMock,
+    mock_engine_command_starter: MagicMock,
     process_work_pool: WorkPool,
     prefect_client: PrefectClient,
     uv_project: Path,
@@ -590,14 +634,14 @@ async def test_process_worker_preserves_explicitly_configured_engine_command(
         )
 
     assert (
-        mock_runner_execute_flow_run.call_args.kwargs["command"]
+        mock_engine_command_starter.call_args.kwargs["command"]
         == "python -m prefect.engine"
     )
 
 
 async def test_process_worker_auto_uv_command_honors_job_variable_env(
     flow_run: FlowRun,
-    mock_runner_execute_flow_run: MagicMock,
+    mock_engine_command_starter: MagicMock,
     process_work_pool: WorkPool,
     prefect_client: PrefectClient,
     uv_project: Path,
@@ -614,14 +658,14 @@ async def test_process_worker_auto_uv_command_honors_job_variable_env(
             },
         )
 
-    assert mock_runner_execute_flow_run.call_args.kwargs[
+    assert mock_engine_command_starter.call_args.kwargs[
         "command"
     ] == expected_uv_command(uv_project)
 
 
 async def test_process_worker_keeps_engine_command_without_project(
     flow_run: FlowRun,
-    mock_runner_execute_flow_run: MagicMock,
+    mock_engine_command_starter: MagicMock,
     process_work_pool: WorkPool,
 ):
     with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
@@ -635,14 +679,14 @@ async def test_process_worker_keeps_engine_command_without_project(
             )
             await worker.run(flow_run=flow_run, configuration=configuration)
 
-    assert mock_runner_execute_flow_run.call_args.kwargs[
-        "command"
-    ] == command_to_string([get_sys_executable(), "-m", "prefect.engine"])
+    assert mock_engine_command_starter.call_args.kwargs["command"] == command_to_string(
+        [get_sys_executable(), "-m", "prefect.engine"]
+    )
 
 
 async def test_process_worker_stream_output_override(
     flow_run: FlowRun,
-    mock_runner_execute_flow_run: MagicMock,
+    mock_engine_command_starter: MagicMock,
     process_work_pool: WorkPool,
     prefect_client: PrefectClient,
 ):
@@ -661,7 +705,7 @@ async def test_process_worker_stream_output_override(
 
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
-        assert mock_runner_execute_flow_run.call_args.kwargs["stream_output"] is True
+        assert mock_engine_command_starter.call_args.kwargs["stream_output"] is True
 
     assert flow_run.deployment_id is not None
     await prefect_client.update_deployment(
@@ -686,14 +730,13 @@ async def test_process_worker_stream_output_override(
 
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
-        assert mock_runner_execute_flow_run.call_args.kwargs["stream_output"] is False
+        assert mock_engine_command_starter.call_args.kwargs["stream_output"] is False
 
 
-async def test_process_worker_executes_flow_run_with_runner(
+async def test_process_worker_executes_flow_run_with_engine_starter(
     flow_run: FlowRun,
-    mock_runner_execute_flow_run: MagicMock,
+    mock_engine_command_starter: MagicMock,
     process_work_pool: WorkPool,
-    monkeypatch: pytest.MonkeyPatch,
 ):
     async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
         configuration = await worker.job_configuration.resolve_for_flow_run(
@@ -714,23 +757,22 @@ async def test_process_worker_executes_flow_run_with_runner(
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
 
-        call_kwargs = mock_runner_execute_flow_run.call_args[1]
+        call_kwargs = mock_engine_command_starter.call_args.kwargs
 
         # should always execute in a tmp directory if working_dir not provided
         assert "tmp" in call_kwargs.pop("cwd")
         assert call_kwargs == dict(
-            flow_run_id=flow_run.id,
             command=configuration.command,
             env=configuration.env,
             stream_output=configuration.stream_output,
-            task_status=anyio.TASK_STATUS_IGNORED,
+            control_channel=ANY,
         )
 
 
 async def test_process_worker_command_override(
     deployment_with_overrides: Deployment,
     flow_run_with_deployment_overrides: FlowRun,
-    mock_runner_execute_flow_run: MagicMock,
+    mock_engine_command_starter: MagicMock,
     process_work_pool: WorkPool,
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -750,13 +792,14 @@ async def test_process_worker_command_override(
 
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
-        mock_runner_execute_flow_run.assert_awaited_once_with(
-            flow_run_id=flow_run_with_deployment_overrides.id,
+        mock_engine_command_starter.assert_called_once_with(
             command=override_command,
             cwd=configuration.working_dir,
             env=configuration.env,
             stream_output=configuration.stream_output,
-            task_status=anyio.TASK_STATUS_IGNORED,
+            control_channel=mock_engine_command_starter.call_args.kwargs[
+                "control_channel"
+            ],
         )
 
 

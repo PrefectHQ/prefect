@@ -20,7 +20,7 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 | DeploymentRegistry | _deployment_registry.py | Deployment/flow/storage/bundle maps |
 | ScheduledRunPoller | _scheduled_run_poller.py | Poll loop, run discovery, scheduling |
 | ProcessStarter (protocol) | _flow_run_executor.py | Strategy interface for starting processes |
-| FlowRunExecutorContext | _flow_run_executor.py | Async context manager for one-shot execution outside Runner (CLI, bundles) |
+| FlowRunExecutorContext | _flow_run_executor.py | Async context manager for one-shot execution outside Runner (workers, CLI, bundles) |
 | DirectSubprocessStarter | _starter_direct.py | Runs Flow object via run_flow_in_subprocess |
 | EngineCommandStarter | _starter_engine.py | Spawns `python -m prefect.engine` subprocess |
 | WorkspaceResolvingEngineCommandStarter | _workspace_starter.py | Resolves workspace (pull steps) via `_workspace_resolver` subprocess then delegates to EngineCommandStarter; used by `prefect flow-run execute` |
@@ -45,7 +45,7 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 - `execute_bundle()` -- deprecated (Mar 2026); use `execute_bundle()` from `prefect.bundles.execute`
 - `reschedule_current_flow_runs()` -- deprecated (Mar 2026); SIGTERM rescheduling is now handled inline by the CLI execute path
 
-These will be removed once internal callers (notably ProcessWorker) are migrated. ProcessWorker currently suppresses the deprecation warnings via `warnings.catch_warnings()`.
+These will be removed once internal callers are migrated. Direct ProcessWorker flow runs already use `FlowRunExecutorContext` with `EngineCommandStarter`; only its ad hoc bundle path still calls deprecated `Runner.execute_bundle()`. Keep lifecycle behavior in the extracted classes and do not route direct worker execution back through Runner.
 
 ## EventEmitter WebSocket Degradation
 
@@ -64,9 +64,11 @@ Services enter in this order during `Runner.__aenter__` (teardown is exact rever
 
 This ordering is a hard constraint. Getting it wrong causes ClosedResourceError during shutdown. Place new services carefully in this sequence.
 
-## ControlChannel: Intent Before Kill
+## Attempt Control Session: Intent or Receipt
 
-`ControlChannel` (`_control_channel.py`) is a TCP loopback socket server that delivers a single-byte *intent* to child processes before the runner sends the actual kill signal. The child-side counterpart lives in `prefect._internal.control_listener`.
+`ControlChannel` (`_control_channel.py`) and the child-side `prefect._internal.control_listener` form an authenticated, attempt-scoped TCP loopback session. Version-one peers retain the single-byte control protocol. Version-two peers negotiate receipt support in-band and may instead conclude the session with one structured Engine Outcome Receipt. The first valid receipt or acknowledged control intent wins; `ControlChannel.get_conclusion()` exposes that immutable evidence, and `unregister()` returns it while cleaning up the registration.
+
+The first authenticated connection consumes its attempt token. Replay and connection replacement are rejected. Wire constants, receipt types, and the shared intent byte map live in `prefect._internal.attempt_control`.
 
 **How cancellation uses it:**
 1. Runner signals `"cancel"` intent over the channel and waits up to 1 s for the child's `b'a'` ack.
@@ -79,7 +81,7 @@ This ordering is a hard constraint. Getting it wrong causes ClosedResourceError 
 
 **Failure modes:** If the child never connects or never acks within 1 s, `signal()` returns `False`. `CancellationManager` falls through to the normal graceful kill and the engine treats the termination as a crash. The `prefect flow-run execute` supervisor instead calls `ProcessManager.kill(force=True)` (SIGKILL, no grace), because an unacked engine would propose `Crashed` and undo a `reschedule`/`relinquish`.
 
-**Extending intents:** The intents today are `"cancel"`, `"reschedule"` and `"relinquish"`. The byte map (`_BYTE_FOR_INTENT` in `_control_channel.py` and `_INTENT_FOR_BYTE` in `_internal/control_listener.py`) must stay in sync when adding new intents.
+**Extending intents:** The intents today are `"cancel"`, `"reschedule"` and `"relinquish"`. Update the single shared map in `prefect._internal.attempt_control` and the engine's `TerminationSignal` dispatch together.
 
 ## ProcessStarter Strategy Pattern
 
@@ -97,15 +99,16 @@ Each execution mode has a ProcessStarter implementation. To add a new execution 
 
 `ScheduledRunPoller` now calls `propose_pending` (Scheduled → Pending) before handing off to `FlowRunExecutor`. `FlowRunExecutor` then calls `propose_submitting` (Pending → Submitting sub-state) as step 1 of its lifecycle **when `propose_submitting=True` (the default)**. These are two separate transitions — do not collapse them. The split exists so automations listening for the Pending state fire correctly before the executor begins.
 
-**Two callers set `propose_submitting=False`** via `FlowRunExecutorContext.create_executor(propose_submitting=False)` — both have already advanced the flow run past the Pending state, so proposing Submitting again would be wrong:
+**Three callers set `propose_submitting=False`** via `FlowRunExecutorContext.create_executor(propose_submitting=False)` — all have already advanced the flow run past the Pending state, so proposing Submitting again would be wrong:
+- direct `ProcessWorker.run()` execution (`BaseWorker` already proposed Submitting)
 - `prefect flow-run execute` CLI path (invoked by a worker)
 - `execute_bundle()` in `prefect.bundles.execute` (invoked by bundle dispatch)
 
 The cancelling precheck (step 1a) still runs unconditionally even when `propose_submitting=False`.
 
-## ProcessWorker Migration (Known Gap)
+## ProcessWorker Execution Paths
 
-ProcessWorker (src/prefect/workers/process.py) calls `Runner.execute_flow_run()` and `Runner.execute_bundle()` via the deprecated path, suppressing `PrefectDeprecationWarning` with `warnings.catch_warnings()`. It bypasses FlowRunExecutor, ProcessManager, and ProcessStarter entirely. This is a known migration target.
+Direct ProcessWorker runs use `FlowRunExecutorContext` with `EngineCommandStarter` and `propose_submitting=False`. The executor owns process tracking, cancellation, Attempt Control Session evidence, crash inference, and normalized infrastructure status. Ad hoc ProcessWorker submissions still call deprecated `Runner.execute_bundle()` and remain a migration target.
 
 ## BlockStorageAdapter Pull Behavior
 

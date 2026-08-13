@@ -27,7 +27,14 @@ from pydantic import BaseModel
 from starlette import status
 
 import prefect.runner
+import prefect.runner._starter_bundle as bundle_starter_mod
+import prefect.runner._starter_direct as starter_mod
 from prefect import __version__, aserve, flow, serve, task
+from prefect._internal.attempt_control import (
+    AttemptConclusion,
+    EngineOutcomeReceipt,
+    StateOwnershipDelegation,
+)
 from prefect._internal.compatibility.deprecated import PrefectDeprecationWarning
 from prefect._internal.versioning import VersionType
 from prefect.blocks.core import BlockNotSavedError
@@ -58,8 +65,12 @@ from prefect.events.clients import (
 from prefect.events.schemas.automations import Posture
 from prefect.events.schemas.deployment_triggers import DeploymentEventTrigger
 from prefect.exceptions import ScriptError
+from prefect.flow_engine import (
+    run_flow_in_subprocess as original_run_flow_in_subprocess,
+)
 from prefect.flows import Flow
 from prefect.logging.loggers import flow_run_logger
+from prefect.runner._control_channel import ControlSignalStatus
 from prefect.runner.runner import Runner
 from prefect.runner.server import perform_health_check
 from prefect.schedules import Cron, Interval
@@ -138,6 +149,8 @@ class ClassWithCancellableFlow:
 def instance_on_crashed(flow, flow_run, state):
     logger = flow_run_logger(flow_run, flow)
     logger.info("Instance method flow crashed!")
+    if marker_path := os.environ.get("PREFECT_TEST_INSTANCE_CRASH_HOOK_MARKER"):
+        Path(marker_path).touch()
 
 
 class ClassWithCrashingFlow:
@@ -1130,7 +1143,6 @@ class TestRunner:
         temp_storage.code = dedent(
             """\
         import os
-        import signal
 
         from prefect import flow
         from prefect.logging.loggers import flow_run_logger
@@ -1142,7 +1154,7 @@ class TestRunner:
         @flow(on_crashed=[on_crashed], log_prints=True)
         def crashing_flow():
             print("Oh boy, here I go crashing again...")
-            os.kill(os.getpid(), signal.SIGTERM)
+            os._exit(7)
         """
         )
 
@@ -1436,6 +1448,61 @@ class TestRunner:
         assert flow_run.state.is_completed()
 
     @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_runner_preserves_failed_engine_command_outcome(
+        self,
+        prefect_client: PrefectClient,
+        temp_storage: MockStorage,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        observed_exit_codes: list[int | None] = []
+        original_run_process = processutils.run_process
+
+        async def run_process_and_record_exit_code(
+            *args: Any, **kwargs: Any
+        ) -> anyio.abc.Process:
+            process = await original_run_process(*args, **kwargs)
+            observed_exit_codes.append(process.returncode)
+            return process
+
+        temp_storage.code = dedent(
+            """\
+            from prefect import flow
+            from prefect.logging.loggers import flow_run_logger
+
+            def on_crashed(flow, flow_run, state):
+                flow_run_logger(flow_run, flow).error("runner crash hook ran")
+
+            @flow(on_crashed=[on_crashed])
+            def failed_flow():
+                raise ValueError("application failure")
+            """
+        )
+        runner = Runner()
+        deployment = await (
+            await flow.from_source(
+                source=temp_storage,
+                entrypoint="flows.py:failed_flow",
+            )
+        ).to_deployment(__file__)
+        deployment_id = await runner.add_deployment(deployment)
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+
+        with patch(
+            "prefect.runner._starter_engine.run_process",
+            side_effect=run_process_and_record_exit_code,
+        ):
+            await runner.start(run_once=True)
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert flow_run.state is not None
+        assert flow_run.state.is_failed()
+        assert observed_exit_codes == [0]
+        assert "runner crash hook ran" not in caplog.text
+        assert "Process exited with status code: 1" not in caplog.text
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
     async def test_runner_caches_adhoc_pulls(self, prefect_client):
         runner = Runner()
 
@@ -1520,9 +1587,9 @@ class TestRunner:
 
         call_order: list[tuple[Any, ...]] = []
 
-        async def _signal(flow_run_id: uuid.UUID, intent: str) -> bool:
+        async def _signal(flow_run_id: uuid.UUID, intent: str) -> ControlSignalStatus:
             call_order.append(("signal", flow_run_id, intent))
-            return True
+            return ControlSignalStatus.ACKNOWLEDGED
 
         async def _wait(
             flow_run_id: uuid.UUID, pid: int, *, grace_seconds: float
@@ -1595,7 +1662,9 @@ class TestRunner:
         }
 
         runner._control_channel = MagicMock()
-        runner._control_channel.signal = AsyncMock(return_value=True)
+        runner._control_channel.signal = AsyncMock(
+            return_value=ControlSignalStatus.ACKNOWLEDGED
+        )
         runner._wait_for_process_exit = AsyncMock(return_value=True)
         runner._kill_process = AsyncMock()
         runner._run_on_cancellation_hooks = AsyncMock()
@@ -1637,7 +1706,9 @@ class TestRunner:
         }
 
         runner._control_channel = MagicMock()
-        runner._control_channel.signal = AsyncMock(return_value=True)
+        runner._control_channel.signal = AsyncMock(
+            return_value=ControlSignalStatus.ACKNOWLEDGED
+        )
         runner._wait_for_process_exit = AsyncMock(return_value=True)
         runner._kill_process = AsyncMock()
         runner._run_on_cancellation_hooks = AsyncMock()
@@ -1675,7 +1746,9 @@ class TestRunner:
         }
 
         runner._control_channel = MagicMock()
-        runner._control_channel.signal = AsyncMock(return_value=True)
+        runner._control_channel.signal = AsyncMock(
+            return_value=ControlSignalStatus.ACKNOWLEDGED
+        )
         runner._wait_for_process_exit = AsyncMock(return_value=False)
         runner._kill_process = AsyncMock(
             side_effect=RuntimeError(
@@ -1720,7 +1793,9 @@ class TestRunner:
         }
 
         runner._control_channel = MagicMock()
-        runner._control_channel.signal = AsyncMock(return_value=True)
+        runner._control_channel.signal = AsyncMock(
+            return_value=ControlSignalStatus.ACKNOWLEDGED
+        )
         runner._wait_for_process_exit = AsyncMock()
         runner._kill_process = AsyncMock()
         runner._run_on_cancellation_hooks = AsyncMock()
@@ -1733,6 +1808,39 @@ class TestRunner:
 
         runner._wait_for_process_exit.assert_not_awaited()
         runner._kill_process.assert_awaited_once_with(12345, grace_seconds=30.0)
+
+    async def test_runner_cancel_run_stops_when_engine_receipt_already_concluded_attempt(
+        self,
+    ):
+        runner = Runner(pause_on_shutdown=False)
+
+        flow_run = MagicMock()
+        flow_run.id = uuid.uuid4()
+        flow_run.name = "legacy-run"
+        flow_run.state = Cancelling()
+
+        runner._flow_run_process_map[flow_run.id] = {
+            "pid": 12345,
+            "flow_run": flow_run,
+        }
+        runner._control_channel = MagicMock()
+        runner._control_channel.signal = AsyncMock(
+            return_value=ControlSignalStatus.ALREADY_CONCLUDED
+        )
+        runner._wait_for_process_exit = AsyncMock()
+        runner._kill_process = AsyncMock()
+        runner._run_on_cancellation_hooks = AsyncMock()
+        runner._mark_flow_run_as_cancelled = AsyncMock(return_value=True)
+        runner._emit_flow_run_cancelled_event = AsyncMock()
+        runner._get_flow_run_logger = MagicMock(return_value=MagicMock())
+
+        await runner._cancel_run(flow_run)
+
+        runner._wait_for_process_exit.assert_not_awaited()
+        runner._kill_process.assert_not_awaited()
+        runner._run_on_cancellation_hooks.assert_not_awaited()
+        runner._mark_flow_run_as_cancelled.assert_not_awaited()
+        runner._emit_flow_run_cancelled_event.assert_not_awaited()
 
     async def test_runner_cancel_run_skips_cancelled_finalization_when_acked_process_already_completed(
         self,
@@ -1750,7 +1858,9 @@ class TestRunner:
         }
 
         runner._control_channel = MagicMock()
-        runner._control_channel.signal = AsyncMock(return_value=True)
+        runner._control_channel.signal = AsyncMock(
+            return_value=ControlSignalStatus.ACKNOWLEDGED
+        )
         runner._kill_process = AsyncMock(
             side_effect=RuntimeError(
                 "Unable to kill process 12345: The process was not found."
@@ -1855,7 +1965,9 @@ class TestRunner:
         }
 
         runner._control_channel = MagicMock()
-        runner._control_channel.signal = AsyncMock(return_value=False)
+        runner._control_channel.signal = AsyncMock(
+            return_value=ControlSignalStatus.NOT_ACKNOWLEDGED
+        )
         runner._kill_process = AsyncMock()
         runner._run_on_cancellation_hooks = AsyncMock()
         runner._mark_flow_run_as_cancelled = AsyncMock(return_value=False)
@@ -2180,6 +2292,74 @@ class TestRunner:
             assert record.levelname == "INFO"
         else:
             assert record.levelname == "ERROR"
+
+    @pytest.mark.parametrize(
+        "attempt_conclusion,exit_code,expected_status_code,expects_crash",
+        [
+            (
+                EngineOutcomeReceipt.state_reported(
+                    state_id=uuid.uuid4(),
+                    state_type="FAILED",
+                    state_name="Failed",
+                ),
+                1,
+                0,
+                False,
+            ),
+            (StateOwnershipDelegation("cancel"), 1, 0, False),
+            (None, 7, 7, True),
+        ],
+    )
+    async def test_legacy_execution_interprets_terminal_evidence(
+        self,
+        attempt_conclusion: AttemptConclusion | None,
+        exit_code: int,
+        expected_status_code: int,
+        expects_crash: bool,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        runner = Runner()
+        flow_run = MagicMock(id=uuid.uuid4(), name="test-flow-run")
+        task_status = MagicMock(spec=anyio.abc.TaskStatus)
+        completion_status: asyncio.Future[int | None] = (
+            asyncio.get_running_loop().create_future()
+        )
+        crashed_state = Crashed(message="Process crashed")
+        propose_crashed = AsyncMock(return_value=crashed_state)
+        run_crashed_hooks = AsyncMock()
+        client = MagicMock()
+        client.read_flow_run = AsyncMock()
+
+        monkeypatch.setattr(runner, "_run_process", AsyncMock(return_value=exit_code))
+        monkeypatch.setattr(runner, "_release_limit_slot", MagicMock())
+        monkeypatch.setattr(
+            runner,
+            "_remove_flow_run_process_map_entry",
+            AsyncMock(return_value=attempt_conclusion),
+        )
+        monkeypatch.setattr(runner, "_get_flow_run_logger", MagicMock())
+        monkeypatch.setattr(runner, "_propose_crashed_state", propose_crashed)
+        monkeypatch.setattr(runner, "_run_on_crashed_hooks", run_crashed_hooks)
+        runner._client = client
+
+        status_code = await runner._submit_run_and_capture_errors(
+            flow_run,
+            task_status,
+            completion_status=completion_status,
+        )
+
+        assert status_code == expected_status_code
+        assert completion_status.result() == expected_status_code
+        if expects_crash:
+            propose_crashed.assert_awaited_once()
+            run_crashed_hooks.assert_awaited_once_with(
+                flow_run=flow_run,
+                state=crashed_state,
+            )
+        else:
+            propose_crashed.assert_not_awaited()
+            run_crashed_hooks.assert_not_awaited()
+        client.read_flow_run.assert_not_awaited()
 
     @pytest.mark.skipif(
         sys.platform != "win32",
@@ -2606,7 +2786,7 @@ class TestRunner:
 
             execute_bundle_in_subprocess = MagicMock(return_value=process)
             monkeypatch.setattr(
-                prefect.runner.runner,
+                bundle_starter_mod,
                 "execute_bundle_in_subprocess",
                 execute_bundle_in_subprocess,
             )
@@ -2628,10 +2808,44 @@ class TestRunner:
                 "PREFECT__CONTROL_TOKEN": "token-123",
             }
 
-        async def test_crashed_bundle_execution(
-            self, prefect_client: PrefectClient, caplog: pytest.LogCaptureFixture
+        async def test_execute_bundle_preserves_receipt_with_nonzero_child_exit(
+            self,
+            prefect_client: PrefectClient,
+            monkeypatch: pytest.MonkeyPatch,
+        ):
+            @flow
+            def failed_flow():
+                raise ValueError("application failure")
+
+            flow_run = await prefect_client.create_flow_run(failed_flow)
+            bundle = create_bundle_for_flow_run(failed_flow, flow_run)["bundle"]
+            receipt = EngineOutcomeReceipt.state_reported(
+                state_id=uuid.uuid4(),
+                state_type="FAILED",
+                state_name="Failed",
+            )
+            process = MagicMock(pid=12345, exitcode=1, join=MagicMock())
+            monkeypatch.setattr(
+                bundle_starter_mod,
+                "execute_bundle_in_subprocess",
+                MagicMock(return_value=process),
+            )
+
+            async with Runner() as runner:
+                runner._control_channel.get_conclusion = MagicMock(return_value=receipt)
+                runner._state_proposer.propose_crashed = AsyncMock()
+                runner._hook_runner.run_crashed_hooks = AsyncMock()
+
+                await runner.execute_bundle(bundle)
+
+            runner._state_proposer.propose_crashed.assert_not_awaited()
+            runner._hook_runner.run_crashed_hooks.assert_not_awaited()
+
+        async def test_handled_crashed_bundle_execution_runs_engine_hook_once(
+            self, prefect_client: PrefectClient, tmp_path: Path
         ):
             runner = Runner()
+            hook_marker = tmp_path / "crashed-hook.txt"
 
             @flow
             def crashed_flow():
@@ -2641,7 +2855,8 @@ class TestRunner:
             def da_hook(
                 flow: "Flow[Any, Any]", flow_run: "FlowRun", state: "State[Any]"
             ):
-                flow_run_logger(flow_run, flow).info("This flow crashed!")
+                with hook_marker.open("a") as marker:
+                    marker.write("ran\n")
 
             flow_run = await prefect_client.create_flow_run(crashed_flow)
 
@@ -2653,7 +2868,7 @@ class TestRunner:
             assert flow_run.state
             assert flow_run.state.is_crashed()
 
-            assert "This flow crashed!" in caplog.text
+            assert hook_marker.read_text().splitlines() == ["ran"]
 
 
 @pytest.mark.usefixtures("use_hosted_api_server")
@@ -2826,7 +3041,8 @@ async def test_runner_runs_on_cancellation_hooks_for_instance_method_flows(
 
 async def test_runner_runs_on_crashed_hooks_for_instance_method_flows(
     prefect_client: PrefectClient,
-    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ):
     """Test that crashed hooks work correctly for instance method flows."""
     runner = Runner()
@@ -2841,13 +3057,15 @@ async def test_runner_runs_on_crashed_hooks_for_instance_method_flows(
     flow_run = await prefect_client.create_flow_run_from_deployment(
         deployment_id=deployment_id
     )
+    hook_marker = tmp_path / "instance-crash-hook"
+    monkeypatch.setenv("PREFECT_TEST_INSTANCE_CRASH_HOOK_MARKER", str(hook_marker))
 
     await runner.execute_flow_run(flow_run.id)
 
     flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
     assert flow_run.state
     assert flow_run.state.is_crashed()
-    assert "Instance method flow crashed!" in caplog.text
+    assert hook_marker.exists()
 
 
 async def test_run_hooks_with_partial_hooks(
@@ -5371,11 +5589,6 @@ class TestResolveStarter:
         not via `python -m prefect.engine`. Patches the direct starter module
         to prove the in-memory path is taken.
         """
-        import prefect.runner._starter_direct as starter_mod
-        from prefect.flow_engine import (
-            run_flow_in_subprocess as original_run_flow_in_subprocess,
-        )
-
         called = False
 
         def tracking_run_flow(*args, **kwargs):
@@ -5397,6 +5610,77 @@ class TestResolveStarter:
         assert flow_run.state
         assert flow_run.state.is_completed()
         assert called, "run_flow_in_subprocess was not called — add_flow path is broken"
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_add_flow_preserves_failed_direct_subprocess_outcome(
+        self,
+        prefect_client: PrefectClient,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        @flow(on_crashed=[on_crashed])
+        def failed_flow():
+            raise ValueError("application failure")
+
+        processes: list[Any] = []
+
+        def tracking_run_flow(*args: Any, **kwargs: Any):
+            process = original_run_flow_in_subprocess(*args, **kwargs)
+            processes.append(process)
+            return process
+
+        runner = Runner()
+        deployment_id = await runner.add_flow(failed_flow, __file__, interval=3600)
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+        with patch.object(
+            starter_mod,
+            "run_flow_in_subprocess",
+            side_effect=tracking_run_flow,
+        ):
+            infrastructure_result = await runner.start(run_once=True)
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert processes[0].exitcode == 0
+        assert infrastructure_result is None
+        assert flow_run.state is not None
+        assert flow_run.state.is_failed()
+        assert "This flow crashed!" not in caplog.text
+        assert "Process exited with status code: 1" not in caplog.text
+
+    @pytest.mark.usefixtures("use_hosted_api_server")
+    async def test_add_flow_preserves_direct_subprocess_crash_fallback(
+        self,
+        prefect_client: PrefectClient,
+        caplog: pytest.LogCaptureFixture,
+    ):
+        @flow(on_crashed=[on_crashed])
+        def crashed_flow():
+            os._exit(7)
+
+        processes: list[Any] = []
+
+        def tracking_run_flow(*args: Any, **kwargs: Any):
+            process = original_run_flow_in_subprocess(*args, **kwargs)
+            processes.append(process)
+            return process
+
+        runner = Runner()
+        deployment_id = await runner.add_flow(crashed_flow, __file__, interval=3600)
+        flow_run = await prefect_client.create_flow_run_from_deployment(deployment_id)
+
+        with patch.object(
+            starter_mod,
+            "run_flow_in_subprocess",
+            side_effect=tracking_run_flow,
+        ):
+            await runner.start(run_once=True)
+
+        flow_run = await prefect_client.read_flow_run(flow_run_id=flow_run.id)
+        assert processes[0].exitcode == 7
+        assert flow_run.state is not None
+        assert flow_run.state.is_crashed()
+        assert "This flow crashed!" in caplog.text
+        assert "Process exited with status code: 7" in caplog.text
 
     async def test_storage_deployment_uses_engine_command_starter(
         self, prefect_client: PrefectClient

@@ -9,6 +9,7 @@ from prefect.runner._cancel_finalizer import (
     finalize_cancelled_state,
     should_skip_cancel_after_acked_process_exit,
 )
+from prefect.runner._control_channel import ControlSignalStatus
 from prefect.states import Cancelling
 
 if TYPE_CHECKING:
@@ -101,7 +102,17 @@ class CancellationManager:
         grace_seconds = 30.0
         if self._control_channel is not None:
             try:
-                acked = await self._control_channel.signal(flow_run.id, "cancel")
+                signal_status = await self._control_channel.signal(
+                    flow_run.id, "cancel"
+                )
+                if signal_status is ControlSignalStatus.ALREADY_CONCLUDED:
+                    self._logger.debug(
+                        "Skipping cancellation for flow run '%s' because the"
+                        " attempt already concluded.",
+                        flow_run.id,
+                    )
+                    return
+                acked = signal_status is ControlSignalStatus.ACKNOWLEDGED
                 if not acked:
                     self._logger.debug(
                         "Cancel intent for flow run '%s' was not acked on the"
