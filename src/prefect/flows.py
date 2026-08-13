@@ -2123,6 +2123,14 @@ class Flow(Generic[P, R]):
 
 
 class FlowDecorator:
+    # Normalizes an async def's inferred `types.CoroutineType` to `Coroutine`;
+    # as the Flow's invariant R it would stop every `self: "Flow[...,
+    # Coroutine[...]]"` overload from matching. See tests/typing/call_annotations.py.
+    @overload
+    def __call__(
+        self, __fn: Callable[P, Coroutine[Any, Any, R]]
+    ) -> Flow[P, Coroutine[Any, Any, R]]: ...
+
     @overload
     def __call__(self, __fn: Callable[P, R]) -> Flow[P, R]: ...
 

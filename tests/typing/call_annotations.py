@@ -70,6 +70,7 @@ def check_sync_flow_calls() -> None:
 
 async def check_async_flow_calls() -> None:
     assert_type(await async_flow(1), int)
+    assert_type(await async_flow(1, return_state=True), State[int])
 
 
 def check_wrong_calls_stay_errors() -> None:
