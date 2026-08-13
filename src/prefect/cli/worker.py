@@ -21,6 +21,7 @@ from prefect.cli._utilities import (
     exit_with_error,
     with_cli_exception_handling,
 )
+from prefect.context import get_settings_context
 from prefect.settings import PREFECT_HOME
 
 WORKER_PID_FILE = Path(PREFECT_HOME.value()) / "worker.pid"
@@ -273,9 +274,14 @@ async def start(
         if not create_pool_if_not_found:
             command.append("--no-create-pool-if-not-found")
 
+        # `--profile` is applied via a process-local settings context and is
+        # not reflected in the environment, so pass it explicitly to the child.
+        env = os.environ.copy()
+        env["PREFECT_PROFILE"] = get_settings_context().profile.name
+
         process = subprocess.Popen(  # noqa: ASYNC220
             command,
-            env=os.environ.copy(),
+            env=env,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             start_new_session=(os.name != "nt"),
