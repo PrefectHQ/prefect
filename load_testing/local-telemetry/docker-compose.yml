@@ -1,6 +1,6 @@
 services:
   prometheus:
-    image: prom/prometheus:v2.48.0
+    image: prom/prometheus:v3.13.2
     ports:
       - 9090:9090
     volumes:

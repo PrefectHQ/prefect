@@ -30,6 +30,31 @@ type ParametersTableColumns = {
 
 const columnHelper = createColumnHelper<ParametersTableColumns>();
 
+/**
+ * Formats object-valued parameters as JSON while preserving existing scalar and
+ * array output.
+ */
+const formatParameterValue = (value: unknown): string => {
+	if (value === null || value === undefined) {
+		return "";
+	}
+	if (Array.isArray(value)) {
+		return value.join(",");
+	}
+	if (typeof value === "object") {
+		return JSON.stringify(value);
+	}
+	if (
+		typeof value === "string" ||
+		typeof value === "number" ||
+		typeof value === "boolean" ||
+		typeof value === "bigint"
+	) {
+		return value.toString();
+	}
+	return JSON.stringify(value) ?? "";
+};
+
 const columns = [
 	columnHelper.accessor("key", {
 		header: "Key",
@@ -46,9 +71,7 @@ const columns = [
 		header: "Override",
 		cell: ({ getValue }) => (
 			<span className="whitespace-normal break-words font-mono text-sm">
-				{getValue() !== null && getValue() !== undefined
-					? String(getValue())
-					: ""}
+				{formatParameterValue(getValue())}
 			</span>
 		),
 	}),
@@ -56,9 +79,7 @@ const columns = [
 		header: "Default",
 		cell: ({ getValue }) => (
 			<span className="whitespace-normal break-words font-mono text-sm">
-				{getValue() !== null && getValue() !== undefined
-					? String(getValue())
-					: ""}
+				{formatParameterValue(getValue())}
 			</span>
 		),
 	}),
@@ -111,12 +132,10 @@ export const DeploymentParametersTable = ({
 		return data.filter(
 			(parameter) =>
 				parameter.key.toLowerCase().includes(deferredSearch.toLowerCase()) ||
-				parameter.value
-					?.toString()
+				formatParameterValue(parameter.value)
 					.toLowerCase()
 					.includes(deferredSearch.toLowerCase()) ||
-				parameter.defaultValue
-					?.toString()
+				formatParameterValue(parameter.defaultValue)
 					.toLowerCase()
 					.includes(deferredSearch.toLowerCase()) ||
 				parameter.type

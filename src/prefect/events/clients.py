@@ -1,5 +1,6 @@
 import abc
 import asyncio
+import base64
 from datetime import timedelta
 from types import TracebackType
 from typing import (
@@ -252,6 +253,11 @@ class AssertingEventsClient(EventsClient):
         return self
 
 
+def _basic_auth_token(auth_string: str) -> str:
+    """Encode an auth string of the form 'user:password' for basic authentication"""
+    return base64.b64encode(auth_string.encode("utf-8")).decode("utf-8")
+
+
 def _get_api_url_and_key(
     api_url: Optional[str], api_key: Optional[str]
 ) -> Tuple[str, str]:
@@ -303,10 +309,15 @@ class PrefectEventsClient(EventsClient):
             auth_string.get_secret_value() if auth_string is not None else None
         )
         self._events_socket_url = events_in_socket_from_api_url(api_url)
-        self._connect = websocket_connect(
-            self._events_socket_url,
-            subprotocols=[Subprotocol("prefect")],
-        )
+        connect_kwargs: Dict[str, Any] = {"subprotocols": [Subprotocol("prefect")]}
+        if self._auth_token:
+            # Servers and proxies that require basic authentication reject the
+            # HTTP upgrade request before the "prefect" subprotocol auth
+            # handshake can run, so also send the credentials as a header.
+            connect_kwargs["additional_headers"] = {
+                "Authorization": f"Basic {_basic_auth_token(self._auth_token)}"
+            }
+        self._connect = websocket_connect(self._events_socket_url, **connect_kwargs)
         self._websocket = None
         self._reconnection_attempts = reconnection_attempts
         self._unconfirmed_events = []

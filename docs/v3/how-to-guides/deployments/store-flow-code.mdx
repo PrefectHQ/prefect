@@ -607,6 +607,9 @@ dependencies. Verify each condition when debugging missing packages at runtime.
 If your custom image already contains the required project code and dependencies, leave
 `PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES` unset or set it to `false`.
 
+Process workers follow the same rules, with the flow run's working directory as the project root. Set the
+`working_dir` job variable to the directory that contains your `pyproject.toml` so the worker can detect the project.
+
 For more information, see [this discussion of custom Docker images](/v3/how-to-guides/deployment_infra/docker/#automatically-build-a-custom-docker-image-with-a-local-dockerfile).
 
 ## Blob storage
