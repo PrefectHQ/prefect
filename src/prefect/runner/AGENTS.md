@@ -20,7 +20,7 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 | DeploymentRegistry | _deployment_registry.py | Deployment/flow/storage/bundle maps |
 | ScheduledRunPoller | _scheduled_run_poller.py | Poll loop, run discovery, scheduling |
 | ProcessStarter (protocol) | _flow_run_executor.py | Strategy interface for starting processes |
-| FlowRunExecutorContext | _flow_run_executor.py | Async context manager for one-shot execution outside Runner (CLI, bundles) |
+| FlowRunExecutorContext | _flow_run_executor.py | Async context manager for one-shot execution outside Runner (workers, CLI, bundles) |
 | DirectSubprocessStarter | _starter_direct.py | Runs Flow object via run_flow_in_subprocess |
 | EngineCommandStarter | _starter_engine.py | Spawns `python -m prefect.engine` subprocess |
 | WorkspaceResolvingEngineCommandStarter | _workspace_starter.py | Resolves workspace (pull steps) via `_workspace_resolver` subprocess then delegates to EngineCommandStarter; used by `prefect flow-run execute` |
@@ -35,7 +35,7 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 - Cancellation -> CancellationManager
 - Hooks -> HookRunner
 
-**Legacy methods on Runner exist only for backward compatibility.** Except for the narrow ProcessWorker status bridge below, do not add new behavior to:
+**Legacy methods on Runner exist only for backward compatibility.** Do not add new behavior to:
 - `_submit_run_and_capture_errors()` -- replaced by FlowRunExecutor.submit()
 - `_run_process()` -- replaced by ProcessStarter implementations
 - `_flow_run_process_map` dict -- replaced by ProcessManager
@@ -45,7 +45,7 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 - `execute_bundle()` -- deprecated (Mar 2026); use `execute_bundle()` from `prefect.bundles.execute`
 - `reschedule_current_flow_runs()` -- deprecated (Mar 2026); SIGTERM rescheduling is now handled inline by the CLI execute path
 
-These will be removed once internal callers are migrated. ProcessWorker uses the same legacy implementation through `_execute_flow_run()` so it can also receive the normalized infrastructure status without changing the deprecated public method's process return type. Until ProcessWorker migrates, `_submit_run_and_capture_errors()` may use Attempt Control Session evidence only to suppress its own crash inference and return normalized infrastructure status; keep all other lifecycle changes in the extracted classes.
+These will be removed once internal callers are migrated. Direct ProcessWorker flow runs already use `FlowRunExecutorContext` with `EngineCommandStarter`; only its ad hoc bundle path still calls deprecated `Runner.execute_bundle()`. Keep lifecycle behavior in the extracted classes and do not route direct worker execution back through Runner.
 
 ## EventEmitter WebSocket Degradation
 
@@ -99,15 +99,16 @@ Each execution mode has a ProcessStarter implementation. To add a new execution 
 
 `ScheduledRunPoller` now calls `propose_pending` (Scheduled → Pending) before handing off to `FlowRunExecutor`. `FlowRunExecutor` then calls `propose_submitting` (Pending → Submitting sub-state) as step 1 of its lifecycle **when `propose_submitting=True` (the default)**. These are two separate transitions — do not collapse them. The split exists so automations listening for the Pending state fire correctly before the executor begins.
 
-**Two callers set `propose_submitting=False`** via `FlowRunExecutorContext.create_executor(propose_submitting=False)` — both have already advanced the flow run past the Pending state, so proposing Submitting again would be wrong:
+**Three callers set `propose_submitting=False`** via `FlowRunExecutorContext.create_executor(propose_submitting=False)` — all have already advanced the flow run past the Pending state, so proposing Submitting again would be wrong:
+- direct `ProcessWorker.run()` execution (`BaseWorker` already proposed Submitting)
 - `prefect flow-run execute` CLI path (invoked by a worker)
 - `execute_bundle()` in `prefect.bundles.execute` (invoked by bundle dispatch)
 
 The cancelling precheck (step 1a) still runs unconditionally even when `propose_submitting=False`.
 
-## ProcessWorker Migration (Known Gap)
+## ProcessWorker Execution Paths
 
-ProcessWorker (src/prefect/workers/process.py) calls the internal legacy `Runner._execute_flow_run()` path and `Runner.execute_bundle()`, suppressing deprecation warnings around the bundle path. It bypasses FlowRunExecutor, ProcessManager, and ProcessStarter entirely. The legacy flow-run path snapshots Attempt Control Session evidence before cleanup and returns a normalized infrastructure status alongside the raw process so BaseWorker cannot reinterpret a handled engine outcome. This remains a migration target.
+Direct ProcessWorker runs use `FlowRunExecutorContext` with `EngineCommandStarter` and `propose_submitting=False`. The executor owns process tracking, cancellation, Attempt Control Session evidence, crash inference, and normalized infrastructure status. Ad hoc ProcessWorker submissions still call deprecated `Runner.execute_bundle()` and remain a migration target.
 
 ## BlockStorageAdapter Pull Behavior
 

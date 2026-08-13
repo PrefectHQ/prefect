@@ -12,7 +12,7 @@ This module does NOT manage the Runner execution model (no work pool) — see `r
 
 - `BaseWorker` — abstract base; handles heartbeating, polling, cancellation, and attribution env vars
 - `BaseJobConfiguration` — Pydantic model for per-run infrastructure config; `prepare_for_flow_run()` stamps attribution variables into `env`
-- `ProcessWorker` (`process.py`) — runs flow runs as local subprocesses via `Runner.execute_bundle()`
+- `ProcessWorker` (`process.py`) — runs direct flow runs through `FlowRunExecutor` with `EngineCommandStarter`; ad hoc bundles still use `Runner.execute_bundle()`
 - `BaseWorkerResult` — result returned by `run()`; wraps infrastructure status codes
 
 ## Worker Channel
@@ -48,7 +48,7 @@ Work-pool-level launchers are configured via `prefect work-pool storage configur
 ## Pitfalls
 
 - `backend_id` is `None` until the first heartbeat succeeds; `PREFECT__WORKER_ID` is not set until then. Code that reads `self.backend_id` early in the lifecycle may get `None`.
-- `ProcessWorker` calls the internal legacy `Runner._execute_flow_run()` path and deprecated `Runner.execute_bundle()` path. It bypasses `FlowRunExecutor` and `ProcessStarter` — this is a known migration gap (see `runner/AGENTS.md`). The flow-run path returns the raw process plus a normalized infrastructure status derived from Attempt Control Session evidence; BaseWorker must consume the normalized status, not the raw child exit code.
+- Direct `ProcessWorker.run()` execution uses `FlowRunExecutorContext` with `EngineCommandStarter` and `propose_submitting=False` because `BaseWorker` already proposed Submitting. Consume the executor's normalized infrastructure status, not the raw child exit code. The ad hoc bundle path still uses deprecated `Runner.execute_bundle()` and remains a migration gap (see `runner/AGENTS.md`).
 
 ## Related
 

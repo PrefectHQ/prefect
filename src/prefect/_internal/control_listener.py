@@ -227,6 +227,9 @@ def _reader_loop(sock: socket.socket) -> None:
                 _logger.warning("Attempt control negotiation response was malformed")
             # A version-one supervisor sends no response to the reserved hello.
             _receipt_capable = False
+        except OSError:
+            # The owning context may close the socket while negotiation is blocked.
+            return
         except ValueError:
             _logger.warning("Attempt control negotiation response was malformed")
             return

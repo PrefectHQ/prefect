@@ -471,6 +471,60 @@ class TestControlListener:
             encode_negotiation(CURRENT_PROTOCOL_VERSION, RECEIPT_CAPABILITY),
         ]
 
+    def test_stop_during_negotiation_does_not_crash_reader(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        class _BlockingSocket:
+            def __init__(self) -> None:
+                self.recv_started = threading.Event()
+                self.closed = threading.Event()
+
+            def connect(self, address: tuple[str, int]) -> None:
+                pass
+
+            def sendall(self, data: bytes) -> None:
+                pass
+
+            def recv(self, size: int) -> bytes:
+                self.recv_started.set()
+                self.closed.wait(timeout=1.0)
+                raise OSError("socket closed")
+
+            def settimeout(self, value: float | None) -> None:
+                pass
+
+            def shutdown(self, how: int) -> None:
+                self.closed.set()
+
+            def close(self) -> None:
+                self.closed.set()
+
+        sock = _BlockingSocket()
+        thread_errors: list[BaseException] = []
+        monkeypatch.setattr(
+            control_listener.socket,
+            "socket",
+            lambda *args, **kwargs: sock,
+        )
+        monkeypatch.setattr(
+            control_listener.threading,
+            "excepthook",
+            lambda args: thread_errors.append(args.exc_value),
+        )
+        os.environ["PREFECT__CONTROL_PORT"] = "4201"
+        os.environ["PREFECT__CONTROL_TOKEN"] = "test-token-stop-negotiation"
+
+        control_listener.start()
+        reader_thread = control_listener._reader_thread
+        assert reader_thread is not None
+        assert sock.recv_started.wait(timeout=1.0) is True
+
+        control_listener.stop()
+        reader_thread.join(timeout=1.0)
+
+        assert reader_thread.is_alive() is False
+        assert thread_errors == []
+
     def test_start_handles_connect_failure_gracefully(self) -> None:
         os.environ["PREFECT__CONTROL_PORT"] = "1"
         os.environ["PREFECT__CONTROL_TOKEN"] = "anything"
