@@ -2397,6 +2397,9 @@ class InfrastructureBoundFlow(Flow[P, R]):
         job_variables: Infrastructure configuration that will override the base job
             configuration of the work pool.
         launcher: Optional upload and execution launcher overrides.
+        include_files: Optional file patterns to include in the bundle.
+        include_files_base_dir: Optional base directory for resolving included file
+            patterns. Defaults to the directory containing the flow file.
         worker_cls: The class of the worker to use to spin up infrastructure and submit
             the flow to it.
     """
@@ -2409,6 +2412,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
         worker_cls: type["BaseWorker[Any, Any, Any]"],
         launcher: BundleLauncher | None = None,
         include_files: Sequence[str] | None = None,
+        include_files_base_dir: Path | str | None = None,
         **kwargs: Any,
     ):
         super().__init__(*args, **kwargs)
@@ -2418,6 +2422,9 @@ class InfrastructureBoundFlow(Flow[P, R]):
         self.launcher: BundleLauncherOverride | None = normalize_launcher(launcher)
         self.include_files: list[str] | None = (
             list(include_files) if include_files is not None else None
+        )
+        self.include_files_base_dir: Path | None = (
+            Path(include_files_base_dir) if include_files_base_dir is not None else None
         )
 
     @overload
@@ -2795,6 +2802,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
         job_variables: Optional[dict[str, Any]] = None,
         launcher: BundleLauncher | None = NotSet,  # type: ignore
         include_files: Optional[list[str]] = NotSet,  # type: ignore
+        include_files_base_dir: Path | str | None = NotSet,  # type: ignore
     ) -> "InfrastructureBoundFlow[P, R]":
         new_flow = super().with_options(
             name=name,
@@ -2828,6 +2836,9 @@ class InfrastructureBoundFlow(Flow[P, R]):
             include_files=include_files
             if include_files is not NotSet
             else self.include_files,
+            include_files_base_dir=include_files_base_dir
+            if include_files_base_dir is not NotSet
+            else self.include_files_base_dir,
         )
         return new_infrastructure_bound_flow
 
@@ -2839,6 +2850,7 @@ def bind_flow_to_infrastructure(
     job_variables: dict[str, Any] | None = None,
     launcher: BundleLauncher | None = None,
     include_files: Sequence[str] | None = None,
+    include_files_base_dir: Path | str | None = None,
 ) -> InfrastructureBoundFlow[P, R]:
     new = InfrastructureBoundFlow[P, R](
         flow.fn,
@@ -2847,6 +2859,7 @@ def bind_flow_to_infrastructure(
         worker_cls=worker_cls,
         launcher=launcher,
         include_files=include_files,
+        include_files_base_dir=include_files_base_dir,
     )
     # Copy all attributes from the original flow
     for attr, value in flow.__dict__.items():
@@ -2856,6 +2869,9 @@ def bind_flow_to_infrastructure(
     new.worker_cls = worker_cls
     new.launcher = normalize_launcher(launcher)
     new.include_files = list(include_files) if include_files is not None else None
+    new.include_files_base_dir = (
+        Path(include_files_base_dir) if include_files_base_dir is not None else None
+    )
     return new
 
 
