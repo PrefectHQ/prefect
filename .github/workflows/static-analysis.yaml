@@ -90,6 +90,11 @@ jobs:
 
       - name: Run pyright check
         run: >-
-          uv run pyright -p .github/pyrightconfig-ci.json --level error
+          uv run pyright -p pyrightconfig-ci.json --level error --outputjson
+          > pyright-report.json || true
+
+      - name: Check pyright report
+        run: >-
+          uv run python scripts/check_pyright_report.py pyright-report.json
 
 
