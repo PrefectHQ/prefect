@@ -299,6 +299,7 @@ class Puppeteer:
     hard_auth_failure: bool
     refuse_any_further_connections: bool
     hard_disconnect_after: Optional[UUID]
+    always_refuse_event: Optional[UUID]
 
     outgoing_events: List[Event]
 
@@ -307,6 +308,7 @@ class Puppeteer:
         self.hard_auth_failure = False
         self.refuse_any_further_connections = False
         self.hard_disconnect_after = None
+        self.always_refuse_event = None
         self.outgoing_events = []
 
 
@@ -365,6 +367,10 @@ async def events_server(
                 return
 
             event = Event.model_validate_json(message)
+
+            if puppeteer.always_refuse_event == event.id:
+                raise ValueError("This event will never be accepted")
+
             recorder.events.append(event)
 
             if puppeteer.hard_disconnect_after == event.id:

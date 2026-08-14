@@ -12,6 +12,7 @@ from prefect.events.clients import (
 )
 from prefect.events.utilities import emit_event
 from prefect.events.worker import EventsWorker, ProcessPoolForwardingEventsClient
+from prefect.server.events.schemas.events import Event as ServerEvent
 from prefect.settings import (
     PREFECT_API_URL,
     temporary_settings,
@@ -127,6 +128,48 @@ async def test_includes_related_resources_from_run_context(
     assert event.related[1].id == f"prefect.flow.{db_flow.id}"
     assert event.related[1].role == "flow"
     assert event.related[1]["prefect.resource.name"] == db_flow.name
+
+
+async def test_truncates_related_resources_from_run_context_at_the_maximum(
+    asserting_events_worker: EventsWorker, reset_worker_events
+):
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/22834, where
+    the resources attached from the run context pushed an event that was already at
+    the maximum over it, and the API then refused the whole event."""
+    maximum = 3
+
+    @flow
+    def emitting_flow():
+        emit_event(
+            event="vogon.poetry.read",
+            resource={"prefect.resource.id": "vogon.poem.oh-freddled-gruntbuggly"},
+            related=[
+                {
+                    "prefect.resource.id": f"vogon.listener.{index}",
+                    "prefect.resource.role": "listener",
+                }
+                for index in range(maximum)
+            ],
+        )
+
+    with temporary_settings(
+        updates={"PREFECT_SERVER_EVENTS_MAXIMUM_RELATED_RESOURCES": maximum}
+    ):
+        emitting_flow(return_state=True)
+
+        await asserting_events_worker.drain()
+
+        assert isinstance(asserting_events_worker._client, AssertingEventsClient)
+        assert len(asserting_events_worker._client.events) == 1
+        event = asserting_events_worker._client.events[0]
+
+        assert len(event.related) == maximum
+        assert [related.id for related in event.related] == [
+            f"vogon.listener.{index}" for index in range(maximum)
+        ]
+
+        # the API will accept the event that the worker produced
+        ServerEvent.model_validate_json(event.model_dump_json())
 
 
 async def test_does_not_include_related_resources_from_run_context_for_lineage_events(

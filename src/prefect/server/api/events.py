@@ -5,6 +5,7 @@ from fastapi import Response, WebSocket
 from fastapi.exceptions import HTTPException
 from fastapi.param_functions import Depends, Path
 from fastapi.params import Body, Query
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from starlette.status import WS_1002_PROTOCOL_ERROR
@@ -71,7 +72,19 @@ async def stream_events_in(websocket: WebSocket) -> None:
     try:
         async with messaging.create_event_publisher() as publisher:
             async for event_json in websocket.iter_text():
-                event = Event.model_validate_json(event_json)
+                try:
+                    event = Event.model_validate_json(event_json)
+                except ValidationError as exc:
+                    # Refuse this event, but keep the connection open so that a
+                    # single unacceptable event does not stop the client from
+                    # delivering any of its other events
+                    logger.warning(
+                        "Refusing to publish invalid event: %s",
+                        exc,
+                        extra={"event_json": event_json[:1000]},
+                    )
+                    continue
+
                 await publisher.publish_event(event.receive())
     except subscriptions.NORMAL_DISCONNECT_EXCEPTIONS:  # pragma: no cover
         pass  # it's fine if a client disconnects either normally or abnormally
