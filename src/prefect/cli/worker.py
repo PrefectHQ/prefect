@@ -329,7 +329,7 @@ async def start(
 
 
 @worker_app.command()
-async def stop():
+async def stop() -> None:
     """Stop the worker started in the background."""
     from prefect.cli._server_utils import (
         _cleanup_pid_file,
