@@ -487,24 +487,28 @@ async def test_clear_cached_clients_frees_dead_loop_sockets():
     assert _client_cache == {}
 
 
-async def test_clear_cached_clients_frees_idle_loop_sockets():
-    """A client on an open-but-never-running loop must be socket-closed.
+async def test_clear_cached_clients_does_not_force_close_open_loop_sockets():
+    """A client on another still-open loop must not have its socket force-closed.
 
-    Scheduling aclose() on such a loop with run_coroutine_threadsafe would never
-    execute, so its sockets have to be closed directly instead.
+    Closing the raw fd of a transport whose loop is still open corrupts that
+    loop's selector (RuntimeError: File descriptor N is used by transport ...),
+    so the client is closed on its own loop via run_coroutine_threadsafe instead.
     """
     _client_cache.clear()
-    idle_loop = asyncio.new_event_loop()  # open, but never run -> not running
+    other_loop = asyncio.new_event_loop()  # open, and not the running loop
     try:
         client, sockets = _fake_client_with_sockets()
-        client.aclose = AsyncMock()
-        _client_cache[(get_async_redis_client, (), (), idle_loop)] = client
+        client.aclose = MagicMock()  # only used to build the scheduled coroutine
+        _client_cache[(get_async_redis_client, (), (), other_loop)] = client
 
-        await clear_cached_clients()
+        with patch(
+            "prefect_redis.client.asyncio.run_coroutine_threadsafe"
+        ) as scheduled:
+            await clear_cached_clients()
 
+        scheduled.assert_called_once()
         for sock in sockets:
-            sock.close.assert_called_once()
-        client.aclose.assert_not_awaited()
+            sock.close.assert_not_called()
         assert _client_cache == {}
     finally:
-        idle_loop.close()
+        other_loop.close()

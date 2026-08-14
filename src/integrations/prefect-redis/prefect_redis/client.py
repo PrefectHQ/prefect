@@ -159,16 +159,20 @@ def cached(fn: Callable[..., Any]) -> Callable[..., Any]:
 
 
 def _close_client_sockets(client: Redis) -> None:
-    """Synchronously close the sockets held by a client's connection pool.
+    """Synchronously close the sockets held by a client whose loop has closed.
 
-    Used when a cached client can no longer be closed with `aclose()` -- its
-    event loop has ended or is idle, so awaiting anything on it is impossible.
-    redis-py's own `StreamWriter.close()` also needs a running loop (see
+    Once the owning event loop is closed, `aclose()` can no longer run (and
+    redis-py's own `StreamWriter.close()` needs a running loop -- see
     `Connection.__del__`), so we reach the real socket and close it directly,
-    which frees the file descriptor without touching the loop. Without this the
-    pool keeps its socket `ESTABLISHED` until the process exits, leaking one
-    descriptor per orphaned loop. Attribute access is defensive so a redis-py
-    internals change degrades to a no-op rather than an error.
+    freeing the file descriptor. Without this the pool keeps its socket
+    `ESTABLISHED` until the process exits, leaking one descriptor per orphaned
+    loop.
+
+    This must only be used once the loop is closed. Closing a socket whose
+    transport is still registered on an open loop's selector corrupts that
+    selector (`RuntimeError: File descriptor N is used by transport ...`), so an
+    open-but-idle loop is instead closed through the loop by the callers. Attr
+    access is defensive so a redis-py internals change degrades to a no-op.
     """
     pool = getattr(client, "connection_pool", None)
     if pool is None:
@@ -226,32 +230,28 @@ async def clear_cached_clients() -> None:
     This should be called when a connection error is detected to ensure
     subsequent calls to get_async_redis_client() return fresh clients rather
     than stale ones with broken connections. Each client is closed before the
-    cache is cleared so its connection pool does not leak. `aclose()` is only
-    awaited for a client whose owning loop is actually running (this loop, or
-    another running loop via `run_coroutine_threadsafe`); a client on an idle or
-    already-closed loop -- where a scheduled `aclose()` would never execute --
-    has its sockets closed directly instead.
+    cache is cleared so its connection pool does not leak:
+
+    - the client on the loop we are running on is awaited directly;
+    - a client whose loop has already closed has its sockets closed directly;
+    - a client on any other still-open loop is closed on that loop via
+      `run_coroutine_threadsafe`. We cannot drive that loop from here (a loop is
+      already running in this thread), and force-closing its socket would
+      corrupt its selector, so scheduling is the only safe option.
     """
     global _client_cache
 
     running_loop = _running_loop()
     for (_, _, _, loop), client in list(_client_cache.items()):
         if running_loop is not None and loop is running_loop:
-            try:
-                await client.aclose()
-            except Exception:
-                _close_client_sockets(client)
-        elif loop is not None and not loop.is_closed() and loop.is_running():
-            # Owned by another *running* loop: close it there without blocking
-            # this one; fall back to a direct socket close if scheduling fails.
+            await client.aclose()
+        elif loop is None or loop.is_closed():
+            _close_client_sockets(client)
+        else:
             try:
                 asyncio.run_coroutine_threadsafe(client.aclose(), loop)
-            except Exception:
-                _close_client_sockets(client)
-        else:
-            # Idle or closed loop: a scheduled aclose() would never run, so free
-            # the descriptors directly.
-            _close_client_sockets(client)
+            except RuntimeError:
+                pass
     _client_cache.clear()
 
 
