@@ -41,6 +41,7 @@ from prefect.client.schemas.responses import SetStateStatus
 from prefect.client.schemas.sorting import FlowRunSort, LogSort
 from prefect.exceptions import Abort, FlowRunWatchError, ObjectNotFound, Pause
 from prefect.logging import get_logger
+from prefect.runner._control_channel import ControlSignalStatus
 from prefect.runner._flow_run_executor import FlowRunExecutorContext
 from prefect.runner._workspace_starter import WorkspaceResolvingEngineCommandStarter
 from prefect.states import AwaitingRetry, State, exception_to_crashed_state
@@ -791,7 +792,14 @@ async def execute(
                     # The engine must learn the intent before it sees a SIGTERM so it
                     # exits without proposing a state we then override; one that never
                     # acknowledged gets no chance to propose at all.
-                    acknowledged = await ctx.control_channel.signal(id, intent)
+                    signal_status = await ctx.control_channel.signal(id, intent)
+                    if signal_status is ControlSignalStatus.ALREADY_CONCLUDED:
+                        logger.info(
+                            "Engine already reported a final state; leaving it unchanged."
+                        )
+                        return
+
+                    acknowledged = signal_status is ControlSignalStatus.ACKNOWLEDGED
                     if not acknowledged:
                         logger.warning(
                             "Engine did not acknowledge %s intent; stopping it without"

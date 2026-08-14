@@ -50,6 +50,7 @@ import uuid
 import warnings
 from contextlib import AsyncExitStack
 from copy import deepcopy
+from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
 from typing import (
@@ -70,6 +71,7 @@ import anyio.abc
 import anyio.to_thread
 from typing_extensions import Self
 
+from prefect._internal.attempt_control import AttemptConclusion
 from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.compatibility.deprecated import (
     PrefectDeprecationWarning,
@@ -85,7 +87,6 @@ from prefect._internal.infrastructure_exit_codes import get_infrastructure_exit_
 from prefect._internal.observers import FlowRunCancellingObserver
 from prefect.bundles import (
     SerializedBundle,
-    execute_bundle_in_subprocess,
     extract_flow_from_bundle,
 )
 from prefect.client.orchestration import get_client
@@ -99,7 +100,7 @@ from prefect.events.clients import (  # noqa: F401 (patch target)
     EventsClient,
     get_events_client,
 )
-from prefect.exceptions import Abort, ObjectNotFound
+from prefect.exceptions import Abort
 from prefect.flow_engine import run_flow_in_subprocess
 from prefect.flows import Flow, FlowStateHook, load_flow_from_flow_run
 from prefect.logging.loggers import PrefectLogAdapter, flow_run_logger, get_logger
@@ -108,14 +109,15 @@ from prefect.runner._cancel_finalizer import (
     should_skip_cancel_after_acked_process_exit,
 )
 from prefect.runner._cancellation_manager import CancellationManager
-from prefect.runner._control_channel import ControlChannel
+from prefect.runner._control_channel import ControlChannel, ControlSignalStatus
 from prefect.runner._deployment_registry import DeploymentRegistry
 from prefect.runner._event_emitter import EventEmitter
-from prefect.runner._flow_run_executor import ProcessStarter
+from prefect.runner._flow_run_executor import FlowRunExecutor, ProcessStarter
 from prefect.runner._hook_runner import HookRunner
 from prefect.runner._limit_manager import LimitManager
 from prefect.runner._process_manager import ProcessManager, _pid_is_alive
 from prefect.runner._scheduled_run_poller import ScheduledRunPoller
+from prefect.runner._starter_bundle import BundleExecutionStarter
 from prefect.runner._starter_direct import DirectSubprocessStarter
 from prefect.runner._starter_engine import EngineCommandStarter
 from prefect.runner._state_proposer import StateProposer
@@ -169,6 +171,12 @@ __all__ = ["Runner"]
 class ProcessMapEntry(TypedDict):
     flow_run: "FlowRun"
     pid: int
+
+
+@dataclass(frozen=True)
+class _FlowRunProcessResult:
+    process: anyio.abc.Process | multiprocessing.context.SpawnProcess
+    status_code: int | None
 
 
 class Runner:
@@ -270,6 +278,7 @@ class Runner:
         # HookRunner is constructed in __aenter__ once the client is available,
         # so we can build a storage-aware flow resolver closure.
         self._hook_runner: HookRunner | None = None
+        self._state_proposer: StateProposer
         # Cross-platform IPC channel for delivering control intent (cancel
         # today; suspend in a follow-up) into child subprocesses; see
         # prefect.runner._control_channel.
@@ -329,7 +338,9 @@ class Runner:
                 assert self._cancelling_observer is not None
             self._cancelling_observer.add_in_flight_flow_run_id(flow_run_id)
 
-    async def _remove_flow_run_process_map_entry(self, flow_run_id: UUID):
+    async def _remove_flow_run_process_map_entry(
+        self, flow_run_id: UUID
+    ) -> AttemptConclusion | None:
         async with self._flow_run_process_map_lock:
             self._flow_run_process_map.pop(flow_run_id, None)
 
@@ -339,7 +350,7 @@ class Runner:
 
         # Drop the control channel registration so the per-run token,
         # connection, and pending state are released.
-        self._control_channel.unregister(flow_run_id)
+        return self._control_channel.unregister(flow_run_id)
 
     async def aadd_deployment(
         self,
@@ -729,12 +740,33 @@ class Runner:
             PrefectDeprecationWarning,
             stacklevel=2,
         )
+        result = await self._execute_flow_run(
+            flow_run_id=flow_run_id,
+            entrypoint=entrypoint,
+            command=command,
+            cwd=cwd,
+            env=env,
+            task_status=task_status,
+            stream_output=stream_output,
+        )
+        return result.process if result is not None else None
+
+    async def _execute_flow_run(
+        self,
+        flow_run_id: UUID,
+        entrypoint: str | None = None,
+        command: str | None = None,
+        cwd: Path | str | None = None,
+        env: dict[str, str | None] | None = None,
+        task_status: anyio.abc.TaskStatus[int] = anyio.TASK_STATUS_IGNORED,
+        stream_output: bool = True,
+    ) -> _FlowRunProcessResult | None:
         self.pause_on_shutdown = False
         context = self if not self.started else asyncnullcontext()
 
         async with context:
             if not self._acquire_limit_slot(flow_run_id):
-                return
+                return None
 
             self._submitting_flow_run_ids.add(flow_run_id)
             flow_run = await self._client.read_flow_run(flow_run_id)
@@ -749,13 +781,16 @@ class Runner:
                 )
                 self._release_limit_slot(flow_run_id)
                 self._submitting_flow_run_ids.discard(flow_run_id)
-                return
+                return None
 
             if flow_run.state and flow_run.state.is_cancelled():
                 self._release_limit_slot(flow_run_id)
                 self._submitting_flow_run_ids.discard(flow_run_id)
-                return
+                return None
 
+            completion_status: asyncio.Future[int | None] = (
+                asyncio.get_running_loop().create_future()
+            )
             process: (
                 anyio.abc.Process | multiprocessing.context.SpawnProcess | Exception
             ) = await self._runs_task_group.start(
@@ -767,10 +802,11 @@ class Runner:
                     cwd=cwd,
                     env=env,
                     stream_output=stream_output,
+                    completion_status=completion_status,
                 ),
             )
             if isinstance(process, Exception):
-                return
+                return None
 
             if process.pid is None:
                 raise RuntimeError("Process has no PID")
@@ -794,7 +830,10 @@ class Runner:
                 if self._flow_run_process_map.get(flow_run.id) is None:
                     break
 
-            return process
+            return _FlowRunProcessResult(
+                process=process,
+                status_code=await completion_status,
+            )
 
     async def execute_bundle(
         self,
@@ -833,73 +872,26 @@ class Runner:
             if not self._acquire_limit_slot(flow_run.id):
                 return
 
-            # Register the flow run with the control channel before spawning
-            # so the child can connect back as soon as it starts.
-            control_env: dict[str, str] = {}
-            control_registered = False
             try:
-                port, token = self._control_channel.register(flow_run.id)
-                control_env["PREFECT__CONTROL_PORT"] = str(port)
-                control_env["PREFECT__CONTROL_TOKEN"] = token
-                control_registered = True
-            except RuntimeError:
-                # Channel not entered (e.g. tests using the legacy facade
-                # without __aenter__); silently skip.
-                pass
-
-            if control_env:
-                env = dict(env or {})
-                env.update(control_env)
-
-            try:
-                process = execute_bundle_in_subprocess(bundle, cwd=cwd, env=env)
-            except BaseException:
-                if control_registered:
-                    self._control_channel.unregister(flow_run.id)
-                raise
-
-            if process.pid is None:
-                if control_registered:
-                    self._control_channel.unregister(flow_run.id)
-                # This shouldn't happen because `execute_bundle_in_subprocess` starts the process
-                # but we'll handle it gracefully anyway
-                msg = "Failed to start process for flow execution. No PID returned."
-                await self._propose_crashed_state(flow_run, msg)
-                raise RuntimeError(msg)
-
-            await self._add_flow_run_process_map_entry(
-                flow_run.id, ProcessMapEntry(pid=process.pid, flow_run=flow_run)
-            )
-            self._flow_run_bundle_map[flow_run.id] = bundle
-
-            await anyio.to_thread.run_sync(process.join)
-
-            await self._remove_flow_run_process_map_entry(flow_run.id)
-
-            flow_run_logger = self._get_flow_run_logger(flow_run)
-            if process.exitcode is None:
-                raise RuntimeError("Process has no exit code")
-
-            if process.exitcode:
-                info = get_infrastructure_exit_info(process.exitcode)
-                flow_run_logger.log(
-                    info.log_level,
-                    f"Process for flow run {flow_run.name!r} exited with status code:"
-                    f" {process.exitcode}; {info.explanation}",
+                self._flow_run_bundle_map[flow_run.id] = bundle
+                assert self._hook_runner is not None
+                executor = FlowRunExecutor(
+                    flow_run=flow_run,
+                    starter=BundleExecutionStarter(
+                        bundle=bundle,
+                        cwd=cwd,
+                        env=env,
+                        control_channel=self._control_channel,
+                    ),
+                    process_manager=self._process_manager,
+                    state_proposer=self._state_proposer,
+                    hook_runner=self._hook_runner,
+                    propose_submitting=False,
+                    get_attempt_conclusion=self._control_channel.get_conclusion,
                 )
-                if info.resolution:
-                    flow_run_logger.info(info.resolution)
-                terminal_state = await self._propose_crashed_state(
-                    flow_run, info.explanation
-                )
-                if terminal_state:
-                    await self._run_on_crashed_hooks(
-                        flow_run=flow_run, state=terminal_state
-                    )
-            else:
-                flow_run_logger.info(
-                    f"Process for flow run {flow_run.name!r} exited cleanly."
-                )
+                await executor.submit()
+            finally:
+                self._release_limit_slot(flow_run.id)
 
     def _get_flow_run_logger(self, flow_run: "FlowRun") -> PrefectLogAdapter:
         return flow_run_logger(
@@ -1275,7 +1267,16 @@ class Runner:
         acked = False
         grace_seconds = 30.0
         try:
-            acked = await self._control_channel.signal(flow_run.id, "cancel")
+            signal_status = await self._control_channel.signal(flow_run.id, "cancel")
+            if signal_status is ControlSignalStatus.ALREADY_CONCLUDED:
+                self._logger.debug(
+                    "Skipping cancellation for flow run '%s' because the"
+                    " attempt already concluded.",
+                    flow_run.id,
+                )
+                self._cancelling_flow_run_ids.discard(flow_run.id)
+                return
+            acked = signal_status is ControlSignalStatus.ACKNOWLEDGED
             if not acked:
                 self._logger.debug(
                     "Cancel intent for flow run '%s' was not acked on the"
@@ -1420,8 +1421,10 @@ class Runner:
         cwd: Path | str | None = None,
         env: dict[str, str | None] | None = None,
         stream_output: bool = True,
+        completion_status: asyncio.Future[int | None] | None = None,
     ) -> Union[Optional[int], Exception]:
         run_logger = self._get_flow_run_logger(flow_run)
+        attempt_conclusion: AttemptConclusion | None = None
 
         try:
             exit_code = await self._run_process(
@@ -1433,20 +1436,6 @@ class Runner:
                 env=env,
                 stream_output=stream_output,
             )
-            flow_run_logger = self._get_flow_run_logger(flow_run)
-            if exit_code:
-                info = get_infrastructure_exit_info(exit_code)
-                flow_run_logger.log(
-                    info.log_level,
-                    f"Process for flow run {flow_run.name!r} exited with status code:"
-                    f" {exit_code}; {info.explanation}",
-                )
-                if info.resolution:
-                    flow_run_logger.info(info.resolution)
-            else:
-                flow_run_logger.info(
-                    f"Process for flow run {flow_run.name!r} exited cleanly."
-                )
         except Exception as exc:
             if not task_status._future.done():  # type: ignore
                 # This flow run was being submitted and did not start successfully
@@ -1463,33 +1452,54 @@ class Runner:
                     "The flow run will not be marked as failed, but an issue may have "
                     "occurred."
                 )
+            if completion_status is not None and not completion_status.done():
+                completion_status.set_result(None)
             return exc
         finally:
             self._release_limit_slot(flow_run.id)
 
-            await self._remove_flow_run_process_map_entry(flow_run.id)
-
-        if exit_code != 0 and not self._rescheduling:
-            await self._propose_crashed_state(
-                flow_run,
-                f"Flow run process exited with non-zero status code {exit_code}.",
+            attempt_conclusion = await self._remove_flow_run_process_map_entry(
+                flow_run.id
             )
 
+        status_code = 0 if attempt_conclusion is not None else exit_code
+        flow_run_logger = self._get_flow_run_logger(flow_run)
         try:
-            api_flow_run = await self._client.read_flow_run(flow_run_id=flow_run.id)
-            terminal_state = api_flow_run.state
-            if terminal_state and terminal_state.is_crashed():
+            if attempt_conclusion is not None:
+                flow_run_logger.info(
+                    f"Process for flow run {flow_run.name!r} reported a handled outcome."
+                )
+            elif exit_code:
+                info = get_infrastructure_exit_info(exit_code)
+                flow_run_logger.log(
+                    info.log_level,
+                    f"Process for flow run {flow_run.name!r} exited with status code:"
+                    f" {exit_code}; {info.explanation}",
+                )
+                if info.resolution:
+                    flow_run_logger.info(info.resolution)
+            else:
+                flow_run_logger.info(
+                    f"Process for flow run {flow_run.name!r} exited cleanly."
+                )
+
+            if exit_code != 0 and attempt_conclusion is None and not self._rescheduling:
+                terminal_state = await self._propose_crashed_state(
+                    flow_run,
+                    f"Flow run process exited with non-zero status code {exit_code}.",
+                )
+            else:
+                terminal_state = None
+
+            if terminal_state is not None:
                 await self._run_on_crashed_hooks(
                     flow_run=flow_run, state=terminal_state
                 )
-        except ObjectNotFound:
-            # Flow run was deleted - log it but don't crash the runner
-            run_logger = self._get_flow_run_logger(flow_run)
-            run_logger.debug(
-                f"Flow run '{flow_run.id}' was deleted before final state could be checked"
-            )
+        finally:
+            if completion_status is not None and not completion_status.done():
+                completion_status.set_result(status_code)
 
-        return exit_code
+        return status_code
 
     async def _propose_pending_state(self, flow_run: "FlowRun") -> bool:
         return await self._state_proposer.propose_pending(flow_run)
@@ -1792,6 +1802,7 @@ class Runner:
             state_proposer=self._state_proposer,
             hook_runner=self._hook_runner,
             cancellation_manager=self._cancellation_manager,
+            get_attempt_conclusion=self._control_channel.get_conclusion,
         )
 
         # Step 6: Enter observer context manager last
