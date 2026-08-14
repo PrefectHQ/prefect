@@ -1859,6 +1859,22 @@ class Task(Generic[P, R]):
 
 
 # Normalizes an async def's inferred `types.CoroutineType` to `Coroutine`;
+class _TaskDecorator(Protocol):
+    """The decorator returned by a configured `@task(...)` call. Declared as a
+    protocol so applying it re-runs the same async-normalizing overloads as
+    the bare `@task` form. See tests/typing/call_annotations.py."""
+
+    @overload
+    def __call__(
+        self, __fn: Callable[P, Coroutine[Any, Any, R]]
+    ) -> Task[P, Coroutine[Any, Any, R]]: ...
+
+    @overload
+    def __call__(self, __fn: Callable[P, R]) -> Task[P, R]: ...
+
+    def __call__(self, __fn: Callable[..., Any]) -> Task[..., Any]: ...
+
+
 # as the Task's invariant R it would stop every `self: "Task[...,
 # Coroutine[...]]"` overload from matching. See tests/typing/call_annotations.py.
 @overload
@@ -1905,7 +1921,7 @@ def task(
     retry_condition_fn: Optional[RetryConditionCallable] = None,
     viz_return_value: Any = None,
     asset_deps: Optional[list[Union[str, Asset]]] = None,
-) -> Callable[[Callable[P, R]], Task[P, R]]: ...
+) -> "_TaskDecorator": ...
 
 
 # see https://github.com/PrefectHQ/prefect/issues/16380
@@ -1942,7 +1958,7 @@ def task(
     retry_condition_fn: Optional[RetryConditionCallable] = None,
     viz_return_value: Any = None,
     asset_deps: Optional[list[Union[str, Asset]]] = None,
-) -> Callable[[Callable[P, R]], Task[P, R]]: ...
+) -> "_TaskDecorator": ...
 
 
 @overload  # TODO: do we need this overload?
@@ -1980,7 +1996,7 @@ def task(
     retry_condition_fn: Optional[RetryConditionCallable] = None,
     viz_return_value: Any = None,
     asset_deps: Optional[list[Union[str, Asset]]] = None,
-) -> Callable[[Callable[P, R]], Task[P, R]]: ...
+) -> "_TaskDecorator": ...
 
 
 def task(

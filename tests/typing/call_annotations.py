@@ -36,6 +36,21 @@ async def async_flow(x: int) -> int:
     return x
 
 
+@task(name="configured-task")
+async def configured_async_task(x: int) -> int:
+    return x
+
+
+@task(retries=1)
+def configured_sync_task(x: int) -> int:
+    return x
+
+
+@flow(name="configured-flow")
+async def configured_async_flow(x: int) -> int:
+    return x
+
+
 def check_sync_task_calls() -> None:
     assert_type(sync_task(1), int)
     assert_type(sync_task(1, label="a"), int)
@@ -71,6 +86,16 @@ def check_sync_flow_calls() -> None:
 async def check_async_flow_calls() -> None:
     assert_type(await async_flow(1), int)
     assert_type(await async_flow(1, return_state=True), State[int])
+
+
+async def check_configured_decorator_calls() -> None:
+    assert_type(configured_sync_task(1), int)
+    assert_type(await configured_async_task(1), int)
+    assert_type(configured_async_task(1, return_state=True), State[int])
+    assert_type(configured_async_task.submit(1), PrefectFuture[int])
+    assert_type(configured_async_task.map([1, 2]), PrefectFutureList[int])
+    assert_type(await configured_async_flow(1), int)
+    assert_type(await configured_async_flow(1, return_state=True), State[int])
 
 
 def check_wrong_calls_stay_errors() -> None:
