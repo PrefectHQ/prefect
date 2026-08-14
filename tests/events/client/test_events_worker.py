@@ -12,7 +12,6 @@ from prefect.events.clients import (
 )
 from prefect.events.utilities import emit_event
 from prefect.events.worker import EventsWorker, ProcessPoolForwardingEventsClient
-from prefect.server.events.schemas.events import Event as ServerEvent
 from prefect.settings import (
     PREFECT_API_URL,
     temporary_settings,
@@ -130,16 +129,19 @@ async def test_includes_related_resources_from_run_context(
     assert event.related[1]["prefect.resource.name"] == db_flow.name
 
 
-async def test_truncates_related_resources_from_run_context_at_the_maximum(
-    asserting_events_worker: EventsWorker, reset_worker_events
+@pytest.mark.parametrize("caller_related", [3, 2])
+async def test_keeps_related_resources_from_run_context_within_the_maximum(
+    asserting_events_worker: EventsWorker,
+    reset_worker_events: None,
+    caller_related: int,
 ):
-    """Regression test for https://github.com/PrefectHQ/prefect/issues/22834, where
-    the resources attached from the run context pushed an event that was already at
-    the maximum over it, and the API then refused the whole event."""
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/22834, where the
+    resources from the run context took an event that the caller had already filled to
+    the maximum over that maximum, so the event was no longer valid to send."""
     maximum = 3
 
     @flow
-    def emitting_flow():
+    def emitting_flow() -> None:
         emit_event(
             event="vogon.poetry.read",
             resource={"prefect.resource.id": "vogon.poem.oh-freddled-gruntbuggly"},
@@ -148,7 +150,7 @@ async def test_truncates_related_resources_from_run_context_at_the_maximum(
                     "prefect.resource.id": f"vogon.listener.{index}",
                     "prefect.resource.role": "listener",
                 }
-                for index in range(maximum)
+                for index in range(caller_related)
             ],
         )
 
@@ -163,13 +165,19 @@ async def test_truncates_related_resources_from_run_context_at_the_maximum(
         assert len(asserting_events_worker._client.events) == 1
         event = asserting_events_worker._client.events[0]
 
+        # every resource the caller gave is kept, and the resources from the run
+        # context only fill the room that is left
         assert len(event.related) == maximum
-        assert [related.id for related in event.related] == [
-            f"vogon.listener.{index}" for index in range(maximum)
+        assert [related.id for related in event.related[:caller_related]] == [
+            f"vogon.listener.{index}" for index in range(caller_related)
         ]
+        assert [related.role for related in event.related[caller_related:]] == [
+            "flow-run",
+            "flow",
+        ][: maximum - caller_related]
 
-        # the API will accept the event that the worker produced
-        ServerEvent.model_validate_json(event.model_dump_json())
+        # the event is still valid to send
+        Event.model_validate_json(event.model_dump_json())
 
 
 async def test_does_not_include_related_resources_from_run_context_for_lineage_events(

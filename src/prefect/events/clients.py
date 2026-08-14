@@ -86,11 +86,6 @@ RETRYABLE_EXCEPTIONS: Tuple[Type[Exception], ...] = (
     OSError,
 )
 
-# How many times an unconfirmed event may be resent on a new connection before it is
-# dropped.  An event the API will never accept closes each connection it is sent on, so
-# without a bound it would also keep every event emitted after it from being delivered.
-MAXIMUM_RESEND_ATTEMPTS = 3
-
 
 def http_to_ws(url: str) -> str:
     return url.replace("https://", "wss://").replace("http://", "ws://").rstrip("/")
@@ -282,7 +277,6 @@ class PrefectEventsClient(EventsClient):
 
     _websocket: Optional[ClientConnection]
     _unconfirmed_events: List[Event]
-    _resend_attempts: Dict[UUID, int]
     _auth_token: Optional[str]
 
     def __init__(
@@ -327,7 +321,6 @@ class PrefectEventsClient(EventsClient):
         self._websocket = None
         self._reconnection_attempts = reconnection_attempts
         self._unconfirmed_events = []
-        self._resend_attempts = {}
         self._checkpoint_every = checkpoint_every
         self._checkpoint_interval = checkpoint_interval
         self._checkpoint_task: Optional[asyncio.Task[None]] = None
@@ -463,8 +456,6 @@ class PrefectEventsClient(EventsClient):
         try:
             while events_to_resend:
                 event = events_to_resend.pop(0)
-                if not self._may_resend(event):
-                    continue
                 await self.emit(event)
         except Exception:
             # If a resend fails partway through (emit() has its own retry
@@ -475,34 +466,6 @@ class PrefectEventsClient(EventsClient):
             raise
         logger.debug("Finished resending unconfirmed events.")
         self._start_checkpoint_task()
-
-    def _may_resend(self, event: Event) -> bool:
-        """Counts one attempt to resend this event, and tells whether the event has now
-        been attempted too many times to send it again."""
-        attempts = self._resend_attempts.get(event.id, 0) + 1
-        if attempts > MAXIMUM_RESEND_ATTEMPTS:
-            self._resend_attempts.pop(event.id, None)
-            logger.warning(
-                "Dropping event %r id=%s after %s failed attempts to send it. "
-                "The API may be refusing this event.",
-                event.event,
-                event.id,
-                MAXIMUM_RESEND_ATTEMPTS,
-            )
-            return False
-        self._resend_attempts[event.id] = attempts
-        return True
-
-    def _forget_confirmed_events(self) -> None:
-        """Stops tracking resend attempts for events that are no longer unconfirmed."""
-        if not self._resend_attempts:
-            return
-        unconfirmed = {event.id for event in self._unconfirmed_events}
-        self._resend_attempts = {
-            event_id: attempts
-            for event_id, attempts in self._resend_attempts.items()
-            if event_id in unconfirmed
-        }
 
     def _start_checkpoint_task(self) -> None:
         self._stop_checkpoint_task()
@@ -568,7 +531,6 @@ class PrefectEventsClient(EventsClient):
         self._log_debug("Pong received. Events checkpointed.")
 
         self._unconfirmed_events = self._unconfirmed_events[unconfirmed_count:]
-        self._forget_confirmed_events()
 
         EVENT_WEBSOCKET_CHECKPOINTS.labels(self.client_name).inc()
 
@@ -589,7 +551,6 @@ class PrefectEventsClient(EventsClient):
         # we had enqueued prior to that.  There could be more that came in after, so
         # don't clear the list, just the ones that we are sure of.
         self._unconfirmed_events = self._unconfirmed_events[unconfirmed_count:]
-        self._forget_confirmed_events()
 
         EVENT_WEBSOCKET_CHECKPOINTS.labels(self.client_name).inc()
 

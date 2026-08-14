@@ -122,8 +122,8 @@ class EventsWorker(QueueService[Event]):
         )
 
         # The event was validated when it was created, before these resources were
-        # known, so only attach as many as will keep the event within the maximum
-        # the API will accept.  Otherwise the API refuses the event entirely.
+        # known, so only attach as many as keep the event within the same maximum that
+        # the Event schema validates.  Otherwise the event is no longer valid to send.
         maximum = get_current_settings().server.events.maximum_related_resources
         room = max(maximum - len(event.related), 0)
         if len(related) > room:

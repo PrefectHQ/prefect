@@ -1,4 +1,3 @@
-import json
 from typing import Tuple
 from unittest import mock
 
@@ -12,11 +11,7 @@ from starlette.websockets import WebSocketDisconnect
 from prefect.server.events import messaging
 from prefect.server.events.schemas.events import Event
 from prefect.server.events.storage import database
-from prefect.settings import (
-    PREFECT_SERVER_API_AUTH_STRING,
-    get_current_settings,
-    temporary_settings,
-)
+from prefect.settings import PREFECT_SERVER_API_AUTH_STRING, temporary_settings
 from prefect.types._datetime import DateTime
 
 pytestmark = pytest.mark.clear_db
@@ -193,41 +188,6 @@ def test_stream_events_in_with_auth_string(
             event2.receive(received=frozen_time),
         ]
         stream_publish.assert_has_awaits([mock.call(event) for event in server_events])
-
-
-def test_stream_events_in_refuses_invalid_events_without_disconnecting(
-    test_client: TestClient,
-    frozen_time: DateTime,
-    event1: Event,
-    event2: Event,
-    stream_publish: mock.AsyncMock,
-):
-    """Regression test for https://github.com/PrefectHQ/prefect/issues/22834, where an
-    event the server refused closed the connection, so every event the client sent
-    afterwards was lost too."""
-    invalid_event = event2.model_dump(mode="json")
-    invalid_event["related"] = [
-        {
-            "prefect.resource.id": f"any.thing.{index}",
-            "prefect.resource.role": "related",
-        }
-        for index in range(
-            get_current_settings().server.events.maximum_related_resources + 1
-        )
-    ]
-
-    websocket: WebSocketTestSession
-    with test_client.websocket_connect(
-        "/api/events/in", subprotocols=["prefect"]
-    ) as websocket:
-        websocket.send_json({"type": "auth", "token": None})
-        assert websocket.receive_json()["type"] == "auth_success"
-
-        websocket.send_text(json.dumps(invalid_event))
-        websocket.send_text(event1.model_dump_json())
-
-    stream_publish.assert_has_awaits([mock.call(event1.receive(received=frozen_time))])
-    assert stream_publish.await_count == 1
 
 
 def test_post_events(

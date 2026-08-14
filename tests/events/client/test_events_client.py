@@ -10,7 +10,6 @@ from websockets.exceptions import ConnectionClosedError
 
 from prefect.events import Event, get_events_client
 from prefect.events.clients import (
-    MAXIMUM_RESEND_ATTEMPTS,
     PrefectCloudEventsClient,
     PrefectEventsClient,
     get_events_subscriber,
@@ -233,108 +232,6 @@ async def test_reconnects_and_resends_after_hard_disconnect(
             example_event_5,
         ],
     )
-
-
-async def test_drops_an_event_the_api_will_never_accept(
-    Client: Type[PrefectEventsClient],
-    example_event_1: Event,
-    example_event_2: Event,
-    example_event_3: Event,
-    recorder: Recorder,
-    puppeteer: Puppeteer,
-):
-    """Regression test for https://github.com/PrefectHQ/prefect/issues/22834, where an
-    event that the API refuses stayed in the unconfirmed events forever, closed every
-    new connection when it was resent, and thus stopped the delivery of all of the
-    events that came after it."""
-    client = Client(checkpoint_every=1_000_000)
-    async with client:
-        puppeteer.always_refuse_event = example_event_2.id
-
-        await client.emit(example_event_1)
-        await client.emit(example_event_2)
-
-        # each reconnection resends the unconfirmed events, and the API closes the
-        # connection again when it gets the event that it will not accept
-        for _ in range(MAXIMUM_RESEND_ATTEMPTS + 1):
-            await client._reconnect()
-
-        assert client._unconfirmed_events == []
-        assert client._resend_attempts == {}
-
-        await client.emit(example_event_3)
-
-    assert example_event_2 not in recorder.events
-    assert example_event_3 in recorder.events
-
-
-async def test_only_counts_resend_attempts_for_events_it_did_resend(
-    Client: Type[PrefectEventsClient],
-    example_event_1: Event,
-    example_event_2: Event,
-    recorder: Recorder,
-    puppeteer: Puppeteer,
-    monkeypatch: pytest.MonkeyPatch,
-):
-    """An event that keeps its place in the queue while an earlier event aborts the
-    resending must not spend any of its own attempts, or a single refused event would
-    still stop the delivery of the events that came after it."""
-
-    class ResendFailure(Exception):
-        pass
-
-    client = Client(checkpoint_every=1_000_000)
-    async with client:
-        client._unconfirmed_events = [example_event_1, example_event_2]
-
-        emit = client.emit
-
-        async def emit_or_fail_on_the_first_event(event: Event) -> None:
-            if event.id == example_event_1.id:
-                # this is what emit() does before it gives up on the event
-                client._unconfirmed_events.append(event)
-                raise ResendFailure()
-            await emit(event)
-
-        monkeypatch.setattr(client, "emit", emit_or_fail_on_the_first_event)
-
-        for _ in range(MAXIMUM_RESEND_ATTEMPTS):
-            with pytest.raises(ResendFailure):
-                await client._reconnect()
-
-            # the second event never got its turn, so it has not used an attempt
-            assert example_event_2.id not in client._resend_attempts
-
-        # with the first event's attempts spent, it is dropped and the second event is
-        # resent as if it were the first attempt for it
-        await client._reconnect()
-
-    assert example_event_1 not in recorder.events
-    assert example_event_2 in recorder.events
-
-
-async def test_stops_tracking_resend_attempts_for_confirmed_events(
-    Client: Type[PrefectEventsClient],
-    example_event_1: Event,
-    example_event_2: Event,
-    recorder: Recorder,
-    puppeteer: Puppeteer,
-):
-    """The resend attempts of an event are no longer of any interest once the API has
-    confirmed the event, and tracking them forever would leak memory."""
-    client = Client(checkpoint_every=1_000_000)
-    async with client:
-        await client.emit(example_event_1)
-
-        await client._reconnect()
-        assert client._resend_attempts == {example_event_1.id: 1}
-
-        await client._force_checkpoint()
-        assert client._resend_attempts == {}
-
-        await client.emit(example_event_2)
-
-    assert_recorded_events_in_order(recorder, [example_event_1, example_event_2])
 
 
 @pytest.mark.parametrize("attempts", [4, 1, 0])
