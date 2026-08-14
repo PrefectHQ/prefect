@@ -268,6 +268,51 @@ async def test_drops_an_event_the_api_will_never_accept(
     assert example_event_3 in recorder.events
 
 
+async def test_only_counts_resend_attempts_for_events_it_did_resend(
+    Client: Type[PrefectEventsClient],
+    example_event_1: Event,
+    example_event_2: Event,
+    recorder: Recorder,
+    puppeteer: Puppeteer,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """An event that keeps its place in the queue while an earlier event aborts the
+    resending must not spend any of its own attempts, or a single refused event would
+    still stop the delivery of the events that came after it."""
+
+    class ResendFailure(Exception):
+        pass
+
+    client = Client(checkpoint_every=1_000_000)
+    async with client:
+        client._unconfirmed_events = [example_event_1, example_event_2]
+
+        emit = client.emit
+
+        async def emit_or_fail_on_the_first_event(event: Event) -> None:
+            if event.id == example_event_1.id:
+                # this is what emit() does before it gives up on the event
+                client._unconfirmed_events.append(event)
+                raise ResendFailure()
+            await emit(event)
+
+        monkeypatch.setattr(client, "emit", emit_or_fail_on_the_first_event)
+
+        for _ in range(MAXIMUM_RESEND_ATTEMPTS):
+            with pytest.raises(ResendFailure):
+                await client._reconnect()
+
+            # the second event never got its turn, so it has not used an attempt
+            assert example_event_2.id not in client._resend_attempts
+
+        # with the first event's attempts spent, it is dropped and the second event is
+        # resent as if it were the first attempt for it
+        await client._reconnect()
+
+    assert example_event_1 not in recorder.events
+    assert example_event_2 in recorder.events
+
+
 async def test_stops_tracking_resend_attempts_for_confirmed_events(
     Client: Type[PrefectEventsClient],
     example_event_1: Event,

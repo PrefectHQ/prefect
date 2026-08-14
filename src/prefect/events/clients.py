@@ -455,7 +455,7 @@ class PrefectEventsClient(EventsClient):
 
         await self._auth_handshake()
 
-        events_to_resend = self._resendable_events(self._unconfirmed_events)
+        events_to_resend = self._unconfirmed_events
         logger.debug("Resending %s unconfirmed events.", len(events_to_resend))
         # Clear the unconfirmed events here, because they are going back through emit
         # and will be added again through the normal checkpointing process
@@ -463,6 +463,8 @@ class PrefectEventsClient(EventsClient):
         try:
             while events_to_resend:
                 event = events_to_resend.pop(0)
+                if not self._may_resend(event):
+                    continue
                 await self.emit(event)
         except Exception:
             # If a resend fails partway through (emit() has its own retry
@@ -474,25 +476,22 @@ class PrefectEventsClient(EventsClient):
         logger.debug("Finished resending unconfirmed events.")
         self._start_checkpoint_task()
 
-    def _resendable_events(self, events: List[Event]) -> List[Event]:
-        """Returns the events that may still be resent, dropping any that have been
-        resent too many times already."""
-        resendable: List[Event] = []
-        for event in events:
-            attempts = self._resend_attempts.get(event.id, 0) + 1
-            if attempts > MAXIMUM_RESEND_ATTEMPTS:
-                self._resend_attempts.pop(event.id, None)
-                logger.warning(
-                    "Dropping event %r id=%s after %s failed attempts to send it. "
-                    "The API may be refusing this event.",
-                    event.event,
-                    event.id,
-                    MAXIMUM_RESEND_ATTEMPTS,
-                )
-                continue
-            self._resend_attempts[event.id] = attempts
-            resendable.append(event)
-        return resendable
+    def _may_resend(self, event: Event) -> bool:
+        """Counts one attempt to resend this event, and tells whether the event has now
+        been attempted too many times to send it again."""
+        attempts = self._resend_attempts.get(event.id, 0) + 1
+        if attempts > MAXIMUM_RESEND_ATTEMPTS:
+            self._resend_attempts.pop(event.id, None)
+            logger.warning(
+                "Dropping event %r id=%s after %s failed attempts to send it. "
+                "The API may be refusing this event.",
+                event.event,
+                event.id,
+                MAXIMUM_RESEND_ATTEMPTS,
+            )
+            return False
+        self._resend_attempts[event.id] = attempts
+        return True
 
     def _forget_confirmed_events(self) -> None:
         """Stops tracking resend attempts for events that are no longer unconfirmed."""
