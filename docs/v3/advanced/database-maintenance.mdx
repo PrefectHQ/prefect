@@ -245,6 +245,8 @@ The following settings control vacuum behavior:
 | `PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS` | `3600` (1 hour) | How often the vacuum cycle runs, in seconds. |
 | `PREFECT_SERVER_SERVICES_DB_VACUUM_RETENTION_PERIOD` | `7776000` (90 days) | How old a flow run must be (based on end time) before it is eligible for deletion. Accepts seconds. Must be greater than 1 hour. |
 | `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE` | `200` | Number of records to delete per database transaction. |
+| `PREFECT_SERVER_SERVICES_DB_VACUUM_MAINTENANCE_POOL_SIZE` | `1` | Size of the dedicated connection pool used for vacuum maintenance queries. Increase this when event and flow-run vacuum tasks contend on high-volume deployments. |
+| `PREFECT_SERVER_SERVICES_DB_VACUUM_MAINTENANCE_MAX_OVERFLOW` | `0` | Number of overflow connections allowed for the vacuum maintenance connection pool. |
 | `PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES` | `{"prefect.flow-run.heartbeat": 604800}` | Per-event-type retention period overrides in seconds. Event types not listed fall back to `PREFECT_SERVER_EVENTS_RETENTION_PERIOD`. Each override is capped by the global events retention period. |
 
 Example configuration for a weekly vacuum cycle with a 30-day retention period:
@@ -280,9 +282,14 @@ The event vacuum only runs when the event persister service is also enabled (`PR
 
 All deletions happen in batches (controlled by `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE`) to avoid long-running transactions that could impact database performance.
 
+<Warning>
+The vacuum service issues SQL `DELETE` statements. On PostgreSQL heap tables, disk usage does not drop immediately: dead tuples become reusable only after `VACUUM` or autovacuum, and relation files shrink only with `VACUUM FULL`, `pg_repack`, or `pg_squeeze`. See [PostgreSQL VACUUM](#postgresql-vacuum) and [Tune autovacuum for Prefect workloads](#tune-autovacuum-for-prefect-workloads). Monitor the `event`, `event_resource`, `flow_run`, and `log` tables for bloat.
+</Warning>
+
 ### Tune the vacuum for your workload
 
 - **High-volume deployments** (thousands of runs per day): Consider a shorter retention period (for example, 7-14 days) and a more frequent vacuum cycle (every few hours) to prevent data accumulation.
+- **High-volume PostgreSQL deployments**: If you run both event and flow-run vacuum types, consider increasing `PREFECT_SERVER_SERVICES_DB_VACUUM_MAINTENANCE_POOL_SIZE` to reduce connection contention between vacuum tasks.
 - **Low-volume deployments**: The defaults (90-day retention, hourly cycle) are appropriate for most cases.
 - **Large batch size**: Increasing `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE` speeds up cleanup but may hold database locks longer. Decrease the batch size if you observe performance impacts during vacuum cycles.
 - **Scaled deployments**: If you run [separate API and background service processes](/v3/advanced/self-hosted), ensure the background services pod is running to enable the vacuum service.

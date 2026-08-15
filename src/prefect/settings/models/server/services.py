@@ -141,6 +141,18 @@ class ServerServicesDBVacuumSettings(ServicesBaseSetting):
         description="The number of records to delete per database transaction. Defaults to `200`.",
     )
 
+    maintenance_pool_size: int = Field(
+        default=1,
+        gt=0,
+        description="Size of the dedicated connection pool used for vacuum maintenance queries. Increasing this can help when event and flow-run vacuum tasks contend on high-volume deployments. Defaults to `1`.",
+    )
+
+    maintenance_max_overflow: int = Field(
+        default=0,
+        ge=0,
+        description="Number of overflow connections allowed for the vacuum maintenance connection pool. Defaults to `0`.",
+    )
+
     event_retention_overrides: Annotated[
         dict[str, SecondsTimeDelta],
         AfterValidator(_validate_retention_overrides),
