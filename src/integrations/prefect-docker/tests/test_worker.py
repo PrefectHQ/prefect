@@ -1661,6 +1661,35 @@ class TestSubmitAdhocRunWithFlowRunParameter:
         call_volumes = mock_docker_client.containers.create.call_args[1].get("volumes")
         assert "result-storage:/result-storage" in call_volumes
 
+    async def test_submit_adhoc_run_preserves_configured_volumes(
+        self, mock_docker_client, test_flow
+    ):
+        """Configured volumes should be mounted alongside the temporary bundle volume."""
+        base_job_template = DockerWorker.get_default_base_job_template()
+        base_job_template["variables"]["properties"]["custom_volumes"] = {
+            "type": "array",
+            "items": {"type": "string"},
+            "default": ["custom:/custom"],
+        }
+        base_job_template["job_configuration"]["volumes"] = "{{ custom_volumes }}"
+
+        async with get_client() as client:
+            work_pool = await client.create_work_pool(
+                work_pool=WorkPoolCreate(
+                    name=f"test-docker-pool-{uuid.uuid4().hex[:8]}",
+                    type="docker",
+                    base_job_template=base_job_template,
+                ),
+            )
+
+            async with DockerWorker(work_pool_name=work_pool.name) as worker:
+                await worker._submit_adhoc_run(flow=test_flow, parameters={})
+
+        mock_docker_client.containers.create.assert_called_once()
+        call_volumes = mock_docker_client.containers.create.call_args[1].get("volumes")
+        assert "custom:/custom" in call_volumes
+        assert any(volume.endswith(":/tmp/") for volume in call_volumes)
+
     async def test_submit_adhoc_run_passes_worker_id_for_attribution(
         self, mock_docker_client, work_pool, test_flow
     ):
