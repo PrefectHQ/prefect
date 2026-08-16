@@ -753,8 +753,28 @@ def test_write_path_in_sync_context(s3_bucket):
     assert content == b"hello"
 
 
-def test_resolve_path(s3_bucket):
-    assert s3_bucket._resolve_path("") == ""
+@pytest.mark.parametrize(
+    "bucket_folder, path, expected",
+    [
+        ("", "", ""),
+        ("", "file.txt", "file.txt"),
+        ("", "/file.txt", "file.txt"),
+        ("prefix", "", "prefix"),
+        ("prefix", "file.txt", "prefix/file.txt"),
+        ("prefix", "/file.txt", "prefix/file.txt"),
+        ("prefix", "/folder/file.txt", "prefix/folder/file.txt"),
+        ("prefix/", "file.txt", "prefix/file.txt"),
+        ("prefix/", "/file.txt", "prefix/file.txt"),
+        ("/prefix", "file.txt", "prefix/file.txt"),
+        ("/prefix", "/file.txt", "prefix/file.txt"),
+        ("/prefix/", "file.txt", "prefix/file.txt"),
+        ("/prefix/", "/file.txt", "prefix/file.txt"),
+    ],
+)
+def test_resolve_path(bucket_folder, path, expected):
+    """`bucket_folder` applies regardless of leading slashes on either side."""
+    s3_bucket = S3Bucket(bucket_name=BUCKET_NAME, bucket_folder=bucket_folder)
+    assert s3_bucket._resolve_path(path) == expected
 
 
 def test_resolve_path_no_double_prefix(s3_bucket):
