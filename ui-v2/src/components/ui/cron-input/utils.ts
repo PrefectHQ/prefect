@@ -1,6 +1,6 @@
 /**
  * Guards against croniter whole-cycle mismatches: low==high ranges, max-start
- * slash steps, and 6-field seconds-position parsing.
+ * slash steps, and seconds-position parsing in 6- and 7-field expressions.
  */
 const FIELD_MAX = [59, 23, 31, 12, 6];
 
@@ -70,7 +70,10 @@ const tokenDiverges = (token: string, index: number): boolean => {
 export const divergesFromServerCron = (cron: string): boolean => {
 	const fields = cron.trim().split(/\s+/);
 
-	if (fields.length === 6) {
+	// croniter reads the seconds field last (and an optional year after it),
+	// while cronstrue reads seconds first, so no 6- or 7-field expression can
+	// be described from the raw string.
+	if (fields.length >= 6) {
 		return true;
 	}
 
