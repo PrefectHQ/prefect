@@ -1,9 +1,12 @@
+import os
 import sys
 import uuid
+from collections.abc import Callable
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
-from unittest.mock import ANY, AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock
+from uuid import UUID
 
 import anyio
 import anyio.abc
@@ -17,6 +20,7 @@ from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import State
 from prefect.client.schemas.objects import Deployment, FlowRun, StateType, WorkPool
 from prefect.runner._process_manager import ProcessHandle
+from prefect.runner._workspace_resolver import PreparedWorkspace, _find_project_root
 from prefect.server import models
 from prefect.server.database.orm_models import Flow
 from prefect.server.schemas.actions import (
@@ -28,7 +32,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.types._datetime import now
-from prefect.utilities.processutils import command_to_string, get_sys_executable
+from prefect.utilities.processutils import command_to_string
 from prefect.workers.process import (
     ProcessWorker,
     ProcessWorkerResult,
@@ -150,21 +154,22 @@ def mock_open_process(monkeypatch: pytest.MonkeyPatch):
         monkeypatch.setattr(
             "prefect.utilities.processutils._open_anyio_process", AsyncMock()
         )
-        prefect.utilities.processutils._open_anyio_process.return_value.terminate = (  # noqa
+        prefect.utilities.processutils._open_anyio_process.return_value.terminate = (
             MagicMock()
         )
 
-        yield prefect.utilities.processutils._open_anyio_process  # noqa
+        yield prefect.utilities.processutils._open_anyio_process
     else:
         mock_open_process = AsyncMock()
         monkeypatch.setattr("anyio.open_process", mock_open_process)
-        mock_open_process.return_value.terminate = MagicMock()  # noqa
+        mock_open_process.return_value.terminate = MagicMock()
 
         yield mock_open_process
 
 
 @pytest.fixture
 def mock_engine_command_starter(monkeypatch: pytest.MonkeyPatch):
+    """Capture the engine starter that the workspace starter delegates to."""
     mock_process = MagicMock(returncode=0, pid=1000)
     handle = ProcessHandle(mock_process)
     starter = MagicMock()
@@ -174,8 +179,56 @@ def mock_engine_command_starter(monkeypatch: pytest.MonkeyPatch):
 
     starter.start = AsyncMock(side_effect=start)
     starter_factory = MagicMock(return_value=starter)
-    monkeypatch.setattr("prefect.workers.process.EngineCommandStarter", starter_factory)
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.EngineCommandStarter", starter_factory
+    )
     return starter_factory
+
+
+class FakeWorkspaceResolver:
+    """Stand-in for the workspace resolver subprocess.
+
+    `prepare` lets a test simulate what pull steps do to the workspace, so the
+    project that the launcher command must use is only known after resolution.
+    """
+
+    def __init__(self) -> None:
+        self.calls: list[dict[str, Any]] = []
+        self.prepare: Callable[[Path], Path] = lambda workspace_root: workspace_root
+
+    async def __call__(
+        self,
+        flow_run_id: UUID | str,
+        workspace_root: Path,
+        env: dict[str, str | None] | None = None,
+    ) -> PreparedWorkspace:
+        self.calls.append(
+            {
+                "flow_run_id": flow_run_id,
+                "workspace_root": Path(workspace_root),
+                "env": env,
+            }
+        )
+        resolved_workspace_root = Path(workspace_root).resolve()
+        resolved_workspace_root.mkdir(parents=True, exist_ok=True)
+        working_directory = self.prepare(resolved_workspace_root).resolve()
+        return PreparedWorkspace(
+            workspace_root=resolved_workspace_root,
+            working_directory=working_directory,
+            project_root=_find_project_root(working_directory, resolved_workspace_root),
+            runtime_entrypoint="my_module/flow.py:test_flow",
+            environment={**os.environ, "WORKSPACE_ENV_VAR": "from_workspace"},
+            sys_path=[],
+        )
+
+
+@pytest.fixture
+def mock_workspace_resolver(monkeypatch: pytest.MonkeyPatch) -> FakeWorkspaceResolver:
+    resolver = FakeWorkspaceResolver()
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.resolve_workspace_in_subprocess", resolver
+    )
+    return resolver
 
 
 @pytest.fixture(autouse=True)
@@ -294,6 +347,7 @@ async def test_process_worker_preserves_handled_failed_outcome(
 async def test_worker_process_run_flow_run_with_env_variables_job_config_defaults(
     flow_run: FlowRun,
     mock_engine_command_starter: MagicMock,
+    mock_workspace_resolver: FakeWorkspaceResolver,
     work_pool_with_default_env: WorkPool,
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -323,13 +377,10 @@ async def test_worker_process_run_flow_run_with_env_variables_job_config_default
     call_kwargs = mock_engine_command_starter.call_args.kwargs
 
     # should always execute in a tmp directory if working_dir not provided
-    assert "tmp" in call_kwargs.pop("cwd")
-    assert call_kwargs == dict(
-        command=configuration.command,
-        env=configuration.env,
-        stream_output=configuration.stream_output,
-        control_channel=ANY,
-    )
+    assert "tmp" in str(call_kwargs["cwd"])
+    assert call_kwargs["env"]["CONFIG_ENV_VAR"] == "from_job_configuration"
+    assert call_kwargs["env"]["EXISTING_ENV_VAR"] == "from_os"
+    assert call_kwargs["stream_output"] == configuration.stream_output
 
     assert configuration.env["CONFIG_ENV_VAR"] == "from_job_configuration"
     assert configuration.env["EXISTING_ENV_VAR"] == "from_os"
@@ -338,6 +389,7 @@ async def test_worker_process_run_flow_run_with_env_variables_job_config_default
 async def test_worker_process_run_flow_run_with_env_variables_from_overrides(
     flow_run_with_deployment_overrides: FlowRun,
     mock_engine_command_starter: MagicMock,
+    mock_workspace_resolver: FakeWorkspaceResolver,
     work_pool_with_default_env: WorkPool,
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -361,13 +413,11 @@ async def test_worker_process_run_flow_run_with_env_variables_from_overrides(
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
 
-    mock_engine_command_starter.assert_called_once_with(
-        command=configuration.command,
-        cwd=configuration.working_dir,
-        env=configuration.env,
-        stream_output=configuration.stream_output,
-        control_channel=mock_engine_command_starter.call_args.kwargs["control_channel"],
-    )
+    call_kwargs = mock_engine_command_starter.call_args.kwargs
+    assert call_kwargs["cwd"] == configuration.working_dir
+    assert call_kwargs["env"]["NEW_ENV_VAR"] == "from_deployment"
+    assert call_kwargs["env"]["EXISTING_ENV_VAR"] == "from_os"
+    assert call_kwargs["env"]["WORKSPACE_ENV_VAR"] == "from_workspace"
     assert configuration.env["NEW_ENV_VAR"] == "from_deployment"
     assert configuration.env["EXISTING_ENV_VAR"] == "from_os"
 
@@ -463,6 +513,7 @@ async def test_flow_run_vars_and_deployment_vars_get_merged(
 async def test_process_worker_working_dir_override(
     flow_run: FlowRun,
     mock_engine_command_starter: MagicMock,
+    mock_workspace_resolver: FakeWorkspaceResolver,
     process_work_pool: WorkPool,
     prefect_client: PrefectClient,
 ):
@@ -517,6 +568,21 @@ async def test_process_worker_working_dir_override(
 
 
 @pytest.fixture
+def uv_pyproject(monkeypatch: pytest.MonkeyPatch) -> str:
+    """A `pyproject.toml` body that satisfies every auto-`uv run` condition."""
+    monkeypatch.setattr(
+        "prefect.runner._uv_command.shutil.which",
+        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
+    )
+    return (
+        "[project]\n"
+        "name = 'test-project'\n"
+        "version = '0.1.0'\n"
+        "dependencies = ['prefect']\n"
+    )
+
+
+@pytest.fixture
 def uv_project(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
     """A project directory that satisfies every auto-`uv run` condition."""
     (tmp_path / "pyproject.toml").write_text(
@@ -541,7 +607,8 @@ def expected_uv_command(project_root: Path) -> str:
             "--project",
             str(project_root),
             "-m",
-            "prefect.engine",
+            "prefect.flow_engine",
+            "my_module/flow.py:test_flow",
         ]
     )
 
@@ -573,6 +640,7 @@ async def run_flow_run_with_job_variables(
 async def test_process_worker_uses_auto_uv_command_for_project_working_dir(
     flow_run: FlowRun,
     mock_engine_command_starter: MagicMock,
+    mock_workspace_resolver: FakeWorkspaceResolver,
     process_work_pool: WorkPool,
     prefect_client: PrefectClient,
     uv_project: Path,
@@ -590,9 +658,49 @@ async def test_process_worker_uses_auto_uv_command_for_project_working_dir(
     ] == expected_uv_command(uv_project)
 
 
+async def test_process_worker_uses_auto_uv_command_for_pulled_project(
+    flow_run: FlowRun,
+    mock_engine_command_starter: MagicMock,
+    mock_workspace_resolver: FakeWorkspaceResolver,
+    process_work_pool: WorkPool,
+    monkeypatch: pytest.MonkeyPatch,
+    uv_pyproject: str,
+):
+    """A project that pull steps retrieve at run time must also use `uv run`."""
+    project_roots: list[Path] = []
+
+    def pull_project(workspace_root: Path) -> Path:
+        project_root = workspace_root / "pulled-project"
+        project_root.mkdir(parents=True, exist_ok=True)
+        (project_root / "pyproject.toml").write_text(uv_pyproject)
+        project_roots.append(project_root)
+        return project_root
+
+    mock_workspace_resolver.prepare = pull_project
+
+    with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
+        async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+            configuration = await worker.job_configuration.resolve_for_flow_run(
+                flow_run,
+                client=worker.client,
+                work_pool=worker.work_pool,
+                worker_name=worker.name,
+                worker_id=worker.backend_id,
+            )
+            assert configuration.working_dir is None, (
+                "This test assumes the project only exists after resolution"
+            )
+            await worker.run(flow_run=flow_run, configuration=configuration)
+
+    call_kwargs = mock_engine_command_starter.call_args.kwargs
+    assert call_kwargs["command"] == expected_uv_command(project_roots[0])
+    assert call_kwargs["cwd"] == project_roots[0]
+
+
 async def test_process_worker_auto_uv_command_uses_absolute_project_path(
     flow_run: FlowRun,
     mock_engine_command_starter: MagicMock,
+    mock_workspace_resolver: FakeWorkspaceResolver,
     process_work_pool: WorkPool,
     prefect_client: PrefectClient,
     monkeypatch: pytest.MonkeyPatch,
@@ -618,6 +726,7 @@ async def test_process_worker_auto_uv_command_uses_absolute_project_path(
 async def test_process_worker_preserves_explicitly_configured_engine_command(
     flow_run: FlowRun,
     mock_engine_command_starter: MagicMock,
+    mock_workspace_resolver: FakeWorkspaceResolver,
     process_work_pool: WorkPool,
     prefect_client: PrefectClient,
     uv_project: Path,
@@ -642,6 +751,7 @@ async def test_process_worker_preserves_explicitly_configured_engine_command(
 async def test_process_worker_auto_uv_command_honors_job_variable_env(
     flow_run: FlowRun,
     mock_engine_command_starter: MagicMock,
+    mock_workspace_resolver: FakeWorkspaceResolver,
     process_work_pool: WorkPool,
     prefect_client: PrefectClient,
     uv_project: Path,
@@ -661,11 +771,15 @@ async def test_process_worker_auto_uv_command_honors_job_variable_env(
     assert mock_engine_command_starter.call_args.kwargs[
         "command"
     ] == expected_uv_command(uv_project)
+    resolver_env = mock_workspace_resolver.calls[0]["env"]
+    assert resolver_env is not None
+    assert resolver_env["PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES"] == "true"
 
 
 async def test_process_worker_keeps_engine_command_without_project(
     flow_run: FlowRun,
     mock_engine_command_starter: MagicMock,
+    mock_workspace_resolver: FakeWorkspaceResolver,
     process_work_pool: WorkPool,
 ):
     with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
@@ -679,14 +793,15 @@ async def test_process_worker_keeps_engine_command_without_project(
             )
             await worker.run(flow_run=flow_run, configuration=configuration)
 
-    assert mock_engine_command_starter.call_args.kwargs["command"] == command_to_string(
-        [get_sys_executable(), "-m", "prefect.engine"]
-    )
+    # No project means no auto-`uv run` command, so the engine starter falls back
+    # to `python -m prefect.engine`
+    assert mock_engine_command_starter.call_args.kwargs["command"] is None
 
 
 async def test_process_worker_stream_output_override(
     flow_run: FlowRun,
     mock_engine_command_starter: MagicMock,
+    mock_workspace_resolver: FakeWorkspaceResolver,
     process_work_pool: WorkPool,
     prefect_client: PrefectClient,
 ):
@@ -736,6 +851,7 @@ async def test_process_worker_stream_output_override(
 async def test_process_worker_executes_flow_run_with_engine_starter(
     flow_run: FlowRun,
     mock_engine_command_starter: MagicMock,
+    mock_workspace_resolver: FakeWorkspaceResolver,
     process_work_pool: WorkPool,
 ):
     async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
@@ -760,19 +876,18 @@ async def test_process_worker_executes_flow_run_with_engine_starter(
         call_kwargs = mock_engine_command_starter.call_args.kwargs
 
         # should always execute in a tmp directory if working_dir not provided
-        assert "tmp" in call_kwargs.pop("cwd")
-        assert call_kwargs == dict(
-            command=configuration.command,
-            env=configuration.env,
-            stream_output=configuration.stream_output,
-            control_channel=ANY,
-        )
+        workspace_root = mock_workspace_resolver.calls[0]["workspace_root"]
+        assert "tmp" in str(workspace_root)
+        assert call_kwargs["cwd"] == workspace_root.resolve()
+        assert call_kwargs["entrypoint"] == "my_module/flow.py:test_flow"
+        assert call_kwargs["control_channel"] is not None
 
 
 async def test_process_worker_command_override(
     deployment_with_overrides: Deployment,
     flow_run_with_deployment_overrides: FlowRun,
     mock_engine_command_starter: MagicMock,
+    mock_workspace_resolver: FakeWorkspaceResolver,
     process_work_pool: WorkPool,
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -792,15 +907,10 @@ async def test_process_worker_command_override(
 
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
-        mock_engine_command_starter.assert_called_once_with(
-            command=override_command,
-            cwd=configuration.working_dir,
-            env=configuration.env,
-            stream_output=configuration.stream_output,
-            control_channel=mock_engine_command_starter.call_args.kwargs[
-                "control_channel"
-            ],
-        )
+        call_kwargs = mock_engine_command_starter.call_args.kwargs
+        assert call_kwargs["command"] == override_command
+        assert call_kwargs["cwd"] == configuration.working_dir
+        assert call_kwargs["stream_output"] == configuration.stream_output
 
 
 async def test_task_status_receives_pid(

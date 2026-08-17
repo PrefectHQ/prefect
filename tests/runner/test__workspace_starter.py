@@ -10,6 +10,7 @@ from uuid import uuid4
 
 import pytest
 
+from prefect.runner._uv_command import auto_install_dependencies_override
 from prefect.runner._workspace_resolver import (
     PreparedWorkspace,
     PreparedWorkspaceError,
@@ -209,14 +210,50 @@ async def test_resolve_workspace_in_subprocess_returns_success_payload(
         "prefect.runner._workspace_starter.anyio.run_process", fake_run_process
     )
 
-    result = await resolve_workspace_in_subprocess(uuid4(), tmp_path / "workspace")
+    result = await resolve_workspace_in_subprocess(
+        uuid4(), tmp_path / "workspace", env={"RESOLVER_TEST_ENV": "1"}
+    )
 
     assert result == workspace
     assert "prefect.runner._workspace_resolver" in captured["command"]
+    assert captured["kwargs"]["env"]["RESOLVER_TEST_ENV"] == "1"
     assert captured["kwargs"]["stdout"] == subprocess.PIPE
     assert captured["kwargs"]["stderr"] == subprocess.PIPE
     assert "env" in captured["kwargs"]
     assert captured["kwargs"]["check"] is False
+
+
+async def test_resolve_workspace_in_subprocess_prefers_run_environment_over_settings(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    workspace = _prepared_workspace(tmp_path)
+    captured: dict[str, object] = {}
+
+    async def fake_run_process(command: list[str], **kwargs: object):
+        captured["kwargs"] = kwargs
+        return subprocess.CompletedProcess(
+            command,
+            0,
+            stdout=PreparedWorkspaceResult(status="success", workspace=workspace)
+            .model_dump_json()
+            .encode(),
+            stderr=b"",
+        )
+
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.anyio.run_process", fake_run_process
+    )
+
+    with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: False}):
+        await resolve_workspace_in_subprocess(
+            uuid4(),
+            tmp_path / "workspace",
+            env={"PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES": "true"},
+        )
+
+    assert (
+        captured["kwargs"]["env"]["PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES"] == "true"
+    )
 
 
 async def test_resolve_workspace_in_subprocess_raises_structured_error(
@@ -282,7 +319,9 @@ async def test_workspace_resolving_starter_delegates_to_engine_starter(
     await starter.start(flow_run)
 
     assert starter.workspace == workspace
-    resolver.assert_awaited_once_with(flow_run.id, tmp_path / "workspace-root")
+    resolver.assert_awaited_once_with(
+        flow_run.id, tmp_path / "workspace-root", env=None
+    )
     assert len(instances) == 1
     engine_starter = instances[0]
     assert engine_starter.kwargs["command"] is None
@@ -351,6 +390,81 @@ async def test_workspace_resolving_starter_uses_uv_for_pyproject_workspace(
     ]
     assert instances[0].kwargs["cwd"] == workspace.working_directory
     assert instances[0].kwargs["deployment_name"] == "workspace-deployment"
+
+
+async def test_workspace_resolving_starter_uses_env_for_resolution_and_child(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    workspace = _prepared_workspace(tmp_path)
+    assert workspace.project_root is not None
+    (workspace.project_root / "pyproject.toml").write_text(
+        "[project]\n"
+        "name = 'test-project'\n"
+        "version = '0.1.0'\n"
+        "dependencies = ['prefect']\n"
+    )
+    resolver = AsyncMock(return_value=workspace)
+    flow_run = MagicMock()
+    flow_run.id = uuid4()
+    instances: list[object] = []
+
+    class FakeEngineCommandStarter:
+        def __init__(self, **kwargs: object) -> None:
+            self.kwargs = kwargs
+            instances.append(self)
+
+        async def start(self, flow_run_arg: object, task_status: object) -> None:
+            self.flow_run = flow_run_arg
+
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.resolve_workspace_in_subprocess", resolver
+    )
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.EngineCommandStarter",
+        FakeEngineCommandStarter,
+    )
+    monkeypatch.setattr(
+        "prefect.runner._uv_command.shutil.which",
+        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
+    )
+
+    env: dict[str, str | None] = {
+        "STARTER_TEST_ENV": "from_starter",
+        "PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES": "true",
+    }
+    starter = WorkspaceResolvingEngineCommandStarter(
+        workspace_root=tmp_path / "workspace-root", env=env
+    )
+    # The starter environment enables auto-install even though the current
+    # process does not
+    with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: False}):
+        await starter.start(flow_run)
+
+    resolver.assert_awaited_once_with(flow_run.id, tmp_path / "workspace-root", env=env)
+    command = instances[0].kwargs["command"]
+    assert command is not None
+    assert command_from_string(command)[:2] == ["/opt/bin/uv", "run"]
+    assert instances[0].kwargs["env"]["STARTER_TEST_ENV"] == "from_starter"
+    assert instances[0].kwargs["env"]["WORKSPACE_TEST_ENV"] == "1"
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("true", True),
+        ("0", False),
+        # An invalid value falls back to the current setting value
+        ("not-a-bool", None),
+        (None, None),
+    ],
+)
+def test_auto_install_dependencies_override(value: str | None, expected: bool | None):
+    assert (
+        auto_install_dependencies_override(
+            {"PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES": value}
+        )
+        is expected
+    )
 
 
 async def test_load_flow_from_prepared_workspace_does_not_change_parent_cwd(

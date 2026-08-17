@@ -25,18 +25,16 @@ from typing import TYPE_CHECKING, Any, Optional, TypeVar
 
 import anyio
 import anyio.abc
-from pydantic import Field, PrivateAttr, TypeAdapter, ValidationError, field_validator
+from pydantic import Field, PrivateAttr, field_validator
 
 from prefect._internal.schemas.validators import validate_working_dir
 from prefect.client.schemas.objects import Flow as APIFlow
-from prefect.flows import load_flow_from_flow_run
 from prefect.runner._flow_run_executor import (
     FlowRunExecutionResult,
     FlowRunExecutorContext,
 )
 from prefect.runner._process_manager import ProcessHandle
-from prefect.runner._starter_engine import EngineCommandStarter
-from prefect.runner._uv_command import uv_project_command
+from prefect.runner._workspace_starter import WorkspaceResolvingEngineCommandStarter
 from prefect.runner.runner import Runner
 from prefect.states import Pending
 from prefect.utilities.processutils import command_to_string, get_sys_executable
@@ -99,46 +97,22 @@ class ProcessJobConfiguration(BaseJobConfiguration):
             else command_to_string([get_sys_executable(), "-m", "prefect.engine"])
         )
 
+    @property
+    def configured_command(self) -> str | None:
+        """The command from the deployment or work pool, if there is one.
+
+        `prepare_for_flow_run` fills in a fallback command, so `command` alone does
+        not show if the run configured a command.
+        """
+        return self.command if self._command_configured else None
+
     @staticmethod
     def _base_flow_run_command() -> str:
         """
-        Override the base worker command because process workers still execute
-        runs through `Runner.execute_flow_run` / `python -m prefect.engine`
-        instead of the newer `prefect flow-run execute` path.
+        Override the base worker command because process workers launch the engine
+        directly instead of going through the `prefect flow-run execute` CLI.
         """
         return "python -m prefect.engine"
-
-    def _resolve_command(self, working_dir: Path | str) -> str | None:
-        """
-        Use an auto-`uv run` launcher for the flow run when the working directory
-        is a project that declares `prefect` as a dependency and the deployment
-        did not configure an explicit command.
-        """
-        if self._command_configured:
-            return self.command
-
-        env = self.env or {}
-        # A run-specific setting in the environment takes precedence over the
-        # worker process's own setting.
-        auto_install = env.get("PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES")
-        try:
-            auto_install_dependencies = (
-                TypeAdapter(bool).validate_python(auto_install)
-                if auto_install is not None
-                else None
-            )
-        except ValidationError:
-            auto_install_dependencies = None
-
-        uv_command = uv_project_command(
-            # `uv` resolves `--project` relative to the flow run's working
-            # directory, so the project root must be absolute.
-            Path(working_dir).resolve(),
-            ["-m", "prefect.engine"],
-            path=env.get("PATH"),
-            auto_install_dependencies=auto_install_dependencies,
-        )
-        return uv_command or self.command
 
 
 class ProcessVariables(BaseVariables):
@@ -196,16 +170,20 @@ class ProcessWorker(
         with working_dir_ctx as working_dir, warnings.catch_warnings():
             warnings.simplefilter("ignore", DeprecationWarning)
             async with FlowRunExecutorContext() as ctx:
+                # The workspace is prepared before the launcher command is
+                # selected so that a project that a pull step retrieves can also
+                # engage the auto-`uv run` launcher.
+                starter = WorkspaceResolvingEngineCommandStarter(
+                    workspace_root=Path(working_dir),
+                    command=configuration.configured_command,
+                    env=configuration.env,
+                    stream_output=configuration.stream_output,
+                    control_channel=ctx.control_channel,
+                )
                 executor = ctx.create_executor(
                     flow_run,
-                    EngineCommandStarter(
-                        command=configuration._resolve_command(working_dir),
-                        cwd=working_dir,
-                        env=configuration.env,
-                        stream_output=configuration.stream_output,
-                        control_channel=ctx.control_channel,
-                    ),
-                    resolve_flow=load_flow_from_flow_run,
+                    starter,
+                    resolve_flow=starter.resolve_flow,
                     propose_submitting=False,
                 )
                 execution: FlowRunExecutionResult | None = None

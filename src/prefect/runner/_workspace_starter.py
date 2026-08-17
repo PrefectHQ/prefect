@@ -18,7 +18,10 @@ from prefect.exceptions import MissingFlowError
 from prefect.flows import load_flow_from_entrypoint, load_function_and_convert_to_flow
 from prefect.runner._process_manager import ProcessHandle
 from prefect.runner._starter_engine import EngineCommandStarter
-from prefect.runner._uv_command import uv_project_command
+from prefect.runner._uv_command import (
+    auto_install_dependencies_override,
+    uv_project_command,
+)
 from prefect.runner._workspace_resolver import (
     PreparedWorkspace,
     PreparedWorkspaceResult,
@@ -56,11 +59,16 @@ def _format_workspace_error(result: PreparedWorkspaceResult) -> str:
 
 
 async def resolve_workspace_in_subprocess(
-    flow_run_id: UUID | str, workspace_root: Path
+    flow_run_id: UUID | str,
+    workspace_root: Path,
+    env: dict[str, str | None] | None = None,
 ) -> PreparedWorkspace:
-    environment = {
+    environment: dict[str, str | None] = {
         **os.environ,
         **get_current_settings().to_environment_variables(exclude_unset=True),
+        # Run-specific values, such as work pool or deployment job variables, take
+        # precedence over the settings of the process that starts the run.
+        **(env or {}),
     }
     process = await anyio.run_process(
         get_workspace_resolver_command(flow_run_id, workspace_root),
@@ -214,20 +222,25 @@ def _absolute_file_entrypoint(workspace: PreparedWorkspace) -> str:
     return f"{entrypoint_path.resolve()}:{object_name}"
 
 
-def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
+def _uv_run_command(
+    workspace: PreparedWorkspace, auto_install_dependencies: bool | None = None
+) -> str | None:
     return uv_project_command(
         workspace.project_root,
         ["-m", "prefect.flow_engine", workspace.runtime_entrypoint],
         path=workspace.environment.get("PATH"),
+        auto_install_dependencies=auto_install_dependencies,
     )
 
 
 def _workspace_command(
-    workspace: PreparedWorkspace, explicit_command: str | None
+    workspace: PreparedWorkspace,
+    explicit_command: str | None,
+    auto_install_dependencies: bool | None = None,
 ) -> str | None:
     if explicit_command is not None:
         return explicit_command
-    return _uv_run_command(workspace)
+    return _uv_run_command(workspace, auto_install_dependencies)
 
 
 @contextmanager
@@ -270,6 +283,7 @@ class WorkspaceResolvingEngineCommandStarter:
         *,
         workspace_root: Path,
         command: str | None = None,
+        env: dict[str, str | None] | None = None,
         stream_output: bool = True,
         heartbeat_seconds: int | None = None,
         deployment_name: str | None = None,
@@ -278,6 +292,7 @@ class WorkspaceResolvingEngineCommandStarter:
     ) -> None:
         self._workspace_root = workspace_root
         self._command = command
+        self._env = env
         self._stream_output = stream_output
         self._heartbeat_seconds = heartbeat_seconds
         self._deployment_name = deployment_name
@@ -292,7 +307,7 @@ class WorkspaceResolvingEngineCommandStarter:
     async def _resolve_workspace(self, flow_run_id: UUID | str) -> PreparedWorkspace:
         if self._workspace is None:
             self._workspace = await resolve_workspace_in_subprocess(
-                flow_run_id, self._workspace_root
+                flow_run_id, self._workspace_root, env=self._env
             )
         return self._workspace
 
@@ -303,9 +318,15 @@ class WorkspaceResolvingEngineCommandStarter:
     ) -> None:
         workspace = await self._resolve_workspace(flow_run.id)
         starter = EngineCommandStarter(
-            command=_workspace_command(workspace, self._command),
+            command=_workspace_command(
+                workspace,
+                self._command,
+                # A run-specific setting in the environment takes precedence over
+                # the setting of the process that started the run.
+                auto_install_dependencies_override(self._env),
+            ),
             cwd=workspace.working_directory,
-            env=workspace_environment(workspace),
+            env={**workspace_environment(workspace), **(self._env or {})},
             entrypoint=workspace.runtime_entrypoint,
             stream_output=self._stream_output,
             heartbeat_seconds=self._heartbeat_seconds,

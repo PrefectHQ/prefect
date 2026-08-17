@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import shutil
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Mapping
 
 from packaging.requirements import InvalidRequirement, Requirement
 from packaging.utils import canonicalize_name
+from pydantic import TypeAdapter, ValidationError
 
 from prefect._internal.compatibility.backports import tomllib
 from prefect.settings import get_current_settings
@@ -41,6 +42,24 @@ def _pyproject_declares_prefect_dependency(pyproject: Path) -> bool:
         return False
 
     return _dependencies_include_prefect(project.get("dependencies"))
+
+
+def auto_install_dependencies_override(
+    env: Mapping[str, str | None] | None,
+) -> bool | None:
+    """Read a run-specific `PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES` value.
+
+    Returns `None` when the environment does not set the variable or sets it to a
+    value that is not a boolean, so that the current setting value applies.
+    """
+    value = (env or {}).get("PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES")
+    if value is None:
+        return None
+
+    try:
+        return TypeAdapter(bool).validate_python(value)
+    except ValidationError:
+        return None
 
 
 def uv_project_command(
