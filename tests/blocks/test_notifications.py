@@ -2,7 +2,7 @@ import sys
 import urllib
 from importlib import reload
 from typing import Type
-from unittest.mock import call, patch
+from unittest.mock import patch
 
 import apprise
 import cloudpickle
@@ -25,6 +25,10 @@ from prefect.blocks.notifications import (
     TwilioSMS,
 )
 from prefect.testing.utilities import AsyncMock
+
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:'imghdr' is deprecated and slated for removal in Python 3.13:DeprecationWarning"
+)
 
 RESTRICTED_URLS = [
     ("", ""),
@@ -60,6 +64,25 @@ RESTRICTED_URLS = [
     ("https://network-internal.cloud.svc", "resolve"),
     ("https://private-internal.cloud.svc.cluster.local", "resolve"),
 ]
+
+APPRISE_IMPLICIT_QUERY_KEYS = {"batch", "optional", "retry", "wait"}
+
+
+def _assert_apprise_url_matches(actual_url: str, expected_url: str) -> None:
+    actual = urllib.parse.urlsplit(actual_url)
+    expected = urllib.parse.urlsplit(expected_url)
+
+    assert actual.scheme == expected.scheme
+    assert actual.netloc == expected.netloc
+    assert actual.path == expected.path
+    assert actual.fragment == expected.fragment
+
+    actual_query = urllib.parse.parse_qs(actual.query, keep_blank_values=True)
+    expected_query = urllib.parse.parse_qs(expected.query, keep_blank_values=True)
+    for key, expected_value in expected_query.items():
+        assert actual_query.get(key) == expected_value
+
+    assert set(actual_query) - set(expected_query) <= APPRISE_IMPLICIT_QUERY_KEYS
 
 
 def reload_modules():
@@ -186,9 +209,11 @@ class TestMattermostWebhook:
             await mm_block.notify("test")
 
             AppriseMock.assert_called_once()
-            apprise_instance_mock.add.assert_called_once_with(
+            apprise_instance_mock.add.assert_called_once()
+            _assert_apprise_url_matches(
+                apprise_instance_mock.add.call_args.args[0],
                 f"mmost://{mm_block.hostname}:8065/{mm_block.token.get_secret_value()}/"
-                "?image=yes&format=text&overflow=upstream"
+                "?image=yes&format=text&overflow=upstream",
             )
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
@@ -205,9 +230,11 @@ class TestMattermostWebhook:
             mm_block.notify("test")
 
             AppriseMock.assert_called_once()
-            apprise_instance_mock.add.assert_called_once_with(
+            apprise_instance_mock.add.assert_called_once()
+            _assert_apprise_url_matches(
+                apprise_instance_mock.add.call_args.args[0],
                 f"mmost://{mm_block.hostname}:8065/{mm_block.token.get_secret_value()}/"
-                "?image=no&format=text&overflow=upstream"
+                "?image=no&format=text&overflow=upstream",
             )
             apprise_instance_mock.async_notify.assert_called_once_with(
                 body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
@@ -263,9 +290,11 @@ class TestDiscordWebhook:
             await discord_block.notify("test")
 
             AppriseMock.assert_called_once()
-            apprise_instance_mock.add.assert_called_once_with(
+            apprise_instance_mock.add.assert_called_once()
+            _assert_apprise_url_matches(
+                apprise_instance_mock.add.call_args.args[0],
                 f"discord://{discord_block.webhook_id.get_secret_value()}/{discord_block.webhook_token.get_secret_value()}/"
-                "?tts=no&avatar=no&footer=no&footer_logo=yes&image=no&fields=yes&format=text&overflow=upstream"
+                "?tts=no&avatar=no&footer=no&footer_logo=yes&image=no&fields=yes&format=text&overflow=upstream",
             )
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
@@ -284,9 +313,11 @@ class TestDiscordWebhook:
             discord_block.notify("test")
 
             AppriseMock.assert_called_once()
-            apprise_instance_mock.add.assert_called_once_with(
+            apprise_instance_mock.add.assert_called_once()
+            _assert_apprise_url_matches(
+                apprise_instance_mock.add.call_args.args[0],
                 f"discord://{discord_block.webhook_id.get_secret_value()}/{discord_block.webhook_token.get_secret_value()}/"
-                "?tts=no&avatar=no&footer=no&footer_logo=yes&image=no&fields=yes&format=text&overflow=upstream"
+                "?tts=no&avatar=no&footer=no&footer_logo=yes&image=no&fields=yes&format=text&overflow=upstream",
             )
             apprise_instance_mock.async_notify.assert_called_once_with(
                 body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
@@ -337,7 +368,10 @@ class TestOpsgenieWebhook:
 
             AppriseMock.assert_called_once()
             expected_url = self._get_expected_opsgenie_url()
-            apprise_instance_mock.add.assert_called_once_with(expected_url)
+            apprise_instance_mock.add.assert_called_once()
+            _assert_apprise_url_matches(
+                apprise_instance_mock.add.call_args.args[0], expected_url
+            )
 
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
@@ -357,7 +391,10 @@ class TestOpsgenieWebhook:
             expected_url = self._get_expected_opsgenie_url(
                 targets=targets, params=params
             )
-            apprise_instance_mock.add.assert_called_once_with(expected_url)
+            apprise_instance_mock.add.assert_called_once()
+            _assert_apprise_url_matches(
+                apprise_instance_mock.add.call_args.args[0], expected_url
+            )
 
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
@@ -407,9 +444,11 @@ class TestPagerDutyWebhook:
             await block.notify("test")
 
             AppriseMock.assert_called_once()
-            apprise_instance_mock.add.assert_called_once_with(
+            apprise_instance_mock.add.assert_called_once()
+            _assert_apprise_url_matches(
+                apprise_instance_mock.add.call_args.args[0],
                 "pagerduty://int_key@api_key/Prefect/Notification?region=us&"
-                "image=yes&format=text&overflow=upstream"
+                "image=yes&format=text&overflow=upstream",
             )
 
             notify_type = "info"
@@ -425,19 +464,21 @@ class TestPagerDutyWebhook:
             block = PagerDutyWebHook(integration_key="int_key", api_key="api_key")
             await block.notify("test", "test")
 
-            apprise_instance_mock.add.assert_has_calls(
-                [
-                    call(
-                        "pagerduty://int_key@api_key/Prefect/Notification?region=us"
-                        "&image=yes&format=text&overflow=upstream"
-                    ),
-                    call(
-                        "pagerduty://int_key@api_key/Prefect/Notification?region=us"
-                        "&image=yes&%2BPrefect+Notification+Body=test&format=text&overflow=upstream"
-                    ),
-                ],
-                any_order=False,
-            )
+            expected_urls = [
+                (
+                    "pagerduty://int_key@api_key/Prefect/Notification?region=us"
+                    "&image=yes&format=text&overflow=upstream"
+                ),
+                (
+                    "pagerduty://int_key@api_key/Prefect/Notification?region=us"
+                    "&image=yes&%2BPrefect+Notification+Body=test&format=text&overflow=upstream"
+                ),
+            ]
+            assert apprise_instance_mock.add.call_count == len(expected_urls)
+            for add_call, expected_url in zip(
+                apprise_instance_mock.add.call_args_list, expected_urls
+            ):
+                _assert_apprise_url_matches(add_call.args[0], expected_url)
 
             notify_type = "info"
             apprise_instance_mock.async_notify.assert_awaited_once_with(
@@ -455,9 +496,11 @@ class TestPagerDutyWebhook:
             block.notify("test")
 
             AppriseMock.assert_called_once()
-            apprise_instance_mock.add.assert_called_once_with(
+            apprise_instance_mock.add.assert_called_once()
+            _assert_apprise_url_matches(
+                apprise_instance_mock.add.call_args.args[0],
                 "pagerduty://int_key@api_key/Prefect/Notification?region=us&"
-                "image=yes&format=text&overflow=upstream"
+                "image=yes&format=text&overflow=upstream",
             )
 
             notify_type = "info"
@@ -473,19 +516,21 @@ class TestPagerDutyWebhook:
             block = PagerDutyWebHook(integration_key="int_key", api_key="api_key")
             block.notify("test", "test")
 
-            apprise_instance_mock.add.assert_has_calls(
-                [
-                    call(
-                        "pagerduty://int_key@api_key/Prefect/Notification?region=us"
-                        "&image=yes&format=text&overflow=upstream"
-                    ),
-                    call(
-                        "pagerduty://int_key@api_key/Prefect/Notification?region=us"
-                        "&image=yes&%2BPrefect+Notification+Body=test&format=text&overflow=upstream"
-                    ),
-                ],
-                any_order=False,
-            )
+            expected_urls = [
+                (
+                    "pagerduty://int_key@api_key/Prefect/Notification?region=us"
+                    "&image=yes&format=text&overflow=upstream"
+                ),
+                (
+                    "pagerduty://int_key@api_key/Prefect/Notification?region=us"
+                    "&image=yes&%2BPrefect+Notification+Body=test&format=text&overflow=upstream"
+                ),
+            ]
+            assert apprise_instance_mock.add.call_count == len(expected_urls)
+            for add_call, expected_url in zip(
+                apprise_instance_mock.add.call_args_list, expected_urls
+            ):
+                _assert_apprise_url_matches(add_call.args[0], expected_url)
 
             notify_type = "info"
             apprise_instance_mock.async_notify.assert_awaited_once_with(
@@ -524,7 +569,10 @@ class TestTwilioSMS:
             await twilio_sms_block.notify("hello from prefect")
 
             AppriseMock.assert_called_once()
-            client_instance_mock.add.assert_called_once_with(valid_apprise_url)
+            client_instance_mock.add.assert_called_once()
+            _assert_apprise_url_matches(
+                client_instance_mock.add.call_args.args[0], valid_apprise_url
+            )
 
             client_instance_mock.async_notify.assert_awaited_once_with(
                 body="hello from prefect",
@@ -553,7 +601,10 @@ class TestTwilioSMS:
             twilio_sms_block.notify("hello from prefect")
 
             AppriseMock.assert_called_once()
-            client_instance_mock.add.assert_called_once_with(valid_apprise_url)
+            client_instance_mock.add.assert_called_once()
+            _assert_apprise_url_matches(
+                client_instance_mock.add.call_args.args[0], valid_apprise_url
+            )
 
             client_instance_mock.async_notify.assert_awaited_once_with(
                 body="hello from prefect",
@@ -810,8 +861,8 @@ class TestSendgridEmail:
 
             # add() should be called twice: once in constructor, once in notify update
             assert apprise_instance_mock.add.call_count == 2
-            for mock_call in apprise_instance_mock.add.call_args_list:
-                assert mock_call[0][0] == url
+            for add_call in apprise_instance_mock.add.call_args_list:
+                _assert_apprise_url_matches(add_call.args[0], url)
 
             # clear() should be called once during notify to update emails
             apprise_instance_mock.clear.assert_called_once()
@@ -846,8 +897,8 @@ class TestSendgridEmail:
             AppriseMock.assert_called_once()
             # add() should be called twice: once in constructor, once in notify update
             assert apprise_instance_mock.add.call_count == 2
-            for mock_call in apprise_instance_mock.add.call_args_list:
-                assert mock_call[0][0] == url
+            for add_call in apprise_instance_mock.add.call_args_list:
+                _assert_apprise_url_matches(add_call.args[0], url)
 
             # clear() should be called once during notify to update emails
             apprise_instance_mock.clear.assert_called_once()
@@ -925,10 +976,12 @@ class TestMicrosoftTeamsWebhook:
             await block.notify("test")
 
             AppriseMock.assert_called_once()
-            apprise_instance_mock.add.assert_called_once_with(
+            apprise_instance_mock.add.assert_called_once()
+            _assert_apprise_url_matches(
+                apprise_instance_mock.add.call_args.args[0],
                 "workflow://prod-NO.LOCATION.logic.azure.com:443/WFID/SIGNATURE/"
                 "?image=yes&wrap=yes&pa=no"
-                "&format=markdown&overflow=upstream"
+                "&format=markdown&overflow=upstream",
             )
             apprise_instance_mock.async_notify.assert_awaited_once_with(
                 body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
@@ -948,10 +1001,12 @@ class TestMicrosoftTeamsWebhook:
             block.notify("test")
 
             AppriseMock.assert_called_once()
-            apprise_instance_mock.add.assert_called_once_with(
+            apprise_instance_mock.add.assert_called_once()
+            _assert_apprise_url_matches(
+                apprise_instance_mock.add.call_args.args[0],
                 "workflow://prod-NO.LOCATION.logic.azure.com:443/WFID/SIGNATURE/"
                 "?image=yes&wrap=yes&pa=no"
-                "&format=markdown&overflow=upstream"
+                "&format=markdown&overflow=upstream",
             )
             apprise_instance_mock.async_notify.assert_called_once_with(
                 body="test", title=None, notify_type=PREFECT_NOTIFY_TYPE_DEFAULT
