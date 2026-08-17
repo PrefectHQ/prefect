@@ -6,15 +6,10 @@ env:
   PY_COLORS: 1
 
 on:
-  workflow_dispatch:
-    inputs:
-      logfire_profile:
-        description: >-
-          Trace default-branch Python 3.12/PostgreSQL tests in Logfire
-          (uploads test parameters and failures)
-        required: true
-        default: false
-        type: boolean
+  # repository_dispatch executes the workflow definition from the default branch.
+  repository_dispatch:
+    types:
+      - logfire-test-profile
   pull_request:
     paths:
       - .github/workflows/python-tests.yaml
@@ -55,31 +50,10 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  reject-unsafe-logfire-profile:
-    if: >-
-      ${{ github.event_name == 'workflow_dispatch'
-      && inputs.logfire_profile
-      && (github.ref_type != 'branch'
-      || github.ref != format('refs/heads/{0}',
-      github.event.repository.default_branch)) }}
-    runs-on: ubuntu-latest
-    steps:
-      - run: |
-          echo "::error::Logfire profiles may only run from the default branch"
-          exit 1
-
   run-tests:
-    if: >-
-      ${{ github.event_name != 'workflow_dispatch'
-      || !inputs.logfire_profile
-      || (github.ref_type == 'branch'
-      && github.ref == format('refs/heads/{0}',
-      github.event.repository.default_branch)) }}
+    if: ${{ github.event_name != 'repository_dispatch' }}
     runs-on: ubuntu-latest
     name: ${{ matrix.test-type.name }} - python:${{ matrix.python-version }}, ${{ matrix.database }}
-    environment:
-      name: ${{ matrix.logfire_profile && 'logfire-profiling' || '' }}
-      deployment: false
 
     services:
       redis:
@@ -115,7 +89,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        test-type:
+        test-type: &python-test-types
           - name: Server Tests
             modules: tests/server/ tests/events/server --ignore=tests/server/database/ --ignore=tests/server/orchestration/
           - name: Database Tests
@@ -188,22 +162,7 @@ jobs:
           - "3.12"
           - "3.13"
           - "3.14"
-        logfire_profile:
-          - >-
-            ${{ github.event_name == 'workflow_dispatch'
-            && inputs.logfire_profile }}
         exclude:
-          # Logfire profiles cover the canonical Python/PostgreSQL suite only.
-          - logfire_profile: true
-            database: "sqlite"
-          - logfire_profile: true
-            python-version: "3.10"
-          - logfire_profile: true
-            python-version: "3.11"
-          - logfire_profile: true
-            python-version: "3.13"
-          - logfire_profile: true
-            python-version: "3.14"
           - database: "sqlite"
             test-type:
               name: "Client Tests: Modules"
@@ -268,7 +227,7 @@ jobs:
               name: Runner, Worker, Settings, Input, and CLI Tests
               modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
 
-    timeout-minutes: ${{ matrix.logfire_profile && 30 || 15 }}
+    timeout-minutes: 15
 
     steps:
       - name: Display current test matrix
@@ -288,19 +247,13 @@ jobs:
           cache-dependency-glob: "pyproject.toml"
 
       - name: Install packages
-        if: ${{ !matrix.logfire_profile }}
         run: uv sync --locked
-
-      - name: Install packages for Logfire profiling
-        if: matrix.logfire_profile
-        run: uv sync --locked --group perf
 
       - name: Set database connection URL
         if: ${{ startsWith(matrix.database, 'postgres') }}
         run: echo "PREFECT_SERVER_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
 
       - name: Run tests
-        if: ${{ !matrix.logfire_profile }}
         run: |
           uv run pytest ${{ matrix.test-type.modules }} \
           -m "not windows" \
@@ -310,10 +263,85 @@ jobs:
           --disable-docker-image-builds \
           --exclude-service kubernetes \
           --exclude-service docker \
-          --durations 26
+          --durations 26 \
+
+      - name: Check database container
+        # Only applicable for Postgres, but we want this to run even when tests fail
+        if: always()
+        run: |
+          docker container inspect ${{ job.services.postgres.id }} \
+          && docker container logs ${{ job.services.postgres.id }} \
+          || echo "Ignoring bad exit code"
+
+  profile-tests-with-logfire:
+    if: ${{ github.event_name == 'repository_dispatch' }}
+    runs-on: ubuntu-latest
+    name: "Logfire: ${{ matrix.test-type.name }}"
+    timeout-minutes: 30
+    environment:
+      name: logfire-profiling
+      deployment: false
+
+    services:
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      postgres:
+        image: postgres:14
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: prefect
+          POSTGRES_PASSWORD: prefect
+          POSTGRES_DB: prefect
+          LANG: C.UTF-8
+          LANGUAGE: C.UTF-8
+          LC_ALL: C.UTF-8
+          LC_COLLATE: C.UTF-8
+          LC_CTYPE: C.UTF-8
+        options: >-
+          --health-cmd "pg_isready"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --tmpfs /var/lib/postgresql/data
+
+    strategy:
+      fail-fast: false
+      matrix:
+        test-type: *python-test-types
+
+    steps:
+      - name: Display current test matrix
+        run: echo '${{ toJSON(matrix) }}'
+
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          filter: blob:none
+
+      - name: Set up uv and Python 3.12
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          python-version: "3.12"
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Install packages
+        run: uv sync --locked --group perf
+
+      - name: Set database connection URL
+        run: echo "PREFECT_SERVER_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
 
       - name: Run tests with Logfire
-        if: matrix.logfire_profile
         env:
           LOGFIRE_CONSOLE: "false"
           LOGFIRE_TOKEN: ${{ secrets.LOGFIRE_TEST_PROFILE_TOKEN }}
@@ -321,7 +349,8 @@ jobs:
         run: |
           if [[ -z "$LOGFIRE_TOKEN" ]]; then
             echo "::error::Logfire profiling requires the" \
-              "LOGFIRE_TEST_PROFILE_TOKEN environment secret"
+              "LOGFIRE_TEST_PROFILE_TOKEN secret in the" \
+              "logfire-profiling environment"
             exit 1
           fi
 
@@ -339,7 +368,6 @@ jobs:
           --logfire-service-name prefect-pytest-profile
 
       - name: Check database container
-        # Only applicable for Postgres, but we want this to run even when tests fail
         if: always()
         run: |
           docker container inspect ${{ job.services.postgres.id }} \
@@ -363,9 +391,7 @@ jobs:
         run: uv run --with pyyaml --no-project -s scripts/verify_test_selection.py
 
   run-docker-tests:
-    if: >-
-      ${{ github.event_name != 'workflow_dispatch'
-      || !inputs.logfire_profile }}
+    if: ${{ github.event_name != 'repository_dispatch' }}
     runs-on: ubuntu-latest
     name: docker, python:${{ matrix.python-version }}
 
@@ -514,9 +540,7 @@ jobs:
           || echo "Ignoring bad exit code"
 
   run-typesafety-test:
-    if: >-
-      ${{ github.event_name != 'workflow_dispatch'
-      || !inputs.logfire_profile }}
+    if: ${{ github.event_name != 'repository_dispatch' }}
     name: typesafety
     runs-on: ubuntu-latest
 
