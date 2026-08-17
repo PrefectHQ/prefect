@@ -17,8 +17,8 @@ import prefect.exceptions
 from prefect import __development_base_path__, flow
 from prefect.cli.flow_run import LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS, execute
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
-from prefect.client.schemas.actions import LogCreate
-from prefect.client.schemas.objects import FlowRun
+from prefect.client.schemas.actions import LogCreate, WorkPoolCreate
+from prefect.client.schemas.objects import FlowRun, FlowRunPolicy
 from prefect.deployments.runner import RunnerDeployment
 from prefect.runner._control_channel import ControlChannel, ControlSignalStatus
 from prefect.runner._flow_run_executor import FlowRunExecutorContext
@@ -2074,6 +2074,136 @@ class TestSignalHandling:
 
         kill.assert_not_awaited()
         propose.assert_not_awaited()
+
+    @pytest.mark.parametrize(
+        "signal_status",
+        [ControlSignalStatus.ACKNOWLEDGED, ControlSignalStatus.ALREADY_CONCLUDED],
+    )
+    async def test_reschedule_releases_an_in_process_retry(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        prefect_client: PrefectClient,
+        signal_status: ControlSignalStatus,
+    ):
+        """A `Failed` report racing the SIGTERM leaves the run in `AwaitingRetry` with
+        an in-process retry claimed by this dying process, which workers skip. The
+        supervisor must hand that retry back so a worker picks the run up."""
+        monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
+
+        work_pool = await prefect_client.create_work_pool(
+            WorkPoolCreate(name=f"pool-{uuid4()}", type="test")
+        )
+        deployment_id = await (
+            await hello_flow.to_deployment(__file__, work_pool_name=work_pool.name)
+        ).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        await prefect_client.update_flow_run(
+            flow_run.id, empirical_policy=FlowRunPolicy(retries=1, retry_delay=0)
+        )
+        await prefect_client.set_flow_run_state(flow_run.id, Running())
+
+        # the engine's report, which the server turns into an in-process retry
+        await prefect_client.set_flow_run_state(flow_run.id, Failed())
+        run = await prefect_client.read_flow_run(flow_run.id)
+        assert run.empirical_policy.retry_type == "in_process"
+        assert run.state and run.state.name == "AwaitingRetry"
+
+        handlers: list[Callable[[], None]] = []
+        propose = AsyncMock()
+
+        def capture_install(handler: Callable[[], None]) -> bool:
+            handlers.append(handler)
+            return True
+
+        async def fake_submit(*_: Any, **__: Any) -> None:
+            handlers[0]()
+            await anyio.sleep(0)
+
+        with (
+            patch(
+                "prefect.cli.flow_run._install_termination_handler",
+                side_effect=capture_install,
+            ),
+            patch.object(
+                ControlChannel, "signal", AsyncMock(return_value=signal_status)
+            ),
+            patch.object(ProcessManager, "kill", AsyncMock()),
+            patch("prefect.cli.flow_run.propose_state", propose),
+            patch(
+                "prefect.runner._flow_run_executor.FlowRunExecutor.submit", fake_submit
+            ),
+        ):
+            if signal_status is ControlSignalStatus.ALREADY_CONCLUDED:
+                await execute(id=flow_run.id)
+            else:
+                with pytest.raises(SystemExit):
+                    await execute(id=flow_run.id)
+
+        if signal_status is ControlSignalStatus.ALREADY_CONCLUDED:
+            propose.assert_not_awaited()
+
+        run = await prefect_client.read_flow_run(flow_run.id)
+        assert run.state and run.state.is_scheduled()
+        assert run.empirical_policy.retry_type != "in_process"
+
+        pollable = await prefect_client.get_scheduled_flow_runs_for_work_pool(
+            work_pool.name
+        )
+        assert flow_run.id in [response.flow_run.id for response in pollable], (
+            "the released run must be pollable by a worker"
+        )
+
+    async def test_reschedule_leaves_a_live_in_process_retry_alone(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        prefect_client: PrefectClient,
+    ):
+        """A run that is not scheduled has no pending retry to release, so its retry
+        ownership is left untouched."""
+        monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
+
+        deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        await prefect_client.update_flow_run(
+            flow_run.id,
+            empirical_policy=FlowRunPolicy(retries=1, retry_type="in_process"),
+        )
+        await prefect_client.set_flow_run_state(flow_run.id, Running())
+
+        handlers: list[Callable[[], None]] = []
+
+        def capture_install(handler: Callable[[], None]) -> bool:
+            handlers.append(handler)
+            return True
+
+        async def fake_submit(*_: Any, **__: Any) -> None:
+            handlers[0]()
+            await anyio.sleep(0)
+
+        with (
+            patch(
+                "prefect.cli.flow_run._install_termination_handler",
+                side_effect=capture_install,
+            ),
+            patch.object(
+                ControlChannel,
+                "signal",
+                AsyncMock(return_value=ControlSignalStatus.ALREADY_CONCLUDED),
+            ),
+            patch.object(ProcessManager, "kill", AsyncMock()),
+            patch(
+                "prefect.runner._flow_run_executor.FlowRunExecutor.submit", fake_submit
+            ),
+        ):
+            await execute(id=flow_run.id)
+
+        run = await prefect_client.read_flow_run(flow_run.id)
+        assert run.state and run.state.is_running()
+        assert run.empirical_policy.retry_type == "in_process"
 
     async def test_termination_handler_installed_even_when_submit_exits_early(
         self,

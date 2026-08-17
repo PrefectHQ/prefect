@@ -67,6 +67,33 @@ def _termination_intent() -> Intent | None:
     )
 
 
+async def _release_in_process_retry(client: PrefectClient, flow_run_id: UUID) -> None:
+    """Hand a scheduled retry of `flow_run_id` back to the workers.
+
+    A `Failed` report that the server rejected into `AwaitingRetry` stamps
+    `retry_type="in_process"`, which claims the retry for the reporting process.
+    This process is terminating and will not perform that retry, and workers
+    exclude `in_process` retries when they poll, so the run must be released or
+    it is never picked up again.
+
+    Only the retry ownership changes; the run keeps the state it is in.
+    """
+    try:
+        flow_run = await client.read_flow_run(flow_run_id)
+        if flow_run.empirical_policy.retry_type != "in_process":
+            return
+        if not flow_run.state or not flow_run.state.is_scheduled():
+            return
+        await client.update_flow_run(
+            flow_run_id=flow_run_id,
+            empirical_policy=flow_run.empirical_policy.model_copy(
+                update={"retry_type": "reschedule"}
+            ),
+        )
+    except Exception:
+        logger.exception("Failed to release the in-process retry of the flow run")
+
+
 def _install_termination_handler(handler: Callable[[], None]) -> bool:
     """Install `handler` for SIGTERM on the running loop, returning whether it took.
 
@@ -797,6 +824,10 @@ async def execute(
                         logger.info(
                             "Engine already reported a final state; leaving it unchanged."
                         )
+                        if intent == "reschedule":
+                            # The engine may have concluded with a `Failed` report that
+                            # the server turned into an in-process retry.
+                            await _release_in_process_retry(ctx.client, id)
                         return
 
                     acknowledged = signal_status is ControlSignalStatus.ACKNOWLEDGED
@@ -816,6 +847,11 @@ async def execute(
                             pass
                         except Exception:
                             logger.exception("Failed to reschedule flow run")
+
+                        # After the proposal, so that a `Failed` report the server
+                        # turned into an in-process retry just before ours cannot
+                        # re-claim the run.
+                        await _release_in_process_retry(ctx.client, id)
 
                     await ctx.process_manager.kill(id, force=not acknowledged)
                     terminated = True
