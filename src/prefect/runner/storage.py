@@ -129,6 +129,10 @@ class GitRepository:
                 "If a username is provided, an access token or password must also be"
                 " provided."
             )
+
+        if branch and branch.startswith("-"):
+            raise ValueError("Branch names cannot start with '-'.")
+
         self._url = url
         self._branch = branch
         self._credentials = credentials
