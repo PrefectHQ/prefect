@@ -70,10 +70,13 @@ automations:
     enabled: true
     trigger:
       type: event
-      posture: Reactive
-      expect:
+      posture: Proactive
+      after:
         - prefect.flow-run.Running
+      expect:
+        - prefect.flow-run.Completed
       threshold: 1
+      within: 1800  # 30 minutes
       for_each:
         - prefect.resource.id
     actions:
