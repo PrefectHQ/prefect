@@ -1,17 +1,13 @@
-import {
-	createColumnHelper,
-	getCoreRowModel,
-	useReactTable,
-} from "@tanstack/react-table";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { createColumnHelper, useTable } from "@/lib/tanstack-table";
 import { DataTable } from "./data-table";
 
 type TestData = { id: string; name: string };
 
 const columnHelper = createColumnHelper<TestData>();
-const columns = [
+const columns = columnHelper.columns([
 	columnHelper.accessor("name", {
 		header: "Name",
 		cell: (info) => (
@@ -21,9 +17,9 @@ const columns = [
 			</>
 		),
 	}),
-];
+]);
 
-const resizableColumns = [
+const resizableColumns = columnHelper.columns([
 	columnHelper.accessor("name", {
 		id: "name",
 		header: "Name",
@@ -37,28 +33,29 @@ const resizableColumns = [
 		enableResizing: false,
 		size: 60,
 	}),
-];
+]);
 
 const TestTable = ({
 	data,
 	onRowClick,
+	sorting,
 }: {
 	data: TestData[];
 	onRowClick?: (row: TestData) => void;
+	sorting?: Array<{ id: string; desc: boolean }>;
 }) => {
-	const table = useReactTable({
+	const table = useTable({
 		data,
 		columns,
-		getCoreRowModel: getCoreRowModel(),
+		initialState: sorting ? { sorting } : undefined,
 	});
 	return <DataTable table={table} onRowClick={onRowClick} />;
 };
 
 const ResizableTestTable = ({ data }: { data: TestData[] }) => {
-	const table = useReactTable({
+	const table = useTable({
 		data,
 		columns: resizableColumns,
-		getCoreRowModel: getCoreRowModel(),
 		enableColumnResizing: true,
 		columnResizeMode: "onChange",
 	});
@@ -114,6 +111,23 @@ describe("DataTable", () => {
 		await userEvent.click(screen.getByText("Row 1"));
 		// No error thrown, row is simply not clickable
 		expect(screen.getByText("Row 1")).toBeInTheDocument();
+	});
+
+	it("uses natural ordering for automatically sorted text columns", () => {
+		render(
+			<TestTable
+				data={[
+					{ id: "3", name: "queue10" },
+					{ id: "2", name: "queue2" },
+					{ id: "1", name: "queue1" },
+				]}
+				sorting={[{ id: "name", desc: false }]}
+			/>,
+		);
+
+		expect(
+			screen.getAllByText(/^queue/).map((cell) => cell.textContent),
+		).toEqual(["queue1", "queue2", "queue10"]);
 	});
 
 	describe("column resizing", () => {

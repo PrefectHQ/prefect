@@ -1,10 +1,4 @@
 import { getRouteApi } from "@tanstack/react-router";
-import {
-	createColumnHelper,
-	getCoreRowModel,
-	getPaginationRowModel,
-	useReactTable,
-} from "@tanstack/react-table";
 import { useDeferredValue, useMemo } from "react";
 import type { TaskRunConcurrencyLimit } from "@/api/task-run-concurrency-limits";
 import { TaskRunConcurrencyLimitsActionsMenu } from "@/components/concurrency/task-run-concurrency-limits/task-run-concurrency-limits-actions-menu";
@@ -18,6 +12,7 @@ import {
 	EmptyStateTitle,
 } from "@/components/ui/empty-state";
 import { SearchInput } from "@/components/ui/input";
+import { createColumnHelper, useTable } from "@/lib/tanstack-table";
 
 import { ActiveTaskRunCells } from "./active-task-runs-cell";
 import { TagCell } from "./tag-cell";
@@ -31,34 +26,35 @@ const createColumns = ({
 }: {
 	onDeleteRow: (row: TaskRunConcurrencyLimit) => void;
 	onResetRow: (row: TaskRunConcurrencyLimit) => void;
-}) => [
-	columnHelper.accessor("tag", {
-		header: "Tag",
-		cell: TagCell,
-	}),
-	columnHelper.accessor("concurrency_limit", {
-		header: "Slots",
-	}),
-	columnHelper.accessor("active_slots", {
-		header: "Active Task Runs",
-		cell: ActiveTaskRunCells,
-	}),
-	columnHelper.display({
-		id: "actions",
-		cell: (props) => {
-			const row = props.row.original;
-			return (
-				<div className="flex flex-row justify-end">
-					<TaskRunConcurrencyLimitsActionsMenu
-						id={row.id}
-						onDelete={() => onDeleteRow(row)}
-						onReset={() => onResetRow(row)}
-					/>
-				</div>
-			);
-		},
-	}),
-];
+}) =>
+	columnHelper.columns([
+		columnHelper.accessor("tag", {
+			header: "Tag",
+			cell: TagCell,
+		}),
+		columnHelper.accessor("concurrency_limit", {
+			header: "Slots",
+		}),
+		columnHelper.accessor("active_slots", {
+			header: "Active Task Runs",
+			cell: ActiveTaskRunCells,
+		}),
+		columnHelper.display({
+			id: "actions",
+			cell: (props) => {
+				const row = props.row.original;
+				return (
+					<div className="flex flex-row justify-end">
+						<TaskRunConcurrencyLimitsActionsMenu
+							id={row.id}
+							onDelete={() => onDeleteRow(row)}
+							onReset={() => onResetRow(row)}
+						/>
+					</div>
+				);
+			},
+		}),
+	]);
 
 type TaskRunConcurrencyLimitsDataTableProps = {
 	data: Array<TaskRunConcurrencyLimit>;
@@ -146,11 +142,9 @@ export function Table({
 	showFilteredEmptyState,
 	onClearSearch,
 }: TableProps) {
-	const table = useReactTable({
+	const table = useTable({
 		data,
 		columns: createColumns({ onDeleteRow, onResetRow }),
-		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(), //load client-side pagination code
 	});
 
 	return (
