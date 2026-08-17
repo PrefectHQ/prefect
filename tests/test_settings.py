@@ -745,12 +745,15 @@ class TestSettingsClass:
         assert set(settings.to_environment_variables().keys()) == expected_names
 
     def test_settings_to_environment_works_with_exclude_unset(self):
+        valid_setting_names = _get_valid_setting_names(Settings)
         assert Settings(
             server=ServerSettings(api=ServerAPISettings(port=3000))
         ).to_environment_variables(exclude_unset=True) == {
-            # From env
+            # From env. `PREFECT_`-prefixed variables that are not settings, such
+            # as `PREFECT_LOGFIRE_ENABLED`, do not appear in the environment of a
+            # `Settings` instance.
             **{
-                var: os.environ[var] for var in os.environ if var.startswith("PREFECT_")
+                var: os.environ[var] for var in os.environ if var in valid_setting_names
             },
             # From test settings
             "PREFECT_SERVER_LOGGING_LEVEL": "DEBUG",
