@@ -321,7 +321,7 @@ jobs:
         run: |
           if [[ -z "$LOGFIRE_TOKEN" ]]; then
             echo "::error::Logfire profiling requires the" \
-              "LOGFIRE_TEST_PROFILE_TOKEN repository secret"
+              "LOGFIRE_TEST_PROFILE_TOKEN environment secret"
             exit 1
           fi
 
