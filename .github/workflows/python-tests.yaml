@@ -344,6 +344,7 @@ jobs:
       - name: Run tests with Logfire
         env:
           LOGFIRE_CONSOLE: "false"
+          LOGFIRE_DISTRIBUTED_TRACING: "true"
           LOGFIRE_TOKEN: ${{ secrets.LOGFIRE_TEST_PROFILE_TOKEN }}
           PREFECT_LOGFIRE_ENABLED: "false"
         run: |
@@ -354,7 +355,9 @@ jobs:
             exit 1
           fi
 
+          # These tests assert that Prefect's outermost run span has no parent.
           uv run --no-sync pytest ${{ matrix.test-type.modules }} \
+          --ignore=tests/telemetry/test_run_telemetry.py \
           -m "not windows" \
           --numprocesses auto \
           --maxprocesses 6 \
