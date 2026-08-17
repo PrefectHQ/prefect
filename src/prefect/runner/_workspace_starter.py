@@ -6,13 +6,15 @@ import site
 import subprocess
 import sys
 import sysconfig
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Iterator
+from typing import TYPE_CHECKING, Any
 from uuid import UUID
 
 import anyio
 import anyio.abc
+from pydantic import TypeAdapter, ValidationError
 
 from prefect.exceptions import MissingFlowError
 from prefect.flows import load_flow_from_entrypoint, load_function_and_convert_to_flow
@@ -56,17 +58,23 @@ def _format_workspace_error(result: PreparedWorkspaceResult) -> str:
 
 
 async def resolve_workspace_in_subprocess(
-    flow_run_id: UUID | str, workspace_root: Path
+    flow_run_id: UUID | str,
+    workspace_root: Path,
+    *,
+    source_cwd: Path | str | None = None,
+    environment: Mapping[str, str | None] | None = None,
 ) -> PreparedWorkspace:
-    environment = {
+    resolver_environment = {
         **os.environ,
         **get_current_settings().to_environment_variables(exclude_unset=True),
+        **(environment or {}),
     }
     process = await anyio.run_process(
         get_workspace_resolver_command(flow_run_id, workspace_root),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        env=sanitize_subprocess_env(environment),
+        cwd=source_cwd,
+        env=sanitize_subprocess_env(resolver_environment),
         check=False,
     )
 
@@ -215,10 +223,21 @@ def _absolute_file_entrypoint(workspace: PreparedWorkspace) -> str:
 
 
 def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
+    auto_install = workspace.environment.get("PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES")
+    try:
+        auto_install_dependencies = (
+            TypeAdapter(bool).validate_python(auto_install)
+            if auto_install is not None
+            else None
+        )
+    except ValidationError:
+        auto_install_dependencies = None
+
     return uv_project_command(
         workspace.project_root,
         ["-m", "prefect.flow_engine", workspace.runtime_entrypoint],
         path=workspace.environment.get("PATH"),
+        auto_install_dependencies=auto_install_dependencies,
     )
 
 
@@ -248,7 +267,7 @@ def _prepared_workspace_context(workspace: PreparedWorkspace) -> Iterator[None]:
 
 async def load_flow_from_prepared_workspace(
     workspace: PreparedWorkspace,
-) -> "Flow[Any, Any]":
+) -> Flow[Any, Any]:
     entrypoint = _absolute_file_entrypoint(workspace)
     with _prepared_workspace_context(workspace):
         try:
@@ -275,6 +294,8 @@ class WorkspaceResolvingEngineCommandStarter:
         deployment_name: str | None = None,
         control_channel: ControlChannel | None = None,
         isolate_process_group: bool = False,
+        source_cwd: Path | str | None = None,
+        environment: Mapping[str, str | None] | None = None,
     ) -> None:
         self._workspace_root = workspace_root
         self._command = command
@@ -283,6 +304,8 @@ class WorkspaceResolvingEngineCommandStarter:
         self._deployment_name = deployment_name
         self._control_channel = control_channel
         self._isolate_process_group = isolate_process_group
+        self._source_cwd = source_cwd
+        self._environment = dict(environment or {})
         self._workspace: PreparedWorkspace | None = None
 
     @property
@@ -292,7 +315,10 @@ class WorkspaceResolvingEngineCommandStarter:
     async def _resolve_workspace(self, flow_run_id: UUID | str) -> PreparedWorkspace:
         if self._workspace is None:
             self._workspace = await resolve_workspace_in_subprocess(
-                flow_run_id, self._workspace_root
+                flow_run_id,
+                self._workspace_root,
+                source_cwd=self._source_cwd,
+                environment=self._environment,
             )
         return self._workspace
 
@@ -315,6 +341,6 @@ class WorkspaceResolvingEngineCommandStarter:
         )
         await starter.start(flow_run, task_status=task_status)
 
-    async def resolve_flow(self, flow_run: FlowRun) -> "Flow[Any, Any]":
+    async def resolve_flow(self, flow_run: FlowRun) -> Flow[Any, Any]:
         workspace = await self._resolve_workspace(flow_run.id)
         return await load_flow_from_prepared_workspace(workspace)

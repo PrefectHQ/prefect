@@ -174,6 +174,34 @@ def test_workspace_command_does_not_auto_install_dependencies_by_default(
     assert _workspace_command(workspace, explicit_command=None) is None
 
 
+def test_workspace_command_honors_workspace_environment_setting(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    workspace = _prepared_workspace(tmp_path)
+    assert workspace.project_root is not None
+    workspace.environment["PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES"] = "true"
+    workspace.project_root.joinpath("pyproject.toml").write_text(
+        "[project]\n"
+        "name = 'test-project'\n"
+        "version = '0.1.0'\n"
+        "dependencies = ['prefect']\n"
+    )
+    monkeypatch.setattr(
+        "prefect.runner._uv_command.shutil.which",
+        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
+    )
+
+    with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: False}):
+        command = _workspace_command(workspace, explicit_command=None)
+
+    assert command is not None
+    assert command_from_string(command)[-3:] == [
+        "-m",
+        "prefect.flow_engine",
+        workspace.runtime_entrypoint,
+    ]
+
+
 def test_workspace_command_preserves_explicit_command(tmp_path: Path):
     workspace = _prepared_workspace(tmp_path)
     assert workspace.project_root is not None
@@ -192,6 +220,7 @@ async def test_resolve_workspace_in_subprocess_returns_success_payload(
 ):
     workspace = _prepared_workspace(tmp_path)
     captured: dict[str, object] = {}
+    monkeypatch.setenv("PATH", "/parent/bin")
 
     async def fake_run_process(command: list[str], **kwargs: object):
         captured["command"] = command
@@ -209,13 +238,27 @@ async def test_resolve_workspace_in_subprocess_returns_success_payload(
         "prefect.runner._workspace_starter.anyio.run_process", fake_run_process
     )
 
-    result = await resolve_workspace_in_subprocess(uuid4(), tmp_path / "workspace")
+    source_cwd = tmp_path / "source"
+    source_cwd.mkdir()
+    result = await resolve_workspace_in_subprocess(
+        uuid4(),
+        tmp_path / "workspace",
+        source_cwd=source_cwd,
+        environment={
+            "PATH": "/job/bin",
+            "PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES": "true",
+        },
+    )
 
     assert result == workspace
     assert "prefect.runner._workspace_resolver" in captured["command"]
     assert captured["kwargs"]["stdout"] == subprocess.PIPE
     assert captured["kwargs"]["stderr"] == subprocess.PIPE
-    assert "env" in captured["kwargs"]
+    assert captured["kwargs"]["cwd"] == source_cwd
+    assert captured["kwargs"]["env"]["PATH"] == "/job/bin"
+    assert (
+        captured["kwargs"]["env"]["PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES"] == "true"
+    )
     assert captured["kwargs"]["check"] is False
 
 
@@ -254,6 +297,8 @@ async def test_workspace_resolving_starter_delegates_to_engine_starter(
 ):
     workspace = _prepared_workspace(tmp_path)
     resolver = AsyncMock(return_value=workspace)
+    loaded_flow = MagicMock()
+    loader = AsyncMock(return_value=loaded_flow)
     flow_run = MagicMock()
     flow_run.id = uuid4()
     instances: list[object] = []
@@ -274,15 +319,28 @@ async def test_workspace_resolving_starter_delegates_to_engine_starter(
         "prefect.runner._workspace_starter.EngineCommandStarter",
         FakeEngineCommandStarter,
     )
+    monkeypatch.setattr(
+        "prefect.runner._workspace_starter.load_flow_from_prepared_workspace",
+        loader,
+    )
 
     starter = WorkspaceResolvingEngineCommandStarter(
         workspace_root=tmp_path / "workspace-root",
         deployment_name="workspace-deployment",
+        source_cwd=tmp_path / "source-cwd",
+        environment={"WORKSPACE_CALLER_ENV": "caller"},
     )
     await starter.start(flow_run)
+    assert await starter.resolve_flow(flow_run) is loaded_flow
 
     assert starter.workspace == workspace
-    resolver.assert_awaited_once_with(flow_run.id, tmp_path / "workspace-root")
+    resolver.assert_awaited_once_with(
+        flow_run.id,
+        tmp_path / "workspace-root",
+        source_cwd=tmp_path / "source-cwd",
+        environment={"WORKSPACE_CALLER_ENV": "caller"},
+    )
+    loader.assert_awaited_once_with(workspace)
     assert len(instances) == 1
     engine_starter = instances[0]
     assert engine_starter.kwargs["command"] is None
