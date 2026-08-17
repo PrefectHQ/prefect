@@ -171,6 +171,10 @@ jobs:
           - "3.13"
           - "3.14"
         exclude:
+          # The canonical Python 3.12/Postgres lane uses duration-balanced
+          # groups in run-canonical-tests instead of these static test types.
+          - database: "postgres:14"
+            python-version: "3.12"
           - database: "sqlite"
             test-type:
               id: client-modules
@@ -284,6 +288,218 @@ jobs:
           docker container inspect ${{ job.services.postgres.id }} \
           && docker container logs ${{ job.services.postgres.id }} \
           || echo "Ignoring bad exit code"
+
+  prepare-canonical-test-durations:
+    if: ${{ github.event_name != 'repository_dispatch' }}
+    runs-on: ubuntu-latest
+    name: Prepare canonical test durations
+
+    steps:
+      - name: Restore previous test durations
+        uses: actions/cache/restore@v6
+        with:
+          path: test-durations.json
+          key: pytest-split-v1-python-3.12-postgres-14-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: |
+            pytest-split-v1-python-3.12-postgres-14-
+
+      - name: Validate test durations
+        run: |
+          if [[ -f test-durations.json ]] \
+            && jq -e '
+              type == "object"
+              and all(
+                to_entries[];
+                (.key | type == "string")
+                and (.value | type == "number")
+                and (.value >= 0)
+              )
+            ' test-durations.json > /dev/null
+          then
+            echo "Using cached test durations"
+          else
+            echo "::notice::No valid cached durations; splitting tests by count"
+            jq -n '{}' > test-durations.json
+          fi
+          jq 'length' test-durations.json
+
+      - name: Upload test duration baseline
+        uses: actions/upload-artifact@v7
+        with:
+          name: canonical-test-duration-baseline
+          path: test-durations.json
+          retention-days: 7
+          overwrite: true
+
+  run-canonical-tests:
+    if: ${{ github.event_name != 'repository_dispatch' }}
+    needs: prepare-canonical-test-durations
+    runs-on: ubuntu-latest
+    name: >-
+      Canonical Tests: group ${{ matrix.group }}/16 - python:3.12, postgres:14
+    timeout-minutes: 15
+
+    services:
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      postgres:
+        image: postgres:14
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: prefect
+          POSTGRES_PASSWORD: prefect
+          POSTGRES_DB: prefect
+          LANG: C.UTF-8
+          LANGUAGE: C.UTF-8
+          LC_ALL: C.UTF-8
+          LC_COLLATE: C.UTF-8
+          LC_CTYPE: C.UTF-8
+        options: >-
+          --health-cmd "pg_isready"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --tmpfs /var/lib/postgresql/data
+
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+
+    steps:
+      - name: Display current test matrix
+        run: echo '${{ toJSON(matrix) }}'
+
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          filter: blob:none
+
+      - name: Set up uv and Python 3.12
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          python-version: "3.12"
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Install packages
+        run: uv sync --locked
+
+      - name: Download test duration baseline
+        uses: actions/download-artifact@v8
+        with:
+          name: canonical-test-duration-baseline
+
+      - name: Set database connection URL
+        run: echo "PREFECT_SERVER_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
+
+      - name: Run tests
+        env:
+          PYTEST_SPLIT_GROUP: ${{ matrix.group }}
+        run: |
+          # Start every group from the same baseline. Cleaning leaves only this
+          # group's observations for the single-writer merge job below.
+          duration_path="test-durations-${PYTEST_SPLIT_GROUP}.json"
+          cp test-durations.json "$duration_path"
+          uv run pytest tests --ignore=tests/typesafety \
+          -m "not windows" \
+          --numprocesses auto \
+          --maxprocesses 6 \
+          --dist worksteal \
+          --disable-docker-image-builds \
+          --exclude-service kubernetes \
+          --exclude-service docker \
+          --durations 26 \
+          --splits 16 \
+          --group "$PYTEST_SPLIT_GROUP" \
+          --splitting-algorithm least_duration \
+          --durations-path "$duration_path" \
+          --store-durations \
+          --clean-durations
+
+      - name: Upload group test durations
+        uses: actions/upload-artifact@v7
+        with:
+          name: canonical-test-durations-${{ matrix.group }}
+          path: test-durations-${{ matrix.group }}.json
+          retention-days: 7
+          overwrite: true
+
+      - name: Check database container
+        if: always()
+        run: |
+          docker container inspect ${{ job.services.postgres.id }} \
+          && docker container logs ${{ job.services.postgres.id }} \
+          || echo "Ignoring bad exit code"
+
+  save-canonical-test-durations:
+    if: ${{ github.event_name != 'repository_dispatch' }}
+    needs: run-canonical-tests
+    runs-on: ubuntu-latest
+    name: Save canonical test durations
+
+    steps:
+      - name: Download group test durations
+        uses: actions/download-artifact@v8
+        with:
+          pattern: canonical-test-durations-*
+          path: test-duration-groups
+          merge-multiple: true
+
+      - name: Merge group test durations
+        run: |
+          duration_files=(test-duration-groups/test-durations-*.json)
+          if [[ ${#duration_files[@]} -ne 16 ]]; then
+            echo "::error::Expected 16 duration files, found ${#duration_files[@]}"
+            exit 1
+          fi
+
+          jq -S -s '
+            reduce .[] as $group ({};
+              reduce ($group | to_entries[]) as $entry (.;
+                if has($entry.key) then
+                  error("duplicate test duration: \($entry.key)")
+                else
+                  .[$entry.key] = $entry.value
+                end
+              )
+            )
+          ' "${duration_files[@]}" > test-durations.json
+
+          jq -e '
+            type == "object"
+            and all(
+              to_entries[];
+              (.key | type == "string")
+              and (.value | type == "number")
+              and (.value >= 0)
+            )
+          ' test-durations.json > /dev/null
+          jq 'length' test-durations.json
+
+      - name: Cache merged test durations
+        uses: actions/cache/save@v6
+        with:
+          path: test-durations.json
+          key: pytest-split-v1-python-3.12-postgres-14-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Upload merged test durations
+        uses: actions/upload-artifact@v7
+        with:
+          name: canonical-test-durations
+          path: test-durations.json
+          retention-days: 30
+          overwrite: true
 
   profile-tests-with-logfire:
     if: ${{ github.event_name == 'repository_dispatch' }}

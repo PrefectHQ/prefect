@@ -161,6 +161,7 @@ dev = [
     "pytest-cov>=6.0",
     "pytest-env>=1.1.5",
     "pytest-flakefinder>=1.1.0",
+    "pytest-split>=0.11,<1.0",
     "typsht>=0.0.1a4",
     "pytest-timeout>=2.3.1",
     "pytest-xdist>=3.6.1",
