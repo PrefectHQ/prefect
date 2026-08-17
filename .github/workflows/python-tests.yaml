@@ -90,15 +90,20 @@ jobs:
       fail-fast: false
       matrix:
         test-type: &python-test-types
-          - name: Server Tests
+          - id: server
+            name: Server Tests
             modules: tests/server/ tests/events/server --ignore=tests/server/database/ --ignore=tests/server/orchestration/
-          - name: Database Tests
+          - id: database
+            name: Database Tests
             modules: tests/server/database/
-          - name: "Orchestration Tests: Core"
+          - id: orchestration-core
+            name: "Orchestration Tests: Core"
             modules: tests/server/orchestration/ --ignore=tests/server/orchestration/api/
-          - name: "Orchestration Tests: API"
+          - id: orchestration-api
+            name: "Orchestration Tests: API"
             modules: tests/server/orchestration/api/
-          - name: "Client Tests: Modules"
+          - id: client-modules
+            name: "Client Tests: Modules"
             modules: >-
               tests/
               --ignore=tests/typesafety
@@ -111,7 +116,8 @@ jobs:
               --ignore=tests/test_settings.py
               --ignore=tests/input/
               --ignore-glob="tests/test_*.py"
-          - name: "Client Tests: Top-Level"
+          - id: client-top-level
+            name: "Client Tests: Top-Level"
             modules: >-
               tests/test_artifacts.py
               tests/test_assets.py
@@ -136,7 +142,8 @@ jobs:
               tests/test_ui_build_validation.py
               tests/test_variables.py
               tests/test_versioning.py
-          - name: "Client Tests: Execution"
+          - id: client-execution
+            name: "Client Tests: Execution"
             modules: >-
               tests/test_flow_engine.py
               tests/test_flow_runs.py
@@ -151,7 +158,8 @@ jobs:
               tests/test_tasks.py
               tests/test_transactions.py
               tests/test_waiters.py
-          - name: Runner, Worker, Settings, Input, and CLI Tests
+          - id: runner-worker-settings-input-cli
+            name: Runner, Worker, Settings, Input, and CLI Tests
             modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
         database:
           - "postgres:14"
@@ -165,6 +173,7 @@ jobs:
         exclude:
           - database: "sqlite"
             test-type:
+              id: client-modules
               name: "Client Tests: Modules"
               modules: >-
                 tests/
@@ -180,6 +189,7 @@ jobs:
                 --ignore-glob="tests/test_*.py"
           - database: "sqlite"
             test-type:
+              id: client-top-level
               name: "Client Tests: Top-Level"
               modules: >-
                 tests/test_artifacts.py
@@ -207,6 +217,7 @@ jobs:
                 tests/test_versioning.py
           - database: "sqlite"
             test-type:
+              id: client-execution
               name: "Client Tests: Execution"
               modules: >-
                 tests/test_flow_engine.py
@@ -224,6 +235,7 @@ jobs:
                 tests/test_waiters.py
           - database: "sqlite"
             test-type:
+              id: runner-worker-settings-input-cli
               name: Runner, Worker, Settings, Input, and CLI Tests
               modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
 
@@ -345,6 +357,13 @@ jobs:
         env:
           LOGFIRE_CONSOLE: "false"
           LOGFIRE_DISTRIBUTED_TRACING: "true"
+          LOGFIRE_RESOURCE_ATTRIBUTES: >-
+            vcs.repository.url.full=${{ github.server_url }}/${{ github.repository }},
+            cicd.pipeline.run.id=${{ github.run_id }},
+            github.actions.run.attempt=${{ github.run_attempt }},
+            cicd.pipeline.run.url.full=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }},
+            github.actions.job.check_run_id=${{ job.check_run_id }},
+            prefect.pytest.shard.id=${{ matrix.test-type.id }}
           LOGFIRE_TOKEN: ${{ secrets.LOGFIRE_TEST_PROFILE_TOKEN }}
           PREFECT_LOGFIRE_ENABLED: "false"
         run: |
@@ -369,6 +388,34 @@ jobs:
           --logfire \
           --logfire-trace-phases \
           --logfire-service-name prefect-pytest-profile
+
+      - name: Add Logfire filters to job summary
+        if: always()
+        env:
+          LOGFIRE_REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+          LOGFIRE_RUN_ATTEMPT: ${{ github.run_attempt }}
+          LOGFIRE_RUN_ID: ${{ github.run_id }}
+          LOGFIRE_SHARD_ID: ${{ matrix.test-type.id }}
+        run: |
+          printf '%s\n' \
+            '### Logfire filters' \
+            '' \
+            'All shards in this workflow attempt:' \
+            '' \
+            '```sql' \
+            "otel_resource_attributes->>'vcs.repository.url.full' = '$LOGFIRE_REPOSITORY_URL'" \
+            "AND otel_resource_attributes->>'cicd.pipeline.run.id' = '$LOGFIRE_RUN_ID'" \
+            "AND otel_resource_attributes->>'github.actions.run.attempt' = '$LOGFIRE_RUN_ATTEMPT'" \
+            '```' \
+            '' \
+            "Shard $LOGFIRE_SHARD_ID:" \
+            '' \
+            '```sql' \
+            "otel_resource_attributes->>'vcs.repository.url.full' = '$LOGFIRE_REPOSITORY_URL'" \
+            "AND otel_resource_attributes->>'cicd.pipeline.run.id' = '$LOGFIRE_RUN_ID'" \
+            "AND otel_resource_attributes->>'github.actions.run.attempt' = '$LOGFIRE_RUN_ATTEMPT'" \
+            "AND otel_resource_attributes->>'prefect.pytest.shard.id' = '$LOGFIRE_SHARD_ID'" \
+            '```' >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check database container
         if: always()
