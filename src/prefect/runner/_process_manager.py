@@ -75,10 +75,30 @@ def _hard_kill(pid: int) -> None:
     if sys.platform == "win32":
         # Any signal other than the CTRL_* events is a TerminateProcess here.
         os.kill(pid, signal.SIGTERM)
-    elif os.getpgid(pid) == pid:
-        os.killpg(pid, signal.SIGKILL)
     else:
-        os.kill(pid, signal.SIGKILL)
+        try:
+            is_group_leader = os.getpgid(pid) == pid
+        except ProcessLookupError:
+            is_group_leader = False
+        if is_group_leader:
+            os.killpg(pid, signal.SIGKILL)
+        else:
+            os.kill(pid, signal.SIGKILL)
+
+
+def _graceful_kill(pid: int) -> None:
+    """Signal an isolated process tree, or the process when it owns no group."""
+    if sys.platform == "win32":
+        os.kill(pid, signal.CTRL_BREAK_EVENT)
+    else:
+        try:
+            is_group_leader = os.getpgid(pid) == pid
+        except ProcessLookupError:
+            is_group_leader = False
+        if is_group_leader:
+            os.killpg(pid, signal.SIGTERM)
+        else:
+            os.kill(pid, signal.SIGTERM)
 
 
 @dataclass
@@ -240,16 +260,14 @@ class ProcessManager:
                 pass
             return
 
-        if sys.platform == "win32":
-            os.kill(pid, signal.CTRL_BREAK_EVENT)
-        else:
-            try:
-                os.kill(pid, signal.SIGTERM)
-            except ProcessLookupError:
-                # Already reaped, e.g. re-killed from `__aexit__` after a cancelled
-                # executor skipped its cleanup.
-                return
+        try:
+            _graceful_kill(pid)
+        except ProcessLookupError:
+            # Already reaped, e.g. re-killed from `__aexit__` after a cancelled
+            # executor skipped its cleanup.
+            return
 
+        if sys.platform != "win32":
             check_interval = max(grace_seconds / 10, 1)
             with anyio.move_on_after(grace_seconds):
                 while True:
@@ -259,6 +277,6 @@ class ProcessManager:
                     except ProcessLookupError:
                         return
             try:
-                os.kill(pid, signal.SIGKILL)
+                _hard_kill(pid)
             except OSError:
                 return

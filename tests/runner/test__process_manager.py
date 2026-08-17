@@ -206,6 +206,32 @@ class TestProcessManagerKill:
 
             assert sent == [("killpg", signal.SIGKILL)]
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only signals")
+    async def test_kill_signals_isolated_process_group(self):
+        async with ProcessManager() as pm:
+            run_id = uuid4()
+            process = MagicMock(pid=12345, returncode=None)
+            await pm.add(run_id, ProcessHandle(process))
+            sent: list[tuple[int, int]] = []
+
+            with (
+                patch("prefect.runner._process_manager.os.getpgid", return_value=12345),
+                patch(
+                    "prefect.runner._process_manager.os.killpg",
+                    side_effect=lambda pid, sig: sent.append((pid, sig)),
+                ),
+                patch(
+                    "prefect.runner._process_manager.os.kill",
+                    side_effect=ProcessLookupError,
+                ),
+            ):
+                await pm.kill(run_id, grace_seconds=0)
+
+            assert sent == [
+                (12345, signal.SIGTERM),
+                (12345, signal.SIGKILL),
+            ]
+
     async def test_kill_ignores_an_already_reaped_process(self):
         """`__aexit__` re-kills entries whose cleanup was skipped by cancellation."""
         async with ProcessManager() as pm:

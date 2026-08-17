@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Awaitable, Callable
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Protocol
 
 from prefect._internal.concurrency.api import create_call, from_async
 from prefect._internal.engine import get_hook_name
@@ -11,6 +11,12 @@ if TYPE_CHECKING:
     from prefect.client.schemas.objects import FlowRun
     from prefect.flows import Flow
     from prefect.states import State
+
+
+class FlowRunHookRunner(Protocol):
+    async def run_cancellation_hooks(self, flow_run: FlowRun, state: State) -> None: ...
+
+    async def run_crashed_hooks(self, flow_run: FlowRun, state: State) -> None: ...
 
 
 async def _run_hooks(

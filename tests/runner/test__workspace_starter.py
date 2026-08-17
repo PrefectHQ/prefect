@@ -1,33 +1,31 @@
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
 import sysconfig
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 from uuid import uuid4
 
+import anyio
 import pytest
 
-from prefect.runner._workspace_resolver import (
-    PreparedWorkspace,
-    PreparedWorkspaceError,
-    PreparedWorkspaceResult,
+from prefect.runner._process_manager import ProcessHandle
+from prefect.runner._workspace_resolver import PreparedWorkspace
+from prefect.runner._workspace_runtime import (
+    WorkspaceSupervisorConfig,
+    read_model,
 )
 from prefect.runner._workspace_starter import (
     WorkspaceResolvingEngineCommandStarter,
     _workspace_command,
-    load_flow_from_prepared_workspace,
-    resolve_workspace_in_subprocess,
     workspace_environment,
 )
 from prefect.settings import (
     PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES,
     temporary_settings,
 )
-from prefect.utilities.filesystem import tmpchdir
-from prefect.utilities.processutils import command_from_string
+from prefect.utilities.processutils import command_from_string, get_sys_executable
 
 pytestmark = pytest.mark.clear_db
 
@@ -215,90 +213,9 @@ def test_workspace_command_preserves_explicit_command(tmp_path: Path):
     )
 
 
-async def test_resolve_workspace_in_subprocess_returns_success_payload(
+async def test_workspace_resolving_starter_starts_managed_supervisor(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ):
-    workspace = _prepared_workspace(tmp_path)
-    captured: dict[str, object] = {}
-    monkeypatch.setenv("PATH", "/parent/bin")
-
-    async def fake_run_process(command: list[str], **kwargs: object):
-        captured["command"] = command
-        captured["kwargs"] = kwargs
-        return subprocess.CompletedProcess(
-            command,
-            0,
-            stdout=PreparedWorkspaceResult(status="success", workspace=workspace)
-            .model_dump_json()
-            .encode(),
-            stderr=b"",
-        )
-
-    monkeypatch.setattr(
-        "prefect.runner._workspace_starter.anyio.run_process", fake_run_process
-    )
-
-    source_cwd = tmp_path / "source"
-    source_cwd.mkdir()
-    result = await resolve_workspace_in_subprocess(
-        uuid4(),
-        tmp_path / "workspace",
-        source_cwd=source_cwd,
-        environment={
-            "PATH": "/job/bin",
-            "PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES": "true",
-        },
-    )
-
-    assert result == workspace
-    assert "prefect.runner._workspace_resolver" in captured["command"]
-    assert captured["kwargs"]["stdout"] == subprocess.PIPE
-    assert captured["kwargs"]["stderr"] == subprocess.PIPE
-    assert captured["kwargs"]["cwd"] == source_cwd
-    assert captured["kwargs"]["env"]["PATH"] == "/job/bin"
-    assert (
-        captured["kwargs"]["env"]["PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES"] == "true"
-    )
-    assert captured["kwargs"]["check"] is False
-
-
-async def test_resolve_workspace_in_subprocess_raises_structured_error(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
-    command = ["python", "-m", "prefect.runner._workspace_resolver"]
-    result = PreparedWorkspaceResult(
-        status="error",
-        error=PreparedWorkspaceError(
-            error_type="StepExecutionError",
-            error_message="pull failed",
-            cause_type="RuntimeError",
-            cause_message="boom",
-        ),
-    )
-
-    async def fake_run_process(*args: object, **kwargs: object):
-        return subprocess.CompletedProcess(
-            command,
-            1,
-            stdout=result.model_dump_json().encode(),
-            stderr=b"",
-        )
-
-    monkeypatch.setattr(
-        "prefect.runner._workspace_starter.anyio.run_process", fake_run_process
-    )
-
-    with pytest.raises(RuntimeError, match="StepExecutionError: pull failed"):
-        await resolve_workspace_in_subprocess(uuid4(), tmp_path / "workspace")
-
-
-async def test_workspace_resolving_starter_delegates_to_engine_starter(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
-    workspace = _prepared_workspace(tmp_path)
-    resolver = AsyncMock(return_value=workspace)
-    loaded_flow = MagicMock()
-    loader = AsyncMock(return_value=loaded_flow)
     flow_run = MagicMock()
     flow_run.id = uuid4()
     instances: list[object] = []
@@ -313,177 +230,81 @@ async def test_workspace_resolving_starter_delegates_to_engine_starter(
             self.task_status = task_status
 
     monkeypatch.setattr(
-        "prefect.runner._workspace_starter.resolve_workspace_in_subprocess", resolver
-    )
-    monkeypatch.setattr(
         "prefect.runner._workspace_starter.EngineCommandStarter",
         FakeEngineCommandStarter,
     )
-    monkeypatch.setattr(
-        "prefect.runner._workspace_starter.load_flow_from_prepared_workspace",
-        loader,
-    )
 
+    source_cwd = tmp_path / "source-cwd"
+    source_cwd.mkdir()
     starter = WorkspaceResolvingEngineCommandStarter(
         workspace_root=tmp_path / "workspace-root",
+        command="python custom.py",
+        stream_output=False,
         deployment_name="workspace-deployment",
-        source_cwd=tmp_path / "source-cwd",
+        source_cwd=source_cwd,
         environment={"WORKSPACE_CALLER_ENV": "caller"},
     )
-    await starter.start(flow_run)
-    assert await starter.resolve_flow(flow_run) is loaded_flow
+    try:
+        await starter.start(flow_run)
+    finally:
+        config_path = starter._config_path
+        config = read_model(config_path, WorkspaceSupervisorConfig)
+        starter.close()
 
-    assert starter.workspace == workspace
-    resolver.assert_awaited_once_with(
-        flow_run.id,
-        tmp_path / "workspace-root",
-        source_cwd=tmp_path / "source-cwd",
-        environment={"WORKSPACE_CALLER_ENV": "caller"},
-    )
-    loader.assert_awaited_once_with(workspace)
+    assert config.flow_run_id == flow_run.id
+    assert config.workspace_root == tmp_path / "workspace-root"
+    assert config.command == "python custom.py"
     assert len(instances) == 1
     engine_starter = instances[0]
-    assert engine_starter.kwargs["command"] is None
-    assert engine_starter.kwargs["cwd"] == workspace.working_directory
-    assert engine_starter.kwargs["entrypoint"] == workspace.runtime_entrypoint
-    assert engine_starter.kwargs["env"]["WORKSPACE_TEST_ENV"] == "1"
+    command = command_from_string(engine_starter.kwargs["command"])
+    assert command[:3] == [
+        get_sys_executable(),
+        "-m",
+        "prefect.runner._workspace_supervisor",
+    ]
+    assert command[3] == str(config_path)
+    assert engine_starter.kwargs["cwd"] == source_cwd
+    assert engine_starter.kwargs["env"] == {"WORKSPACE_CALLER_ENV": "caller"}
+    assert engine_starter.kwargs["stream_output"] is False
+    assert engine_starter.kwargs["isolate_process_group"] is True
+    assert engine_starter.kwargs["env_overrides_settings"] is True
     assert engine_starter.flow_run is flow_run
 
 
-async def test_workspace_resolving_starter_uses_uv_for_pyproject_workspace(
+async def test_workspace_starter_surfaces_handle_before_supervisor_finishes(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
-    workspace = _prepared_workspace(tmp_path)
-    assert workspace.project_root is not None
-    (workspace.project_root / "pyproject.toml").write_text(
-        "[project]\n"
-        "name = 'test-project'\n"
-        "version = '0.1.0'\n"
-        "dependencies = ['prefect']\n"
-    )
-    resolver = AsyncMock(return_value=workspace)
-    flow_run = MagicMock()
-    flow_run.id = uuid4()
-    instances: list[object] = []
+) -> None:
+    process = MagicMock(pid=42, returncode=None)
+    expected_handle = ProcessHandle(process)
+    release = anyio.Event()
 
-    class FakeEngineCommandStarter:
-        def __init__(self, **kwargs: object) -> None:
-            self.kwargs = kwargs
-            instances.append(self)
+    class GatedEngineCommandStarter:
+        def __init__(self, **_kwargs: object) -> None:
+            pass
 
-        async def start(self, flow_run_arg: object, task_status: object) -> None:
-            self.flow_run = flow_run_arg
-            self.task_status = task_status
+        async def start(
+            self,
+            _flow_run: object,
+            task_status: anyio.abc.TaskStatus[ProcessHandle],
+        ) -> None:
+            task_status.started(expected_handle)
+            await release.wait()
 
-    monkeypatch.setattr(
-        "prefect.runner._workspace_starter.resolve_workspace_in_subprocess", resolver
-    )
     monkeypatch.setattr(
         "prefect.runner._workspace_starter.EngineCommandStarter",
-        FakeEngineCommandStarter,
+        GatedEngineCommandStarter,
     )
-    monkeypatch.setattr(
-        "prefect.runner._uv_command.shutil.which",
-        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
-    )
-
-    starter = WorkspaceResolvingEngineCommandStarter(
-        workspace_root=tmp_path / "workspace-root",
-        deployment_name="workspace-deployment",
-    )
-    with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
-        await starter.start(flow_run)
-
-    assert len(instances) == 1
-    command = instances[0].kwargs["command"]
-    assert command is not None
-    assert command_from_string(command) == [
-        "/opt/bin/uv",
-        "run",
-        "--no-default-groups",
-        "--project",
-        str(workspace.project_root),
-        "-m",
-        "prefect.flow_engine",
-        workspace.runtime_entrypoint,
-    ]
-    assert instances[0].kwargs["cwd"] == workspace.working_directory
-    assert instances[0].kwargs["deployment_name"] == "workspace-deployment"
-
-
-async def test_load_flow_from_prepared_workspace_does_not_change_parent_cwd(
-    tmp_path: Path,
-):
-    workspace = _prepared_workspace(tmp_path)
-    flow_file = workspace.working_directory / "flows.py"
-    flow_file.write_text(
-        "from prefect import flow\n\n@flow\ndef hello():\n    return 'hello'\n"
-    )
-    parent_cwd = tmp_path / "parent-cwd"
-    parent_cwd.mkdir()
-    original_sys_path = list(sys.path)
-
-    with tmpchdir(parent_cwd):
-        flow = await load_flow_from_prepared_workspace(workspace)
-        assert Path.cwd() == parent_cwd.resolve()
-
-    assert flow.name == "hello"
-    assert sys.path == original_sys_path
-
-
-async def test_load_flow_from_prepared_workspace_preserves_module_entrypoint(
-    tmp_path: Path,
-):
-    workspace = _prepared_workspace(tmp_path)
-    package = workspace.working_directory / "package"
-    package.mkdir()
-    (package / "__init__.py").write_text("")
-    (package / "module.py").write_text(
-        "from prefect import flow\n\n@flow\ndef hello():\n    return 'hello'\n"
-    )
-    workspace.runtime_entrypoint = "package.module:hello"
-    parent_cwd = tmp_path / "parent-cwd"
-    parent_cwd.mkdir()
-    original_sys_path = list(sys.path)
-
-    with tmpchdir(parent_cwd):
-        flow = await load_flow_from_prepared_workspace(workspace)
-        assert Path.cwd() == parent_cwd.resolve()
-
-    assert flow.name == "hello"
-    assert sys.path == original_sys_path
-
-
-async def test_load_flow_from_prepared_workspace_preserves_stdlib_imports(
-    tmp_path: Path,
-) -> None:
-    workspace = _prepared_workspace(tmp_path)
-    workspace.sys_path = [sysconfig.get_paths()["stdlib"], *workspace.sys_path]
-    flow_file = workspace.working_directory / "flows.py"
-    flow_file.write_text(
-        "import mailbox\n"
-        "from prefect import flow\n\n"
-        "@flow\n"
-        "def hello():\n"
-        "    return mailbox.Mailbox\n"
-    )
-    parent_cwd = tmp_path / "parent-cwd"
-    parent_cwd.mkdir()
-    original_sys_path = list(sys.path)
-    original_mailbox = sys.modules.pop("mailbox", None)
+    flow_run = MagicMock(id=uuid4())
+    starter = WorkspaceResolvingEngineCommandStarter(workspace_root=tmp_path)
 
     try:
-        with tmpchdir(parent_cwd):
-            flow = await load_flow_from_prepared_workspace(workspace)
-            assert Path.cwd() == parent_cwd.resolve()
+        async with anyio.create_task_group() as task_group:
+            with anyio.fail_after(1):
+                handle = await task_group.start(starter.start, flow_run)
+            assert handle is expected_handle
+            release.set()
     finally:
-        if original_mailbox is None:
-            sys.modules.pop("mailbox", None)
-        else:
-            sys.modules["mailbox"] = original_mailbox
-
-    assert flow.name == "hello"
-    assert sys.path == original_sys_path
+        starter.close()
 
 
 class TestWorkspaceEnvironmentPythonpathFiltering:

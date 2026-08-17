@@ -174,11 +174,12 @@ class ProcessWorker(
                     source_cwd=workspace_root,
                     environment=configuration.env,
                 )
+                ctx.call_after_exit(starter.close)
                 executor = ctx.create_executor(
                     flow_run,
                     starter,
-                    resolve_flow=starter.resolve_flow,
                     propose_submitting=False,
+                    hook_runner=starter.hook_runner,
                 )
                 execution: FlowRunExecutionResult | None = None
 

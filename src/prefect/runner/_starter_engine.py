@@ -48,6 +48,7 @@ class EngineCommandStarter:
         heartbeat_seconds: int | None = None,
         control_channel: ControlChannel | None = None,
         isolate_process_group: bool = False,
+        env_overrides_settings: bool = False,
     ) -> None:
         self._tmp_dir = tmp_dir
         self._storage = storage
@@ -60,6 +61,7 @@ class EngineCommandStarter:
         self._heartbeat_seconds = heartbeat_seconds
         self._control_channel = control_channel
         self._isolate_process_group = isolate_process_group
+        self._env_overrides_settings = env_overrides_settings
 
     async def start(
         self,
@@ -108,8 +110,15 @@ class EngineCommandStarter:
         )
         env: dict[str, str | None] = {}
         env.update(os.environ)
-        env.update(self._env)
-        env.update(get_current_settings().to_environment_variables(exclude_unset=True))
+        settings_environment = get_current_settings().to_environment_variables(
+            exclude_unset=True
+        )
+        if self._env_overrides_settings:
+            env.update(settings_environment)
+            env.update(self._env)
+        else:
+            env.update(self._env)
+            env.update(settings_environment)
         env.update(
             {
                 "PREFECT__FLOW_RUN_ID": str(flow_run.id),

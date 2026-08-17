@@ -1,3 +1,5 @@
+import json
+import os
 import subprocess
 import sys
 import uuid
@@ -29,7 +31,7 @@ from prefect.settings import (
     temporary_settings,
 )
 from prefect.types._datetime import now
-from prefect.utilities.processutils import command_from_string
+from prefect.utilities.processutils import command_to_string
 from prefect.workers.process import (
     ProcessWorker,
     ProcessWorkerResult,
@@ -174,7 +176,8 @@ def mock_workspace_starter(monkeypatch: pytest.MonkeyPatch):
         task_status.started(handle)
 
     starter.start = AsyncMock(side_effect=start)
-    starter.resolve_flow = AsyncMock()
+    starter.hook_runner.run_cancellation_hooks = AsyncMock()
+    starter.hook_runner.run_crashed_hooks = AsyncMock()
     starter_factory = MagicMock(return_value=starter)
     monkeypatch.setattr(
         "prefect.workers.process.WorkspaceResolvingEngineCommandStarter",
@@ -184,35 +187,21 @@ def mock_workspace_starter(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-def captured_engine_starters(
-    monkeypatch: pytest.MonkeyPatch,
-) -> list[dict[str, Any]]:
-    captured: list[dict[str, Any]] = []
-    mock_process = MagicMock(returncode=0, pid=1000)
-    handle = ProcessHandle(mock_process)
-
-    class CapturingEngineCommandStarter:
-        def __init__(self, **kwargs: Any) -> None:
-            captured.append(kwargs)
-
-        async def start(
-            self,
-            _flow_run: FlowRun,
-            task_status: anyio.abc.TaskStatus[
-                ProcessHandle
-            ] = anyio.TASK_STATUS_IGNORED,
-        ) -> None:
-            task_status.started(handle)
-
-    monkeypatch.setattr(
-        "prefect.runner._uv_command.shutil.which",
-        lambda executable, path=None: "/opt/bin/uv" if executable == "uv" else None,
+def fake_uv(tmp_path: Path) -> tuple[Path, Path]:
+    bin_directory = tmp_path / "fake-bin"
+    bin_directory.mkdir()
+    capture_path = tmp_path / "uv-command.json"
+    uv_path = bin_directory / "uv"
+    uv_path.write_text(
+        f"#!{sys.executable}\n"
+        "import json\n"
+        "import os\n"
+        "import sys\n"
+        "with open(os.environ['UV_CAPTURE_PATH'], 'w') as capture:\n"
+        "    json.dump({'argv': sys.argv[1:], 'cwd': os.getcwd()}, capture)\n"
     )
-    monkeypatch.setattr(
-        "prefect.runner._workspace_starter.EngineCommandStarter",
-        CapturingEngineCommandStarter,
-    )
-    return captured
+    uv_path.chmod(0o700)
+    return bin_directory, capture_path
 
 
 @pytest.fixture(autouse=True)
@@ -725,8 +714,9 @@ async def test_process_worker_resolves_auto_uv_after_git_clone(
     process_work_pool: WorkPool,
     prefect_client: PrefectClient,
     pulled_uv_project: Path,
-    captured_engine_starters: list[dict[str, Any]],
+    fake_uv: tuple[Path, Path],
 ):
+    bin_directory, capture_path = fake_uv
     flow_id = await prefect_client.create_flow_from_name("pulled-auto-uv")
     deployment_id = await prefect_client.create_deployment(
         flow_id=flow_id,
@@ -740,7 +730,15 @@ async def test_process_worker_resolves_auto_uv_after_git_clone(
                 }
             }
         ],
-        job_variables={"env": {"PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES": "true"}},
+        job_variables={
+            "env": {
+                "PATH": os.pathsep.join(
+                    [str(bin_directory), os.environ.get("PATH", "")]
+                ),
+                "PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES": "true",
+                "UV_CAPTURE_PATH": str(capture_path),
+            }
+        },
     )
     flow_run = await prefect_client.create_flow_run_from_deployment(
         deployment_id=deployment_id,
@@ -758,11 +756,10 @@ async def test_process_worker_resolves_auto_uv_after_git_clone(
             )
             await worker.run(flow_run=flow_run, configuration=configuration)
 
-    assert len(captured_engine_starters) == 1
-    checkout = captured_engine_starters[0]["cwd"]
-    assert Path(checkout).name == "checkout"
-    assert command_from_string(captured_engine_starters[0]["command"]) == [
-        "/opt/bin/uv",
+    captured = json.loads(capture_path.read_text())
+    checkout = Path(captured["cwd"])
+    assert checkout.name == "checkout"
+    assert captured["argv"] == [
         "run",
         "--no-default-groups",
         "--project",
@@ -777,8 +774,9 @@ async def test_process_worker_resolves_auto_uv_for_preexisting_project(
     process_work_pool: WorkPool,
     prefect_client: PrefectClient,
     tmp_path: Path,
-    captured_engine_starters: list[dict[str, Any]],
+    fake_uv: tuple[Path, Path],
 ):
+    bin_directory, capture_path = fake_uv
     project = tmp_path / "preexisting-project"
     flow_file = project / "flows" / "hello.py"
     flow_file.parent.mkdir(parents=True)
@@ -800,7 +798,13 @@ async def test_process_worker_resolves_auto_uv_for_preexisting_project(
         entrypoint="flows/hello.py:hello",
         job_variables={
             "working_dir": str(project),
-            "env": {"PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES": "true"},
+            "env": {
+                "PATH": os.pathsep.join(
+                    [str(bin_directory), os.environ.get("PATH", "")]
+                ),
+                "PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES": "true",
+                "UV_CAPTURE_PATH": str(capture_path),
+            },
         },
     )
     flow_run = await prefect_client.create_flow_run_from_deployment(
@@ -819,10 +823,9 @@ async def test_process_worker_resolves_auto_uv_for_preexisting_project(
             )
             await worker.run(flow_run=flow_run, configuration=configuration)
 
-    assert len(captured_engine_starters) == 1
-    assert captured_engine_starters[0]["cwd"] == project
-    assert command_from_string(captured_engine_starters[0]["command"]) == [
-        "/opt/bin/uv",
+    captured = json.loads(capture_path.read_text())
+    assert Path(captured["cwd"]) == project
+    assert captured["argv"] == [
         "run",
         "--no-default-groups",
         "--project",
@@ -899,6 +902,58 @@ async def test_process_worker_stream_output_override(
         assert isinstance(result, ProcessWorkerResult)
         assert result.status_code == 0
         assert mock_workspace_starter.call_args.kwargs["stream_output"] is False
+
+
+async def test_process_worker_suppresses_pull_step_output(
+    process_work_pool: WorkPool,
+    prefect_client: PrefectClient,
+    tmp_path: Path,
+    capfd: pytest.CaptureFixture[str],
+) -> None:
+    output_marker = "PULL_STEP_OUTPUT_MUST_BE_SUPPRESSED"
+    project = tmp_path / "quiet-project"
+    project.mkdir()
+    project.joinpath("flow.py").write_text(
+        "from prefect import flow\n\n@flow\ndef hello():\n    pass\n"
+    )
+    flow_id = await prefect_client.create_flow_from_name("quiet-pull-step")
+    deployment_id = await prefect_client.create_deployment(
+        flow_id=flow_id,
+        name="quiet-pull-step",
+        entrypoint="flow.py:hello",
+        pull_steps=[
+            {
+                "prefect.deployments.steps.run_shell_script": {
+                    "script": command_to_string(
+                        [sys.executable, "-c", f"print({output_marker!r})"]
+                    )
+                }
+            }
+        ],
+        job_variables={
+            "working_dir": str(project),
+            "command": command_to_string([sys.executable, "-c", "pass"]),
+            "stream_output": False,
+        },
+    )
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        deployment_id=deployment_id,
+        state=State(type=client_schemas.StateType.SCHEDULED),
+    )
+
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        configuration = await worker.job_configuration.resolve_for_flow_run(
+            flow_run,
+            client=worker.client,
+            work_pool=worker.work_pool,
+            worker_name=worker.name,
+            worker_id=worker.backend_id,
+        )
+        await worker.run(flow_run=flow_run, configuration=configuration)
+
+    captured = capfd.readouterr()
+    assert output_marker not in captured.out
+    assert output_marker not in captured.err
 
 
 async def test_process_worker_executes_flow_run_with_workspace_starter(
