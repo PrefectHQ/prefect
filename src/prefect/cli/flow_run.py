@@ -809,10 +809,12 @@ async def execute(
                 await executor.submit()
                 return
 
+            release_retry = False
+
             async with anyio.create_task_group() as tg:
 
                 async def _terminate_on_signal() -> None:
-                    nonlocal terminated
+                    nonlocal terminated, release_retry
                     await terminating.wait()
                     logger.info("SIGTERM received, initiating graceful shutdown...")
 
@@ -824,10 +826,9 @@ async def execute(
                         logger.info(
                             "Engine already reported a final state; leaving it unchanged."
                         )
-                        if intent == "reschedule":
-                            # The engine may have concluded with a `Failed` report that
-                            # the server turned into an in-process retry.
-                            await _release_in_process_retry(ctx.client, id)
+                        # The engine may have concluded with a `Failed` report that
+                        # the server turned into an in-process retry.
+                        release_retry = intent == "reschedule"
                         return
 
                     acknowledged = signal_status is ControlSignalStatus.ACKNOWLEDGED
@@ -848,10 +849,7 @@ async def execute(
                         except Exception:
                             logger.exception("Failed to reschedule flow run")
 
-                        # After the proposal, so that a `Failed` report the server
-                        # turned into an in-process retry just before ours cannot
-                        # re-claim the run.
-                        await _release_in_process_retry(ctx.client, id)
+                        release_retry = True
 
                     await ctx.process_manager.kill(id, force=not acknowledged)
                     terminated = True
@@ -866,6 +864,11 @@ async def execute(
                 # Leave a shutdown already in flight alone; it cancels the group itself.
                 if not terminating.is_set():
                     tg.cancel_scope.cancel()
+
+            # Once the engine is stopped it can no longer claim a retry of its own, so
+            # this runs here rather than beside the reschedule proposal above.
+            if release_retry:
+                await _release_in_process_retry(ctx.client, id)
 
     # Exits go here, not inside the context: a `SystemExit` unwinding through an
     # anyio task group gets wrapped in an exception group, losing the exit code.
