@@ -1,6 +1,9 @@
 import copy
+import json
 import uuid
-from unittest.mock import MagicMock, call, patch
+import zipfile
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import anyio.abc
 import docker
@@ -22,6 +25,7 @@ import prefect.main  # noqa
 from prefect import get_client
 from prefect.client.schemas import FlowRun
 from prefect.client.schemas.actions import WorkPoolCreate
+from prefect.client.schemas.objects import WorkPoolStorageConfiguration
 from prefect.events import RelatedResource
 from prefect.settings import (
     PREFECT_API_URL,
@@ -1663,6 +1667,158 @@ class TestSubmitAdhocRunWithFlowRunParameter:
         assert len(prepare_calls) == 1
         assert prepare_calls[0]["worker_id"] == worker.backend_id
         assert prepare_calls[0]["worker_name"] == worker.name
+
+
+class TestSubmitAdhocRunWithIncludeFiles:
+    """Tests for included files transport in _submit_adhoc_run."""
+
+    @pytest.fixture
+    def project_with_flow_file(self, tmp_path: Path):
+        (tmp_path / "config.yaml").write_text("key: value")
+        flow_file = tmp_path / "my_flow.py"
+        flow_file.write_text(
+            "from prefect import flow\n\n\n@flow\ndef my_flow():\n    return 'hello'\n"
+        )
+        return tmp_path, flow_file
+
+    @pytest.fixture
+    def flow_with_include_files(self, project_with_flow_file: tuple[Path, Path]):
+        from prefect import flow
+
+        @flow
+        def flow_with_files():
+            return "success"
+
+        flow_with_files.include_files = ["config.yaml"]
+        _, flow_file = project_with_flow_file
+        with patch("prefect.bundles.inspect.getfile", return_value=str(flow_file)):
+            yield flow_with_files
+
+    @pytest.fixture
+    async def work_pool(self):
+        async with get_client() as client:
+            work_pool = await client.create_work_pool(
+                work_pool=WorkPoolCreate(
+                    name=f"test-docker-pool-{uuid.uuid4().hex[:8]}",
+                    type="docker",
+                ),
+            )
+            yield work_pool
+            try:
+                await client.delete_work_pool(work_pool.name)
+            except Exception:
+                pass
+
+    @pytest.fixture
+    async def work_pool_with_storage(self):
+        upload_step = {"prefect_mock.experimental.bundles.upload": {}}
+        execute_step = {"prefect_mock.experimental.bundles.execute": {}}
+        async with get_client() as client:
+            work_pool = await client.create_work_pool(
+                work_pool=WorkPoolCreate(
+                    name=f"test-docker-pool-{uuid.uuid4().hex[:8]}",
+                    type="docker",
+                    storage_configuration=WorkPoolStorageConfiguration(
+                        bundle_upload_step=upload_step,
+                        bundle_execution_step=execute_step,
+                    ),
+                ),
+            )
+            yield work_pool
+            try:
+                await client.delete_work_pool(work_pool.name)
+            except Exception:
+                pass
+
+    async def test_sidecar_zip_is_placed_next_to_mounted_bundle(
+        self, mock_docker_client, work_pool, flow_with_include_files
+    ):
+        """The sidecar zip is available in the directory mounted into the container."""
+        async with DockerWorker(work_pool_name=work_pool.name) as worker:
+            await worker._submit_adhoc_run(flow=flow_with_include_files, parameters={})
+
+            tmp_dir = Path(worker._tmp_dir)
+            bundle_files = [path for path in tmp_dir.iterdir() if path.is_file()]
+            assert len(bundle_files) == 1
+            bundle = json.loads(bundle_files[0].read_text())
+
+            sidecar_path = tmp_dir / bundle["files_key"]
+            assert sidecar_path.exists()
+            with zipfile.ZipFile(sidecar_path) as zf:
+                assert "config.yaml" in zf.namelist()
+
+    async def test_sidecar_temporary_directory_is_cleaned_up(
+        self, mock_docker_client, work_pool, flow_with_include_files, monkeypatch
+    ):
+        """The zip created for the bundle is removed after submission."""
+        import prefect.bundles
+
+        created_zip_paths: list[Path] = []
+        original_create_bundle = prefect.bundles.create_bundle_for_flow_run
+
+        def tracking_create_bundle(*args, **kwargs):
+            result = original_create_bundle(*args, **kwargs)
+            if result["zip_path"]:
+                created_zip_paths.append(result["zip_path"])
+            return result
+
+        monkeypatch.setattr(
+            prefect.bundles,
+            "create_bundle_for_flow_run",
+            tracking_create_bundle,
+        )
+
+        async with DockerWorker(work_pool_name=work_pool.name) as worker:
+            await worker._submit_adhoc_run(flow=flow_with_include_files, parameters={})
+
+        assert len(created_zip_paths) == 1
+        assert not created_zip_paths[0].exists()
+        assert not created_zip_paths[0].parent.exists()
+
+    async def test_sidecar_zip_is_uploaded_to_configured_storage(
+        self,
+        mock_docker_client,
+        work_pool_with_storage,
+        flow_with_include_files,
+        monkeypatch,
+    ):
+        """The sidecar zip is uploaded with its own upload command."""
+        import prefect_docker.worker
+
+        run_process = AsyncMock()
+        monkeypatch.setattr(prefect_docker.worker.anyio, "run_process", run_process)
+
+        async with DockerWorker(work_pool_name=work_pool_with_storage.name) as worker:
+            await worker._submit_adhoc_run(flow=flow_with_include_files, parameters={})
+
+            tmp_dir = Path(worker._tmp_dir)
+            bundle_files = [path for path in tmp_dir.iterdir() if path.is_file()]
+            bundle = json.loads(bundle_files[0].read_text())
+
+        assert run_process.await_count == 2
+        bundle_command = run_process.await_args_list[0].args[0]
+        sidecar_command = run_process.await_args_list[1].args[0]
+        assert bundle_command[-1] == bundle_files[0].name
+        assert sidecar_command[-1] == bundle["files_key"]
+
+    async def test_bundle_without_include_files_has_no_sidecar(
+        self, mock_docker_client, work_pool
+    ):
+        """Flows without included files still submit a lone bundle file."""
+        from prefect import flow
+
+        @flow
+        def flow_without_files():
+            return "success"
+
+        async with DockerWorker(work_pool_name=work_pool.name) as worker:
+            await worker._submit_adhoc_run(flow=flow_without_files, parameters={})
+
+            tmp_dir = Path(worker._tmp_dir)
+            bundle_files = [path for path in tmp_dir.iterdir() if path.is_file()]
+            assert len(bundle_files) == 1
+            assert json.loads(bundle_files[0].read_text())["files_key"] is None
+            assert not (tmp_dir / "files").exists()
 
 
 class TestDockerWorkerKillInfrastructure:

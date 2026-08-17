@@ -20,12 +20,14 @@ import enum
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
 import urllib.parse
 import uuid
 import warnings
+from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -532,6 +534,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
 
         bundle_key = str(uuid.uuid4())
         upload_command = None
+        upload_step = None
         flow_launcher = getattr(flow, "launcher", None)
         if not storage_configured_on_work_pool:
             execution_launcher = get_launcher_for_side(flow_launcher, "execution")
@@ -631,25 +634,56 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
 
         creation_result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
         bundle = creation_result["bundle"]
+        zip_path = creation_result["zip_path"]
+        files_key = bundle.get("files_key")
 
-        await (
-            anyio.Path(self._tmp_dir)
-            .joinpath(bundle_key)
-            .write_bytes(json.dumps(bundle).encode("utf-8"))
-        )
+        try:
+            await (
+                anyio.Path(self._tmp_dir)
+                .joinpath(bundle_key)
+                .write_bytes(json.dumps(bundle).encode("utf-8"))
+            )
 
-        if upload_command:
-            try:
-                full_command = upload_command + [bundle_key]
-                logger.debug(
-                    "Uploading execution bundle with command: %s", full_command
-                )
-                await anyio.run_process(
-                    full_command,
-                    cwd=self._tmp_dir,
-                )
-            except subprocess.CalledProcessError as e:
-                raise RuntimeError(e.stderr.decode("utf-8")) from e
+            # Place the sidecar zip next to the bundle under its storage key so that
+            # it is either mounted into the container alongside the bundle or
+            # uploaded to the configured bundle storage.
+            if zip_path and files_key:
+                sidecar_dest = Path(self._tmp_dir) / files_key
+                sidecar_dest.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(zip_path, sidecar_dest)
+
+            if upload_command:
+                try:
+                    full_command = upload_command + [bundle_key]
+                    logger.debug(
+                        "Uploading execution bundle with command: %s", full_command
+                    )
+                    await anyio.run_process(
+                        full_command,
+                        cwd=self._tmp_dir,
+                    )
+
+                    if zip_path and files_key and upload_step is not None:
+                        sidecar_command = convert_step_to_command(
+                            upload_step, files_key, quiet=True
+                        ) + [files_key]
+                        logger.debug(
+                            "Uploading sidecar zip with command: %s", sidecar_command
+                        )
+                        await anyio.run_process(
+                            sidecar_command,
+                            cwd=self._tmp_dir,
+                        )
+                except subprocess.CalledProcessError as e:
+                    raise RuntimeError(e.stderr.decode("utf-8")) from e
+        finally:
+            if zip_path:
+                try:
+                    zip_path.unlink(missing_ok=True)
+                    if zip_path.parent.name.startswith("prefect-zip-"):
+                        shutil.rmtree(zip_path.parent, ignore_errors=True)
+                except OSError as cleanup_error:
+                    logger.debug("Failed to clean up sidecar zip: %s", cleanup_error)
 
         logger.debug("Successfully uploaded execution bundle")
 
