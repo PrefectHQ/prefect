@@ -5,11 +5,6 @@ import type {
 	OnChangeFn,
 	PaginationState,
 } from "@tanstack/react-table";
-import {
-	createColumnHelper,
-	getCoreRowModel,
-	useReactTable,
-} from "@tanstack/react-table";
 import { useCallback } from "react";
 import type { DeploymentWithFlow } from "@/api/deployments";
 import type { components } from "@/api/prefect";
@@ -39,6 +34,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
 import { TagsInput } from "@/components/ui/tags-input";
 import { useLocalStorage } from "@/hooks/use-local-storage";
+import { createColumnHelper, useTable } from "@/lib/tanstack-table";
 import { pluralize } from "@/utils";
 import { ActionsCell, ActivityCell } from "./cells";
 
@@ -64,85 +60,89 @@ const createColumns = ({
 	onDelete,
 }: {
 	onDelete: (deployment: DeploymentWithFlow) => void;
-}) => [
-	columnHelper.display({
-		id: "name",
-		header: "Deployment",
-		cell: ({ row }) => (
-			<div className="flex flex-col">
-				<Link to="/deployments/deployment/$id" params={{ id: row.original.id }}>
-					<span
-						className="text-sm font-medium truncate text-link hover:text-link-hover"
-						title={row.original.name}
+}) =>
+	columnHelper.columns([
+		columnHelper.display({
+			id: "name",
+			header: "Deployment",
+			cell: ({ row }) => (
+				<div className="flex flex-col">
+					<Link
+						to="/deployments/deployment/$id"
+						params={{ id: row.original.id }}
 					>
-						{row.original.name}
-					</span>
-				</Link>
+						<span
+							className="text-sm font-medium truncate text-link hover:text-link-hover"
+							title={row.original.name}
+						>
+							{row.original.name}
+						</span>
+					</Link>
 
-				{row.original.flow && (
-					<FlowIconText
-						flow={row.original.flow}
-						className="text-xs text-muted-foreground flex items-center gap-1"
-						iconSize={12}
-					/>
-				)}
-			</div>
-		),
-		size: 200,
-		minSize: 120,
-	}),
-	columnHelper.accessor("status", {
-		id: "status",
-		header: "Status",
-		cell: ({ row }) => {
-			const status = row.original.status;
-			if (!status) return null;
-			return (
-				<div className="min-w-28">
-					<StatusBadge status={status} />
+					{row.original.flow && (
+						<FlowIconText
+							flow={row.original.flow}
+							className="text-xs text-muted-foreground flex items-center gap-1"
+							iconSize={12}
+						/>
+					)}
 				</div>
-			);
-		},
-		size: 120,
-		minSize: 100,
-	}),
-	columnHelper.display({
-		id: "activity",
-		header: "Activity",
-		cell: (props) => (
-			<div className="flex flex-row gap-2 items-center min-w-28">
-				<ActivityCell {...props} />
-			</div>
-		),
-		enableResizing: false,
-		size: 300,
-		minSize: 160,
-	}),
-	columnHelper.display({
-		id: "tags",
-		header: () => null,
-		cell: ({ row }) => <TagBadgeGroup tags={row.original.tags ?? []} />,
-		size: 160,
-		minSize: 100,
-	}),
-	columnHelper.display({
-		id: "schedules",
-		header: "Schedules",
-		cell: ({ row }) => {
-			const schedules = row.original.schedules;
-			if (!schedules || schedules.length === 0) return null;
-			return <ScheduleBadgeGroup schedules={schedules} />;
-		},
-		size: 180,
-		minSize: 120,
-	}),
-	columnHelper.display({
-		id: "actions",
-		cell: (props) => <ActionsCell {...props} onDelete={onDelete} />,
-		enableResizing: false,
-		size: 60,
-	}),
-];
+			),
+			size: 200,
+			minSize: 120,
+		}),
+		columnHelper.accessor("status", {
+			id: "status",
+			header: "Status",
+			cell: ({ row }) => {
+				const status = row.original.status;
+				if (!status) return null;
+				return (
+					<div className="min-w-28">
+						<StatusBadge status={status} />
+					</div>
+				);
+			},
+			size: 120,
+			minSize: 100,
+		}),
+		columnHelper.display({
+			id: "activity",
+			header: "Activity",
+			cell: (props) => (
+				<div className="flex flex-row gap-2 items-center min-w-28">
+					<ActivityCell {...props} />
+				</div>
+			),
+			enableResizing: false,
+			size: 300,
+			minSize: 160,
+		}),
+		columnHelper.display({
+			id: "tags",
+			header: () => null,
+			cell: ({ row }) => <TagBadgeGroup tags={row.original.tags ?? []} />,
+			size: 160,
+			minSize: 100,
+		}),
+		columnHelper.display({
+			id: "schedules",
+			header: "Schedules",
+			cell: ({ row }) => {
+				const schedules = row.original.schedules;
+				if (!schedules || schedules.length === 0) return null;
+				return <ScheduleBadgeGroup schedules={schedules} />;
+			},
+			size: 180,
+			minSize: 120,
+		}),
+		columnHelper.display({
+			id: "actions",
+			cell: (props) => <ActionsCell {...props} onDelete={onDelete} />,
+			enableResizing: false,
+			size: 60,
+		}),
+	]);
 
 const COLUMN_SIZING_STORAGE_KEY = "deployments-table-column-sizing";
 
@@ -224,7 +224,7 @@ export const DeploymentsDataTable = ({
 		[setColumnSizing],
 	);
 
-	const table = useReactTable({
+	const table = useTable({
 		data: deployments,
 		columns: createColumns({
 			onDelete: (deployment) => {
@@ -234,7 +234,6 @@ export const DeploymentsDataTable = ({
 				confirmDelete({ ...deployment, name });
 			},
 		}),
-		getCoreRowModel: getCoreRowModel(),
 		pageCount,
 		manualPagination: true,
 		enableColumnResizing: true,
