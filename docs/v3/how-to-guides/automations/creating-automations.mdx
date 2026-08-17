@@ -75,6 +75,9 @@ automations:
         - prefect.flow-run.Running
       expect:
         - prefect.flow-run.Completed
+        - prefect.flow-run.Failed
+        - prefect.flow-run.Crashed
+        - prefect.flow-run.Cancelled
       threshold: 1
       within: 1800  # 30 minutes
       for_each:
