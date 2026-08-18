@@ -41,10 +41,10 @@ async def run_history(
     Produce a history of runs aggregated by interval and state
     """
 
-    # Pendulum intervals do not support floor division by a timedelta.
+    # normalize to stdlib timedeltas; pendulum intervals, which the timestamp
+    # arguments produce when they are pendulum instances, do not support floor
+    # division by a timedelta
     history_interval = datetime.timedelta(seconds=history_interval.total_seconds())
-    elapsed = history_end - history_start
-    elapsed = datetime.timedelta(seconds=elapsed.total_seconds())
 
     # SQLite has issues with very small intervals
     # (by 0.001 seconds it stops incrementing the interval)
@@ -63,6 +63,7 @@ async def run_history(
             f"Unknown run type {run_type!r}. Expected 'flow_run' or 'task_run'."
         )
 
+    elapsed = datetime.timedelta(seconds=(history_end - history_start).total_seconds())
     interval_count = (
         min(-((-elapsed) // history_interval), 500)
         if elapsed > datetime.timedelta(0)
