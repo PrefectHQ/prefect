@@ -1,17 +1,25 @@
 """
-The database vacuum service. Two perpetual services schedule cleanup tasks
+The database vacuum service. Three perpetual services schedule cleanup tasks
 independently, gated by the `enabled` set in
 `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED` (default `["events"]`):
 
-1. schedule_vacuum_tasks — Cleans up old flow runs and orphaned resources
-   (logs, artifacts, artifact collections). Enabled when `"flow_runs"`
-   is in the enabled set.
+1. schedule_vacuum_tasks — Cleans up old flow runs, deleting their logs and
+   artifacts by `flow_run_id` in the same batch, then reconciles the
+   artifact collections those deletions left stale. Enabled when
+   `"flow_runs"` is in the enabled set.
 
 2. schedule_event_vacuum_tasks — Cleans up old events, including any
    event types with per-type retention overrides. Enabled when `"events"`
    is in the enabled set **and** `event_persister.enabled` is true
    (the default), so that operators who disabled event processing are not
    surprised on upgrade. Runs in all server modes, including ephemeral.
+
+3. schedule_orphan_vacuum_tasks — Backfill for logs and artifacts orphaned
+   by something other than the flow run vacuum (direct SQL deletes, or a
+   server version that deleted runs without their children). Enabled when
+   `"orphans"` is in the enabled set. Each pass scans the whole `log` and
+   `artifact` table, so it is opt-in and meant to be run until the backlog
+   is drained, not left on permanently.
 
 Per-event-type retention can be customised via
 `PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES`. Event types
@@ -46,7 +54,7 @@ logger: logging.Logger = get_logger(__name__)
 
 
 # Vacuum runs batched maintenance deletes that legitimately scan large tables
-# (e.g. the orphaned-log anti-join). On Postgres these inherit the asyncpg
+# (e.g. the orphan backfill anti-join). On Postgres these inherit the asyncpg
 # `command_timeout` derived from `PREFECT_API_DATABASE_TIMEOUT` (10s by
 # default) — a latency budget meant for user-facing API queries, not bulk
 # maintenance. When a batch exceeds it asyncpg raises `TimeoutError`, killing
@@ -120,7 +128,7 @@ async def schedule_vacuum_tasks(
         ),
     ),
 ) -> None:
-    """Schedule cleanup tasks for old flow runs and orphaned resources.
+    """Schedule cleanup tasks for old flow runs.
 
     Each task is enqueued with a deterministic key so that overlapping
     cycles (e.g. when cleanup takes longer than loop_seconds) naturally
@@ -129,12 +137,10 @@ async def schedule_vacuum_tasks(
     Disabled by default because it permanently deletes flow runs. Enable
     via PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED=true.
     """
-    await docket.add(vacuum_orphaned_logs, key="db-vacuum:orphaned-logs")()
-    await docket.add(vacuum_orphaned_artifacts, key="db-vacuum:orphaned-artifacts")()
+    await docket.add(vacuum_old_flow_runs, key="db-vacuum:old-flow-runs")()
     await docket.add(
         vacuum_stale_artifact_collections, key="db-vacuum:stale-collections"
     )()
-    await docket.add(vacuum_old_flow_runs, key="db-vacuum:old-flow-runs")()
 
 
 @perpetual_service(
@@ -168,6 +174,37 @@ async def schedule_event_vacuum_tasks(
     await docket.add(vacuum_old_events, key="db-vacuum:old-events")()
 
 
+@perpetual_service(
+    enabled_getter=lambda: (
+        "orphans"
+        in get_current_settings().server.services.db_vacuum.enabled_vacuum_types
+    ),
+)
+async def schedule_orphan_vacuum_tasks(
+    docket: Docket = CurrentDocket(),
+    perpetual: Perpetual = Perpetual(
+        automatic=True,
+        every=timedelta(
+            seconds=get_current_settings().server.services.db_vacuum.loop_seconds
+        ),
+    ),
+) -> None:
+    """Schedule the backfill tasks for orphaned logs and artifacts.
+
+    Disabled by default: the flow run vacuum deletes logs and artifacts with
+    their runs, so a healthy database has no orphans to find. Enable via
+    `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED="events,flow_runs,orphans"` to
+    clear orphans left by direct SQL deletes or by earlier server versions,
+    then disable it again — every pass scans the full `log` and `artifact`
+    table.
+    """
+    await docket.add(vacuum_orphaned_logs, key="db-vacuum:orphaned-logs")()
+    await docket.add(vacuum_orphaned_artifacts, key="db-vacuum:orphaned-artifacts")()
+    await docket.add(
+        vacuum_stale_artifact_collections, key="db-vacuum:stale-collections"
+    )()
+
+
 # ---------------------------------------------------------------------------
 # Cleanup tasks (docket task functions)
 # ---------------------------------------------------------------------------
@@ -177,7 +214,12 @@ async def vacuum_orphaned_logs(
     *,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
-    """Delete logs whose flow_run_id references a non-existent flow run."""
+    """Delete logs whose flow_run_id references a non-existent flow run.
+
+    A backfill for orphans the flow run vacuum did not create: every batch
+    anti-joins `log` against `flow_run`, which plans as a full scan of the
+    remaining logs.
+    """
     settings = get_current_settings().server.services.db_vacuum
     deleted = await _batch_delete(
         db,
@@ -198,7 +240,11 @@ async def vacuum_orphaned_artifacts(
     *,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
-    """Delete artifacts whose flow_run_id references a non-existent flow run."""
+    """Delete artifacts whose flow_run_id references a non-existent flow run.
+
+    Like `vacuum_orphaned_logs`, this is a full-table backfill rather than
+    steady-state cleanup.
+    """
     settings = get_current_settings().server.services.db_vacuum
     deleted = await _batch_delete(
         db,
@@ -240,22 +286,69 @@ async def vacuum_old_flow_runs(
     *,
     db: PrefectDBInterface = Depends(provide_database_interface),
 ) -> None:
-    """Delete old top-level terminal flow runs past the retention period."""
+    """Delete old top-level terminal flow runs past the retention period.
+
+    `log` and `artifact` have no `ON DELETE CASCADE` from `flow_run`, so each
+    batch deletes those children by `flow_run_id` (an indexed lookup) before
+    deleting the runs themselves. Cleaning up in the same batch keeps the
+    vacuum from creating orphans that would then have to be found by scanning
+    the whole `log` table.
+    """
     settings = get_current_settings().server.services.db_vacuum
     retention_cutoff = now("UTC") - settings.retention_period
-    deleted = await _batch_delete(
-        db,
-        db.FlowRun,
-        sa.and_(
-            db.FlowRun.parent_task_run_id.is_(None),
-            db.FlowRun.state_type.in_(TERMINAL_STATES),
-            db.FlowRun.end_time.is_not(None),
-            db.FlowRun.end_time < retention_cutoff,
-        ),
-        settings.batch_size,
+    eligible = sa.and_(
+        db.FlowRun.parent_task_run_id.is_(None),
+        db.FlowRun.state_type.in_(TERMINAL_STATES),
+        db.FlowRun.end_time.is_not(None),
+        db.FlowRun.end_time < retention_cutoff,
     )
-    if deleted:
-        logger.info("Database vacuum: deleted %d old flow runs.", deleted)
+
+    runs_deleted = 0
+    logs_deleted = 0
+    artifacts_deleted = 0
+    while True:
+        async with _maintenance_session(db) as session:
+            flow_run_ids = (
+                (
+                    await session.execute(
+                        sa.select(db.FlowRun.id)
+                        .where(eligible)
+                        .limit(settings.batch_size)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            if not flow_run_ids:
+                break
+
+            logs_deleted += (
+                await session.execute(
+                    sa.delete(db.Log).where(db.Log.flow_run_id.in_(flow_run_ids))
+                )
+            ).rowcount
+            artifacts_deleted += (
+                await session.execute(
+                    sa.delete(db.Artifact).where(
+                        db.Artifact.flow_run_id.in_(flow_run_ids)
+                    )
+                )
+            ).rowcount
+            runs_deleted += (
+                await session.execute(
+                    sa.delete(db.FlowRun).where(db.FlowRun.id.in_(flow_run_ids))
+                )
+            ).rowcount
+
+        await asyncio.sleep(0)  # yield to event loop between batches
+
+    if runs_deleted:
+        logger.info(
+            "Database vacuum: deleted %d old flow runs, %d logs and %d artifacts.",
+            runs_deleted,
+            logs_deleted,
+            artifacts_deleted,
+        )
 
 
 async def vacuum_events_with_retention_overrides(

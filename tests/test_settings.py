@@ -1279,6 +1279,18 @@ class TestSettingAccess:
         settings = Settings()
         assert settings.server.services.db_vacuum.enabled_vacuum_types == {"events"}
 
+    def test_db_vacuum_enabled_accepts_orphans(self, monkeypatch: pytest.MonkeyPatch):
+        """The orphan backfill is opt-in through the enabled set."""
+        monkeypatch.setenv(
+            "PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED", "events,flow_runs,orphans"
+        )
+        settings = Settings()
+        assert settings.server.services.db_vacuum.enabled_vacuum_types == {
+            "events",
+            "flow_runs",
+            "orphans",
+        }
+
     def test_db_vacuum_enabled_rejects_invalid_types(
         self, monkeypatch: pytest.MonkeyPatch
     ):

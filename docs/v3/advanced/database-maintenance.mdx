@@ -206,11 +206,10 @@ ALTER TABLE flow_run SET (
 
 Prefect server includes a built-in database vacuum service that automatically cleans up old data. The service runs as a background process alongside Prefect server and handles deletion of:
 
-- Old top-level flow runs that have reached a terminal state (completed, failed, cancelled, or crashed)
-- Orphaned logs (logs referencing flow runs that no longer exist)
-- Orphaned artifacts (artifacts referencing flow runs that no longer exist)
+- Old top-level flow runs that have reached a terminal state (completed, failed, cancelled, or crashed), together with their logs and artifacts
 - Stale artifact collections (collections whose latest artifact has been deleted)
 - Old events and event resources past the event retention period
+- Optionally, orphaned logs and artifacts (rows that reference flow runs which no longer exist)
 
 <Warning>
 The flow run vacuum permanently deletes data. Back up your database before enabling it, and test in a non-production environment first.
@@ -218,10 +217,11 @@ The flow run vacuum permanently deletes data. Back up your database before enabl
 
 ### Enable the vacuum service
 
-The vacuum service has two independent components controlled by `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED`:
+The vacuum service has three independent components controlled by `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED`:
 
 - **Event vacuum** (`events`): Cleans up old events and event resources. Enabled by default.
-- **Flow run vacuum** (`flow_runs`): Cleans up old flow runs, orphaned logs, orphaned artifacts, and stale artifact collections. Disabled by default.
+- **Flow run vacuum** (`flow_runs`): Cleans up old flow runs with their logs and artifacts, and reconciles stale artifact collections. Disabled by default.
+- **Orphan backfill** (`orphans`): Cleans up logs and artifacts that reference flow runs which no longer exist. Disabled by default.
 
 To enable flow run cleanup in addition to the default event cleanup:
 
@@ -241,7 +241,7 @@ The following settings control vacuum behavior:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED` | `events` | Comma-separated set of vacuum types to enable. Valid values: `events`, `flow_runs`. |
+| `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED` | `events` | Comma-separated set of vacuum types to enable. Valid values: `events`, `flow_runs`, `orphans`. |
 | `PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS` | `3600` (1 hour) | How often the vacuum cycle runs, in seconds. |
 | `PREFECT_SERVER_SERVICES_DB_VACUUM_RETENTION_PERIOD` | `7776000` (90 days) | How old a flow run must be (based on end time) before it is eligible for deletion. Accepts seconds. Must be greater than 1 hour. |
 | `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE` | `200` | Number of records to delete per database transaction. |
@@ -263,10 +263,14 @@ Each vacuum cycle schedules independent cleanup tasks:
 <Steps>
 ### Flow run vacuum (when `flow_runs` is enabled)
 
+1. **Delete old flow runs**: Removes top-level flow runs (not subflows) that are in a terminal state and whose end time is older than the configured retention period. Logs and artifacts have no cascade from `flow_run`, so each batch deletes them by `flow_run_id` (an indexed lookup) before it deletes the runs. Subflows are not cascade-deleted when their parent is removed; they are cleaned up independently by later batches and cycles once they also meet the top-level, terminal state, and age criteria.
+2. **Reconcile stale artifact collections**: For collections pointing to a deleted artifact, re-points to the next most recent artifact version. If no versions remain, deletes the collection.
+
+### Orphan backfill (when `orphans` is enabled)
+
 1. **Delete orphaned logs**: Removes log entries whose associated flow run no longer exists in the database.
 2. **Delete orphaned artifacts**: Removes artifacts whose associated flow run no longer exists.
-3. **Reconcile stale artifact collections**: For collections pointing to a deleted artifact, re-points to the next most recent artifact version. If no versions remain, deletes the collection.
-4. **Delete old flow runs**: Removes top-level flow runs (not subflows) that are in a terminal state and whose end time is older than the configured retention period. Subflows are not cascade-deleted when their parent is removed; they are cleaned up independently by later vacuum cycles once they also meet the top-level, terminal state, and age criteria.
+3. **Reconcile stale artifact collections**: Same reconciliation as above, for the collections these deletions leave stale.
 
 ### Event vacuum (when `events` is enabled)
 
@@ -277,6 +281,10 @@ Each vacuum cycle schedules independent cleanup tasks:
 <Note>
 The event vacuum only runs when the event persister service is also enabled (`PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED=true`, which is the default). This prevents unexpected data deletion for deployments that have disabled event processing.
 </Note>
+
+<Warning>
+Each orphan backfill batch scans the full `log` and `artifact` table, which is expensive on large tables. Enable `orphans` only to clear a known backlog of orphans (for example, after direct SQL deletes or an upgrade from a version that left orphans behind), and disable it again when the backlog is drained. The flow run vacuum does not create orphans.
+</Warning>
 
 All deletions happen in batches (controlled by `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE`) to avoid long-running transactions that could impact database performance.
 
@@ -398,7 +406,7 @@ async with asyncpg.connect(connection_url) as conn:
 ```
 
 <Tip>
-If you use direct SQL for flow run deletion, enable the built-in vacuum service with `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED="events,flow_runs"` to automatically clean up any orphaned logs and artifacts left behind.
+If you use direct SQL for flow run deletion, enable the orphan backfill with `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED="events,orphans"` to clean up any orphaned logs and artifacts left behind.
 </Tip>
 
 ### Important considerations

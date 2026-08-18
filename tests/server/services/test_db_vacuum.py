@@ -318,6 +318,77 @@ class TestVacuumOldFlowRuns:
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.FlowRun) == 1
 
+    async def test_deletes_logs_and_artifacts_with_the_run(self, session, flow):
+        """Logs and artifacts are deleted by flow_run_id in the same batch,
+        without relying on the orphan backfill."""
+        db = provide_database_interface()
+        flow_run = await _create_flow_run(session, flow, end_time=OLD)
+        task_run = await _create_task_run(session, flow_run)
+        await _create_log(session, flow_run_id=flow_run.id)
+        await _create_log(session, flow_run_id=flow_run.id, task_run_id=task_run.id)
+        await _create_artifact(session, flow_run_id=flow_run.id)
+
+        assert await _count(session, db, db.Log) == 2
+        assert await _count(session, db, db.Artifact) == 1
+
+        await vacuum_old_flow_runs(db=db)
+
+        async with db.session_context() as new_session:
+            assert await _count(new_session, db, db.FlowRun) == 0
+            assert await _count(new_session, db, db.Log) == 0
+            assert await _count(new_session, db, db.Artifact) == 0
+
+    async def test_preserves_children_of_surviving_runs(self, session, flow):
+        """Logs and artifacts of runs within the retention period survive."""
+        db = provide_database_interface()
+        old_run = await _create_flow_run(session, flow, end_time=OLD)
+        recent_run = await _create_flow_run(session, flow, end_time=RECENT)
+        await _create_log(session, flow_run_id=old_run.id)
+        await _create_log(session, flow_run_id=recent_run.id)
+        await _create_log(session, flow_run_id=None)
+        await _create_artifact(session, flow_run_id=recent_run.id)
+
+        await vacuum_old_flow_runs(db=db)
+
+        async with db.session_context() as new_session:
+            assert await _count(new_session, db, db.FlowRun) == 1
+            # The recent run's log and the log with no flow_run_id remain
+            assert await _count(new_session, db, db.Log) == 2
+            assert await _count(new_session, db, db.Artifact) == 1
+
+    async def test_batching_deletes_children_across_batches(
+        self, session, flow, monkeypatch
+    ):
+        """Every batch cleans up its own runs' logs, not just the first."""
+        settings = get_current_settings()
+        monkeypatch.setattr(settings.server.services.db_vacuum, "batch_size", 2)
+
+        db = provide_database_interface()
+        for _ in range(5):
+            flow_run = await _create_flow_run(session, flow, end_time=OLD)
+            await _create_log(session, flow_run_id=flow_run.id)
+
+        await vacuum_old_flow_runs(db=db)
+
+        async with db.session_context() as new_session:
+            assert await _count(new_session, db, db.FlowRun) == 0
+            assert await _count(new_session, db, db.Log) == 0
+
+    async def test_reconciles_collections_of_deleted_artifacts(self, session, flow):
+        """Collections left stale by inline artifact deletion are reconciled."""
+        db = provide_database_interface()
+        flow_run = await _create_flow_run(session, flow, end_time=OLD)
+        await _create_artifact(session, flow_run_id=flow_run.id, key="my-report")
+
+        assert await _count(session, db, db.ArtifactCollection) == 1
+
+        await vacuum_old_flow_runs(db=db)
+        await vacuum_stale_artifact_collections(db=db)
+
+        async with db.session_context() as new_session:
+            assert await _count(new_session, db, db.Artifact) == 0
+            assert await _count(new_session, db, db.ArtifactCollection) == 0
+
 
 class TestVacuumOrphanedLogs:
     async def test_deletes_orphaned_logs(self, session, flow):
