@@ -184,6 +184,8 @@ In some cases, infrastructure takes longer than 10 seconds to start the flow run
 If this value is _more_ than the amount of time it takes for the infrastructure to start, the flow run will _wait_ until its 
 scheduled start time.
 
+Set `--prefetch-seconds` to `0` to disable prefetching entirely. The worker then submits each flow run at its scheduled start time instead of ahead of it.
+
 ### Polling for work
 
 Workers poll for work every 15 seconds by default. You can configure this interval in your [profile settings](/v3/develop/settings-and-profiles/) 
