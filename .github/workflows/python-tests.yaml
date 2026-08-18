@@ -380,7 +380,7 @@ jobs:
           set +e
           uv run pytest tests --ignore=tests/typesafety \
           -m "not windows" \
-          --numprocesses auto \
+          --numprocesses logical \
           --maxprocesses 6 \
           --dist worksteal \
           --disable-docker-image-builds \
