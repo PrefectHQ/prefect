@@ -404,13 +404,19 @@ jobs:
         run: echo "PREFECT_SERVER_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
 
       - name: Run tests
+        id: canonical_tests
         env:
           PYTEST_SPLIT_GROUP: ${{ matrix.group }}
         run: |
           # Start every group from the same baseline. Cleaning leaves only this
           # group's observations for the single-writer merge job below.
           duration_path="test-durations-${PYTEST_SPLIT_GROUP}.json"
-          cp test-durations.json "$duration_path"
+          # A normal pytest session replaces this sentinel when it stores clean
+          # group timings. If pytest is interrupted before session finish, the
+          # untouched input cannot be mistaken for a valid group result.
+          jq '."__pytest_split_incomplete__" = -1' \
+            test-durations.json > "$duration_path"
+          set +e
           uv run pytest tests --ignore=tests/typesafety \
           -m "not windows" \
           --numprocesses auto \
@@ -426,8 +432,36 @@ jobs:
           --durations-path "$duration_path" \
           --store-durations \
           --clean-durations
+          pytest_exit_code=$?
+          set -e
+          echo "exit_code=${pytest_exit_code}" >> "$GITHUB_OUTPUT"
+          exit "$pytest_exit_code"
+
+      - name: Validate group test durations
+        id: validate_canonical_durations
+        if: >-
+          ${{ !cancelled()
+          && (steps.canonical_tests.outputs.exit_code == '0'
+          || steps.canonical_tests.outputs.exit_code == '1') }}
+        env:
+          PYTEST_SPLIT_GROUP: ${{ matrix.group }}
+        run: |
+          duration_path="test-durations-${PYTEST_SPLIT_GROUP}.json"
+          jq -e '
+            type == "object"
+            and length > 0
+            and (has("__pytest_split_incomplete__") | not)
+            and all(
+              to_entries[];
+              (.key | type == "string")
+              and (.key | length > 0)
+              and (.value | type == "number")
+              and (.value >= 0)
+            )
+          ' "$duration_path" > /dev/null
 
       - name: Upload group test durations
+        if: ${{ !cancelled() && steps.validate_canonical_durations.outcome == 'success' }}
         uses: actions/upload-artifact@v7
         with:
           name: canonical-test-durations-${{ matrix.group }}
@@ -443,7 +477,7 @@ jobs:
           || echo "Ignoring bad exit code"
 
   save-canonical-test-durations:
-    if: ${{ github.event_name != 'repository_dispatch' }}
+    if: ${{ !cancelled() && github.event_name != 'repository_dispatch' }}
     needs: run-canonical-tests
     runs-on: ubuntu-latest
     name: Save canonical test durations

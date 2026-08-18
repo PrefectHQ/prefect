@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncGenerator, Dict, List, Tuple
@@ -217,6 +218,7 @@ class TestPrefectHttpxAsyncClient:
         exception_type,
         caplog,
     ):
+        caplog.set_level(logging.DEBUG, logger="prefect.client")
         base_client_send = AsyncMock()
         monkeypatch.setattr(AsyncClient, "send", base_client_send)
         client = PrefectHttpxAsyncClient()
