@@ -187,7 +187,7 @@ ARG PREFECT_EXTRAS=[redis,client,otel]
 
 # Install prefect from the sdist.
 #
-# The sdist is bind-mounted rather than COPYed. A COPY commits the archive to its
+# The sdist is bind-mounted rather than copied. A COPY commits the archive to its
 # own layer, and a `rm -rf` in a later RUN can only add a whiteout on top of that
 # layer -- it cannot remove it from the image, so the archive ships in everything
 # we push. A bind mount is never committed to a layer.
