@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     name: ${{ matrix.test-type.name }} - python:${{ matrix.python-version }}, ${{ matrix.database }}
 
-    services:
+    services: &python-test-services
       redis:
         image: redis:latest
         ports:
@@ -249,13 +249,15 @@ jobs:
       - name: Display current test matrix
         run: echo '${{ toJSON(matrix) }}'
 
-      - uses: actions/checkout@v7
+      - &python-test-checkout
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
           fetch-depth: 0
           filter: blob:none
 
-      - name: Set up uv and Python ${{ matrix.python-version }}
+      - &python-test-setup-uv
+        name: Set up uv and Python ${{ matrix.python-version }}
         uses: astral-sh/setup-uv@v9.0.0
         with:
           enable-cache: true
@@ -265,7 +267,8 @@ jobs:
       - name: Install packages
         run: uv sync --locked
 
-      - name: Set database connection URL
+      - &python-test-database-url
+        name: Set database connection URL
         if: ${{ startsWith(matrix.database, 'postgres') }}
         run: echo "PREFECT_SERVER_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
 
@@ -281,7 +284,8 @@ jobs:
           --exclude-service docker \
           --durations 26 \
 
-      - name: Check database container
+      - &python-test-check-database
+        name: Check database container
         # Only applicable for Postgres, but we want this to run even when tests fail
         if: always()
         run: |
@@ -310,8 +314,7 @@ jobs:
               type == "object"
               and all(
                 to_entries[];
-                (.key | type == "string")
-                and (.value | type == "number")
+                (.value | type == "number")
                 and (.value >= 0)
               )
             ' test-durations.json > /dev/null
@@ -339,58 +342,19 @@ jobs:
       Canonical Tests: group ${{ matrix.group }}/18 - python:3.12, postgres:14
     timeout-minutes: 15
 
-    services:
-      redis:
-        image: redis:latest
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      postgres:
-        image: postgres:14
-        ports:
-          - 5432:5432
-        env:
-          POSTGRES_USER: prefect
-          POSTGRES_PASSWORD: prefect
-          POSTGRES_DB: prefect
-          LANG: C.UTF-8
-          LANGUAGE: C.UTF-8
-          LC_ALL: C.UTF-8
-          LC_COLLATE: C.UTF-8
-          LC_CTYPE: C.UTF-8
-        options: >-
-          --health-cmd "pg_isready"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-          --tmpfs /var/lib/postgresql/data
+    services: *python-test-services
 
     strategy:
       fail-fast: false
       matrix:
         group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
+        database: ["postgres:14"]
+        python-version: ["3.12"]
 
     steps:
-      - name: Display current test matrix
-        run: echo '${{ toJSON(matrix) }}'
+      - *python-test-checkout
 
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-          filter: blob:none
-
-      - name: Set up uv and Python 3.12
-        uses: astral-sh/setup-uv@v9.0.0
-        with:
-          enable-cache: true
-          python-version: "3.12"
-          cache-dependency-glob: "pyproject.toml"
+      - *python-test-setup-uv
 
       - name: Install packages
         run: uv sync --locked
@@ -400,17 +364,14 @@ jobs:
         with:
           name: canonical-test-duration-baseline
 
-      - name: Set database connection URL
-        run: echo "PREFECT_SERVER_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
+      - *python-test-database-url
 
       - name: Run tests
         id: canonical_tests
-        env:
-          PYTEST_SPLIT_GROUP: ${{ matrix.group }}
         run: |
           # Start every group from the same baseline. Cleaning leaves only this
           # group's observations for the single-writer merge job below.
-          duration_path="test-durations-${PYTEST_SPLIT_GROUP}.json"
+          duration_path="test-durations-${{ matrix.group }}.json"
           # A normal pytest session replaces this sentinel when it stores clean
           # group timings. If pytest is interrupted before session finish, the
           # untouched input cannot be mistaken for a valid group result.
@@ -427,7 +388,7 @@ jobs:
           --exclude-service docker \
           --durations 26 \
           --splits 18 \
-          --group "$PYTEST_SPLIT_GROUP" \
+          --group "${{ matrix.group }}" \
           --splitting-algorithm least_duration \
           --durations-path "$duration_path" \
           --store-durations \
@@ -443,18 +404,15 @@ jobs:
           ${{ !cancelled()
           && (steps.canonical_tests.outputs.exit_code == '0'
           || steps.canonical_tests.outputs.exit_code == '1') }}
-        env:
-          PYTEST_SPLIT_GROUP: ${{ matrix.group }}
         run: |
-          duration_path="test-durations-${PYTEST_SPLIT_GROUP}.json"
+          duration_path="test-durations-${{ matrix.group }}.json"
           jq -e '
             type == "object"
             and length > 0
             and (has("__pytest_split_incomplete__") | not)
             and all(
               to_entries[];
-              (.key | type == "string")
-              and (.key | length > 0)
+              (.key | length > 0)
               and (.value | type == "number")
               and (.value >= 0)
             )
@@ -469,12 +427,7 @@ jobs:
           retention-days: 7
           overwrite: true
 
-      - name: Check database container
-        if: always()
-        run: |
-          docker container inspect ${{ job.services.postgres.id }} \
-          && docker container logs ${{ job.services.postgres.id }} \
-          || echo "Ignoring bad exit code"
+      - *python-test-check-database
 
   save-canonical-test-durations:
     if: ${{ !cancelled() && github.event_name != 'repository_dispatch' }}
@@ -510,15 +463,6 @@ jobs:
             )
           ' "${duration_files[@]}" > test-durations.json
 
-          jq -e '
-            type == "object"
-            and all(
-              to_entries[];
-              (.key | type == "string")
-              and (.value | type == "number")
-              and (.value >= 0)
-            )
-          ' test-durations.json > /dev/null
           jq 'length' test-durations.json
 
       - name: Cache merged test durations
