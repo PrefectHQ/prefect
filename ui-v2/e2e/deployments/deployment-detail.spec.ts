@@ -91,7 +91,11 @@ test.describe("Deployment Detail Page", () => {
 
 		await page.goto(`/deployments/deployment/${deployment.id}`);
 
-		await expect(page.getByText(depName)).toBeVisible({ timeout: 10000 });
+		// Scope to the breadcrumb: the deployment name also appears in the
+		// flow run card's deployment link once the runs tab loads
+		await expect(
+			page.getByLabel("breadcrumb").getByText(depName, { exact: true }),
+		).toBeVisible({ timeout: 10000 });
 
 		await expect(page.getByText(runName)).toBeVisible({ timeout: 10000 });
 	});
