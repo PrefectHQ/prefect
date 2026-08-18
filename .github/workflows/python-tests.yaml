@@ -336,7 +336,7 @@ jobs:
     needs: prepare-canonical-test-durations
     runs-on: ubuntu-latest
     name: >-
-      Canonical Tests: group ${{ matrix.group }}/16 - python:3.12, postgres:14
+      Canonical Tests: group ${{ matrix.group }}/18 - python:3.12, postgres:14
     timeout-minutes: 15
 
     services:
@@ -373,7 +373,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
+        group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]
 
     steps:
       - name: Display current test matrix
@@ -426,7 +426,7 @@ jobs:
           --exclude-service kubernetes \
           --exclude-service docker \
           --durations 26 \
-          --splits 16 \
+          --splits 18 \
           --group "$PYTEST_SPLIT_GROUP" \
           --splitting-algorithm least_duration \
           --durations-path "$duration_path" \
@@ -493,8 +493,8 @@ jobs:
       - name: Merge group test durations
         run: |
           duration_files=(test-duration-groups/test-durations-*.json)
-          if [[ ${#duration_files[@]} -ne 16 ]]; then
-            echo "::error::Expected 16 duration files, found ${#duration_files[@]}"
+          if [[ ${#duration_files[@]} -ne 18 ]]; then
+            echo "::error::Expected 18 duration files, found ${#duration_files[@]}"
             exit 1
           fi
 
