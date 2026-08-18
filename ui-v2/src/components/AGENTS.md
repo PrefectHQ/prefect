@@ -91,6 +91,7 @@ To persist widths across sessions: `useLocalStorage<ColumnSizingState>(KEY, {})`
   ```
   Always call `vi.restoreAllMocks()` in `afterEach` to clean up.
 - **`matchMedia` mocking**: JSDOM does not implement `window.matchMedia`. Stub it via `Object.defineProperty(window, "matchMedia", ...)` and restore the original in `afterEach`.
+- **Virtualized lists** (`@tanstack/react-virtual`, e.g. `timezone-select`, `run-logs`): JSDOM reports 0 for `offsetWidth`/`offsetHeight`, which virtualizers use to measure their scroll container — `tests/setup.ts` stubs both globally so items render at all. Off-screen items aren't in the DOM until measured, so query them with `findByRole`/`waitFor`, not `getByRole`.
 
 ## Storybook Best Practices
 
