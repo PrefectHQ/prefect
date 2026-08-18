@@ -122,7 +122,7 @@ github = ["prefect-github>=0.4.2"]
 gitlab = ["prefect-gitlab>=0.3.0"]
 # Database extras
 databricks = ["prefect-databricks>=0.3.0"]
-dbt = ["prefect-dbt>=0.6.0"]
+dbt = ["dbt-core<2", "prefect-dbt>=0.6.0"]
 snowflake = ["prefect-snowflake>=0.28.0"]
 sqlalchemy = ["prefect-sqlalchemy>=0.5.0"]
 redis = ["prefect-redis>=0.2.0"]
@@ -400,3 +400,4 @@ check-hidden = true
 
 [tool.uv]
 required-version = ">=0.6.15" # make sure upload_time is included to avoid churn (see https://github.com/dependabot/dependabot-core/issues/12127)
+override-dependencies = ["sqlparse>=0.6.0"]
