@@ -299,8 +299,7 @@ class SPCSWorkerConfiguration(BaseJobConfiguration):
         # Set the container's environment variables by grabbing them from the worker.
         container["env"] = {**self._base_environment(), **self.env}
 
-        # Attribute usage from the flow-run container to Prefect.
-        # Ensures attribution for non-Prefect Snowflake libraries (raw connector, Snowpark, dbt).
+        # Attribute usage from the flow-run container to Prefect as a fallback for non-Prefect Snowflake libraries.
         # SF_PARTNER is read by the Snowflake Connector for Python to set the application name, if not otherwise set.
         container["env"].setdefault("SF_PARTNER", PREFECT_SNOWFLAKE_APPLICATION)
 
