@@ -207,6 +207,7 @@ ALTER TABLE flow_run SET (
 Prefect server includes a built-in database vacuum service that automatically cleans up old data. The service runs as a background process alongside Prefect server and handles deletion of:
 
 - Old top-level flow runs that have reached a terminal state (completed, failed, cancelled, or crashed), together with their logs and artifacts
+- Orphaned artifacts left by other flow run deletion paths
 - Stale artifact collections (collections whose latest artifact has been deleted)
 - Old events and event resources past the event retention period
 
@@ -219,7 +220,7 @@ The flow run vacuum permanently deletes data. Back up your database before enabl
 The vacuum service has two independent components controlled by `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED`:
 
 - **Event vacuum** (`events`): Cleans up old events and event resources. Enabled by default.
-- **Flow run vacuum** (`flow_runs`): Cleans up old flow runs with their logs and artifacts, and reconciles stale artifact collections. Disabled by default.
+- **Flow run vacuum** (`flow_runs`): Cleans up old flow runs with their logs and artifacts, removes orphaned artifacts, and reconciles stale artifact collections. Disabled by default.
 
 To enable flow run cleanup in addition to the default event cleanup:
 
@@ -261,8 +262,9 @@ Each vacuum cycle schedules independent cleanup tasks:
 <Steps>
 ### Flow run vacuum (when `flow_runs` is enabled)
 
-1. **Delete old flow runs**: Removes top-level flow runs (not subflows) that are in a terminal state and whose end time is older than the configured retention period. Logs and artifacts have no cascade from `flow_run`, so each batch deletes them by `flow_run_id` (an indexed lookup) before it deletes the runs. Subflows are not cascade-deleted when their parent is removed; they are cleaned up independently by later batches and cycles once they also meet the top-level, terminal state, and age criteria.
-2. **Reconcile stale artifact collections**: For collections pointing to a deleted artifact, re-points to the next most recent artifact version. If no versions remain, deletes the collection.
+1. **Delete old flow runs**: Selects top-level terminal flow runs whose end time is older than the configured retention period. For each selected batch, the service deletes logs and artifacts by `flow_run_id` before deleting the runs. It does not scan the log table for orphaned logs. Subflows are cleaned up independently by later batches and cycles once they meet the same criteria.
+2. **Delete orphaned artifacts**: Removes artifacts whose flow run no longer exists, including artifacts left by other flow run deletion paths.
+3. **Reconcile stale artifact collections**: For collections pointing to a deleted artifact, re-points to the next most recent artifact version. If no versions remain, deletes the collection.
 
 ### Event vacuum (when `events` is enabled)
 
@@ -274,13 +276,13 @@ Each vacuum cycle schedules independent cleanup tasks:
 The event vacuum only runs when the event persister service is also enabled (`PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED=true`, which is the default). This prevents unexpected data deletion for deployments that have disabled event processing.
 </Note>
 
-Flow run selection and event cleanup use batches controlled by `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE`. A selected flow run's logs and artifacts are deleted in the same transaction, so a run with many related rows can still create a large transaction.
+Flow run selection and event cleanup use transaction batches controlled by `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE`. Large selected-ID lists are split across multiple delete statements to stay within database parameter limits, but the statements still share one transaction. Related logs and artifacts are not limited by row count, so a selected run with many child rows can still create a large transaction.
 
 ### Tune the vacuum for your workload
 
 - **High-volume deployments** (thousands of runs per day): Consider a shorter retention period (for example, 7-14 days) and a more frequent vacuum cycle (every few hours) to prevent data accumulation.
 - **Low-volume deployments**: The defaults (90-day retention, hourly cycle) are appropriate for most cases.
-- **Large batch size**: Increasing `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE` speeds up cleanup but may hold database locks longer. Decrease the batch size if you observe performance impacts during vacuum cycles.
+- **Large batch size**: Increasing `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE` can speed up cleanup but may make transactions larger and hold database locks longer. Decrease the batch size if you observe performance impacts during vacuum cycles.
 - **Scaled deployments**: If you run [separate API and background service processes](/v3/advanced/self-hosted), ensure the background services pod is running to enable the vacuum service.
 
 ## Data retention with a custom flow

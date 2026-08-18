@@ -4,9 +4,9 @@ independently, gated by the `enabled` set in
 `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED` (default `["events"]`):
 
 1. schedule_vacuum_tasks — Cleans up old flow runs, deleting their logs and
-   artifacts by `flow_run_id` in the same batch, then reconciles the
-   artifact collections those deletions left stale. Enabled when
-   `"flow_runs"` is in the enabled set.
+   artifacts by `flow_run_id` in the same batch, removes orphaned artifacts,
+   then reconciles the artifact collections those deletions left stale.
+   Enabled when `"flow_runs"` is in the enabled set.
 
 2. schedule_event_vacuum_tasks — Cleans up old events, including any
    event types with per-type retention overrides. Enabled when `"events"`
@@ -40,8 +40,10 @@ from prefect.server.database import PrefectDBInterface, provide_database_interfa
 from prefect.server.database.configurations import AsyncPostgresConfiguration
 from prefect.server.schemas.states import TERMINAL_STATES
 from prefect.server.services.perpetual_services import perpetual_service
+from prefect.server.utilities.database import get_max_query_parameters
 from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
+from prefect.utilities.collections import batched_iterable
 
 logger: logging.Logger = get_logger(__name__)
 
@@ -83,22 +85,29 @@ def _maintenance_database_config(
 @asynccontextmanager
 async def _maintenance_session(
     db: PrefectDBInterface,
+    with_for_update: bool = False,
 ) -> AsyncIterator[AsyncSession]:
     """A transactional session for vacuum maintenance queries.
 
     On Postgres this uses a dedicated connection with no statement timeout;
-    other backends fall back to the default session context.
+    other backends fall back to the default session context. Locking queries
+    should pass `with_for_update=True` so SQLite starts with `BEGIN IMMEDIATE`;
+    Postgres callers must also add `FOR UPDATE` to the locking query.
     """
     config = _maintenance_database_config(db)
     if config is None:
-        async with db.session_context(begin_transaction=True) as session:
+        async with db.session_context(
+            begin_transaction=True, with_for_update=with_for_update
+        ) as session:
             yield session
         return
     engine = await config.engine()
     session = await config.session(engine)
-    async with session:
-        async with config.begin_transaction(session):
-            yield session
+    async with (
+        session,
+        config.begin_transaction(session, with_for_update=with_for_update),
+    ):
+        yield session
 
 
 # ---------------------------------------------------------------------------
@@ -121,7 +130,7 @@ async def schedule_vacuum_tasks(
         ),
     ),
 ) -> None:
-    """Schedule cleanup tasks for old flow runs.
+    """Schedule cleanup tasks for old flow runs and orphaned artifacts.
 
     Each task is enqueued with a deterministic key so that overlapping
     cycles (e.g. when cleanup takes longer than loop_seconds) naturally
@@ -131,6 +140,7 @@ async def schedule_vacuum_tasks(
     via PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED=true.
     """
     await docket.add(vacuum_old_flow_runs, key="db-vacuum:old-flow-runs")()
+    await docket.add(vacuum_orphaned_artifacts, key="db-vacuum:orphaned-artifacts")()
     await docket.add(
         vacuum_stale_artifact_collections, key="db-vacuum:stale-collections"
     )()
@@ -257,14 +267,17 @@ async def vacuum_old_flow_runs(
     runs_deleted = 0
     logs_deleted = 0
     artifacts_deleted = 0
+    max_query_parameters = get_max_query_parameters()
     while True:
-        async with _maintenance_session(db) as session:
+        async with _maintenance_session(db, with_for_update=True) as session:
             flow_run_ids = (
                 (
                     await session.execute(
                         sa.select(db.FlowRun.id)
                         .where(eligible)
+                        .order_by(db.FlowRun.id)
                         .limit(settings.batch_size)
+                        .with_for_update(skip_locked=True)
                     )
                 )
                 .scalars()
@@ -273,23 +286,38 @@ async def vacuum_old_flow_runs(
             if not flow_run_ids:
                 break
 
-            logs_deleted += (
-                await session.execute(
-                    sa.delete(db.Log).where(db.Log.flow_run_id.in_(flow_run_ids))
-                )
-            ).rowcount
-            artifacts_deleted += (
-                await session.execute(
-                    sa.delete(db.Artifact).where(
-                        db.Artifact.flow_run_id.in_(flow_run_ids)
+            # Bound each statement's bind count without splitting the outer
+            # transaction or releasing the selected flow-run locks.
+            for flow_run_id_batch in batched_iterable(
+                flow_run_ids, max_query_parameters
+            ):
+                logs_deleted += (
+                    await session.execute(
+                        sa.delete(db.Log).where(
+                            db.Log.flow_run_id.in_(flow_run_id_batch)
+                        )
                     )
-                )
-            ).rowcount
-            runs_deleted += (
-                await session.execute(
-                    sa.delete(db.FlowRun).where(db.FlowRun.id.in_(flow_run_ids))
-                )
-            ).rowcount
+                ).rowcount
+            for flow_run_id_batch in batched_iterable(
+                flow_run_ids, max_query_parameters
+            ):
+                artifacts_deleted += (
+                    await session.execute(
+                        sa.delete(db.Artifact).where(
+                            db.Artifact.flow_run_id.in_(flow_run_id_batch)
+                        )
+                    )
+                ).rowcount
+            for flow_run_id_batch in batched_iterable(
+                flow_run_ids, max_query_parameters
+            ):
+                runs_deleted += (
+                    await session.execute(
+                        sa.delete(db.FlowRun).where(
+                            db.FlowRun.id.in_(flow_run_id_batch)
+                        )
+                    )
+                ).rowcount
 
         await asyncio.sleep(0)  # yield to event loop between batches
 
