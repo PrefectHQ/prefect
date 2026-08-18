@@ -898,25 +898,34 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
                 bucket has a unique key (or key name).
 
         """
-        # AWS object key naming guidelines use '/' to separate bucket folders and
-        # keys are not rooted, so leading and trailing slashes on either side of the
-        # join carry no meaning. Stripping them keeps an absolute-looking path from
-        # discarding `bucket_folder`, which is what `Path.__truediv__` would do.
-        bucket_folder = (self.bucket_folder or "").strip("/")
-        path = path.strip("/")
-
-        if not bucket_folder:
-            return path
-
         # Avoid double prefix when path already contains bucket_folder (e.g. when
         # Prefect ResultStore pre-resolves paths for blocks without block_document_id).
         # See https://github.com/PrefectHQ/prefect-aws/issues/141 and GCS equivalent.
-        if path == bucket_folder or path.startswith(bucket_folder + "/"):
+        if self.bucket_folder and (
+            path == self.bucket_folder
+            or path.startswith(self.bucket_folder.rstrip("/") + "/")
+        ):
             return path
 
         # If bucket_folder provided, it means we won't write to the root dir of
         # the bucket. So we need to add it on the front of the path.
-        return f"{bucket_folder}/{path}" if path else bucket_folder
+        #
+        # AWS object key naming guidelines require '/' for bucket folders.
+        # Get POSIX path to prevent `pathlib` from inferring '\' on Windows OS.
+        #
+        # A leading '/' on `path` would make it absolute, and `Path.__truediv__`
+        # discards its left operand against an absolute right one -- silently
+        # dropping `bucket_folder`. Keys are not rooted, so that slash carries no
+        # meaning; strip it so the join keeps the folder. `bucket_folder` itself is
+        # left exactly as configured, so this stays consistent with
+        # `_join_bucket_folder`, which is what the object-level methods use.
+        path = (
+            (Path(self.bucket_folder) / path.lstrip("/")).as_posix()
+            if self.bucket_folder
+            else path
+        )
+
+        return path
 
     def _get_s3_client(self):
         """
