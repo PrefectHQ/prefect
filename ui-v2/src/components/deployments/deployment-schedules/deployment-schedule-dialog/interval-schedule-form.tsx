@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format, set } from "date-fns";
+import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -94,7 +95,7 @@ const setTimeOfDay = (date: Date, time: string): Date => {
 		return date;
 	}
 
-	return set(date, { hours, minutes });
+	return set(date, { hours, minutes, seconds: 0, milliseconds: 0 });
 };
 
 /** Applies the day of a calendar selection while keeping the current time of day */
@@ -123,7 +124,7 @@ const DEFAULT_VALUES: FormSchema = {
 	schedule: {
 		interval_value: 60,
 		interval_time: "minutes",
-		anchor_date: new Date(),
+		anchor_date: toZonedTime(new Date(), "UTC"),
 		timezone: "UTC",
 	},
 };
@@ -158,13 +159,17 @@ export const IntervalScheduleForm = ({
 			if ("interval" in schedule) {
 				const { interval, anchor_date, timezone } = schedule;
 				const { interval_value, interval_time } = parseIntervalToTime(interval);
+				const scheduleTimezone = timezone ?? "UTC";
 				form.reset({
 					active,
 					schedule: {
 						interval_value,
 						interval_time,
-						anchor_date: anchor_date ? new Date(anchor_date) : new Date(),
-						timezone: timezone ?? "UTC",
+						anchor_date: toZonedTime(
+							anchor_date ? new Date(anchor_date) : new Date(),
+							scheduleTimezone,
+						),
+						timezone: scheduleTimezone,
 					},
 				});
 			}
@@ -174,6 +179,12 @@ export const IntervalScheduleForm = ({
 	}, [form, scheduleToEdit]);
 
 	const handleSave = (values: FormSchema) => {
+		/** The anchor date holds the wall clock time of the selected timezone */
+		const anchorDate = fromZonedTime(
+			values.schedule.anchor_date,
+			values.schedule.timezone,
+		).toISOString();
+
 		const onSettled = () => {
 			form.reset(DEFAULT_VALUES);
 			onSubmit();
@@ -189,7 +200,7 @@ export const IntervalScheduleForm = ({
 						interval:
 							values.schedule.interval_value *
 							INTERVAL_SECONDS[values.schedule.interval_time],
-						anchor_date: values.schedule.anchor_date.toISOString(),
+						anchor_date: anchorDate,
 						timezone: values.schedule.timezone,
 					},
 				},
@@ -215,7 +226,7 @@ export const IntervalScheduleForm = ({
 						interval:
 							values.schedule.interval_value *
 							INTERVAL_SECONDS[values.schedule.interval_time],
-						anchor_date: values.schedule.anchor_date.toISOString(),
+						anchor_date: anchorDate,
 						timezone: values.schedule.timezone,
 					},
 				},
