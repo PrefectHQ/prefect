@@ -11,9 +11,11 @@ from typing import Any, Dict, List, Optional
 from prefect.blocks.core import Block
 from pydantic import Field
 
-log = logging.getLogger(__name__)
+log: logging.Logger = logging.getLogger(__name__)
 
-GENESIS_HASH = "0000000000000000000000000000000000000000000000000000000000000000"
+GENESIS_HASH: str = (
+    "0000000000000000000000000000000000000000000000000000000000000000"
+)
 
 
 class ActionGateBlock(Block):
