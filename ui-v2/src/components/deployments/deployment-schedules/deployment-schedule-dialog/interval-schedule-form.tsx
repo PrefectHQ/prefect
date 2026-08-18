@@ -37,6 +37,8 @@ import { Switch } from "@/components/ui/switch";
 import { TimezoneSelect } from "@/components/ui/timezone-select";
 import { cn, intervalToSeconds } from "@/utils";
 import { formatDate } from "@/utils/date";
+import { ScheduleParameterOverridesFormSection } from "./schedule-parameter-overrides-form-section";
+import type { ScheduleParameterOverrides } from "./use-schedule-parameter-overrides";
 
 const INTERVALS = [
 	{ label: "Seconds", value: "seconds" },
@@ -111,12 +113,14 @@ export type IntervalScheduleFormProps = {
 	scheduleToEdit?: DeploymentSchedule;
 	/** Callback after hitting Save or Update */
 	onSubmit: () => void;
+	parameterOverrides?: ScheduleParameterOverrides;
 };
 
 export const IntervalScheduleForm = ({
 	deployment_id,
 	scheduleToEdit,
 	onSubmit,
+	parameterOverrides,
 }: IntervalScheduleFormProps) => {
 	const { createDeploymentSchedule, isPending: createPending } =
 		useCreateDeploymentSchedule();
@@ -150,7 +154,11 @@ export const IntervalScheduleForm = ({
 		}
 	}, [form, scheduleToEdit]);
 
-	const handleSave = (values: FormSchema) => {
+	const handleSave = async (values: FormSchema) => {
+		if (parameterOverrides && !(await parameterOverrides.validate())) {
+			return;
+		}
+
 		const onSettled = () => {
 			form.reset(DEFAULT_VALUES);
 			onSubmit();
@@ -161,6 +169,7 @@ export const IntervalScheduleForm = ({
 				{
 					deployment_id,
 					schedule_id: scheduleToEdit.id,
+					parameters: parameterOverrides?.values,
 					active: values.active,
 					schedule: {
 						interval:
@@ -187,6 +196,7 @@ export const IntervalScheduleForm = ({
 			createDeploymentSchedule(
 				{
 					deployment_id,
+					parameters: parameterOverrides?.values,
 					active: values.active,
 					schedule: {
 						interval:
@@ -342,11 +352,20 @@ export const IntervalScheduleForm = ({
 					/>
 				</div>
 
+				{parameterOverrides && (
+					<ScheduleParameterOverridesFormSection {...parameterOverrides} />
+				)}
+
 				<DialogFooter>
 					<DialogTrigger asChild>
 						<Button variant="outline">Close</Button>
 					</DialogTrigger>
-					<Button type="submit" loading={createPending || updatePending}>
+					<Button
+						type="submit"
+						loading={
+							createPending || updatePending || form.formState.isSubmitting
+						}
+					>
 						Save
 					</Button>
 				</DialogFooter>
