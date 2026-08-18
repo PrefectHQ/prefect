@@ -4,7 +4,7 @@ Utilities for querying flow and task run history.
 
 import datetime
 from collections import defaultdict
-from typing import TYPE_CHECKING, List, Optional, cast
+from typing import TYPE_CHECKING, Any, List, Optional
 
 import pydantic
 import sqlalchemy as sa
@@ -58,22 +58,10 @@ async def run_history(
             f"Unknown run type {run_type!r}. Expected 'flow_run' or 'task_run'."
         )
 
-    interval_microseconds = (
-        history_interval.days * 24 * 60 * 60 * 1_000_000
-        + history_interval.seconds * 1_000_000
-        + history_interval.microseconds
-    )
-    history_microseconds = (
-        (history_end - history_start).days * 24 * 60 * 60 * 1_000_000
-        + (history_end - history_start).seconds * 1_000_000
-        + (history_end - history_start).microseconds
-    )
+    elapsed = (history_end - history_start).as_timedelta()
     interval_count = (
-        min(
-            (history_microseconds + interval_microseconds - 1) // interval_microseconds,
-            500,
-        )
-        if history_microseconds > 0
+        min(-((-elapsed) // history_interval), 500)
+        if elapsed > datetime.timedelta(0)
         else 0
     )
     if interval_count == 0:
@@ -92,9 +80,7 @@ async def run_history(
             run_model.state_type,
             run_model.state_name,
             db.queries.make_timestamp_bucket_index(
-                cast(
-                    sa.ColumnElement[datetime.datetime], run_model.expected_start_time
-                ),
+                run_model.expected_start_time,
                 history_start,
                 history_interval,
             ).label("bucket_index"),
@@ -134,7 +120,7 @@ async def run_history(
 
     # issue the query
     result = await session.execute(counts)
-    states_by_bucket: dict[int, list[dict]] = defaultdict(list)
+    states_by_bucket: dict[int, list[dict[str, Any]]] = defaultdict(list)
     for record in result.mappings():
         states_by_bucket[record["bucket_index"]].append(
             {

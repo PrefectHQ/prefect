@@ -107,7 +107,7 @@ class BaseQueryComponents(ABC):
     @abstractmethod
     def make_timestamp_bucket_index(
         self,
-        timestamp: sa.ColumnElement[Any],
+        timestamp: sa.ColumnElement[Any] | orm.InstrumentedAttribute[Any],
         start_time: datetime.datetime,
         interval: datetime.timedelta,
     ) -> sa.ColumnElement[int]: ...
@@ -559,11 +559,11 @@ class AsyncPostgresQueryComponents(BaseQueryComponents):
 
     def make_timestamp_bucket_index(
         self,
-        timestamp: sa.ColumnElement[Any],
+        timestamp: sa.ColumnElement[Any] | orm.InstrumentedAttribute[Any],
         start_time: datetime.datetime,
         interval: datetime.timedelta,
     ) -> sa.ColumnElement[int]:
-        start = sa.bindparam("history_start", start_time, type_=Timestamp())
+        start = sa.bindparam(None, start_time, type_=Timestamp(), unique=True)
         return sa.cast(
             sa.func.floor(
                 date_diff_seconds(timestamp, start) / interval.total_seconds()
@@ -796,11 +796,11 @@ class AioSqliteQueryComponents(BaseQueryComponents):
 
     def make_timestamp_bucket_index(
         self,
-        timestamp: sa.ColumnElement[Any],
+        timestamp: sa.ColumnElement[Any] | orm.InstrumentedAttribute[Any],
         start_time: datetime.datetime,
         interval: datetime.timedelta,
     ) -> sa.ColumnElement[int]:
-        start = sa.bindparam("history_start", start_time, type_=Timestamp())
+        start = sa.bindparam(None, start_time, type_=Timestamp(), unique=True)
         # SQLite's julianday arithmetic introduces small floating-point errors;
         # rounding to its millisecond precision avoids mis-bucketing boundaries.
         seconds = sa.func.round(date_diff_seconds(timestamp, start), 3)
