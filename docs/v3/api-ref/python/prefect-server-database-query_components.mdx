@@ -84,7 +84,7 @@ aggregates a JSON array
 #### `make_timestamp_bucket_index` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L108" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-make_timestamp_bucket_index(self, timestamp: sa.ColumnElement[datetime.datetime], start_time: datetime.datetime, interval: datetime.timedelta) -> sa.ColumnElement[int]
+make_timestamp_bucket_index(self, timestamp: sa.ColumnElement[Any] | orm.InstrumentedAttribute[Any], start_time: datetime.datetime, interval: datetime.timedelta) -> sa.ColumnElement[int]
 ```
 
 #### `read_configuration_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -215,13 +215,13 @@ aggregates a JSON array
 #### `make_timestamp_bucket_index` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L560" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-make_timestamp_bucket_index(self, timestamp: sa.ColumnElement[datetime.datetime], start_time: datetime.datetime, interval: datetime.timedelta) -> sa.ColumnElement[int]
+make_timestamp_bucket_index(self, timestamp: sa.ColumnElement[Any] | orm.InstrumentedAttribute[Any], start_time: datetime.datetime, interval: datetime.timedelta) -> sa.ColumnElement[int]
 ```
 
 #### `make_timestamp_bucket_index` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L108" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-make_timestamp_bucket_index(self, timestamp: sa.ColumnElement[datetime.datetime], start_time: datetime.datetime, interval: datetime.timedelta) -> sa.ColumnElement[int]
+make_timestamp_bucket_index(self, timestamp: sa.ColumnElement[Any] | orm.InstrumentedAttribute[Any], start_time: datetime.datetime, interval: datetime.timedelta) -> sa.ColumnElement[int]
 ```
 
 #### `read_configuration_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
@@ -382,13 +382,13 @@ aggregates a JSON array
 #### `make_timestamp_bucket_index` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L797" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-make_timestamp_bucket_index(self, timestamp: sa.ColumnElement[datetime.datetime], start_time: datetime.datetime, interval: datetime.timedelta) -> sa.ColumnElement[int]
+make_timestamp_bucket_index(self, timestamp: sa.ColumnElement[Any] | orm.InstrumentedAttribute[Any], start_time: datetime.datetime, interval: datetime.timedelta) -> sa.ColumnElement[int]
 ```
 
 #### `make_timestamp_bucket_index` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L108" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-make_timestamp_bucket_index(self, timestamp: sa.ColumnElement[datetime.datetime], start_time: datetime.datetime, interval: datetime.timedelta) -> sa.ColumnElement[int]
+make_timestamp_bucket_index(self, timestamp: sa.ColumnElement[Any] | orm.InstrumentedAttribute[Any], start_time: datetime.datetime, interval: datetime.timedelta) -> sa.ColumnElement[int]
 ```
 
 #### `read_configuration_value` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/database/query_components.py#L353" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
