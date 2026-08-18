@@ -55,6 +55,10 @@ This directory contains React components for the Prefect UI migration from Vue t
 - NEVER use `React.FC`
 - NEVER use `as unknown` or `eslint-disable` comments
 
+## DataTable Setup (Tanstack Table v9)
+
+Import `useTable`, `createColumnHelper`, and table types (`ColumnDef`, `CellContext`, `Column`, `Header`, `Table`) from `@/lib/tanstack-table`, not from `@tanstack/react-table` directly. The wrapper pre-registers this app's table features (pagination, sorting, filtering, resizing, row selection) via `createTableHook`; a table built with the raw package's `useReactTable`/`createColumnHelper` won't have those features and its types won't match `DataTable`'s props.
+
 ## DataTable Row Clicks
 
 `DataTable` suppresses `onRowClick` when the click target is or is inside `a, button, input, select, textarea, [role="button"], [role="checkbox"], [role="menuitem"], [role="switch"]`, or `[data-row-click-ignore="true"]`. Do not add `stopPropagation()` to these elements inside rows — it is redundant.
