@@ -77,21 +77,21 @@ async def _release_in_process_retry(client: PrefectClient, flow_run_id: UUID) ->
     it is never picked up again.
 
     Only the retry ownership changes; the run keeps the state it is in.
+
+    Raises whatever the API raises, because a run left claimed by this exiting
+    process is stranded and the command must not report a successful reschedule.
     """
-    try:
-        flow_run = await client.read_flow_run(flow_run_id)
-        if flow_run.empirical_policy.retry_type != "in_process":
-            return
-        if not flow_run.state or not flow_run.state.is_scheduled():
-            return
-        await client.update_flow_run(
-            flow_run_id=flow_run_id,
-            empirical_policy=flow_run.empirical_policy.model_copy(
-                update={"retry_type": "reschedule"}
-            ),
-        )
-    except Exception:
-        logger.exception("Failed to release the in-process retry of the flow run")
+    flow_run = await client.read_flow_run(flow_run_id)
+    if flow_run.empirical_policy.retry_type != "in_process":
+        return
+    if not flow_run.state or not flow_run.state.is_scheduled():
+        return
+    await client.update_flow_run(
+        flow_run_id=flow_run_id,
+        empirical_policy=flow_run.empirical_policy.model_copy(
+            update={"retry_type": "reschedule"}
+        ),
+    )
 
 
 def _install_termination_handler(handler: Callable[[], None]) -> bool:
@@ -810,6 +810,7 @@ async def execute(
                 return
 
             release_retry = False
+            stranded = False
 
             async with anyio.create_task_group() as tg:
 
@@ -868,10 +869,21 @@ async def execute(
             # Once the engine is stopped it can no longer claim a retry of its own, so
             # this runs here rather than beside the reschedule proposal above.
             if release_retry:
-                await _release_in_process_retry(ctx.client, id)
+                try:
+                    await _release_in_process_retry(ctx.client, id)
+                except Exception:
+                    logger.exception(
+                        "Failed to release the in-process retry of the flow run"
+                    )
+                    stranded = True
 
     # Exits go here, not inside the context: a `SystemExit` unwinding through an
     # anyio task group gets wrapped in an exception group, losing the exit code.
+    if stranded:
+        # No worker can poll a run still claimed by this process, so the exit code
+        # asks the infrastructure to retry the attempt instead of claiming success.
+        exit_with_error("Flow run could not be released for rescheduling.")
+
     if terminated:
         if intent == "reschedule":
             exit_with_success("Flow run successfully rescheduled.")
