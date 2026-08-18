@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { format, set } from "date-fns";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -21,6 +22,7 @@ import {
 } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
 	Popover,
 	PopoverContent,
@@ -82,6 +84,27 @@ const parseIntervalToTime = (
 		interval_time: "seconds",
 	} as const;
 };
+
+const TIME_INPUT_FORMAT = "HH:mm";
+
+/** Applies the time of day from an `<input type="time">` value to a date */
+const setTimeOfDay = (date: Date, time: string): Date => {
+	const [hours, minutes] = time.split(":").map(Number);
+	if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+		return date;
+	}
+
+	return set(date, { hours, minutes });
+};
+
+/** Applies the day of a calendar selection while keeping the current time of day */
+const setDayOfMonth = (date: Date, day: Date): Date =>
+	set(day, {
+		hours: date.getHours(),
+		minutes: date.getMinutes(),
+		seconds: date.getSeconds(),
+		milliseconds: date.getMilliseconds(),
+	});
 
 const formSchema = z.object({
 	active: z.boolean(),
@@ -316,8 +339,26 @@ export const IntervalScheduleForm = ({
 										<Calendar
 											mode="single"
 											selected={field.value}
-											onSelect={field.onChange}
+											onSelect={(day) => {
+												if (day) {
+													field.onChange(setDayOfMonth(field.value, day));
+												}
+											}}
 										/>
+										<div className="flex flex-col gap-2 border-t p-3">
+											<Label htmlFor="anchor-time">Time</Label>
+											<Input
+												id="anchor-time"
+												type="time"
+												step={60}
+												value={format(field.value, TIME_INPUT_FORMAT)}
+												onChange={(e) =>
+													field.onChange(
+														setTimeOfDay(field.value, e.target.value),
+													)
+												}
+											/>
+										</div>
 									</PopoverContent>
 								</Popover>
 								<FormMessage />
