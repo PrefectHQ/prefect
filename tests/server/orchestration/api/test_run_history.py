@@ -9,7 +9,8 @@ from pydantic import TypeAdapter
 from whenever import Instant
 
 from prefect.server import models
-from prefect.server.schemas import actions, core, responses, states
+from prefect.server.api.run_history import run_history
+from prefect.server.schemas import actions, core, filters, responses, states
 from prefect.server.schemas.states import StateType
 
 pytestmark = pytest.mark.clear_db
@@ -1130,3 +1131,26 @@ async def test_last_bin_contains_runs_past_history_end(client, db):
         "interval_end": start + 3 * interval,
         "states": [{"count_runs": 2}],
     }
+
+
+async def test_history_accepts_stdlib_datetimes(session, db):
+    start = datetime(2021, 7, 1, 0, 0, tzinfo=timezone.utc)
+    interval = timedelta(minutes=5)
+    flow = await create_history_flow(db, [start, start + interval])
+    flow_id = flow.id
+    assert flow_id is not None
+
+    histories = await run_history(
+        session=session,  # pyright: ignore[reportCallIssue]
+        run_type="flow_run",
+        history_start=start,
+        history_end=start + 2 * interval,
+        history_interval=interval,
+        flows=filters.FlowFilter(id=filters.FlowFilterId(any_=[flow_id])),
+    )
+
+    assert [history.interval_start for history in histories] == [
+        start,
+        start + interval,
+    ]
+    assert [history.states[0].count_runs for history in histories] == [1, 1]
