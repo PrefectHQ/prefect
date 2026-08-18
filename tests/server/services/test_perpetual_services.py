@@ -27,46 +27,6 @@ def test_db_vacuum_disabled_by_default():
     assert config.enabled_getter() is False
 
 
-def test_orphan_vacuum_service_registered():
-    """Test that the orphan backfill perpetual service is registered."""
-    service_names = [config.function.__name__ for config in _PERPETUAL_SERVICES]
-    assert "schedule_orphan_vacuum_tasks" in service_names
-
-
-def test_orphan_vacuum_disabled_when_only_flow_runs_enabled(monkeypatch):
-    """The orphan backfill is opt-in; enabling flow_runs does not enable it."""
-    from prefect.settings.context import get_current_settings
-
-    settings = get_current_settings()
-    monkeypatch.setattr(
-        settings.server.services.db_vacuum, "enabled", {"events", "flow_runs"}
-    )
-
-    config = next(
-        c
-        for c in _PERPETUAL_SERVICES
-        if c.function.__name__ == "schedule_orphan_vacuum_tasks"
-    )
-    assert config.enabled_getter() is False
-
-
-def test_orphan_vacuum_enabled_when_in_enabled_set(monkeypatch):
-    """The orphan backfill runs when 'orphans' is in the enabled set."""
-    from prefect.settings.context import get_current_settings
-
-    settings = get_current_settings()
-    monkeypatch.setattr(
-        settings.server.services.db_vacuum, "enabled", {"events", "orphans"}
-    )
-
-    config = next(
-        c
-        for c in _PERPETUAL_SERVICES
-        if c.function.__name__ == "schedule_orphan_vacuum_tasks"
-    )
-    assert config.enabled_getter() is True
-
-
 def test_event_vacuum_service_registered():
     """Test that event vacuum perpetual service is registered."""
     service_names = [config.function.__name__ for config in _PERPETUAL_SERVICES]

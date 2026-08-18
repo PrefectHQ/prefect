@@ -23,6 +23,7 @@ from prefect.server.services import db_vacuum
 from prefect.server.services.db_vacuum import (
     _maintenance_database_config,
     _maintenance_session,
+    schedule_vacuum_tasks,
     vacuum_events_with_retention_overrides,
     vacuum_old_events,
     vacuum_old_flow_runs,
@@ -319,8 +320,7 @@ class TestVacuumOldFlowRuns:
             assert await _count(new_session, db, db.FlowRun) == 1
 
     async def test_deletes_logs_and_artifacts_with_the_run(self, session, flow):
-        """Logs and artifacts are deleted by flow_run_id in the same batch,
-        without relying on the orphan backfill."""
+        """Logs and artifacts are deleted by flow_run_id in the same batch."""
         db = provide_database_interface()
         flow_run = await _create_flow_run(session, flow, end_time=OLD)
         task_run = await _create_task_run(session, flow_run)
@@ -388,6 +388,26 @@ class TestVacuumOldFlowRuns:
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.Artifact) == 0
             assert await _count(new_session, db, db.ArtifactCollection) == 0
+
+
+async def test_flow_run_vacuum_does_not_schedule_orphan_scans():
+    scheduled: list[tuple[object, str | None]] = []
+
+    class FakeDocket:
+        def add(self, function, key=None):
+            scheduled.append((function, key))
+
+            async def enqueue():
+                return None
+
+            return enqueue
+
+    await schedule_vacuum_tasks(docket=FakeDocket())
+
+    assert scheduled == [
+        (vacuum_old_flow_runs, "db-vacuum:old-flow-runs"),
+        (vacuum_stale_artifact_collections, "db-vacuum:stale-collections"),
+    ]
 
 
 class TestVacuumOrphanedLogs:

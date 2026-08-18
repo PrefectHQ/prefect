@@ -51,7 +51,7 @@ class ServerServicesCancellationCleanupSettings(ServicesBaseSetting):
     )
 
 
-_VALID_VACUUM_TYPES = frozenset({"events", "flow_runs", "orphans"})
+_VALID_VACUUM_TYPES = frozenset({"events", "flow_runs"})
 
 
 def _parse_vacuum_enabled(
@@ -98,7 +98,7 @@ class ServerServicesDBVacuumSettings(ServicesBaseSetting):
         BeforeValidator(_parse_vacuum_enabled),
     ] = Field(
         default={"events"},
-        description="Comma-separated set of vacuum types to enable. Valid values: 'events', 'flow_runs', 'orphans'. Defaults to 'events'. For backward compatibility, 'true' maps to 'events,flow_runs' and 'false' maps to 'events'. Event vacuum also requires event_persister.enabled (the default). The 'orphans' backfill scans the full log and artifact tables, so enable it only to clear orphans left by direct SQL deletes or by earlier server versions.",
+        description="Comma-separated set of vacuum types to enable. Valid values: 'events', 'flow_runs'. Defaults to 'events'. For backward compatibility, 'true' maps to 'events,flow_runs' and 'false' maps to 'events'. Event vacuum also requires event_persister.enabled (the default).",
     )
 
     @property
