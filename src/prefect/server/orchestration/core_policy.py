@@ -913,14 +913,16 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
         ):
             return
 
-        # A run entering `AwaitingRetry` retries in the same process: the
-        # engine keeps renewing its concurrency lease across the retry delay,
-        # so the run keeps its slot. Revoking the lease here would fail the
-        # engine's next renewal and cancel the run mid-retry.
+        # A run entering `AwaitingRetry` for an in-process retry keeps renewing
+        # its concurrency lease across the retry delay, so the run keeps its
+        # slot. Revoking the lease here would fail the engine's next renewal
+        # and cancel the run mid-retry. Rescheduled retries leave the process,
+        # so their slots are still released.
         if (
             proposed_state_type == states.StateType.SCHEDULED
             and context.proposed_state
             and context.proposed_state.name == "AwaitingRetry"
+            and context.run.empirical_policy.retry_type == "in_process"
         ):
             return
 

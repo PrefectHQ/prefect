@@ -4360,6 +4360,60 @@ class TestFlowConcurrencyLimits:
             session, deployment, expected_limit=1, expected_active_slots=0
         )
 
+    async def test_rescheduled_retry_transition_releases_concurrency_slots(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+        scheduled_transition = (states.StateType.RUNNING, states.StateType.SCHEDULED)
+
+        ctx = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx, *pending_transition)
+            )
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+        assert lease_id is not None
+
+        # An `AwaitingRetry` state proposed directly (e.g. a SIGTERM
+        # reschedule) is not an in-process retry: the process exits, so the
+        # slot and lease are released.
+        rescheduled_ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *scheduled_transition,
+            deployment_id=deployment.id,
+            run_override=ctx.run,
+            initial_details=ctx.validated_state.state_details,
+            proposed_state_name="AwaitingRetry",
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            rescheduled_ctx = await stack.enter_async_context(
+                ReleaseFlowConcurrencySlots(rescheduled_ctx, *scheduled_transition)
+            )
+            await rescheduled_ctx.validate_proposed_state()
+
+        assert rescheduled_ctx.response_status == SetStateStatus.ACCEPT
+
+        lease_storage = get_concurrency_lease_storage()
+        assert await lease_storage.read_lease(lease_id) is None
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=0
+        )
+
     async def test_secure_cleanup_failure_on_fizzle_propagates(
         self,
         session,
