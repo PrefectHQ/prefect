@@ -429,10 +429,21 @@ class KubernetesJobRun(JobRun[Dict[str, Any]]):
                 **self._kubernetes_job.api_kwargs,
             )
 
+            job_is_terminal = any(
+                condition.type in ("Complete", "Failed") and condition.status == "True"
+                for condition in v1_job.status.conditions or []
+            )
+
             for pod in v1_pod_list.items:
                 pod_name = pod.metadata.name
 
                 if pod.status.phase == "Pending" or pod_name in self.pod_logs.keys():
+                    continue
+
+                # Without a `print_func` to stream with, reading logs returns the
+                # logs written so far, so wait until the job is terminal to capture
+                # everything the pods produced.
+                if print_func is None and not job_is_terminal:
                     continue
 
                 self.logger.info(f"Capturing logs for pod {pod_name!r}.")
