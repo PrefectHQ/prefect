@@ -276,7 +276,7 @@ Each vacuum cycle schedules independent cleanup tasks:
 The event vacuum only runs when the event persister service is also enabled (`PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED=true`, which is the default). This prevents unexpected data deletion for deployments that have disabled event processing.
 </Note>
 
-Flow run selection and event cleanup use transaction batches controlled by `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE`. Large selected-ID lists are split across multiple delete statements to stay within database parameter limits, but the statements still share one transaction. Related logs and artifacts are not limited by row count, so a selected run with many child rows can still create a large transaction.
+Flow run selection and event cleanup use transaction batches controlled by `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE`. The logs and artifacts of the selected runs are deleted in their own batches of the same size, so a run with many child rows does not create one large transaction. Each run is deleted after its logs and artifacts, which means an interrupted vacuum cycle leaves the run in place and cleans it up on the next cycle.
 
 ### Tune the vacuum for your workload
 

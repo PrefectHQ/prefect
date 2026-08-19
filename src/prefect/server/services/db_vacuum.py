@@ -27,9 +27,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import AsyncIterator, Sequence
 from contextlib import asynccontextmanager
 from datetime import timedelta
-from typing import AsyncIterator
+from uuid import UUID
 
 import sqlalchemy as sa
 from docket import CurrentDocket, Depends, Docket, Perpetual
@@ -57,6 +58,10 @@ logger: logging.Logger = get_logger(__name__)
 # connection with no statement timeout so it can run to completion; sqlite's
 # `timeout` is a lock-wait, not a statement deadline, so it is left as-is.
 _MAINTENANCE_CONFIGS: dict[str, AsyncPostgresConfiguration] = {}
+
+# Binds a batched delete spends on top of its id list (the `LIMIT`/`OFFSET` of
+# the subquery that bounds how many rows one statement removes).
+_DELETE_BIND_OVERHEAD = 2
 
 
 def _maintenance_database_config(
@@ -254,6 +259,13 @@ async def vacuum_old_flow_runs(
     `log` and `artifact` have no `ON DELETE CASCADE` from `flow_run`, so each
     batch deletes those children by `flow_run_id` (an indexed lookup) before
     deleting the runs themselves.
+
+    `batch_size` bounds how many runs are selected, not how many children they
+    have, so children are deleted in separately committed batches rather than
+    in one transaction with the runs and their cascaded task runs and states.
+    Deleting children before the run keeps that safe to interrupt: a run whose
+    children are partly deleted is still reachable and is picked up again on
+    the next pass, whereas deleting the run first would orphan them.
     """
     settings = get_current_settings().server.services.db_vacuum
     retention_cutoff = now("UTC") - settings.retention_period
@@ -267,57 +279,36 @@ async def vacuum_old_flow_runs(
     runs_deleted = 0
     logs_deleted = 0
     artifacts_deleted = 0
-    max_query_parameters = get_max_query_parameters()
+    ids_per_statement = max(1, get_max_query_parameters() - _DELETE_BIND_OVERHEAD)
     while True:
-        async with _maintenance_session(db, with_for_update=True) as session:
-            flow_run_ids = (
-                (
-                    await session.execute(
-                        sa.select(db.FlowRun.id)
-                        .where(eligible)
-                        .order_by(db.FlowRun.id)
-                        .limit(settings.batch_size)
-                        .with_for_update(skip_locked=True)
-                    )
-                )
-                .scalars()
-                .all()
-            )
-            if not flow_run_ids:
-                break
+        flow_run_ids = await _lock_flow_run_ids(db, eligible, settings.batch_size)
+        if not flow_run_ids:
+            break
 
-            # Bound each statement's bind count without splitting the outer
-            # transaction or releasing the selected flow-run locks.
-            for flow_run_id_batch in batched_iterable(
-                flow_run_ids, max_query_parameters
-            ):
-                logs_deleted += (
-                    await session.execute(
-                        sa.delete(db.Log).where(
-                            db.Log.flow_run_id.in_(flow_run_id_batch)
-                        )
-                    )
-                ).rowcount
-            for flow_run_id_batch in batched_iterable(
-                flow_run_ids, max_query_parameters
-            ):
-                artifacts_deleted += (
-                    await session.execute(
-                        sa.delete(db.Artifact).where(
-                            db.Artifact.flow_run_id.in_(flow_run_id_batch)
-                        )
-                    )
-                ).rowcount
-            for flow_run_id_batch in batched_iterable(
-                flow_run_ids, max_query_parameters
-            ):
-                runs_deleted += (
-                    await session.execute(
-                        sa.delete(db.FlowRun).where(
-                            db.FlowRun.id.in_(flow_run_id_batch)
-                        )
-                    )
-                ).rowcount
+        # Bound each statement's bind count as well as its row count.
+        batch_runs_deleted = 0
+        for flow_run_id_batch in batched_iterable(flow_run_ids, ids_per_statement):
+            logs_deleted += await _batch_delete(
+                db,
+                db.Log,
+                db.Log.flow_run_id.in_(flow_run_id_batch),
+                settings.batch_size,
+            )
+            artifacts_deleted += await _batch_delete(
+                db,
+                db.Artifact,
+                db.Artifact.flow_run_id.in_(flow_run_id_batch),
+                settings.batch_size,
+            )
+            batch_runs_deleted += await _delete_flow_runs(
+                db, flow_run_id_batch, eligible
+            )
+
+        runs_deleted += batch_runs_deleted
+        if batch_runs_deleted == 0:
+            # Every selected run became ineligible or locked while its children
+            # were being deleted; re-selecting them would spin.
+            break
 
         await asyncio.sleep(0)  # yield to event loop between batches
 
@@ -423,6 +414,63 @@ async def vacuum_old_events(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+async def _lock_flow_run_ids(
+    db: PrefectDBInterface,
+    condition: sa.ColumnElement[bool],
+    limit: int,
+) -> Sequence[UUID]:
+    """Select flow run ids matching `condition`, skipping locked rows.
+
+    Runs being updated concurrently are left for a later pass instead of
+    blocking the vacuum on their row locks.
+    """
+    async with _maintenance_session(db, with_for_update=True) as session:
+        return (
+            (
+                await session.execute(
+                    sa.select(db.FlowRun.id)
+                    .where(condition)
+                    .order_by(db.FlowRun.id)
+                    .limit(limit)
+                    .with_for_update(skip_locked=True)
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+
+async def _delete_flow_runs(
+    db: PrefectDBInterface,
+    flow_run_ids: Sequence[UUID],
+    eligible: sa.ColumnElement[bool],
+) -> int:
+    """Delete the given flow runs that still satisfy `eligible`.
+
+    Eligibility is re-checked because the runs were selected before their logs
+    and artifacts were deleted, and a run may have been transitioned out of a
+    terminal state in the meantime.
+    """
+    async with _maintenance_session(db, with_for_update=True) as session:
+        still_eligible = (
+            (
+                await session.execute(
+                    sa.select(db.FlowRun.id)
+                    .where(sa.and_(db.FlowRun.id.in_(flow_run_ids), eligible))
+                    .with_for_update(skip_locked=True)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        if not still_eligible:
+            return 0
+        result = await session.execute(
+            sa.delete(db.FlowRun).where(db.FlowRun.id.in_(still_eligible))
+        )
+        return result.rowcount
 
 
 async def _reconcile_artifact_collections(

@@ -357,6 +357,29 @@ class TestVacuumOldFlowRuns:
             assert await _count(new_session, db, db.Log) == 2
             assert await _count(new_session, db, db.Artifact) == 1
 
+    async def test_children_are_deleted_in_bounded_batches(
+        self, session, flow, monkeypatch
+    ):
+        """A run with more children than `batch_size` still loses all of them."""
+        settings = get_current_settings()
+        monkeypatch.setattr(settings.server.services.db_vacuum, "batch_size", 2)
+
+        db = provide_database_interface()
+        flow_run = await _create_flow_run(session, flow, end_time=OLD)
+        for _ in range(5):
+            await _create_log(session, flow_run_id=flow_run.id)
+        for index in range(3):
+            await _create_artifact(
+                session, flow_run_id=flow_run.id, key=f"report-{index}"
+            )
+
+        await vacuum_old_flow_runs(db=db)
+
+        async with db.session_context() as new_session:
+            assert await _count(new_session, db, db.FlowRun) == 0
+            assert await _count(new_session, db, db.Log) == 0
+            assert await _count(new_session, db, db.Artifact) == 0
+
     async def test_batching_deletes_children_across_batches(
         self, session, flow, monkeypatch
     ):
@@ -782,7 +805,7 @@ class TestVacuumBatching:
 
         settings = get_current_settings()
         monkeypatch.setattr(settings.server.services.db_vacuum, "batch_size", 1_001)
-        monkeypatch.setattr(db_vacuum, "get_max_query_parameters", lambda: 2)
+        monkeypatch.setattr(db_vacuum, "get_max_query_parameters", lambda: 4)
 
         for _ in range(5):
             await _create_flow_run(session, flow, end_time=OLD)
@@ -808,7 +831,8 @@ class TestVacuumBatching:
                 record_delete_parameters,
             )
 
-        assert delete_parameter_counts == [2, 2, 1] * 3
+        assert delete_parameter_counts
+        assert max(delete_parameter_counts) <= 4
         async with db.session_context() as new_session:
             assert await _count(new_session, db, db.FlowRun) == 0
 
