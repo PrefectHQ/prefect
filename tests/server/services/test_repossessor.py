@@ -1,5 +1,5 @@
 from datetime import timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from docket import Docket
@@ -82,6 +82,38 @@ class TestRevokeExpiredLease:
         limits = await bulk_read_concurrency_limits(session, [concurrency_limit.name])
         assert len(limits) == 1
         assert limits[0].active_slots == 0
+
+    async def test_revoke_expired_lease_commits_slots_before_removing_lease(
+        self, lease_storage, concurrency_limit, session: AsyncSession
+    ):
+        """Clients use the removal of the lease as proof the slots are released"""
+        await bulk_increment_active_slots(session, [concurrency_limit.id], 1)
+        await session.commit()
+
+        lease = await lease_storage.create_lease(
+            resource_ids=[concurrency_limit.id],
+            ttl=timedelta(seconds=-1),  # Already expired
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+
+        db = provide_database_interface()
+        observed_active_slots: list[int] = []
+        revoke_lease = lease_storage.revoke_lease
+
+        async def observing_revoke_lease(lease_id: UUID) -> None:
+            async with db.session_context() as observer:
+                limits = await bulk_read_concurrency_limits(
+                    observer, [concurrency_limit.name]
+                )
+                observed_active_slots.append(limits[0].active_slots)
+            await revoke_lease(lease_id)
+
+        lease_storage.revoke_lease = observing_revoke_lease
+
+        await revoke_expired_lease(lease.id, db=db, lease_storage=lease_storage)
+
+        assert observed_active_slots == [0]
+        assert len(lease_storage.leases) == 0
 
     async def test_revoke_expired_lease_missing_lease(
         self, lease_storage, concurrency_limit

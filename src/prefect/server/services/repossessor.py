@@ -60,7 +60,11 @@ async def revoke_expired_lease(
             slots=expired_lease.metadata.slots,
             occupancy_seconds=occupancy_seconds,
         )
-        await lease_storage.revoke_lease(lease_id)
+
+    # The lease is removed only after the slot release is committed. Removing it
+    # inside the transaction makes the lease disappear from storage while the
+    # slots are still held, and a rollback would leak those slots permanently.
+    await lease_storage.revoke_lease(lease_id)
 
 
 @perpetual_service(
