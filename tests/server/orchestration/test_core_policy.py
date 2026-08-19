@@ -4253,6 +4253,113 @@ class TestFlowConcurrencyLimits:
             session, deployment, expected_limit=1, expected_active_slots=0
         )
 
+    async def test_retry_transition_does_not_release_concurrency_slots(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+        failed_transition = (states.StateType.RUNNING, states.StateType.FAILED)
+
+        ctx = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx, *pending_transition)
+            )
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+        assert lease_id is not None
+
+        # A failure with retries remaining is rejected into `AwaitingRetry`.
+        # The run keeps its concurrency slot and lease across the retry delay.
+        retry_ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *failed_transition,
+            deployment_id=deployment.id,
+            run_override=ctx.run,
+            initial_details=ctx.validated_state.state_details,
+        )
+        retry_ctx.run.run_count = 1
+        retry_ctx.run_settings.retries = 1
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in [RetryFailedFlows, ReleaseFlowConcurrencySlots]:
+                retry_ctx = await stack.enter_async_context(
+                    rule(retry_ctx, *failed_transition)
+                )
+            await retry_ctx.validate_proposed_state()
+
+        assert retry_ctx.response_status == SetStateStatus.REJECT
+        assert retry_ctx.validated_state.name == "AwaitingRetry"
+
+        lease_storage = get_concurrency_lease_storage()
+        assert await lease_storage.read_lease(lease_id) is not None
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=1
+        )
+
+    async def test_scheduled_transition_without_retry_releases_concurrency_slots(
+        self,
+        session,
+        initialize_orchestration,
+        flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+        scheduled_transition = (states.StateType.RUNNING, states.StateType.SCHEDULED)
+
+        ctx = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            ctx = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx, *pending_transition)
+            )
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+        assert lease_id is not None
+
+        # A scheduled state that is not a retry releases the slot and lease.
+        scheduled_ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *scheduled_transition,
+            deployment_id=deployment.id,
+            run_override=ctx.run,
+            initial_details=ctx.validated_state.state_details,
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            scheduled_ctx = await stack.enter_async_context(
+                ReleaseFlowConcurrencySlots(scheduled_ctx, *scheduled_transition)
+            )
+            await scheduled_ctx.validate_proposed_state()
+
+        assert scheduled_ctx.response_status == SetStateStatus.ACCEPT
+
+        lease_storage = get_concurrency_lease_storage()
+        assert await lease_storage.read_lease(lease_id) is None
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=0
+        )
+
     async def test_secure_cleanup_failure_on_fizzle_propagates(
         self,
         session,
