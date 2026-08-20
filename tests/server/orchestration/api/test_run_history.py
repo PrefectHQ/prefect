@@ -1154,3 +1154,25 @@ async def test_history_accepts_stdlib_datetimes(session, db):
         start + interval,
     ]
     assert [history.states[0].count_runs for history in histories] == [1, 1]
+
+
+async def test_history_normalizes_interval_boundaries_to_utc(client: Any, db: Any):
+    offset = timezone(timedelta(hours=2))
+    start = datetime(2021, 7, 1, 2, 0, tzinfo=offset)
+    interval = timedelta(minutes=5)
+    flow = await create_history_flow(db, [start])
+
+    response = await client.post(
+        "/flow_runs/history",
+        json={
+            "history_start": start.isoformat(),
+            "history_end": (start + interval).isoformat(),
+            "history_interval_seconds": interval.total_seconds(),
+            "flows": {"id": {"any_": [str(flow.id)]}},
+        },
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    history = response.json()[0]
+    assert history["interval_start"] == "2021-07-01T00:00:00Z"
+    assert history["interval_end"] == "2021-07-01T00:05:00Z"

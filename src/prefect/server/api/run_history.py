@@ -139,8 +139,12 @@ async def run_history(
 
     records = [
         {
-            "interval_start": history_start + i * history_interval,
-            "interval_end": history_start + (i + 1) * history_interval,
+            "interval_start": (history_start + i * history_interval).astimezone(
+                datetime.timezone.utc
+            ),
+            "interval_end": (history_start + (i + 1) * history_interval).astimezone(
+                datetime.timezone.utc
+            ),
             "states": states_by_bucket[i],
         }
         for i in range(interval_count)
