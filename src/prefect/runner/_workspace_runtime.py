@@ -22,7 +22,7 @@ class PreparedWorkspaceManifest(BaseModel):
     working_directory: Path
     project_root: Path | None = None
     runtime_entrypoint: str
-    hook_command_prefix: list[str]
+    hook_command: list[str] | None
     environment: dict[str, str]
 
 

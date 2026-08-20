@@ -253,6 +253,47 @@ class TestProcessManagerKill:
                 (12345, signal.SIGKILL),
             ]
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only signals")
+    async def test_kill_escalates_when_group_leader_exits_before_child(self):
+        async with ProcessManager() as pm:
+            run_id = uuid4()
+            process = MagicMock(pid=12345, returncode=None)
+            await pm.add(
+                run_id,
+                ProcessHandle(process, is_process_group_leader=True),
+            )
+            signals_sent: list[int] = []
+            original_sleep = anyio.sleep
+            sleep_count = 0
+
+            async def allow_one_poll(delay: float) -> None:
+                nonlocal sleep_count
+                sleep_count += 1
+                if sleep_count > 1:
+                    await original_sleep(delay)
+
+            def process_is_gone(_pid: int, sig: int) -> None:
+                assert sig == 0
+                raise ProcessLookupError
+
+            with (
+                patch(
+                    "prefect.runner._process_manager.os.killpg",
+                    side_effect=lambda _pid, sig: signals_sent.append(sig),
+                ),
+                patch(
+                    "prefect.runner._process_manager.os.kill",
+                    side_effect=process_is_gone,
+                ),
+                patch(
+                    "prefect.runner._process_manager.anyio.sleep",
+                    side_effect=allow_one_poll,
+                ),
+            ):
+                await pm.kill(run_id, grace_seconds=0.01)
+
+            assert signals_sent == [signal.SIGTERM, 0, signal.SIGKILL]
+
     async def test_kill_ignores_an_already_reaped_process(self):
         """`__aexit__` re-kills entries whose cleanup was skipped by cancellation."""
         async with ProcessManager() as pm:

@@ -4,12 +4,14 @@ import importlib.util
 import os
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import anyio
 import pytest
 
 from prefect.client.schemas.objects import FlowRun
+from prefect.runner import _workspace_hook_runner
 from prefect.runner._workspace_hook_runner import WorkspaceHookRunner
 from prefect.runner._workspace_runtime import (
     PreparedWorkspaceManifest,
@@ -54,8 +56,16 @@ def _runtime_hook_runner(
         "os.environ['PYTHONPATH'] = os.pathsep.join(\n"
         "    value for value in (dependency_path, current_pythonpath) if value\n"
         ")\n"
-        "module_index = sys.argv.index('-m')\n"
-        "os.execv(sys.executable, [sys.executable, *sys.argv[module_index:]])\n"
+        "if '-m' in sys.argv:\n"
+        "    module_index = sys.argv.index('-m')\n"
+        "    if sys.argv[module_index + 1] == "
+        "'prefect.runner._workspace_hook_runner':\n"
+        "        raise SystemExit(91)\n"
+        "script_index = next(\n"
+        "    index for index, value in enumerate(sys.argv)\n"
+        "    if value.endswith('_workspace_hook_subprocess.py')\n"
+        ")\n"
+        "os.execv(sys.executable, [sys.executable, *sys.argv[script_index:]])\n"
     )
     runtime.chmod(0o700)
     manifest_path = project / "workspace.json"
@@ -65,12 +75,17 @@ def _runtime_hook_runner(
             working_directory=project,
             project_root=project,
             runtime_entrypoint="flows.py:hello",
-            hook_command_prefix=[
+            hook_command=[
                 str(runtime),
                 "run",
                 "--no-default-groups",
                 "--project",
                 str(project),
+                str(
+                    Path(_workspace_hook_runner.__file__).with_name(
+                        "_workspace_hook_subprocess.py"
+                    )
+                ),
             ],
             environment={
                 **os.environ,
@@ -110,3 +125,39 @@ async def test_hooks_use_selected_runtime_without_mutating_parent_globals(
     assert Path.cwd() == original_cwd
     assert sys.path == original_sys_path
     assert importlib.util.find_spec("runtime_only_dependency") is None
+
+
+async def test_opaque_command_warns_instead_of_using_worker_runtime(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    manifest_path = tmp_path / "workspace.json"
+    write_private_model(
+        manifest_path,
+        PreparedWorkspaceManifest(
+            working_directory=tmp_path,
+            project_root=None,
+            runtime_entrypoint="flows.py:hello",
+            hook_command=None,
+            environment=dict(os.environ),
+        ),
+    )
+    logger = MagicMock()
+    run_process = AsyncMock()
+    monkeypatch.setattr(
+        "prefect.runner._workspace_hook_runner.flow_run_logger",
+        lambda _flow_run: logger,
+    )
+    monkeypatch.setattr(
+        "prefect.runner._workspace_hook_runner.run_process",
+        run_process,
+    )
+    runner = WorkspaceHookRunner(manifest_path=manifest_path, stream_output=True)
+
+    await runner.run_crashed_hooks(
+        FlowRun(id=uuid4(), flow_id=uuid4(), name="hook-test"),
+        Crashed(message="infrastructure exited"),
+    )
+
+    run_process.assert_not_awaited()
+    logger.warning.assert_called_once()
+    assert "does not expose a Python runtime" in logger.warning.call_args.args[0]

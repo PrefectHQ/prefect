@@ -8,6 +8,7 @@ from uuid import uuid4
 
 import pytest
 
+from prefect.runner import _workspace_supervisor
 from prefect.runner._workspace_resolver import PreparedWorkspace
 from prefect.runner._workspace_runtime import (
     PreparedWorkspaceManifest,
@@ -15,7 +16,6 @@ from prefect.runner._workspace_runtime import (
     read_model,
 )
 from prefect.runner._workspace_supervisor import main, supervise
-from prefect.utilities.processutils import get_sys_executable
 
 pytestmark = pytest.mark.clear_db
 
@@ -100,12 +100,17 @@ async def test_supervisor_selects_uv_after_workspace_preparation(
     assert captured["kwargs"]["env"]["PATH"] == "/job/bin"
     manifest = read_model(config.manifest_path, PreparedWorkspaceManifest)
     assert manifest.environment == captured["kwargs"]["env"]
-    assert manifest.hook_command_prefix == [
+    assert manifest.hook_command == [
         "/job/bin/uv",
         "run",
         "--no-default-groups",
         "--project",
         str(workspace.project_root),
+        str(
+            Path(_workspace_supervisor.__file__).with_name(
+                "_workspace_hook_subprocess.py"
+            )
+        ),
     ]
 
 
@@ -137,7 +142,7 @@ async def test_supervisor_preserves_explicit_command(
 
     assert captured["command"] == ["python", "custom.py", "--flag"]
     manifest = read_model(config.manifest_path, PreparedWorkspaceManifest)
-    assert manifest.hook_command_prefix == [get_sys_executable()]
+    assert manifest.hook_command is None
 
 
 def test_main_propagates_engine_signal_to_supervisor(

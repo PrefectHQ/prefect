@@ -29,14 +29,15 @@ from prefect.utilities.processutils import (
 )
 
 
-def _hook_command_prefix(command: list[str]) -> list[str]:
+def _hook_command(command: list[str]) -> list[str] | None:
+    hook_script = str(Path(__file__).with_name("_workspace_hook_subprocess.py"))
     for module_index, argument in enumerate(command[:-1]):
         if argument == "-m" and command[module_index + 1] in {
             "prefect.engine",
             "prefect.flow_engine",
         }:
-            return command[:module_index]
-    return [get_sys_executable()]
+            return [*command[:module_index], hook_script]
+    return None
 
 
 def _install_engine_signal_handlers() -> dict[int, signal.Handlers]:
@@ -78,7 +79,7 @@ async def supervise(config: WorkspaceSupervisorConfig) -> int:
         working_directory=workspace.working_directory,
         project_root=workspace.project_root,
         runtime_entrypoint=workspace.runtime_entrypoint,
-        hook_command_prefix=_hook_command_prefix(command),
+        hook_command=_hook_command(command),
         environment=environment,
     )
     write_private_model(config.manifest_path, manifest)

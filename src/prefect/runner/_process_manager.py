@@ -69,6 +69,22 @@ def _pid_is_alive(pid: int) -> bool:
         kernel32.CloseHandle(handle)
 
 
+def _process_target_is_alive(
+    pid: int, *, is_process_group_leader: bool = False
+) -> bool:
+    if sys.platform == "win32" or not is_process_group_leader:
+        return _pid_is_alive(pid)
+
+    try:
+        os.killpg(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    else:
+        return True
+
+
 def _hard_kill(pid: int, *, is_process_group_leader: bool = False) -> None:
     """Stop `pid` immediately, including its process group when owned."""
     if sys.platform == "win32":
@@ -270,9 +286,10 @@ class ProcessManager:
             with anyio.move_on_after(grace_seconds):
                 while True:
                     await anyio.sleep(check_interval)
-                    try:
-                        os.kill(pid, 0)
-                    except ProcessLookupError:
+                    if not _process_target_is_alive(
+                        pid,
+                        is_process_group_leader=handle.is_process_group_leader,
+                    ):
                         return
             try:
                 _hard_kill(
