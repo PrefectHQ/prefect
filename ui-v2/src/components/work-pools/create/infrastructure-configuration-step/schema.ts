@@ -4,7 +4,7 @@ import type { WorkerBaseJobTemplate } from "@/components/work-pools/types";
 export type { WorkerBaseJobTemplate };
 
 export const infrastructureConfigurationSchema = z.object({
-	baseJobTemplate: z.record(z.unknown()).optional(),
+	baseJobTemplate: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type InfrastructureConfigurationFormValues = z.infer<

@@ -17,8 +17,8 @@ import { RouteErrorState } from "@/components/ui/route-error-state";
  * @property actions used designate how to pre-populate the fields
  */
 const searchParams = z.object({
-	parameters: z.record(z.unknown()).optional(),
-	additionalOptions: z.record(z.unknown()).optional(),
+	parameters: z.record(z.string(), z.unknown()).optional(),
+	additionalOptions: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const Route = createFileRoute("/deployments/deployment_/$id/run")({

@@ -87,7 +87,10 @@ const formSchema = z.object({
 	active: z.boolean(),
 	schedule: z.object({
 		/** Coerce to solve common issue of transforming a string number to a number type */
-		interval_value: z.number().or(z.string()).pipe(z.coerce.number()),
+		interval_value: z
+			.number()
+			.or(z.string())
+			.pipe(z.coerce.number<string | number>()),
 		interval_time: z.enum(["seconds", "minutes", "hours", "days"]),
 		anchor_date: z.date(),
 		timezone: z.string().default("UTC"),
