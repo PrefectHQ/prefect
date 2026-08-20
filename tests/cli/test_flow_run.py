@@ -2144,13 +2144,13 @@ class TestSignalHandling:
             "the released run must be pollable by a worker"
         )
 
-    async def test_reschedule_leaves_a_running_run_alone(
+    async def test_reschedule_hands_over_a_run_the_engine_left_running(
         self,
         monkeypatch: pytest.MonkeyPatch,
         prefect_client: PrefectClient,
     ):
-        """A run that is not scheduled has no pending retry to release, so its retry
-        ownership is left untouched."""
+        """An engine killed before it could report leaves the run running with the
+        retry still claimed, so the handoff schedules it for a worker."""
         monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
 
         deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
@@ -2167,8 +2167,57 @@ class TestSignalHandling:
             await execute(id=flow_run.id)
 
         run = await prefect_client.read_flow_run(flow_run.id)
-        assert run.state and run.state.is_running()
-        assert run.empirical_policy.retry_type == "in_process"
+        assert run.state and run.state.is_scheduled()
+        assert run.empirical_policy.retry_type == "reschedule"
+
+    async def test_reschedule_fences_a_report_from_the_killed_engine(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        prefect_client: PrefectClient,
+    ):
+        """An engine that never acknowledged the intent may already have a `Failed`
+        report in flight when it is killed. Committing that report after the handoff
+        would claim the retry for the dead process, so the server rejects it."""
+        monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
+
+        work_pool = await prefect_client.create_work_pool(
+            WorkPoolCreate(name=f"pool-{uuid4()}", type="test")
+        )
+        deployment_id = await (
+            await hello_flow.to_deployment(__file__, work_pool_name=work_pool.name)
+        ).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        await prefect_client.update_flow_run(
+            flow_run.id, empirical_policy=FlowRunPolicy(retries=1, retry_delay=0)
+        )
+        await prefect_client.set_flow_run_state(flow_run.id, Running())
+
+        # the reschedule proposal races the engine's report and does not land
+        with (
+            sigterm_during_submit(
+                ControlSignalStatus.NOT_ACKNOWLEDGED, propose=AsyncMock()
+            ),
+            pytest.raises(SystemExit) as exit_info,
+        ):
+            await execute(id=flow_run.id)
+
+        assert exit_info.value.code == 0
+
+        # the report the killed engine had already sent, committing late
+        await prefect_client.set_flow_run_state(flow_run.id, Failed())
+
+        run = await prefect_client.read_flow_run(flow_run.id)
+        assert run.state and run.state.is_scheduled()
+        assert run.empirical_policy.retry_type == "reschedule"
+
+        pollable = await prefect_client.get_scheduled_flow_runs_for_work_pool(
+            work_pool.name
+        )
+        assert flow_run.id in [response.flow_run.id for response in pollable], (
+            "the released run must stay pollable by a worker"
+        )
 
     async def test_reschedule_fails_when_the_retry_cannot_be_released(
         self,
@@ -2190,12 +2239,12 @@ class TestSignalHandling:
         await prefect_client.set_flow_run_state(flow_run.id, Running())
         await prefect_client.set_flow_run_state(flow_run.id, Failed())
 
-        async def failing_update(*_: Any, **__: Any) -> None:
+        async def failing_release(*_: Any, **__: Any) -> None:
             raise RuntimeError("the API is down")
 
         with (
             sigterm_during_submit(ControlSignalStatus.ACKNOWLEDGED),
-            patch.object(PrefectClient, "update_flow_run", failing_update),
+            patch.object(PrefectClient, "release_flow_run_retry", failing_release),
             pytest.raises(SystemExit) as exit_info,
         ):
             await execute(id=flow_run.id)

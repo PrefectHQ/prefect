@@ -67,33 +67,6 @@ def _termination_intent() -> Intent | None:
     )
 
 
-async def _release_in_process_retry(client: PrefectClient, flow_run_id: UUID) -> None:
-    """Hand a scheduled retry of `flow_run_id` back to the workers.
-
-    A `Failed` report that the server rejected into `AwaitingRetry` stamps
-    `retry_type="in_process"`, which claims the retry for the reporting process.
-    This process is terminating and will not perform that retry, and workers
-    exclude `in_process` retries when they poll, so the run must be released or
-    it is never picked up again.
-
-    Only the retry ownership changes; the run keeps the state it is in.
-
-    Raises whatever the API raises, because a run left claimed by this exiting
-    process is stranded and the command must not report a successful reschedule.
-    """
-    flow_run = await client.read_flow_run(flow_run_id)
-    if flow_run.empirical_policy.retry_type != "in_process":
-        return
-    if not flow_run.state or not flow_run.state.is_scheduled():
-        return
-    await client.update_flow_run(
-        flow_run_id=flow_run_id,
-        empirical_policy=flow_run.empirical_policy.model_copy(
-            update={"retry_type": "reschedule"}
-        ),
-    )
-
-
 def _install_termination_handler(handler: Callable[[], None]) -> bool:
     """Install `handler` for SIGTERM on the running loop, returning whether it took.
 
@@ -867,13 +840,15 @@ async def execute(
                     tg.cancel_scope.cancel()
 
             # Once the engine is stopped it can no longer claim a retry of its own, so
-            # this runs here rather than beside the reschedule proposal above.
+            # this runs here rather than beside the reschedule proposal above. The
+            # server hands the retry over atomically, which also fences the report of
+            # an engine that was killed mid-proposal.
             if release_retry:
                 try:
-                    await _release_in_process_retry(ctx.client, id)
+                    await ctx.client.release_flow_run_retry(id)
                 except Exception:
                     logger.exception(
-                        "Failed to release the in-process retry of the flow run"
+                        "Failed to release the retry of the flow run to the workers"
                     )
                     stranded = True
 
