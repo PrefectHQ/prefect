@@ -308,7 +308,7 @@ const useDeploymentPagination = () => {
 	return [deploymentPagination, onDeploymentPaginationChange] as const;
 };
 export const Route = createFileRoute("/flows/flow/$id")({
-	component: () => {
+	component: function FlowRoute() {
 		const queryClient = useQueryClient();
 		const { id } = Route.useParams();
 		const search = Route.useSearch();
