@@ -51,6 +51,7 @@ from prefect.server.orchestration.rules import (
     TaskRunUniversalTransform,
 )
 from prefect.server.schemas import core, filters, states
+from prefect.server.schemas.responses import SetStateStatus
 from prefect.server.schemas.states import StateType
 from prefect.server.task_queue import TaskQueue
 from prefect.settings import (
@@ -913,16 +914,18 @@ class ReleaseFlowConcurrencySlots(FlowRunUniversalTransform):
         ):
             return
 
-        # A run entering `AwaitingRetry` for an in-process retry keeps renewing
+        # `RetryFailedFlows` rejects a failed transition into `AwaitingRetry`
+        # when the run retries in the same process: the engine keeps renewing
         # its concurrency lease across the retry delay, so the run keeps its
         # slot. Revoking the lease here would fail the engine's next renewal
-        # and cancel the run mid-retry. Rescheduled retries leave the process,
-        # so their slots are still released.
+        # and cancel the run mid-retry. An `AwaitingRetry` state proposed
+        # directly (for example a SIGTERM reschedule) leaves the process, so
+        # its slot is still released.
         if (
             proposed_state_type == states.StateType.SCHEDULED
             and context.proposed_state
             and context.proposed_state.name == "AwaitingRetry"
-            and context.run.empirical_policy.retry_type == "in_process"
+            and context.response_status == SetStateStatus.REJECT
         ):
             return
 
@@ -1138,6 +1141,11 @@ class RetryFailedFlows(FlowRunOrchestrationRule):
             scheduled_time=scheduled_start_time,
             message=proposed_state.message,
             data=proposed_state.data,
+        )
+        # Carry the deployment concurrency lease forward so the run keeps
+        # renewing and eventually releasing it across the in-process retry.
+        retry_state.state_details.deployment_concurrency_lease_id = (
+            initial_state.state_details.deployment_concurrency_lease_id
         )
         await self.reject_transition(state=retry_state, reason="Retrying")
 
