@@ -28,6 +28,6 @@ class ServerDocketSettings(PrefectBaseSettings):
             "redis+sentinel:// and rediss+sentinel:// schemes; the Sentinel "
             "schemes discover the current master through the listed Sentinel "
             "daemons and follow failover automatically (requires "
-            "pydocket>=0.22.0)."
+            "pydocket>=0.23.1)."
         ),
     )
