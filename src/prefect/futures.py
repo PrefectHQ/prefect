@@ -634,6 +634,15 @@ def as_completed(
     total_futures = len(unique_futures)
     pending = unique_futures
     try:
+        # The deadline is enforced by bounding every wait below rather than with a
+        # cancel scope: a scope delivers its cancellation to whatever frame the
+        # thread is in, which for a generator is the consumer's frame while we are
+        # suspended at a `yield`. The scope is then never exited and its watcher
+        # thread never stops, which keeps the process from terminating. The budget
+        # starts here so that time the consumer spends between yields counts
+        # against it.
+        deadline = time.monotonic() + timeout if timeout is not None else None
+
         done = {f for f in unique_futures if f._final_state}  # type: ignore[privateUsage]
         pending = unique_futures - done
         yield from done
@@ -649,13 +658,6 @@ def as_completed(
 
         for future in pending:
             _register_prefect_done_callback(future, add_to_done)
-
-        # The deadline is enforced by bounding every wait below rather than with a
-        # cancel scope: a scope delivers its cancellation to whatever frame the
-        # thread is in, which for a generator is the consumer's frame while we are
-        # suspended at a `yield`. The scope is then never exited and its watcher
-        # thread never stops, which keeps the process from terminating.
-        deadline = time.monotonic() + timeout if timeout is not None else None
 
         while pending:
             if deadline is None:
