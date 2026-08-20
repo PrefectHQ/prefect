@@ -172,7 +172,7 @@ class TestURL:
         assert getattr(task_run, url_type) is None
 
     @pytest.mark.parametrize(
-        "url_type,",
+        "url_type",
         ["api_url", "ui_url"],
     )
     async def test_url_returns_correct_url_when_id_present(
