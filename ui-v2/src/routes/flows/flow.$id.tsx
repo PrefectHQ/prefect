@@ -5,7 +5,6 @@ import {
 } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useEffect, useMemo } from "react";
 import { z } from "zod";
 import { buildPaginateDeploymentsQuery } from "@/api/deployments";
@@ -79,7 +78,7 @@ const searchParams = z
 			.default("NAME_ASC"),
 	})
 	.optional()
-	.default({});
+	.prefault({});
 
 type SearchParams = z.infer<typeof searchParams>;
 
@@ -447,7 +446,7 @@ export const Route = createFileRoute("/flows/flow/$id")({
 			/>
 		);
 	},
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	loaderDeps: ({ search }) => ({
 		flowRunsDeps: search,
 	}),
