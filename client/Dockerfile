@@ -75,11 +75,12 @@ RUN ldconfig
 # Install UV from official image - pin to specific version for build caching
 COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /bin/uv
 
-# Install prefect from the sdist
-COPY --from=python-builder /opt/prefect/dist ./dist
+# Install prefect from the sdist. The sdist is bind-mounted instead of copied in: a
+# COPY commits the archive to its own layer, and a later `rm -rf` can only add a
+# whiteout on top of that layer, so the archive still ships in the pushed image.
 RUN --mount=type=cache,target=/root/.cache/uv \
-    UV_COMPILE_BYTECODE=1 uv pip install "./dist/prefect_client.tar.gz" && \
-    rm -rf dist/
+    --mount=type=bind,from=python-builder,source=/opt/prefect/dist,target=/dist \
+    UV_COMPILE_BYTECODE=1 uv pip install "/dist/prefect_client.tar.gz"
 
 # Remove setuptools
 RUN uv pip uninstall setuptools
