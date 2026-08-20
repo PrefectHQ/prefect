@@ -1,4 +1,5 @@
 import asyncio
+import signal
 import threading
 import time
 import uuid
@@ -198,6 +199,55 @@ class TestUtilityFunctions:
 
         results = [f.result() for f in as_completed([future], timeout=0)]
         assert results == [42]
+
+    @pytest.mark.skipif(
+        not hasattr(signal, "SIGALRM"), reason="SIGALRM is only available on Unix"
+    )
+    @pytest.mark.timeout(method="thread")
+    def test_as_completed_timeout_is_independent_of_alarm_handlers(self):
+        """
+        Timeouts must be enforced the same way whatever the state of the process,
+        because a handler installed by another library changes which cancellation
+        mechanism Prefect selects.
+        """
+        previous_handler = signal.getsignal(signal.SIGALRM)
+        signal.signal(signal.SIGALRM, lambda *_: None)
+        try:
+            completed_future = Future()
+            completed_future.set_result(Completed(data=42))
+            future = PrefectConcurrentFuture(uuid.uuid4(), completed_future)
+
+            results = [f.result() for f in as_completed([future], timeout=0)]
+            assert results == [42]
+        finally:
+            signal.signal(signal.SIGALRM, previous_handler)
+
+    @pytest.mark.timeout(method="thread")
+    def test_as_completed_abandoned_by_consumer_arms_no_enforcer_thread(self):
+        """
+        A consumer that stops iterating leaves the generator suspended at its
+        `yield`, so any timeout enforcer armed inside the generator outlives it
+        and delivers its cancellation to an unrelated frame later.
+        """
+        completed_future = Future()
+        completed_future.set_result(Completed(data=1))
+        hanging_future = Future()
+        futures = [
+            PrefectConcurrentFuture(uuid.uuid4(), completed_future),
+            PrefectConcurrentFuture(uuid.uuid4(), hanging_future),
+        ]
+
+        before = set(threading.enumerate())
+        generator = as_completed(futures, timeout=0.05)
+        try:
+            next(generator)
+
+            time.sleep(0.2)
+
+            new_threads = set(threading.enumerate()) - before
+            assert not [t for t in new_threads if "timeout-watcher" in t.name]
+        finally:
+            generator.close()
 
     @pytest.mark.usefixtures("use_hosted_api_server")
     def test_as_completed_yields_correct_order(self):
