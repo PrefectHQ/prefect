@@ -2,27 +2,55 @@ from __future__ import annotations
 
 import argparse
 import functools
+import importlib.metadata
 import inspect
 import json
+import runpy
 import sys
 import traceback
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
 
-import anyio
-
-from prefect.client.schemas.objects import FlowRun, State
-from prefect.exceptions import MissingFlowError
-from prefect.flows import load_flow_from_entrypoint, load_function_and_convert_to_flow
-from prefect.logging.loggers import flow_run_logger
+from packaging.version import InvalidVersion, Version
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from prefect.client.schemas.objects import FlowRun, State
     from prefect.flows import Flow
 
 
 HookType = Literal["cancellation", "crashed"]
+_MINIMUM_PREFECT_VERSION = Version("3.7")
+_MAXIMUM_PREFECT_VERSION = Version("4")
+
+
+def _validate_runtime() -> None:
+    try:
+        installed_version = importlib.metadata.version("prefect")
+        version = Version(installed_version)
+    except importlib.metadata.PackageNotFoundError as exc:
+        raise RuntimeError(
+            "The selected project runtime does not contain Prefect; "
+            "ProcessWorker workspace execution requires Prefect >=3.7,<4."
+        ) from exc
+    except InvalidVersion as exc:
+        raise RuntimeError(
+            f"The selected project runtime reports an invalid Prefect version: {exc}."
+        ) from exc
+
+    if not _MINIMUM_PREFECT_VERSION <= version < _MAXIMUM_PREFECT_VERSION:
+        raise RuntimeError(
+            "The selected project runtime contains Prefect "
+            f"{installed_version}; ProcessWorker workspace execution requires "
+            "Prefect >=3.7,<4."
+        )
+
+
+def _run_engine(entrypoint: str) -> int:
+    sys.argv = ["prefect.flow_engine", entrypoint]
+    runpy.run_module("prefect.flow_engine", run_name="__main__")
+    return 0
 
 
 def _read_manifest(path: Path) -> dict[str, Any]:
@@ -44,10 +72,22 @@ def _absolute_file_entrypoint(manifest: dict[str, Any]) -> str:
     return f"{entrypoint_path.resolve()}:{object_name}"
 
 
+async def _run_sync(call: Callable[..., Any], *args: Any) -> Any:
+    import anyio
+
+    return await anyio.to_thread.run_sync(call, *args)
+
+
 async def _load_flow(manifest: dict[str, Any]) -> Flow[Any, Any]:
+    from prefect.exceptions import MissingFlowError
+    from prefect.flows import (
+        load_flow_from_entrypoint,
+        load_function_and_convert_to_flow,
+    )
+
     entrypoint = _absolute_file_entrypoint(manifest)
     try:
-        return await anyio.to_thread.run_sync(
+        return await _run_sync(
             functools.partial(
                 load_flow_from_entrypoint,
                 entrypoint,
@@ -55,10 +95,7 @@ async def _load_flow(manifest: dict[str, Any]) -> Flow[Any, Any]:
             )
         )
     except MissingFlowError:
-        return await anyio.to_thread.run_sync(
-            load_function_and_convert_to_flow,
-            entrypoint,
-        )
+        return await _run_sync(load_function_and_convert_to_flow, entrypoint)
 
 
 async def _run_hooks(
@@ -67,11 +104,13 @@ async def _run_hooks(
     flow: Flow[Any, Any],
     state: State,
 ) -> None:
+    from prefect.logging.loggers import flow_run_logger
+
     logger = flow_run_logger(flow_run, flow)
     for hook in hooks:
         hook_name = getattr(hook, "__name__", type(hook).__name__)
         try:
-            result = await anyio.to_thread.run_sync(
+            result = await _run_sync(
                 functools.partial(
                     hook,
                     flow=flow,
@@ -88,12 +127,14 @@ async def _run_hooks(
             )
 
 
-async def execute_hook_subprocess(
+async def _execute_hook(
     hook_type: HookType,
     manifest_path: Path,
     flow_run_path: Path,
     state_path: Path,
 ) -> None:
+    from prefect.client.schemas.objects import FlowRun, State
+
     manifest = _read_manifest(manifest_path)
     flow_run = FlowRun.model_validate_json(flow_run_path.read_text(encoding="utf-8"))
     state = State.model_validate_json(state_path.read_text(encoding="utf-8"))
@@ -108,32 +149,41 @@ async def execute_hook_subprocess(
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Load a prepared flow and execute its runner-owned hooks."
+        description="Run a flow engine or hooks in a prepared project runtime."
     )
-    parser.add_argument("hook_type", choices=("cancellation", "crashed"))
-    parser.add_argument("manifest", type=Path)
-    parser.add_argument("flow_run", type=Path)
-    parser.add_argument("state", type=Path)
+    subparsers = parser.add_subparsers(dest="operation", required=True)
+
+    engine = subparsers.add_parser("engine")
+    engine.add_argument("entrypoint")
+
+    hook = subparsers.add_parser("hook")
+    hook.add_argument("hook_type", choices=("cancellation", "crashed"))
+    hook.add_argument("manifest", type=Path)
+    hook.add_argument("flow_run", type=Path)
+    hook.add_argument("state", type=Path)
     return parser.parse_args(argv)
 
 
-async def _main_async(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     try:
-        await execute_hook_subprocess(
+        _validate_runtime()
+        if args.operation == "engine":
+            return _run_engine(args.entrypoint)
+
+        import anyio
+
+        anyio.run(
+            _execute_hook,
             cast(HookType, args.hook_type),
             args.manifest,
             args.flow_run,
             args.state,
         )
-    except Exception:
+    except Exception:  # noqa: BLE001
         traceback.print_exc(file=sys.stderr)
         return 1
     return 0
-
-
-def main(argv: list[str] | None = None) -> int:
-    return anyio.run(_main_async, argv)
 
 
 if __name__ == "__main__":

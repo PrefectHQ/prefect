@@ -150,7 +150,11 @@ def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
 
     return uv_project_command(
         workspace.project_root,
-        ["-m", "prefect.flow_engine", workspace.runtime_entrypoint],
+        [
+            str(Path(__file__).with_name("_workspace_runtime_bootstrap.py")),
+            "engine",
+            workspace.runtime_entrypoint,
+        ],
         path=workspace.environment.get("PATH"),
         auto_install_dependencies=auto_install_dependencies,
     )

@@ -28,16 +28,41 @@ from prefect.utilities.processutils import (
     sanitize_subprocess_env,
 )
 
+_RUNNER_OWNED_ENV_KEYS = {
+    "PATH",
+    "PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES",
+    "PREFECT__FLOW_RUN_ID",
+    "PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS",
+    "PREFECT__CONTROL_PORT",
+    "PREFECT__CONTROL_TOKEN",
+    "PREFECT__DEPLOYMENT_NAME",
+    "PREFECT_FLOWS_HEARTBEAT_FREQUENCY",
+}
+
 
 def _hook_command(command: list[str]) -> list[str] | None:
-    hook_script = str(Path(__file__).with_name("_workspace_hook_subprocess.py"))
+    bootstrap = str(Path(__file__).with_name("_workspace_runtime_bootstrap.py"))
+    for bootstrap_index, argument in enumerate(command[:-1]):
+        if argument == bootstrap and command[bootstrap_index + 1] == "engine":
+            return [*command[:bootstrap_index], bootstrap, "hook"]
+
     for module_index, argument in enumerate(command[:-1]):
         if argument == "-m" and command[module_index + 1] in {
             "prefect.engine",
             "prefect.flow_engine",
         }:
-            return [*command[:module_index], hook_script]
+            return [*command[:module_index], bootstrap, "hook"]
     return None
+
+
+def _restore_runner_environment(
+    environment: dict[str, str], runner_environment: dict[str, str]
+) -> None:
+    for key in _RUNNER_OWNED_ENV_KEYS:
+        if key in runner_environment:
+            environment[key] = runner_environment[key]
+        else:
+            environment.pop(key, None)
 
 
 def _install_engine_signal_handlers() -> dict[int, signal.Handlers]:
@@ -63,10 +88,16 @@ def _restore_signal_handlers(previous: dict[int, signal.Handlers]) -> None:
 
 
 async def supervise(config: WorkspaceSupervisorConfig) -> int:
+    runner_environment = {
+        key: value for key, value in os.environ.items() if key in _RUNNER_OWNED_ENV_KEYS
+    }
     workspace = await prepare_workspace_for_flow_run(
         config.flow_run_id, config.workspace_root
     )
     environment = sanitize_subprocess_env(workspace_environment(workspace))
+    _restore_runner_environment(environment, runner_environment)
+    environment["PREFECT__FLOW_RUN_ID"] = str(config.flow_run_id)
+    environment["PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS"] = "false"
     selected_command = _workspace_command(workspace, config.command)
     command = (
         command_from_string(selected_command)
@@ -114,7 +145,7 @@ async def _main_async(argv: list[str] | None = None) -> int:
     try:
         config = read_model(args.config, WorkspaceSupervisorConfig)
         return await supervise(config)
-    except Exception:
+    except Exception:  # noqa: BLE001
         traceback.print_exc(file=sys.stderr)
         return 1
     finally:

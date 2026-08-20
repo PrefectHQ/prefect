@@ -63,7 +63,7 @@ def _runtime_hook_runner(
         "        raise SystemExit(91)\n"
         "script_index = next(\n"
         "    index for index, value in enumerate(sys.argv)\n"
-        "    if value.endswith('_workspace_hook_subprocess.py')\n"
+        "    if value.endswith('_workspace_runtime_bootstrap.py')\n"
         ")\n"
         "os.execv(sys.executable, [sys.executable, *sys.argv[script_index:]])\n"
     )
@@ -83,9 +83,10 @@ def _runtime_hook_runner(
                 str(project),
                 str(
                     Path(_workspace_hook_runner.__file__).with_name(
-                        "_workspace_hook_subprocess.py"
+                        "_workspace_runtime_bootstrap.py"
                     )
                 ),
+                "hook",
             ],
             environment={
                 **os.environ,

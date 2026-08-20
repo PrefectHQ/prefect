@@ -10,6 +10,7 @@ from uuid import uuid4
 import anyio
 import pytest
 
+from prefect.runner import _workspace_starter
 from prefect.runner._process_manager import ProcessHandle
 from prefect.runner._workspace_resolver import PreparedWorkspace
 from prefect.runner._workspace_runtime import (
@@ -93,8 +94,12 @@ def test_workspace_command_uses_uv_for_pyproject_workspace(
         "--no-default-groups",
         "--project",
         str(workspace.project_root),
-        "-m",
-        "prefect.flow_engine",
+        str(
+            Path(_workspace_starter.__file__).with_name(
+                "_workspace_runtime_bootstrap.py"
+            )
+        ),
+        "engine",
         workspace.runtime_entrypoint,
     ]
 
@@ -194,8 +199,12 @@ def test_workspace_command_honors_workspace_environment_setting(
 
     assert command is not None
     assert command_from_string(command)[-3:] == [
-        "-m",
-        "prefect.flow_engine",
+        str(
+            Path(_workspace_starter.__file__).with_name(
+                "_workspace_runtime_bootstrap.py"
+            )
+        ),
+        "engine",
         workspace.runtime_entrypoint,
     ]
 

@@ -9,7 +9,13 @@ from uuid import UUID, uuid4
 import anyio
 import pytest
 
-from prefect.runner._process_manager import ProcessHandle, ProcessManager, _pid_is_alive
+from prefect.runner._process_manager import (
+    ProcessHandle,
+    ProcessManager,
+    _create_windows_job_termination_scope,
+    _pid_is_alive,
+    _PosixProcessGroupTerminationScope,
+)
 
 pytestmark = pytest.mark.clear_db
 
@@ -158,6 +164,22 @@ class TestProcessManagerKill:
                 await pm.kill(uuid4())
                 mock_kill.assert_not_called()
 
+    async def test_force_kill_uses_owned_termination_scope(self):
+        async with ProcessManager() as pm:
+            run_id = uuid4()
+            process = MagicMock(pid=12345, returncode=None)
+            termination_scope = MagicMock()
+            await pm.add(
+                run_id,
+                ProcessHandle(process, termination_scope=termination_scope),
+            )
+
+            await pm.kill(run_id, force=True)
+
+            termination_scope.hard_kill.assert_called_once_with(12345)
+            termination_scope.graceful_kill.assert_not_called()
+            await pm.remove(run_id)
+
     @pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only test")
     async def test_kill_sends_sigterm_then_returns_early(self):
         async with ProcessManager() as pm:
@@ -206,7 +228,10 @@ class TestProcessManagerKill:
             mock_proc.pid = 12345
             await pm.add(
                 run_id,
-                ProcessHandle(mock_proc, is_process_group_leader=True),
+                ProcessHandle(
+                    mock_proc,
+                    termination_scope=_PosixProcessGroupTerminationScope(),
+                ),
             )
 
             sent: list[tuple[str, int]] = []
@@ -232,7 +257,10 @@ class TestProcessManagerKill:
             process = MagicMock(pid=12345, returncode=None)
             await pm.add(
                 run_id,
-                ProcessHandle(process, is_process_group_leader=True),
+                ProcessHandle(
+                    process,
+                    termination_scope=_PosixProcessGroupTerminationScope(),
+                ),
             )
             sent: list[tuple[int, int]] = []
 
@@ -260,7 +288,10 @@ class TestProcessManagerKill:
             process = MagicMock(pid=12345, returncode=None)
             await pm.add(
                 run_id,
-                ProcessHandle(process, is_process_group_leader=True),
+                ProcessHandle(
+                    process,
+                    termination_scope=_PosixProcessGroupTerminationScope(),
+                ),
             )
             signals_sent: list[int] = []
             original_sleep = anyio.sleep
@@ -410,3 +441,35 @@ class TestPidIsAlive:
 
         assert _pid_is_alive(67890) is False
         fake_kernel32.CloseHandle.assert_called_once_with(456)
+
+
+async def test_windows_job_scope_force_kills_and_closes_the_owned_tree(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_kernel32 = MagicMock()
+    fake_kernel32.CreateJobObjectW.return_value = 111
+    fake_kernel32.SetInformationJobObject.return_value = 1
+    fake_kernel32.OpenProcess.return_value = 222
+    fake_kernel32.AssignProcessToJobObject.return_value = 1
+    fake_kernel32.TerminateJobObject.return_value = 1
+    monkeypatch.setattr(
+        "prefect.runner._process_manager._get_windows_kernel32",
+        lambda: fake_kernel32,
+    )
+    termination_scope = _create_windows_job_termination_scope(12345)
+
+    async with ProcessManager() as pm:
+        flow_run_id = uuid4()
+        process = MagicMock(pid=12345, returncode=None)
+        await pm.add(
+            flow_run_id,
+            ProcessHandle(process, termination_scope=termination_scope),
+        )
+
+        await pm.kill(flow_run_id, force=True)
+        await pm.remove(flow_run_id)
+
+    fake_kernel32.AssignProcessToJobObject.assert_called_once_with(111, 222)
+    fake_kernel32.TerminateJobObject.assert_called_once_with(111, 1)
+    fake_kernel32.CloseHandle.assert_any_call(222)
+    fake_kernel32.CloseHandle.assert_any_call(111)

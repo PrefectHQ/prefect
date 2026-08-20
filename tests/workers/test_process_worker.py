@@ -19,6 +19,7 @@ from prefect.client import schemas as client_schemas
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import State
 from prefect.client.schemas.objects import Deployment, FlowRun, StateType, WorkPool
+from prefect.runner import _workspace_starter
 from prefect.runner._process_manager import ProcessHandle
 from prefect.server import models
 from prefect.server.database.orm_models import Flow
@@ -764,8 +765,12 @@ async def test_process_worker_resolves_auto_uv_after_git_clone(
         "--no-default-groups",
         "--project",
         str(checkout),
-        "-m",
-        "prefect.flow_engine",
+        str(
+            Path(_workspace_starter.__file__).with_name(
+                "_workspace_runtime_bootstrap.py"
+            )
+        ),
+        "engine",
         "flows/hello.py:hello",
     ]
 
@@ -830,8 +835,12 @@ async def test_process_worker_resolves_auto_uv_for_preexisting_project(
         "--no-default-groups",
         "--project",
         str(project),
-        "-m",
-        "prefect.flow_engine",
+        str(
+            Path(_workspace_starter.__file__).with_name(
+                "_workspace_runtime_bootstrap.py"
+            )
+        ),
+        "engine",
         "flows/hello.py:hello",
     ]
 

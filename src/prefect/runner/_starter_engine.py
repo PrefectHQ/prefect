@@ -9,7 +9,10 @@ from typing import TYPE_CHECKING
 import anyio
 import anyio.abc
 
-from prefect.runner._process_manager import ProcessHandle
+from prefect.runner._process_manager import (
+    ProcessHandle,
+    create_isolated_termination_scope,
+)
 from prefect.settings import get_current_settings
 from prefect.utilities.processutils import (
     command_from_string,
@@ -164,13 +167,15 @@ class EngineCommandStarter:
 
         def _task_status_handler(process: anyio.abc.Process) -> ProcessHandle:
             nonlocal handed_off
-            handed_off = True
-            return ProcessHandle(
-                process,
-                is_process_group_leader=(
-                    self._isolate_process_group and sys.platform != "win32"
-                ),
+            termination_scope = (
+                create_isolated_termination_scope(process.pid)
+                if self._isolate_process_group
+                else None
             )
+            handed_off = True
+            if termination_scope is None:
+                return ProcessHandle(process)
+            return ProcessHandle(process, termination_scope=termination_scope)
 
         try:
             await run_process(

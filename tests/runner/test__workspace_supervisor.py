@@ -50,6 +50,8 @@ def _workspace(tmp_path: Path) -> PreparedWorkspace:
 async def test_supervisor_selects_uv_after_workspace_preparation(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    monkeypatch.setenv("PATH", "/job/bin")
+    monkeypatch.setenv("PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES", "true")
     workspace = _workspace(tmp_path)
     assert workspace.project_root is not None
     workspace.project_root.joinpath("pyproject.toml").write_text(
@@ -92,8 +94,12 @@ async def test_supervisor_selects_uv_after_workspace_preparation(
         "--no-default-groups",
         "--project",
         str(workspace.project_root),
-        "-m",
-        "prefect.flow_engine",
+        str(
+            Path(_workspace_supervisor.__file__).with_name(
+                "_workspace_runtime_bootstrap.py"
+            )
+        ),
+        "engine",
         workspace.runtime_entrypoint,
     ]
     assert captured["kwargs"]["cwd"] == workspace.working_directory
@@ -108,10 +114,63 @@ async def test_supervisor_selects_uv_after_workspace_preparation(
         str(workspace.project_root),
         str(
             Path(_workspace_supervisor.__file__).with_name(
-                "_workspace_hook_subprocess.py"
+                "_workspace_runtime_bootstrap.py"
             )
         ),
+        "hook",
     ]
+
+
+async def test_supervisor_restores_runner_owned_environment_after_preparation(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    workspace = _workspace(tmp_path)
+    flow_run_id = uuid4()
+    monkeypatch.setenv("PREFECT__FLOW_RUN_ID", str(flow_run_id))
+    monkeypatch.setenv("PREFECT__CONTROL_TOKEN", "runner-token")
+    monkeypatch.setenv("PATH", "/runner/bin")
+    monkeypatch.setenv("PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES", "false")
+    monkeypatch.delenv("PREFECT__CONTROL_PORT", raising=False)
+    workspace.environment.update(
+        {
+            "PREFECT__FLOW_RUN_ID": str(uuid4()),
+            "PREFECT__CONTROL_TOKEN": "project-token",
+            "PREFECT__CONTROL_PORT": "4321",
+            "PATH": "/project/bin",
+            "PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES": "true",
+            "PROJECT_ENV": "preserved",
+        }
+    )
+    captured: dict[str, object] = {}
+
+    async def open_process(command: list[str], **kwargs: object) -> FakeProcess:
+        captured["kwargs"] = kwargs
+        return FakeProcess()
+
+    monkeypatch.setattr(
+        "prefect.runner._workspace_supervisor.prepare_workspace_for_flow_run",
+        AsyncMock(return_value=workspace),
+    )
+    monkeypatch.setattr(
+        "prefect.runner._workspace_supervisor.anyio.open_process", open_process
+    )
+    config = WorkspaceSupervisorConfig(
+        flow_run_id=flow_run_id,
+        workspace_root=tmp_path,
+        manifest_path=tmp_path / "manifest.json",
+        command="python custom.py",
+    )
+
+    assert await supervise(config) == 0
+
+    environment = captured["kwargs"]["env"]
+    assert environment["PREFECT__FLOW_RUN_ID"] == str(flow_run_id)
+    assert environment["PREFECT__CONTROL_TOKEN"] == "runner-token"
+    assert "PREFECT__CONTROL_PORT" not in environment
+    assert environment["PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS"] == "false"
+    assert environment["PATH"] == "/runner/bin"
+    assert environment["PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES"] == "false"
+    assert environment["PROJECT_ENV"] == "preserved"
 
 
 async def test_supervisor_preserves_explicit_command(
