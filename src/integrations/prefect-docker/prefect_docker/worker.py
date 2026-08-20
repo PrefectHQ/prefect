@@ -636,6 +636,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
         bundle = creation_result["bundle"]
         zip_path = creation_result["zip_path"]
         files_key = bundle.get("files_key")
+        sidecar_dest: Path | None = None
 
         try:
             await (
@@ -705,6 +706,11 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             )
             message = f"Flow run could not be submitted to infrastructure:\n{exc!r}"
             await self._propose_crashed_state(flow_run, message)
+        finally:
+            # The container no longer needs the mounted sidecar zip, and the worker
+            # temporary directory outlives this run.
+            if sidecar_dest:
+                sidecar_dest.unlink(missing_ok=True)
 
     def _get_client(self):
         """Returns a docker client."""

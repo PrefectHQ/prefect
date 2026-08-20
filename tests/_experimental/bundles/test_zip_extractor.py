@@ -7,6 +7,7 @@ preserving relative paths and handling overwrites with warnings.
 
 from __future__ import annotations
 
+import os
 import zipfile
 from pathlib import Path
 
@@ -219,6 +220,37 @@ class TestZipExtractorExtract:
         assert (
             target_dir / "dir2" / "nested" / "deep.txt"
         ).read_text() == "deep content"
+
+
+class TestZipExtractorPermissions:
+    """Tests for permission bit restoration."""
+
+    @pytest.mark.skipif(
+        os.name == "nt", reason="POSIX permission bits are not used on Windows"
+    )
+    def test_extract_restores_executable_mode(self, tmp_path: Path) -> None:
+        """An executable file stays executable after extraction."""
+        from prefect.bundles._zip_builder import ZipBuilder
+        from prefect.bundles._zip_extractor import ZipExtractor
+
+        source_dir = tmp_path / "source"
+        source_dir.mkdir()
+        script = source_dir / "run.sh"
+        script.write_text("#!/bin/sh\necho hello\n")
+        script.chmod(0o755)
+
+        builder = ZipBuilder(source_dir)
+        try:
+            result = builder.build([script])
+
+            target_dir = tmp_path / "output"
+            target_dir.mkdir()
+            ZipExtractor(result.zip_path).extract(target_dir)
+        finally:
+            builder.cleanup()
+
+        extracted = target_dir / "run.sh"
+        assert extracted.stat().st_mode & 0o111
 
 
 class TestZipExtractorOverwrite:

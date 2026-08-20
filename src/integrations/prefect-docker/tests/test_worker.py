@@ -1735,17 +1735,37 @@ class TestSubmitAdhocRunWithIncludeFiles:
     ):
         """The sidecar zip is available in the directory mounted into the container."""
         async with DockerWorker(work_pool_name=work_pool.name) as worker:
+            observed: dict[str, object] = {}
+            original_run = worker.run
+
+            async def observing_run(*args, **kwargs):
+                tmp_dir = Path(worker._tmp_dir)
+                bundle_files = [path for path in tmp_dir.iterdir() if path.is_file()]
+                assert len(bundle_files) == 1
+                bundle = json.loads(bundle_files[0].read_text())
+                observed["files_key"] = bundle["files_key"]
+                with zipfile.ZipFile(tmp_dir / bundle["files_key"]) as zf:
+                    observed["names"] = zf.namelist()
+                return await original_run(*args, **kwargs)
+
+            worker.run = observing_run
+
+            await worker._submit_adhoc_run(flow=flow_with_include_files, parameters={})
+
+            assert "config.yaml" in observed["names"]
+
+    async def test_mounted_sidecar_zip_is_removed_after_the_container_exits(
+        self, mock_docker_client, work_pool, flow_with_include_files
+    ):
+        """The copy of the sidecar zip does not stay in the worker temporary directory."""
+        async with DockerWorker(work_pool_name=work_pool.name) as worker:
             await worker._submit_adhoc_run(flow=flow_with_include_files, parameters={})
 
             tmp_dir = Path(worker._tmp_dir)
             bundle_files = [path for path in tmp_dir.iterdir() if path.is_file()]
-            assert len(bundle_files) == 1
             bundle = json.loads(bundle_files[0].read_text())
 
-            sidecar_path = tmp_dir / bundle["files_key"]
-            assert sidecar_path.exists()
-            with zipfile.ZipFile(sidecar_path) as zf:
-                assert "config.yaml" in zf.namelist()
+            assert not (tmp_dir / bundle["files_key"]).exists()
 
     async def test_sidecar_temporary_directory_is_cleaned_up(
         self, mock_docker_client, work_pool, flow_with_include_files, monkeypatch
