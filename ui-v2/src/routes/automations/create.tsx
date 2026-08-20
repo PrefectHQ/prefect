@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { useMemo } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -84,7 +83,7 @@ export const Route = createFileRoute("/automations/create")({
 			</div>
 		);
 	},
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	loaderDeps: ({ search }) => ({
 		eventId: search.eventId,
 		eventDate: search.eventDate,

@@ -1,6 +1,5 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { buildDeploymentDetailsQuery } from "@/api/deployments";
 import { categorizeError } from "@/api/error-utils";
@@ -22,7 +21,7 @@ const searchParams = z.object({
 });
 
 export const Route = createFileRoute("/deployments/deployment_/$id/run")({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	component: function RouteComponent() {
 		const { id } = Route.useParams();
 		const { parameters, additionalOptions } = Route.useSearch();
