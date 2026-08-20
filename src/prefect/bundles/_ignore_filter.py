@@ -87,6 +87,35 @@ def _read_ignore_file(path: Path) -> list[str]:
     return [line for line in lines if line.strip() and not line.startswith("#")]
 
 
+def _load_ignore_pattern_sources(flow_dir: Path) -> list[tuple[Path, list[str]]]:
+    """Load ignore patterns together with the directory they are relative to."""
+    sources: list[tuple[Path, list[str]]] = []
+
+    # 1. Find and load project root .prefectignore
+    project_root = find_project_root(flow_dir)
+    if project_root is not None:
+        project_ignore = project_root / ".prefectignore"
+        if project_ignore.exists():
+            logger.debug(f"Loading .prefectignore from project root: {project_ignore}")
+            sources.append((project_root.resolve(), _read_ignore_file(project_ignore)))
+        else:
+            logger.debug(f"No .prefectignore found at project root: {project_root}")
+    else:
+        logger.debug(f"No project root found for: {flow_dir}")
+
+    # 2. Load flow directory .prefectignore (if different from project root)
+    flow_ignore = flow_dir / ".prefectignore"
+    if flow_ignore.exists():
+        # Only load if different from project root's .prefectignore
+        if project_root is None or flow_dir.resolve() != project_root.resolve():
+            logger.debug(f"Loading .prefectignore from flow directory: {flow_ignore}")
+            sources.append((flow_dir.resolve(), _read_ignore_file(flow_ignore)))
+    else:
+        logger.debug(f"No .prefectignore found in flow directory: {flow_dir}")
+
+    return sources
+
+
 def load_ignore_patterns(flow_dir: Path) -> list[str]:
     """
     Load patterns from cascading .prefectignore files.
@@ -103,31 +132,11 @@ def load_ignore_patterns(flow_dir: Path) -> list[str]:
     Returns:
         Combined list of pattern strings from all .prefectignore files.
     """
-    patterns: list[str] = []
-
-    # 1. Find and load project root .prefectignore
-    project_root = find_project_root(flow_dir)
-    if project_root is not None:
-        project_ignore = project_root / ".prefectignore"
-        if project_ignore.exists():
-            logger.debug(f"Loading .prefectignore from project root: {project_ignore}")
-            patterns.extend(_read_ignore_file(project_ignore))
-        else:
-            logger.debug(f"No .prefectignore found at project root: {project_root}")
-    else:
-        logger.debug(f"No project root found for: {flow_dir}")
-
-    # 2. Load flow directory .prefectignore (if different from project root)
-    flow_ignore = flow_dir / ".prefectignore"
-    if flow_ignore.exists():
-        # Only load if different from project root's .prefectignore
-        if project_root is None or flow_dir.resolve() != project_root.resolve():
-            logger.debug(f"Loading .prefectignore from flow directory: {flow_ignore}")
-            patterns.extend(_read_ignore_file(flow_ignore))
-    else:
-        logger.debug(f"No .prefectignore found in flow directory: {flow_dir}")
-
-    return patterns
+    return [
+        pattern
+        for _, patterns in _load_ignore_pattern_sources(flow_dir)
+        for pattern in patterns
+    ]
 
 
 class IgnoreFilter:
@@ -155,14 +164,16 @@ class IgnoreFilter:
             flow_dir: Base directory for file collection (typically flow file's parent).
         """
         self.flow_dir = flow_dir.resolve()
-        self._spec: pathspec.GitIgnoreSpec | None = None
+        self._specs: list[tuple[Path, pathspec.GitIgnoreSpec]] = []
         self._load_patterns()
 
     def _load_patterns(self) -> None:
         """Load patterns and compile into pathspec."""
-        patterns = load_ignore_patterns(self.flow_dir)
-        if patterns:
-            self._spec = pathspec.GitIgnoreSpec.from_lines(patterns)
+        for pattern_root, patterns in _load_ignore_pattern_sources(self.flow_dir):
+            if patterns:
+                self._specs.append(
+                    (pattern_root, pathspec.GitIgnoreSpec.from_lines(patterns))
+                )
 
     def filter(
         self,
@@ -204,9 +215,18 @@ class IgnoreFilter:
 
             # Check against ignore spec
             excluded = False
-            if self._spec is not None:
-                if self._spec.match_file(rel_path):
+            for pattern_root, spec in self._specs:
+                try:
+                    pattern_path = str(file.relative_to(pattern_root))
+                except ValueError:
+                    try:
+                        pattern_path = str(file.resolve().relative_to(pattern_root))
+                    except ValueError:
+                        continue
+
+                if spec.match_file(pattern_path):
                     excluded = True
+                    break
 
             if excluded:
                 result.excluded_by_ignore.append(file)

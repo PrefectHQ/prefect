@@ -327,11 +327,12 @@ def my_flow():
     def test_include_files_base_dir_sets_the_collection_and_archive_root(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        (tmp_path / "pyproject.toml").write_text("[project]\nname = 'test'")
+        (tmp_path / ".prefectignore").write_text("assets/ignored.txt\n")
         custom_base_dir = tmp_path / "assets"
         custom_base_dir.mkdir()
         (custom_base_dir / "config.yaml").write_text("source: custom")
         (custom_base_dir / "ignored.txt").write_text("ignored")
-        (custom_base_dir / ".prefectignore").write_text("ignored.txt\n")
         nested_dir = custom_base_dir / "data"
         nested_dir.mkdir()
         (nested_dir / "input.csv").write_text("a,b\n1,2")

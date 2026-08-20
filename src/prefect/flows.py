@@ -2424,8 +2424,8 @@ class InfrastructureBoundFlow(Flow[P, R]):
         self.include_files: list[str] | None = (
             list(include_files) if include_files is not None else None
         )
-        self.include_files_base_dir: Path | None = (
-            Path(include_files_base_dir) if include_files_base_dir is not None else None
+        self.include_files_base_dir: str | None = (
+            str(include_files_base_dir) if include_files_base_dir is not None else None
         )
 
     @overload
@@ -2656,7 +2656,7 @@ class InfrastructureBoundFlow(Flow[P, R]):
             get_result_store,
             resolve_result_storage,
         )
-        from prefect.states import Pending, Scheduled
+        from prefect.states import Failed, Pending, Scheduled
         from prefect.tasks import Task
 
         # Get parameters to error early if they are invalid
@@ -2761,14 +2761,28 @@ class InfrastructureBoundFlow(Flow[P, R]):
                 parent_task_run_id=getattr(parent_task_run, "id", None),
             )
 
-            result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
-            upload_bundle_to_storage(
-                result["bundle"],
-                bundle_key,
-                upload_command,
-                zip_path=result["zip_path"],
-                upload_step=upload_step,
-            )
+            try:
+                result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+                upload_bundle_to_storage(
+                    result["bundle"],
+                    bundle_key,
+                    upload_command,
+                    zip_path=result["zip_path"],
+                    upload_step=upload_step,
+                )
+            except Exception as exc:
+                try:
+                    client.set_flow_run_state(
+                        flow_run.id,
+                        state=Failed(message=f"Flow run submission failed: {exc}"),
+                        force=True,
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to update flow run %s after submission failed",
+                        flow_run.id,
+                    )
+                raise
 
             # Set flow run to scheduled now that the bundle is uploaded and ready to be executed
             client.set_flow_run_state(flow_run.id, state=Scheduled())
@@ -2888,7 +2902,7 @@ def bind_flow_to_infrastructure(
     new.launcher = normalize_launcher(launcher)
     new.include_files = list(include_files) if include_files is not None else None
     new.include_files_base_dir = (
-        Path(include_files_base_dir) if include_files_base_dir is not None else None
+        str(include_files_base_dir) if include_files_base_dir is not None else None
     )
     return new
 

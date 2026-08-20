@@ -237,7 +237,7 @@ class TestCloudRunDecoratorIncludeFiles:
             return "test"
 
         assert test_flow.include_files == ["config.yaml", "data/"]
-        assert test_flow.include_files_base_dir == tmp_path
+        assert test_flow.include_files_base_dir == str(tmp_path)
 
     def test_include_files_tuple_converted_to_list(
         self, mock_submit: AsyncMock
@@ -514,7 +514,7 @@ class TestVertexAIDecoratorIncludeFiles:
             return "test"
 
         assert test_flow.include_files == ["config.yaml", "data/"]
-        assert test_flow.include_files_base_dir == tmp_path
+        assert test_flow.include_files_base_dir == str(tmp_path)
 
     def test_include_files_tuple_converted_to_list(
         self, mock_submit: AsyncMock
