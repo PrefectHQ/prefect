@@ -1156,7 +1156,7 @@ async def test_history_accepts_stdlib_datetimes(session, db):
     assert [history.states[0].count_runs for history in histories] == [1, 1]
 
 
-async def test_history_normalizes_interval_boundaries_to_utc(client: Any, db: Any):
+async def test_history_normalizes_interval_boundaries_to_utc(client, db):
     offset = timezone(timedelta(hours=2))
     start = datetime(2021, 7, 1, 2, 0, tzinfo=offset)
     interval = timedelta(minutes=5)
