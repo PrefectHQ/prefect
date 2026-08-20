@@ -155,7 +155,7 @@ dev = [
     # test suite enough to hit CI timeouts. Remove this split when we drop
     # Python 3.10 support.
     "pytest>=9,<10; python_version >= '3.11'",
-    "pytest>=9.1.1,<10; python_version < '3.11'",
+    "pytest>=8.4.2,<9; python_version < '3.11'",
     "pytest-asyncio>=1.1,<1.5; python_version >= '3.11'",
     "pytest-asyncio>=0.21,<1.1; python_version < '3.11'",
     "pytest-cov>=6.0",
