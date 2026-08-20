@@ -32,7 +32,7 @@ This directory contains React components for the Prefect UI migration from Vue t
 
 - Use `react-hook-form` for forms
 - Use `zod` for form validation
-- Use `zod-form-adapter` to convert `zod` schemas to `react-hook-form` form schemas
+- Use `zodResolver` from `@hookform/resolvers/zod` to convert `zod` schemas to `react-hook-form` form schemas
 - Use `Form` component from `@/components/ui/form` to wrap forms
 - Use `FormField` component from `@/components/ui/form` to wrap form fields
 - Use `Stepper` component for wizard-like flows
