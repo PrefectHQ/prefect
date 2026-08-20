@@ -593,8 +593,8 @@ class PrefectFutureList(list[PrefectFuture[R]], Iterator[PrefectFuture[R]]):
                 result = future.result(raise_on_failure=raise_on_failure)
                 for i in future_to_indices[future]:
                     results[i] = result
-                # `as_completed` cannot interrupt result retrieval, so bound slow
-                # retrieval (e.g. large data deserialization) here.
+                # Nothing interrupts result retrieval (e.g. large data
+                # deserialization), so an overrun is detected once it returns.
                 if deadline is not None and time.monotonic() >= deadline:
                     raise TimeoutError(timeout_message)
         # A `TimeoutError` from inside a task is not a `_WaitTimeoutError` and

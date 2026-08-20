@@ -1046,8 +1046,8 @@ class TestPrefectFutureList:
 
     @pytest.mark.timeout(method="thread")
     def test_result_timeout_covers_slow_result_retrieval(self):
-        """The timeout also bounds result retrieval, which runs while
-        `as_completed` is suspended at its `yield`."""
+        """Retrieval time counts against the timeout: a retrieval that overruns
+        the deadline raises when it returns."""
 
         class SlowResultFuture(MockFuture):
             def result(
