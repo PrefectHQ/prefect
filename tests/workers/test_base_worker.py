@@ -454,6 +454,15 @@ async def test_worker_respects_prefetch_seconds():
     )
 
 
+async def test_worker_respects_a_prefetch_seconds_of_zero():
+    """0 means no lookahead, and the CLI resolves it with an is-None check, so the
+    worker must not fall back to the setting default."""
+    worker = WorkerTestImpl(
+        name="test", work_pool_name="test-work-pool", prefetch_seconds=0
+    )
+    assert worker.get_status()["settings"]["prefetch_seconds"] == 0
+
+
 async def test_worker_sends_heartbeat_messages(
     prefect_client: PrefectClient,
     worker_channel_endpoint_unavailable: None,

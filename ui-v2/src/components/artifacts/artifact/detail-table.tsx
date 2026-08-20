@@ -1,12 +1,7 @@
-import {
-	createColumnHelper,
-	getCoreRowModel,
-	getPaginationRowModel,
-	useReactTable,
-} from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import { DataTable } from "@/components/ui/data-table";
 import { SearchInput } from "@/components/ui/input";
+import { createColumnHelper, useTable } from "@/lib/tanstack-table";
 
 export type DetailTableProps = {
 	tableData: string;
@@ -50,11 +45,9 @@ export const DetailTable = ({ tableData }: DetailTableProps) => {
 		);
 	}, [input, rows]);
 
-	const table = useReactTable({
+	const table = useTable({
 		data: filteredRows,
 		columns,
-		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
 		initialState: { pagination: { pageIndex: 0, pageSize: 10 } },
 	});
 

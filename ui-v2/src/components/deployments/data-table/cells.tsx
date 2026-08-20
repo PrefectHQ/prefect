@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import type { CellContext } from "@tanstack/react-table";
 import { subSeconds } from "date-fns";
 import { secondsInWeek } from "date-fns/constants";
 import { useCallback, useState } from "react";
@@ -19,6 +18,7 @@ import {
 import { FlowRunActivityBarChart } from "@/components/ui/flow-run-activity-bar-graph";
 import { Icon } from "@/components/ui/icons";
 import useDebounce from "@/hooks/use-debounce";
+import type { CellContext } from "@/lib/tanstack-table";
 
 type ActionsCellProps = CellContext<DeploymentWithFlow, unknown> & {
 	onDelete: (deployment: DeploymentWithFlow) => void;

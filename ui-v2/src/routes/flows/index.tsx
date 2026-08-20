@@ -9,7 +9,6 @@ import type {
 	ColumnFiltersState,
 	PaginationState,
 } from "@tanstack/react-table";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { categorizeError } from "@/api/error-utils";
@@ -40,7 +39,7 @@ const searchParams = z
 			.default("NAME_ASC"),
 	})
 	.optional()
-	.default({});
+	.prefault({});
 
 type SearchParams = z.infer<typeof searchParams>;
 
@@ -73,7 +72,7 @@ const buildPaginationBody = (search?: SearchParams): FlowsPaginateFilter => {
 const NUMBER_OF_ACTIVITY_BARS = 16;
 
 export const Route = createFileRoute("/flows/")({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	component: function FlowsRoute() {
 		const search = Route.useSearch();
 		const navigate = Route.useNavigate();

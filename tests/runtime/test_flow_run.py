@@ -624,7 +624,7 @@ class TestURL:
         assert getattr(flow_run, url_type) is None
 
     @pytest.mark.parametrize(
-        "url_type,",
+        "url_type",
         ["api_url", "ui_url"],
     )
     async def test_url_returns_correct_url_when_id_present(
@@ -649,7 +649,7 @@ class TestURL:
         assert not getattr(flow_run, url_type)
 
     @pytest.mark.parametrize(
-        "url_type,",
+        "url_type",
         ["api_url", "ui_url"],
     )
     async def test_url_pulls_from_api_when_needed(

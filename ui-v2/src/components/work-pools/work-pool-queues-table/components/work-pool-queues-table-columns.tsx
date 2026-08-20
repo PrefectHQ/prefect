@@ -1,5 +1,4 @@
 import { Link } from "@tanstack/react-router";
-import type { ColumnDef } from "@tanstack/react-table";
 import { HelpCircle } from "lucide-react";
 import type { WorkPoolQueue } from "@/api/work-pool-queues";
 import {
@@ -9,6 +8,7 @@ import {
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { WorkPoolQueueStatusBadge } from "@/components/work-pools/work-pool-queue-status-badge";
+import type { ColumnDef } from "@/lib/tanstack-table";
 import { WorkPoolQueueMenu } from "../../work-pool-queue-menu";
 import { WorkPoolQueueToggle } from "../../work-pool-queue-toggle";
 import { QueueNameWithLateIndicator } from "./queue-name-with-late-indicator";

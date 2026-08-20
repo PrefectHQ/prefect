@@ -6,6 +6,10 @@ env:
   PY_COLORS: 1
 
 on:
+  # repository_dispatch executes the workflow definition from the default branch.
+  repository_dispatch:
+    types:
+      - logfire-test-profile
   pull_request:
     paths:
       - .github/workflows/python-tests.yaml
@@ -47,6 +51,7 @@ concurrency:
 
 jobs:
   run-tests:
+    if: ${{ github.event_name != 'repository_dispatch' }}
     runs-on: ubuntu-latest
     name: ${{ matrix.test-type.name }} - python:${{ matrix.python-version }}, ${{ matrix.database }}
 
@@ -84,16 +89,21 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        test-type:
-          - name: Server Tests
+        test-type: &python-test-types
+          - id: server
+            name: Server Tests
             modules: tests/server/ tests/events/server --ignore=tests/server/database/ --ignore=tests/server/orchestration/
-          - name: Database Tests
+          - id: database
+            name: Database Tests
             modules: tests/server/database/
-          - name: "Orchestration Tests: Core"
+          - id: orchestration-core
+            name: "Orchestration Tests: Core"
             modules: tests/server/orchestration/ --ignore=tests/server/orchestration/api/
-          - name: "Orchestration Tests: API"
+          - id: orchestration-api
+            name: "Orchestration Tests: API"
             modules: tests/server/orchestration/api/
-          - name: "Client Tests: Modules"
+          - id: client-modules
+            name: "Client Tests: Modules"
             modules: >-
               tests/
               --ignore=tests/typesafety
@@ -106,7 +116,8 @@ jobs:
               --ignore=tests/test_settings.py
               --ignore=tests/input/
               --ignore-glob="tests/test_*.py"
-          - name: "Client Tests: Top-Level"
+          - id: client-top-level
+            name: "Client Tests: Top-Level"
             modules: >-
               tests/test_artifacts.py
               tests/test_assets.py
@@ -131,7 +142,8 @@ jobs:
               tests/test_ui_build_validation.py
               tests/test_variables.py
               tests/test_versioning.py
-          - name: "Client Tests: Execution"
+          - id: client-execution
+            name: "Client Tests: Execution"
             modules: >-
               tests/test_flow_engine.py
               tests/test_flow_runs.py
@@ -146,7 +158,8 @@ jobs:
               tests/test_tasks.py
               tests/test_transactions.py
               tests/test_waiters.py
-          - name: Runner, Worker, Settings, Input, and CLI Tests
+          - id: runner-worker-settings-input-cli
+            name: Runner, Worker, Settings, Input, and CLI Tests
             modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
         database:
           - "postgres:14"
@@ -160,6 +173,7 @@ jobs:
         exclude:
           - database: "sqlite"
             test-type:
+              id: client-modules
               name: "Client Tests: Modules"
               modules: >-
                 tests/
@@ -175,6 +189,7 @@ jobs:
                 --ignore-glob="tests/test_*.py"
           - database: "sqlite"
             test-type:
+              id: client-top-level
               name: "Client Tests: Top-Level"
               modules: >-
                 tests/test_artifacts.py
@@ -202,6 +217,7 @@ jobs:
                 tests/test_versioning.py
           - database: "sqlite"
             test-type:
+              id: client-execution
               name: "Client Tests: Execution"
               modules: >-
                 tests/test_flow_engine.py
@@ -219,6 +235,7 @@ jobs:
                 tests/test_waiters.py
           - database: "sqlite"
             test-type:
+              id: runner-worker-settings-input-cli
               name: Runner, Worker, Settings, Input, and CLI Tests
               modules: tests/test_task_runners.py tests/runner tests/workers tests/cli/ tests/test_settings.py tests/input/
 
@@ -268,6 +285,145 @@ jobs:
           && docker container logs ${{ job.services.postgres.id }} \
           || echo "Ignoring bad exit code"
 
+  profile-tests-with-logfire:
+    if: ${{ github.event_name == 'repository_dispatch' }}
+    runs-on: ubuntu-latest
+    name: "Logfire: ${{ matrix.test-type.name }}"
+    timeout-minutes: 30
+    environment:
+      name: logfire-profiling
+      deployment: false
+
+    services:
+      redis:
+        image: redis:latest
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      postgres:
+        image: postgres:14
+        ports:
+          - 5432:5432
+        env:
+          POSTGRES_USER: prefect
+          POSTGRES_PASSWORD: prefect
+          POSTGRES_DB: prefect
+          LANG: C.UTF-8
+          LANGUAGE: C.UTF-8
+          LC_ALL: C.UTF-8
+          LC_COLLATE: C.UTF-8
+          LC_CTYPE: C.UTF-8
+        options: >-
+          --health-cmd "pg_isready"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+          --tmpfs /var/lib/postgresql/data
+
+    strategy:
+      fail-fast: false
+      matrix:
+        test-type: *python-test-types
+
+    steps:
+      - name: Display current test matrix
+        run: echo '${{ toJSON(matrix) }}'
+
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          filter: blob:none
+
+      - name: Set up uv and Python 3.12
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          python-version: "3.12"
+          cache-dependency-glob: "pyproject.toml"
+
+      - name: Install packages
+        run: uv sync --locked --group perf
+
+      - name: Set database connection URL
+        run: echo "PREFECT_SERVER_DATABASE_CONNECTION_URL=postgresql+asyncpg://prefect:prefect@localhost/prefect" >> $GITHUB_ENV
+
+      - name: Run tests with Logfire
+        env:
+          LOGFIRE_CONSOLE: "false"
+          LOGFIRE_DISTRIBUTED_TRACING: "true"
+          LOGFIRE_RESOURCE_ATTRIBUTES: >-
+            vcs.repository.url.full=${{ github.server_url }}/${{ github.repository }},
+            cicd.pipeline.run.id=${{ github.run_id }},
+            github.actions.run.attempt=${{ github.run_attempt }},
+            cicd.pipeline.run.url.full=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }},
+            github.actions.job.check_run_id=${{ job.check_run_id }},
+            prefect.pytest.shard.id=${{ matrix.test-type.id }}
+          LOGFIRE_TOKEN: ${{ secrets.LOGFIRE_TEST_PROFILE_TOKEN }}
+          PREFECT_LOGFIRE_ENABLED: "false"
+        run: |
+          if [[ -z "$LOGFIRE_TOKEN" ]]; then
+            echo "::error::Logfire profiling requires the" \
+              "LOGFIRE_TEST_PROFILE_TOKEN secret in the" \
+              "logfire-profiling environment"
+            exit 1
+          fi
+
+          # These tests assert that Prefect's outermost run span has no parent.
+          uv run --no-sync pytest ${{ matrix.test-type.modules }} \
+          --ignore=tests/telemetry/test_run_telemetry.py \
+          -m "not windows" \
+          --numprocesses auto \
+          --maxprocesses 6 \
+          --dist worksteal \
+          --disable-docker-image-builds \
+          --exclude-service kubernetes \
+          --exclude-service docker \
+          --durations 26 \
+          --logfire \
+          --logfire-trace-phases \
+          --logfire-service-name prefect-pytest-profile
+
+      - name: Add Logfire filters to job summary
+        if: always()
+        env:
+          LOGFIRE_REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+          LOGFIRE_RUN_ATTEMPT: ${{ github.run_attempt }}
+          LOGFIRE_RUN_ID: ${{ github.run_id }}
+          LOGFIRE_SHARD_ID: ${{ matrix.test-type.id }}
+        run: |
+          printf '%s\n' \
+            '### Logfire filters' \
+            '' \
+            'All shards in this workflow attempt:' \
+            '' \
+            '```sql' \
+            "otel_resource_attributes->>'vcs.repository.url.full' = '$LOGFIRE_REPOSITORY_URL'" \
+            "AND otel_resource_attributes->>'cicd.pipeline.run.id' = '$LOGFIRE_RUN_ID'" \
+            "AND otel_resource_attributes->>'github.actions.run.attempt' = '$LOGFIRE_RUN_ATTEMPT'" \
+            '```' \
+            '' \
+            "Shard $LOGFIRE_SHARD_ID:" \
+            '' \
+            '```sql' \
+            "otel_resource_attributes->>'vcs.repository.url.full' = '$LOGFIRE_REPOSITORY_URL'" \
+            "AND otel_resource_attributes->>'cicd.pipeline.run.id' = '$LOGFIRE_RUN_ID'" \
+            "AND otel_resource_attributes->>'github.actions.run.attempt' = '$LOGFIRE_RUN_ATTEMPT'" \
+            "AND otel_resource_attributes->>'prefect.pytest.shard.id' = '$LOGFIRE_SHARD_ID'" \
+            '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Check database container
+        if: always()
+        run: |
+          docker container inspect ${{ job.services.postgres.id }} \
+          && docker container logs ${{ job.services.postgres.id }} \
+          || echo "Ignoring bad exit code"
+
   verify-test-selection:
     name: Verify test selection coverage
     runs-on: ubuntu-latest
@@ -285,6 +441,7 @@ jobs:
         run: uv run --with pyyaml --no-project -s scripts/verify_test_selection.py
 
   run-docker-tests:
+    if: ${{ github.event_name != 'repository_dispatch' }}
     runs-on: ubuntu-latest
     name: docker, python:${{ matrix.python-version }}
 
@@ -433,6 +590,7 @@ jobs:
           || echo "Ignoring bad exit code"
 
   run-typesafety-test:
+    if: ${{ github.event_name != 'repository_dispatch' }}
     name: typesafety
     runs-on: ubuntu-latest
 
