@@ -162,16 +162,18 @@ async def abigquery_query(
         )
         job_config.dry_run = True
         job_config.use_query_cache = False
-        partial_query = partial(client.query, query, job_config=job_config)
-        response = await to_thread.run_sync(partial_query)
-        total_bytes_processed = response.total_bytes_processed
-        if total_bytes_processed > dry_run_max_bytes:
-            raise RuntimeError(
-                f"Query will process {total_bytes_processed} bytes which is above "
-                f"the set maximum of {dry_run_max_bytes} for this task."
-            )
-        job_config.dry_run = saved_info["dry_run"]
-        job_config.use_query_cache = saved_info["use_query_cache"]
+        try:
+            partial_query = partial(client.query, query, job_config=job_config)
+            response = await to_thread.run_sync(partial_query)
+            total_bytes_processed = response.total_bytes_processed
+            if total_bytes_processed > dry_run_max_bytes:
+                raise RuntimeError(
+                    f"Query will process {total_bytes_processed} bytes which is above "
+                    f"the set maximum of {dry_run_max_bytes} for this task."
+                )
+        finally:
+            job_config.dry_run = saved_info["dry_run"]
+            job_config.use_query_cache = saved_info["use_query_cache"]
 
     # if writing to a destination table
     if dataset is not None:
@@ -287,15 +289,17 @@ def bigquery_query(
         )
         job_config.dry_run = True
         job_config.use_query_cache = False
-        response = client.query(query, job_config=job_config)
-        total_bytes_processed = response.total_bytes_processed
-        if total_bytes_processed > dry_run_max_bytes:
-            raise RuntimeError(
-                f"Query will process {total_bytes_processed} bytes which is above "
-                f"the set maximum of {dry_run_max_bytes} for this task."
-            )
-        job_config.dry_run = saved_info["dry_run"]
-        job_config.use_query_cache = saved_info["use_query_cache"]
+        try:
+            response = client.query(query, job_config=job_config)
+            total_bytes_processed = response.total_bytes_processed
+            if total_bytes_processed > dry_run_max_bytes:
+                raise RuntimeError(
+                    f"Query will process {total_bytes_processed} bytes which is above "
+                    f"the set maximum of {dry_run_max_bytes} for this task."
+                )
+        finally:
+            job_config.dry_run = saved_info["dry_run"]
+            job_config.use_query_cache = saved_info["use_query_cache"]
 
     # if writing to a destination table
     if dataset is not None:
