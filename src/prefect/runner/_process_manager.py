@@ -69,41 +69,33 @@ def _pid_is_alive(pid: int) -> bool:
         kernel32.CloseHandle(handle)
 
 
-def _hard_kill(pid: int) -> None:
-    """Stop `pid` immediately, taking its process group when it leads one so a
-    wrapper command cannot leave the real process running orphaned."""
+def _hard_kill(pid: int, *, is_process_group_leader: bool = False) -> None:
+    """Stop `pid` immediately, including its process group when owned."""
     if sys.platform == "win32":
         # Any signal other than the CTRL_* events is a TerminateProcess here.
         os.kill(pid, signal.SIGTERM)
+    elif is_process_group_leader:
+        os.killpg(pid, signal.SIGKILL)
     else:
-        try:
-            is_group_leader = os.getpgid(pid) == pid
-        except ProcessLookupError:
-            is_group_leader = False
-        if is_group_leader:
-            os.killpg(pid, signal.SIGKILL)
-        else:
-            os.kill(pid, signal.SIGKILL)
+        os.kill(pid, signal.SIGKILL)
 
 
-def _graceful_kill(pid: int) -> None:
-    """Signal an isolated process tree, or the process when it owns no group."""
+def _graceful_kill(pid: int, *, is_process_group_leader: bool = False) -> None:
+    """Signal `pid`, including its process group when owned."""
     if sys.platform == "win32":
         os.kill(pid, signal.CTRL_BREAK_EVENT)
+    elif is_process_group_leader:
+        os.killpg(pid, signal.SIGTERM)
     else:
-        try:
-            is_group_leader = os.getpgid(pid) == pid
-        except ProcessLookupError:
-            is_group_leader = False
-        if is_group_leader:
-            os.killpg(pid, signal.SIGTERM)
-        else:
-            os.kill(pid, signal.SIGTERM)
+        os.kill(pid, signal.SIGTERM)
 
 
 @dataclass
 class ProcessHandle:
+    """A tracked child and whether its starter gave it an owned POSIX process group."""
+
     _process: anyio.abc.Process | multiprocessing.context.SpawnProcess
+    is_process_group_leader: bool = False
 
     @property
     def pid(self) -> int | None:
@@ -255,13 +247,19 @@ class ProcessManager:
 
         if force:
             try:
-                _hard_kill(pid)
+                _hard_kill(
+                    pid,
+                    is_process_group_leader=handle.is_process_group_leader,
+                )
             except ProcessLookupError:
                 pass
             return
 
         try:
-            _graceful_kill(pid)
+            _graceful_kill(
+                pid,
+                is_process_group_leader=handle.is_process_group_leader,
+            )
         except ProcessLookupError:
             # Already reaped, e.g. re-killed from `__aexit__` after a cancelled
             # executor skipped its cleanup.
@@ -277,6 +275,9 @@ class ProcessManager:
                     except ProcessLookupError:
                         return
             try:
-                _hard_kill(pid)
+                _hard_kill(
+                    pid,
+                    is_process_group_leader=handle.is_process_group_leader,
+                )
             except OSError:
                 return

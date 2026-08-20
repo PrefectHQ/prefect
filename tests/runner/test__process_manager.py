@@ -180,18 +180,37 @@ class TestProcessManagerKill:
                 await pm.kill(run_id, grace_seconds=1)
                 assert call_count >= 2
 
-    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only test")
+    @pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only signals")
+    async def test_kill_force_does_not_probe_or_signal_an_unowned_group(self):
+        async with ProcessManager() as pm:
+            run_id = uuid4()
+            process = MagicMock(pid=12345, returncode=None)
+            await pm.add(run_id, ProcessHandle(process))
+
+            with (
+                patch("prefect.runner._process_manager.os.getpgid") as getpgid,
+                patch("prefect.runner._process_manager.os.killpg") as killpg,
+                patch("prefect.runner._process_manager.os.kill") as kill,
+            ):
+                await pm.kill(run_id, force=True)
+
+            getpgid.assert_not_called()
+            killpg.assert_not_called()
+            kill.assert_called_once_with(12345, signal.SIGKILL)
+
     @pytest.mark.skipif(sys.platform == "win32", reason="POSIX-only signals")
     async def test_kill_force_sends_only_sigkill_without_grace_period(self):
         async with ProcessManager() as pm:
             run_id = uuid4()
             mock_proc = MagicMock()
             mock_proc.pid = 12345
-            await pm.add(run_id, ProcessHandle(mock_proc))
+            await pm.add(
+                run_id,
+                ProcessHandle(mock_proc, is_process_group_leader=True),
+            )
 
             sent: list[tuple[str, int]] = []
             with (
-                patch("prefect.runner._process_manager.os.getpgid", return_value=12345),
                 patch(
                     "prefect.runner._process_manager.os.killpg",
                     side_effect=lambda pid, sig: sent.append(("killpg", sig)),
@@ -211,11 +230,13 @@ class TestProcessManagerKill:
         async with ProcessManager() as pm:
             run_id = uuid4()
             process = MagicMock(pid=12345, returncode=None)
-            await pm.add(run_id, ProcessHandle(process))
+            await pm.add(
+                run_id,
+                ProcessHandle(process, is_process_group_leader=True),
+            )
             sent: list[tuple[int, int]] = []
 
             with (
-                patch("prefect.runner._process_manager.os.getpgid", return_value=12345),
                 patch(
                     "prefect.runner._process_manager.os.killpg",
                     side_effect=lambda pid, sig: sent.append((pid, sig)),

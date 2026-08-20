@@ -72,13 +72,16 @@ def _runtime_hook_runner(
                 "--project",
                 str(project),
             ],
-            pythonpath=str(project),
+            environment={
+                **os.environ,
+                "HOOK_MARKER": str(marker),
+                "PYTHONPATH": str(project),
+            },
         ),
     )
     return (
         WorkspaceHookRunner(
             manifest_path=manifest_path,
-            environment={"HOOK_MARKER": str(marker)},
             stream_output=True,
         ),
         marker,

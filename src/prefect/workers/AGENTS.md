@@ -48,7 +48,7 @@ Work-pool-level launchers are configured via `prefect work-pool storage configur
 ## Pitfalls
 
 - `backend_id` is `None` until the first heartbeat succeeds; `PREFECT__WORKER_ID` is not set until then. Code that reads `self.backend_id` early in the lifecycle may get `None`.
-- Direct `ProcessWorker.run()` execution uses `FlowRunExecutorContext` with `WorkspaceResolvingEngineCommandStarter` and `propose_submitting=False` because `BaseWorker` already proposed Submitting. Pass the starter's cached `resolve_flow` method into the executor, and consume the executor's normalized infrastructure status rather than the raw child exit code. The ad hoc bundle path still uses deprecated `Runner.execute_bundle()` and remains a migration gap (see `runner/AGENTS.md`).
+- Direct `ProcessWorker.run()` execution uses `FlowRunExecutorContext` with `WorkspaceResolvingEngineCommandStarter` and `propose_submitting=False` because `BaseWorker` already proposed Submitting. Pass `starter.hook_runner` as the executor's `hook_runner`, and consume the executor's normalized infrastructure status rather than the raw child exit code. The ad hoc bundle path still uses deprecated `Runner.execute_bundle()` and remains a migration gap (see `runner/AGENTS.md`).
 
 ## Related
 

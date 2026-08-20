@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import uuid4
@@ -582,7 +583,10 @@ class TestEngineCommandStarter:
         mock_flow_run.id = uuid4()
         mock_process = MagicMock()
 
-        starter = EngineCommandStarter(tmp_dir=Path("/tmp/test"))
+        starter = EngineCommandStarter(
+            tmp_dir=Path("/tmp/test"),
+            isolate_process_group=True,
+        )
 
         with patch(
             "prefect.runner._starter_engine.run_process",
@@ -604,6 +608,7 @@ class TestEngineCommandStarter:
             handle = handler(raw_process)
             assert isinstance(handle, ProcessHandle)
             assert handle.pid == 99
+            assert handle.is_process_group_leader is (sys.platform != "win32")
 
     async def test_start_uses_storage_destination_as_cwd(self):
         mock_flow_run = MagicMock()

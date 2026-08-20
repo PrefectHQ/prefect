@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import signal
 import sys
 import traceback
@@ -64,29 +65,29 @@ async def supervise(config: WorkspaceSupervisorConfig) -> int:
     workspace = await prepare_workspace_for_flow_run(
         config.flow_run_id, config.workspace_root
     )
-    environment = workspace_environment(workspace)
+    environment = sanitize_subprocess_env(workspace_environment(workspace))
     selected_command = _workspace_command(workspace, config.command)
     command = (
         command_from_string(selected_command)
         if selected_command is not None
         else [get_sys_executable(), "-m", "prefect.engine"]
     )
+    environment["PREFECT__FLOW_ENTRYPOINT"] = workspace.runtime_entrypoint
 
     manifest = PreparedWorkspaceManifest(
         working_directory=workspace.working_directory,
         project_root=workspace.project_root,
         runtime_entrypoint=workspace.runtime_entrypoint,
         hook_command_prefix=_hook_command_prefix(command),
-        pythonpath=environment.get("PYTHONPATH"),
+        environment=environment,
     )
     write_private_model(config.manifest_path, manifest)
 
-    environment["PREFECT__FLOW_ENTRYPOINT"] = workspace.runtime_entrypoint
     await APILogHandler.aflush()
     process = await anyio.open_process(
         command,
         cwd=workspace.working_directory,
-        env=sanitize_subprocess_env(environment),
+        env=environment,
         stdin=None,
         stdout=None,
         stderr=None,
@@ -120,7 +121,10 @@ async def _main_async(argv: list[str] | None = None) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    return anyio.run(_main_async, argv)
+    exit_code = anyio.run(_main_async, argv)
+    if sys.platform != "win32" and exit_code < 0:
+        os.kill(os.getpid(), -exit_code)
+    return exit_code
 
 
 if __name__ == "__main__":

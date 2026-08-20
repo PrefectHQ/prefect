@@ -23,7 +23,7 @@ class PreparedWorkspaceManifest(BaseModel):
     project_root: Path | None = None
     runtime_entrypoint: str
     hook_command_prefix: list[str]
-    pythonpath: str | None = None
+    environment: dict[str, str]
 
 
 def write_private_model(path: Path, model: BaseModel) -> None:
@@ -34,7 +34,8 @@ def write_private_model(path: Path, model: BaseModel) -> None:
         prefix=f".{path.name}.",
     )
     try:
-        os.fchmod(descriptor, 0o600)
+        if hasattr(os, "fchmod"):
+            os.fchmod(descriptor, 0o600)
         with os.fdopen(descriptor, "w", encoding="utf-8") as file:
             descriptor = -1
             file.write(model.model_dump_json())

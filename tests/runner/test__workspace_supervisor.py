@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import os
+import signal
 from pathlib import Path
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
 
 import pytest
@@ -13,7 +14,7 @@ from prefect.runner._workspace_runtime import (
     WorkspaceSupervisorConfig,
     read_model,
 )
-from prefect.runner._workspace_supervisor import supervise
+from prefect.runner._workspace_supervisor import main, supervise
 from prefect.utilities.processutils import get_sys_executable
 
 pytestmark = pytest.mark.clear_db
@@ -98,6 +99,7 @@ async def test_supervisor_selects_uv_after_workspace_preparation(
     assert captured["kwargs"]["cwd"] == workspace.working_directory
     assert captured["kwargs"]["env"]["PATH"] == "/job/bin"
     manifest = read_model(config.manifest_path, PreparedWorkspaceManifest)
+    assert manifest.environment == captured["kwargs"]["env"]
     assert manifest.hook_command_prefix == [
         "/job/bin/uv",
         "run",
@@ -136,3 +138,21 @@ async def test_supervisor_preserves_explicit_command(
     assert captured["command"] == ["python", "custom.py", "--flag"]
     manifest = read_model(config.manifest_path, PreparedWorkspaceManifest)
     assert manifest.hook_command_prefix == [get_sys_executable()]
+
+
+def test_main_propagates_engine_signal_to_supervisor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    kill = MagicMock()
+    monkeypatch.setattr(
+        "prefect.runner._workspace_supervisor.anyio.run",
+        lambda *_args: -signal.SIGTERM,
+    )
+    monkeypatch.setattr(
+        os,
+        "kill",
+        kill,
+    )
+
+    assert main([]) == -signal.SIGTERM
+    kill.assert_called_once_with(os.getpid(), signal.SIGTERM)

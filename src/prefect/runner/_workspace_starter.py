@@ -193,7 +193,6 @@ class WorkspaceResolvingEngineCommandStarter:
         self._manifest_path = runtime_root / "workspace.json"
         self._hook_runner = WorkspaceHookRunner(
             manifest_path=self._manifest_path,
-            environment=self._environment,
             stream_output=self._stream_output,
         )
 

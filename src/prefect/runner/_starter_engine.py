@@ -165,7 +165,12 @@ class EngineCommandStarter:
         def _task_status_handler(process: anyio.abc.Process) -> ProcessHandle:
             nonlocal handed_off
             handed_off = True
-            return ProcessHandle(process)
+            return ProcessHandle(
+                process,
+                is_process_group_leader=(
+                    self._isolate_process_group and sys.platform != "win32"
+                ),
+            )
 
         try:
             await run_process(

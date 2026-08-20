@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 import traceback
 from pathlib import Path
@@ -20,7 +19,6 @@ from prefect.runner._workspace_runtime import (
     read_model,
     write_private_model,
 )
-from prefect.settings import get_current_settings
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 from prefect.utilities.processutils import run_process, sanitize_subprocess_env
 
@@ -86,11 +84,9 @@ class WorkspaceHookRunner:
         self,
         *,
         manifest_path: Path,
-        environment: dict[str, str | None],
         stream_output: bool,
     ) -> None:
         self._manifest_path = manifest_path
-        self._environment = environment
         self._stream_output = stream_output
 
     async def run_cancellation_hooks(self, flow_run: FlowRun, state: State) -> None:
@@ -117,17 +113,10 @@ class WorkspaceHookRunner:
                 str(flow_run_path),
                 str(state_path),
             ]
-            environment: dict[str, str | None] = {
-                **os.environ,
-                **get_current_settings().to_environment_variables(exclude_unset=True),
-                **self._environment,
-            }
-            if manifest.pythonpath:
-                environment["PYTHONPATH"] = manifest.pythonpath
             process = await run_process(
                 command,
                 cwd=manifest.working_directory,
-                env=sanitize_subprocess_env(environment),
+                env=sanitize_subprocess_env(manifest.environment),
                 stream_output=self._stream_output,
             )
             if process.returncode != 0:
