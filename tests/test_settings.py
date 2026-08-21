@@ -477,6 +477,8 @@ SUPPORTED_SETTINGS = {
         "expected_value": {"prefect.flow-run.heartbeat": timedelta(hours=1)},
     },
     "PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS": {"test_value": 1800.0},
+    "PREFECT_SERVER_SERVICES_DB_VACUUM_MAINTENANCE_MAX_OVERFLOW": {"test_value": 2},
+    "PREFECT_SERVER_SERVICES_DB_VACUUM_MAINTENANCE_POOL_SIZE": {"test_value": 4},
     "PREFECT_SERVER_SERVICES_DB_VACUUM_RETENTION_PERIOD": {
         "test_value": 172800,
         "expected_value": timedelta(days=2),

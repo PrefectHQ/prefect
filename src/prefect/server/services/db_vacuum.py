@@ -53,7 +53,7 @@ logger: logging.Logger = get_logger(__name__)
 # the task before it makes progress. Maintenance work runs on a dedicated
 # connection with no statement timeout so it can run to completion; sqlite's
 # `timeout` is a lock-wait, not a statement deadline, so it is left as-is.
-_MAINTENANCE_CONFIGS: dict[str, AsyncPostgresConfiguration] = {}
+_MAINTENANCE_CONFIGS: dict[tuple[str, int, int], AsyncPostgresConfiguration] = {}
 
 
 def _maintenance_database_config(
@@ -67,15 +67,22 @@ def _maintenance_database_config(
     config = db.database_config
     if not isinstance(config, AsyncPostgresConfiguration):
         return None
-    cached = _MAINTENANCE_CONFIGS.get(config.connection_url)
+    settings = get_current_settings().server.services.db_vacuum
+    cache_key = (
+        config.connection_url,
+        settings.maintenance_pool_size,
+        settings.maintenance_max_overflow,
+    )
+    cached = _MAINTENANCE_CONFIGS.get(cache_key)
     if cached is None:
         cached = AsyncPostgresConfiguration(connection_url=config.connection_url)
-        # Opt out of the API statement timeout and keep a minimal pool, since
-        # vacuum tasks run sequentially on an hourly loop.
+        # Opt out of the API statement timeout for bulk maintenance work.
         cached.timeout = None
-        cached.sqlalchemy_pool_size = 1
-        cached.sqlalchemy_max_overflow = 0
-        _MAINTENANCE_CONFIGS[config.connection_url] = cached
+        cached.sqlalchemy_pool_size = settings.maintenance_pool_size
+        cached.sqlalchemy_max_overflow = settings.maintenance_max_overflow
+        # The underlying engine cache is not keyed by pool settings, so within
+        # a process the first engine built for a URL wins.
+        _MAINTENANCE_CONFIGS[cache_key] = cached
     return cached
 
 
