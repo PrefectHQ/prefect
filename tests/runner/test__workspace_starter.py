@@ -84,7 +84,11 @@ def test_workspace_command_uses_uv_for_pyproject_workspace(
     )
 
     with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
-        command = _workspace_command(workspace, explicit_command=None)
+        command = _workspace_command(
+            workspace,
+            explicit_command=None,
+            environment=workspace.environment,
+        )
 
     assert captured_paths == [workspace.environment["PATH"]]
     assert command is not None
@@ -114,7 +118,14 @@ def test_workspace_command_falls_back_without_pyproject(
     )
 
     with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
-        assert _workspace_command(workspace, explicit_command=None) is None
+        assert (
+            _workspace_command(
+                workspace,
+                explicit_command=None,
+                environment=workspace.environment,
+            )
+            is None
+        )
 
 
 def test_workspace_command_falls_back_without_prefect_dependency(
@@ -131,7 +142,14 @@ def test_workspace_command_falls_back_without_prefect_dependency(
     )
 
     with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
-        assert _workspace_command(workspace, explicit_command=None) is None
+        assert (
+            _workspace_command(
+                workspace,
+                explicit_command=None,
+                environment=workspace.environment,
+            )
+            is None
+        )
 
 
 def test_workspace_command_falls_back_without_uv(
@@ -151,7 +169,14 @@ def test_workspace_command_falls_back_without_uv(
     )
 
     with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: True}):
-        assert _workspace_command(workspace, explicit_command=None) is None
+        assert (
+            _workspace_command(
+                workspace,
+                explicit_command=None,
+                environment=workspace.environment,
+            )
+            is None
+        )
 
 
 def test_workspace_command_does_not_auto_install_dependencies_by_default(
@@ -174,15 +199,22 @@ def test_workspace_command_does_not_auto_install_dependencies_by_default(
         fail_if_checked,
     )
 
-    assert _workspace_command(workspace, explicit_command=None) is None
+    assert (
+        _workspace_command(
+            workspace,
+            explicit_command=None,
+            environment=workspace.environment,
+        )
+        is None
+    )
 
 
-def test_workspace_command_honors_workspace_environment_setting(
+def test_workspace_command_honors_effective_environment_setting(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ):
     workspace = _prepared_workspace(tmp_path)
     assert workspace.project_root is not None
-    workspace.environment["PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES"] = "true"
+    workspace.environment["PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES"] = "false"
     workspace.project_root.joinpath("pyproject.toml").write_text(
         "[project]\n"
         "name = 'test-project'\n"
@@ -195,7 +227,14 @@ def test_workspace_command_honors_workspace_environment_setting(
     )
 
     with temporary_settings({PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES: False}):
-        command = _workspace_command(workspace, explicit_command=None)
+        command = _workspace_command(
+            workspace,
+            explicit_command=None,
+            environment={
+                **workspace.environment,
+                "PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES": "true",
+            },
+        )
 
     assert command is not None
     assert command_from_string(command)[-3:] == [
@@ -217,7 +256,11 @@ def test_workspace_command_preserves_explicit_command(tmp_path: Path):
     )
 
     assert (
-        _workspace_command(workspace, explicit_command="python custom.py")
+        _workspace_command(
+            workspace,
+            explicit_command="python custom.py",
+            environment=workspace.environment,
+        )
         == "python custom.py"
     )
 

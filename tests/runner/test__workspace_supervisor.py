@@ -16,6 +16,7 @@ from prefect.runner._workspace_runtime import (
     read_model,
 )
 from prefect.runner._workspace_supervisor import main, supervise
+from prefect.utilities.processutils import get_sys_executable
 
 pytestmark = pytest.mark.clear_db
 
@@ -53,6 +54,8 @@ async def test_supervisor_selects_uv_after_workspace_preparation(
     monkeypatch.setenv("PATH", "/job/bin")
     monkeypatch.setenv("PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES", "true")
     workspace = _workspace(tmp_path)
+    workspace.environment["PATH"] = "/pull-step/bin"
+    workspace.environment["PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES"] = "false"
     assert workspace.project_root is not None
     workspace.project_root.joinpath("pyproject.toml").write_text(
         "[project]\n"
@@ -77,7 +80,9 @@ async def test_supervisor_selects_uv_after_workspace_preparation(
     )
     monkeypatch.setattr(
         "prefect.runner._uv_command.shutil.which",
-        lambda executable, path=None: "/job/bin/uv" if executable == "uv" else None,
+        lambda executable, path=None: (
+            "/job/bin/uv" if executable == "uv" and path == "/job/bin" else None
+        ),
     )
     config = WorkspaceSupervisorConfig(
         flow_run_id=uuid4(),
@@ -144,6 +149,7 @@ async def test_supervisor_restores_runner_owned_environment_after_preparation(
     captured: dict[str, object] = {}
 
     async def open_process(command: list[str], **kwargs: object) -> FakeProcess:
+        captured["command"] = command
         captured["kwargs"] = kwargs
         return FakeProcess()
 
@@ -154,11 +160,16 @@ async def test_supervisor_restores_runner_owned_environment_after_preparation(
     monkeypatch.setattr(
         "prefect.runner._workspace_supervisor.anyio.open_process", open_process
     )
+    monkeypatch.setattr(
+        "prefect.runner._uv_command.shutil.which",
+        lambda *_args, **_kwargs: pytest.fail(
+            "uv should not be checked when the job disables auto-installation"
+        ),
+    )
     config = WorkspaceSupervisorConfig(
         flow_run_id=flow_run_id,
         workspace_root=tmp_path,
         manifest_path=tmp_path / "manifest.json",
-        command="python custom.py",
     )
 
     assert await supervise(config) == 0
@@ -171,6 +182,7 @@ async def test_supervisor_restores_runner_owned_environment_after_preparation(
     assert environment["PATH"] == "/runner/bin"
     assert environment["PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES"] == "false"
     assert environment["PROJECT_ENV"] == "preserved"
+    assert captured["command"] == [get_sys_executable(), "-m", "prefect.engine"]
 
 
 async def test_supervisor_preserves_explicit_command(

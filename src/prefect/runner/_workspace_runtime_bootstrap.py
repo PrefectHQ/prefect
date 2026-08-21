@@ -25,14 +25,14 @@ _MINIMUM_PREFECT_VERSION = Version("3.7")
 _MAXIMUM_PREFECT_VERSION = Version("4")
 
 
-def _validate_runtime() -> None:
+def _validate_hook_runtime() -> None:
     try:
         installed_version = importlib.metadata.version("prefect")
         version = Version(installed_version)
     except importlib.metadata.PackageNotFoundError as exc:
         raise RuntimeError(
             "The selected project runtime does not contain Prefect; "
-            "ProcessWorker workspace execution requires Prefect >=3.7,<4."
+            "ProcessWorker workspace hooks require Prefect >=3.7,<4."
         ) from exc
     except InvalidVersion as exc:
         raise RuntimeError(
@@ -42,7 +42,7 @@ def _validate_runtime() -> None:
     if not _MINIMUM_PREFECT_VERSION <= version < _MAXIMUM_PREFECT_VERSION:
         raise RuntimeError(
             "The selected project runtime contains Prefect "
-            f"{installed_version}; ProcessWorker workspace execution requires "
+            f"{installed_version}; ProcessWorker workspace hooks require "
             "Prefect >=3.7,<4."
         )
 
@@ -167,10 +167,10 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     try:
-        _validate_runtime()
         if args.operation == "engine":
             return _run_engine(args.entrypoint)
 
+        _validate_hook_runtime()
         import anyio
 
         anyio.run(

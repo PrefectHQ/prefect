@@ -137,8 +137,10 @@ def workspace_environment(workspace: PreparedWorkspace) -> dict[str, str]:
     return environment
 
 
-def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
-    auto_install = workspace.environment.get("PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES")
+def _uv_run_command(
+    workspace: PreparedWorkspace, environment: Mapping[str, str]
+) -> str | None:
+    auto_install = environment.get("PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES")
     try:
         auto_install_dependencies = (
             TypeAdapter(bool).validate_python(auto_install)
@@ -155,17 +157,20 @@ def _uv_run_command(workspace: PreparedWorkspace) -> str | None:
             "engine",
             workspace.runtime_entrypoint,
         ],
-        path=workspace.environment.get("PATH"),
+        path=environment.get("PATH"),
         auto_install_dependencies=auto_install_dependencies,
     )
 
 
 def _workspace_command(
-    workspace: PreparedWorkspace, explicit_command: str | None
+    workspace: PreparedWorkspace,
+    explicit_command: str | None,
+    *,
+    environment: Mapping[str, str],
 ) -> str | None:
     if explicit_command is not None:
         return explicit_command
-    return _uv_run_command(workspace)
+    return _uv_run_command(workspace, environment)
 
 
 class WorkspaceResolvingEngineCommandStarter:

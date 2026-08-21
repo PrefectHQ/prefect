@@ -98,7 +98,11 @@ async def supervise(config: WorkspaceSupervisorConfig) -> int:
     _restore_runner_environment(environment, runner_environment)
     environment["PREFECT__FLOW_RUN_ID"] = str(config.flow_run_id)
     environment["PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS"] = "false"
-    selected_command = _workspace_command(workspace, config.command)
+    selected_command = _workspace_command(
+        workspace,
+        config.command,
+        environment=environment,
+    )
     command = (
         command_from_string(selected_command)
         if selected_command is not None
