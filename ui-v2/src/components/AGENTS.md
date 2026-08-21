@@ -65,6 +65,8 @@ Import `useTable`, `createColumnHelper`, and table types (`ColumnDef`, `CellCont
 
 Exception: Radix components that render in a portal (e.g., `DropdownMenuContent`) bubble events through React's synthetic event system even when the DOM node is outside the table. Add `onClick={(e) => e.stopPropagation()}` on the portal content component itself.
 
+`Dialog`/`DialogContent` (`@/components/ui/dialog`) already carry `data-row-click-ignore="true"` on both the overlay and content, so opening one from a row action needs no extra stopPropagation. Other portal-rendered primitives (`DropdownMenuContent`, `Popover`, etc.) still need the manual exception above.
+
 ## DataTable Column Resizing
 
 Enable with `enableColumnResizing: true` + `columnResizeMode: "onChange"` on the table. `DataTable` renders a drag handle for each resizable column; use `enableResizing: false` on individual columns (e.g., the actions column) to opt them out. Double-click the handle to reset to the column's default size.
