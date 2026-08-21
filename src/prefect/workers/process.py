@@ -280,7 +280,17 @@ class ProcessWorker(
             worker_id=self.backend_id,
         )
 
-        result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+        try:
+            result = create_bundle_for_flow_run(flow=flow, flow_run=flow_run)
+        except Exception as exc:
+            logger.exception(
+                "Failed to create execution bundle for flow run '%s'.", flow_run.id
+            )
+            message = (
+                f"Flow run bundle could not be created: {type(exc).__name__}: {exc}"
+            )
+            await self._propose_crashed_state(flow_run, message)
+            return
 
         logger.debug("Executing flow run bundle in subprocess...")
         try:

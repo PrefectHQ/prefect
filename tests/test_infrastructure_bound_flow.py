@@ -682,6 +682,44 @@ class TestInfrastructureBoundFlow:
             infrastructure_bound_flow.submit_to_work_pool(x=1, y=2)
 
     @pytest.mark.filterwarnings("ignore::FutureWarning")
+    async def test_dispatch_marks_flow_run_failed_when_bundle_creation_fails(
+        self,
+        work_pool: WorkPool,
+        result_storage: LocalFileSystem,
+        prefect_client: PrefectClient,
+        tmp_path: Path,
+    ):
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "done"
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files=["config.yaml"],
+            include_files_base_dir=tmp_path / "missing",
+        )
+        existing_run_ids = {
+            flow_run.id for flow_run in await prefect_client.read_flow_runs()
+        }
+
+        with pytest.raises(ValueError, match="include_files_base_dir"):
+            infrastructure_bound_flow.submit_to_work_pool()
+
+        new_flow_runs = [
+            flow_run
+            for flow_run in await prefect_client.read_flow_runs()
+            if flow_run.id not in existing_run_ids
+        ]
+        assert len(new_flow_runs) == 1
+        failed_run = new_flow_runs[0]
+        assert failed_run.state is not None
+        assert failed_run.state.is_failed()
+        assert failed_run.state.message is not None
+        assert "Flow run submission failed" in failed_run.state.message
+
+    @pytest.mark.filterwarnings("ignore::FutureWarning")
     @pytest.mark.usefixtures("mock_subprocess_check_call")
     async def test_dispatch_flow_from_within_flow(
         self,
@@ -993,6 +1031,30 @@ class TestInfrastructureBoundFlow:
         )
 
         assert infrastructure_bound_flow.include_files is None
+        assert infrastructure_bound_flow.include_files_base_dir is None
+
+    def test_include_files_base_dir_can_be_set_without_include_files(
+        self,
+        work_pool: WorkPool,
+        result_storage: LocalFileSystem,
+        tmp_path: Path,
+    ):
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        infrastructure_bound_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files_base_dir=tmp_path,
+        )
+
+        assert infrastructure_bound_flow.include_files is None
+        assert infrastructure_bound_flow.include_files_base_dir == str(tmp_path)
+
+        restored_flow = cloudpickle.loads(cloudpickle.dumps(infrastructure_bound_flow))
+        assert restored_flow.include_files_base_dir == str(tmp_path)
 
     def test_include_files_with_list(
         self, work_pool: WorkPool, result_storage: LocalFileSystem
@@ -1050,7 +1112,10 @@ class TestInfrastructureBoundFlow:
         assert isinstance(infrastructure_bound_flow.include_files, list)
 
     def test_with_options_preserves_include_files_when_not_provided(
-        self, work_pool: WorkPool, result_storage: LocalFileSystem
+        self,
+        work_pool: WorkPool,
+        result_storage: LocalFileSystem,
+        tmp_path: Path,
     ):
         """with_options() without include_files preserves original include_files."""
 
@@ -1063,12 +1128,41 @@ class TestInfrastructureBoundFlow:
             work_pool=work_pool.name,
             worker_cls=ProcessWorker,
             include_files=["a.txt", "b.yaml"],
+            include_files_base_dir=tmp_path,
         )
 
         new_flow = original_flow.with_options(name="new-name")
 
         assert new_flow.include_files == ["a.txt", "b.yaml"]
+        assert new_flow.include_files_base_dir == str(tmp_path)
         assert new_flow.name == "new-name"
+
+    def test_with_options_replaces_and_clears_include_files_base_dir(
+        self,
+        work_pool: WorkPool,
+        result_storage: LocalFileSystem,
+        tmp_path: Path,
+    ):
+        @flow(result_storage=result_storage)
+        def my_flow():
+            return "Hello"
+
+        original_flow = bind_flow_to_infrastructure(
+            flow=my_flow,
+            work_pool=work_pool.name,
+            worker_cls=ProcessWorker,
+            include_files=["a.txt"],
+            include_files_base_dir=tmp_path / "original",
+        )
+
+        updated_flow = original_flow.with_options(
+            include_files_base_dir=tmp_path / "updated"
+        )
+        cleared_flow = updated_flow.with_options(include_files_base_dir=None)
+
+        assert original_flow.include_files_base_dir == str(tmp_path / "original")
+        assert updated_flow.include_files_base_dir == str(tmp_path / "updated")
+        assert cleared_flow.include_files_base_dir is None
 
     def test_with_options_replaces_include_files(
         self, work_pool: WorkPool, result_storage: LocalFileSystem
