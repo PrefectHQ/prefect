@@ -1,12 +1,6 @@
-from contextlib import contextmanager
-from typing import Optional
-
-from prefect._internal.concurrency.cancellation import (
-    CancelledError,
-    cancel_async_after,
-    cancel_sync_after,
-)
-
+import asyncio
+from contextlib import contextmanager, suppress
+from typing import AsyncIterator, Optional
 
 def fail_if_not_timeout_error(timeout_exc_type: type[Exception]) -> None:
     if not issubclass(timeout_exc_type, TimeoutError):
@@ -15,8 +9,10 @@ def fail_if_not_timeout_error(timeout_exc_type: type[Exception]) -> None:
         )
 
 
-@contextmanager
-def timeout_async(
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def timeout_async(
     seconds: Optional[float] = None, timeout_exc_type: type[TimeoutError] = TimeoutError
 ):
     fail_if_not_timeout_error(timeout_exc_type)
@@ -25,11 +21,20 @@ def timeout_async(
         yield
         return
 
-    try:
-        with cancel_async_after(timeout=seconds):
-            yield
-    except CancelledError:
-        raise timeout_exc_type(f"Scope timed out after {seconds} second(s).")
+    if timeout_exc_type is TimeoutError:
+        # Use asyncio's built-in timeout, which is robust and raises TimeoutError.
+        try:
+            async with asyncio.timeout(seconds):
+                yield
+        except TimeoutError:
+            raise
+    else:
+        # For custom subclasses, wrap the built-in timeout and re-raise with custom type.
+        try:
+            async with asyncio.timeout(seconds):
+                yield
+        except TimeoutError:
+            raise timeout_exc_type(f"Scope timed out after {seconds} second(s).")
 
 
 @contextmanager
