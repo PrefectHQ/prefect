@@ -30,6 +30,7 @@ from prefect.server.orchestration.core_policy import (
     CopyScheduledTime,
     CopyTaskParametersID,
     EnforceCancellingToCancelledTransition,
+    EnforceDeploymentConcurrencyOnLate,
     EnsureOnlyScheduledFlowsMarkedLate,
     HandleFlowTerminalStateTransitions,
     HandlePausingFlows,
@@ -1814,6 +1815,58 @@ class TestEnsureOnlyScheduledFlowMarkedLate:
             await ctx.validate_proposed_state()
 
         assert ctx.response_status == SetStateStatus.REJECT
+
+
+class TestEnforceDeploymentConcurrencyOnLate:
+    async def test_cancel_new_uses_fresh_deployment_concurrency_slots(
+        self, session, get_server_session, initialize_orchestration, flow
+    ):
+        deployment = await deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name=f"cancel-new-deployment-{uuid4()}",
+                flow_id=flow.id,
+                concurrency_limit=1,
+                concurrency_options={
+                    "collision_strategy": schemas.core.ConcurrencyLimitStrategy.CANCEL_NEW,
+                },
+            ),
+        )
+        await session.commit()
+
+        assert deployment.concurrency_limit_id is not None
+        stale_limit = deployment.global_concurrency_limit
+        assert stale_limit is not None
+        assert stale_limit.active_slots == 0
+
+        async with get_server_session() as other_session:
+            await concurrency_limits_v2.bulk_increment_active_slots(
+                session=other_session,
+                concurrency_limit_ids=[deployment.concurrency_limit_id],
+                slots=1,
+            )
+            await other_session.commit()
+
+        assert stale_limit.active_slots == 0
+
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            StateType.SCHEDULED,
+            StateType.SCHEDULED,
+            proposed_state_name="Late",
+            deployment_id=deployment.id,
+        )
+
+        async with EnforceDeploymentConcurrencyOnLate(
+            ctx, StateType.SCHEDULED, StateType.SCHEDULED
+        ) as ctx:
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.proposed_state is not None
+        assert ctx.proposed_state.is_cancelled()
+        assert ctx.proposed_state.message == "Deployment concurrency limit reached."
 
 
 @pytest.mark.parametrize("run_type", ["flow"])
