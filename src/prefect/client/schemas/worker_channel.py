@@ -97,6 +97,12 @@ SUPPORTED_CLEANUP_KINDS: tuple[CleanupKind, ...] = (
 )
 
 
+def pending_claim_teardown_idempotency_key(flow_run_id: UUID, claim_id: UUID) -> str:
+    """Return the stable cleanup identity for one abandoned pending claim."""
+
+    return f"{PENDING_CLAIM_TEARDOWN}:{flow_run_id}:{claim_id}"
+
+
 class WorkerChannelCloseReason(str, Enum):
     AUTHENTICATION_FAILED = "authentication_failed"
     AUTHORIZATION_FAILED = "authorization_failed"
@@ -585,6 +591,7 @@ __all__ = [
     "WorkerReadyPayload",
     "WorkPoolSnapshotFrame",
     "WorkPoolSnapshotPayload",
+    "pending_claim_teardown_idempotency_key",
     "select_worker_channel_version",
     "validate_worker_channel_frame",
 ]

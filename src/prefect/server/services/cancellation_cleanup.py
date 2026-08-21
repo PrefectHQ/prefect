@@ -5,7 +5,7 @@ The CancellationCleanup service. Responsible for cancelling tasks and subflows t
 import datetime
 import logging
 from typing import Annotated
-from uuid import NAMESPACE_URL, UUID, uuid5
+from uuid import UUID
 
 import sqlalchemy as sa
 from docket import CurrentDocket, Depends, Docket, Logged, Perpetual, Retry
@@ -21,6 +21,7 @@ from prefect.server.services.perpetual_services import perpetual_service
 from prefect.server.worker_communication.cleanup_queue import (
     CleanupQueueMessage,
     WorkerCleanupQueue,
+    cleanup_queue_message_id,
     get_worker_cleanup_queue,
 )
 from prefect.settings.context import get_current_settings
@@ -334,17 +335,12 @@ async def handle_cancelling_timeout(
             )
             return None
 
+        idempotency_key = (
+            f"{CANCELLING_TIMEOUT_TEARDOWN}:{flow_run.id}:{timeout_cancelled_state_id}"
+        )
         cleanup_enqueue_parameters = {
-            "message_id": uuid5(
-                NAMESPACE_URL,
-                "prefect:"
-                f"{CANCELLING_TIMEOUT_TEARDOWN}:"
-                f"{flow_run.id}:{timeout_cancelled_state_id}",
-            ),
-            "idempotency_key": (
-                f"{CANCELLING_TIMEOUT_TEARDOWN}:"
-                f"{flow_run.id}:{timeout_cancelled_state_id}"
-            ),
+            "message_id": cleanup_queue_message_id(idempotency_key),
+            "idempotency_key": idempotency_key,
             "work_pool_id": work_pool_id,
             "work_queue_id": flow_run.work_queue_id,
             "kind": CANCELLING_TIMEOUT_TEARDOWN,
