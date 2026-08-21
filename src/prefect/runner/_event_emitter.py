@@ -176,7 +176,7 @@ class EventEmitter:
         tags.extend(flow_run.tags)
 
         related = [RelatedResource.model_validate(r) for r in related]
-        related += tags_as_related_resources(set(tags))
+        related += tags_as_related_resources(set(tags), reserved=len(related))
 
         assert self._events_client is not None, (
             "EventEmitter must be used as an async context manager before emitting events"
