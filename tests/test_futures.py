@@ -202,6 +202,52 @@ class TestUtilityFunctions:
         results = [f.result() for f in as_completed([future], timeout=0)]
         assert results == [42]
 
+    def test_as_completed_with_zero_timeout_yields_completed_wrapped_future(self):
+        class WrappedFuture(PrefectWrappedFuture[int, Future[Any]]):
+            def wait(self, timeout: float | None = None) -> None:
+                pass
+
+            def result(
+                self,
+                timeout: float | None = None,
+                raise_on_failure: bool = True,
+            ) -> int:
+                return 42
+
+        wrapped_future: Future[Any] = Future()
+        wrapped_future.set_result(Completed(data=42))
+        future = WrappedFuture(uuid.uuid4(), wrapped_future)
+
+        assert list(as_completed([future], timeout=0)) == [future]
+
+    def test_as_completed_yields_completion_signaled_before_deadline(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        class CompletesDuringRegistration(PrefectFuture[int]):
+            def __init__(self) -> None:
+                self._final_state = None
+
+            def wait(self, timeout: float | None = None) -> None:
+                pass
+
+            def result(
+                self,
+                timeout: float | None = None,
+                raise_on_failure: bool = True,
+            ) -> int:
+                return 42
+
+            def add_done_callback(
+                self, fn: Callable[[PrefectFuture[int]], None]
+            ) -> None:
+                fn(self)
+
+        monotonic_times = iter([0.0, 0.5, 0.5, 2.0])
+        monkeypatch.setattr(time, "monotonic", lambda: next(monotonic_times))
+        future = CompletesDuringRegistration()
+
+        assert list(as_completed([future], timeout=1)) == [future]
+
     def test_as_completed_does_not_yield_completion_observed_after_timeout(
         self, monkeypatch: pytest.MonkeyPatch
     ):

@@ -200,6 +200,13 @@ class PrefectWrappedFuture(PrefectTaskRunFuture[R], abc.ABC, Generic[R, F]):
             return
         fn(self)
 
+    def _is_done(self) -> bool:
+        if super()._is_done():
+            return True
+
+        wrapped_is_done = getattr(self._wrapped_future, "done", None)
+        return bool(wrapped_is_done()) if callable(wrapped_is_done) else False
+
 
 class PrefectConcurrentFuture(PrefectWrappedFuture[R, concurrent.futures.Future[R]]):
     """
@@ -672,8 +679,6 @@ def as_completed(
             else:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0 or not finished_event.wait(timeout=remaining):
-                    raise _WaitTimeoutError
-                if time.monotonic() >= deadline:
                     raise _WaitTimeoutError
 
             with finished_lock:
