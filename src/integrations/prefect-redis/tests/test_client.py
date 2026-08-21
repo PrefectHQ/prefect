@@ -1,11 +1,13 @@
+import asyncio
 import warnings
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from prefect_redis.client import (
     RedisMessagingSettings,
     _client_cache,
     async_redis_from_settings,
+    clear_cached_clients,
     close_all_cached_connections,
     cluster_key_prefix,
     get_async_redis_client,
@@ -394,3 +396,119 @@ def test_close_all_cached_connections(mock_cache):
 
     # Verify run_until_complete was called twice (for disconnect and close)
     assert mock_loop.run_until_complete.call_count == 2
+
+
+def _fake_client_with_sockets(n_conns: int = 2):
+    """Build a MagicMock Redis whose pool mirrors redis.asyncio internals.
+
+    `get_extra_info("socket")` returns an asyncio TransportSocket wrapper whose
+    real socket is on `_sock`, so each connection nests the closable socket the
+    same way and the cleanup path can reach and close it.
+    """
+    sockets = [MagicMock(name=f"socket_{i}") for i in range(n_conns)]
+    connections = []
+    for sock in sockets:
+        connection = MagicMock()
+        transport_socket = MagicMock(name="transport_socket")
+        transport_socket._sock = sock
+        connection._writer.transport.get_extra_info.return_value = transport_socket
+        connections.append(connection)
+    client = MagicMock()
+    client.connection_pool._available_connections = connections
+    client.connection_pool._in_use_connections = set()
+    return client, sockets
+
+
+def test_close_all_cached_connections_frees_dead_loop_client_sockets():
+    """Clients whose loop already closed must still have their sockets freed.
+
+    Regression test for the connection/FD leak: the old implementation skipped
+    every entry whose loop was closed, so the leaked sockets were never closed.
+    """
+    _client_cache.clear()
+    dead_loop = asyncio.new_event_loop()
+    dead_loop.close()
+    client, sockets = _fake_client_with_sockets()
+    _client_cache[(get_async_redis_client, (), (), dead_loop)] = client
+
+    close_all_cached_connections()
+
+    for sock in sockets:
+        sock.close.assert_called_once()
+    assert _client_cache == {}
+
+
+def test_close_all_cached_connections_awaits_live_loop_client():
+    """Clients on a still-usable loop are closed via aclose(), not force-closed."""
+    _client_cache.clear()
+    loop = asyncio.new_event_loop()
+    try:
+        client = MagicMock()
+        client.aclose = AsyncMock()
+        client.connection_pool.disconnect = AsyncMock()
+        _client_cache[(get_async_redis_client, (), (), loop)] = client
+
+        close_all_cached_connections()
+
+        client.connection_pool.disconnect.assert_awaited_once()
+        client.aclose.assert_awaited_once()
+        assert _client_cache == {}
+    finally:
+        loop.close()
+
+
+async def test_clear_cached_clients_closes_client_on_running_loop():
+    """clear_cached_clients closes each client before clearing the cache."""
+    _client_cache.clear()
+    client = MagicMock()
+    client.aclose = AsyncMock()
+    _client_cache[(get_async_redis_client, (), (), asyncio.get_running_loop())] = client
+
+    await clear_cached_clients()
+
+    client.aclose.assert_awaited_once()
+    assert _client_cache == {}
+
+
+async def test_clear_cached_clients_frees_dead_loop_sockets():
+    """clear_cached_clients frees sockets of clients whose loop already ended."""
+    _client_cache.clear()
+    dead_loop = asyncio.new_event_loop()
+    dead_loop.close()
+    client, sockets = _fake_client_with_sockets()
+    client.aclose = AsyncMock()
+    _client_cache[(get_async_redis_client, (), (), dead_loop)] = client
+
+    await clear_cached_clients()
+
+    for sock in sockets:
+        sock.close.assert_called_once()
+    client.aclose.assert_not_awaited()
+    assert _client_cache == {}
+
+
+async def test_clear_cached_clients_does_not_force_close_open_loop_sockets():
+    """A client on another still-open loop must not have its socket force-closed.
+
+    Closing the raw fd of a transport whose loop is still open corrupts that
+    loop's selector (RuntimeError: File descriptor N is used by transport ...),
+    so the client is closed on its own loop via run_coroutine_threadsafe instead.
+    """
+    _client_cache.clear()
+    other_loop = asyncio.new_event_loop()  # open, and not the running loop
+    try:
+        client, sockets = _fake_client_with_sockets()
+        client.aclose = MagicMock()  # only used to build the scheduled coroutine
+        _client_cache[(get_async_redis_client, (), (), other_loop)] = client
+
+        with patch(
+            "prefect_redis.client.asyncio.run_coroutine_threadsafe"
+        ) as scheduled:
+            await clear_cached_clients()
+
+        scheduled.assert_called_once()
+        for sock in sockets:
+            sock.close.assert_not_called()
+        assert _client_cache == {}
+    finally:
+        other_loop.close()
