@@ -151,6 +151,10 @@ docker build --build-arg EXTRA_PIP_PACKAGES="prefect-aws" -t prefect .  # With e
 - Details in `<details>` tag
 - Include relevant links
 
+## Code Review Rules
+
+When reviewing changes, read and apply [REVIEW.md](REVIEW.md).
+
 # Project Practices
 
 - All PRs require test coverage for new functionality
