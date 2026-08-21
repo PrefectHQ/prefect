@@ -47,12 +47,16 @@ Find the authoritative specification in this order:
 1. A linked GitHub issue and its maintainer decisions, including issue references in commits
 2. A specification explicitly linked from the issue or pull request
 3. A relevant document under `docs/`, `plans/`, or another specification directory
-4. The pull request description as supplemental context
+4. The pull request description for a small, self-contained change allowed without an issue
 
 For each Spec finding, cite the requirement it relies on. Report requirements that are missing
 or partial, behavior that was not requested, and implementations that appear to satisfy a
-requirement but do so incorrectly. If no authoritative specification is available, report that
-the Spec axis could not be evaluated instead of inventing requirements.
+requirement but do so incorrectly.
+
+If no authoritative specification is available, do not invent one. If the contribution guide
+requires prior issue discussion for the change and none is linked, report that as a Standards
+finding. Otherwise, skip the Spec axis; when a summary surface exists, note that it was not
+evaluated rather than creating an inline finding.
 
 ## Reporting discipline
 
