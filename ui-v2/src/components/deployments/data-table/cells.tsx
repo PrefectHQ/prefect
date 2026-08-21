@@ -86,10 +86,12 @@ export const ActionsCell = ({ row, onDelete }: ActionsCellProps) => {
 					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
-			<QuickRunParametersDialog
-				deployment={row.original}
-				{...parametersDialogState}
-			/>
+			{parametersDialogState.open && (
+				<QuickRunParametersDialog
+					deployment={row.original}
+					{...parametersDialogState}
+				/>
+			)}
 		</div>
 	);
 };

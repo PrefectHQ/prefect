@@ -65,6 +65,7 @@ describe("RunFlowButton", () => {
 	it("opens the parameter dialog for deployments with required parameters", async () => {
 		const MOCK_DEPLOYMENT = createFakeDeployment({
 			enforce_parameter_schema: true,
+			parameters: { project: "default-project" },
 			parameter_openapi_schema: {
 				title: "Parameters",
 				type: "object",
@@ -105,6 +106,59 @@ describe("RunFlowButton", () => {
 		await user.click(screen.getByRole("button", { name: "Run" }));
 
 		await waitFor(() => expect(createFlowRun).toHaveBeenCalledOnce());
+	});
+
+	it("resets parameter values when the dialog is reopened", async () => {
+		const MOCK_DEPLOYMENT = createFakeDeployment({
+			enforce_parameter_schema: true,
+			parameters: { project: "default-project" },
+			parameter_openapi_schema: {
+				title: "Parameters",
+				type: "object",
+				properties: {
+					project: { title: "Project", type: "string" },
+				},
+				required: ["project"],
+			},
+		});
+		const MOCK_FLOW_RUN_RESPONSE = createFakeFlowRun();
+		const createFlowRun = vi.fn();
+		server.use(
+			http.post(buildApiUrl("/ui/schemas/validate"), () =>
+				HttpResponse.json({ valid: true, errors: [] }),
+			),
+			http.post(buildApiUrl("/deployments/:id/create_flow_run"), () => {
+				createFlowRun();
+				return HttpResponse.json(MOCK_FLOW_RUN_RESPONSE);
+			}),
+		);
+		const user = userEvent.setup();
+		await waitFor(() =>
+			render(<RunFlowButtonRouter deployment={MOCK_DEPLOYMENT} />, {
+				wrapper: createWrapper(),
+			}),
+		);
+
+		const openQuickRun = async () => {
+			await user.click(screen.getByRole("button", { name: "Run", hidden: true }));
+			await user.click(screen.getByRole("menuitem", { name: "Quick run" }));
+		};
+
+		await openQuickRun();
+		const projectInput = await screen.findByRole("textbox", { name: "Project" });
+		await user.clear(projectInput);
+		await user.type(projectInput, "override");
+		await user.click(screen.getByRole("button", { name: "Run" }));
+
+		await waitFor(() => expect(createFlowRun).toHaveBeenCalledOnce());
+		await waitFor(() =>
+			expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+		);
+
+		await openQuickRun();
+		expect(await screen.findByRole("textbox", { name: "Project" })).toHaveValue(
+			"default-project",
+		);
 	});
 
 	it("custom run option is a link with deployment parameters", async () => {

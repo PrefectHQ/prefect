@@ -116,11 +116,7 @@ export const QuickRunParametersDialog = ({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent
-				className="max-h-[80vh] max-w-2xl overflow-y-auto"
-				// Prevent clicks in this Radix portal from triggering data-table row navigation.
-				onClick={(event) => event.stopPropagation()}
-			>
+			<DialogContent className="max-h-[80vh] max-w-2xl overflow-y-auto">
 				<DialogHeader>
 					<DialogTitle>Run Deployment</DialogTitle>
 				</DialogHeader>

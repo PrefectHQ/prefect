@@ -41,10 +41,12 @@ export const RunFlowButton = ({ deployment }: RunFlowButtonProps) => {
 					</DropdownMenuGroup>
 				</DropdownMenuContent>
 			</DropdownMenu>
-			<QuickRunParametersDialog
-				deployment={deployment}
-				{...parametersDialogState}
-			/>
+			{parametersDialogState.open && (
+				<QuickRunParametersDialog
+					deployment={deployment}
+					{...parametersDialogState}
+				/>
+			)}
 		</>
 	);
 };
