@@ -45,6 +45,7 @@ from prefect.client.schemas.objects import (
     WorkPoolStorageConfiguration,
     WorkQueue,
 )
+from prefect.client.schemas.responses import WorkerFlowRunResponse
 from prefect.client.schemas.worker_channel import (
     WORK_POOL_SNAPSHOT_CAPABILITY,
     WORK_POOL_WORKER_CHANNEL_VERSION,
@@ -838,6 +839,267 @@ async def test_worker_with_work_pool_and_limit(
         assert {flow_run.id for flow_run in submitted_flow_runs} == set(
             flow_run_ids[1:4]
         )
+
+
+async def test_base_worker_drain_stops_polling_without_cancelling_active_runs(
+    work_pool: WorkPool,
+):
+    worker = WorkerTestImpl(work_pool_name=work_pool.name)
+    active_run_started = anyio.Event()
+    release_active_run = anyio.Event()
+    active_run_finished = anyio.Event()
+    polling_loop_cancelled = anyio.Event()
+
+    async def active_run():
+        active_run_started.set()
+        await release_active_run.wait()
+        active_run_finished.set()
+
+    async with worker:
+        assert worker._runs_task_group is not None
+        worker._runs_task_group.start_soon(active_run)
+        await active_run_started.wait()
+
+        async with anyio.create_task_group() as loops_task_group:
+            worker._loops_task_group = loops_task_group
+
+            async def polling_loop():
+                try:
+                    await anyio.sleep_forever()
+                finally:
+                    polling_loop_cancelled.set()
+
+            loops_task_group.start_soon(polling_loop)
+            worker._request_drain()
+
+        assert polling_loop_cancelled.is_set()
+
+        assert not active_run_finished.is_set()
+
+        release_active_run.set()
+        await active_run_finished.wait()
+
+
+async def test_base_worker_drain_stops_polling_but_continues_sync_until_active_runs_finish(
+    work_pool: WorkPool,
+):
+    worker = WorkerTestImpl(
+        work_pool_name=work_pool.name,
+        heartbeat_interval_seconds=0.01,
+    )
+    flow_run_id = uuid.uuid4()
+    polled = anyio.Event()
+    synced_while_draining = anyio.Event()
+    release_active_run = anyio.Event()
+    stopped = anyio.Event()
+    poll_count = 0
+
+    async def get_and_submit_flow_runs() -> list[FlowRun]:
+        nonlocal poll_count
+        poll_count += 1
+        worker._submitting_flow_run_ids.add(flow_run_id)
+        polled.set()
+        worker._request_drain()
+        return []
+
+    async def sync_and_initialize() -> None:
+        worker._work_pool = work_pool
+        worker._has_successfully_synced = True
+        if worker._draining and flow_run_id in worker._submitting_flow_run_ids:
+            synced_while_draining.set()
+            await release_active_run.wait()
+            worker._submitting_flow_run_ids.remove(flow_run_id)
+
+    worker.get_and_submit_flow_runs = get_and_submit_flow_runs
+    worker._sync_and_initialize = sync_and_initialize
+
+    with anyio.fail_after(5):
+        async with anyio.create_task_group() as task_group:
+            task_group.start_soon(worker.start)
+            await polled.wait()
+            await synced_while_draining.wait()
+
+            assert poll_count == 1
+
+            release_active_run.set()
+
+            async def wait_for_worker_stop() -> None:
+                while worker.is_setup:
+                    await anyio.sleep(0.01)
+                stopped.set()
+
+            task_group.start_soon(wait_for_worker_stop)
+            await stopped.wait()
+
+
+async def test_base_worker_drain_stops_iterating_fetched_batch(
+    prefect_client: PrefectClient,
+    worker_deployment_wq1: WorkQueue,
+    work_pool: WorkPool,
+):
+    flow_runs = [
+        await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_wq1.id,
+            state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1)),
+        )
+        for _ in range(2)
+    ]
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+
+        class DrainOnFirstAdd(set[uuid.UUID]):
+            def add(self, flow_run_id: uuid.UUID) -> None:
+                super().add(flow_run_id)
+                worker._request_drain()
+
+        worker._submitting_flow_run_ids = DrainOnFirstAdd()
+        worker._submit_run = AsyncMock()
+        responses = [
+            WorkerFlowRunResponse(
+                work_pool_id=work_pool.id,
+                work_queue_id=worker_deployment_wq1.work_queue_id,
+                flow_run=flow_run,
+            )
+            for flow_run in flow_runs
+        ]
+
+        submitted_flow_runs = await worker._submit_scheduled_flow_runs(responses)
+
+    assert [flow_run.id for flow_run in submitted_flow_runs] == [flow_runs[0].id]
+
+
+async def test_base_worker_drain_after_pending_continues_submission(
+    prefect_client: PrefectClient,
+    worker_deployment_infra_wq1: WorkQueue,
+    work_pool: WorkPool,
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_infra_wq1.id,
+        state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1)),
+    )
+    run_mock = AsyncMock(
+        return_value=BaseWorkerResult(status_code=0, identifier="test-run")
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
+        worker._work_pool = work_pool
+        worker.run = run_mock
+        worker._submitting_flow_run_ids.add(flow_run.id)
+        worker.limiter.acquire_on_behalf_of_nowait(flow_run.id)
+        propose_pending_state = worker._propose_pending_state
+
+        async def drain_after_pending(flow_run: FlowRun) -> bool:
+            ready_to_submit = await propose_pending_state(flow_run)
+            worker._request_drain()
+            return ready_to_submit
+
+        worker._propose_pending_state = drain_after_pending
+
+        await worker._submit_run(flow_run)
+
+    run_mock.assert_called_once()
+    assert flow_run.id not in worker._submitting_flow_run_ids
+    assert worker.limiter.borrowed_tokens == 0
+    updated_flow_run = await prefect_client.read_flow_run(flow_run.id)
+    assert updated_flow_run.state is not None
+    assert updated_flow_run.state.type == StateType.PENDING
+    assert updated_flow_run.state.name == "Submitting"
+
+
+async def test_base_worker_drain_after_pending_during_configuration_resolution_continues_submission(
+    prefect_client: PrefectClient,
+    worker_deployment_infra_wq1: WorkQueue,
+    work_pool: WorkPool,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_infra_wq1.id,
+        state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1)),
+    )
+    resolve_for_flow_run = BaseJobConfiguration.resolve_for_flow_run
+    run_mock = AsyncMock(
+        return_value=BaseWorkerResult(status_code=0, identifier="test-run")
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
+
+        async def drain_during_configuration_resolution(
+            *args: Any, **kwargs: Any
+        ) -> BaseJobConfiguration:
+            worker._request_drain()
+            return await resolve_for_flow_run(*args, **kwargs)
+
+        monkeypatch.setattr(
+            BaseJobConfiguration,
+            "resolve_for_flow_run",
+            drain_during_configuration_resolution,
+        )
+        worker._work_pool = work_pool
+        worker.run = run_mock
+        worker._submitting_flow_run_ids.add(flow_run.id)
+        worker.limiter.acquire_on_behalf_of_nowait(flow_run.id)
+
+        await worker._submit_run(flow_run)
+
+    run_mock.assert_called_once()
+    assert flow_run.id not in worker._submitting_flow_run_ids
+    assert worker.limiter.borrowed_tokens == 0
+    updated_flow_run = await prefect_client.read_flow_run(flow_run.id)
+    assert updated_flow_run.state is not None
+    assert updated_flow_run.state.type == StateType.PENDING
+    assert updated_flow_run.state.name == "Submitting"
+
+
+@pytest.mark.parametrize("drain_after", ["labels", "submitting"])
+async def test_base_worker_drain_after_submission_awaits_continues_submission(
+    drain_after: str,
+    prefect_client: PrefectClient,
+    worker_deployment_infra_wq1: WorkQueue,
+    work_pool: WorkPool,
+):
+    flow_run = await prefect_client.create_flow_run_from_deployment(
+        worker_deployment_infra_wq1.id,
+        state=Scheduled(scheduled_time=now_fn("UTC") - timedelta(days=1)),
+    )
+    run_mock = AsyncMock(
+        return_value=BaseWorkerResult(status_code=0, identifier="test-run")
+    )
+
+    async with WorkerTestImpl(work_pool_name=work_pool.name, limit=1) as worker:
+        worker._work_pool = work_pool
+        worker.run = run_mock
+        worker._emit_flow_run_submitted_event = Mock()
+        worker._emit_flow_run_executed_event = Mock()
+        worker._submitting_flow_run_ids.add(flow_run.id)
+        worker.limiter.acquire_on_behalf_of_nowait(flow_run.id)
+
+        if drain_after == "labels":
+
+            async def drain_after_labels(flow_run_id: uuid.UUID) -> None:
+                assert flow_run_id == flow_run.id
+                worker._request_drain()
+
+            worker._give_worker_labels_to_flow_run = drain_after_labels
+        else:
+            propose_submitting_state = worker._propose_submitting_state
+
+            async def drain_after_submitting(flow_run: FlowRun) -> None:
+                await propose_submitting_state(flow_run)
+                worker._request_drain()
+
+            worker._propose_submitting_state = drain_after_submitting
+
+        await worker._submit_run(flow_run)
+
+    run_mock.assert_called_once()
+    worker._emit_flow_run_submitted_event.assert_called_once()
+    worker._emit_flow_run_executed_event.assert_called_once()
+    assert flow_run.id not in worker._submitting_flow_run_ids
+    assert worker.limiter.borrowed_tokens == 0
+    updated_flow_run = await prefect_client.read_flow_run(flow_run.id)
+    assert updated_flow_run.state is not None
+    assert updated_flow_run.state.type == StateType.PENDING
+    assert updated_flow_run.state.name == "Submitting"
 
 
 async def test_worker_calls_run_with_expected_arguments(
@@ -2434,6 +2696,41 @@ async def test_worker_last_polled_health_check(work_pool: WorkPool):
                 with travel_to(now + timedelta(minutes=30, seconds=1)):
                     resp = worker.is_worker_still_polling(query_interval_seconds=60)
                     assert resp is False
+    except ExceptionGroup as e:
+        raise e.exceptions[0]
+
+
+async def test_worker_health_check_allows_stale_poll_time_while_draining_active_run(
+    work_pool: WorkPool,
+):
+    now = now_fn("UTC")
+
+    try:
+        with travel_to(now):
+            async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+                worker._last_polled_time = now
+                worker._draining = True
+                worker._submitting_flow_run_ids.add(uuid.uuid4())
+
+                with travel_to(now + timedelta(seconds=301)):
+                    assert worker.is_worker_still_polling(query_interval_seconds=10)
+    except ExceptionGroup as e:
+        raise e.exceptions[0]
+
+
+async def test_worker_health_check_fails_after_drain_has_no_active_runs(
+    work_pool: WorkPool,
+):
+    now = now_fn("UTC")
+
+    try:
+        with travel_to(now):
+            async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+                worker._last_polled_time = now
+                worker._draining = True
+
+                with travel_to(now + timedelta(seconds=301)):
+                    assert not worker.is_worker_still_polling(query_interval_seconds=10)
     except ExceptionGroup as e:
         raise e.exceptions[0]
 

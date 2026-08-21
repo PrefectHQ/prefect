@@ -684,10 +684,14 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._work_pool: Optional[WorkPool] = None
         self._exit_stack: AsyncExitStack = AsyncExitStack()
         self._runs_task_group: Optional[anyio.abc.TaskGroup] = None
+        self._loops_task_group: Optional[anyio.abc.TaskGroup] = None
+        self._polling_task_group: Optional[anyio.abc.TaskGroup] = None
+        self._drain_event: Optional[anyio.Event] = None
         self._client: Optional[PrefectClient] = None
         self._last_polled_time: datetime.datetime = prefect.types._datetime.now("UTC")
         self._limit = limit
         self._limiter: Optional[anyio.CapacityLimiter] = None
+        self._draining = False
         self._submitting_flow_run_ids: set[UUID] = set()
         self._scheduled_task_scopes: set[anyio.CancelScope] = set()
         self._worker_channel: Optional[WorkerChannel] = None
@@ -820,6 +824,15 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             extra=extra,
         )
 
+    def _request_drain(self) -> None:
+        self._draining = True
+        if self._drain_event is not None:
+            self._drain_event.set()
+        if self._polling_task_group is not None:
+            self._polling_task_group.cancel_scope.cancel()
+        elif self._drain_event is None and self._loops_task_group is not None:
+            self._loops_task_group.cancel_scope.cancel()
+
     async def start(
         self,
         run_once: bool = False,
@@ -864,43 +877,79 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                     backoff=4,
                 )
 
-                async with anyio.create_task_group() as loops_task_group:
-                    if run_once:
+                async def run_polling_service() -> None:
+                    try:
+                        async with anyio.create_task_group() as polling_task_group:
+                            self._polling_task_group = polling_task_group
+                            if self._draining:
+                                polling_task_group.cancel_scope.cancel()
+                            else:
+                                polling_task_group.start_soon(polling_service)
+                    finally:
+                        self._polling_task_group = None
 
-                        async def run_once_services() -> None:
-                            # A one-shot poll needs the work-pool configuration
-                            # produced by the one-shot synchronization attempt.
-                            await sync_service()
-                            await polling_service()
+                async def wait_for_drain_and_stop() -> None:
+                    if self._drain_event is None:
+                        return
 
-                        loops_task_group.start_soon(run_once_services)
-                    else:
-                        loops_task_group.start_soon(polling_service)
-                        loops_task_group.start_soon(sync_service)
-
-                    self._started_event = await self._emit_worker_started_event()
-
-                    start_client_metrics_server()
-
-                    if with_healthcheck:
-                        from prefect.workers.server import build_healthcheck_server
-
-                        # we'll start the ASGI server in a separate thread so that
-                        # uvicorn does not block the main thread
-                        healthcheck_server = build_healthcheck_server(
-                            worker=worker,
-                            query_interval_seconds=PREFECT_WORKER_QUERY_SECONDS.value(),
+                    await self._drain_event.wait()
+                    while self._has_in_flight_flow_runs():
+                        self._logger.debug(
+                            "Waiting for %s active run(s) to finish before shutdown...",
+                            len(self._submitting_flow_run_ids),
                         )
-                        healthcheck_thread = threading.Thread(
-                            name="healthcheck-server-thread",
-                            target=healthcheck_server.run,
-                            daemon=True,
-                        )
-                        healthcheck_thread.start()
-                    printer(f"Worker {worker.name!r} started!")
+                        await anyio.sleep(0.1)
+
+                    if self._loops_task_group is not None:
+                        self._loops_task_group.cancel_scope.cancel()
+
+                try:
+                    self._drain_event = anyio.Event()
+                    async with anyio.create_task_group() as loops_task_group:
+                        self._loops_task_group = loops_task_group
+                        if self._draining:
+                            self._drain_event.set()
+
+                        if run_once:
+
+                            async def run_once_services() -> None:
+                                # A one-shot poll needs the work-pool configuration
+                                # produced by the one-shot synchronization attempt.
+                                await sync_service()
+                                await run_polling_service()
+
+                            loops_task_group.start_soon(run_once_services)
+                        else:
+                            loops_task_group.start_soon(run_polling_service)
+                            loops_task_group.start_soon(sync_service)
+                            loops_task_group.start_soon(wait_for_drain_and_stop)
+
+                        self._started_event = await self._emit_worker_started_event()
+
+                        start_client_metrics_server()
+
+                        if with_healthcheck:
+                            from prefect.workers.server import build_healthcheck_server
+
+                            # we'll start the ASGI server in a separate thread so that
+                            # uvicorn does not block the main thread
+                            healthcheck_server = build_healthcheck_server(
+                                worker=worker,
+                                query_interval_seconds=PREFECT_WORKER_QUERY_SECONDS.value(),
+                            )
+                            healthcheck_thread = threading.Thread(
+                                name="healthcheck-server-thread",
+                                target=healthcheck_server.run,
+                                daemon=True,
+                            )
+                            healthcheck_thread.start()
+                        printer(f"Worker {worker.name!r} started!")
+                finally:
+                    self._loops_task_group = None
+                    self._drain_event = None
 
                 # If running once, wait for active runs to finish before teardown
-                if run_once and self._limiter:
+                if (run_once or self._draining) and self._limiter:
                     # Use the limiter's borrowed token count as the source of truth
                     while self.limiter.borrowed_tokens > 0:
                         self._logger.debug(
@@ -1294,6 +1343,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         is_still_polling = seconds_since_last_poll <= threshold_seconds
 
+        if not is_still_polling and self._draining and self._has_in_flight_flow_runs():
+            return True
+
         if not is_still_polling:
             self._logger.error(
                 f"Worker has not polled in the last {seconds_since_last_poll} seconds "
@@ -1301,6 +1353,11 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             )
 
         return is_still_polling
+
+    def _has_in_flight_flow_runs(self) -> bool:
+        return bool(self._submitting_flow_run_ids) or bool(
+            self._limiter and self._limiter.borrowed_tokens > 0
+        )
 
     async def get_and_submit_flow_runs(self) -> list["FlowRun"]:
         if not self._has_successfully_synced:
@@ -1502,6 +1559,11 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         submittable_flow_runs = [entry.flow_run for entry in flow_run_response]
 
         for flow_run in submittable_flow_runs:
+            if self._draining:
+                self._logger.debug(
+                    "Worker is draining; skipping remaining fetched flow runs."
+                )
+                break
             if flow_run.id in self._submitting_flow_run_ids:
                 self._logger.debug(
                     f"Skipping {flow_run.id} because it's already being submitted"
@@ -1631,11 +1693,12 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 worker_name=self.name,
                 worker_id=self.backend_id,
             )
-            submitted_event = self._emit_flow_run_submitted_event(configuration)
+
             await self._give_worker_labels_to_flow_run(flow_run.id)
 
             await self._propose_submitting_state(flow_run)
 
+            submitted_event = self._emit_flow_run_submitted_event(configuration)
             result = await self.run(
                 flow_run=flow_run,
                 task_status=task_status,
