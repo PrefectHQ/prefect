@@ -140,12 +140,16 @@ describe("RunFlowButton", () => {
 		);
 
 		const openQuickRun = async () => {
-			await user.click(screen.getByRole("button", { name: "Run", hidden: true }));
+			await user.click(
+				screen.getByRole("button", { name: "Run", hidden: true }),
+			);
 			await user.click(screen.getByRole("menuitem", { name: "Quick run" }));
 		};
 
 		await openQuickRun();
-		const projectInput = await screen.findByRole("textbox", { name: "Project" });
+		const projectInput = await screen.findByRole("textbox", {
+			name: "Project",
+		});
 		await user.clear(projectInput);
 		await user.type(projectInput, "override");
 		await user.click(screen.getByRole("button", { name: "Run" }));
