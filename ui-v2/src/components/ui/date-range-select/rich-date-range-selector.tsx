@@ -325,7 +325,7 @@ export function RichDateRangeSelector({
 					<Button
 						variant="outline"
 						size="icon"
-						className="-ml-px bg-card dark:bg-background"
+						className="rounded-r-none bg-card dark:bg-background"
 						onClick={previous}
 						disabled={previousDisabled}
 						aria-label="Previous range"
@@ -401,7 +401,7 @@ export function RichDateRangeSelector({
 					<Button
 						variant="outline"
 						size="icon"
-						className="-ml-px bg-card dark:bg-background"
+						className="rounded-l-none -ml-px bg-card dark:bg-background"
 						onClick={nextStep}
 						disabled={nextDisabled}
 						aria-label="Next range"
