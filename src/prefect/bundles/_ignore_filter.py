@@ -120,7 +120,7 @@ def load_ignore_patterns(flow_dir: Path) -> list[str]:
     """
     Load patterns from cascading .prefectignore files.
 
-    Load order (patterns combined via union):
+    Load order (later matching patterns override earlier patterns):
     1. Project root .prefectignore (if found via pyproject.toml detection)
     2. Flow directory .prefectignore (if different from project root)
 
@@ -213,7 +213,8 @@ class IgnoreFilter:
                 result.excluded_by_ignore.append(file)
                 continue
 
-            # Check against ignore spec
+            # Check against ignore specs in cascade order. A later source only
+            # overrides the current decision when one of its patterns matches.
             excluded = False
             for pattern_root, spec in self._specs:
                 try:
@@ -224,9 +225,13 @@ class IgnoreFilter:
                     except ValueError:
                         continue
 
-                if spec.match_file(pattern_path):
-                    excluded = True
-                    break
+                normalized_path = pathspec.util.normalize_file(pattern_path)
+                if any(
+                    pattern.include is not None
+                    and pattern.match_file(normalized_path) is not None
+                    for pattern in spec.patterns
+                ):
+                    excluded = spec.match_file(normalized_path)
 
             if excluded:
                 result.excluded_by_ignore.append(file)
