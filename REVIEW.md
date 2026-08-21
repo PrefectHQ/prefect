@@ -10,8 +10,9 @@ Review every diff along two independent axes:
 - **Standards** — does the change follow the applicable repository instructions?
 - **Spec** — does the change faithfully implement the originating issue or specification?
 
-Prefix findings with `[Standards]` or `[Spec]`. Do not merge or rank findings across axes, and
-do not let success on one axis hide problems on the other.
+Keep the axes separate in the review summary, using `Standards` and `Spec` headings when the
+review surface supports them. Inline comments should lead directly with the problem rather than
+an axis label. Do not let success on one axis hide problems on the other.
 
 ## Standards review
 
