@@ -20,7 +20,14 @@ export type ResourceOption = {
 	resourceId: string;
 };
 
-export const useResourceOptions = (): { resourceOptions: ResourceOption[] } => {
+export type UseResourceOptionsParams = {
+	/** Whether to fetch the potentially large deployment resource list. */
+	deploymentsEnabled?: boolean;
+};
+
+export const useResourceOptions = ({
+	deploymentsEnabled = true,
+}: UseResourceOptionsParams = {}): { resourceOptions: ResourceOption[] } => {
 	const [
 		{ data: automations },
 		{ data: blocks },
@@ -32,7 +39,9 @@ export const useResourceOptions = (): { resourceOptions: ResourceOption[] } => {
 		queries: [
 			buildListAutomationsQuery(),
 			buildListFilterBlockDocumentsQuery(),
-			buildFilterDeploymentsQuery(),
+			buildFilterDeploymentsQuery(undefined, {
+				enabled: deploymentsEnabled,
+			}),
 			buildListFlowsQuery(),
 			buildFilterWorkPoolsQuery(),
 			buildFilterWorkQueuesQuery(),

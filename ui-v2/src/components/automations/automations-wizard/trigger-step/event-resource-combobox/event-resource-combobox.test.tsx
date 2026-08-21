@@ -41,6 +41,8 @@ const MOCK_WORK_QUEUES = [
 	createFakeWorkQueue({ id: "work-queue-2", name: "Test Work Queue 2" }),
 ];
 
+let deploymentFilterRequestCount = 0;
+
 const mockResourceAPIs = () => {
 	server.use(
 		http.post(buildApiUrl("/automations/filter"), () => {
@@ -50,6 +52,7 @@ const mockResourceAPIs = () => {
 			return HttpResponse.json(MOCK_BLOCKS);
 		}),
 		http.post(buildApiUrl("/deployments/filter"), () => {
+			deploymentFilterRequestCount += 1;
 			return HttpResponse.json(MOCK_DEPLOYMENTS);
 		}),
 		http.post(buildApiUrl("/flows/filter"), () => {
@@ -73,6 +76,7 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
+	deploymentFilterRequestCount = 0;
 	mockResourceAPIs();
 });
 
@@ -103,6 +107,25 @@ describe("EventResourceCombobox", () => {
 
 		await waitFor(() => {
 			expect(screen.getByText("Select resources")).toBeInTheDocument();
+		});
+	});
+
+	it("loads deployments only after the dropdown is opened", async () => {
+		const user = userEvent.setup();
+		render(
+			<EventResourceCombobox
+				selectedResourceIds={[]}
+				onToggleResource={vi.fn()}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		expect(deploymentFilterRequestCount).toBe(0);
+
+		await user.click(await screen.findByRole("button"));
+
+		await waitFor(() => {
+			expect(deploymentFilterRequestCount).toBe(1);
 		});
 	});
 
