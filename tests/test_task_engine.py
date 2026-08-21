@@ -3,6 +3,7 @@ import concurrent.futures
 import logging
 import os
 import random
+import signal
 import time
 from datetime import timedelta
 from pathlib import Path
@@ -28,7 +29,13 @@ from prefect.context import (
     TaskRunContext,
     get_run_context,
 )
-from prefect.exceptions import CrashedRun, MissingResult, Pause, PrefectException
+from prefect.exceptions import (
+    CrashedRun,
+    MissingResult,
+    Pause,
+    PrefectException,
+    TerminationSignal,
+)
 from prefect.filesystems import LocalFileSystem
 from prefect.flow_engine import run_flow_async, run_flow_sync
 from prefect.flow_runs import suspend_flow_run
@@ -1480,6 +1487,40 @@ class TestTaskCrashDetection:
         assert "Execution was aborted" in task_run.state.message
         with pytest.raises(CrashedRun, match="Execution was aborted"):
             await task_run.state.result()
+
+    async def test_termination_signal_during_task_run_creation_propagates_sync(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """A SIGTERM that lands before the task run exists must reach the flow engine
+        as a `TerminationSignal`, so it dispatches on the supervisor's intent instead
+        of reporting a plain failure."""
+        monkeypatch.setattr(
+            "prefect.task_engine._create_task_run_locally",
+            MagicMock(side_effect=TerminationSignal(signal=signal.SIGTERM)),
+        )
+
+        @task
+        def my_task():
+            pass
+
+        with pytest.raises(TerminationSignal):
+            my_task()
+
+    async def test_termination_signal_during_task_run_creation_propagates_async(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setattr(
+            Task,
+            "create_local_run",
+            AsyncMock(side_effect=TerminationSignal(signal=signal.SIGTERM)),
+        )
+
+        @task
+        async def my_task():
+            pass
+
+        with pytest.raises(TerminationSignal):
+            await my_task()
 
 
 class TestTaskTimeTracking:

@@ -746,7 +746,9 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         state = exception_to_crashed_state_sync(exc)
         self.logger.error(f"Crash detected! {state.message}")
         self.logger.debug("Crash details:", exc_info=exc)
-        self.set_state(state, force=True)
+        # A crash during task run creation leaves no run to transition.
+        if self.task_run:
+            self.set_state(state, force=True)
         self._raised = exc
         self._telemetry.record_exception(exc)
         self._telemetry.end_span_on_failure(state.message if state else None)
@@ -1375,7 +1377,9 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
         state = await exception_to_crashed_state(exc)
         self.logger.error(f"Crash detected! {state.message}")
         self.logger.debug("Crash details:", exc_info=exc)
-        await self.set_state(state, force=True)
+        # A crash during task run creation leaves no run to transition.
+        if self.task_run:
+            await self.set_state(state, force=True)
         self._raised = exc
 
         self._telemetry.record_exception(exc)

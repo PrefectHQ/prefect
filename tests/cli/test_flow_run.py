@@ -4,9 +4,10 @@ import json
 import os
 import signal
 import subprocess
+from contextlib import contextmanager
 from pathlib import Path
 from time import sleep
-from typing import Any, Awaitable, Callable
+from typing import Any, Awaitable, Callable, Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 from uuid import UUID, uuid4
 
@@ -17,8 +18,8 @@ import prefect.exceptions
 from prefect import __development_base_path__, flow
 from prefect.cli.flow_run import LOGS_WITH_LIMIT_FLAG_DEFAULT_NUM_LOGS, execute
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient
-from prefect.client.schemas.actions import LogCreate
-from prefect.client.schemas.objects import FlowRun
+from prefect.client.schemas.actions import LogCreate, WorkPoolCreate
+from prefect.client.schemas.objects import FlowRun, FlowRunPolicy
 from prefect.deployments.runner import RunnerDeployment
 from prefect.runner._control_channel import ControlChannel, ControlSignalStatus
 from prefect.runner._flow_run_executor import FlowRunExecutorContext
@@ -1901,6 +1902,38 @@ class TestFlowRunExecute:
         assert not workspace_path[0].exists()
 
 
+@contextmanager
+def sigterm_during_submit(
+    signal_status: ControlSignalStatus,
+    *,
+    kill: AsyncMock | None = None,
+    propose: AsyncMock | None = None,
+) -> Iterator[None]:
+    """Deliver the SIGTERM `execute` handles while its executor is submitting,
+    with the engine answering the control signal with `signal_status`."""
+    handlers: list[Callable[[], None]] = []
+
+    def capture_install(handler: Callable[[], None]) -> bool:
+        handlers.append(handler)
+        return True
+
+    async def fake_submit(*_: Any, **__: Any) -> None:
+        handlers[0]()
+        await anyio.sleep(0)
+
+    with (
+        patch(
+            "prefect.cli.flow_run._install_termination_handler",
+            side_effect=capture_install,
+        ),
+        patch.object(ControlChannel, "signal", AsyncMock(return_value=signal_status)),
+        patch.object(ProcessManager, "kill", kill or AsyncMock()),
+        patch("prefect.cli.flow_run.propose_state", propose or AsyncMock()),
+        patch("prefect.runner._flow_run_executor.FlowRunExecutor.submit", fake_submit),
+    ):
+        yield
+
+
 class TestSignalHandling:
     @pytest.mark.parametrize("sigterm_handling", ["reschedule", "relinquish", None])
     async def test_flow_run_execute_sigterm_handling(
@@ -2042,38 +2075,185 @@ class TestSignalHandling:
             deployment_id=deployment_id
         )
 
-        handlers: list[Callable[[], None]] = []
         kill = AsyncMock()
         propose = AsyncMock()
 
-        def capture_install(handler: Callable[[], None]) -> bool:
-            handlers.append(handler)
-            return True
-
-        async def fake_submit(*_: Any, **__: Any) -> None:
-            handlers[0]()
-            await anyio.sleep(0)
-
-        with (
-            patch(
-                "prefect.cli.flow_run._install_termination_handler",
-                side_effect=capture_install,
-            ),
-            patch.object(
-                ControlChannel,
-                "signal",
-                AsyncMock(return_value=ControlSignalStatus.ALREADY_CONCLUDED),
-            ),
-            patch.object(ProcessManager, "kill", kill),
-            patch("prefect.cli.flow_run.propose_state", propose),
-            patch(
-                "prefect.runner._flow_run_executor.FlowRunExecutor.submit", fake_submit
-            ),
+        with sigterm_during_submit(
+            ControlSignalStatus.ALREADY_CONCLUDED, kill=kill, propose=propose
         ):
             await execute(id=flow_run.id)
 
         kill.assert_not_awaited()
         propose.assert_not_awaited()
+
+    @pytest.mark.parametrize(
+        "signal_status",
+        [ControlSignalStatus.ACKNOWLEDGED, ControlSignalStatus.ALREADY_CONCLUDED],
+    )
+    async def test_reschedule_releases_an_in_process_retry(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        prefect_client: PrefectClient,
+        signal_status: ControlSignalStatus,
+    ):
+        """A `Failed` report racing the SIGTERM leaves the run in `AwaitingRetry` with
+        an in-process retry claimed by this dying process, which workers skip. The
+        supervisor must hand that retry back so a worker picks the run up."""
+        monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
+
+        work_pool = await prefect_client.create_work_pool(
+            WorkPoolCreate(name=f"pool-{uuid4()}", type="test")
+        )
+        deployment_id = await (
+            await hello_flow.to_deployment(__file__, work_pool_name=work_pool.name)
+        ).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        await prefect_client.update_flow_run(
+            flow_run.id, empirical_policy=FlowRunPolicy(retries=1, retry_delay=0)
+        )
+        await prefect_client.set_flow_run_state(flow_run.id, Running())
+
+        # the engine's report, which the server turns into an in-process retry
+        await prefect_client.set_flow_run_state(flow_run.id, Failed())
+        run = await prefect_client.read_flow_run(flow_run.id)
+        assert run.empirical_policy.retry_type == "in_process"
+        assert run.state and run.state.name == "AwaitingRetry"
+
+        propose = AsyncMock()
+
+        with sigterm_during_submit(signal_status, propose=propose):
+            if signal_status is ControlSignalStatus.ALREADY_CONCLUDED:
+                await execute(id=flow_run.id)
+            else:
+                with pytest.raises(SystemExit):
+                    await execute(id=flow_run.id)
+
+        if signal_status is ControlSignalStatus.ALREADY_CONCLUDED:
+            propose.assert_not_awaited()
+
+        run = await prefect_client.read_flow_run(flow_run.id)
+        assert run.state and run.state.is_scheduled()
+        assert run.empirical_policy.retry_type != "in_process"
+
+        pollable = await prefect_client.get_scheduled_flow_runs_for_work_pool(
+            work_pool.name
+        )
+        assert flow_run.id in [response.flow_run.id for response in pollable], (
+            "the released run must be pollable by a worker"
+        )
+
+    async def test_reschedule_hands_over_a_run_the_engine_left_running(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        prefect_client: PrefectClient,
+    ):
+        """An engine killed before it could report leaves the run running with the
+        retry still claimed, so the handoff schedules it for a worker."""
+        monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
+
+        deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        await prefect_client.update_flow_run(
+            flow_run.id,
+            empirical_policy=FlowRunPolicy(retries=1, retry_type="in_process"),
+        )
+        await prefect_client.set_flow_run_state(flow_run.id, Running())
+
+        with sigterm_during_submit(ControlSignalStatus.ALREADY_CONCLUDED):
+            await execute(id=flow_run.id)
+
+        run = await prefect_client.read_flow_run(flow_run.id)
+        assert run.state and run.state.is_scheduled()
+        assert run.empirical_policy.retry_type == "reschedule"
+
+    async def test_reschedule_fences_a_report_from_the_killed_engine(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        prefect_client: PrefectClient,
+    ):
+        """An engine that never acknowledged the intent may already have a `Failed`
+        report in flight when it is killed. Committing that report after the handoff
+        would claim the retry for the dead process, so the server rejects it."""
+        monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
+
+        work_pool = await prefect_client.create_work_pool(
+            WorkPoolCreate(name=f"pool-{uuid4()}", type="test")
+        )
+        deployment_id = await (
+            await hello_flow.to_deployment(__file__, work_pool_name=work_pool.name)
+        ).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        await prefect_client.update_flow_run(
+            flow_run.id, empirical_policy=FlowRunPolicy(retries=1, retry_delay=0)
+        )
+        await prefect_client.set_flow_run_state(flow_run.id, Running())
+
+        # the reschedule proposal races the engine's report and does not land
+        with (
+            sigterm_during_submit(
+                ControlSignalStatus.NOT_ACKNOWLEDGED, propose=AsyncMock()
+            ),
+            pytest.raises(SystemExit) as exit_info,
+        ):
+            await execute(id=flow_run.id)
+
+        assert exit_info.value.code == 0
+
+        # the report the killed engine had already sent, committing late
+        await prefect_client.set_flow_run_state(flow_run.id, Failed())
+
+        run = await prefect_client.read_flow_run(flow_run.id)
+        assert run.state and run.state.is_scheduled()
+        assert run.empirical_policy.retry_type == "reschedule"
+
+        pollable = await prefect_client.get_scheduled_flow_runs_for_work_pool(
+            work_pool.name
+        )
+        assert flow_run.id in [response.flow_run.id for response in pollable], (
+            "the released run must stay pollable by a worker"
+        )
+
+    async def test_reschedule_fails_when_the_retry_cannot_be_released(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        prefect_client: PrefectClient,
+        capsys: pytest.CaptureFixture[str],
+    ):
+        """A run left claimed by this dying process is stranded, so the command must
+        exit non-zero instead of reporting a successful reschedule."""
+        monkeypatch.setenv("PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR", "reschedule")
+
+        deployment_id = await (await hello_flow.to_deployment(__file__)).apply()
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            deployment_id=deployment_id
+        )
+        await prefect_client.update_flow_run(
+            flow_run.id, empirical_policy=FlowRunPolicy(retries=1, retry_delay=0)
+        )
+        await prefect_client.set_flow_run_state(flow_run.id, Running())
+        await prefect_client.set_flow_run_state(flow_run.id, Failed())
+
+        async def failing_release(*_: Any, **__: Any) -> None:
+            raise RuntimeError("the API is down")
+
+        with (
+            sigterm_during_submit(ControlSignalStatus.ACKNOWLEDGED),
+            patch.object(PrefectClient, "release_flow_run_retry", failing_release),
+            pytest.raises(SystemExit) as exit_info,
+        ):
+            await execute(id=flow_run.id)
+
+        assert exit_info.value.code != 0
+        assert "successfully rescheduled" not in capsys.readouterr().out
+
+        run = await prefect_client.read_flow_run(flow_run.id)
+        assert run.empirical_policy.retry_type == "in_process"
 
     async def test_termination_handler_installed_even_when_submit_exits_early(
         self,

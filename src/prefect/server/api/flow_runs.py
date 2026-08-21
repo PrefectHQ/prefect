@@ -36,7 +36,7 @@ from prefect.server.api.run_history import run_history
 from prefect.server.api.validation import validate_job_variables_for_deployment_flow_run
 from prefect.server.api.workers import WorkerLookups
 from prefect.server.database import PrefectDBInterface, provide_database_interface
-from prefect.server.exceptions import FlowRunGraphTooLarge
+from prefect.server.exceptions import FlowRunGraphTooLarge, ObjectNotFoundError
 from prefect.server.models.flow_runs import (
     DependencyResult,
     read_flow_run_graph,
@@ -234,6 +234,32 @@ async def update_flow_run(
         )
     if not result:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Flow run not found")
+
+
+@router.post("/{id:uuid}/release_retry", status_code=status.HTTP_204_NO_CONTENT)
+async def release_flow_run_retry(
+    flow_run_id: UUID = Path(..., description="The flow run id", alias="id"),
+    db: PrefectDBInterface = Depends(provide_database_interface),
+) -> None:
+    """
+    Hand a flow run's pending retry to the workers.
+
+    A retry claimed by a process that is no longer running is released, and an
+    attempt abandoned before it concluded is scheduled, so that a worker can pick
+    the run up. Returns a conflict if the retry could not be handed over.
+    """
+    async with db.session_context(begin_transaction=True) as session:
+        try:
+            released = await models.flow_runs.release_retry_to_workers(
+                session=session, flow_run_id=flow_run_id
+            )
+        except ObjectNotFoundError:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Flow run not found")
+    if not released:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail="Flow run's retry could not be released to the workers",
+        )
 
 
 @router.post("/count")
