@@ -9,11 +9,12 @@ import sys
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from typing import Protocol, Self
+from typing import Protocol
 from uuid import UUID
 
 import anyio
 import anyio.abc
+from typing_extensions import Self
 
 from prefect.logging import get_logger
 

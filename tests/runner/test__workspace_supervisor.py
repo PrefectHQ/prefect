@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import signal
+import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 from uuid import uuid4
@@ -21,14 +22,26 @@ from prefect.utilities.processutils import get_sys_executable
 pytestmark = pytest.mark.clear_db
 
 
-class FakeProcess:
-    returncode = 0
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX process handoff")
+async def test_engine_launch_replaces_supervisor_process(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    chdir = MagicMock()
+    execvpe = MagicMock(side_effect=RuntimeError("exec called"))
+    monkeypatch.setattr(_workspace_supervisor.os, "chdir", chdir)
+    monkeypatch.setattr(_workspace_supervisor.os, "execvpe", execvpe)
 
-    async def wait(self) -> int:
-        return self.returncode
+    command = ["/project/bin/python", "-m", "prefect.flow_engine"]
+    environment = {"PATH": "/project/bin"}
+    with pytest.raises(RuntimeError, match="exec called"):
+        await _workspace_supervisor._launch_engine(
+            command,
+            cwd=tmp_path,
+            environment=environment,
+        )
 
-    async def aclose(self) -> None:
-        pass
+    chdir.assert_called_once_with(tmp_path)
+    execvpe.assert_called_once_with(command[0], command, environment)
 
 
 def _workspace(tmp_path: Path) -> PreparedWorkspace:
@@ -66,17 +79,19 @@ async def test_supervisor_selects_uv_after_workspace_preparation(
     prepare = AsyncMock(return_value=workspace)
     captured: dict[str, object] = {}
 
-    async def open_process(command: list[str], **kwargs: object) -> FakeProcess:
+    async def launch_engine(
+        command: list[str], *, cwd: Path, environment: dict[str, str]
+    ) -> int:
         captured["command"] = command
-        captured["kwargs"] = kwargs
-        return FakeProcess()
+        captured["kwargs"] = {"cwd": cwd, "env": environment}
+        return 0
 
     monkeypatch.setattr(
         "prefect.runner._workspace_supervisor.prepare_workspace_for_flow_run",
         prepare,
     )
     monkeypatch.setattr(
-        "prefect.runner._workspace_supervisor.anyio.open_process", open_process
+        "prefect.runner._workspace_supervisor._launch_engine", launch_engine
     )
     monkeypatch.setattr(
         "prefect.runner._uv_command.shutil.which",
@@ -148,17 +163,19 @@ async def test_supervisor_restores_runner_owned_environment_after_preparation(
     )
     captured: dict[str, object] = {}
 
-    async def open_process(command: list[str], **kwargs: object) -> FakeProcess:
+    async def launch_engine(
+        command: list[str], *, cwd: Path, environment: dict[str, str]
+    ) -> int:
         captured["command"] = command
-        captured["kwargs"] = kwargs
-        return FakeProcess()
+        captured["kwargs"] = {"cwd": cwd, "env": environment}
+        return 0
 
     monkeypatch.setattr(
         "prefect.runner._workspace_supervisor.prepare_workspace_for_flow_run",
         AsyncMock(return_value=workspace),
     )
     monkeypatch.setattr(
-        "prefect.runner._workspace_supervisor.anyio.open_process", open_process
+        "prefect.runner._workspace_supervisor._launch_engine", launch_engine
     )
     monkeypatch.setattr(
         "prefect.runner._uv_command.shutil.which",
@@ -191,16 +208,18 @@ async def test_supervisor_preserves_explicit_command(
     workspace = _workspace(tmp_path)
     captured: dict[str, object] = {}
 
-    async def open_process(command: list[str], **kwargs: object) -> FakeProcess:
+    async def launch_engine(
+        command: list[str], *, cwd: Path, environment: dict[str, str]
+    ) -> int:
         captured["command"] = command
-        return FakeProcess()
+        return 0
 
     monkeypatch.setattr(
         "prefect.runner._workspace_supervisor.prepare_workspace_for_flow_run",
         AsyncMock(return_value=workspace),
     )
     monkeypatch.setattr(
-        "prefect.runner._workspace_supervisor.anyio.open_process", open_process
+        "prefect.runner._workspace_supervisor._launch_engine", launch_engine
     )
     config = WorkspaceSupervisorConfig(
         flow_run_id=uuid4(),

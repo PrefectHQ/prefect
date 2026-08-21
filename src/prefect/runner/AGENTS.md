@@ -45,7 +45,7 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 - `execute_bundle()` -- deprecated (Mar 2026); use `execute_bundle()` from `prefect.bundles.execute`
 - `reschedule_current_flow_runs()` -- deprecated (Mar 2026); SIGTERM rescheduling is now handled inline by the CLI execute path
 
-These will be removed once internal callers are migrated. Direct ProcessWorker flow runs already use `FlowRunExecutorContext` with `WorkspaceResolvingEngineCommandStarter`; only its ad hoc bundle path still calls deprecated `Runner.execute_bundle()`. Keep lifecycle behavior in the extracted classes and do not route direct worker execution back through Runner.
+These will be removed once internal callers are migrated. Direct ProcessWorker flow runs already use `FlowRunExecutorContext`; generated commands use `WorkspaceResolvingEngineCommandStarter`, while explicitly configured commands use `EngineCommandStarter`. Only the ad hoc bundle path still calls deprecated `Runner.execute_bundle()`. Keep lifecycle behavior in the extracted classes and do not route direct worker execution back through Runner.
 
 ## EventEmitter WebSocket Degradation
 
@@ -108,7 +108,7 @@ The cancelling precheck (step 1a) still runs unconditionally even when `propose_
 
 ## ProcessWorker Execution Paths
 
-Direct ProcessWorker runs use `FlowRunExecutorContext` with `WorkspaceResolvingEngineCommandStarter` and `propose_submitting=False`. The executor owns process tracking, cancellation, Attempt Control Session evidence, crash inference, and normalized infrastructure status. Ad hoc ProcessWorker submissions still call deprecated `Runner.execute_bundle()` and remain a migration target.
+Direct ProcessWorker runs use `FlowRunExecutorContext` with `propose_submitting=False`. Generated commands use `WorkspaceResolvingEngineCommandStarter` so command selection follows workspace preparation; explicitly configured commands use `EngineCommandStarter` and retain their own pull-step semantics. The executor owns process tracking, cancellation, Attempt Control Session evidence, crash inference, and normalized infrastructure status. Ad hoc ProcessWorker submissions still call deprecated `Runner.execute_bundle()` and remain a migration target.
 
 ## BlockStorageAdapter Pull Behavior
 
@@ -137,7 +137,7 @@ These validations exist to prevent git argument injection. Do not bypass them wh
 
 **Stdout is reserved for the JSON `PreparedWorkspaceResult` payload only.** Pull step output (including inherited stdout from child processes) is redirected to stderr. Parse `process.stdout` for the result, `process.stderr` for diagnostics. Violating this breaks callers silently.
 
-**Caller-facing API:** Use `WorkspaceResolvingEngineCommandStarter` (`_workspace_starter.py`) rather than calling the resolver directly. Pass `starter.hook_runner` as the `hook_runner` argument to `FlowRunExecutorContext.create_executor()`. The hook runner reads the prepared runtime manifest and loads hooks in a subprocess using the same command prefix, working directory, and environment as the engine.
+**Caller-facing API:** Use `WorkspaceResolvingEngineCommandStarter` (`_workspace_starter.py`) rather than calling the resolver directly when the caller owns workspace preparation. Pass `starter.hook_runner` as the `hook_runner` argument to `FlowRunExecutorContext.create_executor()`. The hook runner reads the prepared runtime manifest and loads hooks in a subprocess using the same command prefix, working directory, and environment as the engine. Treat explicitly configured commands as opaque; ProcessWorker launches them with `EngineCommandStarter` so their existing pull behavior is not duplicated.
 
 **Environment isolation:** Workspace preparation, engine execution, and hook loading stay in child processes. Do not install a prepared workspace's environment, CWD, or `sys.path` in the long-lived runner process.
 

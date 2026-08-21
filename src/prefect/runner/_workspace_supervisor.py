@@ -87,6 +87,31 @@ def _restore_signal_handlers(previous: dict[int, signal.Handlers]) -> None:
         signal.signal(handled_signal, handler)
 
 
+async def _launch_engine(
+    command: list[str], *, cwd: Path, environment: dict[str, str]
+) -> int:
+    if sys.platform != "win32":
+        # Keep the infrastructure PID and process group stable so targeted and
+        # group-wide signals reach the engine after workspace preparation.
+        os.chdir(cwd)
+        os.execvpe(command[0], command, environment)
+
+    process = await anyio.open_process(
+        command,
+        cwd=cwd,
+        env=environment,
+        stdin=None,
+        stdout=None,
+        stderr=None,
+    )
+    previous_handlers = _install_engine_signal_handlers()
+    try:
+        return await process.wait()
+    finally:
+        _restore_signal_handlers(previous_handlers)
+        await process.aclose()
+
+
 async def supervise(config: WorkspaceSupervisorConfig) -> int:
     runner_environment = {
         key: value for key, value in os.environ.items() if key in _RUNNER_OWNED_ENV_KEYS
@@ -120,20 +145,11 @@ async def supervise(config: WorkspaceSupervisorConfig) -> int:
     write_private_model(config.manifest_path, manifest)
 
     await APILogHandler.aflush()
-    process = await anyio.open_process(
+    return await _launch_engine(
         command,
         cwd=workspace.working_directory,
-        env=environment,
-        stdin=None,
-        stdout=None,
-        stderr=None,
+        environment=environment,
     )
-    previous_handlers = _install_engine_signal_handlers()
-    try:
-        return await process.wait()
-    finally:
-        _restore_signal_handlers(previous_handlers)
-        await process.aclose()
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:

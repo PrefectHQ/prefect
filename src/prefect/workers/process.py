@@ -29,11 +29,13 @@ from pydantic import Field, PrivateAttr, field_validator
 
 from prefect._internal.schemas.validators import validate_working_dir
 from prefect.client.schemas.objects import Flow as APIFlow
+from prefect.flows import load_flow_from_flow_run
 from prefect.runner._flow_run_executor import (
     FlowRunExecutionResult,
     FlowRunExecutorContext,
 )
 from prefect.runner._process_manager import ProcessHandle
+from prefect.runner._starter_engine import EngineCommandStarter
 from prefect.runner._workspace_starter import WorkspaceResolvingEngineCommandStarter
 from prefect.runner.runner import Runner
 from prefect.states import Pending
@@ -162,25 +164,36 @@ class ProcessWorker(
             warnings.simplefilter("ignore", DeprecationWarning)
             async with FlowRunExecutorContext() as ctx:
                 workspace_root = Path(working_dir).resolve()
-                starter = WorkspaceResolvingEngineCommandStarter(
-                    workspace_root=workspace_root,
-                    command=(
-                        configuration.command
-                        if configuration._command_configured
-                        else None
-                    ),
-                    stream_output=configuration.stream_output,
-                    control_channel=ctx.control_channel,
-                    source_cwd=workspace_root,
-                    environment=configuration.env,
-                )
-                ctx.call_after_exit(starter.close)
-                executor = ctx.create_executor(
-                    flow_run,
-                    starter,
-                    propose_submitting=False,
-                    hook_runner=starter.hook_runner,
-                )
+                if configuration._command_configured:
+                    starter = EngineCommandStarter(
+                        command=configuration.command,
+                        cwd=workspace_root,
+                        env=configuration.env,
+                        stream_output=configuration.stream_output,
+                        control_channel=ctx.control_channel,
+                    )
+                    executor = ctx.create_executor(
+                        flow_run,
+                        starter,
+                        resolve_flow=load_flow_from_flow_run,
+                        propose_submitting=False,
+                    )
+                else:
+                    workspace_starter = WorkspaceResolvingEngineCommandStarter(
+                        workspace_root=workspace_root,
+                        command=None,
+                        stream_output=configuration.stream_output,
+                        control_channel=ctx.control_channel,
+                        source_cwd=workspace_root,
+                        environment=configuration.env,
+                    )
+                    ctx.call_after_exit(workspace_starter.close)
+                    executor = ctx.create_executor(
+                        flow_run,
+                        workspace_starter,
+                        propose_submitting=False,
+                        hook_runner=workspace_starter.hook_runner,
+                    )
                 execution: FlowRunExecutionResult | None = None
 
                 async def execute(
