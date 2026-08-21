@@ -1,9 +1,13 @@
+import json
 import os
 from io import BytesIO
 from pathlib import Path, PurePosixPath
+from unittest.mock import MagicMock
 
 import pandas as pd
 import pytest
+from google.auth.credentials import AnonymousCredentials
+from google.cloud.storage import Client
 from prefect_gcp.cloud_storage import (
     GcsBucket,
     cloud_storage_copy_blob,
@@ -13,6 +17,7 @@ from prefect_gcp.cloud_storage import (
     cloud_storage_upload_blob_from_file,
     cloud_storage_upload_blob_from_string,
 )
+from prefect_gcp.credentials import GcpCredentials
 
 from prefect import flow
 
@@ -641,3 +646,133 @@ class TestGcsBucket:
             from_file_object=BytesIO(b"test_data"), to_path=already_prefixed_path
         )
         assert upload_path == "alpha/some_file.txt"
+
+
+class TestRequesterPays:
+    """
+    Requester pays buckets require a billing project to be sent as the
+    `userProject` query parameter on every request against the bucket.
+    """
+
+    @staticmethod
+    def _client(requested_urls: list) -> Client:
+        """
+        A real storage client with only its HTTP boundary mocked, recording the
+        URL of every request it makes.
+        """
+        http = MagicMock()
+        payload = {"name": "my-bucket", "items": []}
+
+        def request(*args, **kwargs):
+            # the JSON API passes the URL as a keyword, media transfers pass
+            # (method, url) positionally
+            requested_urls.append(kwargs["url"] if "url" in kwargs else args[1])
+            response = MagicMock()
+            response.status_code = 200
+            response.headers = {"content-type": "application/json"}
+            response.content = json.dumps(payload).encode()
+            response.json.return_value = payload
+            return response
+
+        http.request.side_effect = request
+        client = Client(
+            project="storage-project",
+            credentials=AnonymousCredentials(),
+            _http=http,
+        )
+        # the client's observability cache fetches bucket metadata in a
+        # background thread, which would add unrelated requests
+        client._bucket_metadata_cache = None
+        return client
+
+    @pytest.fixture
+    def requested_urls(self) -> list:
+        return []
+
+    @pytest.fixture
+    def credentials(self, requested_urls):
+        # a local credentials mock; the shared `gcp_credentials` fixture patches
+        # `google.auth`, which prevents constructing a real storage client
+        credentials = MagicMock(spec=GcpCredentials)
+        credentials.project = "storage-project"
+        credentials.service_account_info = None
+        credentials.service_account_file = None
+        credentials.get_cloud_storage_client.return_value = self._client(requested_urls)
+        return credentials
+
+    @pytest.fixture
+    def gcs_bucket(self, credentials):
+        return GcsBucket(
+            bucket="my-bucket",
+            gcp_credentials=credentials,
+            user_project="billing-project",
+        )
+
+    @staticmethod
+    def _assert_billed(requested_urls):
+        assert requested_urls
+        assert all("userProject=billing-project" in url for url in requested_urls)
+
+    def test_direct_client_bills_user_project(self, requested_urls):
+        client = self._client(requested_urls)
+
+        client.get_bucket(client.bucket("my-bucket", user_project="billing-project"))
+
+        expected_url = (
+            "https://storage.mtls.googleapis.com/storage/v1/b/my-bucket"
+            "?userProject=billing-project&projection=noAcl&prettyPrint=false"
+        )
+        assert requested_urls == [expected_url]
+
+    def test_get_bucket(self, gcs_bucket, requested_urls):
+        gcs_bucket.get_bucket()
+        self._assert_billed(requested_urls)
+
+    async def test_aget_bucket(self, gcs_bucket, requested_urls):
+        await gcs_bucket.aget_bucket()
+        self._assert_billed(requested_urls)
+
+    def test_list_blobs(self, gcs_bucket, requested_urls):
+        gcs_bucket.list_blobs()
+        self._assert_billed(requested_urls)
+
+    async def test_alist_blobs(self, gcs_bucket, requested_urls):
+        await gcs_bucket.alist_blobs()
+        self._assert_billed(requested_urls)
+
+    def test_read_path(self, gcs_bucket, requested_urls):
+        gcs_bucket.read_path("notes.txt")
+        self._assert_billed(requested_urls)
+
+    async def test_aread_path(self, gcs_bucket, requested_urls):
+        await gcs_bucket.aread_path("notes.txt")
+        self._assert_billed(requested_urls)
+
+    def test_write_path(self, gcs_bucket, requested_urls):
+        gcs_bucket.write_path("notes.txt", b"contents")
+        self._assert_billed(requested_urls)
+
+    async def test_awrite_path(self, gcs_bucket, requested_urls):
+        await gcs_bucket.awrite_path("notes.txt", b"contents")
+        self._assert_billed(requested_urls)
+
+    def test_upload_from_path(self, gcs_bucket, requested_urls, tmp_path):
+        local_file = tmp_path / "notes.txt"
+        local_file.write_bytes(b"contents")
+
+        gcs_bucket.upload_from_path(local_file)
+        self._assert_billed(requested_urls)
+
+    def test_download_object_to_path(self, gcs_bucket, requested_urls, tmp_path):
+        gcs_bucket.download_object_to_path("notes.txt", tmp_path / "notes.txt")
+        self._assert_billed(requested_urls)
+
+    def test_user_project_omitted_when_unset(self, credentials, requested_urls):
+        gcs_bucket = GcsBucket(bucket="my-bucket", gcp_credentials=credentials)
+
+        gcs_bucket.get_bucket()
+        gcs_bucket.list_blobs()
+        gcs_bucket.read_path("notes.txt")
+
+        assert requested_urls
+        assert all("userProject" not in url for url in requested_urls)
