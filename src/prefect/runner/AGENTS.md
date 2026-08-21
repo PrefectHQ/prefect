@@ -23,7 +23,7 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 | FlowRunExecutorContext | _flow_run_executor.py | Async context manager for one-shot execution outside Runner (workers, CLI, bundles) |
 | DirectSubprocessStarter | _starter_direct.py | Runs Flow object via run_flow_in_subprocess |
 | EngineCommandStarter | _starter_engine.py | Spawns `python -m prefect.engine` subprocess |
-| WorkspaceResolvingEngineCommandStarter | _workspace_starter.py | Resolves workspace (pull steps) via `_workspace_resolver` subprocess then delegates to EngineCommandStarter; used by `prefect flow-run execute` |
+| WorkspaceResolvingEngineCommandStarter | _workspace_starter.py | Starts a managed supervisor that prepares the workspace, launches the selected engine command, and records the prepared runtime for hooks |
 | BundleExecutionStarter | _starter_bundle.py | Executes serialized bundle in SpawnProcess |
 
 ## Key Contracts
@@ -45,7 +45,7 @@ Thin facade over single-responsibility extracted classes. New behavior belongs i
 - `execute_bundle()` -- deprecated (Mar 2026); use `execute_bundle()` from `prefect.bundles.execute`
 - `reschedule_current_flow_runs()` -- deprecated (Mar 2026); SIGTERM rescheduling is now handled inline by the CLI execute path
 
-These will be removed once internal callers are migrated. Direct ProcessWorker flow runs already use `FlowRunExecutorContext` with `EngineCommandStarter`; only its ad hoc bundle path still calls deprecated `Runner.execute_bundle()`. Keep lifecycle behavior in the extracted classes and do not route direct worker execution back through Runner.
+These will be removed once internal callers are migrated. Direct ProcessWorker flow runs already use `FlowRunExecutorContext`; generated commands use `WorkspaceResolvingEngineCommandStarter`, while explicitly configured commands use `EngineCommandStarter`. Only the ad hoc bundle path still calls deprecated `Runner.execute_bundle()`. Keep lifecycle behavior in the extracted classes and do not route direct worker execution back through Runner.
 
 ## EventEmitter WebSocket Degradation
 
@@ -108,7 +108,7 @@ The cancelling precheck (step 1a) still runs unconditionally even when `propose_
 
 ## ProcessWorker Execution Paths
 
-Direct ProcessWorker runs use `FlowRunExecutorContext` with `EngineCommandStarter` and `propose_submitting=False`. The executor owns process tracking, cancellation, Attempt Control Session evidence, crash inference, and normalized infrastructure status. Ad hoc ProcessWorker submissions still call deprecated `Runner.execute_bundle()` and remain a migration target.
+Direct ProcessWorker runs use `FlowRunExecutorContext` with `propose_submitting=False`. Generated commands use `WorkspaceResolvingEngineCommandStarter` so command selection follows workspace preparation; explicitly configured commands use `EngineCommandStarter` and retain their own pull-step semantics. The executor owns process tracking, cancellation, Attempt Control Session evidence, crash inference, and normalized infrastructure status. Ad hoc ProcessWorker submissions still call deprecated `Runner.execute_bundle()` and remain a migration target.
 
 ## BlockStorageAdapter Pull Behavior
 
@@ -133,13 +133,13 @@ These validations exist to prevent git argument injection. Do not bypass them wh
 
 ## Workspace Resolver Subprocess
 
-`_workspace_resolver.py` prepares a flow run workspace in an isolated subprocess (storage pull, pull steps, CWD/env/sys.path capture). Runs as `python -m prefect.runner._workspace_resolver`.
+`_workspace_resolver.py` prepares a flow run workspace inside the managed workspace supervisor (storage pull, pull steps, and CWD/environment/sys.path capture).
 
 **Stdout is reserved for the JSON `PreparedWorkspaceResult` payload only.** Pull step output (including inherited stdout from child processes) is redirected to stderr. Parse `process.stdout` for the result, `process.stderr` for diagnostics. Violating this breaks callers silently.
 
-**Caller-facing API:** Use `WorkspaceResolvingEngineCommandStarter` (`_workspace_starter.py`) rather than calling the resolver directly. It wraps the subprocess call, memoizes the resolved workspace (one subprocess call per starter instance), and provides `resolve_flow()` that loads the flow inside the resolved workspace context. Pass `starter.resolve_flow` as the `resolve_flow` argument to `FlowRunExecutorContext.create_executor()` — using a separate lambda bypasses the workspace context and will fail to find the flow.
+**Caller-facing API:** Use `WorkspaceResolvingEngineCommandStarter` (`_workspace_starter.py`) rather than calling the resolver directly when the caller owns workspace preparation. Pass `starter.hook_runner` as the `hook_runner` argument to `FlowRunExecutorContext.create_executor()`. The hook runner reads the prepared runtime manifest and loads hooks in a subprocess using the same command prefix, working directory, and environment as the engine. Treat explicitly configured commands as opaque; ProcessWorker launches them with `EngineCommandStarter` so their existing pull behavior is not duplicated.
 
-**Env/sys.path isolation:** `_prepared_workspace_context` mutates `os.environ` and `sys.path` in the caller process but does NOT change `os.getcwd()`. The parent working directory is preserved.
+**Environment isolation:** Workspace preparation, engine execution, and hook loading stay in child processes. Do not install a prepared workspace's environment, CWD, or `sys.path` in the long-lived runner process.
 
 **Local path in-place execution:** When no pull steps are configured and the entrypoint file exists at `deployment.path` but not in the workspace root, `prepare_workspace` sets `working_directory` to the local path — not under `workspace_root`. The workspace directory is still created but is not the execution root. This is the "image-baked" pattern: code lives at a fixed local path (e.g., inside a container), not in object storage.
 
