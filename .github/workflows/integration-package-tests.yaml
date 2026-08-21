@@ -86,7 +86,11 @@ jobs:
 
       - name: Build dev docker image
         if: matrix.package == 'prefect-docker'
-        run: uv run prefect dev build-image
+        run: |
+          TAG="$(uv run python -c 'from prefect.utilities.dockerutils import get_prefect_image_name; print(get_prefect_image_name())')"
+          docker build . --tag "$TAG" --platform "linux/$(uname -m)" \
+            --build-arg PREFECT_EXTRAS=[dev] \
+            --build-arg PYTHON_VERSION="${{ matrix.python-version }}"
 
       - name: Start redis
         if: matrix.package == 'prefect-redis'

@@ -1237,7 +1237,6 @@
                       "v3/api-ref/python/prefect-cli-dashboard",
                       "v3/api-ref/python/prefect-cli-deploy-__init__",
                       "v3/api-ref/python/prefect-cli-deployment",
-                      "v3/api-ref/python/prefect-cli-dev",
                       "v3/api-ref/python/prefect-cli-events",
                       "v3/api-ref/python/prefect-cli-experimental",
                       "v3/api-ref/python/prefect-cli-flow",
