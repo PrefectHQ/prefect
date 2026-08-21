@@ -68,11 +68,11 @@ def test_get_prefect_image_name(
         # Test that local versions still use SHA tagging
         (
             f"3.0.0.dev0+1.g{COMMIT_SHA}",
-            f"prefecthq/prefect:sha-{COMMIT_SHA}-python{PYTHON_VERSION}",
+            f"prefecthq/prefect-dev:sha-{COMMIT_SHA}-python{PYTHON_VERSION}",
         ),
         (
             f"3.0.0a1+1.g{COMMIT_SHA}",
-            f"prefecthq/prefect:sha-{COMMIT_SHA}-python{PYTHON_VERSION}",
+            f"prefecthq/prefect-dev:sha-{COMMIT_SHA}-python{PYTHON_VERSION}",
         ),
         # Test stable versions remain unchanged
         ("3.0.0", f"prefecthq/prefect:3.0.0-python{PYTHON_VERSION}"),
