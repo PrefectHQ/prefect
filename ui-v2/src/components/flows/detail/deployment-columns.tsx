@@ -55,12 +55,12 @@ export const columns: ColumnDef<Deployment>[] = [
 	{
 		accessorKey: "status",
 		header: "Status",
-		cell: ({ row }) => {
-			const status = row.original.paused
-				? "PAUSED"
-				: (row.original.status ?? "NOT_READY");
-			return <StatusBadge status={status} />;
-		},
+		cell: ({ row }) =>
+			row.original.status ? (
+				<StatusBadge status={row.original.status} />
+			) : (
+				<span className="text-muted-foreground text-sm">None</span>
+			),
 	},
 	{
 		accessorKey: "tags",
