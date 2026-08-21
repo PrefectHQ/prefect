@@ -1,15 +1,19 @@
 import json
 import ssl
 import warnings
+from typing import Any, Optional
 from unittest.mock import patch
 
 from websockets.asyncio.client import connect
+from websockets.asyncio.server import ServerConnection, serve
 from websockets.protocol import Subprotocol
 
+import prefect
 from prefect._internal.websockets import (
     create_ssl_context_for_websocket,
     websocket_connect,
 )
+from prefect.client.constants import SERVER_API_VERSION
 from prefect.events.clients import events_in_socket_from_api_url
 from prefect.settings import (
     PREFECT_API_TLS_INSECURE_SKIP_VERIFY,
@@ -77,6 +81,36 @@ def test_websocket_connect_kwargs_preservation():
     assert isinstance(connector, connect)
     # Verify headers are preserved
     assert connector.additional_headers == additional_headers
+
+
+async def handshake_user_agent(**kwargs: Any) -> Optional[str]:
+    """Connect to a local WebSocket server and return the handshake's User-Agent"""
+    captured: list[Optional[str]] = []
+
+    async def handler(websocket: ServerConnection) -> None:
+        captured.append(websocket.request.headers.get("User-Agent"))
+        await websocket.wait_closed()
+
+    async with serve(handler, "127.0.0.1", 0) as server:
+        port = server.sockets[0].getsockname()[1]
+        async with websocket_connect(f"ws://127.0.0.1:{port}/", **kwargs) as websocket:
+            pong = await websocket.ping()
+            await pong
+
+    return captured[0]
+
+
+async def test_websocket_connect_sends_prefect_user_agent():
+    """Test that the handshake carries Prefect's User-Agent so servers can parse
+    the client version"""
+    user_agent = await handshake_user_agent()
+    assert user_agent == f"prefect/{prefect.__version__} (API {SERVER_API_VERSION})"
+
+
+async def test_websocket_connect_user_agent_override():
+    """Test that an explicitly provided user agent is preserved"""
+    user_agent = await handshake_user_agent(user_agent_header="custom-agent")
+    assert user_agent == "custom-agent"
 
 
 def test_create_ssl_context_with_custom_cert_file():

@@ -33,3 +33,24 @@ export const noLogs: Story = {
 		onBottomReached: fn(),
 	},
 };
+
+const ESC = String.fromCharCode(27);
+
+export const ansiColors: Story = {
+	name: "RunLogs (ANSI colors)",
+	args: {
+		logs: [
+			createFakeLog({
+				message: `${ESC}[32mgreen${ESC}[0m ${ESC}[31mred${ESC}[0m plain`,
+			}),
+			createFakeLog({
+				message: `${ESC}[1m${ESC}[34mbold blue${ESC}[0m and ${ESC}[3m${ESC}[33myellow italic${ESC}[0m`,
+			}),
+			createFakeLog({
+				message: `${ESC}[36mvisit https://example.com for details${ESC}[0m`,
+			}),
+		].sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
+		taskRun: createFakeTaskRun(),
+		onBottomReached: fn(),
+	},
+};

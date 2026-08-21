@@ -1,3 +1,4 @@
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { useDeferredValue, useMemo, useState } from "react";
 import {
 	Combobox,
@@ -72,10 +73,12 @@ const TIMEZONES = Intl.supportedValuesOf("timeZone")
 	.map((timezone) => ({
 		label: getTimezoneLabel(timezone),
 		value: timezone,
-	}))
-	.slice(0, 5);
+	}));
 
 const ALL_TIMEZONES = [...SUGGESTED_TIMEZONES, ...TIMEZONES];
+
+// Matches the height of a `ComboboxCommandItem`
+const OPTION_HEIGHT = 32;
 
 type TimezoneSelectProps = {
 	selectedValue: string | undefined | null;
@@ -87,6 +90,9 @@ export const TimezoneSelect = ({
 	onSelect,
 }: TimezoneSelectProps) => {
 	const [search, setSearch] = useState("");
+	// State rather than a ref so the virtualizer measures the list once the
+	// combobox's content is mounted
+	const [listElement, setListElement] = useState<HTMLDivElement | null>(null);
 
 	const deferredSearch = useDeferredValue(search);
 	const normalizedSelectedValue = normalizeTimezone(selectedValue);
@@ -107,10 +113,24 @@ export const TimezoneSelect = ({
 		);
 	}, [deferredSearch]);
 
-	const selectedTimezone = useMemo(
-		() => ALL_TIMEZONES.find(({ value }) => value === normalizedSelectedValue),
-		[normalizedSelectedValue],
-	);
+	// There are several hundred timezones, so only render the visible ones
+	const virtualizer = useVirtualizer({
+		count: filteredTimezones.length,
+		getScrollElement: () => listElement,
+		estimateSize: () => OPTION_HEIGHT,
+		overscan: 10,
+		getItemKey: (index) => filteredTimezones[index].value,
+	});
+
+	const selectedLabel = useMemo(() => {
+		if (!normalizedSelectedValue) {
+			return undefined;
+		}
+		return (
+			ALL_TIMEZONES.find(({ value }) => value === normalizedSelectedValue)
+				?.label ?? getTimezoneLabel(normalizedSelectedValue)
+		);
+	}, [normalizedSelectedValue]);
 
 	return (
 		<Combobox>
@@ -118,7 +138,7 @@ export const TimezoneSelect = ({
 				selected={Boolean(normalizedSelectedValue)}
 				aria-label="Select timezone"
 			>
-				{selectedTimezone?.label ?? "Select timezone"}
+				{selectedLabel ?? "Select timezone"}
 			</ComboboxTrigger>
 			<ComboboxContent>
 				<ComboboxCommandInput
@@ -127,7 +147,7 @@ export const TimezoneSelect = ({
 					placeholder="Search"
 				/>
 				<ComboboxCommandEmtpy>No timezone found</ComboboxCommandEmtpy>
-				<ComboboxCommandList>
+				<ComboboxCommandList ref={setListElement}>
 					<ComboboxCommandGroup>
 						{filteredSuggestedTimezones.length > 0 && (
 							<DropdownMenuLabel>Suggested timezones</DropdownMenuLabel>
@@ -151,21 +171,38 @@ export const TimezoneSelect = ({
 						{filteredTimezones.length > 0 && (
 							<DropdownMenuLabel>All timezones</DropdownMenuLabel>
 						)}
-						{filteredTimezones.map(({ label, value }) => {
-							return (
-								<ComboboxCommandItem
-									key={value}
-									selected={normalizedSelectedValue === value}
-									onSelect={(value) => {
-										onSelect(value);
-										setSearch("");
-									}}
-									value={value}
-								>
-									{label}
-								</ComboboxCommandItem>
-							);
-						})}
+						<div
+							className="relative"
+							style={{ height: `${virtualizer.getTotalSize()}px` }}
+						>
+							{virtualizer.getVirtualItems().map((virtualOption) => {
+								const { label, value } = filteredTimezones[virtualOption.index];
+								return (
+									<div
+										key={value}
+										data-index={virtualOption.index}
+										// Options with long labels wrap on narrow triggers, so
+										// measure rather than assume every option's height
+										ref={virtualizer.measureElement}
+										className="absolute inset-x-0 top-0"
+										style={{
+											transform: `translateY(${virtualOption.start}px)`,
+										}}
+									>
+										<ComboboxCommandItem
+											selected={normalizedSelectedValue === value}
+											onSelect={(value) => {
+												onSelect(value);
+												setSearch("");
+											}}
+											value={value}
+										>
+											{label}
+										</ComboboxCommandItem>
+									</div>
+								);
+							})}
+						</div>
 					</ComboboxCommandGroup>
 				</ComboboxCommandList>
 			</ComboboxContent>

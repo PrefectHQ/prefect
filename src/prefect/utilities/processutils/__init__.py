@@ -423,13 +423,34 @@ async def run_process(
             task_status.started(value)
 
         if stream_output:
-            await consume_process_output(
-                process, stdout_sink=stream_output[0], stderr_sink=stream_output[1]
-            )
+            try:
+                await consume_process_output(
+                    process, stdout_sink=stream_output[0], stderr_sink=stream_output[1]
+                )
+            except Exception:
+                # Keep draining both pipes after an output sink fails so the process
+                # can finish without blocking on a full stdout or stderr buffer.
+                await _drain_process_output(process)
+                await process.wait()
+                raise
 
         await process.wait()
 
     return process
+
+
+async def _drain_process_output(process: anyio.abc.Process) -> None:
+    async with anyio.create_task_group() as tg:
+        if process.stdout is not None:
+            tg.start_soon(
+                stream_text,
+                TextReceiveStream(process.stdout, errors="replace"),
+            )
+        if process.stderr is not None:
+            tg.start_soon(
+                stream_text,
+                TextReceiveStream(process.stderr, errors="replace"),
+            )
 
 
 async def consume_process_output(

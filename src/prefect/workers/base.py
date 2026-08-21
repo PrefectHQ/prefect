@@ -673,7 +673,9 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
         self._cleanup_handler_registry = build_cleanup_handler_registry(self)
 
         self._prefetch_seconds: float = (
-            prefetch_seconds or PREFECT_WORKER_PREFETCH_SECONDS.value()
+            prefetch_seconds
+            if prefetch_seconds is not None
+            else PREFECT_WORKER_PREFETCH_SECONDS.value()
         )
         self.heartbeat_interval_seconds: int = (
             heartbeat_interval_seconds or PREFECT_WORKER_HEARTBEAT_SECONDS.value()
@@ -1288,7 +1290,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         seconds_since_last_poll = (
             prefect.types._datetime.now("UTC") - self._last_polled_time
-        ).seconds
+        ).total_seconds()
 
         is_still_polling = seconds_since_last_poll <= threshold_seconds
 

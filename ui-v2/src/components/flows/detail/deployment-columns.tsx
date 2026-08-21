@@ -1,4 +1,4 @@
-import type { ColumnDef } from "@tanstack/react-table";
+import { Link } from "@tanstack/react-router";
 import type { components } from "@/api/prefect";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,6 +11,7 @@ import {
 import { Icon } from "@/components/ui/icons";
 import { ScheduleBadgeGroup } from "@/components/ui/schedule-badge";
 import { StatusBadge } from "@/components/ui/status-badge";
+import type { ColumnDef } from "@/lib/tanstack-table";
 import { MiniDeploymentActivity } from "./mini-deployment-activity";
 
 type Deployment = components["schemas"]["DeploymentResponse"];
@@ -40,17 +41,26 @@ export const columns: ColumnDef<Deployment>[] = [
 	{
 		accessorKey: "name",
 		header: "Name",
-		cell: ({ row }) => row.original.name,
+		cell: ({ row }) => (
+			<Link
+				to="/deployments/deployment/$id"
+				params={{ id: row.original.id }}
+				className="text-sm font-medium truncate text-link hover:text-link-hover"
+				title={row.original.name}
+			>
+				{row.original.name}
+			</Link>
+		),
 	},
 	{
 		accessorKey: "status",
 		header: "Status",
-		cell: ({ row }) => {
-			const status = row.original.paused
-				? "PAUSED"
-				: (row.original.status ?? "NOT_READY");
-			return <StatusBadge status={status} />;
-		},
+		cell: ({ row }) =>
+			row.original.status ? (
+				<StatusBadge status={row.original.status} />
+			) : (
+				<span className="text-muted-foreground text-sm">None</span>
+			),
 	},
 	{
 		accessorKey: "tags",
@@ -99,7 +109,7 @@ export const columns: ColumnDef<Deployment>[] = [
 							<Icon id="MoreHorizontal" className="size-4" />
 						</Button>
 					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end">
+					<DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
 						<DropdownMenuItem
 							onClick={() =>
 								void navigator.clipboard.writeText(row.original.id)

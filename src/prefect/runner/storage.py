@@ -217,6 +217,9 @@ class GitRepository:
                 "Cannot provide both a branch and a commit SHA. Please provide only one."
             )
 
+        if branch and branch.startswith("-"):
+            raise ValueError("Branch names cannot start with '-'.")
+
         if commit_sha and not re.match(r"^[0-9a-fA-F]{4,64}$", commit_sha):
             raise ValueError(
                 f"Invalid commit SHA: {commit_sha!r}."
@@ -931,7 +934,7 @@ class LocalStorage:
     """
     Sets the working directory in the local filesystem.
     Parameters:
-        Path: Local file path to set the working directory for the flow
+        path: Local file path to set the working directory for the flow
     Examples:
         Sets the working directory for the local path to the flow:
         ```python
@@ -996,7 +999,7 @@ def create_storage_from_source(
     Creates a storage object from a URL.
 
     Args:
-        url: The URL to create a storage object from. Supports git and `fsspec`
+        source: The URL to create a storage object from. Supports git and `fsspec`
             URLs.
         pull_interval: The interval at which to pull contents from remote storage to
             local storage

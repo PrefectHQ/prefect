@@ -36,7 +36,7 @@ jobs:
         uses: actions/setup-python@v7
         id: setup_python
         with:
-          python-version: "3.10"
+          python-version: "3.14"
 
       - name: Create Docker networks
         run: |
@@ -60,7 +60,7 @@ jobs:
             ubuntu/squid
 
       - name: Setup uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v9.0.0
         with:
           python-version: "3.12"
           enable-cache: true

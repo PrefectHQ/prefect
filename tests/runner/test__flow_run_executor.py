@@ -3,12 +3,18 @@ from __future__ import annotations
 import inspect
 import logging
 from unittest.mock import AsyncMock, MagicMock
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import anyio
 import anyio.abc
 import pytest
 
+from prefect._internal.attempt_control import (
+    AttemptConclusion,
+    EngineOutcomeReceipt,
+    Intent,
+    StateOwnershipDelegation,
+)
 from prefect._internal.infrastructure_exit_codes import get_infrastructure_exit_info
 from prefect.runner._flow_run_executor import FlowRunExecutor, ProcessStarter
 from prefect.runner._process_manager import ProcessHandle
@@ -39,6 +45,8 @@ def _make_executor(
     cancelled: bool = False,
     cancelling: bool = False,
     propose_submitting: bool = True,
+    attempt_conclusion=None,
+    get_attempt_conclusion=None,
 ):
     """Build a `FlowRunExecutor` with all-mock dependencies.
 
@@ -79,6 +87,9 @@ def _make_executor(
     process_manager.remove = AsyncMock()
     process_manager.get = MagicMock(return_value=None)
 
+    if get_attempt_conclusion is None:
+        get_attempt_conclusion = MagicMock(return_value=attempt_conclusion)
+
     executor = FlowRunExecutor(
         flow_run=flow_run,
         starter=mock_starter,
@@ -86,6 +97,7 @@ def _make_executor(
         state_proposer=state_proposer,
         hook_runner=hook_runner,
         propose_submitting=propose_submitting,
+        get_attempt_conclusion=get_attempt_conclusion,
     )
 
     mocks = dict(
@@ -95,6 +107,7 @@ def _make_executor(
         state_proposer=state_proposer,
         hook_runner=hook_runner,
         process_manager=process_manager,
+        get_attempt_conclusion=get_attempt_conclusion,
     )
     return executor, mocks
 
@@ -229,6 +242,108 @@ class TestFlowRunExecutorSubmit:
         assert m["flow_run"] == call_args[0][0]
         assert "1" in call_args[1]["message"]
 
+    async def test_submit_treats_engine_receipt_as_handled_despite_nonzero_exit(self):
+        receipt = EngineOutcomeReceipt.state_reported(
+            state_id=uuid4(),
+            state_type="FAILED",
+            state_name="Failed",
+        )
+        executor, m = _make_executor(
+            handle_returncode=1,
+            attempt_conclusion=receipt,
+        )
+
+        result = await executor.submit()
+
+        assert result is not None
+        assert result.handle is m["handle"]
+        assert result.status_code == 0
+        m["get_attempt_conclusion"].assert_called_once_with(m["flow_run"].id)
+        m["state_proposer"].propose_crashed.assert_not_awaited()
+        m["hook_runner"].run_crashed_hooks.assert_not_awaited()
+
+    @pytest.mark.parametrize(
+        "attempt_conclusion",
+        [
+            EngineOutcomeReceipt.state_reported(
+                state_id=uuid4(),
+                state_type="COMPLETED",
+                state_name="Completed",
+            ),
+            StateOwnershipDelegation("cancel"),
+        ],
+    )
+    async def test_submit_treats_terminal_evidence_as_handled_with_zero_exit(
+        self, attempt_conclusion: AttemptConclusion
+    ):
+        executor, m = _make_executor(
+            handle_returncode=0,
+            attempt_conclusion=attempt_conclusion,
+        )
+
+        await executor.submit()
+
+        m["get_attempt_conclusion"].assert_called_once_with(m["flow_run"].id)
+        m["state_proposer"].propose_crashed.assert_not_awaited()
+        m["hook_runner"].run_crashed_hooks.assert_not_awaited()
+
+    @pytest.mark.parametrize("intent", ["cancel", "reschedule", "relinquish"])
+    async def test_submit_treats_acknowledged_control_as_handled_despite_nonzero_exit(
+        self, intent: Intent
+    ):
+        executor, m = _make_executor(
+            handle_returncode=1,
+            attempt_conclusion=StateOwnershipDelegation(intent),
+        )
+
+        await executor.submit()
+
+        m["get_attempt_conclusion"].assert_called_once_with(m["flow_run"].id)
+        m["state_proposer"].propose_crashed.assert_not_awaited()
+        m["hook_runner"].run_crashed_hooks.assert_not_awaited()
+
+    @pytest.mark.parametrize(
+        "attempt_conclusion",
+        [
+            EngineOutcomeReceipt.state_reported(
+                state_id=uuid4(),
+                state_type="FAILED",
+                state_name="Failed",
+            ),
+            StateOwnershipDelegation("cancel"),
+        ],
+    )
+    async def test_submit_snapshots_terminal_conclusion_before_process_cleanup(
+        self, attempt_conclusion: AttemptConclusion
+    ):
+        flow_run = _make_flow_run()
+        process_removed = False
+
+        def get_attempt_conclusion(
+            flow_run_id: UUID,
+        ) -> AttemptConclusion | None:
+            assert flow_run_id == flow_run.id
+            return None if process_removed else attempt_conclusion
+
+        executor, m = _make_executor(
+            flow_run=flow_run,
+            handle_returncode=1,
+            get_attempt_conclusion=get_attempt_conclusion,
+        )
+
+        async def remove_process(flow_run_id: UUID) -> None:
+            nonlocal process_removed
+            assert flow_run_id == flow_run.id
+            process_removed = True
+
+        m["process_manager"].remove = AsyncMock(side_effect=remove_process)
+
+        await executor.submit()
+
+        assert process_removed
+        m["state_proposer"].propose_crashed.assert_not_awaited()
+        m["hook_runner"].run_crashed_hooks.assert_not_awaited()
+
     async def test_submit_crashed_message_includes_registry_explanation(self):
         """The crashed state message should include the explanation from
         the centralized exit code registry."""
@@ -241,6 +356,15 @@ class TestFlowRunExecutorSubmit:
         info = get_infrastructure_exit_info(-9)
         assert str(-9) in msg
         assert info.explanation in msg
+
+    async def test_submit_returns_raw_unhandled_exit_status(self):
+        executor, m = _make_executor(handle_returncode=7)
+
+        result = await executor.submit()
+
+        assert result is not None
+        assert result.handle is m["handle"]
+        assert result.status_code == 7
 
     async def test_submit_logs_resolution_separately(
         self, caplog: "pytest.LogCaptureFixture"

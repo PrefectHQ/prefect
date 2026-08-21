@@ -6,12 +6,22 @@ import asyncio
 import os
 import signal
 import threading
-import time
-from typing import AsyncIterator
+import uuid
+from collections.abc import AsyncIterator
 
 import pytest
 
 from prefect._internal import control_listener
+from prefect._internal.attempt_control import (
+    CURRENT_PROTOCOL_VERSION,
+    NEGOTIATION_FRAME_SIZE,
+    RECEIPT_ACK,
+    RECEIPT_CAPABILITY,
+    RECEIPT_PREFIX,
+    EngineOutcomeReceipt,
+    encode_negotiation,
+    encode_receipt,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -29,7 +39,7 @@ def reset_listener_state():
 async def fake_runner_server() -> AsyncIterator[
     tuple[
         int,
-        "asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]]",
+        asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]],
     ]
 ]:
     accepted: asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]] = (
@@ -43,7 +53,7 @@ async def fake_runner_server() -> AsyncIterator[
     ) -> None:
         try:
             await reader.readline()
-        except Exception:
+        except (ConnectionError, OSError):
             writer.close()
             return
         held_writers.append(writer)
@@ -61,14 +71,11 @@ async def fake_runner_server() -> AsyncIterator[
         for done in done_events:
             done.set()
         for writer in held_writers:
-            try:
-                writer.close()
-            except Exception:
-                pass
+            writer.close()
         server.close()
         try:
             await asyncio.wait_for(server.wait_closed(), timeout=1.0)
-        except (asyncio.TimeoutError, Exception):
+        except (asyncio.TimeoutError, OSError):
             pass
 
 
@@ -77,11 +84,119 @@ class TestControlListener:
         control_listener.start()
         assert control_listener.get_intent() is None
 
+    def test_non_owner_thread_cannot_report_engine_outcome(self) -> None:
+        control_listener._owner_thread_id = threading.get_ident()
+        result: list[bool] = []
+        receipt = EngineOutcomeReceipt.state_reported(
+            state_id=uuid.uuid4(),
+            state_type="COMPLETED",
+            state_name="Completed",
+        )
+
+        thread = threading.Thread(
+            target=lambda: result.append(
+                control_listener.report_engine_outcome(receipt)
+            )
+        )
+        thread.start()
+        thread.join()
+
+        assert result == [False]
+        assert control_listener.engine_outcome_is_handled() is False
+
+    def test_reader_tolerates_socket_close_during_negotiation_cleanup(self) -> None:
+        class ClosingSocket:
+            def sendall(self, data: bytes) -> None:
+                pass
+
+            def settimeout(self, timeout: float | None) -> None:
+                if timeout is None:
+                    raise OSError("socket closed")
+
+            def recv(self, size: int) -> bytes:
+                return b""
+
+            def close(self) -> None:
+                pass
+
+        control_listener._reader_loop(ClosingSocket())  # type: ignore[arg-type]
+
+    def test_late_negotiation_response_remains_receipt_capable(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        receipt = EngineOutcomeReceipt.state_reported(
+            state_id=uuid.uuid4(),
+            state_type="COMPLETED",
+            state_name="Completed",
+        )
+        response = encode_negotiation(CURRENT_PROTOCOL_VERSION, RECEIPT_CAPABILITY)
+
+        class LateNegotiationSocket:
+            def __init__(self) -> None:
+                self.sent: list[bytes] = []
+                self.recv_count = 0
+                self.ready_for_receipt = threading.Event()
+                self.receipt_sent = threading.Event()
+
+            def connect(self, address: tuple[str, int]) -> None:
+                pass
+
+            def sendall(self, data: bytes) -> None:
+                self.sent.append(data)
+                if data.startswith(RECEIPT_PREFIX):
+                    self.receipt_sent.set()
+
+            def recv(self, size: int) -> bytes:
+                self.recv_count += 1
+                if self.recv_count == 1:
+                    raise TimeoutError
+                if self.recv_count == 2:
+                    return response[:1]
+                if self.recv_count == 3:
+                    return response[1:]
+                if self.recv_count == 4:
+                    self.ready_for_receipt.set()
+                    assert self.receipt_sent.wait(timeout=1.0) is True
+                    return RECEIPT_ACK
+                return b""
+
+            def settimeout(self, value: float | None) -> None:
+                pass
+
+            def shutdown(self, how: int) -> None:
+                pass
+
+            def close(self) -> None:
+                pass
+
+        sock = LateNegotiationSocket()
+        monkeypatch.setattr(
+            control_listener.socket,
+            "socket",
+            lambda *args, **kwargs: sock,
+        )
+        os.environ["PREFECT__CONTROL_PORT"] = "4201"
+        os.environ["PREFECT__CONTROL_TOKEN"] = "late-negotiation-token"
+
+        control_listener.start()
+
+        assert sock.ready_for_receipt.wait(timeout=1.0) is True
+        assert control_listener.report_engine_outcome(receipt) is True
+        reader_thread = control_listener._reader_thread
+        assert reader_thread is not None
+        reader_thread.join(timeout=1.0)
+        assert reader_thread.is_alive() is False
+        assert sock.sent == [
+            b"late-negotiation-token\n",
+            encode_negotiation(CURRENT_PROTOCOL_VERSION, RECEIPT_CAPABILITY),
+            encode_receipt(receipt),
+        ]
+
     async def test_configure_from_env_consumes_env_and_defers_connection(
         self,
         fake_runner_server: tuple[
             int,
-            "asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]]",
+            asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]],
         ],
     ) -> None:
         port, accepted = fake_runner_server
@@ -105,7 +220,7 @@ class TestControlListener:
         self,
         fake_runner_server: tuple[
             int,
-            "asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]]",
+            asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]],
         ],
     ) -> None:
         port, accepted = fake_runner_server
@@ -123,7 +238,7 @@ class TestControlListener:
         self,
         fake_runner_server: tuple[
             int,
-            "asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]]",
+            asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]],
         ],
     ) -> None:
         port, accepted = fake_runner_server
@@ -140,7 +255,7 @@ class TestControlListener:
         self,
         fake_runner_server: tuple[
             int,
-            "asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]]",
+            asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]],
         ],
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
@@ -170,6 +285,12 @@ class TestControlListener:
             control_listener.start()
 
             reader, writer = await asyncio.wait_for(accepted.get(), timeout=2.0)
+            hello = await asyncio.wait_for(
+                reader.readexactly(NEGOTIATION_FRAME_SIZE), timeout=2.0
+            )
+            assert hello == encode_negotiation(
+                CURRENT_PROTOCOL_VERSION, RECEIPT_CAPABILITY
+            )
             writer.write(b"c")
             await writer.drain()
 
@@ -180,7 +301,7 @@ class TestControlListener:
             for _ in range(50):
                 if signal_received.is_set():
                     break
-                time.sleep(0.01)
+                await asyncio.sleep(0.01)
             if os.name == "nt":
                 assert signal_received.is_set()
             else:
@@ -253,7 +374,7 @@ class TestControlListener:
         self,
         fake_runner_server: tuple[
             int,
-            "asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]]",
+            asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]],
         ],
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
@@ -269,6 +390,10 @@ class TestControlListener:
         control_listener.start()
 
         reader, writer = await asyncio.wait_for(accepted.get(), timeout=2.0)
+        hello = await asyncio.wait_for(
+            reader.readexactly(NEGOTIATION_FRAME_SIZE), timeout=2.0
+        )
+        assert hello == encode_negotiation(CURRENT_PROTOCOL_VERSION, RECEIPT_CAPABILITY)
         writer.write(b"c")
         await writer.drain()
 
@@ -308,7 +433,7 @@ class TestControlListener:
         self,
         fake_runner_server: tuple[
             int,
-            "asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]]",
+            asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]],
         ],
     ) -> None:
         port, accepted = fake_runner_server
@@ -325,7 +450,7 @@ class TestControlListener:
         self,
         fake_runner_server: tuple[
             int,
-            "asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]]",
+            asyncio.Queue[tuple[asyncio.StreamReader, asyncio.StreamWriter]],
         ],
     ) -> None:
         port, accepted = fake_runner_server
@@ -335,6 +460,10 @@ class TestControlListener:
         control_listener.start()
 
         reader, writer = await asyncio.wait_for(accepted.get(), timeout=2.0)
+        hello = await asyncio.wait_for(
+            reader.readexactly(NEGOTIATION_FRAME_SIZE), timeout=2.0
+        )
+        assert hello == encode_negotiation(CURRENT_PROTOCOL_VERSION, RECEIPT_CAPABILITY)
         writer.write(b"x")
         await writer.drain()
 
@@ -353,6 +482,7 @@ class TestControlListener:
                 self.closed = False
                 self.recv_started = threading.Event()
                 self.release_recv = threading.Event()
+                self.timeout: float | None = None
 
             def connect(self, address: tuple[str, int]) -> None:
                 self.connected_to = address
@@ -364,6 +494,9 @@ class TestControlListener:
                 self.recv_started.set()
                 self.release_recv.wait(timeout=1.0)
                 return b""
+
+            def settimeout(self, value: float | None) -> None:
+                self.timeout = value
 
             def shutdown(self, how: int) -> None:
                 self.shutdown_how = how
@@ -389,7 +522,10 @@ class TestControlListener:
         assert first is not None
         assert first.recv_started.wait(timeout=1.0) is True
         assert first.connected_to == ("127.0.0.1", 4201)
-        assert first.sent == [b"test-token-restart\n"]
+        assert first.sent == [
+            b"test-token-restart\n",
+            encode_negotiation(CURRENT_PROTOCOL_VERSION, RECEIPT_CAPABILITY),
+        ]
 
         control_listener.stop()
 
@@ -404,7 +540,64 @@ class TestControlListener:
         assert second is not None
         assert second.recv_started.wait(timeout=1.0) is True
         assert second.connected_to == ("127.0.0.1", 4202)
-        assert second.sent == [b"test-token-restart-second\n"]
+        assert second.sent == [
+            b"test-token-restart-second\n",
+            encode_negotiation(CURRENT_PROTOCOL_VERSION, RECEIPT_CAPABILITY),
+        ]
+
+    def test_stop_during_negotiation_does_not_crash_reader(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        class _BlockingSocket:
+            def __init__(self) -> None:
+                self.recv_started = threading.Event()
+                self.closed = threading.Event()
+
+            def connect(self, address: tuple[str, int]) -> None:
+                pass
+
+            def sendall(self, data: bytes) -> None:
+                pass
+
+            def recv(self, size: int) -> bytes:
+                self.recv_started.set()
+                self.closed.wait(timeout=1.0)
+                raise OSError("socket closed")
+
+            def settimeout(self, value: float | None) -> None:
+                pass
+
+            def shutdown(self, how: int) -> None:
+                self.closed.set()
+
+            def close(self) -> None:
+                self.closed.set()
+
+        sock = _BlockingSocket()
+        thread_errors: list[BaseException] = []
+        monkeypatch.setattr(
+            control_listener.socket,
+            "socket",
+            lambda *args, **kwargs: sock,
+        )
+        monkeypatch.setattr(
+            control_listener.threading,
+            "excepthook",
+            lambda args: thread_errors.append(args.exc_value),
+        )
+        os.environ["PREFECT__CONTROL_PORT"] = "4201"
+        os.environ["PREFECT__CONTROL_TOKEN"] = "test-token-stop-negotiation"
+
+        control_listener.start()
+        reader_thread = control_listener._reader_thread
+        assert reader_thread is not None
+        assert sock.recv_started.wait(timeout=1.0) is True
+
+        control_listener.stop()
+        reader_thread.join(timeout=1.0)
+
+        assert reader_thread.is_alive() is False
+        assert thread_errors == []
 
     def test_start_handles_connect_failure_gracefully(self) -> None:
         os.environ["PREFECT__CONTROL_PORT"] = "1"

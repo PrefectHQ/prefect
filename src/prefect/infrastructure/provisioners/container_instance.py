@@ -592,7 +592,7 @@ class ContainerInstancePushProvisioner:
         Logs into the given Azure Container Registry.
 
         Args:
-            registry_name: The name of the registry to log into.
+            login_server: The login server of the registry to log into.
 
         Raises:
             subprocess.CalledProcessError: If the Azure CLI command execution fails.

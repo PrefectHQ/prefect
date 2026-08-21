@@ -454,6 +454,15 @@ async def test_worker_respects_prefetch_seconds():
     )
 
 
+async def test_worker_respects_a_prefetch_seconds_of_zero():
+    """0 means no lookahead, and the CLI resolves it with an is-None check, so the
+    worker must not fall back to the setting default."""
+    worker = WorkerTestImpl(
+        name="test", work_pool_name="test-work-pool", prefetch_seconds=0
+    )
+    assert worker.get_status()["settings"]["prefetch_seconds"] == 0
+
+
 async def test_worker_sends_heartbeat_messages(
     prefect_client: PrefectClient,
     worker_channel_endpoint_unavailable: None,
@@ -2424,6 +2433,13 @@ async def test_worker_last_polled_health_check(work_pool: WorkPool):
 
                 with travel_to(now + timedelta(minutes=30, seconds=1)):
                     resp = worker.is_worker_still_polling(query_interval_seconds=60)
+                    assert resp is False
+
+                # a day-scale gap must not report healthy: timedelta.seconds
+                # discards the days component, so a worker dead for a day and
+                # 30 seconds used to pass the 300 second threshold again
+                with travel_to(now + timedelta(days=1, seconds=30)):
+                    resp = worker.is_worker_still_polling(query_interval_seconds=10)
                     assert resp is False
     except ExceptionGroup as e:
         raise e.exceptions[0]

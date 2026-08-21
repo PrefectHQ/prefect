@@ -1,10 +1,11 @@
 import asyncio
+import concurrent.futures
 import json
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from threading import Lock
 from typing import TYPE_CHECKING, Literal, Optional
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import cachetools
 import httpx
@@ -104,12 +105,25 @@ class ConcurrencySlotAcquisitionWithLeaseService(
         super().__init__(concurrency_limit_names)
         self._client: PrefectClient
         self.concurrency_limit_names: list[str] = sorted(list(concurrency_limit_names))
+        self._pending_releases: set[concurrent.futures.Future[None]] = set()
 
     @asynccontextmanager
     async def _lifespan(self) -> AsyncGenerator[None, None]:
         async with get_client() as client:
             self._client = client
-            yield
+            try:
+                yield
+            finally:
+                # The client closes when this exits, so releases scheduled by
+                # cancelled callers have to finish first or their slots leak.
+                if self._pending_releases:
+                    await asyncio.gather(
+                        *(
+                            asyncio.wrap_future(release)
+                            for release in tuple(self._pending_releases)
+                        ),
+                        return_exceptions=True,
+                    )
 
     async def acquire(
         self,
@@ -184,6 +198,74 @@ class ConcurrencySlotAcquisitionWithLeaseService(
                     await asyncio.sleep(retry_after)
                     if max_retries is not None:
                         max_retries -= 1
+
+    async def _discard(self, response: httpx.Response) -> None:
+        """Release a lease granted to a caller that was cancelled while waiting.
+
+        Without this the slots stay occupied until the lease expires, because the
+        caller never learns the lease id and so cannot record it for cleanup.
+        """
+        lease_id = self._lease_id_from_response(response)
+        if lease_id is None:
+            return
+
+        try:
+            await self._client.release_concurrency_slots_with_lease(lease_id=lease_id)
+        except Exception:
+            logger.warning(
+                f"Failed to release concurrency lease {lease_id} for "
+                f"{self.concurrency_limit_names} after the acquiring caller was cancelled",
+                exc_info=True,
+            )
+
+    def release_orphaned_lease(
+        self, response: httpx.Response
+    ) -> "concurrent.futures.Future[None]":
+        """Release a lease that was delivered to a caller which is already gone.
+
+        The release is scheduled on the service's own loop so it reuses the client
+        that acquired the slots, keeping acquisition and cleanup on the same API, and
+        is tracked so that draining the service waits for it.
+        """
+        with self._lock:
+            loop = self._loop
+            if self._stopped or loop is None or loop.is_closed():
+                logger.warning(
+                    f"Unable to release concurrency lease for {self.concurrency_limit_names} "
+                    "after the acquiring caller was cancelled: the acquisition service is "
+                    "no longer running. The slots remain occupied until the lease expires."
+                )
+                stopped: concurrent.futures.Future[None] = concurrent.futures.Future()
+                stopped.set_result(None)
+                return stopped
+
+            # Registering under the lock `_stop` uses keeps the service from
+            # finishing its lifespan, and closing its client, before this release.
+            release = asyncio.run_coroutine_threadsafe(self._discard(response), loop)
+            self._pending_releases.add(release)
+
+        release.add_done_callback(self._pending_releases.discard)
+        return release
+
+    def _lease_id_from_response(self, response: httpx.Response) -> Optional[UUID]:
+        """Read the lease id out of a successful acquisition response.
+
+        Returns `None` when no slots were acquired, and logs when the response is
+        malformed, since that leaves a possibly active lease we cannot release.
+        """
+        try:
+            data = response.json()
+            if not data.get("limits"):
+                return None
+            return UUID(data["lease_id"])
+        except Exception:
+            logger.warning(
+                f"Unable to read the lease id from the acquisition response for "
+                f"{self.concurrency_limit_names}; if a lease was granted its slots "
+                "remain occupied until it expires.",
+                exc_info=True,
+            )
+            return None
 
 
 def _should_use_cache(

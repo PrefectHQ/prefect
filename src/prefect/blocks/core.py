@@ -424,6 +424,14 @@ class Block(BaseModel, ABC):
     def ser_model(
         self, handler: SerializerFunctionWrapHandler, info: SerializationInfo
     ) -> Any:
+        if info.context and info.context.get("serialize_blocks_as_references"):
+            if self._block_document_id is None:
+                raise BlockNotSavedError(
+                    "Block must be saved with `.save()` before it can be used as a "
+                    "deployment parameter."
+                )
+            return {"$ref": {"block_document_id": str(self._block_document_id)}}
+
         jsonable_self = handler(self)
         if (ctx := info.context) and ctx.get("include_secrets") is True:
             # Add serialization mode to context so handle_secret_render knows how to process nested models

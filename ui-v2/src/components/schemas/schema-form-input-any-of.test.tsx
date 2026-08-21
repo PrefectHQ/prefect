@@ -1,7 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { SchemaObject } from "openapi-typescript";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { describe, expect, test, vi } from "vitest";
 import "@/mocks/mock-json-input";
 import { SchemaFormInputAnyOf } from "./schema-form-input-any-of";
@@ -173,5 +173,182 @@ describe("SchemaFormInputAnyOf", () => {
 			"aria-selected",
 			"true",
 		);
+	});
+
+	test("reports null when switching to the None branch", async () => {
+		const user = userEvent.setup();
+		const onValueChange = vi.fn();
+
+		const schema: PrefectSchemaObject = {
+			type: "object",
+			properties: {},
+		};
+		const property = {
+			anyOf: [{ type: "string" }, { type: "null" }],
+			default: "value.split(',')",
+		} as SchemaObject & { anyOf: SchemaObject[] };
+
+		function Wrapper() {
+			const [value, setValue] = useState<unknown>("value.split(',')");
+
+			onValueChange.mockImplementation((newValue: unknown) =>
+				setValue(newValue),
+			);
+
+			return (
+				<SchemaFormProvider schema={schema} kinds={[]}>
+					<SchemaFormInputAnyOf
+						value={value}
+						property={property}
+						onValueChange={onValueChange}
+						errors={[]}
+					/>
+				</SchemaFormProvider>
+			);
+		}
+
+		render(<Wrapper />);
+
+		await user.click(screen.getByRole("tab", { name: "None" }));
+
+		await waitFor(() => {
+			expect(onValueChange).toHaveBeenLastCalledWith(null);
+		});
+
+		expect(screen.getByRole("tab", { name: "None" })).toHaveAttribute(
+			"aria-selected",
+			"true",
+		);
+	});
+
+	test("keeps the None branch selected for an existing null value", async () => {
+		const onValueChange = vi.fn();
+
+		const schema: PrefectSchemaObject = {
+			type: "object",
+			properties: {},
+		};
+		const property = {
+			anyOf: [{ type: "string" }, { type: "null" }],
+			default: "value.split(',')",
+		} as SchemaObject & { anyOf: SchemaObject[] };
+
+		renderWithSchemaContext(
+			<SchemaFormInputAnyOf
+				value={null}
+				property={property}
+				onValueChange={onValueChange}
+				errors={[]}
+			/>,
+			schema,
+		);
+
+		expect(screen.getByRole("tab", { name: "None" })).toHaveAttribute(
+			"aria-selected",
+			"true",
+		);
+
+		await waitFor(() => {
+			expect(onValueChange).not.toHaveBeenCalled();
+		});
+	});
+
+	test("selects the object branch for a record value when no branch declares properties", () => {
+		const onValueChange = vi.fn();
+
+		const schema: PrefectSchemaObject = {
+			type: "object",
+			properties: {},
+		};
+		const property = {
+			anyOf: [{ type: "null" }, { type: "object", title: "dict" }],
+			default: null,
+		} as SchemaObject & { anyOf: SchemaObject[] };
+
+		renderWithSchemaContext(
+			<SchemaFormInputAnyOf
+				value={{ retries: 2 }}
+				property={property}
+				onValueChange={onValueChange}
+				errors={[]}
+			/>,
+			schema,
+		);
+
+		expect(screen.getByRole("tab", { name: "dict" })).toHaveAttribute(
+			"aria-selected",
+			"true",
+		);
+	});
+
+	test("selects the first branch when the value matches no branch", () => {
+		const onValueChange = vi.fn();
+
+		const schema: PrefectSchemaObject = {
+			type: "object",
+			properties: {},
+		};
+		const property = {
+			anyOf: [{ type: "string", title: "str" }, { type: "null" }],
+		} as SchemaObject & { anyOf: SchemaObject[] };
+
+		renderWithSchemaContext(
+			<SchemaFormInputAnyOf
+				value={{ unexpected: "value" }}
+				property={property}
+				onValueChange={onValueChange}
+				errors={[]}
+			/>,
+			schema,
+		);
+
+		expect(screen.getByRole("tab", { name: "str" })).toHaveAttribute(
+			"aria-selected",
+			"true",
+		);
+	});
+
+	test("selects the matching branch when a controlled value arrives after mount", async () => {
+		const schema: PrefectSchemaObject = {
+			type: "object",
+			properties: {},
+		};
+		const property = {
+			anyOf: [
+				{ type: "string", format: "date", title: "Date" },
+				{
+					type: "string",
+					title: "Relative date",
+					enum: ["today", "prev_td"],
+				},
+			],
+		} as SchemaObject & { anyOf: SchemaObject[] };
+
+		function Wrapper() {
+			const [value, setValue] = useState<unknown>(undefined);
+
+			useEffect(() => {
+				setValue("prev_td");
+			}, []);
+
+			return (
+				<SchemaFormProvider schema={schema} kinds={[]}>
+					<SchemaFormInputAnyOf
+						value={value}
+						property={property}
+						onValueChange={setValue}
+						errors={[]}
+					/>
+				</SchemaFormProvider>
+			);
+		}
+
+		render(<Wrapper />);
+
+		await waitFor(() => {
+			expect(
+				screen.getByRole("tab", { name: "Relative date" }),
+			).toHaveAttribute("aria-selected", "true");
+		});
 	});
 });

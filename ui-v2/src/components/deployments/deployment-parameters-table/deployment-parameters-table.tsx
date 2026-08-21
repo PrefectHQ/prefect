@@ -1,13 +1,8 @@
-import {
-	createColumnHelper,
-	getCoreRowModel,
-	getPaginationRowModel,
-	useReactTable,
-} from "@tanstack/react-table";
 import { useDeferredValue, useMemo, useState } from "react";
 import type { Deployment } from "@/api/deployments";
 import { DataTable } from "@/components/ui/data-table";
 import { SearchInput } from "@/components/ui/input";
+import { createColumnHelper, useTable } from "@/lib/tanstack-table";
 import { pluralize } from "@/utils";
 
 type DeploymentParametersTableProps = {
@@ -30,7 +25,32 @@ type ParametersTableColumns = {
 
 const columnHelper = createColumnHelper<ParametersTableColumns>();
 
-const columns = [
+/**
+ * Formats object-valued parameters as JSON while preserving existing scalar and
+ * array output.
+ */
+const formatParameterValue = (value: unknown): string => {
+	if (value === null || value === undefined) {
+		return "";
+	}
+	if (Array.isArray(value)) {
+		return value.join(",");
+	}
+	if (typeof value === "object") {
+		return JSON.stringify(value);
+	}
+	if (
+		typeof value === "string" ||
+		typeof value === "number" ||
+		typeof value === "boolean" ||
+		typeof value === "bigint"
+	) {
+		return value.toString();
+	}
+	return JSON.stringify(value) ?? "";
+};
+
+const columns = columnHelper.columns([
 	columnHelper.accessor("key", {
 		header: "Key",
 		cell: ({ row }) => (
@@ -46,9 +66,7 @@ const columns = [
 		header: "Override",
 		cell: ({ getValue }) => (
 			<span className="whitespace-normal break-words font-mono text-sm">
-				{getValue() !== null && getValue() !== undefined
-					? String(getValue())
-					: ""}
+				{formatParameterValue(getValue())}
 			</span>
 		),
 	}),
@@ -56,14 +74,12 @@ const columns = [
 		header: "Default",
 		cell: ({ getValue }) => (
 			<span className="whitespace-normal break-words font-mono text-sm">
-				{getValue() !== null && getValue() !== undefined
-					? String(getValue())
-					: ""}
+				{formatParameterValue(getValue())}
 			</span>
 		),
 	}),
 	columnHelper.accessor("type", { header: "Type" }),
-];
+]);
 
 /**
  *
@@ -111,12 +127,10 @@ export const DeploymentParametersTable = ({
 		return data.filter(
 			(parameter) =>
 				parameter.key.toLowerCase().includes(deferredSearch.toLowerCase()) ||
-				parameter.value
-					?.toString()
+				formatParameterValue(parameter.value)
 					.toLowerCase()
 					.includes(deferredSearch.toLowerCase()) ||
-				parameter.defaultValue
-					?.toString()
+				formatParameterValue(parameter.defaultValue)
 					.toLowerCase()
 					.includes(deferredSearch.toLowerCase()) ||
 				parameter.type
@@ -126,13 +140,11 @@ export const DeploymentParametersTable = ({
 		);
 	}, [data, deferredSearch]);
 
-	const table = useReactTable({
+	const table = useTable({
 		data: filteredData,
 
 		columns,
-		getCoreRowModel: getCoreRowModel(),
 		defaultColumn: { maxSize: 300 },
-		getPaginationRowModel: getPaginationRowModel(), //load client-side pagination code
 	});
 
 	return (

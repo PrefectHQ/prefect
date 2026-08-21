@@ -62,7 +62,7 @@ Read events from the Postgres database.
 
 **Args:**
 - `session`: a Postgres events session.
-- `filter`: filter criteria for events.
+- `events_filter`: filter criteria for events.
 - `limit`: limit for the query.
 - `offset`: offset for the query.
 
@@ -84,19 +84,13 @@ Write events to the database.
 - `events`: the events to insert
 
 
-### `get_max_query_parameters` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/storage/database.py#L288" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
-
-```python
-get_max_query_parameters() -> int
-```
-
-### `get_number_of_event_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/storage/database.py#L297" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_number_of_event_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/storage/database.py#L289" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_number_of_event_fields() -> int
 ```
 
-### `get_number_of_resource_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/storage/database.py#L302" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `get_number_of_resource_fields` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/storage/database.py#L294" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 get_number_of_resource_fields() -> int

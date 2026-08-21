@@ -880,6 +880,7 @@ from_template_and_values_cases = [
                         worker_name=worker_name,
                     ),
                     "TEST_ENV": "test",
+                    "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "relinquish",
                 },
                 labels={
                     "prefect.io/flow-run-id": str(flow_run.id),
@@ -997,6 +998,10 @@ from_template_and_values_cases = [
                                             {
                                                 "name": "TEST_ENV",
                                                 "value": "test",
+                                            },
+                                            {
+                                                "name": "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR",
+                                                "value": "relinquish",
                                             },
                                         ],
                                         "image": "test-image:latest",
@@ -1242,6 +1247,7 @@ from_template_and_values_cases = [
                         worker_name=worker_name,
                     ),
                     "TEST_ENV": "test",
+                    "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "relinquish",
                 },
                 labels={
                     "prefect.io/flow-run-id": str(flow_run.id),
@@ -1356,6 +1362,10 @@ from_template_and_values_cases = [
                                             {
                                                 "name": "TEST_ENV",
                                                 "value": "test",
+                                            },
+                                            {
+                                                "name": "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR",
+                                                "value": "relinquish",
                                             },
                                         ],
                                         "image": "test-image:latest",
@@ -2668,6 +2678,50 @@ class TestKubernetesWorker:
                     "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "die",
                 }.items()
             ]
+
+    @pytest.mark.parametrize(
+        "env",
+        [
+            {"PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "reschedule"},
+            [
+                {
+                    "name": "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR",
+                    "valueFrom": {"secretKeyRef": {"name": "s", "key": "k"}},
+                }
+            ],
+        ],
+        ids=["value", "valueFrom"],
+    )
+    async def test_overrides_user_behavior_when_backoff_limit_positive(
+        self,
+        env,
+        flow_run,
+        mock_core_client,
+        mock_watch,
+        mock_pods_stream_that_returns_running_pod,
+        mock_batch_client,
+    ):
+        """A user-set behavior must not survive alongside backoffLimit > 0; both retry
+        mechanisms at once would duplicate the flow run."""
+        mock_watch.return_value.stream = mock_pods_stream_that_returns_running_pod
+        configuration = await KubernetesWorkerJobConfiguration.from_template_and_values(
+            KubernetesWorker.get_default_base_job_template(),
+            {"backoff_limit": 6, "env": env},
+        )
+        configuration.prepare_for_flow_run(flow_run)
+
+        async with KubernetesWorker(work_pool_name="test") as k8s_worker:
+            await k8s_worker.run(flow_run, configuration)
+            manifest = mock_batch_client.return_value.create_namespaced_job.call_args[
+                0
+            ][1]
+            manifest_env = manifest["spec"]["template"]["spec"]["containers"][0]["env"]
+            behaviors = [
+                v.get("value")
+                for v in manifest_env
+                if v["name"] == "PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR"
+            ]
+            assert behaviors == ["relinquish"]
 
     async def test_uses_custom_env_list_from_base_template(
         self,

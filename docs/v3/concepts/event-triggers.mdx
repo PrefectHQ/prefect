@@ -60,7 +60,7 @@ Its primary resource is a flow run, and since that flow run was started by a dep
 "resource": {
   "prefect.resource.id": "prefect.flow-run.925eacce-7fe5-4753-8f02-77f1511543db",
   "prefect.resource.name": "cute-kittiwake"
-}
+},
 "related": [
   {
     "prefect.resource.id": "prefect.flow.cb6126db-d528-402f-b439-96637187a8ca",
@@ -145,7 +145,7 @@ To match flow runs on a work pool with specific tags, you can use the following 
 
 ```json
 "match": {
-  "prefect.resource.id": "prefect.flow-run.*",
+  "prefect.resource.id": "prefect.flow-run.*"
 },
 "match_related": [
     {
@@ -184,32 +184,36 @@ DeploymentEventTrigger(
 
 ##### Negative matching
 
-Use the `!` prefix to exclude resources with specific label values. This allows you to filter out
-events you don't want to trigger automations.
+Use the `!` prefix to exclude resources with specific label values. A negative pattern matches
+any value that does *not* match the rest of the pattern.
 
-For example, to match all flow runs _except_ those tagged with `dev`:
+Two rules govern how negative patterns interact with the rest of a filter:
+
+- **Values in a list are `OR`ed together**, so a negative pattern cannot be combined with a
+  positive pattern in the same list. In `["dev-*", "!dev-automations"]`, any name matching
+  `dev-*` satisfies the first pattern and the negative pattern is never applied. To scope with a
+  wildcard *and* exclude a value, use a list of `match_related` objects (see below).
+- **A `match_related` object matches when any single related resource satisfies all of its
+  labels.** Exclusions are therefore only reliable for roles where an event has exactly one
+  related resource, such as `work-pool` or `deployment`. For roles with many resources per
+  event, such as `tag`, `{"prefect.resource.id": "!prefect.tag.dev", "prefect.resource.role":
+  "tag"}` matches any event with at least one tag *other than* `dev` — it does not exclude
+  events that carry the `dev` tag alongside other tags.
+
+For example, to match flow runs on any work pool except `dev-automations-work-pool`:
 
 ```json
 "match": {
   "prefect.resource.id": "prefect.flow-run.*"
 },
 "match_related": {
-  "prefect.resource.id": "!prefect.tag.dev",
-  "prefect.resource.role": "tag"
+  "prefect.resource.name": "!dev-automations-work-pool",
+  "prefect.resource.role": "work-pool"
 }
 ```
 
-You can combine positive and negative patterns in the same label. The following matches flow runs
-with names starting with `production-` but NOT `production-test-`:
-
-```json
-"match": {
-  "prefect.resource.id": "prefect.flow-run.*",
-  "prefect.resource.name": ["production-*", "!production-test-*"]
-}
-```
-
-Combining multiple related resource conditions with exclusions:
+To narrow that to only the `dev-*` work pools while still excluding that one, use two
+`match_related` objects — each object must match independently:
 
 ```json
 "match": {
@@ -217,24 +221,20 @@ Combining multiple related resource conditions with exclusions:
 },
 "match_related": [
   {
-    "prefect.resource.name": "k8s-pool",
+    "prefect.resource.name": "dev-*",
     "prefect.resource.role": "work-pool"
   },
   {
-    "prefect.resource.id": "prefect.tag.production",
-    "prefect.resource.role": "tag"
-  },
-  {
-    "prefect.resource.id": "!prefect.tag.test",
-    "prefect.resource.role": "tag"
+    "prefect.resource.name": "!dev-automations-work-pool",
+    "prefect.resource.role": "work-pool"
   }
 ]
 ```
 
-This configuration matches flow runs that:
-- Run on the `k8s-pool` work pool
-- Are tagged with `production`
-- Are NOT tagged with `test`
+This configuration matches flow runs on any work pool whose name starts with `dev-`, except
+`dev-automations-work-pool`. This pattern is especially useful when an automation starts flow
+runs of its own: excluding the work pool those runs execute on prevents the automation from
+triggering on itself.
 
 ### Expected events
 
@@ -310,11 +310,11 @@ The following configuration uses `after` to prevent this automation from firing 
 },
 "match_related": {
   "prefect.resource.id": "prefect.deployment.37ca4a08-e2d9-4628-a310-cc15a323378e"
-}
+},
 "after": [
   "table-missing",
   "table-empty"
-]
+],
 "expect": [
   "prefect.flow-run.Completed"
 ],
@@ -375,6 +375,30 @@ started this trigger with its `prefect.flow-run.Running` event could satisfy the
 }
 ```
 
+### Event ordering and `after`
+
+A trigger with an `after` clause starts watching for its `expect` events only once one of
+its `after` events has arrived. An `expect` event that arrives at the system before the
+trigger's `after` event does not count, even when the two events were emitted in the
+correct order. For a Reactive trigger this can mean a missed firing; for a Proactive
+trigger it can mean a spurious one.
+
+Prefect does not guarantee the order that unrelated events arrive at the system: events
+that occur within a second or two of each other may arrive in either order. When your
+code emits the `expect` event immediately after the `after` event—for example, from a
+[state change hook](/v3/how-to-guides/workflows/state-change-hooks#emit-events-from-state-change-hooks)
+or right after emitting the first event—declare the relationship with
+[`follows`](/v3/concepts/events#event-ordering) on the later event.
+
+Triggers hold an event that declares `follows` until the event it follows has arrived, so
+the pair is always processed in order and the race disappears. If the followed event
+never arrives, the held event is processed on its own after several minutes—a lost
+predecessor delays the follower rather than losing it.
+
+Events that are naturally separated by more time—like an `order.created` and an
+`order.complete` minutes apart—don't strictly need `follows`, but it can still be good
+practice to set it to document the relationship between the events.
+
 ### Metric triggers
 
 Metric triggers (`{"type": "metric"}`) fire when the value of a metric in your workspace crosses a threshold you defined.
@@ -413,7 +437,7 @@ And the `MetricTriggerQuery` query is defined as:
 | **range**      | duration in seconds                   | How far back to evaluate the metric.                                    |
 | **firing_for** | duration in seconds                   | How long the value must exceed the threshold before this trigger fires. |
 
-For example, to fire when flow runs tagged `production` in your workspace are failing at a rate of 10% or worse for the last hour (in other words, your success rate is below 90%), create this trigger:
+For example, to fire when flow runs tagged `production` in your workspace have been failing at a rate of 10% or worse (in other words, a success rate below 90%) over the last hour, sustained for at least five minutes, create this trigger:
 
 ```json
 {
@@ -430,7 +454,7 @@ For example, to fire when flow runs tagged `production` in your workspace are fa
     "threshold": 0.9,
     "operator": "<",
     "range": 3600,
-    "firing_for": 0
+    "firing_for": 300
   }
 }
 ```
@@ -508,15 +532,15 @@ frame specified. Then the trigger resets its state and fires the next time these
 The order the events occur doesn't matter, just that all of the events occur within one hour.
 
 If you want a flow run to complete prior to starting to watch for those three events, you can combine the entire
-previous trigger as the second part of a sequence of two triggers:
+previous trigger as the second part of a sequence of two triggers. Here the outer trigger is a `sequence` trigger,
+its first child trigger expects a `Completed` event, and its second child trigger is the compound trigger from the
+prior example:
 
 ```json
 {
-  // the outer trigger is now a "sequence" trigger
   "type": "sequence",
   "within": 7200,
   "triggers": [
-    // with the first child trigger expecting a Completed event
     {
       "type": "event",
       "posture": "Reactive",
@@ -526,7 +550,6 @@ previous trigger as the second part of a sequence of two triggers:
         "prefect.resource.role": "flow"
       }
     },
-    // and the second child trigger being the compound trigger from the prior example
     {
       "type": "compound",
       "require": "all",
@@ -574,7 +597,9 @@ flows don't write their result files until three hours later, this trigger won't
 on the triggers can prevent a misfire if you know that the events will generally happen within a specific timeframe—
 and you don't want a stray older event included in the evaluation of the trigger.
 
-If this isn't a concern for you, you may omit the `within` period, in which case there is no limit to how far apart in time the child triggers occur.
+If this isn't a concern for you, you may set `within` to `null`, in which case there is no limit to how far apart in
+time the child triggers occur. The `within` key itself is required on compound and sequence triggers — leaving it out
+entirely is a validation error.
 
 You can compose any type of trigger into higher-order composite triggers, including proactive event triggers and metric
 triggers. In the following example, the compound trigger fires if any of the following events occur: a flow run
@@ -585,6 +610,7 @@ stuck in `Pending`, a work pool becoming unready, or the average amount of `Late
 {
   "type": "compound",
   "require": "any",
+  "within": null,
   "triggers": [
     {
       "type": "event",
@@ -602,7 +628,7 @@ stuck in `Pending`, a work pool becoming unready, or the average amount of `Late
       "posture": "Reactive",
       "expect": ["prefect.work-pool.not-ready"],
       "match": {
-        "prefect.resource.name": "kubernetes-workers",
+        "prefect.resource.name": "kubernetes-workers"
       }
     },
     {
