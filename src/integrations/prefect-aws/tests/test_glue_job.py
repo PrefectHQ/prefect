@@ -1,8 +1,14 @@
+import asyncio
+import inspect
+import time
 from unittest.mock import MagicMock
 
 import pytest
 from moto import mock_aws
+from prefect_aws import AwsCredentials
 from prefect_aws.glue_job import GlueJobBlock, GlueJobRun
+
+from prefect._internal.concurrency.threads import get_global_loop
 
 
 @pytest.fixture(scope="function")
@@ -13,18 +19,21 @@ def glue_job_client(aws_credentials):
 
 
 async def test_fetch_result(aws_credentials, glue_job_client):
-    glue_job_client.create_job(
-        Name="test_job_name", Role="test-role", Command={}, DefaultArguments={}
-    )
-    job_run_id = glue_job_client.start_job_run(
-        JobName="test_job_name",
-        Arguments={},
-    )["JobRunId"]
-    glue_job_run = GlueJobRun(
-        job_name="test_job_name", job_id=job_run_id, client=glue_job_client
-    )
-    result = await glue_job_run.fetch_result()
-    assert result == "SUCCEEDED"
+    with mock_aws():
+        glue_job_client.create_job(
+            Name="test_job_name", Role="test-role", Command={}, DefaultArguments={}
+        )
+        job_run_id = glue_job_client.start_job_run(
+            JobName="test_job_name",
+            Arguments={},
+        )["JobRunId"]
+        glue_job_run = GlueJobRun(
+            job_name="test_job_name",
+            job_id=job_run_id,
+            aws_credentials_name=aws_credentials._block_document_name,
+        )
+        result = await glue_job_run.fetch_result()
+        assert result == "SUCCEEDED"
 
 
 def test_wait_for_completion(aws_credentials, glue_job_client):
@@ -41,9 +50,10 @@ def test_wait_for_completion(aws_credentials, glue_job_client):
             job_name="test_job_name",
             job_id=job_run_id,
             job_watch_poll_interval=0.1,
-            client=glue_job_client,
+            aws_credentials_name=aws_credentials._block_document_name,
         )
 
+        glue_job_run._get_client = lambda: glue_job_client
         glue_job_client.get_job_run = MagicMock(
             side_effect=[
                 {
@@ -61,6 +71,9 @@ def test_wait_for_completion(aws_credentials, glue_job_client):
             ]
         )
         glue_job_run.wait_for_completion()
+        glue_job_client.get_job_run.assert_called_with(
+            JobName="test_job_name", RunId=job_run_id
+        )
 
 
 def test_wait_for_completion_fail(aws_credentials, glue_job_client):
@@ -85,8 +98,11 @@ def test_wait_for_completion_fail(aws_credentials, glue_job_client):
         )
 
         glue_job_run = GlueJobRun(
-            job_name="test_job_name", job_id=job_run_id, client=glue_job_client
+            job_name="test_job_name",
+            job_id=job_run_id,
+            aws_credentials_name=aws_credentials._block_document_name,
         )
+        glue_job_run._get_client = lambda: glue_job_client
         with pytest.raises(RuntimeError):
             glue_job_run.wait_for_completion()
 
@@ -102,25 +118,149 @@ def test__get_job_run(aws_credentials, glue_job_client):
         )["JobRunId"]
 
         glue_job_run = GlueJobRun(
-            job_name="test_job_name", job_id=job_run_id, client=glue_job_client
+            job_name="test_job_name",
+            job_id=job_run_id,
+            aws_credentials_name=aws_credentials._block_document_name,
         )
-        response = glue_job_run._get_job_run()
+        response = glue_job_run._get_job_run(glue_job_client)
         assert response["JobRun"]["JobRunState"] == "SUCCEEDED"
 
 
-async def test_trigger(aws_credentials, glue_job_client):
-    glue_job_client.create_job(
-        Name="test_job_name", Role="test-role", Command={}, DefaultArguments={}
-    )
+async def test_atrigger(aws_credentials, glue_job_client):
     glue_job = GlueJobBlock(
         job_name="test_job_name",
         arguments={"arg1": "value1"},
-        aws_credential=aws_credentials,
+        aws_credentials=aws_credentials,
+    )
+    glue_job._get_client = MagicMock(side_effect=[glue_job_client])
+    glue_job._start_job = MagicMock(side_effect=["test_job_id"])
+    glue_job_run = await glue_job.atrigger()
+    assert isinstance(glue_job_run, GlueJobRun)
+    assert glue_job_run.aws_credentials_name == aws_credentials._block_document_name
+
+
+def test_trigger(aws_credentials, glue_job_client):
+    glue_job = GlueJobBlock(
+        job_name="test_job_name",
+        arguments={"arg1": "value1"},
+        aws_credentials=aws_credentials,
+    )
+    glue_job._get_client = MagicMock(side_effect=[glue_job_client])
+    glue_job._start_job = MagicMock(side_effect=["test_job_id"])
+    glue_job_client.get_job_run = MagicMock(
+        side_effect=[
+            {
+                "JobRun": {
+                    "JobName": "test_job_name",
+                    "JobRunState": "RUNNING",
+                }
+            },
+            {
+                "JobRun": {
+                    "JobName": "test_job_name",
+                    "JobRunState": "SUCCEEDED",
+                }
+            },
+        ]
+    )
+    glue_job_run = glue_job.trigger()
+    assert isinstance(glue_job_run, GlueJobRun)
+    assert not inspect.isawaitable(glue_job_run)
+    assert glue_job_run.aws_credentials_name == aws_credentials._block_document_name
+
+    glue_job_run._get_client = lambda: glue_job_client
+    glue_job_run.job_watch_poll_interval = 0.1
+    glue_job_run.wait_for_completion()
+    glue_job_client.get_job_run.assert_called_with(
+        JobName="test_job_name", RunId="test_job_id"
+    )
+
+
+async def test_trigger_from_async_context(aws_credentials, glue_job_client):
+    glue_job = GlueJobBlock(
+        job_name="test_job_name",
+        arguments={"arg1": "value1"},
+        aws_credentials=aws_credentials,
     )
     glue_job._get_client = MagicMock(side_effect=[glue_job_client])
     glue_job._start_job = MagicMock(side_effect=["test_job_id"])
     glue_job_run = await glue_job.trigger()
     assert isinstance(glue_job_run, GlueJobRun)
+    assert glue_job_run.aws_credentials_name == aws_credentials._block_document_name
+
+
+def test_wait_for_completion_after_serialization(aws_credentials, glue_job_client):
+    with mock_aws():
+        glue_job_client.create_job(
+            Name="test_job_name", Role="test-role", Command={}, DefaultArguments={}
+        )
+        job_run_id = glue_job_client.start_job_run(
+            JobName="test_job_name",
+            Arguments={},
+        )["JobRunId"]
+
+        glue_job_run = GlueJobRun(
+            job_name="test_job_name",
+            job_id=job_run_id,
+            job_watch_poll_interval=0.1,
+            aws_credentials_name=aws_credentials._block_document_name,
+        )
+        serialized = glue_job_run.model_dump_json()
+        restored = GlueJobRun.model_validate_json(serialized)
+        restored.wait_for_completion()
+
+
+def test_glue_job_run_does_not_serialize_secrets(aws_credentials):
+    secret_value = "super-secret-access-key"
+    credentials = AwsCredentials(
+        aws_access_key_id="access_key_id",
+        aws_secret_access_key=secret_value,
+        region_name="us-east-1",
+    )
+    credentials.save("test-secret-credentials", overwrite=True)
+
+    glue_job_run = GlueJobRun(
+        job_name="test_job_name",
+        job_id="test_job_id",
+        aws_credentials_name="test-secret-credentials",
+    )
+    serialized = glue_job_run.model_dump_json()
+    assert secret_value not in serialized
+    assert "aws_secret_access_key" not in serialized
+
+
+def test_sync_trigger_does_not_block_global_loop(aws_credentials, glue_job_client):
+    loop = get_global_loop().loop
+    assert loop is not None
+
+    event = asyncio.Event()
+
+    async def set_event():
+        await asyncio.sleep(0.05)
+        event.set()
+
+    asyncio.run_coroutine_threadsafe(set_event(), loop)
+
+    glue_job = GlueJobBlock(
+        job_name="test_job_name",
+        arguments={"arg1": "value1"},
+        aws_credentials=aws_credentials,
+    )
+
+    def slow_get_client():
+        time.sleep(0.2)
+        return glue_job_client
+
+    def slow_start_job(client):
+        time.sleep(0.2)
+        return "test_job_id"
+
+    glue_job._get_client = slow_get_client
+    glue_job._start_job = slow_start_job
+
+    glue_job_run = glue_job.trigger()
+    assert isinstance(glue_job_run, GlueJobRun)
+    assert event.is_set()
 
 
 def test_start_job(aws_credentials, glue_job_client):
