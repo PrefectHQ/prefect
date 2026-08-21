@@ -308,6 +308,39 @@ describe("SchemaFormInputAnyOf", () => {
 		);
 	});
 
+	test("emits the const value when the user selects a literal branch", async () => {
+		const user = userEvent.setup();
+		const schema: PrefectSchemaObject = {
+			type: "object",
+			properties: {},
+		};
+		const property = {
+			anyOf: [
+				{ type: "array", items: { type: "string" } },
+				{ type: "string", const: "bar" },
+				{ type: "null" },
+			],
+		} as SchemaObject & { anyOf: SchemaObject[] };
+		const onValueChange = vi.fn();
+
+		render(
+			<SchemaFormProvider schema={schema} kinds={[]}>
+				<SchemaFormInputAnyOf
+					value={null}
+					property={property}
+					onValueChange={onValueChange}
+					errors={[]}
+				/>
+			</SchemaFormProvider>,
+		);
+
+		await user.click(screen.getByRole("tab", { name: "str" }));
+
+		await waitFor(() => {
+			expect(onValueChange).toHaveBeenLastCalledWith("bar");
+		});
+	});
+
 	test("selects the matching branch when a controlled value arrives after mount", async () => {
 		const schema: PrefectSchemaObject = {
 			type: "object",

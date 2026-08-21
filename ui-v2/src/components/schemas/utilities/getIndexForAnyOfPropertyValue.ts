@@ -57,6 +57,16 @@ function getMatchingDefinitionIndex(
 		return definitions.findIndex((definition) => !isDefined(definition.type));
 	}
 
+	// a definition with a const accepts only that value, so an exact match wins
+	// over a definition that only matches the type of the value
+	const constIndex = definitions.findIndex((definition) =>
+		Object.is(definition.const, valueOrDefaultValue),
+	);
+
+	if (constIndex >= 0) {
+		return constIndex;
+	}
+
 	switch (typeof valueOrDefaultValue) {
 		case "string":
 			return getPrimitiveDefinitionIndex(
