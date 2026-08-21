@@ -1290,7 +1290,7 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
 
         seconds_since_last_poll = (
             prefect.types._datetime.now("UTC") - self._last_polled_time
-        ).seconds
+        ).total_seconds()
 
         is_still_polling = seconds_since_last_poll <= threshold_seconds
 
