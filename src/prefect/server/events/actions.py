@@ -1893,7 +1893,7 @@ async def _load_block_from_block_document(
 
     block_cls = Block.get_block_class_from_schema(block_document.block_schema)
 
-    block = block_cls.model_validate(block_document.data)
+    block = block_cls._validate_block_document_data(block_document.data)
     block._block_document_id = block_document.id
     block.__class__._block_schema_id = block_document.block_schema_id
     block.__class__._block_type_id = block_document.block_type_id
