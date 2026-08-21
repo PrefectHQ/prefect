@@ -330,6 +330,7 @@ def _send_heartbeats(
     resource, related = engine._build_heartbeat_event_template()
 
     stop_event = threading.Event()
+    engine._heartbeat_stop_event = stop_event
 
     def heartbeat_loop() -> None:
         while not stop_event.is_set():
@@ -375,6 +376,7 @@ def _send_heartbeats(
         stop_event.set()
         if join_on_exit:
             thread.join(timeout=2)
+        engine._heartbeat_stop_event = None
         engine.logger.debug("Stopped flow run heartbeat context")
 
 
@@ -424,6 +426,7 @@ class BaseFlowRunEngine(Generic[P, R]):
         default_factory=FlowRunSuspensionRequest
     )
     _attempt_conclusion: EngineOutcomeReceipt | None = field(default=None, init=False)
+    _heartbeat_stop_event: threading.Event | None = field(default=None, init=False)
 
     def __post_init__(self) -> None:
         if self.flow is None and self.flow_run_id is None:
@@ -539,6 +542,9 @@ class BaseFlowRunEngine(Generic[P, R]):
                 If not provided, builds the template on the fly (backward compat).
         """
         if not self.flow_run:
+            return
+
+        if self.flow_run.state and self.flow_run.state.is_final():
             return
 
         if resource is None or related is None:
@@ -763,6 +769,9 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         self.flow_run.state = state  # type: ignore
         self.flow_run.state_name = state.name  # type: ignore
         self.flow_run.state_type = state.type  # type: ignore
+
+        if state.is_final() and self._heartbeat_stop_event is not None:
+            self._heartbeat_stop_event.set()
 
         self._capture_state_report(state)
         self._telemetry.update_state(state)
@@ -1466,6 +1475,9 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         self.flow_run.state = state  # type: ignore
         self.flow_run.state_name = state.name  # type: ignore
         self.flow_run.state_type = state.type  # type: ignore
+
+        if state.is_final() and self._heartbeat_stop_event is not None:
+            self._heartbeat_stop_event.set()
 
         self._capture_state_report(state)
         self._telemetry.update_state(state)

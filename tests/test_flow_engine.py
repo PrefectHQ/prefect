@@ -5994,6 +5994,112 @@ class TestFlowRunEngineHeartbeat:
             if state_type is not None
         )
 
+    def test_no_heartbeat_emitted_after_terminal_transition_sync(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        emitted_events: list[dict[str, object]] = []
+        heartbeat_ready = threading.Event()
+        allow_heartbeat = threading.Event()
+
+        def mock_emit_event(**kwargs: object) -> None:
+            emitted_events.append(kwargs)
+
+        monkeypatch.setattr("prefect.flow_engine.emit_event", mock_emit_event)
+        monkeypatch.setattr(
+            "prefect.flow_engine.get_current_settings",
+            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=30)),
+        )
+        monkeypatch.setattr(
+            "prefect.flow_engine.propose_state_sync",
+            lambda *args, **kwargs: states.Completed(),
+        )
+
+        engine = FlowRunEngine(
+            flow=flow(lambda: None),
+            flow_run=MagicMock(
+                id=uuid.uuid4(),
+                name="test-flow-run",
+                tags=[],
+                flow_id=None,
+                deployment_id=None,
+                state=states.Running(),
+            ),
+        )
+        engine._is_started = True
+        engine._client = MagicMock()
+        original_emit = engine._emit_flow_run_heartbeat
+
+        def delayed_emit(*args: object, **kwargs: object) -> None:
+            heartbeat_ready.set()
+            allow_heartbeat.wait(timeout=1)
+            original_emit(*args, **kwargs)
+
+        engine._emit_flow_run_heartbeat = delayed_emit  # type: ignore[method-assign]
+
+        with _send_heartbeats(engine):
+            assert heartbeat_ready.wait(timeout=1)
+            engine.set_state(states.Completed())
+            assert engine._heartbeat_stop_event is not None
+            assert engine._heartbeat_stop_event.is_set()
+            allow_heartbeat.set()
+
+        assert not any(
+            event["event"] == "prefect.flow-run.heartbeat" for event in emitted_events
+        )
+
+    async def test_no_heartbeat_emitted_after_terminal_transition_async(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        emitted_events: list[dict[str, object]] = []
+        heartbeat_ready = threading.Event()
+        allow_heartbeat = threading.Event()
+
+        def mock_emit_event(**kwargs: object) -> None:
+            emitted_events.append(kwargs)
+
+        async def mock_propose_state(*args: object, **kwargs: object) -> states.State:
+            return states.Completed()
+
+        monkeypatch.setattr("prefect.flow_engine.emit_event", mock_emit_event)
+        monkeypatch.setattr(
+            "prefect.flow_engine.get_current_settings",
+            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=30)),
+        )
+        monkeypatch.setattr("prefect.flow_engine.propose_state", mock_propose_state)
+
+        engine = AsyncFlowRunEngine(
+            flow=flow(lambda: None),
+            flow_run=MagicMock(
+                id=uuid.uuid4(),
+                name="test-flow-run",
+                tags=[],
+                flow_id=None,
+                deployment_id=None,
+                state=states.Running(),
+            ),
+        )
+        engine._is_started = True
+        engine._client = AsyncMock()
+        original_emit = engine._emit_flow_run_heartbeat
+
+        def delayed_emit(*args: object, **kwargs: object) -> None:
+            heartbeat_ready.set()
+            allow_heartbeat.wait(timeout=1)
+            original_emit(*args, **kwargs)
+
+        engine._emit_flow_run_heartbeat = delayed_emit  # type: ignore[method-assign]
+
+        with _send_heartbeats(engine):
+            assert heartbeat_ready.wait(timeout=1)
+            await engine.set_state(states.Completed())
+            assert engine._heartbeat_stop_event is not None
+            assert engine._heartbeat_stop_event.is_set()
+            allow_heartbeat.set()
+
+        assert not any(
+            event["event"] == "prefect.flow-run.heartbeat" for event in emitted_events
+        )
+
     @pytest.mark.parametrize("low_value", [1, 5, 10, 29])
     def test_heartbeat_seconds_property_clamps_low_values(
         self, monkeypatch: pytest.MonkeyPatch, low_value: int
