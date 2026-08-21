@@ -2122,7 +2122,31 @@ class Flow(Generic[P, R]):
             raise new_exception
 
 
+class _FlowDecoratorCallable(Protocol):
+    """The decorator returned by a configured `@flow(...)` call. Declared as a
+    protocol so applying it re-runs the same async-normalizing overloads as
+    the bare `@flow` form. See tests/typing/call_annotations.py."""
+
+    @overload
+    def __call__(
+        self, __fn: Callable[P, Coroutine[Any, Any, R]]
+    ) -> Flow[P, Coroutine[Any, Any, R]]: ...
+
+    @overload
+    def __call__(self, __fn: Callable[P, R]) -> Flow[P, R]: ...
+
+    def __call__(self, __fn: Callable[..., Any]) -> Flow[..., Any]: ...
+
+
 class FlowDecorator:
+    # Normalizes an async def's inferred `types.CoroutineType` to `Coroutine`;
+    # as the Flow's invariant R it would stop every `self: "Flow[...,
+    # Coroutine[...]]"` overload from matching. See tests/typing/call_annotations.py.
+    @overload
+    def __call__(
+        self, __fn: Callable[P, Coroutine[Any, Any, R]]
+    ) -> Flow[P, Coroutine[Any, Any, R]]: ...
+
     @overload
     def __call__(self, __fn: Callable[P, R]) -> Flow[P, R]: ...
 
@@ -2150,7 +2174,7 @@ class FlowDecorator:
         on_cancellation: Optional[list[FlowStateHook[..., Any]]] = None,
         on_crashed: Optional[list[FlowStateHook[..., Any]]] = None,
         on_running: Optional[list[FlowStateHook[..., Any]]] = None,
-    ) -> Callable[[Callable[P, R]], Flow[P, R]]: ...
+    ) -> "_FlowDecoratorCallable": ...
 
     @overload
     def __call__(
@@ -2176,7 +2200,7 @@ class FlowDecorator:
         on_cancellation: Optional[list[FlowStateHook[..., Any]]] = None,
         on_crashed: Optional[list[FlowStateHook[..., Any]]] = None,
         on_running: Optional[list[FlowStateHook[..., Any]]] = None,
-    ) -> Callable[[Callable[P, R]], Flow[P, R]]: ...
+    ) -> "_FlowDecoratorCallable": ...
 
     def __call__(
         self,
