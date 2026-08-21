@@ -79,7 +79,8 @@ def get_prefect_image_name(
         regex_pattern=r"[^a-zA-Z0-9_.-]+",
     )
 
-    return f"prefecthq/prefect:{tag}"
+    image = "prefect" if is_prod_build else "prefect-dev" 
+    return f"prefecthq/{image}:{tag}"
 
 
 @contextmanager
