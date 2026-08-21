@@ -17,4 +17,6 @@ Bridges Prefect's async engine with user-written sync code (and vice versa) with
 
 ## Pitfalls
 
-_No pitfalls documented yet. Add here when non-obvious behaviors surface during debugging — especially around context propagation, thread-to-loop hand-off, and cancellation semantics, which tend to bite in subtle ways._
+- `run_async_in_new_loop` honors the experimental `PREFECT_EVENT_LOOP` selection (see `prefect._internal.loop_factory`). The loop-factory module's `run_with_selected_loop` is a drop-in for literal `asyncio.run()` entrypoints only — it is not a sync/async bridge and must not be reached for where `run_coro_as_sync` is the right tool.
+
+_No other pitfalls documented yet. Add here when non-obvious behaviors surface during debugging — especially around context propagation, thread-to-loop hand-off, and cancellation semantics, which tend to bite in subtle ways._

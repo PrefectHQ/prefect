@@ -70,7 +70,7 @@ class FlowRunWaiter:
 
 
     if __name__ == "__main__":
-        asyncio.run(main())
+        run_with_selected_loop(main())
     ```
     """
 

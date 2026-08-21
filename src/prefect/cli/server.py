@@ -20,6 +20,7 @@ from rich.table import Table
 from rich.text import Text
 
 import prefect.cli._app as _cli
+from prefect._internal.loop_factory import run_with_selected_loop
 from prefect.cli._utilities import (
     exit_with_error,
     exit_with_success,
@@ -647,7 +648,7 @@ def start_services(
     if not background:
         _cli.console.print("\n[blue]Starting services... Press CTRL+C to stop[/]\n")
         try:
-            asyncio.run(_run_all_services())
+            run_with_selected_loop(_run_all_services())
         except KeyboardInterrupt:
             pass
         _cli.console.print("\n[green]All services stopped.[/]")
@@ -740,7 +741,7 @@ def run_manager_process():
 
     logger.debug("Manager process started. Starting services...")
     try:
-        asyncio.run(_run_all_services())
+        run_with_selected_loop(_run_all_services())
     except KeyboardInterrupt:
         pass
     finally:

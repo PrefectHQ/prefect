@@ -4194,6 +4194,9 @@ snowflake = [
 sqlalchemy = [
     { name = "prefect-sqlalchemy" },
 ]
+zuvloop = [
+    { name = "zuvloop", marker = "python_full_version >= '3.14' and sys_platform != 'win32'" },
+]
 
 [package.dev-dependencies]
 benchmark = [
@@ -4352,8 +4355,9 @@ requires-dist = [
     { name = "uvicorn", specifier = ">=0.14.0,!=0.29.0" },
     { name = "websockets", specifier = ">=15.0.1,<17.0" },
     { name = "whenever", marker = "python_full_version >= '3.13'", specifier = ">=0.7.3,<0.11.0" },
+    { name = "zuvloop", marker = "python_full_version >= '3.14' and sys_platform != 'win32' and extra == 'zuvloop'", git = "https://github.com/zzstoatzz/zuvloop.git" },
 ]
-provides-extras = ["aws", "azure", "bitbucket", "buildx", "bundles", "dask", "databricks", "dbt", "docker", "email", "gcp", "github", "gitlab", "kubernetes", "otel", "ray", "redis", "shell", "slack", "snowflake", "sqlalchemy"]
+provides-extras = ["aws", "azure", "bitbucket", "buildx", "bundles", "dask", "databricks", "dbt", "docker", "email", "gcp", "github", "gitlab", "kubernetes", "otel", "ray", "redis", "shell", "slack", "snowflake", "sqlalchemy", "zuvloop"]
 
 [package.metadata.requires-dev]
 benchmark = [
@@ -7875,4 +7879,12 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/e3/02/0f2892c661036d50ede074e376733dca2ae7c6eb617489437771209d4180/zipp-3.23.0.tar.gz", hash = "sha256:a07157588a12518c9d4034df3fbbee09c814741a33ff63c05fa29d26a2404166", size = 25547, upload-time = "2025-06-08T17:06:39.4Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2e/54/647ade08bf0db230bfea292f893923872fd20be6ac6f53b2b936ba839d75/zipp-3.23.0-py3-none-any.whl", hash = "sha256:071652d6115ed432f5ce1d34c336c0adfd6a884660d1e9712a256d3d3bd4b14e", size = 10276, upload-time = "2025-06-08T17:06:38.034Z" },
+]
+
+[[package]]
+name = "zuvloop"
+version = "0.0.1"
+source = { git = "https://github.com/zzstoatzz/zuvloop.git#9afba5167fb71a933baa86b13a2a05b0061b8215" }
+dependencies = [
+    { name = "opentelemetry-api", marker = "python_full_version >= '3.14'" },
 ]

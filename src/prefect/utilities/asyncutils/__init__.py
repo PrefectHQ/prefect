@@ -30,6 +30,7 @@ from typing_extensions import (
     Unpack,
 )
 
+from prefect._internal.loop_factory import get_loop_factory
 from prefect._internal.concurrency.api import cast_to_call, from_sync
 from prefect._internal.concurrency.threads import (
     get_run_sync_loop,
@@ -257,7 +258,12 @@ def run_async_from_worker_thread(
 def run_async_in_new_loop(
     __fn: Callable[P, Awaitable[R]], *args: P.args, **kwargs: P.kwargs
 ) -> R:
-    return anyio.run(partial(__fn, *args, **kwargs))
+    return anyio.run(
+        partial(__fn, *args, **kwargs),
+        backend_options={"loop_factory": factory}
+        if (factory := get_loop_factory())
+        else None,
+    )
 
 
 def mark_as_worker_thread() -> None:

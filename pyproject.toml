@@ -92,6 +92,12 @@ Source = "https://github.com/PrefectHQ/prefect"
 Tracker = "https://github.com/PrefectHQ/prefect/issues"
 
 [project.optional-dependencies]
+# Experimental: installs from a fork tracking upstream Kludex/zuvloop until a
+# release containing the AnyIO subprocess fix (zuvloop#38) reaches PyPI.
+# Direct references cannot ship to PyPI; swap for a version pin before release.
+zuvloop = [
+    "zuvloop @ git+https://github.com/zzstoatzz/zuvloop.git ; python_version >= '3.14' and sys_platform != 'win32'",
+]
 otel = [
     "opentelemetry-distro>=0.48b0,<1.0.0",
     "opentelemetry-exporter-otlp>=1.27.0,<2.0.0",
@@ -225,6 +231,10 @@ type-checking = [
 
 
 benchmark = ["pytest-benchmark>=5.1.0", "pytest-codspeed>=2.2.1"]
+
+[tool.hatch.metadata]
+# For the experimental zuvloop extra's git reference; remove with it.
+allow-direct-references = true
 
 [tool.hatch.version]
 source = "versioningit"

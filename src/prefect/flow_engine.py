@@ -60,6 +60,7 @@ from prefect._internal.control_listener import (
     report_engine_outcome,
 )
 from prefect._internal.engine import get_hook_name, resolve_custom_flow_run_name
+from prefect._internal.loop_factory import run_with_selected_loop
 from prefect._internal.metrics import RunMetrics
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
@@ -2323,7 +2324,7 @@ def run_flow_in_subprocess(
                 if asyncio.iscoroutine(maybe_coro):
                     # This is running in a brand new process, so there won't be an existing
                     # event loop.
-                    asyncio.run(maybe_coro)
+                    run_with_selected_loop(maybe_coro)
 
     ctx = multiprocessing.get_context("spawn")
 

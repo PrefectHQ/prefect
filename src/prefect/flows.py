@@ -53,6 +53,7 @@ from prefect._internal.launchers import (
     normalize_launcher,
     resolve_bundle_step_with_launcher,
 )
+from prefect._internal.loop_factory import run_with_selected_loop
 from prefect._internal.versioning import VersionType
 from prefect.client.schemas.filters import WorkerFilter, WorkerFilterStatus
 from prefect.client.schemas.objects import ConcurrencyLimitConfig, FlowRun
@@ -1172,7 +1173,7 @@ class Flow(Generic[P, R]):
             if loop is not None:
                 loop.run_until_complete(runner.start(webserver=webserver))
             else:
-                asyncio.run(runner.start(webserver=webserver))
+                run_with_selected_loop(runner.start(webserver=webserver))
         except (KeyboardInterrupt, TerminationSignal) as exc:
             logger.info(f"Received {type(exc).__name__}, shutting down...")
             if loop is not None:
@@ -3070,7 +3071,7 @@ def serve(
         _display_serve_start_message(*args)
 
     try:
-        asyncio.run(runner.start())
+        run_with_selected_loop(runner.start())
     except (KeyboardInterrupt, TerminationSignal) as exc:
         logger.info(f"Received {type(exc).__name__}, shutting down...")
 
