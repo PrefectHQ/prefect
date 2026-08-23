@@ -1,5 +1,8 @@
+import json
+import logging
 from typing import Tuple
 from unittest import mock
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -9,9 +12,13 @@ from starlette.testclient import WebSocketTestSession
 from starlette.websockets import WebSocketDisconnect
 
 from prefect.server.events import messaging
-from prefect.server.events.schemas.events import Event
+from prefect.server.events.schemas.events import Event, RelatedResource
 from prefect.server.events.storage import database
-from prefect.settings import PREFECT_SERVER_API_AUTH_STRING, temporary_settings
+from prefect.settings import (
+    PREFECT_SERVER_API_AUTH_STRING,
+    PREFECT_SERVER_EVENTS_MAXIMUM_RELATED_RESOURCES,
+    temporary_settings,
+)
 from prefect.types._datetime import DateTime
 
 pytestmark = pytest.mark.clear_db
@@ -188,6 +195,96 @@ def test_stream_events_in_with_auth_string(
             event2.receive(received=frozen_time),
         ]
         stream_publish.assert_has_awaits([mock.call(event) for event in server_events])
+
+
+def test_stream_events_in_drops_an_unparseable_event_and_keeps_the_stream_open(
+    test_client: TestClient,
+    frozen_time: DateTime,
+    event1: Event,
+    event2: Event,
+    stream_publish: mock.AsyncMock,
+    caplog: pytest.LogCaptureFixture,
+):
+    """A single event the server cannot accept must not take the connection --
+    and therefore every event sent after it -- down with it.
+
+    Previously the `ValidationError` from `Event.model_validate_json` escaped the
+    receive loop and closed the websocket. Clients treat that as a transient
+    disconnect, so the refused event was silently lost along with everything the
+    client sent before it noticed."""
+    websocket: WebSocketTestSession
+    with (
+        caplog.at_level(logging.WARNING, logger="prefect.server.api.events"),
+        test_client.websocket_connect(
+            "/api/events/in", subprotocols=["prefect"]
+        ) as websocket,
+    ):
+        websocket.send_json({"type": "auth", "token": None})
+        assert websocket.receive_json()["type"] == "auth_success"
+
+        websocket.send_text(event1.model_dump_json())
+        # `event` is a required field, so this cannot be validated into an Event.
+        websocket.send_text(json.dumps({"resource": {"prefect.resource.id": "x"}}))
+        websocket.send_text(event2.model_dump_json())
+
+    # The two good events either side of it still arrived.
+    stream_publish.assert_has_awaits(
+        [
+            mock.call(event1.receive(received=frozen_time)),
+            mock.call(event2.receive(received=frozen_time)),
+        ]
+    )
+    assert stream_publish.await_count == 2
+
+    # And the server said something about the one it dropped.
+    assert any(
+        "could not be validated" in record.message for record in caplog.records
+    ), "dropping an unparseable event should be logged"
+
+
+def test_stream_events_in_drops_an_oversized_event_and_keeps_the_stream_open(
+    test_client: TestClient,
+    frozen_time: DateTime,
+    event1: Event,
+    event2: Event,
+    stream_publish: mock.AsyncMock,
+):
+    """The case from the original report: an event carrying more related resources
+    than the server permits. It is refused, and the stream survives it."""
+    maximum = PREFECT_SERVER_EVENTS_MAXIMUM_RELATED_RESOURCES.value()
+    oversized = event1.model_copy(
+        update={
+            "id": uuid4(),
+            "related": [
+                RelatedResource.model_validate(
+                    {
+                        "prefect.resource.id": f"related.{index}",
+                        "prefect.resource.role": "related",
+                    }
+                )
+                for index in range(maximum + 1)
+            ],
+        }
+    )
+
+    websocket: WebSocketTestSession
+    with test_client.websocket_connect(
+        "/api/events/in", subprotocols=["prefect"]
+    ) as websocket:
+        websocket.send_json({"type": "auth", "token": None})
+        assert websocket.receive_json()["type"] == "auth_success"
+
+        websocket.send_text(event1.model_dump_json())
+        websocket.send_text(oversized.model_dump_json(warnings=False))
+        websocket.send_text(event2.model_dump_json())
+
+    stream_publish.assert_has_awaits(
+        [
+            mock.call(event1.receive(received=frozen_time)),
+            mock.call(event2.receive(received=frozen_time)),
+        ]
+    )
+    assert stream_publish.await_count == 2
 
 
 def test_post_events(
