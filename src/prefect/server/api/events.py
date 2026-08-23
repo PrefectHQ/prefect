@@ -80,10 +80,21 @@ async def stream_events_in(websocket: WebSocket) -> None:
                     # problem and reconnect, so letting this escape lost both this
                     # event and everything the client sent before it noticed --
                     # silently, because nothing on either side reported it.
+                    #
+                    # Only the location and type of each validation error are
+                    # logged. The string form of a ValidationError embeds
+                    # Pydantic's `input_value`, which would reproduce the rejected
+                    # event's payload and resource labels in the server log, and
+                    # ObfuscateApiKeyFilter only removes the configured API key --
+                    # anything else the client sent would stay in the clear.
                     logger.warning(
                         "An event received on the incoming event stream could not "
-                        "be validated and was dropped: %s",
-                        exc,
+                        "be validated and was dropped (%s)",
+                        ", ".join(
+                            f"{'.'.join(str(part) for part in error['loc']) or '<root>'}:"
+                            f" {error['type']}"
+                            for error in exc.errors()
+                        ),
                     )
                     continue
                 await publisher.publish_event(event.receive())
