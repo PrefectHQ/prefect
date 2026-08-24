@@ -23,7 +23,7 @@ from prefect.types._datetime import DateTime
 
 pytestmark = pytest.mark.clear_db
 
-# A value that must never reach the server log. See the unparseable-event test.
+# A value that must never reach the server log. See the unparsable-event test.
 SENSITIVE_VALUE = "s3cr3t-do-not-log"
 
 
@@ -200,7 +200,7 @@ def test_stream_events_in_with_auth_string(
         stream_publish.assert_has_awaits([mock.call(event) for event in server_events])
 
 
-def test_stream_events_in_drops_an_unparseable_event_and_keeps_the_stream_open(
+def test_stream_events_in_drops_an_unparsable_event_and_keeps_the_stream_open(
     test_client: TestClient,
     frozen_time: DateTime,
     event1: Event,
@@ -251,7 +251,7 @@ def test_stream_events_in_drops_an_unparseable_event_and_keeps_the_stream_open(
     # And the server said something about the one it dropped.
     assert any(
         "could not be validated" in record.message for record in caplog.records
-    ), "dropping an unparseable event should be logged"
+    ), "dropping an unparsable event should be logged"
 
     # But it did not repeat the event's contents back into the log. Formatting a
     # ValidationError with `%s` embeds Pydantic's `input_value`, which would put
