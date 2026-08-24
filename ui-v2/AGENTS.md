@@ -105,7 +105,7 @@ Before committing any changes, always run:
 - **Query factories** in `/api` directories with standardized key patterns
 - **Mutation hooks** in `/api` directories
 - **No data transformation** in query factories - do it in components
-- **Duration fields** (`estimated_run_time`, `total_run_time`, etc.) are returned in **seconds** by the API; `humanizeDuration` and similar JS libraries expect milliseconds — always multiply by 1000 before passing to them
+- **Duration fields** (`estimated_run_time`, `total_run_time`, etc.) are returned in **seconds** by the API. Prefer `secondsToApproximateString`/`secondsToString` from `@/utils/seconds` for display — they take raw seconds directly. `humanizeDuration` and similar JS libraries expect milliseconds instead, so multiply by 1000 before passing to them
 
 ## Forms
 
