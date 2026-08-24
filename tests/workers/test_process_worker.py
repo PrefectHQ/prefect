@@ -19,6 +19,7 @@ from prefect.client import schemas as client_schemas
 from prefect.client.orchestration import PrefectClient
 from prefect.client.schemas import State
 from prefect.client.schemas.objects import Deployment, FlowRun, StateType, WorkPool
+from prefect.flows import bind_flow_to_infrastructure
 from prefect.runner import _workspace_starter
 from prefect.runner._process_manager import ProcessHandle
 from prefect.server import models
@@ -1197,6 +1198,33 @@ async def test_submit_adhoc_run_without_flow_run_creates_new_run(
     # A new flow run should have been created
     final_flow_runs = await prefect_client.read_flow_runs()
     assert len(final_flow_runs) > initial_count
+
+
+async def test_submit_adhoc_run_crashes_when_bundle_creation_fails(
+    process_work_pool: WorkPool,
+    prefect_client: PrefectClient,
+    tmp_path: Path,
+):
+    @flow
+    def test_flow() -> None:
+        pass
+
+    bound_flow = bind_flow_to_infrastructure(
+        flow=test_flow,
+        work_pool=process_work_pool.name,
+        worker_cls=ProcessWorker,
+        include_files=["config.yaml"],
+        include_files_base_dir=tmp_path / "missing",
+    )
+    async with ProcessWorker(work_pool_name=process_work_pool.name) as worker:
+        with pytest.warns(FutureWarning):
+            future = await worker.submit(bound_flow)
+
+    flow_run = await prefect_client.read_flow_run(future.flow_run_id)
+    assert flow_run.state is not None
+    assert flow_run.state.is_crashed()
+    assert flow_run.state.message is not None
+    assert "include_files_base_dir" in flow_run.state.message
 
 
 async def test_submit_adhoc_run_passes_worker_id_for_attribution(

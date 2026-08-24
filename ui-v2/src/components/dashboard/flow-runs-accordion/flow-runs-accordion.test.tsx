@@ -9,7 +9,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
-import { Suspense } from "react";
+import { createContext, Suspense, useContext, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { FlowRunsFilter } from "@/api/flow-runs";
 import type { Flow } from "@/api/flows";
@@ -19,9 +19,9 @@ import { FlowRunsAccordionContent } from "./flow-runs-accordion-content";
 import { FlowRunsAccordionHeader } from "./flow-runs-accordion-header";
 import { FlowRunsAccordion, type FlowRunsAccordionProps } from "./index";
 
-const createRouterWithComponent = (component: React.ReactNode) => {
+const createRouterWithComponent = (component: () => React.ReactNode) => {
 	const rootRoute = createRootRoute({
-		component: () => component,
+		component,
 	});
 	return createRouter({
 		routeTree: rootRoute,
@@ -31,7 +31,9 @@ const createRouterWithComponent = (component: React.ReactNode) => {
 };
 
 const FlowRunsAccordionRouter = (props: FlowRunsAccordionProps) => {
-	const router = createRouterWithComponent(<FlowRunsAccordion {...props} />);
+	const router = createRouterWithComponent(() => (
+		<FlowRunsAccordion {...props} />
+	));
 	return <RouterProvider router={router} />;
 };
 
@@ -42,34 +44,43 @@ const FlowRunsAccordionHeaderRouter = ({
 	flow: Flow;
 	filter: FlowRunsFilter;
 }) => {
-	const router = createRouterWithComponent(
-		<FlowRunsAccordionHeader flow={flow} filter={filter} />,
-	);
+	const router = createRouterWithComponent(() => (
+		<FlowRunsAccordionHeader flow={flow} filter={filter} />
+	));
 	return <RouterProvider router={router} />;
 };
 
-const FlowRunsAccordionContentRouter = ({
-	flowId,
-	filter,
-	page,
-	onPageChange,
-}: {
+type FlowRunsAccordionContentRouterProps = {
 	flowId: string;
 	filter?: FlowRunsFilter;
 	page?: number;
 	onPageChange?: (page: number) => void;
-}) => {
-	const router = createRouterWithComponent(
+};
+
+const FlowRunsAccordionContentPropsContext =
+	createContext<FlowRunsAccordionContentRouterProps | null>(null);
+
+const RoutedFlowRunsAccordionContent = () => {
+	const props = useContext(FlowRunsAccordionContentPropsContext);
+	if (!props) throw new Error("Missing flow runs accordion content props");
+	return (
 		<Suspense fallback={<div>Loading...</div>}>
-			<FlowRunsAccordionContent
-				flowId={flowId}
-				filter={filter}
-				page={page}
-				onPageChange={onPageChange}
-			/>
-		</Suspense>,
+			<FlowRunsAccordionContent {...props} />
+		</Suspense>
 	);
-	return <RouterProvider router={router} />;
+};
+
+const FlowRunsAccordionContentRouter = (
+	props: FlowRunsAccordionContentRouterProps,
+) => {
+	const [router] = useState(() =>
+		createRouterWithComponent(RoutedFlowRunsAccordionContent),
+	);
+	return (
+		<FlowRunsAccordionContentPropsContext.Provider value={props}>
+			<RouterProvider router={router} />
+		</FlowRunsAccordionContentPropsContext.Provider>
+	);
 };
 
 describe("FlowRunStateTypeEmpty", () => {

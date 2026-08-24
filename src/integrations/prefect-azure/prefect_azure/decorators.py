@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -53,6 +54,8 @@ def azure_container_instance(
     work_pool: str,
     include_files: Sequence[str] | None = None,
     launcher: BundleLauncher | None = None,
+    *,
+    include_files_base_dir: Path | str | None = None,
     **job_variables: Any,
 ) -> Callable[[Flow[P, R]], InfrastructureBoundFlow[P, R]]:
     """
@@ -65,6 +68,9 @@ def azure_container_instance(
             (e.g., "*.yaml", "data/**/*.csv"). Files matching these patterns will
             be bundled and available in the remote execution environment.
         launcher: Optional upload and execution launcher override.
+        include_files_base_dir: Optional base directory used to resolve
+            `include_files`. Relative paths are resolved from the working directory
+            when the bundle is created. Defaults to the flow file's directory.
         **job_variables: Additional job variables to use for infrastructure configuration
 
     Example:
@@ -99,6 +105,7 @@ def azure_container_instance(
             worker_cls=AzureContainerWorker,
             launcher=launcher,
             include_files=list(include_files) if include_files is not None else None,
+            include_files_base_dir=include_files_base_dir,
         )
 
     return decorator

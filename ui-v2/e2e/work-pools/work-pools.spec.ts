@@ -146,9 +146,15 @@ test.describe("Work Pool Detail Page", () => {
 			{ timeout: 10000 },
 		);
 
-		await expect(page.getByText("Process", { exact: true })).toBeVisible();
+		// Scope to the sidebar: the details also render in the transient
+		// "Details" tab until the route redirects to "Runs" on desktop, so an
+		// unscoped locator can match two elements and violate strict mode.
+		const sidebar = page.getByRole("complementary");
+		await expect(sidebar.getByText("Process", { exact: true })).toBeVisible();
 
-		await expect(page.getByText("Test description for detail")).toBeVisible();
+		await expect(
+			sidebar.getByText("Test description for detail"),
+		).toBeVisible();
 	});
 
 	test("View work queues tab with default queue", async ({

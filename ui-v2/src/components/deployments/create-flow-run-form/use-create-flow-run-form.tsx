@@ -19,9 +19,17 @@ const formSchema = z.object({
 	empirical_policy: z
 		.object({
 			/** Coerce to solve common issue of transforming a string number to a number type */
-			retries: z.number().or(z.string()).pipe(z.coerce.number()).optional(),
+			retries: z
+				.number()
+				.or(z.string())
+				.pipe(z.coerce.number<string | number>())
+				.optional(),
 			/** Coerce to solve common issue of transforming a string number to a number type */
-			retry_delay: z.number().or(z.string()).pipe(z.coerce.number()).optional(),
+			retry_delay: z
+				.number()
+				.or(z.string())
+				.pipe(z.coerce.number<string | number>())
+				.optional(),
 		})
 		.optional(),
 	name: z.string().nonempty(),
@@ -32,11 +40,11 @@ const formSchema = z.object({
 				if (!val) {
 					return;
 				}
-				return JSON.parse(val) as Record<string, unknown>;
+				JSON.parse(val);
 			} catch (err) {
 				console.error(err);
 				ctx.addIssue({ code: "custom", message: "Invalid JSON" });
-				return z.NEVER;
+				return;
 			}
 		})
 		.optional(),
@@ -66,7 +74,7 @@ const formSchema = z.object({
 	work_queue_name: z.string().nullable().optional(),
 	enforce_parameter_schema: z.boolean(),
 	parameter_openapi_schema: z
-		.record(z.unknown())
+		.record(z.string(), z.unknown())
 		.optional()
 		.nullable()
 		.readonly(),
