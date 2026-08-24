@@ -363,6 +363,17 @@ function buildTaskRunsCountFiltersFromSearch(search: DashboardSearch): {
 	};
 }
 
+/**
+ * Filter that requests a single flow run to find if the workspace has any
+ * flow runs. An unfiltered count scans the whole flow run table and can
+ * exceed the API statement timeout on large tables.
+ */
+const ANY_FLOW_RUNS_FILTER: FlowRunsFilter = {
+	sort: "ID_DESC",
+	offset: 0,
+	limit: 1,
+};
+
 const STATE_TYPE_GROUPS = [
 	["FAILED", "CRASHED"],
 	["RUNNING", "PENDING", "CANCELLING"],
@@ -391,13 +402,13 @@ export const Route = createFileRoute("/dashboard")({
 	loader: async ({ deps, context: { queryClient } }) => {
 		void queryClient.prefetchQuery(buildGetSettingsQuery());
 
-		// Prefetch total flow runs count to determine if dashboard is empty
-		const totalFlowRuns = await queryClient.ensureQueryData(
-			buildCountFlowRunsQuery({}, 30_000),
+		// Prefetch a single flow run to determine if dashboard is empty
+		const anyFlowRuns = await queryClient.ensureQueryData(
+			buildFilterFlowRunsQuery(ANY_FLOW_RUNS_FILTER, 30_000),
 		);
 
 		// If there are no flow runs, skip prefetching other data
-		if (totalFlowRuns === 0) {
+		if (anyFlowRuns.length === 0) {
 			return;
 		}
 
@@ -763,11 +774,11 @@ export function RouteComponent() {
 	const search = Route.useSearch();
 	const navigate = Route.useNavigate();
 
-	// Check if there are any flow runs at all (unfiltered count)
-	const { data: totalFlowRuns } = useSuspenseQuery(
-		buildCountFlowRunsQuery({}, 30_000),
+	// Check if there are any flow runs at all (unfiltered, one run only)
+	const { data: anyFlowRuns } = useSuspenseQuery(
+		buildFilterFlowRunsQuery(ANY_FLOW_RUNS_FILTER, 30_000),
 	);
-	const isEmpty = totalFlowRuns === 0;
+	const isEmpty = anyFlowRuns.length === 0;
 
 	// Derive UI states with sensible defaults
 	const hideSubflows = search.hideSubflows ?? false;
