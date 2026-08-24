@@ -2,6 +2,7 @@ import contextlib
 import importlib.util
 import json
 import textwrap
+from collections.abc import AsyncIterator
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
@@ -11,6 +12,7 @@ import alembic.context
 import alembic.script
 import pytest
 import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 from prefect.server.database import dependencies
 from prefect.server.database.alembic_commands import (
@@ -34,6 +36,45 @@ from prefect.types._datetime import now
 from prefect.utilities.asyncutils import run_sync_in_worker_thread
 
 pytestmark = [pytest.mark.service("database"), pytest.mark.clear_db]
+
+
+@contextlib.asynccontextmanager
+async def _isolated_postgres_schema_changes(
+    db: PrefectDBInterface, database_engine: AsyncEngine
+) -> AsyncIterator[None]:
+    if db.dialect.name != "postgresql":
+        yield
+        return
+
+    # Alembic uses a separate engine, so the application pool does not observe its
+    # DDL and can retain asyncpg prepared statements for types that were replaced.
+    await database_engine.dispose()
+    try:
+        yield
+    finally:
+        # The hosted test API runs in another process against the same per-worker
+        # database. Disconnect its pooled sessions too; pool_pre_ping will replace
+        # them before the next request.
+        async with database_engine.begin() as connection:
+            await connection.execute(
+                sa.text(
+                    """
+                    SELECT pg_terminate_backend(pid)
+                    FROM pg_stat_activity
+                    WHERE datname = current_database()
+                      AND pid <> pg_backend_pid()
+                    """
+                )
+            )
+        await database_engine.dispose()
+
+
+@pytest.fixture(autouse=True)
+async def isolate_migration_tests(
+    db: PrefectDBInterface, database_engine: AsyncEngine
+) -> AsyncIterator[None]:
+    async with _isolated_postgres_schema_changes(db, database_engine):
+        yield
 
 
 @pytest.fixture
@@ -306,6 +347,67 @@ def test_event_resource_index_migration_supports_postgres_dry_run(
         "ix_event_resources__event_id ON event_resources (event_id)"
         in " ".join(output.split())
     )
+
+
+@pytest.mark.timeout(120)
+async def test_schema_migrations_discard_stale_postgres_prepared_statements(
+    db: PrefectDBInterface, database_engine: AsyncEngine
+):
+    if db.dialect.name != "postgresql":
+        pytest.skip(reason="asyncpg prepared statement caches are PostgreSQL-specific")
+
+    external_engine = create_async_engine(database_engine.url, pool_pre_ping=True)
+    try:
+        async with external_engine.begin() as connection:
+            await connection.execute(
+                sa.insert(db.WorkPool).values(
+                    name="external-before-schema-change",
+                    type="process",
+                    status="NOT_READY",
+                )
+            )
+
+        async with _isolated_postgres_schema_changes(db, database_engine):
+            async with database_engine.begin() as connection:
+                await connection.execute(
+                    sa.insert(db.WorkPool).values(
+                        name="before-schema-change",
+                        type="process",
+                        status="NOT_READY",
+                    )
+                )
+
+            try:
+                await run_sync_in_worker_thread(
+                    alembic_downgrade, revision="15768c2ec702"
+                )
+            finally:
+                await run_sync_in_worker_thread(alembic_upgrade)
+
+        async with database_engine.begin() as connection:
+            await connection.execute(
+                sa.insert(db.WorkPool).values(
+                    name="after-schema-change",
+                    type="process",
+                    status="NOT_READY",
+                )
+            )
+        async with external_engine.begin() as connection:
+            await connection.execute(
+                sa.insert(db.WorkPool).values(
+                    name="external-after-schema-change",
+                    type="process",
+                    status="NOT_READY",
+                )
+            )
+            result = await connection.execute(
+                sa.select(sa.func.count())
+                .select_from(db.WorkPool)
+                .where(db.WorkPool.name == "external-after-schema-change")
+            )
+        assert result.scalar_one() == 1
+    finally:
+        await external_engine.dispose()
 
 
 def test_flow_run_deployment_id_index_migration_rebuilds_invalid_index(
