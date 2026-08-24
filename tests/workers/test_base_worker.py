@@ -4696,6 +4696,45 @@ class TestSubmit:
         # Upload step should have been run
         mock_run_process.assert_called_once()
 
+    async def test_bundle_creation_failure_crashes_flow_run(
+        self,
+        work_pool: WorkPool,
+        prefect_client: PrefectClient,
+        tmp_path: Path,
+    ):
+        class BundleWorker(BaseWorker[BaseJobConfiguration, Any, BaseWorkerResult]):
+            type = "bundle-worker"
+            job_configuration = BaseJobConfiguration
+
+            async def run(
+                self,
+                flow_run: FlowRun,
+                configuration: BaseJobConfiguration,
+                task_status: anyio.abc.TaskStatus[int] | None = None,
+            ) -> BaseWorkerResult:
+                return BaseWorkerResult(identifier="test", status_code=0)
+
+        @flow
+        def test_flow() -> None:
+            pass
+
+        bound_flow = bind_flow_to_infrastructure(
+            flow=test_flow,
+            work_pool=work_pool.name,
+            worker_cls=BundleWorker,
+            include_files=["config.yaml"],
+            include_files_base_dir=tmp_path / "missing",
+        )
+        async with BundleWorker(work_pool_name=work_pool.name) as worker:
+            with pytest.warns(FutureWarning):
+                future = await worker.submit(bound_flow)
+
+        flow_run = await prefect_client.read_flow_run(future.flow_run_id)
+        assert flow_run.state is not None
+        assert flow_run.state.is_crashed()
+        assert flow_run.state.message is not None
+        assert "include_files_base_dir" in flow_run.state.message
+
     async def test_work_pool_is_missing_storage_configuration(
         self,
         work_pool_missing_storage_configuration: WorkPool,
