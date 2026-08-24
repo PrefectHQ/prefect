@@ -47,6 +47,7 @@ Work-pool-level launchers are configured via `prefect work-pool storage configur
 
 ## Pitfalls
 
+- `create_bundle_for_flow_run()` can raise (e.g. invalid `include_files_base_dir`, path traversal, IO errors). Every worker `run()`/`submit()` override that calls it must catch the exception and propose a `Crashed` state (`self._propose_crashed_state(...)`) rather than letting it propagate — this contract is duplicated across `BaseWorker`, `ProcessWorker`, and integration workers (e.g. `prefect-docker`'s `DockerWorker`), so new worker types must repeat it explicitly.
 - `backend_id` is `None` until the first heartbeat succeeds; `PREFECT__WORKER_ID` is not set until then. Code that reads `self.backend_id` early in the lifecycle may get `None`.
 - Direct `ProcessWorker.run()` execution uses `FlowRunExecutorContext` with `EngineCommandStarter` and `propose_submitting=False` because `BaseWorker` already proposed Submitting. Consume the executor's normalized infrastructure status, not the raw child exit code. The ad hoc bundle path still uses deprecated `Runner.execute_bundle()` and remains a migration gap (see `runner/AGENTS.md`).
 
