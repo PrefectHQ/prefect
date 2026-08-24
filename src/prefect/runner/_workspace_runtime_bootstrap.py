@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import functools
-import importlib.metadata
 import inspect
 import json
 import runpy
@@ -10,8 +9,6 @@ import sys
 import traceback
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, cast
-
-from packaging.version import InvalidVersion, Version
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -21,30 +18,6 @@ if TYPE_CHECKING:
 
 
 HookType = Literal["cancellation", "crashed"]
-_MINIMUM_PREFECT_VERSION = Version("3.7")
-_MAXIMUM_PREFECT_VERSION = Version("4")
-
-
-def _validate_hook_runtime() -> None:
-    try:
-        installed_version = importlib.metadata.version("prefect")
-        version = Version(installed_version)
-    except importlib.metadata.PackageNotFoundError as exc:
-        raise RuntimeError(
-            "The selected project runtime does not contain Prefect; "
-            "ProcessWorker workspace hooks require Prefect >=3.7,<4."
-        ) from exc
-    except InvalidVersion as exc:
-        raise RuntimeError(
-            f"The selected project runtime reports an invalid Prefect version: {exc}."
-        ) from exc
-
-    if not _MINIMUM_PREFECT_VERSION <= version < _MAXIMUM_PREFECT_VERSION:
-        raise RuntimeError(
-            "The selected project runtime contains Prefect "
-            f"{installed_version}; ProcessWorker workspace hooks require "
-            "Prefect >=3.7,<4."
-        )
 
 
 def _run_engine(entrypoint: str) -> int:
@@ -170,7 +143,6 @@ def main(argv: list[str] | None = None) -> int:
         if args.operation == "engine":
             return _run_engine(args.entrypoint)
 
-        _validate_hook_runtime()
         import anyio
 
         anyio.run(

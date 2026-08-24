@@ -1,42 +1,43 @@
 from __future__ import annotations
 
 import importlib.metadata
+from pathlib import Path
 from unittest.mock import MagicMock
 
+import anyio
 import pytest
 
 from prefect.runner import _workspace_runtime_bootstrap
 
 
-@pytest.mark.parametrize("version", ["3.7.0", "3.8.4.dev1", "3.99.0"])
-def test_validate_hook_runtime_accepts_supported_prefect_versions(
-    monkeypatch: pytest.MonkeyPatch, version: str
-) -> None:
-    monkeypatch.setattr(importlib.metadata, "version", lambda _package: version)
+def test_hook_bootstrap_dispatches_with_source_fallback_version(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+):
+    monkeypatch.setattr(
+        importlib.metadata,
+        "version",
+        lambda _package: "3.6.24+99",
+    )
+    run = MagicMock()
+    monkeypatch.setattr(anyio, "run", run)
 
-    _workspace_runtime_bootstrap._validate_hook_runtime()
-
-
-@pytest.mark.parametrize("version", ["2.20.0", "4.0.0"])
-def test_validate_hook_runtime_rejects_unsupported_prefect_versions(
-    monkeypatch: pytest.MonkeyPatch, version: str
-) -> None:
-    monkeypatch.setattr(importlib.metadata, "version", lambda _package: version)
-
-    with pytest.raises(
-        RuntimeError,
-        match=(
-            rf"project runtime contains Prefect {version}; "
-            r"ProcessWorker workspace hooks require Prefect >=3\.7,<4"
-        ),
-    ):
-        _workspace_runtime_bootstrap._validate_hook_runtime()
+    paths = [tmp_path / name for name in ("manifest", "flow-run", "state")]
+    assert (
+        _workspace_runtime_bootstrap.main(
+            ["hook", "crashed", *(str(path) for path in paths)]
+        )
+        == 0
+    )
+    run.assert_called_once_with(
+        _workspace_runtime_bootstrap._execute_hook,
+        "crashed",
+        *paths,
+    )
 
 
 def test_engine_bootstrap_runs_flow_engine_with_entrypoint(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(importlib.metadata, "version", lambda _package: "3.6.0")
     monkeypatch.setattr(_workspace_runtime_bootstrap.sys, "argv", ["pytest"])
     run_module = MagicMock()
     monkeypatch.setattr(
