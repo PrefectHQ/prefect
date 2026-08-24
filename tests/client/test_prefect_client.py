@@ -1647,7 +1647,7 @@ async def test_prefect_api_ssl_cert_file_setting_explicitly_set(
 async def test_prefect_api_ssl_cert_file_default_setting(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    os.environ["SSL_CERT_FILE"] = "my_cert.pem"
+    monkeypatch.setenv("SSL_CERT_FILE", "my_cert.pem")
 
     # Mock the SSL context creation
     mock_context = Mock()
@@ -1678,7 +1678,7 @@ async def test_prefect_api_ssl_cert_file_default_setting(
 async def test_prefect_api_ssl_cert_file_default_setting_fallback(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    os.environ["SSL_CERT_FILE"] = ""
+    monkeypatch.setenv("SSL_CERT_FILE", "")
 
     # Mock the SSL context creation
     mock_context = Mock()

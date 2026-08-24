@@ -31,10 +31,9 @@ export const Route = createFileRoute("/path")({
 
 ## Search Parameters
 
-Use `validateSearch` with `zodValidator` from `@tanstack/zod-adapter` to validate search params:
+Pass a Zod 4 schema directly to `validateSearch` to validate search params:
 
 ```ts
-import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 
 const searchSchema = z.object({
@@ -42,7 +41,7 @@ const searchSchema = z.object({
 });
 
 export const Route = createFileRoute("/path")({
-	validateSearch: zodValidator(searchSchema),
+	validateSearch: searchSchema,
 	component: function RouteComponent() {
 		const { redirect } = Route.useSearch();
 		// ...
