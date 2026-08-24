@@ -32,7 +32,7 @@ This directory contains React components for the Prefect UI migration from Vue t
 
 - Use `react-hook-form` for forms
 - Use `zod` for form validation
-- Use `zod-form-adapter` to convert `zod` schemas to `react-hook-form` form schemas
+- Use `zodResolver` from `@hookform/resolvers/zod` to convert `zod` schemas to `react-hook-form` form schemas
 - Use `Form` component from `@/components/ui/form` to wrap forms
 - Use `FormField` component from `@/components/ui/form` to wrap form fields
 - Use `Stepper` component for wizard-like flows
@@ -55,11 +55,17 @@ This directory contains React components for the Prefect UI migration from Vue t
 - NEVER use `React.FC`
 - NEVER use `as unknown` or `eslint-disable` comments
 
+## DataTable Setup (Tanstack Table v9)
+
+Import `useTable`, `createColumnHelper`, and table types (`ColumnDef`, `CellContext`, `Column`, `Header`, `Table`) from `@/lib/tanstack-table`, not from `@tanstack/react-table` directly. The wrapper pre-registers this app's table features (pagination, sorting, filtering, resizing, row selection) via `createTableHook`; a table built with the raw package's `useReactTable`/`createColumnHelper` won't have those features and its types won't match `DataTable`'s props.
+
 ## DataTable Row Clicks
 
 `DataTable` suppresses `onRowClick` when the click target is or is inside `a, button, input, select, textarea, [role="button"], [role="checkbox"], [role="menuitem"], [role="switch"]`, or `[data-row-click-ignore="true"]`. Do not add `stopPropagation()` to these elements inside rows — it is redundant.
 
 Exception: Radix components that render in a portal (e.g., `DropdownMenuContent`) bubble events through React's synthetic event system even when the DOM node is outside the table. Add `onClick={(e) => e.stopPropagation()}` on the portal content component itself.
+
+`Dialog`/`DialogContent` (`@/components/ui/dialog`) already carry `data-row-click-ignore="true"` on both the overlay and content, so opening one from a row action needs no extra stopPropagation. Other portal-rendered primitives (`DropdownMenuContent`, `Popover`, etc.) still need the manual exception above.
 
 ## DataTable Column Resizing
 
@@ -87,6 +93,7 @@ To persist widths across sessions: `useLocalStorage<ColumnSizingState>(KEY, {})`
   ```
   Always call `vi.restoreAllMocks()` in `afterEach` to clean up.
 - **`matchMedia` mocking**: JSDOM does not implement `window.matchMedia`. Stub it via `Object.defineProperty(window, "matchMedia", ...)` and restore the original in `afterEach`.
+- **Virtualized lists** (`@tanstack/react-virtual`, e.g. `timezone-select`, `run-logs`): JSDOM reports 0 for `offsetWidth`/`offsetHeight`, which virtualizers use to measure their scroll container — `tests/setup.ts` stubs both globally so items render at all. Off-screen items aren't in the DOM until measured, so query them with `findByRole`/`waitFor`, not `getByRole`.
 
 ## Storybook Best Practices
 

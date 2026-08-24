@@ -182,14 +182,18 @@ RUN ldconfig
 # Install UV from official image - pin to specific version for build caching
 COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /bin/uv
 
-# Install prefect from the sdist
-COPY --from=python-builder /opt/prefect/dist ./dist
-
 # Extras to include during installation
 ARG PREFECT_EXTRAS=[redis,client,otel]
+
+# Install prefect from the sdist.
+#
+# The sdist is bind-mounted rather than copied. A COPY commits the archive to its
+# own layer, and a `rm -rf` in a later RUN can only add a whiteout on top of that
+# layer -- it cannot remove it from the image, so the archive ships in everything
+# we push. A bind mount is never committed to a layer.
 RUN --mount=type=cache,target=/root/.cache/uv \
-    UV_COMPILE_BYTECODE=1 uv pip install "./dist/prefect.tar.gz${PREFECT_EXTRAS:-""}" && \
-    rm -rf dist/
+    --mount=type=bind,from=python-builder,source=/opt/prefect/dist,target=/dist \
+    UV_COMPILE_BYTECODE=1 uv pip install "/dist/prefect.tar.gz${PREFECT_EXTRAS:-""}"
 
 # Setuptools is required by pip in the conda environment. Remove it only from
 # base images where it is not managed as part of the environment.

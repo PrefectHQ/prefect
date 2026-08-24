@@ -1,6 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { Suspense, useCallback, useMemo } from "react";
 import { z } from "zod";
 import { buildGetSettingsQuery } from "@/api/admin";
@@ -373,7 +372,7 @@ const STATE_TYPE_GROUPS = [
 ] as const;
 
 export const Route = createFileRoute("/dashboard")({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	component: RouteComponent,
 	pendingComponent: PrefectLoading,
 	pendingMs: 400,

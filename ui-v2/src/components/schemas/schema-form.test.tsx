@@ -329,6 +329,69 @@ describe("property.type", () => {
 		});
 	});
 
+	describe("asynchronous parent updates", () => {
+		test("does not revert typed characters when the parent commits a stale value", async () => {
+			const pendingValues: SchemaFormValues[] = [];
+
+			function Wrapper() {
+				const [values, setValues] = useState<SchemaFormValues>({});
+
+				const schema: SchemaObject = {
+					type: "object",
+					properties: {
+						name: { type: "string" },
+					},
+				};
+
+				return (
+					<>
+						<TestSchemaForm
+							schema={schema}
+							values={values}
+							onValuesChange={(newValues) => pendingValues.push(newValues)}
+						/>
+						<button
+							type="button"
+							onClick={() => {
+								const next = pendingValues.shift();
+
+								if (next) {
+									setValues(next);
+								}
+							}}
+						>
+							commit
+						</button>
+					</>
+				);
+			}
+
+			render(<Wrapper />);
+
+			const input = screen.getByRole("textbox");
+
+			fireEvent.change(input, { target: { value: "b" } });
+
+			// eslint-disable-next-line @typescript-eslint/require-await
+			await act(async () => {
+				vi.runAllTimers();
+			});
+
+			fireEvent.change(input, { target: { value: "ba" } });
+			fireEvent.change(input, { target: { value: "bar" } });
+
+			// the parent commits the value of the first keystroke after two more
+			fireEvent.click(screen.getByRole("button", { name: "commit" }));
+
+			// eslint-disable-next-line @typescript-eslint/require-await
+			await act(async () => {
+				vi.runAllTimers();
+			});
+
+			expect(input).toHaveValue("bar");
+		});
+	});
+
 	describe("optional property with a non-null default", () => {
 		const schema: PrefectSchemaObject = {
 			type: "object",

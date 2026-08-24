@@ -6,6 +6,7 @@ import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import type { DeploymentWithFlow } from "@/api/deployments";
 import { buildFilterFlowRunsQuery } from "@/api/flow-runs";
+import { QuickRunParametersDialog } from "@/components/deployments/quick-run-parameters-dialog";
 import { useQuickRun } from "@/components/deployments/use-quick-run";
 import { Button } from "@/components/ui/button";
 import {
@@ -26,7 +27,9 @@ type ActionsCellProps = CellContext<DeploymentWithFlow, unknown> & {
 
 export const ActionsCell = ({ row, onDelete }: ActionsCellProps) => {
 	const { id, parameters } = row.original;
-	const { onQuickRun, isPending } = useQuickRun();
+	const { onQuickRun, isPending, parametersDialogState } = useQuickRun(
+		row.original,
+	);
 
 	if (!id) return null;
 
@@ -44,7 +47,7 @@ export const ActionsCell = ({ row, onDelete }: ActionsCellProps) => {
 					onClick={(event) => event.stopPropagation()}
 				>
 					<DropdownMenuLabel>Actions</DropdownMenuLabel>
-					<DropdownMenuItem disabled={isPending} onClick={() => onQuickRun(id)}>
+					<DropdownMenuItem disabled={isPending} onClick={onQuickRun}>
 						Quick Run
 					</DropdownMenuItem>
 					<DropdownMenuItem>
@@ -83,6 +86,12 @@ export const ActionsCell = ({ row, onDelete }: ActionsCellProps) => {
 					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
+			{parametersDialogState.open && (
+				<QuickRunParametersDialog
+					deployment={row.original}
+					{...parametersDialogState}
+				/>
+			)}
 		</div>
 	);
 };

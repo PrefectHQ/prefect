@@ -5,7 +5,6 @@ import {
 } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { z } from "zod";
 import { categorizeError } from "@/api/error-utils";
@@ -353,7 +352,7 @@ const buildHistoryFilter = (search?: SearchParams): FlowRunHistoryFilter => {
 };
 
 export const Route = createFileRoute("/runs/")({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	component: function RouteComponent() {
 		const queryClient = useQueryClient();
 		const search = Route.useSearch();

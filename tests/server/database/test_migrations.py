@@ -112,6 +112,23 @@ def event_resource_index_migration() -> ModuleType:
     return module
 
 
+@pytest.fixture
+def flow_run_deployment_id_index_migration() -> ModuleType:
+    path = (
+        Path(__file__).parents[3]
+        / "src/prefect/server/database/_migrations/versions/postgresql"
+        / "2026_08_20_000000_9e9dadc36797_add_flow_run_deployment_id_index.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "test_flow_run_deployment_id_index_migration", path
+    )
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 @pytest.mark.parametrize("migration_timeout", [None, 60.0])
 async def test_postgres_migration_engine_uses_migration_timeout(
     migration_environment: ModuleType,
@@ -391,6 +408,82 @@ async def test_schema_migrations_discard_stale_postgres_prepared_statements(
         assert result.scalar_one() == 1
     finally:
         await external_engine.dispose()
+
+
+def test_flow_run_deployment_id_index_migration_rebuilds_invalid_index(
+    flow_run_deployment_id_index_migration: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    catalog_queries: list[str] = []
+    statements: list[str] = []
+
+    class Result:
+        def scalar(self) -> int:
+            return 1
+
+    class Bind:
+        def exec_driver_sql(self, statement: str) -> Result:
+            catalog_queries.append(" ".join(statement.split()))
+            return Result()
+
+    @contextlib.contextmanager
+    def autocommit_block():
+        yield
+
+    operation = SimpleNamespace(
+        get_context=lambda: SimpleNamespace(
+            as_sql=False,
+            autocommit_block=autocommit_block,
+        ),
+        get_bind=lambda: Bind(),
+        execute=lambda statement: statements.append(" ".join(statement.split())),
+    )
+    monkeypatch.setattr(flow_run_deployment_id_index_migration, "op", operation)
+
+    flow_run_deployment_id_index_migration.upgrade()
+
+    assert catalog_queries == [
+        "SELECT 1 FROM pg_class c JOIN pg_index i ON i.indexrelid = c.oid "
+        "WHERE c.relname = 'ix_flow_run__deployment_id' AND NOT i.indisvalid"
+    ]
+    assert statements == [
+        "DROP INDEX CONCURRENTLY IF EXISTS ix_flow_run__deployment_id",
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
+        "ix_flow_run__deployment_id ON flow_run (deployment_id)",
+    ]
+
+
+def test_flow_run_deployment_id_index_migration_supports_postgres_dry_run(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    monkeypatch.setattr(
+        dependencies,
+        "MODELS_DEPENDENCIES",
+        {
+            "database_config": None,
+            "query_components": None,
+            "orm": None,
+            "interface_class": None,
+        },
+    )
+    monkeypatch.setattr(DBSingleton, "_instances", {})
+
+    with temporary_settings(
+        {
+            PREFECT_SERVER_DATABASE_CONNECTION_URL: (
+                "postgresql+asyncpg://localhost/prefect"
+            )
+        }
+    ):
+        alembic_upgrade("50737cdaee36:9e9dadc36797", dry_run=True)
+
+    output = capsys.readouterr().out
+    assert (
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
+        "ix_flow_run__deployment_id ON flow_run (deployment_id)"
+        in " ".join(output.split())
+    )
 
 
 @pytest.fixture
