@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import argparse
 import functools
+import importlib
 import inspect
 import json
+import os
 import runpy
 import sys
 import traceback
@@ -21,8 +23,24 @@ HookType = Literal["cancellation", "crashed"]
 
 
 def _run_engine(entrypoint: str) -> int:
-    sys.argv = ["prefect.flow_engine", entrypoint]
-    runpy.run_module("prefect.flow_engine", run_name="__main__")
+    try:
+        flow_engine = importlib.import_module("prefect.flow_engine")
+    except ModuleNotFoundError as exc:
+        if exc.name != "prefect.flow_engine":
+            raise
+        flow_engine = None
+
+    flow_engine_main = getattr(flow_engine, "_main", None)
+    if callable(flow_engine_main):
+        sys.argv = ["prefect.flow_engine", entrypoint]
+        return cast(int, flow_engine_main([entrypoint]))
+
+    os.environ["PREFECT__FLOW_ENTRYPOINT"] = entrypoint
+    sys.argv = ["prefect.engine"]
+    # Importing `prefect.flow_engine` can import `prefect.engine` as a dependency.
+    # Remove that library instance before executing a fresh `__main__` instance.
+    sys.modules.pop("prefect.engine", None)
+    runpy.run_module("prefect.engine", run_name="__main__")
     return 0
 
 
