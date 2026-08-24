@@ -63,7 +63,7 @@ from prefect.settings import (
     PREFECT_UI_URL,
     temporary_settings,
 )
-from prefect.states import Completed, State
+from prefect.states import Cancelled, Completed, Crashed, State
 from prefect.task_worker import read_parameters
 from prefect.tasks import Task, task, task_input_hash
 from prefect.testing.utilities import exceptions_equal
@@ -3632,6 +3632,44 @@ class TestSubflowWaitForTasks:
         assert subflow_state.is_pending()
         assert subflow_state.name == "NotReady"
 
+    async def test_async_subflow_retains_root_cause_through_strict_blocking(self):
+        child_flow_calls: list[str] = []
+
+        @task
+        def fails() -> None:
+            raise ValueError("Fail task!")
+
+        @flow
+        async def child_flow() -> None:
+            child_flow_calls.append("child flow")
+
+        @flow
+        async def parent_flow():
+            failed = fails.submit()
+            blocked = await child_flow(wait_for=[failed], return_state=True)
+            strict = await child_flow(
+                wait_for=[allow_failure(blocked, include_blocked=False)],
+                return_state=True,
+            )
+            failed.wait()
+            return quote((failed.state, blocked, strict))
+
+        failed_state, blocked_state, strict_state = (await parent_flow()).unquote()
+
+        assert failed_state.is_failed()
+        assert blocked_state.is_pending()
+        assert strict_state.is_pending()
+        assert child_flow_calls == []
+        assert (
+            blocked_state.state_details.upstream_cause_task_run_id
+            == failed_state.state_details.task_run_id
+        )
+        assert (
+            strict_state.state_details.upstream_cause_task_run_id
+            == failed_state.state_details.task_run_id
+        )
+        assert strict_state.state_details.upstream_cause_state_type == StateType.FAILED
+
     def test_downstream_runs_if_upstream_succeeds(self):
         @flow
         def foo(x):
@@ -3889,6 +3927,178 @@ class TestTaskWaitFor:
             return result.result()
 
         assert test_flow() == "cleanup done"
+
+    @pytest.mark.parametrize(
+        "include_blocked,expected_task_3_state,expected_task_3_calls",
+        [
+            (True, StateType.COMPLETED, ["task 3"]),
+            (False, StateType.PENDING, []),
+        ],
+    )
+    def test_allow_failure_can_reject_failure_derived_not_ready_states(
+        self,
+        include_blocked: bool,
+        expected_task_3_state: StateType,
+        expected_task_3_calls: list[str],
+    ):
+        task_3_calls: list[str] = []
+        task_3_failure_hook_calls: list[str] = []
+        futures: dict[str, PrefectFuture[Any]] = {}
+
+        def record_task_3_failure(*args: Any, **kwargs: Any) -> None:
+            task_3_failure_hook_calls.append("task 3")
+
+        @task
+        def task_1() -> None:
+            raise ValueError("task 1 failed")
+
+        @task
+        def task_2() -> None:
+            raise AssertionError("task 2 should not run")
+
+        @task(on_failure=[record_task_3_failure])
+        def task_3() -> None:
+            task_3_calls.append("task 3")
+
+        @task
+        def task_4() -> None:
+            raise AssertionError("task 4 should not run")
+
+        @flow
+        def test_flow() -> None:
+            futures["task_1"] = task_1.submit()
+            futures["task_2"] = task_2.submit(wait_for=[futures["task_1"]])
+            wait_for_task_2 = (
+                allow_failure(futures["task_2"])
+                if include_blocked
+                else allow_failure(futures["task_2"], include_blocked=False)
+            )
+            futures["task_3"] = task_3.submit(wait_for=[wait_for_task_2])
+            futures["task_4"] = task_4.submit(wait_for=[futures["task_2"]])
+
+            for future in futures.values():
+                future.wait()
+
+        test_flow()
+
+        task_1_state = futures["task_1"].state
+        task_2_state = futures["task_2"].state
+        task_3_state = futures["task_3"].state
+        task_4_state = futures["task_4"].state
+
+        assert task_1_state.is_failed()
+        assert task_2_state.is_pending()
+        assert task_2_state.name == "NotReady"
+        assert (
+            task_2_state.state_details.upstream_cause_task_run_id
+            == task_1_state.state_details.task_run_id
+        )
+        assert task_2_state.state_details.upstream_cause_state_type == StateType.FAILED
+        assert task_2_state.state_details.upstream_cause_state_name == "Failed"
+        assert task_3_state.type == expected_task_3_state
+        assert task_4_state.is_pending()
+        assert task_4_state.name == "NotReady"
+        assert (
+            task_4_state.state_details.upstream_cause_task_run_id
+            == task_1_state.state_details.task_run_id
+        )
+        assert task_4_state.state_details.upstream_cause_state_type == StateType.FAILED
+        assert task_3_calls == expected_task_3_calls
+        assert task_3_failure_hook_calls == []
+
+        if not include_blocked:
+            assert task_3_state.name == "NotReady"
+            assert (
+                task_3_state.state_details.upstream_cause_task_run_id
+                == task_1_state.state_details.task_run_id
+            )
+            assert (
+                task_3_state.state_details.upstream_cause_state_type == StateType.FAILED
+            )
+
+    def test_async_task_engine_retains_strict_failure_policy(self):
+        task_3_calls: list[str] = []
+        futures: dict[str, PrefectFuture[Any]] = {}
+
+        @task
+        async def task_1() -> None:
+            raise ValueError("task 1 failed")
+
+        @task
+        async def task_2() -> None:
+            raise AssertionError("task 2 should not run")
+
+        @task
+        async def task_3() -> None:
+            task_3_calls.append("task 3")
+
+        @flow
+        def test_flow() -> None:
+            futures["task_1"] = task_1.submit()
+            futures["task_2"] = task_2.submit(wait_for=[futures["task_1"]])
+            futures["task_3"] = task_3.submit(
+                wait_for=[allow_failure(futures["task_2"], include_blocked=False)]
+            )
+            for future in futures.values():
+                future.wait()
+
+        test_flow()
+
+        task_1_state = futures["task_1"].state
+        task_3_state = futures["task_3"].state
+        assert task_3_state.is_pending()
+        assert task_3_calls == []
+        assert (
+            task_3_state.state_details.upstream_cause_task_run_id
+            == task_1_state.state_details.task_run_id
+        )
+        assert task_3_state.state_details.upstream_cause_state_type == StateType.FAILED
+
+    @pytest.mark.parametrize(
+        "root_type",
+        [StateType.CANCELLED, StateType.CRASHED],
+    )
+    def test_allow_failure_does_not_accept_cancelled_or_crashed_not_ready_ancestor(
+        self, root_type: StateType
+    ):
+        root_task_run_id = uuid4()
+        root_state = (
+            Cancelled(state_details={"task_run_id": root_task_run_id})
+            if root_type == StateType.CANCELLED
+            else Crashed(state_details={"task_run_id": root_task_run_id})
+        )
+        task_calls: list[str] = []
+        futures: dict[str, PrefectFuture[Any]] = {}
+
+        @task
+        def should_not_run() -> None:
+            task_calls.append("called")
+
+        @flow
+        def test_flow() -> None:
+            futures["blocked"] = should_not_run.submit(wait_for=[root_state])
+            futures["transitive"] = should_not_run.submit(
+                wait_for=[allow_failure(futures["blocked"])]
+            )
+            for future in futures.values():
+                future.wait()
+
+        test_flow()
+
+        blocked_state = futures["blocked"].state
+        transitive_state = futures["transitive"].state
+        assert blocked_state.is_pending()
+        assert transitive_state.is_pending()
+        assert task_calls == []
+        assert (
+            blocked_state.state_details.upstream_cause_task_run_id == root_task_run_id
+        )
+        assert blocked_state.state_details.upstream_cause_state_type == root_type
+        assert (
+            transitive_state.state_details.upstream_cause_task_run_id
+            == root_task_run_id
+        )
+        assert transitive_state.state_details.upstream_cause_state_type == root_type
 
 
 async def _wait_for_logs(

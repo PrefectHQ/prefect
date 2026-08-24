@@ -59,6 +59,7 @@ from prefect._internal.control_listener import (
     get_intent,
     report_engine_outcome,
 )
+from prefect._internal.dependency_policy import not_ready_state_from_upstream_error
 from prefect._internal.engine import get_hook_name, resolve_custom_flow_run_name
 from prefect._internal.metrics import RunMetrics
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
@@ -691,10 +692,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
             self._wait_for_dependencies()
         except UpstreamTaskError as upstream_exc:
             state = self.set_state(
-                Pending(
-                    name="NotReady",
-                    message=str(upstream_exc),
-                ),
+                not_ready_state_from_upstream_error(upstream_exc),
                 # if orchestrating a run already in a pending state, force orchestration to
                 # update the state name
                 force=self.state.is_pending(),
@@ -1394,10 +1392,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
             self._wait_for_dependencies()
         except UpstreamTaskError as upstream_exc:
             state = await self.set_state(
-                Pending(
-                    name="NotReady",
-                    message=str(upstream_exc),
-                ),
+                not_ready_state_from_upstream_error(upstream_exc),
                 # if orchestrating a run already in a pending state, force orchestration to
                 # update the state name
                 force=self.state.is_pending(),

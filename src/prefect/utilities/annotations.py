@@ -62,9 +62,34 @@ class allow_failure(BaseAnnotation[T]):
     are failed. This annotation allows you to opt into receiving a failed input
     downstream.
 
+    By default, downstream execution is also allowed when the annotated run was
+    blocked by an upstream failure. Set `include_blocked=False` to allow only runs
+    that executed and failed directly.
+
     If the input is from a failed run, the attached exception will be passed to your
-    function.
+    function. Failure-derived blocked inputs resolve to `None`.
     """
+
+    def __new__(cls, value: T, *, include_blocked: bool = True) -> Self:
+        if cls is allow_failure and not include_blocked:
+            return cast(Self, tuple.__new__(_allow_failure_without_blocked, (value,)))
+        return super().__new__(cls, value)
+
+    @property
+    def include_blocked(self) -> bool:
+        return not isinstance(self, _allow_failure_without_blocked)
+
+    def __repr__(self) -> str:
+        if self.include_blocked:
+            return super().__repr__()
+        return f"allow_failure({self[0]!r}, include_blocked=False)"
+
+    def __getnewargs__(self) -> tuple[T]:
+        return (self[0],)
+
+
+class _allow_failure_without_blocked(allow_failure[T]):
+    """Internal tuple subtype retaining direct-failure-only resolution policy."""
 
 
 class quote(BaseAnnotation[T]):
