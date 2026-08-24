@@ -576,7 +576,7 @@ describe("DashboardWorkPoolsCard", () => {
 		}
 	});
 
-	it("uses expected_start_time instead of start_time in filter", async () => {
+	it("uses expected_start_time for the mini bar chart filter and sort", async () => {
 		const workPool = createFakeWorkPool({
 			name: "Test Pool",
 			is_paused: false,
@@ -589,10 +589,12 @@ describe("DashboardWorkPoolsCard", () => {
 		);
 
 		const capturedBodies: unknown[] = [];
+		const capturedFilterBodies: unknown[] = [];
 		server.use(
 			http.post(buildApiUrl("/flow_runs/filter"), async ({ request }) => {
 				const body = await request.json();
 				capturedBodies.push(body);
+				capturedFilterBodies.push(body);
 				return HttpResponse.json([]);
 			}),
 			http.post(buildApiUrl("/flow_runs/count"), async ({ request }) => {
@@ -645,6 +647,13 @@ describe("DashboardWorkPoolsCard", () => {
 			expect(flowRuns?.expected_start_time).toBeDefined();
 			expect(flowRuns).not.toHaveProperty("start_time");
 		}
+
+		expect(capturedFilterBodies).not.toHaveLength(0);
+		for (const body of capturedFilterBodies) {
+			expect((body as Record<string, unknown>).sort).toBe(
+				"EXPECTED_START_TIME_DESC",
+			);
+		}
 	});
 
 	it("renders empty bar chart when no flow runs", async () => {
@@ -660,7 +669,7 @@ describe("DashboardWorkPoolsCard", () => {
 		);
 		queryClient.setQueryData(
 			buildFilterFlowRunsQuery({
-				sort: "START_TIME_DESC",
+				sort: "EXPECTED_START_TIME_DESC",
 				offset: 0,
 				limit: 24,
 			}).queryKey,
