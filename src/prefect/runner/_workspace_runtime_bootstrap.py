@@ -32,15 +32,35 @@ def _run_engine(entrypoint: str) -> int:
 
     flow_engine_main = getattr(flow_engine, "_main", None)
     if callable(flow_engine_main):
-        sys.argv = ["prefect.flow_engine", entrypoint]
-        return cast(int, flow_engine_main([entrypoint]))
+        original_argv = sys.argv
+        try:
+            sys.argv = ["prefect.flow_engine", entrypoint]
+            return cast(int, flow_engine_main([entrypoint]))
+        finally:
+            sys.argv = original_argv
 
-    os.environ["PREFECT__FLOW_ENTRYPOINT"] = entrypoint
-    sys.argv = ["prefect.engine"]
+    original_argv = sys.argv
+    entrypoint_was_set = "PREFECT__FLOW_ENTRYPOINT" in os.environ
+    original_entrypoint = os.environ.get("PREFECT__FLOW_ENTRYPOINT")
+    engine_was_loaded = "prefect.engine" in sys.modules
     # Importing `prefect.flow_engine` can import `prefect.engine` as a dependency.
     # Remove that library instance before executing a fresh `__main__` instance.
-    sys.modules.pop("prefect.engine", None)
-    runpy.run_module("prefect.engine", run_name="__main__")
+    original_engine_module = sys.modules.pop("prefect.engine", None)
+    try:
+        os.environ["PREFECT__FLOW_ENTRYPOINT"] = entrypoint
+        sys.argv = ["prefect.engine"]
+        runpy.run_module("prefect.engine", run_name="__main__")
+    finally:
+        sys.argv = original_argv
+        if entrypoint_was_set:
+            os.environ["PREFECT__FLOW_ENTRYPOINT"] = cast(str, original_entrypoint)
+        else:
+            os.environ.pop("PREFECT__FLOW_ENTRYPOINT", None)
+
+        if engine_was_loaded:
+            sys.modules["prefect.engine"] = cast(Any, original_engine_module)
+        else:
+            sys.modules.pop("prefect.engine", None)
     return 0
 
 

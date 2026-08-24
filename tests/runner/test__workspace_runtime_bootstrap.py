@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import importlib.metadata
 import os
+import sys
 from pathlib import Path
+from types import ModuleType
 from unittest.mock import MagicMock
 from uuid import uuid4
 
@@ -43,8 +45,16 @@ def test_engine_bootstrap_runs_flow_engine_with_entrypoint(
 ) -> None:
     flow_run_id = uuid4()
     monkeypatch.setenv("PREFECT__FLOW_RUN_ID", str(flow_run_id))
-    monkeypatch.setattr(_workspace_runtime_bootstrap.sys, "argv", ["pytest"])
-    run_flow = MagicMock()
+    original_argv = ["pytest"]
+    monkeypatch.setattr(_workspace_runtime_bootstrap.sys, "argv", original_argv)
+
+    def assert_modern_context(*_args: object, **_kwargs: object) -> None:
+        assert _workspace_runtime_bootstrap.sys.argv == [
+            "prefect.flow_engine",
+            "flows.py:hello",
+        ]
+
+    run_flow = MagicMock(side_effect=assert_modern_context)
     monkeypatch.setattr(flow_engine, "_run_flow_from_runtime_entrypoint", run_flow)
     run_module = MagicMock()
     monkeypatch.setattr(
@@ -56,10 +66,7 @@ def test_engine_bootstrap_runs_flow_engine_with_entrypoint(
     assert _workspace_runtime_bootstrap.main(["engine", "flows.py:hello"]) == 0
     run_flow.assert_called_once_with(flow_run_id, "flows.py:hello")
     run_module.assert_not_called()
-    assert _workspace_runtime_bootstrap.sys.argv == [
-        "prefect.flow_engine",
-        "flows.py:hello",
-    ]
+    assert _workspace_runtime_bootstrap.sys.argv is original_argv
 
 
 def test_engine_bootstrap_uses_legacy_engine_without_flow_engine_main(
@@ -67,8 +74,17 @@ def test_engine_bootstrap_uses_legacy_engine_without_flow_engine_main(
 ):
     monkeypatch.setattr(importlib, "import_module", lambda _module: object())
     monkeypatch.delenv("PREFECT__FLOW_ENTRYPOINT", raising=False)
-    monkeypatch.setattr(_workspace_runtime_bootstrap.sys, "argv", ["pytest"])
-    run_module = MagicMock()
+    original_argv = ["pytest"]
+    monkeypatch.setattr(_workspace_runtime_bootstrap.sys, "argv", original_argv)
+    original_engine_module = ModuleType("prefect.engine")
+    monkeypatch.setitem(sys.modules, "prefect.engine", original_engine_module)
+
+    def assert_legacy_context(*_args: object, **_kwargs: object) -> None:
+        assert _workspace_runtime_bootstrap.sys.argv == ["prefect.engine"]
+        assert os.environ["PREFECT__FLOW_ENTRYPOINT"] == "flows.py:hello"
+        assert "prefect.engine" not in sys.modules
+
+    run_module = MagicMock(side_effect=assert_legacy_context)
     monkeypatch.setattr(
         _workspace_runtime_bootstrap.runpy,
         "run_module",
@@ -77,8 +93,9 @@ def test_engine_bootstrap_uses_legacy_engine_without_flow_engine_main(
 
     assert _workspace_runtime_bootstrap.main(["engine", "flows.py:hello"]) == 0
     run_module.assert_called_once_with("prefect.engine", run_name="__main__")
-    assert _workspace_runtime_bootstrap.sys.argv == ["prefect.engine"]
-    assert os.environ["PREFECT__FLOW_ENTRYPOINT"] == "flows.py:hello"
+    assert _workspace_runtime_bootstrap.sys.argv is original_argv
+    assert "PREFECT__FLOW_ENTRYPOINT" not in os.environ
+    assert sys.modules["prefect.engine"] is original_engine_module
 
 
 def test_engine_bootstrap_uses_legacy_engine_without_flow_engine_module(
@@ -93,7 +110,15 @@ def test_engine_bootstrap_uses_legacy_engine_without_flow_engine_module(
         "import_module",
         MagicMock(side_effect=missing_flow_engine),
     )
-    run_module = MagicMock()
+    monkeypatch.setenv("PREFECT__FLOW_ENTRYPOINT", "flows.py:original")
+    original_argv = ["pytest"]
+    monkeypatch.setattr(_workspace_runtime_bootstrap.sys, "argv", original_argv)
+
+    def assert_legacy_context(*_args: object, **_kwargs: object) -> None:
+        assert _workspace_runtime_bootstrap.sys.argv == ["prefect.engine"]
+        assert os.environ["PREFECT__FLOW_ENTRYPOINT"] == "flows.py:hello"
+
+    run_module = MagicMock(side_effect=assert_legacy_context)
     monkeypatch.setattr(
         _workspace_runtime_bootstrap.runpy,
         "run_module",
@@ -102,3 +127,5 @@ def test_engine_bootstrap_uses_legacy_engine_without_flow_engine_module(
 
     assert _workspace_runtime_bootstrap.main(["engine", "flows.py:hello"]) == 0
     run_module.assert_called_once_with("prefect.engine", run_name="__main__")
+    assert _workspace_runtime_bootstrap.sys.argv is original_argv
+    assert os.environ["PREFECT__FLOW_ENTRYPOINT"] == "flows.py:original"
