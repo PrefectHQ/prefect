@@ -59,11 +59,16 @@ class ClientSettings(PrefectBaseSettings):
         default=0,
         ge=0,
         description="""
-        The number of attempts to make when the API cannot be reached at all, before the
-        client has connected successfully even once. Defaults to 0, which fails immediately
-        so that a misconfigured API URL surfaces right away. Set to a positive value to
-        tolerate an API that is briefly unavailable at startup; attempts use the same
-        exponential backoff and `PREFECT_CLIENT_RETRY_JITTER_FACTOR` as other retries.
+        The total number of attempts to make when the API cannot be reached at all,
+        before the client has connected successfully even once. Defaults to 0, which
+        fails immediately so that a misconfigured API URL surfaces right away. Set to a
+        positive value to tolerate an API that is briefly unavailable at startup; for
+        example, 5 makes at most five connection attempts and then gives up.
+
+        This budget is counted separately from `PREFECT_CLIENT_MAX_RETRIES`, so enabling
+        it never changes how many times a server that is actually answering is retried.
+        Attempts use the same exponential backoff and `PREFECT_CLIENT_RETRY_JITTER_FACTOR`
+        as other retries.
         """,
     )
 

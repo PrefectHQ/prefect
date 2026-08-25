@@ -50,6 +50,11 @@ RESPONSE_429_RETRY_AFTER_MISSING = Response(
 )
 
 
+RESPONSE_503 = Response(
+    status.HTTP_503_SERVICE_UNAVAILABLE,
+    request=Request("a test request", "fake.url/fake/route"),
+)
+
 RESPONSE_200 = Response(
     status.HTTP_200_OK,
     request=Request("a test request", "fake.url/fake/route"),
@@ -572,8 +577,35 @@ class TestPrefectHttpxAsyncClient:
                 async with client:
                     await client.get(url="fake.url/fake/route")
 
-        # the initial attempt plus the two configured retries
-        assert base_client_send.call_count == 3
+        # exactly the configured number of connection attempts, no more
+        assert base_client_send.call_count == 2
+
+    @pytest.mark.usefixtures("mock_anyio_sleep", "disable_jitter")
+    async def test_connection_attempts_does_not_widen_retries_for_a_reachable_server(
+        self, monkeypatch
+    ):
+        """The connection budget must not leak into the normal retry budget.
+
+        A server that answers with a retryable status is governed by
+        PREFECT_CLIENT_MAX_RETRIES alone, so a large connection budget cannot cause a
+        non-idempotent request to be resubmitted.
+        """
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+
+        base_client_send.side_effect = [RESPONSE_503] * 12
+
+        with temporary_settings(
+            {"PREFECT_CLIENT_CONNECTION_ATTEMPTS": 10, "PREFECT_CLIENT_MAX_RETRIES": 0}
+        ):
+            client = PrefectHttpxAsyncClient()
+            with pytest.raises(PrefectHTTPStatusError, match="503"):
+                async with client:
+                    await client.post(
+                        url="fake.url/fake/route", data={"evenmorefake": "data"}
+                    )
+
+        assert base_client_send.call_count == 1
 
     @pytest.mark.usefixtures("mock_anyio_sleep", "disable_jitter")
     async def test_prefect_httpx_client_retries_connect_error_after_successful_connection(
