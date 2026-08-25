@@ -146,6 +146,16 @@ async def test_supervisor_restores_runner_owned_environment_after_preparation(
 ) -> None:
     workspace = _workspace(tmp_path)
     flow_run_id = uuid4()
+    runner_attribution = {
+        "PREFECT__WORKER_ID": "runner-worker-id",
+        "PREFECT__WORKER_NAME": "runner-worker",
+        "PREFECT__FLOW_ID": "runner-flow-id",
+        "PREFECT__FLOW_NAME": "runner-flow",
+        "PREFECT__DEPLOYMENT_ID": "runner-deployment-id",
+        "PREFECT__DEPLOYMENT_NAME": "runner-deployment",
+    }
+    for key, value in runner_attribution.items():
+        monkeypatch.setenv(key, value)
     monkeypatch.setenv("PREFECT__FLOW_RUN_ID", str(flow_run_id))
     monkeypatch.setenv("PREFECT__CONTROL_TOKEN", "runner-token")
     monkeypatch.setenv("PATH", "/runner/bin")
@@ -167,6 +177,7 @@ async def test_supervisor_restores_runner_owned_environment_after_preparation(
             "PREFECT_API_TLS_INSECURE_SKIP_VERIFY": "true",
             "PREFECT_API_SSL_CERT_FILE": "/project/ca.pem",
             "PROJECT_ENV": "preserved",
+            **{key: f"project-{value}" for key, value in runner_attribution.items()},
         }
     )
     captured: dict[str, object] = {}
@@ -211,6 +222,7 @@ async def test_supervisor_restores_runner_owned_environment_after_preparation(
     assert environment["PREFECT_API_TLS_INSECURE_SKIP_VERIFY"] == "false"
     assert "PREFECT_API_SSL_CERT_FILE" not in environment
     assert environment["PROJECT_ENV"] == "preserved"
+    assert {key: environment[key] for key in runner_attribution} == runner_attribution
     assert captured["command"] == [get_sys_executable(), "-m", "prefect.engine"]
 
 
