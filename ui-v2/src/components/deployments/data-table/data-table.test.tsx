@@ -29,6 +29,10 @@ describe("DeploymentsDataTable", () => {
 					Array.from({ length: limit }, createFakeFlowRunWithDeploymentAndFlow),
 				);
 			}),
+			// Tag suggestions for the tags filter
+			http.post(buildApiUrl("/deployments/filter"), () =>
+				HttpResponse.json([mockDeployment]),
+			),
 		);
 	});
 	const mockDeployment: DeploymentWithFlow = {
@@ -558,6 +562,7 @@ describe("DeploymentsDataTable", () => {
 
 	it("calls onColumnFiltersChange on tags search", async () => {
 		const user = userEvent.setup();
+		mockPointerEvents();
 
 		const onColumnFiltersChange = vi.fn();
 		await waitFor(() =>
@@ -574,10 +579,13 @@ describe("DeploymentsDataTable", () => {
 		// Clear any initial calls from mounting
 		onColumnFiltersChange.mockClear();
 
-		const tagsSearchInput = screen.getByPlaceholderText("Filter by tags");
 		expect(await screen.findByText("tag3")).toBeVisible();
 
-		await user.type(tagsSearchInput, "tag4");
+		await user.click(screen.getByRole("button", { name: "Filter by tags" }));
+		await user.type(
+			screen.getByPlaceholderText("Search or enter new tag"),
+			"tag4",
+		);
 		await user.keyboard("{enter}");
 
 		expect(onColumnFiltersChange).toHaveBeenCalledWith([
