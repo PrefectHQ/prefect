@@ -4,11 +4,12 @@ import { buildFilterDeploymentsQuery } from "@/api/deployments";
 import { TagsSelect } from "@/components/ui/tags-select";
 
 // Stable filter so the query key does not change between renders. Suggestions
-// come from the unfiltered set of deployments, like the legacy UI.
+// come from the unfiltered set of deployments, like the legacy UI. The request
+// gives no limit, because the server rejects a limit that is more than
+// PREFECT_SERVER_API_DEFAULT_LIMIT.
 const SUGGESTIONS_FILTER = {
 	offset: 0,
 	sort: "NAME_ASC",
-	limit: 200,
 } as const;
 
 type DeploymentTagsSelectProps = {
