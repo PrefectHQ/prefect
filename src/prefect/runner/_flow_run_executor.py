@@ -18,7 +18,7 @@ from prefect.logging import get_logger
 from prefect.runner._cancellation_manager import CancellationManager
 from prefect.runner._control_channel import ControlChannel
 from prefect.runner._event_emitter import EventEmitter
-from prefect.runner._hook_runner import HookRunner
+from prefect.runner._hook_runner import FlowRunHookRunner, HookRunner
 from prefect.runner._process_manager import ProcessHandle, ProcessManager
 from prefect.runner._state_proposer import StateProposer
 from prefect.settings.context import get_current_settings
@@ -94,7 +94,7 @@ class FlowRunExecutor:
         starter: ProcessStarter,
         process_manager: ProcessManager,
         state_proposer: StateProposer,
-        hook_runner: HookRunner,
+        hook_runner: FlowRunHookRunner,
         get_attempt_conclusion: Callable[[UUID], AttemptConclusion | None],
         propose_submitting: bool = True,
     ) -> None:
@@ -267,6 +267,7 @@ class FlowRunExecutorContext:
     async def __aenter__(self) -> FlowRunExecutorContext:
         self._stack = AsyncExitStack()
         await self._stack.__aenter__()
+        self._after_exit_callbacks: list[Callable[[], object]] = []
         self._logger = get_logger("runner.executor_context")
 
         # Step 1: client
@@ -339,7 +340,15 @@ class FlowRunExecutorContext:
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> bool | None:
-        return await self._stack.__aexit__(exc_type, exc_value, traceback)
+        try:
+            return await self._stack.__aexit__(exc_type, exc_value, traceback)
+        finally:
+            for callback in reversed(self._after_exit_callbacks):
+                callback()
+
+    def call_after_exit(self, callback: Callable[[], object]) -> None:
+        """Keep attempt resources alive until cancellation work has drained."""
+        self._after_exit_callbacks.append(callback)
 
     def _handle_cancellation_observer_failure(self, flow_run_ids: set) -> None:
         """Handle failure of both cancellation observer mechanisms.
@@ -369,10 +378,15 @@ class FlowRunExecutorContext:
         self,
         flow_run: FlowRun,
         starter: ProcessStarter,
-        resolve_flow: Callable[[FlowRun], Awaitable[Flow[Any, Any]]],
+        resolve_flow: Callable[[FlowRun], Awaitable[Flow[Any, Any]]] | None = None,
         propose_submitting: bool = True,
+        hook_runner: FlowRunHookRunner | None = None,
     ) -> FlowRunExecutor:
-        hook_runner = HookRunner(resolve_flow=resolve_flow)
+        if (resolve_flow is None) == (hook_runner is None):
+            raise ValueError("Provide exactly one of resolve_flow or hook_runner.")
+        if hook_runner is None:
+            assert resolve_flow is not None
+            hook_runner = HookRunner(resolve_flow=resolve_flow)
         # Wire the real resolver into CancellationManager for on_cancellation hooks
         self._cancellation_manager._hook_runner = hook_runner
         return FlowRunExecutor(
