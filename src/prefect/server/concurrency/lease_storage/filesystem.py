@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import tempfile
+import weakref
+from collections.abc import MutableMapping
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, TypedDict
@@ -19,6 +22,23 @@ from prefect.server.concurrency.lease_storage import (
 )
 from prefect.server.utilities.leasing import ResourceLease
 from prefect.settings.context import get_current_settings
+
+_index_locks: MutableMapping[asyncio.AbstractEventLoop, dict[Path, asyncio.Lock]] = (
+    weakref.WeakKeyDictionary()
+)
+
+
+def _get_index_lock(storage_path: Path) -> asyncio.Lock:
+    """
+    Get the lock that guards the expiration index for a storage path.
+
+    `get_concurrency_lease_storage` returns a new storage instance on every
+    call, so the lock cannot live on the instance. It is keyed by event loop as
+    well as by path because an `asyncio.Lock` binds to the loop that first
+    awaits it.
+    """
+    locks = _index_locks.setdefault(asyncio.get_running_loop(), {})
+    return locks.setdefault(storage_path, asyncio.Lock())
 
 
 class _LeaseFile(TypedDict):
@@ -55,8 +75,10 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         Atomically write JSON data to a file.
 
         Uses write-to-temp-then-rename pattern to ensure readers never see
-        partial/corrupted data. This prevents race conditions when multiple
-        processes read and write the same file.
+        partial/corrupted data, even when multiple processes write the same
+        file. Note that this makes each write atomic; it does not make a
+        read-modify-write of the file atomic, so callers that update part of a
+        file must serialize themselves.
         """
         self._ensure_storage_path()
         # Create temp file in same directory to ensure atomic rename works
@@ -98,15 +120,17 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         self, lease_id: UUID, expiration: datetime
     ) -> None:
         """Update a single lease's expiration in the index."""
-        index = await self._load_expiration_index()
-        index[str(lease_id)] = expiration.isoformat()
-        self._save_expiration_index(index)
+        async with _get_index_lock(self.storage_path):
+            index = await self._load_expiration_index()
+            index[str(lease_id)] = expiration.isoformat()
+            self._save_expiration_index(index)
 
     async def _remove_from_expiration_index(self, lease_id: UUID) -> None:
         """Remove a lease from the expiration index."""
-        index = await self._load_expiration_index()
-        index.pop(str(lease_id), None)
-        self._save_expiration_index(index)
+        async with _get_index_lock(self.storage_path):
+            index = await self._load_expiration_index()
+            index.pop(str(lease_id), None)
+            self._save_expiration_index(index)
 
     def _serialize_lease(
         self, lease: ResourceLease[ConcurrencyLimitLeaseMetadata]
@@ -193,10 +217,13 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
     async def renew_lease(self, lease_id: UUID, ttl: timedelta) -> bool:
         """
-        Atomically renew a concurrency lease by updating its expiration.
+        Renew a concurrency lease by updating its expiration.
 
         Checks if the lease exists and updates both the lease file and index,
-        preventing race conditions from creating orphaned index entries.
+        preventing race conditions from creating orphaned index entries. The
+        lease file is written atomically and the index update is serialized,
+        but the two writes do not happen as a single atomic operation, so the
+        lease file is the authoritative record of the expiration.
 
         Args:
             lease_id: The ID of the lease to renew
@@ -268,6 +295,15 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         return all_active[offset : offset + limit]
 
     async def read_expired_lease_ids(self, limit: int = 100) -> list[UUID]:
+        """
+        Read the IDs of expired leases.
+
+        The index is an accelerator, not the source of truth: every candidate
+        it reports is confirmed against the lease file, which holds the
+        authoritative expiration. An index entry that is more pessimistic than
+        its lease file is repaired instead of reported, so a lease that is
+        still alive is never revoked.
+        """
         expired_leases: list[UUID] = []
         now = datetime.now(timezone.utc)
 
@@ -280,11 +316,22 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             try:
                 lease_id = UUID(lease_id_str)
                 expiration = datetime.fromisoformat(expiration_str)
-
-                if expiration < now:
-                    expired_leases.append(lease_id)
             except (ValueError, TypeError):
                 continue
+
+            if expiration >= now:
+                continue
+
+            lease = await self.read_lease(lease_id)
+            if lease is None:
+                # The lease file is gone but the index still holds an entry for
+                # it; report it so the entry gets cleaned up.
+                expired_leases.append(lease_id)
+            elif lease.expiration < now:
+                expired_leases.append(lease_id)
+            else:
+                # The lease was renewed but the index entry was not updated.
+                await self._update_expiration_index(lease_id, lease.expiration)
 
         return expired_leases
 

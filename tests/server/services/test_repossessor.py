@@ -113,6 +113,45 @@ class TestRevokeExpiredLease:
         # expired forever
         assert lease_storage.expirations == {}
 
+    async def test_revoke_expired_lease_skips_renewed_lease(
+        self, lease_storage, session: AsyncSession
+    ):
+        """A lease that is no longer expired must keep its slots and its file"""
+        # A limit without decay so active_slots only changes on revocation
+        limit = await create_concurrency_limit(
+            session=session,
+            concurrency_limit=ConcurrencyLimitV2(
+                name="test_limit_without_decay",
+                limit=10,
+                slot_decay_per_second=0.0,
+                avg_slot_occupancy_seconds=2.0,
+            ),
+        )
+        await session.commit()
+        limit_id, limit_name = limit.id, limit.name
+
+        await bulk_increment_active_slots(session, [limit_id], 2)
+        await session.commit()
+
+        lease = await lease_storage.create_lease(
+            resource_ids=[limit_id],
+            ttl=timedelta(minutes=5),  # Not expired
+            metadata=ConcurrencyLimitLeaseMetadata(slots=2),
+        )
+
+        db = provide_database_interface()
+        await revoke_expired_lease(
+            lease.id,
+            db=db,
+            lease_storage=lease_storage,
+        )
+
+        assert await lease_storage.read_lease(lease.id) is not None
+
+        session.expire_all()
+        limits = await bulk_read_concurrency_limits(session, [limit_name])
+        assert limits[0].active_slots == 2
+
     async def test_revoke_expired_lease_missing_metadata(
         self, lease_storage, concurrency_limit
     ):

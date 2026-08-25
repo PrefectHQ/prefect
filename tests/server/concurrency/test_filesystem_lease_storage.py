@@ -1,3 +1,4 @@
+import asyncio
 import json
 import tempfile
 from datetime import datetime, timedelta, timezone
@@ -667,3 +668,97 @@ class TestFilesystemConcurrencyLeaseStorage:
         # Verify no temp files left behind
         temp_files = list(storage.storage_path.glob(".lease_*.tmp"))
         assert len(temp_files) == 0
+
+    async def test_concurrent_renewals_keep_every_index_entry(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        """Concurrent renewals must not lose each other's index updates."""
+        expiring_ttl = timedelta(milliseconds=1)
+        ttl = timedelta(minutes=5)
+
+        first = await storage.create_lease(sample_resource_ids, expiring_ttl)
+        second = await storage.create_lease(sample_resource_ids, expiring_ttl)
+
+        # Slow the read half of the read-modify-write so the renewals interleave
+        original_load = storage._load_expiration_index
+
+        async def slow_load() -> dict[str, str]:
+            index = await original_load()
+            await asyncio.sleep(0.05)
+            return index
+
+        storage._load_expiration_index = slow_load
+
+        await asyncio.gather(
+            storage.renew_lease(first.id, ttl),
+            storage.renew_lease(second.id, ttl),
+        )
+
+        storage._load_expiration_index = original_load
+
+        index = await storage._load_expiration_index()
+        for lease_id in (first.id, second.id):
+            lease = await storage.read_lease(lease_id)
+            assert lease is not None
+            assert index[str(lease_id)] == lease.expiration.isoformat()
+
+        assert await storage.read_expired_lease_ids() == []
+
+    async def test_concurrent_renewal_and_revocation_keep_index_consistent(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        """A concurrent revocation must not resurrect or drop another lease."""
+        ttl = timedelta(minutes=5)
+
+        renewed = await storage.create_lease(sample_resource_ids, ttl)
+        revoked = await storage.create_lease(sample_resource_ids, ttl)
+
+        original_load = storage._load_expiration_index
+
+        async def slow_load() -> dict[str, str]:
+            index = await original_load()
+            await asyncio.sleep(0.05)
+            return index
+
+        storage._load_expiration_index = slow_load
+
+        await asyncio.gather(
+            storage.renew_lease(renewed.id, ttl),
+            storage.revoke_lease(revoked.id),
+        )
+
+        storage._load_expiration_index = original_load
+
+        index = await storage._load_expiration_index()
+        assert str(revoked.id) not in index
+
+        lease = await storage.read_lease(renewed.id)
+        assert lease is not None
+        assert index[str(renewed.id)] == lease.expiration.isoformat()
+
+    async def test_read_expired_lease_ids_ignores_stale_index_entry(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        """A live lease with a stale index entry is not reported as expired."""
+        lease = await storage.create_lease(sample_resource_ids, timedelta(minutes=5))
+
+        stale_expiration = datetime.now(timezone.utc) - timedelta(minutes=1)
+        storage._save_expiration_index(
+            {str(lease.id): stale_expiration.isoformat()},
+        )
+
+        assert await storage.read_expired_lease_ids() == []
+
+        # The index entry is repaired from the lease file
+        index = await storage._load_expiration_index()
+        assert index[str(lease.id)] == lease.expiration.isoformat()
+
+    async def test_read_expired_lease_ids_reports_orphaned_index_entry(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        """An index entry without a lease file is reported so it gets cleaned up."""
+        orphan_id = uuid4()
+        expired = datetime.now(timezone.utc) - timedelta(minutes=1)
+        storage._save_expiration_index({str(orphan_id): expired.isoformat()})
+
+        assert await storage.read_expired_lease_ids() == [orphan_id]
