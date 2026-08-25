@@ -11,6 +11,7 @@ from types import FrameType
 import anyio
 
 from prefect.logging.handlers import APILogHandler
+from prefect.runner._process_manager import create_isolated_termination_scope
 from prefect.runner._workspace_resolver import prepare_workspace_for_flow_run
 from prefect.runner._workspace_runtime import (
     PreparedWorkspaceManifest,
@@ -40,6 +41,10 @@ _RUNNER_OWNED_ENV_KEYS = {
 }
 
 
+def _runner_owns_environment_key(key: str) -> bool:
+    return key in _RUNNER_OWNED_ENV_KEYS or key.startswith("PREFECT_API_")
+
+
 def _hook_command(command: list[str]) -> list[str] | None:
     bootstrap = str(Path(__file__).with_name("_workspace_runtime_bootstrap.py"))
     for bootstrap_index, argument in enumerate(command[:-1]):
@@ -58,7 +63,9 @@ def _hook_command(command: list[str]) -> list[str] | None:
 def _restore_runner_environment(
     environment: dict[str, str], runner_environment: dict[str, str]
 ) -> None:
-    for key in _RUNNER_OWNED_ENV_KEYS:
+    for key in environment.keys() | runner_environment.keys():
+        if not _runner_owns_environment_key(key):
+            continue
         if key in runner_environment:
             environment[key] = runner_environment[key]
         else:
@@ -114,7 +121,9 @@ async def _launch_engine(
 
 async def supervise(config: WorkspaceSupervisorConfig) -> int:
     runner_environment = {
-        key: value for key, value in os.environ.items() if key in _RUNNER_OWNED_ENV_KEYS
+        key: value
+        for key, value in os.environ.items()
+        if _runner_owns_environment_key(key)
     }
     workspace = await prepare_workspace_for_flow_run(
         config.flow_run_id, config.workspace_root
@@ -173,6 +182,13 @@ async def _main_async(argv: list[str] | None = None) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
+    # On Windows the supervisor must own its kill-on-close job before pull steps
+    # can spawn descendants. Keep the scope alive until this one-shot process exits.
+    _windows_job_scope = (
+        create_isolated_termination_scope(os.getpid())
+        if sys.platform == "win32"
+        else None
+    )
     exit_code = anyio.run(_main_async, argv)
     if sys.platform != "win32" and exit_code < 0:
         os.kill(os.getpid(), -exit_code)

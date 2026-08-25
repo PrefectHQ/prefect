@@ -242,7 +242,9 @@ class WorkspaceResolvingEngineCommandStarter:
             heartbeat_seconds=self._heartbeat_seconds,
             deployment_name=self._deployment_name,
             control_channel=self._control_channel,
-            isolate_process_group=True,
+            # The Windows supervisor joins its own Job Object before preparation;
+            # assigning it from this post-spawn callback would leave a race.
+            isolate_process_group=sys.platform != "win32",
             env_overrides_settings=True,
         )
         await starter.start(flow_run, task_status=task_status)

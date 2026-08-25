@@ -150,7 +150,11 @@ async def test_supervisor_restores_runner_owned_environment_after_preparation(
     monkeypatch.setenv("PREFECT__CONTROL_TOKEN", "runner-token")
     monkeypatch.setenv("PATH", "/runner/bin")
     monkeypatch.setenv("PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES", "false")
+    monkeypatch.setenv("PREFECT_API_URL", "https://runner.example/api")
+    monkeypatch.setenv("PREFECT_API_KEY", "runner-key")
+    monkeypatch.setenv("PREFECT_API_TLS_INSECURE_SKIP_VERIFY", "false")
     monkeypatch.delenv("PREFECT__CONTROL_PORT", raising=False)
+    monkeypatch.delenv("PREFECT_API_SSL_CERT_FILE", raising=False)
     workspace.environment.update(
         {
             "PREFECT__FLOW_RUN_ID": str(uuid4()),
@@ -158,6 +162,10 @@ async def test_supervisor_restores_runner_owned_environment_after_preparation(
             "PREFECT__CONTROL_PORT": "4321",
             "PATH": "/project/bin",
             "PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES": "true",
+            "PREFECT_API_URL": "https://project.example/api",
+            "PREFECT_API_KEY": "project-key",
+            "PREFECT_API_TLS_INSECURE_SKIP_VERIFY": "true",
+            "PREFECT_API_SSL_CERT_FILE": "/project/ca.pem",
             "PROJECT_ENV": "preserved",
         }
     )
@@ -198,6 +206,10 @@ async def test_supervisor_restores_runner_owned_environment_after_preparation(
     assert environment["PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS"] == "false"
     assert environment["PATH"] == "/runner/bin"
     assert environment["PREFECT_RUNNER_AUTO_INSTALL_DEPENDENCIES"] == "false"
+    assert environment["PREFECT_API_URL"] == "https://runner.example/api"
+    assert environment["PREFECT_API_KEY"] == "runner-key"
+    assert environment["PREFECT_API_TLS_INSECURE_SKIP_VERIFY"] == "false"
+    assert "PREFECT_API_SSL_CERT_FILE" not in environment
     assert environment["PROJECT_ENV"] == "preserved"
     assert captured["command"] == [get_sys_executable(), "-m", "prefect.engine"]
 
@@ -251,3 +263,31 @@ def test_main_propagates_engine_signal_to_supervisor(
 
     assert main([]) == -signal.SIGTERM
     kill.assert_called_once_with(os.getpid(), signal.SIGTERM)
+
+
+def test_main_enters_windows_job_before_supervision(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    events: list[tuple[str, int] | str] = []
+    termination_scope = MagicMock()
+
+    monkeypatch.setattr(
+        _workspace_supervisor,
+        "sys",
+        MagicMock(platform="win32"),
+    )
+    monkeypatch.setattr(
+        _workspace_supervisor,
+        "create_isolated_termination_scope",
+        lambda pid: events.append(("job", pid)) or termination_scope,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        _workspace_supervisor.anyio,
+        "run",
+        lambda *_args: events.append("supervise") or 0,
+    )
+
+    assert main([]) == 0
+    assert events == [("job", os.getpid()), "supervise"]
+    termination_scope.close.assert_not_called()

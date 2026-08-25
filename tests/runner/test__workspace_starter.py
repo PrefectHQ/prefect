@@ -265,9 +265,16 @@ def test_workspace_command_preserves_explicit_command(tmp_path: Path):
     )
 
 
+@pytest.mark.parametrize(
+    ("platform", "isolate_process_group"),
+    [("linux", True), ("win32", False)],
+)
 async def test_workspace_resolving_starter_starts_managed_supervisor(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    platform: str,
+    isolate_process_group: bool,
+) -> None:
     flow_run = MagicMock()
     flow_run.id = uuid4()
     instances: list[object] = []
@@ -284,6 +291,11 @@ async def test_workspace_resolving_starter_starts_managed_supervisor(
     monkeypatch.setattr(
         "prefect.runner._workspace_starter.EngineCommandStarter",
         FakeEngineCommandStarter,
+    )
+    monkeypatch.setattr(
+        _workspace_starter,
+        "sys",
+        MagicMock(platform=platform),
     )
 
     source_cwd = tmp_path / "source-cwd"
@@ -318,7 +330,7 @@ async def test_workspace_resolving_starter_starts_managed_supervisor(
     assert engine_starter.kwargs["cwd"] == source_cwd
     assert engine_starter.kwargs["env"] == {"WORKSPACE_CALLER_ENV": "caller"}
     assert engine_starter.kwargs["stream_output"] is False
-    assert engine_starter.kwargs["isolate_process_group"] is True
+    assert engine_starter.kwargs["isolate_process_group"] is isolate_process_group
     assert engine_starter.kwargs["env_overrides_settings"] is True
     assert engine_starter.flow_run is flow_run
 
