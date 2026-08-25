@@ -13,6 +13,7 @@ SettingAccessor: TypeAlias = Literal[
     "cli.colors",
     "cli.prompt",
     "cli.wrap_lines",
+    "client.connection_attempts",
     "client.csrf_support_enabled",
     "client.custom_headers",
     "client.max_retries",

@@ -215,6 +215,7 @@ SUPPORTED_SETTINGS = {
     "PREFECT_API_TASK_CACHE_KEY_MAX_LENGTH": {"test_value": 10, "legacy": True},
     "PREFECT_API_TLS_INSECURE_SKIP_VERIFY": {"test_value": True},
     "PREFECT_API_URL": {"test_value": "https://api.prefect.io"},
+    "PREFECT_CLIENT_CONNECTION_ATTEMPTS": {"test_value": 3},
     "PREFECT_CLIENT_CSRF_SUPPORT_ENABLED": {"test_value": True},
     "PREFECT_CLIENT_CUSTOM_HEADERS": {"test_value": '{"X-CUSTOM": "foobar"}'},
     "PREFECT_CLIENT_ENABLE_METRICS": {"test_value": True, "legacy": True},
