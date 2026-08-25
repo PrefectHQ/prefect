@@ -40,7 +40,7 @@ export function DeploymentTagsSelect({
 
 	return (
 		<TagsSelect
-			aria-label="Filter by tags"
+			aria-label={placeholder}
 			id={id}
 			onChange={onChange}
 			placeholder={placeholder}
@@ -49,5 +49,3 @@ export function DeploymentTagsSelect({
 		/>
 	);
 }
-
-DeploymentTagsSelect.displayName = "DeploymentTagsSelect";
