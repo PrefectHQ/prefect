@@ -37,6 +37,7 @@ These modules have no dedicated intent node yet. Promote any one of them to a su
 - `dockerutils.py` — Docker image building, Python version detection, Docker client helpers
 - `timeout.py` — Timeout context managers for async/sync code
 - `services.py` — Client metrics server and resilient service loop with backoff
+- `flow_run_state_proposals.py` — Server-authoritative flow-run state proposal retries and response interpretation
 - `visualization.py` — Flow/task graph visualization via Graphviz (`build_task_dependencies`) or Mermaid (`build_mermaid_dependencies`); the Mermaid path has no system dependency
 - `urls.py` — URL validation and UI path formatting
 - `names.py` — Slug generation and obfuscation helpers

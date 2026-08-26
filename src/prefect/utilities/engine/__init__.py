@@ -5,8 +5,7 @@ import signal
 import threading
 import time
 import weakref
-from collections.abc import Awaitable, Callable, Generator
-from functools import partial
+from collections.abc import Callable, Generator
 from logging import Logger
 from typing import (
     TYPE_CHECKING,
@@ -19,29 +18,19 @@ from typing import (
 )
 from uuid import UUID
 
-import anyio
 from opentelemetry import propagate, trace
 from typing_extensions import TypeIs
 
-import prefect
-import prefect.exceptions
 from prefect._internal.concurrency.cancellation import get_deadline
-from prefect.client.schemas import FlowRunResult, OrchestrationResult, TaskRun
+from prefect.client.schemas import FlowRunResult, TaskRun
 from prefect.client.schemas.objects import (
     FlowRun,
     RunType,
     TaskRunResult,
 )
-from prefect.client.schemas.responses import (
-    SetStateStatus,
-    StateAbortDetails,
-    StateRejectDetails,
-    StateWaitDetails,
-)
 from prefect.context import FlowRunContext
 from prefect.events import Event, emit_event
 from prefect.exceptions import (
-    Pause,
     PrefectException,
     TerminationSignal,
     UpstreamTaskError,
@@ -55,6 +44,10 @@ from prefect.states import State
 from prefect.tasks import Task
 from prefect.utilities.annotations import allow_failure, opaque, quote
 from prefect.utilities.collections import StopVisiting, visit_collection
+from prefect.utilities.flow_run_state_proposals import (
+    FlowRunStateProposer,
+    SyncFlowRunStateProposer,
+)
 from prefect.utilities.text import truncated_to
 
 if TYPE_CHECKING:
@@ -557,56 +550,9 @@ async def propose_state(
 
         link_state_to_flow_run_result(state, result)
 
-    # Handle repeated WAITs in a loop instead of recursively, to avoid
-    # reaching max recursion depth in extreme cases.
-    async def set_state_and_handle_waits(
-        set_state_func: Callable[[], Awaitable[OrchestrationResult[Any]]],
-    ) -> OrchestrationResult[Any]:
-        response = await set_state_func()
-        while response.status == SetStateStatus.WAIT:
-            if TYPE_CHECKING:
-                assert isinstance(response.details, StateWaitDetails)
-            engine_logger.debug(
-                f"Received wait instruction for {response.details.delay_seconds}s: "
-                f"{response.details.reason}"
-            )
-            await anyio.sleep(response.details.delay_seconds)
-            response = await set_state_func()
-        return response
-
-    set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
-    response = await set_state_and_handle_waits(set_state)
-
-    # Parse the response to return the new state
-    if response.status == SetStateStatus.ACCEPT:
-        # Update the state with the details if provided
-        if TYPE_CHECKING:
-            assert response.state is not None
-        state.id = response.state.id
-        state.timestamp = response.state.timestamp
-        if response.state.state_details:
-            state.state_details = response.state.state_details
-        return state
-
-    elif response.status == SetStateStatus.ABORT:
-        if TYPE_CHECKING:
-            assert isinstance(response.details, StateAbortDetails)
-
-        raise prefect.exceptions.Abort(response.details.reason)
-
-    elif response.status == SetStateStatus.REJECT:
-        if TYPE_CHECKING:
-            assert response.state is not None
-            assert isinstance(response.details, StateRejectDetails)
-
-        if response.state.is_paused():
-            raise Pause(response.details.reason, state=response.state)
-        return response.state
-
-    else:
-        raise ValueError(
-            f"Received unexpected `SetStateStatus` from server: {response.status!r}"
-        )
+    return await FlowRunStateProposer(client.set_flow_run_state).propose(
+        flow_run_id, state, force=force
+    )
 
 
 def propose_state_sync(
@@ -652,55 +598,9 @@ def propose_state_sync(
 
         link_state_to_flow_run_result(state, result)
 
-    # Handle repeated WAITs in a loop instead of recursively, to avoid
-    # reaching max recursion depth in extreme cases.
-    def set_state_and_handle_waits(
-        set_state_func: Callable[[], OrchestrationResult[Any]],
-    ) -> OrchestrationResult[Any]:
-        response = set_state_func()
-        while response.status == SetStateStatus.WAIT:
-            if TYPE_CHECKING:
-                assert isinstance(response.details, StateWaitDetails)
-            engine_logger.debug(
-                f"Received wait instruction for {response.details.delay_seconds}s: "
-                f"{response.details.reason}"
-            )
-            time.sleep(response.details.delay_seconds)
-            response = set_state_func()
-        return response
-
-    # Attempt to set the state
-    set_state = partial(client.set_flow_run_state, flow_run_id, state, force=force)
-    response = set_state_and_handle_waits(set_state)
-
-    # Parse the response to return the new state
-    if response.status == SetStateStatus.ACCEPT:
-        if TYPE_CHECKING:
-            assert response.state is not None
-        # Update the state with the details if provided
-        state.id = response.state.id
-        state.timestamp = response.state.timestamp
-        if response.state.state_details:
-            state.state_details = response.state.state_details
-        return state
-
-    elif response.status == SetStateStatus.ABORT:
-        if TYPE_CHECKING:
-            assert isinstance(response.details, StateAbortDetails)
-        raise prefect.exceptions.Abort(response.details.reason)
-
-    elif response.status == SetStateStatus.REJECT:
-        if TYPE_CHECKING:
-            assert response.state is not None
-            assert isinstance(response.details, StateRejectDetails)
-        if response.state.is_paused():
-            raise Pause(response.details.reason, state=response.state)
-        return response.state
-
-    else:
-        raise ValueError(
-            f"Received unexpected `SetStateStatus` from server: {response.status!r}"
-        )
+    return SyncFlowRunStateProposer(client.set_flow_run_state).propose(
+        flow_run_id, state, force=force
+    )
 
 
 def get_state_for_result(obj: Any) -> Optional[tuple[State, RunType]]:
