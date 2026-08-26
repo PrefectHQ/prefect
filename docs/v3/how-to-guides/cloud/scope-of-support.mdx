@@ -65,13 +65,13 @@ Engineering may be able to help. Contact your account team or customer success m
 
 ## Shared responsibility model
 
-| Component | Prefect Open Source | Prefect Cloud (hybrid execution) | Prefect Cloud (Prefect Serverless) | Prefect Horizon | FastMCP |
-| --- | --- | --- | --- | --- | --- |
-| Control plane / API | You | **Prefect** | **Prefect** | **Prefect** | — |
-| Execution infrastructure | You | You | **Prefect** | **Prefect** | You |
-| Your code (flows, tasks, and MCP tools) | You | You | You | You | You |
-| Networking from your environment | You | You | You | You | You |
-| Third-party services | You | You | You | You | You |
+| Component | Prefect Open Source | Prefect Cloud (hybrid work pools) | Prefect Cloud ([push work pools](/v3/how-to-guides/deployment_infra/serverless)) | Prefect Cloud ([managed work pools](/v3/how-to-guides/deployment_infra/managed)) | Prefect Horizon | FastMCP |
+| --- | --- | --- | --- | --- | --- | --- |
+| Control plane / API | You | **Prefect** | **Prefect** | **Prefect** | **Prefect** | — |
+| Execution infrastructure | You | You | You | **Prefect** | **Prefect** | You |
+| Your code (flows, tasks, and MCP tools) | You | You | You | You | You | You |
+| Networking from your environment | You | You | You | You | You | You |
+| Third-party services | You | You | You | You | You | You |
 
 Support covers the cells marked **Prefect**, plus the documented behavior of Prefect software running in
 your environment.
