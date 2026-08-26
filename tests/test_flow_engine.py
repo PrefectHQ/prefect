@@ -8,7 +8,7 @@ from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
 from contextlib import asynccontextmanager, contextmanager, nullcontext
 from textwrap import dedent
 from types import SimpleNamespace
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, cast
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock
 from uuid import UUID
@@ -28,7 +28,7 @@ from prefect._internal.attempt_control import EngineOutcomeReceipt
 from prefect.cache_policies import INPUTS
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas.filters import FlowFilter, FlowFilterName, FlowRunFilter
-from prefect.client.schemas.objects import State, StateType
+from prefect.client.schemas.objects import FlowRun, State, StateType
 from prefect.client.schemas.responses import (
     OrchestrationResult,
     SetStateStatus,
@@ -45,6 +45,8 @@ from prefect.context import (
     get_run_context,
 )
 from prefect.engine import _drive_run_flow_result, handle_engine_signals
+from prefect.events.clients import AssertingEventsClient
+from prefect.events.worker import EventsWorker
 from prefect.exceptions import (
     Abort,
     CrashedRun,
@@ -80,7 +82,11 @@ from prefect.results import get_result_store
 from prefect.runtime import flow_run as runtime_flow_run
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
-from prefect.settings import PREFECT_LOGGING_LOG_PRINTS, temporary_settings
+from prefect.settings import (
+    PREFECT_FLOWS_HEARTBEAT_FREQUENCY,
+    PREFECT_LOGGING_LOG_PRINTS,
+    temporary_settings,
+)
 from prefect.states import Running
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import capture_sigterm, propose_state, propose_state_sync
@@ -5585,6 +5591,42 @@ class TestLeaseRenewal:
         )
 
 
+@pytest.fixture
+def running_heartbeat_flow_run() -> FlowRun:
+    return FlowRun(
+        id=uuid.uuid4(),
+        flow_id=uuid.uuid4(),
+        name="test-flow-run",
+        state=states.Running(),
+    )
+
+
+class _SyncStateClientFake:
+    def __init__(self, request: Callable[[], OrchestrationResult[Any]]) -> None:
+        self._request = request
+
+    def set_flow_run_state(
+        self,
+        flow_run_id: UUID | str,
+        state: State[Any],
+        force: bool = False,
+    ) -> OrchestrationResult[Any]:
+        return self._request()
+
+
+class _AsyncStateClientFake:
+    def __init__(self, request: Callable[[], OrchestrationResult[Any]]) -> None:
+        self._request = request
+
+    async def set_flow_run_state(
+        self,
+        flow_run_id: UUID | str,
+        state: State[Any],
+        force: bool = False,
+    ) -> OrchestrationResult[Any]:
+        return self._request()
+
+
 class _InstrumentedHeartbeatGate:
     """Signal state-request admission attempts without timing assertions."""
 
@@ -5611,7 +5653,7 @@ class TestFlowRunEngineHeartbeat:
     """Tests for heartbeat integration in the flow run engine."""
 
     @staticmethod
-    def _mock_heartbeat_pipeline(
+    def _set_heartbeat_enqueue_barrier(
         monkeypatch: pytest.MonkeyPatch,
         enqueue: Callable[[object], None],
     ) -> None:
@@ -5635,23 +5677,13 @@ class TestFlowRunEngineHeartbeat:
         return OrchestrationResult(status=status, state=state, details=details)
 
     def test_heartbeat_session_reopens_until_server_returns_final_state(
-        self, monkeypatch: pytest.MonkeyPatch
+        self,
+        running_heartbeat_flow_run: FlowRun,
+        asserting_events_worker: EventsWorker,
     ):
-        emitted_events: list[object] = []
-        self._mock_heartbeat_pipeline(
-            monkeypatch,
-            emitted_events.append,
-        )
         engine = FlowRunEngine(
             flow=flow(lambda: None),
-            flow_run=MagicMock(
-                id=uuid.uuid4(),
-                name="test-flow-run",
-                tags=[],
-                flow_id=None,
-                deployment_id=None,
-                state=states.Running(),
-            ),
+            flow_run=running_heartbeat_flow_run,
         )
         session = _FlowRunHeartbeatSession(engine, heartbeat_seconds=30)
 
@@ -5676,26 +5708,22 @@ class TestFlowRunEngineHeartbeat:
         session.send_heartbeat()
 
         assert engine.flow_run.state.is_running()
-        assert len(emitted_events) == 2
+        asserting_events_worker.drain()
+        client = asserting_events_worker._client
+        assert isinstance(client, AssertingEventsClient)
+        assert [event.event for event in client.events] == [
+            "prefect.flow-run.heartbeat",
+            "prefect.flow-run.heartbeat",
+        ]
 
     async def test_async_heartbeat_session_reopens_until_server_returns_final_state(
-        self, monkeypatch: pytest.MonkeyPatch
+        self,
+        running_heartbeat_flow_run: FlowRun,
+        asserting_events_worker: EventsWorker,
     ):
-        emitted_events: list[object] = []
-        self._mock_heartbeat_pipeline(
-            monkeypatch,
-            emitted_events.append,
-        )
         engine = AsyncFlowRunEngine(
             flow=flow(lambda: None),
-            flow_run=MagicMock(
-                id=uuid.uuid4(),
-                name="test-flow-run",
-                tags=[],
-                flow_id=None,
-                deployment_id=None,
-                state=states.Running(),
-            ),
+            flow_run=running_heartbeat_flow_run,
         )
         session = _FlowRunHeartbeatSession(engine, heartbeat_seconds=30)
 
@@ -5720,10 +5748,18 @@ class TestFlowRunEngineHeartbeat:
         session.send_heartbeat()
 
         assert engine.flow_run.state.is_running()
-        assert len(emitted_events) == 2
+        await asserting_events_worker.drain()
+        client = asserting_events_worker._client
+        assert isinstance(client, AssertingEventsClient)
+        assert [event.event for event in client.events] == [
+            "prefect.flow-run.heartbeat",
+            "prefect.flow-run.heartbeat",
+        ]
 
     def test_terminal_transition_closes_heartbeat_during_event_preparation(
-        self, monkeypatch: pytest.MonkeyPatch
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        running_heartbeat_flow_run: FlowRun,
     ):
         preparation_started = threading.Event()
         allow_preparation = threading.Event()
@@ -5751,17 +5787,13 @@ class TestFlowRunEngineHeartbeat:
         )
         engine = FlowRunEngine(
             flow=flow(lambda: None),
-            flow_run=MagicMock(
-                id=uuid.uuid4(),
-                name="test-flow-run",
-                tags=[],
-                flow_id=None,
-                deployment_id=None,
-                state=states.Running(),
-            ),
+            flow_run=running_heartbeat_flow_run,
         )
         engine._is_started = True
-        engine._client = MagicMock(set_flow_run_state=set_flow_run_state)
+        engine._client = cast(
+            SyncPrefectClient,
+            _SyncStateClientFake(set_flow_run_state),
+        )
         session = _FlowRunHeartbeatSession(engine, heartbeat_seconds=30)
         engine._heartbeat_session = session
         transition_result: list[State[Any]] = []
@@ -6212,7 +6244,9 @@ class TestFlowRunEngineHeartbeat:
         )
 
     def test_no_heartbeat_emitted_after_terminal_transition_sync(
-        self, monkeypatch: pytest.MonkeyPatch
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        running_heartbeat_flow_run: FlowRun,
     ):
         timeline: list[str] = []
         heartbeat_send_started = threading.Event()
@@ -6223,9 +6257,7 @@ class TestFlowRunEngineHeartbeat:
             allow_heartbeat_send.wait()
             timeline.append("heartbeat")
 
-        def set_flow_run_state(
-            *args: object, **kwargs: object
-        ) -> OrchestrationResult[Any]:
+        def set_flow_run_state() -> OrchestrationResult[Any]:
             timeline.append("completed")
             return OrchestrationResult(
                 state=states.Completed(),
@@ -6233,24 +6265,16 @@ class TestFlowRunEngineHeartbeat:
                 details=StateAcceptDetails(),
             )
 
-        self._mock_heartbeat_pipeline(monkeypatch, enqueue_heartbeat)
-        monkeypatch.setattr(
-            "prefect.flow_engine.get_current_settings",
-            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=30)),
-        )
+        self._set_heartbeat_enqueue_barrier(monkeypatch, enqueue_heartbeat)
         engine = FlowRunEngine(
             flow=flow(lambda: None),
-            flow_run=MagicMock(
-                id=uuid.uuid4(),
-                name="test-flow-run",
-                tags=[],
-                flow_id=None,
-                deployment_id=None,
-                state=states.Running(),
-            ),
+            flow_run=running_heartbeat_flow_run,
         )
         engine._is_started = True
-        engine._client = MagicMock(set_flow_run_state=set_flow_run_state)
+        engine._client = cast(
+            SyncPrefectClient,
+            _SyncStateClientFake(set_flow_run_state),
+        )
         session = _FlowRunHeartbeatSession(engine, heartbeat_seconds=30)
         gate = _InstrumentedHeartbeatGate()
         session._gate = gate  # type: ignore[assignment]
@@ -6281,7 +6305,9 @@ class TestFlowRunEngineHeartbeat:
         assert timeline == ["heartbeat", "completed"]
 
     async def test_no_heartbeat_emitted_after_terminal_transition_async(
-        self, monkeypatch: pytest.MonkeyPatch
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        running_heartbeat_flow_run: FlowRun,
     ):
         timeline: list[str] = []
         heartbeat_send_started = threading.Event()
@@ -6292,9 +6318,7 @@ class TestFlowRunEngineHeartbeat:
             allow_heartbeat_send.wait()
             timeline.append("heartbeat")
 
-        async def set_flow_run_state(
-            *args: object, **kwargs: object
-        ) -> OrchestrationResult[Any]:
+        def set_flow_run_state() -> OrchestrationResult[Any]:
             timeline.append("completed")
             return OrchestrationResult(
                 state=states.Completed(),
@@ -6302,24 +6326,16 @@ class TestFlowRunEngineHeartbeat:
                 details=StateAcceptDetails(),
             )
 
-        self._mock_heartbeat_pipeline(monkeypatch, enqueue_heartbeat)
-        monkeypatch.setattr(
-            "prefect.flow_engine.get_current_settings",
-            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=30)),
-        )
+        self._set_heartbeat_enqueue_barrier(monkeypatch, enqueue_heartbeat)
         engine = AsyncFlowRunEngine(
             flow=flow(lambda: None),
-            flow_run=MagicMock(
-                id=uuid.uuid4(),
-                name="test-flow-run",
-                tags=[],
-                flow_id=None,
-                deployment_id=None,
-                state=states.Running(),
-            ),
+            flow_run=running_heartbeat_flow_run,
         )
         engine._is_started = True
-        engine._client = MagicMock(set_flow_run_state=set_flow_run_state)
+        engine._client = cast(
+            PrefectClient,
+            _AsyncStateClientFake(set_flow_run_state),
+        )
         session = _FlowRunHeartbeatSession(engine, heartbeat_seconds=30)
         gate = _InstrumentedHeartbeatGate()
         session._gate = gate  # type: ignore[assignment]
@@ -6432,32 +6448,27 @@ class TestFlowRunEngineHeartbeat:
             assert flow_related[0]["prefect.resource.name"] == "my-flow"
 
     def test_async_heartbeats_fire_when_event_loop_blocked(
-        self, monkeypatch: pytest.MonkeyPatch
+        self,
+        asserting_events_worker: EventsWorker,
     ):
         """Heartbeats use a daemon thread, so they fire even when the event loop is blocked.
 
         This is the core fix for issue #20887: CPU-bound async flows previously
         starved the asyncio-based heartbeat task.
         """
-        heartbeat_count = 0
-
-        def enqueue_heartbeat(prepared: object) -> None:
-            nonlocal heartbeat_count
-            heartbeat_count += 1
-
-        self._mock_heartbeat_pipeline(monkeypatch, enqueue_heartbeat)
-        monkeypatch.setattr(
-            "prefect.flow_engine.get_current_settings",
-            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=30)),
-        )
-
         engine = FlowRunEngine(flow=flow(lambda: None))
 
-        with engine.initialize_run():
-            with _send_heartbeats(engine):
-                # Block the current thread for 3 seconds — simulates a
-                # CPU-bound task that would starve an asyncio heartbeat task.
-                # The daemon thread should still emit at least one heartbeat.
-                time.sleep(3)
+        with temporary_settings({PREFECT_FLOWS_HEARTBEAT_FREQUENCY: 30}):
+            with engine.initialize_run():
+                with _send_heartbeats(engine):
+                    # Block the current thread for 3 seconds — simulates a
+                    # CPU-bound task that would starve an asyncio heartbeat task.
+                    # The daemon thread should still emit at least one heartbeat.
+                    time.sleep(3)
 
-        assert heartbeat_count >= 1
+        asserting_events_worker.drain()
+        client = asserting_events_worker._client
+        assert isinstance(client, AssertingEventsClient)
+        assert any(
+            event.event == "prefect.flow-run.heartbeat" for event in client.events
+        )
