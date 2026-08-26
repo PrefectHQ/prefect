@@ -142,6 +142,10 @@ from prefect.telemetry.run_telemetry import (
     RunTelemetry,
 )
 from prefect.types import KeyValueLabels
+from prefect.utilities._flow_run_state_proposals import (
+    FlowRunStateProposer,
+    SyncFlowRunStateProposer,
+)
 from prefect.utilities.annotations import NotSet
 from prefect.utilities.asyncutils import run_coro_as_sync
 from prefect.utilities.callables import (
@@ -156,10 +160,6 @@ from prefect.utilities.engine import (
     capture_sigterm,
     link_state_to_flow_run_result,
     resolve_to_final_result,
-)
-from prefect.utilities.flow_run_state_proposals import (
-    FlowRunStateProposer,
-    SyncFlowRunStateProposer,
 )
 from prefect.utilities.processutils import sanitize_subprocess_env
 from prefect.utilities.timeout import timeout, timeout_async
