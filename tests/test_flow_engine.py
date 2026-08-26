@@ -615,34 +615,40 @@ def _reject_terminal_transition(
     exception: BaseException,
 ) -> None:
     if not async_engine:
-        original_propose_state = flow_engine_module.propose_state_sync
+        original_propose_state = flow_engine_module.SyncFlowRunStateProposer.propose
 
         def reject_terminal_state(
-            client: Any, state: states.State[Any], **kwargs: Any
+            proposer: Any,
+            flow_run_id: uuid.UUID,
+            state: states.State[Any],
+            **kwargs: Any,
         ) -> Any:
             if state.is_final():
                 raise exception
-            return original_propose_state(client, state, **kwargs)
+            return original_propose_state(proposer, flow_run_id, state, **kwargs)
 
         monkeypatch.setattr(
-            flow_engine_module,
-            "propose_state_sync",
+            flow_engine_module.SyncFlowRunStateProposer,
+            "propose",
             reject_terminal_state,
         )
         return
 
-    original_propose_state = flow_engine_module.propose_state
+    original_propose_state = flow_engine_module.FlowRunStateProposer.propose
 
     async def reject_terminal_state_async(
-        client: Any, state: states.State[Any], **kwargs: Any
+        proposer: Any,
+        flow_run_id: uuid.UUID,
+        state: states.State[Any],
+        **kwargs: Any,
     ) -> Any:
         if state.is_final():
             raise exception
-        return await original_propose_state(client, state, **kwargs)
+        return await original_propose_state(proposer, flow_run_id, state, **kwargs)
 
     monkeypatch.setattr(
-        flow_engine_module,
-        "propose_state",
+        flow_engine_module.FlowRunStateProposer,
+        "propose",
         reject_terminal_state_async,
     )
 

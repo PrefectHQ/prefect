@@ -11,7 +11,7 @@ import signal
 import sys
 import threading
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from contextlib import (
     AsyncExitStack,
     ExitStack,
@@ -20,7 +20,7 @@ from contextlib import (
     nullcontext,
 )
 from dataclasses import dataclass, field
-from functools import wraps
+from functools import partial, wraps
 from typing import (
     Any,
     AsyncGenerator,
@@ -114,6 +114,7 @@ from prefect.logging.loggers import (
     patch_print,
 )
 from prefect.results import (
+    ResultRecord,
     ResultStore,
     _aget_default_persist_result,
     _get_default_persist_result,
@@ -154,9 +155,11 @@ from prefect.utilities.collections import visit_collection
 from prefect.utilities.engine import (
     capture_sigterm,
     link_state_to_flow_run_result,
-    propose_state,
-    propose_state_sync,
     resolve_to_final_result,
+)
+from prefect.utilities.flow_run_state_proposals import (
+    FlowRunStateProposer,
+    SyncFlowRunStateProposer,
 )
 from prefect.utilities.processutils import sanitize_subprocess_env
 from prefect.utilities.timeout import timeout, timeout_async
@@ -460,53 +463,42 @@ class _FlowRunHeartbeatSession:
         with CancelScope(shield=True):
             await run_sync_in_anyio_worker_thread(self.close, abandon_on_cancel=False)
 
-
-class _SyncFlowRunStateClient:
-    """Narrow adapter that gates each actual synchronous state request."""
-
-    def __init__(
+    def run_state_request(
         self,
-        client: SyncPrefectClient,
-        heartbeat_session: _FlowRunHeartbeatSession,
-    ) -> None:
-        self._client = client
-        self._heartbeat_session = heartbeat_session
-
-    def set_flow_run_state(
-        self,
+        request: Callable[[UUID | str, State[Any], bool], OrchestrationResult[Any]],
         flow_run_id: UUID | str,
         state: State[Any],
         force: bool = False,
     ) -> OrchestrationResult[Any]:
-        with self._heartbeat_session.state_request() as resolve:
-            response = self._client.set_flow_run_state(flow_run_id, state, force=force)
+        """Order one synchronous state request with heartbeat admission."""
+        with self.state_request() as resolve:
+            response = request(flow_run_id, state, force)
             resolve(response)
             return response
 
-
-class _AsyncFlowRunStateClient:
-    """Narrow adapter that gates each actual asynchronous state request."""
-
-    def __init__(
+    async def run_state_request_async(
         self,
-        client: PrefectClient,
-        heartbeat_session: _FlowRunHeartbeatSession,
-    ) -> None:
-        self._client = client
-        self._heartbeat_session = heartbeat_session
-
-    async def set_flow_run_state(
-        self,
+        request: Callable[
+            [UUID | str, State[Any], bool],
+            Awaitable[OrchestrationResult[Any]],
+        ],
         flow_run_id: UUID | str,
         state: State[Any],
         force: bool = False,
     ) -> OrchestrationResult[Any]:
-        async with self._heartbeat_session.state_request_async() as resolve:
-            response = await self._client.set_flow_run_state(
-                flow_run_id, state, force=force
-            )
+        """Order one asynchronous state request with heartbeat admission."""
+        async with self.state_request_async() as resolve:
+            response = await request(flow_run_id, state, force)
             resolve(response)
             return response
+
+
+def _link_final_state_to_result(state: State[Any]) -> None:
+    """Preserve dependency tracking before proposing a terminal state."""
+    if not state.is_final():
+        return
+    result = state.data.result if isinstance(state.data, ResultRecord) else state.data
+    link_state_to_flow_run_result(state, result)
 
 
 def _start_heartbeat_session(
@@ -953,15 +945,18 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         if self.short_circuit:
             return self.state
 
-        client = self.client
+        _link_final_state_to_result(state)
+        request = self.client.set_flow_run_state
         if self._heartbeat_session is not None:
-            client = cast(
-                SyncPrefectClient,
-                _SyncFlowRunStateClient(client, self._heartbeat_session),
+            request = partial(
+                self._heartbeat_session.run_state_request,
+                request,
             )
-        state = propose_state_sync(
-            client, state, flow_run_id=self.flow_run.id, force=force
-        )  # type: ignore
+        state = SyncFlowRunStateProposer(request).propose(
+            self.flow_run.id,  # type: ignore[union-attr]
+            state,
+            force=force,
+        )
         self.flow_run.state = state  # type: ignore
         self.flow_run.state_name = state.name  # type: ignore
         self.flow_run.state_type = state.type  # type: ignore
@@ -1662,15 +1657,18 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         if self.short_circuit:
             return self.state
 
-        client = self.client
+        _link_final_state_to_result(state)
+        request = self.client.set_flow_run_state
         if self._heartbeat_session is not None:
-            client = cast(
-                PrefectClient,
-                _AsyncFlowRunStateClient(client, self._heartbeat_session),
+            request = partial(
+                self._heartbeat_session.run_state_request_async,
+                request,
             )
-        state = await propose_state(
-            client, state, flow_run_id=self.flow_run.id, force=force
-        )  # type: ignore
+        state = await FlowRunStateProposer(request).propose(
+            self.flow_run.id,  # type: ignore[union-attr]
+            state,
+            force=force,
+        )
         self.flow_run.state = state  # type: ignore
         self.flow_run.state_name = state.name  # type: ignore
         self.flow_run.state_type = state.type  # type: ignore
