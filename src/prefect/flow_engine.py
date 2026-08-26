@@ -11,7 +11,7 @@ import signal
 import sys
 import threading
 import time
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from contextlib import (
     AsyncExitStack,
     ExitStack,
@@ -40,6 +40,7 @@ from uuid import UUID
 
 import anyio
 from anyio import CancelScope
+from anyio.to_thread import run_sync as run_sync_in_anyio_worker_thread
 from opentelemetry import propagate, trace
 from typing_extensions import ParamSpec
 
@@ -64,6 +65,7 @@ from prefect._internal.metrics import RunMetrics
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas import FlowRun, TaskRun
 from prefect.client.schemas.filters import FlowRunFilter
+from prefect.client.schemas.responses import OrchestrationResult, SetStateStatus
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.concurrency._leases import (
     amaintain_concurrency_lease,
@@ -85,7 +87,11 @@ from prefect.context import (
 )
 from prefect.engine import _drive_run_flow_result, handle_engine_signals
 from prefect.events.related import RelatedResource, tags_as_related_resources
-from prefect.events.utilities import emit_event
+from prefect.events.utilities import (
+    _enqueue_prepared_event,
+    _prepare_event,
+    emit_event,
+)
 from prefect.exceptions import (
     Abort,
     MissingFlowError,
@@ -160,6 +166,7 @@ P = ParamSpec("P")
 R = TypeVar("R")
 
 MINIMUM_HEARTBEAT_INTERVAL = 30
+_HEARTBEAT_THREAD_JOIN_TIMEOUT_SECONDS = 2
 _engine_logger = get_logger("engine")
 _CONTROL_CHANNEL_ENV_KEYS = frozenset(
     {"PREFECT__CONTROL_PORT", "PREFECT__CONTROL_TOKEN"}
@@ -302,79 +309,262 @@ def _main(argv: list[str] | None = None) -> int:
     return 0
 
 
-@contextmanager
-def _send_heartbeats(
-    engine: "BaseFlowRunEngine[Any, Any]",
-    join_on_exit: bool = True,
-) -> Generator[None, None, None]:
-    """Context manager that maintains heartbeats for a flow run using a daemon thread.
+class _FlowRunHeartbeatSession:
+    """Order heartbeat sends with authoritative flow-run state requests."""
 
-    Uses a background OS thread instead of an asyncio task so that heartbeats
-    fire even when the event loop is blocked by CPU-bound work.
+    def __init__(
+        self,
+        engine: BaseFlowRunEngine[Any, Any],
+        heartbeat_seconds: int,
+    ) -> None:
+        self._engine = engine
+        self._heartbeat_seconds = heartbeat_seconds
+        self._gate = threading.Lock()
+        self._stop_event = threading.Event()
+        self._resource, self._related = engine._build_heartbeat_event_template()
 
-    Args:
-        engine: The flow run engine instance to emit heartbeats for.
-        join_on_exit: Whether to join the heartbeat thread on exit. Set to
-            `False` in async engines to avoid blocking the event loop.
+        # Copy the current context so the heartbeat thread sees the same
+        # `SettingsContext` (and therefore the same `PREFECT_API_URL`) as the
+        # calling thread. Without this, `threading.Thread` starts with an empty
+        # context and `SettingsContext.get()` falls back to the process-wide
+        # `GLOBAL_SETTINGS_CONTEXT`, which is initialized at import time and can
+        # have a stale `api.url=None`.
+        heartbeat_ctx = contextvars.copy_context()
+        self._thread = threading.Thread(
+            target=heartbeat_ctx.run,
+            args=(self._heartbeat_loop,),
+            daemon=True,
+        )
 
-    Yields:
-        None
-    """
-    heartbeat_seconds = engine.heartbeat_seconds
-    if heartbeat_seconds is None:
-        yield
-        return
-    heartbeat_seconds = max(heartbeat_seconds, MINIMUM_HEARTBEAT_INTERVAL)
+    def start(self) -> None:
+        self._thread.start()
 
-    # Pre-compute the event template once to minimize per-heartbeat GIL hold time
-    resource, related = engine._build_heartbeat_event_template()
+    def _heartbeat_loop(self) -> None:
+        while not self._stop_event.is_set():
+            try:
+                self.send_heartbeat()
+            except Exception:
+                self._engine.logger.debug("Failed to emit heartbeat", exc_info=True)
 
-    stop_event = threading.Event()
-
-    def heartbeat_loop() -> None:
-        while not stop_event.is_set():
-            # Check state before emitting - don't emit if final
-            if (
-                engine.flow_run
-                and engine.flow_run.state
-                and engine.flow_run.state.is_final()
-            ):
-                engine.logger.debug("Flow run in terminal state, stopping heartbeat")
+            if self._stop_event.wait(self._heartbeat_seconds):
                 return
 
-            try:
-                engine._emit_flow_run_heartbeat(resource, related)
-            except Exception:
-                engine.logger.debug("Failed to emit heartbeat", exc_info=True)
+    def send_heartbeat(self) -> None:
+        if self._stop_event.is_set():
+            return
 
-            # Sleep in increments to allow quick shutdown
-            for _ in range(heartbeat_seconds):
-                if stop_event.is_set():
-                    return
-                time.sleep(1)
+        # Worker initialization and event construction may block, so perform
+        # them before admission. A state request can close the session while
+        # preparation is in flight, in which case the event is dropped below.
+        prepared = _prepare_event(
+            event="prefect.flow-run.heartbeat",
+            resource=self._resource,
+            related=self._related,
+        )
+        if prepared is None:
+            return
 
-    # Copy the current context so the heartbeat thread sees the same
-    # `SettingsContext` (and therefore the same `PREFECT_API_URL`) as the
-    # calling thread. Without this, `threading.Thread` starts with an empty
-    # context and `SettingsContext.get()` falls back to the process-wide
-    # `GLOBAL_SETTINGS_CONTEXT`, which is initialized at import time and can
-    # have a stale `api.url=None`. That caused `EventsWorker.instance()` from
-    # the heartbeat path to spawn an ephemeral `SubprocessASGIServer` during
-    # flow teardown, racing with interpreter shutdown and aborting the
-    # process.
-    heartbeat_ctx = contextvars.copy_context()
-    thread = threading.Thread(
-        target=heartbeat_ctx.run, args=(heartbeat_loop,), daemon=True
+        # The gate covers only the worker's in-memory `put_nowait` enqueue.
+        # A later state request therefore drains admitted sends without waiting
+        # on worker initialization or network I/O.
+        with self._gate:
+            if self._stop_event.is_set():
+                return
+            if (
+                self._engine.flow_run
+                and self._engine.flow_run.state
+                and self._engine.flow_run.state.is_final()
+            ):
+                self._stop_event.set()
+                self._engine.logger.debug(
+                    "Flow run in terminal state, stopping heartbeat"
+                )
+                return
+            _enqueue_prepared_event(prepared)
+
+    def _resolve_state_request(self, response: OrchestrationResult[Any]) -> None:
+        # WAIT explicitly reopens heartbeat admission between server attempts.
+        if response.status == SetStateStatus.WAIT:
+            return
+
+        # A terminal server state is authoritative and absorbing. ABORT and
+        # malformed responses fail closed because the server may have accepted
+        # the transition even if the engine cannot observe its result.
+        if (
+            response.status == SetStateStatus.ABORT
+            or response.state is None
+            or response.state.is_final()
+        ):
+            self._stop_event.set()
+
+    @contextmanager
+    def state_request(
+        self,
+    ) -> Generator[Callable[[OrchestrationResult[Any]], None], None, None]:
+        self._gate.acquire()
+        resolved = False
+        try:
+
+            def resolve(response: OrchestrationResult[Any]) -> None:
+                nonlocal resolved
+                self._resolve_state_request(response)
+                resolved = True
+
+            yield resolve
+        finally:
+            if not resolved:
+                self._stop_event.set()
+            self._gate.release()
+
+    @asynccontextmanager
+    async def state_request_async(
+        self,
+    ) -> AsyncGenerator[Callable[[OrchestrationResult[Any]], None], None]:
+        acquired = False
+        resolved = False
+        try:
+            # Lock acquisition can wait for an in-flight heartbeat, so keep it
+            # off the event loop. Shielding guarantees ownership is recorded
+            # before cancellation can unwind the context manager.
+            with CancelScope(shield=True):
+                await run_sync_in_anyio_worker_thread(
+                    self._gate.acquire,
+                )
+                acquired = True
+
+            def resolve(response: OrchestrationResult[Any]) -> None:
+                nonlocal resolved
+                self._resolve_state_request(response)
+                resolved = True
+
+            yield resolve
+        finally:
+            if acquired:
+                if not resolved:
+                    self._stop_event.set()
+                self._gate.release()
+
+    def close(self) -> None:
+        self._stop_event.set()
+        with self._gate:
+            pass
+        self._thread.join(timeout=_HEARTBEAT_THREAD_JOIN_TIMEOUT_SECONDS)
+        if self._thread.is_alive():
+            self._engine.logger.error(
+                "Flow-run heartbeat thread did not stop within %s seconds; "
+                "continuing teardown",
+                _HEARTBEAT_THREAD_JOIN_TIMEOUT_SECONDS,
+            )
+
+    async def aclose(self) -> None:
+        with CancelScope(shield=True):
+            await run_sync_in_anyio_worker_thread(self.close, abandon_on_cancel=False)
+
+
+class _SyncFlowRunStateClient:
+    """Narrow adapter that gates each actual synchronous state request."""
+
+    def __init__(
+        self,
+        client: SyncPrefectClient,
+        heartbeat_session: _FlowRunHeartbeatSession,
+    ) -> None:
+        self._client = client
+        self._heartbeat_session = heartbeat_session
+
+    def set_flow_run_state(
+        self,
+        flow_run_id: UUID | str,
+        state: State[Any],
+        force: bool = False,
+    ) -> OrchestrationResult[Any]:
+        with self._heartbeat_session.state_request() as resolve:
+            response = self._client.set_flow_run_state(flow_run_id, state, force=force)
+            resolve(response)
+            return response
+
+
+class _AsyncFlowRunStateClient:
+    """Narrow adapter that gates each actual asynchronous state request."""
+
+    def __init__(
+        self,
+        client: PrefectClient,
+        heartbeat_session: _FlowRunHeartbeatSession,
+    ) -> None:
+        self._client = client
+        self._heartbeat_session = heartbeat_session
+
+    async def set_flow_run_state(
+        self,
+        flow_run_id: UUID | str,
+        state: State[Any],
+        force: bool = False,
+    ) -> OrchestrationResult[Any]:
+        async with self._heartbeat_session.state_request_async() as resolve:
+            response = await self._client.set_flow_run_state(
+                flow_run_id, state, force=force
+            )
+            resolve(response)
+            return response
+
+
+def _start_heartbeat_session(
+    engine: BaseFlowRunEngine[Any, Any],
+) -> _FlowRunHeartbeatSession | None:
+    heartbeat_seconds = engine.heartbeat_seconds
+    if heartbeat_seconds is None:
+        return None
+
+    session = _FlowRunHeartbeatSession(
+        engine,
+        max(heartbeat_seconds, MINIMUM_HEARTBEAT_INTERVAL),
     )
-    thread.start()
+    engine._heartbeat_session = session
+    started = False
+    try:
+        session.start()
+        started = True
+    finally:
+        if not started:
+            engine._heartbeat_session = None
     engine.logger.debug("Started flow run heartbeat context")
+    return session
+
+
+@contextmanager
+def _send_heartbeats(
+    engine: BaseFlowRunEngine[Any, Any],
+) -> Generator[None, None, None]:
+    """Maintain flow-run heartbeats from a background OS thread."""
+    session = _start_heartbeat_session(engine)
+    if session is None:
+        yield
+        return
 
     try:
         yield
     finally:
-        stop_event.set()
-        if join_on_exit:
-            thread.join(timeout=2)
+        session.close()
+        engine._heartbeat_session = None
+        engine.logger.debug("Stopped flow run heartbeat context")
+
+
+@asynccontextmanager
+async def _send_heartbeats_async(
+    engine: BaseFlowRunEngine[Any, Any],
+) -> AsyncGenerator[None, None]:
+    """Async counterpart that waits for shutdown without blocking the event loop."""
+    session = _start_heartbeat_session(engine)
+    if session is None:
+        yield
+        return
+
+    try:
+        yield
+    finally:
+        await session.aclose()
+        engine._heartbeat_session = None
         engine.logger.debug("Stopped flow run heartbeat context")
 
 
@@ -386,19 +576,19 @@ def _send_heartbeats(
 def send_heartbeats_sync(
     engine: "FlowRunEngine[Any, Any]",
 ) -> Generator[None, None, None]:
-    with _send_heartbeats(engine, join_on_exit=True):
+    with _send_heartbeats(engine):
         yield
 
 
 @deprecated_callable(
     start_date=datetime.datetime(2026, 3, 1),
-    help="Use `_send_heartbeats` instead.",
+    help="Use `_send_heartbeats_async` instead.",
 )
 @asynccontextmanager
 async def send_heartbeats_async(
     engine: "AsyncFlowRunEngine[Any, Any]",
 ) -> AsyncGenerator[None, None]:
-    with _send_heartbeats(engine, join_on_exit=False):
+    async with _send_heartbeats_async(engine):
         yield
 
 
@@ -424,6 +614,9 @@ class BaseFlowRunEngine(Generic[P, R]):
         default_factory=FlowRunSuspensionRequest
     )
     _attempt_conclusion: EngineOutcomeReceipt | None = field(default=None, init=False)
+    _heartbeat_session: _FlowRunHeartbeatSession | None = field(
+        default=None, init=False
+    )
 
     def __post_init__(self) -> None:
         if self.flow is None and self.flow_run_id is None:
@@ -539,6 +732,9 @@ class BaseFlowRunEngine(Generic[P, R]):
                 If not provided, builds the template on the fly (backward compat).
         """
         if not self.flow_run:
+            return
+
+        if self.flow_run.state and self.flow_run.state.is_final():
             return
 
         if resource is None or related is None:
@@ -757,8 +953,14 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
         if self.short_circuit:
             return self.state
 
+        client = self.client
+        if self._heartbeat_session is not None:
+            client = cast(
+                SyncPrefectClient,
+                _SyncFlowRunStateClient(client, self._heartbeat_session),
+            )
         state = propose_state_sync(
-            self.client, state, flow_run_id=self.flow_run.id, force=force
+            client, state, flow_run_id=self.flow_run.id, force=force
         )  # type: ignore
         self.flow_run.state = state  # type: ignore
         self.flow_run.state_name = state.name  # type: ignore
@@ -1460,8 +1662,14 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
         if self.short_circuit:
             return self.state
 
+        client = self.client
+        if self._heartbeat_session is not None:
+            client = cast(
+                PrefectClient,
+                _AsyncFlowRunStateClient(client, self._heartbeat_session),
+            )
         state = await propose_state(
-            self.client, state, flow_run_id=self.flow_run.id, force=force
+            client, state, flow_run_id=self.flow_run.id, force=force
         )  # type: ignore
         self.flow_run.state = state  # type: ignore
         self.flow_run.state_name = state.name  # type: ignore
@@ -2024,7 +2232,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                     seconds=self.flow.timeout_seconds,
                     timeout_exc_type=FlowRunTimeoutError,
                 ):
-                    with _send_heartbeats(self, join_on_exit=False):
+                    async with _send_heartbeats_async(self):
                         self.logger.debug(
                             f"Executing flow {self.flow.name!r} for flow run {self.flow_run.name!r}..."
                         )
