@@ -175,14 +175,7 @@ def close_all_cached_connections() -> None:
 
 
 async def clear_cached_clients() -> None:
-    """Clear all cached Redis clients to force fresh connections.
-
-    This should be called when a connection error is detected to ensure
-    subsequent calls to get_async_redis_client() return fresh clients
-    rather than stale ones with broken connections.
-    """
-    global _client_cache
-
+    """Clear cached Redis clients and the messaging URL lookup."""
     _get_redis_messaging_url.cache_clear()
     _client_cache.clear()
 
