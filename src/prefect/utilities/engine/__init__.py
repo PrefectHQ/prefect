@@ -44,7 +44,7 @@ from prefect.states import State
 from prefect.tasks import Task
 from prefect.utilities.annotations import allow_failure, opaque, quote
 from prefect.utilities.collections import StopVisiting, visit_collection
-from prefect.utilities.flow_run_state_proposals import (
+from prefect.utilities._flow_run_state_proposals import (
     FlowRunStateProposer,
     SyncFlowRunStateProposer,
 )

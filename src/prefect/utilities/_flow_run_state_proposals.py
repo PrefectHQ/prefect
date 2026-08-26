@@ -17,8 +17,6 @@ from prefect.exceptions import Abort, Pause
 from prefect.logging.loggers import get_logger
 from prefect.states import State
 
-__all__ = ["FlowRunStateProposer", "SyncFlowRunStateProposer"]
-
 T = TypeVar("T")
 _proposal_logger = get_logger("engine")
 

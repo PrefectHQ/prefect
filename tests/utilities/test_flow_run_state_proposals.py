@@ -17,7 +17,7 @@ from prefect.client.schemas.responses import (
 from prefect.exceptions import Abort, Pause
 from prefect.states import Paused, Pending, Running, State
 from prefect.types._datetime import now
-from prefect.utilities.flow_run_state_proposals import (
+from prefect.utilities._flow_run_state_proposals import (
     FlowRunStateProposer,
     SyncFlowRunStateProposer,
 )
