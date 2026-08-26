@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import datetime
+from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 from uuid import UUID
@@ -25,6 +26,76 @@ if TYPE_CHECKING:
 TIGHT_TIMING = timedelta(minutes=5)
 
 logger: "logging.Logger" = get_logger(__name__)
+
+
+@dataclass(frozen=True)
+class _PreparedEvent:
+    worker: EventsWorker
+    event: Event
+
+
+def _prepare_event(
+    event: str,
+    resource: dict[str, str],
+    occurred: datetime.datetime | None = None,
+    related: list[dict[str, str]] | list[RelatedResource] | None = None,
+    payload: dict[str, Any] | None = None,
+    id: UUID | None = None,
+    follows: Event | None = None,
+    **kwargs: dict[str, Any] | None,
+) -> _PreparedEvent | None:
+    """Build and validate an event, including any worker initialization."""
+    if not should_emit_events():
+        return None
+
+    operational_clients = [
+        AssertingPassthroughEventsClient,
+        AssertingEventsClient,
+        PrefectCloudEventsClient,
+        PrefectEventsClient,
+        ProcessPoolForwardingEventsClient,
+    ]
+    worker_instance = EventsWorker.instance()
+
+    if worker_instance.client_type not in operational_clients:
+        return None
+
+    event_kwargs: dict[str, Any] = {
+        "event": event,
+        "resource": resource,
+        **kwargs,
+    }
+
+    if occurred is None:
+        occurred = prefect.types._datetime.now("UTC")
+    event_kwargs["occurred"] = occurred
+
+    if related is not None:
+        event_kwargs["related"] = related
+
+    if payload is not None:
+        event_kwargs["payload"] = payload
+
+    if id is not None:
+        event_kwargs["id"] = id
+
+    if follows is not None:
+        if -TIGHT_TIMING < (occurred - follows.occurred) < TIGHT_TIMING:
+            event_kwargs["follows"] = follows.id
+
+    event_obj = Event(**event_kwargs)
+
+    max_size = get_current_settings().server.events.maximum_size_bytes
+    if event_obj.size_bytes > max_size:
+        raise EventTooLarge(event_obj.size_bytes, max_size)
+
+    return _PreparedEvent(worker=worker_instance, event=event_obj)
+
+
+def _enqueue_prepared_event(prepared: _PreparedEvent) -> Event:
+    """Put a prepared event on its in-memory worker queue without network I/O."""
+    prepared.worker.send(prepared.event)
+    return prepared.event
 
 
 def emit_event(
@@ -61,54 +132,20 @@ def emit_event(
         The event that was emitted if worker is using a client that emit
         events, otherwise None
     """
-    if not should_emit_events():
-        return None
-
     try:
-        operational_clients = [
-            AssertingPassthroughEventsClient,
-            AssertingEventsClient,
-            PrefectCloudEventsClient,
-            PrefectEventsClient,
-            ProcessPoolForwardingEventsClient,
-        ]
-        worker_instance = EventsWorker.instance()
-
-        if worker_instance.client_type not in operational_clients:
-            return None
-
-        event_kwargs: dict[str, Any] = {
-            "event": event,
-            "resource": resource,
+        prepared = _prepare_event(
+            event=event,
+            resource=resource,
+            occurred=occurred,
+            related=related,
+            payload=payload,
+            id=id,
+            follows=follows,
             **kwargs,
-        }
-
-        if occurred is None:
-            occurred = prefect.types._datetime.now("UTC")
-        event_kwargs["occurred"] = occurred
-
-        if related is not None:
-            event_kwargs["related"] = related
-
-        if payload is not None:
-            event_kwargs["payload"] = payload
-
-        if id is not None:
-            event_kwargs["id"] = id
-
-        if follows is not None:
-            if -TIGHT_TIMING < (occurred - follows.occurred) < TIGHT_TIMING:
-                event_kwargs["follows"] = follows.id
-
-        event_obj = Event(**event_kwargs)
-
-        max_size = get_current_settings().server.events.maximum_size_bytes
-        if event_obj.size_bytes > max_size:
-            raise EventTooLarge(event_obj.size_bytes, max_size)
-
-        worker_instance.send(event_obj)
-
-        return event_obj
+        )
+        if prepared is None:
+            return None
+        return _enqueue_prepared_event(prepared)
     except EventTooLarge:
         raise
     except Exception:
