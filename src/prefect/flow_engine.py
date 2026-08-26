@@ -161,6 +161,12 @@ from prefect.utilities.engine import (
     link_state_to_flow_run_result,
     resolve_to_final_result,
 )
+from prefect.utilities.engine import (
+    propose_state as propose_state,
+)
+from prefect.utilities.engine import (
+    propose_state_sync as propose_state_sync,
+)
 from prefect.utilities.processutils import sanitize_subprocess_env
 from prefect.utilities.timeout import timeout, timeout_async
 from prefect.utilities.urls import url_for

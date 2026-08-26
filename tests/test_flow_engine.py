@@ -98,6 +98,11 @@ async def foo():
     return 42
 
 
+def test_state_proposal_compatibility_aliases():
+    assert flow_engine_module.propose_state is propose_state
+    assert flow_engine_module.propose_state_sync is propose_state_sync
+
+
 class TestFlowRunNameSetBeforeRunningEvent:
     @staticmethod
     def _track_sync_running_names(
@@ -105,15 +110,24 @@ class TestFlowRunNameSetBeforeRunningEvent:
         monkeypatch: pytest.MonkeyPatch,
     ) -> list[str]:
         names_at_running_transition: list[str] = []
-        original_propose = propose_state_sync
+        original_propose = flow_engine_module.SyncFlowRunStateProposer.propose
 
-        def tracking_propose(client, state, **kwargs):
+        def tracking_propose(
+            proposer: Any,
+            flow_run_id: UUID,
+            state: states.State[Any],
+            **kwargs: Any,
+        ) -> states.State[Any]:
             if state.is_running():
-                flow_run = sync_prefect_client.read_flow_run(kwargs["flow_run_id"])
+                flow_run = sync_prefect_client.read_flow_run(flow_run_id)
                 names_at_running_transition.append(flow_run.name)
-            return original_propose(client, state, **kwargs)
+            return original_propose(proposer, flow_run_id, state, **kwargs)
 
-        monkeypatch.setattr("prefect.flow_engine.propose_state_sync", tracking_propose)
+        monkeypatch.setattr(
+            flow_engine_module.SyncFlowRunStateProposer,
+            "propose",
+            tracking_propose,
+        )
         return names_at_running_transition
 
     @staticmethod
@@ -122,15 +136,24 @@ class TestFlowRunNameSetBeforeRunningEvent:
         monkeypatch: pytest.MonkeyPatch,
     ) -> list[str]:
         names_at_running_transition: list[str] = []
-        original_propose = propose_state
+        original_propose = flow_engine_module.FlowRunStateProposer.propose
 
-        async def tracking_propose(client, state, **kwargs):
+        async def tracking_propose(
+            proposer: Any,
+            flow_run_id: UUID,
+            state: states.State[Any],
+            **kwargs: Any,
+        ) -> states.State[Any]:
             if state.is_running():
-                flow_run = sync_prefect_client.read_flow_run(kwargs["flow_run_id"])
+                flow_run = sync_prefect_client.read_flow_run(flow_run_id)
                 names_at_running_transition.append(flow_run.name)
-            return await original_propose(client, state, **kwargs)
+            return await original_propose(proposer, flow_run_id, state, **kwargs)
 
-        monkeypatch.setattr("prefect.flow_engine.propose_state", tracking_propose)
+        monkeypatch.setattr(
+            flow_engine_module.FlowRunStateProposer,
+            "propose",
+            tracking_propose,
+        )
         return names_at_running_transition
 
     async def test_sync_flow_string_template_name_set_before_running(
