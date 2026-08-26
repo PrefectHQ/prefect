@@ -117,9 +117,14 @@ def normalize_cluster_url(url: str) -> str:
     return urlunparse(parsed._replace(scheme=parsed.scheme.replace("+cluster", "")))
 
 
+@functools.cache
+def _get_redis_messaging_url() -> str | None:
+    return RedisMessagingSettings().url
+
+
 def cluster_key_prefix(prefix: str, url: str | None = None) -> str:
     """Return a key prefix, hash-tagged when configured for Redis Cluster."""
-    url = url or RedisMessagingSettings().url
+    url = url or _get_redis_messaging_url()
     if url and is_cluster_url(url):
         return f"{{{prefix}}}"
     return prefix
@@ -178,6 +183,7 @@ async def clear_cached_clients() -> None:
     """
     global _client_cache
 
+    _get_redis_messaging_url.cache_clear()
     _client_cache.clear()
 
 
