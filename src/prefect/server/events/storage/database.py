@@ -260,7 +260,7 @@ async def _write_postgres_events(
         session: a Postgres events session
         events: the events to insert
     """
-    # Early SQLAlchemy 2.0 ORM bulk inserts reject conflict-skipped RETURNING rows.
+    # Use Core DML so ON CONFLICT may return fewer rows than were submitted.
     event_insert = (
         db.queries.insert(db.Event).on_conflict_do_nothing().returning(db.Event.id)
     ).execution_options(dml_strategy="raw")
