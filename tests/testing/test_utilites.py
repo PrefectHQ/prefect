@@ -1,4 +1,6 @@
+import contextvars
 import gc
+import unittest
 import uuid
 import warnings
 from unittest.mock import MagicMock
@@ -13,6 +15,7 @@ from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_SERVER_DATABASE_CONNECTION_URL,
     PREFECT_SERVER_EPHEMERAL_STARTUP_TIMEOUT_SECONDS,
+    get_current_settings,
 )
 from prefect.testing.utilities import assert_does_not_warn, prefect_test_harness
 
@@ -31,6 +34,10 @@ def _multiprocessing_worker():
     # exitcode=1. os._exit() bypasses cleanup and is documented for use "in the child
     # process after os.fork()" - which is exactly this scenario.
     os._exit(0)
+
+
+def _api_url_without_settings_context() -> str:
+    return contextvars.Context().run(lambda: str(get_current_settings().api.url))
 
 
 def test_assert_does_not_warn_no_warning():
@@ -95,6 +102,67 @@ async def test_prefect_test_harness():
             flow_filter=schemas.filters.FlowFilter(name={"any_": [very_specific_name]})
         )
         assert len(flows) == 0
+
+
+def test_prefect_test_harness_settings_visible_in_isolated_asyncio_test_case():
+    """
+    Regression test for issue #15818 - `unittest.IsolatedAsyncioTestCase` copies
+    the current `contextvars` context when it is constructed, which happens
+    before a session-scoped fixture enters the test harness. The harness
+    settings must still be visible inside the isolated test case.
+    """
+    observed: dict[str, str] = {}
+
+    class _Case(unittest.IsolatedAsyncioTestCase):
+        def test_sync(self):
+            observed["sync"] = str(get_current_settings().api.url)
+
+        async def test_async(self):
+            observed["async"] = str(get_current_settings().api.url)
+
+    # Construct the cases in an empty context to emulate collection happening
+    # before any settings context is entered
+    sync_case = contextvars.Context().run(_Case, "test_sync")
+    async_case = contextvars.Context().run(_Case, "test_async")
+
+    with prefect_test_harness():
+        harness_api_url = str(get_current_settings().api.url)
+        sync_result = sync_case.run()
+        async_result = async_case.run()
+
+    assert sync_result is not None and sync_result.wasSuccessful(), sync_result.errors
+    assert async_result is not None and async_result.wasSuccessful(), (
+        async_result.errors
+    )
+    assert observed["sync"] == harness_api_url
+    assert observed["async"] == harness_api_url
+
+
+def test_prefect_test_harness_restores_global_settings_context():
+    """The process-global settings context is restored when the harness exits."""
+    before = _api_url_without_settings_context()
+
+    with prefect_test_harness():
+        during = _api_url_without_settings_context()
+        harness_api_url = str(get_current_settings().api.url)
+
+    assert during == harness_api_url
+    assert during != before
+    assert _api_url_without_settings_context() == before
+
+
+def test_prefect_test_harness_nested_restores_outer_settings_context():
+    """Nested harnesses restore the enclosing harness settings, not the import-time global."""
+    before = _api_url_without_settings_context()
+
+    with prefect_test_harness():
+        outer_api_url = _api_url_without_settings_context()
+        with prefect_test_harness():
+            inner_api_url = _api_url_without_settings_context()
+        assert _api_url_without_settings_context() == outer_api_url
+
+    assert inner_api_url != outer_api_url
+    assert _api_url_without_settings_context() == before
 
 
 def test_prefect_test_harness_uses_fresh_server_when_default_server_is_running():
