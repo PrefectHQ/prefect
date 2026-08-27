@@ -6,6 +6,7 @@ from prefect_redis.client import (
     RedisMessagingSettings,
     _client_cache,
     async_redis_from_settings,
+    clear_cached_clients,
     close_all_cached_connections,
     cluster_key_prefix,
     get_async_redis_client,
@@ -91,6 +92,22 @@ def test_cluster_key_prefix_hash_tags_cluster_urls():
         cluster_key_prefix("prefect:events", url="redis://redis.example.com:6379")
         == "prefect:events"
     )
+
+
+@patch("prefect_redis.client.RedisMessagingSettings")
+async def test_cluster_key_prefix_caches_settings_until_clients_are_cleared(
+    settings: MagicMock,
+):
+    settings.return_value.url = None
+
+    assert cluster_key_prefix("prefect:events") == "prefect:events"
+    assert cluster_key_prefix("prefect:events") == "prefect:events"
+    settings.assert_called_once_with()
+
+    await clear_cached_clients()
+
+    assert cluster_key_prefix("prefect:events") == "prefect:events"
+    assert settings.call_count == 2
 
 
 def test_redis_key_uses_cluster_aware_prefix():
