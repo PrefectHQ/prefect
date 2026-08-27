@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import dataclasses
 import enum
+import re
 from typing import Any
 
 
@@ -38,6 +39,14 @@ class DiagnosisCategory(str, enum.Enum):
     UNSCHEDULABLE_TAINT = "Unschedulable.Taint"
 
 
+_NUMERIC_COUNT_PATTERN = re.compile(r"\d+")
+
+
+def _normalize_counts(text: str) -> str:
+    """Replace numeric counts in a message with a placeholder."""
+    return _NUMERIC_COUNT_PATTERN.sub("#", text)
+
+
 @dataclasses.dataclass(frozen=True)
 class InfrastructureDiagnosis:
     """A structured diagnosis of a Kubernetes pod failure."""
@@ -47,6 +56,21 @@ class InfrastructureDiagnosis:
     summary: str
     detail: str
     resolution: str
+
+    def dedupe_key(self) -> tuple[str, str, str]:
+        """Return a key identifying this diagnosis by its normalized causes.
+
+        Numeric counts in scheduler messages (e.g. `0/3 nodes are available:
+        3 Insufficient cpu`) change as cluster capacity fluctuates without the
+        underlying cause changing, so they are normalized away. Distinct
+        causes (e.g. `Insufficient cpu` vs `Insufficient ephemeral-storage`)
+        still produce distinct keys.
+        """
+        return (
+            self.category.value,
+            _normalize_counts(self.summary),
+            _normalize_counts(self.detail),
+        )
 
 
 def diagnose_k8s_pod(status: dict[str, Any]) -> InfrastructureDiagnosis | None:

@@ -369,3 +369,85 @@ class TestDiagnoseKubernetesPod:
             resolution="r",
         )
         assert a == b
+
+    # --- dedupe_key --------------------------------------------------------
+
+    def test_dedupe_key_ignores_numeric_count_changes(self):
+        first = diagnose_k8s_pod(
+            {
+                "conditions": [
+                    {
+                        "type": "PodScheduled",
+                        "reason": "Unschedulable",
+                        "message": "0/3 nodes are available: 3 Insufficient cpu.",
+                    }
+                ]
+            }
+        )
+        second = diagnose_k8s_pod(
+            {
+                "conditions": [
+                    {
+                        "type": "PodScheduled",
+                        "reason": "Unschedulable",
+                        "message": "0/5 nodes are available: 5 Insufficient cpu.",
+                    }
+                ]
+            }
+        )
+        assert first is not None and second is not None
+        assert first != second
+        assert first.dedupe_key() == second.dedupe_key()
+
+    def test_dedupe_key_preserves_cause_changes(self):
+        cpu = diagnose_k8s_pod(
+            {
+                "conditions": [
+                    {
+                        "type": "PodScheduled",
+                        "reason": "Unschedulable",
+                        "message": "0/3 nodes are available: 3 Insufficient cpu.",
+                    }
+                ]
+            }
+        )
+        storage = diagnose_k8s_pod(
+            {
+                "conditions": [
+                    {
+                        "type": "PodScheduled",
+                        "reason": "Unschedulable",
+                        "message": (
+                            "0/3 nodes are available: 3 Insufficient ephemeral-storage."
+                        ),
+                    }
+                ]
+            }
+        )
+        assert cpu is not None and storage is not None
+        assert cpu.dedupe_key() != storage.dedupe_key()
+
+    def test_dedupe_key_distinguishes_categories(self):
+        unschedulable = diagnose_k8s_pod(
+            {
+                "conditions": [
+                    {
+                        "type": "PodScheduled",
+                        "reason": "Unschedulable",
+                        "message": "0/3 nodes are available: 3 node(s) had untolerated taint.",
+                    }
+                ]
+            }
+        )
+        oom = diagnose_k8s_pod(
+            {
+                "containerStatuses": [
+                    {
+                        "name": "main",
+                        "state": {"terminated": {"reason": "OOMKilled"}},
+                    }
+                ]
+            }
+        )
+        assert unschedulable is not None and oom is not None
+        assert unschedulable.dedupe_key() != oom.dedupe_key()

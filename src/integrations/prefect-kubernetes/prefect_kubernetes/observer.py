@@ -12,7 +12,7 @@ from typing import Any
 
 import anyio
 import kopf
-from cachetools import TTLCache
+from cachetools import LRUCache, TTLCache
 from kubernetes_asyncio import config
 from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api, V1Job
 
@@ -30,11 +30,11 @@ from prefect.events.schemas.events import Resource
 from prefect.exceptions import Abort, ObjectNotFound
 from prefect.logging.loggers import flow_run_logger
 from prefect.settings import get_current_settings
-from prefect.states import Crashed, InfrastructurePending
+from prefect.states import Crashed, InfrastructurePending, State
 from prefect.types import DateTime
 from prefect.utilities.engine import propose_state
 from prefect.utilities.slugify import slugify
-from prefect_kubernetes.diagnostics import InfrastructureDiagnosis, diagnose_k8s_pod
+from prefect_kubernetes.diagnostics import diagnose_k8s_pod
 from prefect_kubernetes.settings import KubernetesSettings
 
 # Cache used to keep track of the last event for a pod. This is used populate the `follows` field
@@ -45,11 +45,18 @@ _last_event_cache: TTLCache[str, Event] = TTLCache(
 )  # 5 minutes
 
 # Tracks the last diagnosis per pod UID so we don't emit duplicate
-# flow run logs on repeated MODIFIED events.  Stores the full
-# InfrastructureDiagnosis (a frozen dataclass) for equality comparison.
-_last_diagnosis_cache: TTLCache[str, InfrastructureDiagnosis] = TTLCache(
-    maxsize=1000, ttl=60 * 5
-)
+# flow run logs on repeated MODIFIED events.  Stores the normalized
+# dedupe key so scheduler count changes for an unchanged cause don't
+# produce duplicate logs.  An LRU cache without a TTL is used so an
+# unchanged pod is not reprocessed after a time-based expiry.
+_last_diagnosis_cache: LRUCache[str, tuple[str, str, str]] = LRUCache(maxsize=1000)
+
+# Tracks pods whose Pending-phase flow run state check completed so
+# repeated watch events don't repeat `read_flow_run`/`propose_state`
+# calls.  Entries are removed when the pod leaves the Pending phase.
+# Failures and timeouts are not cached so they are retried on the next
+# event.
+_completed_state_check_cache: LRUCache[str, str] = LRUCache(maxsize=1000)
 
 
 def _parse_k8s_datetime(value: Any) -> DateTime | None:
@@ -243,48 +250,78 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     except ValueError:
         flow_run_id = None
 
-    # Propose InfrastructurePending for pods still in Pending phase
+    # Propose InfrastructurePending for pods still in Pending phase.
+    # A completed check is cached per pod so repeated Pending events don't
+    # repeat the state lookup and proposal; failures and timeouts are not
+    # cached so they are retried on the next event.
     if phase == "Pending" and flow_run_id and orchestration_client:
-        try:
-            flow_run = await orchestration_client.read_flow_run(flow_run_id=flow_run_id)
-            if flow_run.state is not None and (
-                flow_run.state.is_running()
-                or flow_run.state.is_final()
-                or flow_run.state.is_paused()
-                or flow_run.state.is_cancelling()
-                or flow_run.state.name == "InfrastructurePending"
-            ):
-                logger.debug(
-                    f"Flow run {flow_run_id} is in state {flow_run.state.name!r}, "
-                    f"skipping InfrastructurePending proposal"
-                )
-            else:
-                # Use a timeout to prevent propose_state's internal WAIT
-                # loop from blocking the observer's event processing.
-                with anyio.move_on_after(5):
-                    await propose_state(
-                        client=orchestration_client,
-                        state=InfrastructurePending(
-                            message="Kubernetes pod is pending."
-                        ),
-                        flow_run_id=flow_run_id,
-                    )
-        except ObjectNotFound:
-            logger.debug(f"Flow run {flow_run_id} not found, skipping")
-        except (Abort, Exception):
+        if _completed_state_check_cache.get(uid) == phase:
             logger.debug(
-                f"Failed to propose InfrastructurePending for flow run {flow_run_id}",
-                exc_info=True,
+                f"State check already completed for pending pod {uid}, skipping"
             )
+        else:
+            try:
+                flow_run = await orchestration_client.read_flow_run(
+                    flow_run_id=flow_run_id
+                )
+                if flow_run.state is not None and (
+                    flow_run.state.is_running()
+                    or flow_run.state.is_final()
+                    or flow_run.state.is_paused()
+                    or flow_run.state.is_cancelling()
+                    or flow_run.state.name == "InfrastructurePending"
+                ):
+                    logger.debug(
+                        f"Flow run {flow_run_id} is in state {flow_run.state.name!r}, "
+                        f"skipping InfrastructurePending proposal"
+                    )
+                    _completed_state_check_cache[uid] = phase
+                else:
+                    proposed_state: State | None = None
+                    # Use a timeout to prevent propose_state's internal WAIT
+                    # loop from blocking the observer's event processing.
+                    with anyio.move_on_after(5) as timeout_scope:
+                        proposed_state = await propose_state(
+                            client=orchestration_client,
+                            state=InfrastructurePending(
+                                message="Kubernetes pod is pending."
+                            ),
+                            flow_run_id=flow_run_id,
+                        )
+                    if timeout_scope.cancelled_caught or proposed_state is None:
+                        logger.debug(
+                            f"Timed out proposing InfrastructurePending for flow "
+                            f"run {flow_run_id}; will retry on the next event"
+                        )
+                    elif proposed_state.is_scheduled():
+                        # The proposal was rejected with a Scheduled replacement
+                        # (e.g. the run was rescheduled), so the run still needs
+                        # a state check on the next event.
+                        logger.debug(
+                            f"InfrastructurePending proposal for flow run "
+                            f"{flow_run_id} was rejected with a Scheduled "
+                            f"replacement; will retry on the next event"
+                        )
+                    else:
+                        _completed_state_check_cache[uid] = phase
+            except ObjectNotFound:
+                logger.debug(f"Flow run {flow_run_id} not found, skipping")
+            except (Abort, Exception):
+                logger.debug(
+                    f"Failed to propose InfrastructurePending for flow run {flow_run_id}",
+                    exc_info=True,
+                )
+    elif phase != "Pending":
+        _completed_state_check_cache.pop(uid, None)
 
     # Emit actionable flow run logs for the diagnosis computed above.
     # Only log when the diagnosis changes to avoid spamming on repeated
     # MODIFIED events for the same failure condition.  Clear the cache
     # entry when the pod recovers so a recurrence is logged again.
     if diagnosis and flow_run_id:
-        last_diagnosis = _last_diagnosis_cache.get(uid)
-        if diagnosis != last_diagnosis:
-            _last_diagnosis_cache[uid] = diagnosis
+        dedupe_key = diagnosis.dedupe_key()
+        if dedupe_key != _last_diagnosis_cache.get(uid):
+            _last_diagnosis_cache[uid] = dedupe_key
             fr_logger = flow_run_logger(flow_run_id=flow_run_id).getChild("observer")
             fr_logger.log(
                 logging.ERROR if diagnosis.level.value == "error" else logging.WARNING,
