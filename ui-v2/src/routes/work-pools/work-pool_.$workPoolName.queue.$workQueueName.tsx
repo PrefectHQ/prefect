@@ -1,7 +1,6 @@
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { Suspense, useCallback, useMemo } from "react";
 import { z } from "zod";
 import { categorizeError } from "@/api/error-utils";
@@ -35,7 +34,7 @@ type SearchParams = z.infer<typeof searchParams>;
 export const Route = createFileRoute(
 	"/work-pools/work-pool_/$workPoolName/queue/$workQueueName",
 )({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	component: function RouteComponent() {
 		function RunsTabSkeleton() {
 			return (

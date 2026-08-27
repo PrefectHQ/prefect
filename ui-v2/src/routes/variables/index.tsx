@@ -5,7 +5,6 @@ import type {
 	ColumnFiltersState,
 	PaginationState,
 } from "@tanstack/react-table";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { categorizeError } from "@/api/error-utils";
@@ -96,7 +95,7 @@ const VariablesFilteredEmptyState = ({
 );
 
 export const Route = createFileRoute("/variables/")({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	component: function RouteComponent() {
 		const search = Route.useSearch();
 		const navigate = Route.useNavigate();

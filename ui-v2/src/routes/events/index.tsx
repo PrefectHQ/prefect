@@ -1,6 +1,5 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { Suspense } from "react";
 import { z } from "zod";
 import { categorizeError } from "@/api/error-utils";
@@ -52,7 +51,7 @@ const eventsPageSkeleton = () => {
 };
 
 export const Route = createFileRoute("/events/")({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	loaderDeps: ({ search }) => search,
 	wrapInSuspense: true,
 	pendingComponent: eventsPageSkeleton,

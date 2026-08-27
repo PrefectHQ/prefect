@@ -1,10 +1,4 @@
 import { getRouteApi } from "@tanstack/react-router";
-import {
-	createColumnHelper,
-	getCoreRowModel,
-	getPaginationRowModel,
-	useReactTable,
-} from "@tanstack/react-table";
 import { useDeferredValue, useMemo } from "react";
 import type { GlobalConcurrencyLimit } from "@/api/global-concurrency-limits";
 import { Button } from "@/components/ui/button";
@@ -17,6 +11,7 @@ import {
 	EmptyStateTitle,
 } from "@/components/ui/empty-state";
 import { SearchInput } from "@/components/ui/input";
+import { createColumnHelper, useTable } from "@/lib/tanstack-table";
 import { ActionsCell } from "./actions-cell";
 import { ActiveCell } from "./active-cell";
 
@@ -32,37 +27,38 @@ const createColumns = ({
 	onEditRow: (row: GlobalConcurrencyLimit) => void;
 	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
 	onResetRow: (row: GlobalConcurrencyLimit) => void;
-}) => [
-	columnHelper.accessor("name", {
-		header: "Name",
-	}),
-	columnHelper.accessor("limit", {
-		header: "Limit",
-	}),
-	columnHelper.accessor("active_slots", {
-		header: "Active Slots",
-	}),
-	columnHelper.accessor("slot_decay_per_second", {
-		header: "Slots Decay Per Second",
-	}),
-	columnHelper.accessor("active", {
-		header: "Active",
-		cell: ActiveCell,
-	}),
-	columnHelper.display({
-		id: "actions",
-		cell: (props) => (
-			<div className="flex flex-row justify-end">
-				<ActionsCell
-					{...props}
-					onEditRow={onEditRow}
-					onDeleteRow={onDeleteRow}
-					onResetRow={onResetRow}
-				/>
-			</div>
-		),
-	}),
-];
+}) =>
+	columnHelper.columns([
+		columnHelper.accessor("name", {
+			header: "Name",
+		}),
+		columnHelper.accessor("limit", {
+			header: "Limit",
+		}),
+		columnHelper.accessor("active_slots", {
+			header: "Active Slots",
+		}),
+		columnHelper.accessor("slot_decay_per_second", {
+			header: "Slots Decay Per Second",
+		}),
+		columnHelper.accessor("active", {
+			header: "Active",
+			cell: ActiveCell,
+		}),
+		columnHelper.display({
+			id: "actions",
+			cell: (props) => (
+				<div className="flex flex-row justify-end">
+					<ActionsCell
+						{...props}
+						onEditRow={onEditRow}
+						onDeleteRow={onDeleteRow}
+						onResetRow={onResetRow}
+					/>
+				</div>
+			),
+		}),
+	]);
 
 type GlobalConcurrencyLimitsDataTableProps = {
 	data: Array<GlobalConcurrencyLimit>;
@@ -155,11 +151,9 @@ export function Table({
 	showFilteredEmptyState,
 	onClearSearch,
 }: TableProps) {
-	const table = useReactTable({
+	const table = useTable({
 		data,
 		columns: createColumns({ onDeleteRow, onEditRow, onResetRow }),
-		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(), //load client-side pagination code
 	});
 
 	return (

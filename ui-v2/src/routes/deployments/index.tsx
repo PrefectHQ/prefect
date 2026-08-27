@@ -5,7 +5,6 @@ import type {
 	ColumnFiltersState,
 	PaginationState,
 } from "@tanstack/react-table";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import {
@@ -66,7 +65,7 @@ const buildPaginationBody = (
 });
 
 export const Route = createFileRoute("/deployments/")({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	component: function RouteComponent() {
 		const search = Route.useSearch();
 		const navigate = Route.useNavigate();

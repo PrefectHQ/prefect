@@ -1,13 +1,14 @@
-import type { Column } from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
 import { ArrowDown, ArrowUp } from "lucide-react";
+import type { Column } from "@/lib/tanstack-table";
 import { cn } from "@/utils";
 
-type SortableColumnHeaderProps<TData> = {
+type SortableColumnHeaderProps<TData extends RowData> = {
 	column: Column<TData, unknown>;
 	label: string;
 };
 
-export function SortableColumnHeader<TData>({
+export function SortableColumnHeader<TData extends RowData>({
 	column,
 	label,
 }: SortableColumnHeaderProps<TData>) {

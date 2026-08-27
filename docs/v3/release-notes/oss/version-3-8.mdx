@@ -2,6 +2,100 @@
 title: 3.8
 ---
 
+## 3.8.4 - Seconds of the world, unite!
+
+*Released on August 25, 2026*
+
+**Enhancements ➕➕**
+
+* Add time selection to the interval schedule anchor date by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22872](https://github.com/PrefectHQ/prefect/pull/22872)
+* Add a configurable base directory for included files by [@desertaxle](https://github.com/desertaxle) in [#22855](https://github.com/PrefectHQ/prefect/pull/22855)
+* Add an index on `flow_run.deployment_id` by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22890](https://github.com/PrefectHQ/prefect/pull/22890)
+* Open a parameters dialog when a quick run needs required parameters by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22903](https://github.com/PrefectHQ/prefect/pull/22903)
+
+**Bug Fixes 🐞**
+
+* Prevent runners from overwriting handled flow-run outcomes by [@desertaxle](https://github.com/desertaxle) in [#22821](https://github.com/PrefectHQ/prefect/pull/22821)
+* Fix `ProcessWorker` auto-uv after pull steps by [@desertaxle](https://github.com/desertaxle) in [#22857](https://github.com/PrefectHQ/prefect/pull/22857)
+* Honor a `prefetch_seconds` of 0 in `BaseWorker` by [@ckarnell](https://github.com/ckarnell) in [#22836](https://github.com/PrefectHQ/prefect/pull/22836)
+* Use `total_seconds` in the worker polling healthcheck by [@tushardev-365](https://github.com/tushardev-365) in [#22900](https://github.com/PrefectHQ/prefect/pull/22900)
+* Bind-mount the sdist so it stops shipping in the published image by [@sujeito-operator](https://github.com/sujeito-operator) in [#22832](https://github.com/PrefectHQ/prefect/pull/22832)
+* Bind-mount the sdist in `client/Dockerfile` so it stops shipping in the client image by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22833](https://github.com/PrefectHQ/prefect/pull/22833)
+* Fix the lateness label on flow run cards in the V2 UI by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22896](https://github.com/PrefectHQ/prefect/pull/22896)
+* Fix readable run durations in the V2 UI by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22922](https://github.com/PrefectHQ/prefect/pull/22922)
+* Carry rounded-up seconds into larger units in the V2 UI by [@nolantonio](https://github.com/nolantonio) in [#22915](https://github.com/PrefectHQ/prefect/pull/22915)
+* Fix invisible run graph nodes by passing `skipUpdateTransform=false` by [@vyagubov](https://github.com/vyagubov) in [#22849](https://github.com/PrefectHQ/prefect/pull/22849)
+* Fix inconsistent deployment status display on the flow detail page in the V2 UI by [@vyagubov](https://github.com/vyagubov) in [#22901](https://github.com/PrefectHQ/prefect/pull/22901)
+* Do not overwrite in-flight schema form edits with stale parent values by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22905](https://github.com/PrefectHQ/prefect/pull/22905)
+
+**Integrations & Dependencies 🤝**
+
+* Follow CodeQL v4 releases by [@prefect-renovate](https://github.com/prefect-renovate)[bot] in [#22924](https://github.com/PrefectHQ/prefect/pull/22924)
+
+**Development & Tidiness 🧹**
+
+* Add repository code review guidance by [@desertaxle](https://github.com/desertaxle) in [#22906](https://github.com/PrefectHQ/prefect/pull/22906)
+* Use `pytest-split` for Python 3.12/Postgres tests by [@desertaxle](https://github.com/desertaxle) in [#22869](https://github.com/PrefectHQ/prefect/pull/22869)
+* Add opt-in Logfire test profiling by [@desertaxle](https://github.com/desertaxle) in [#22852](https://github.com/PrefectHQ/prefect/pull/22852)
+* Pass the release ref through env in the prerelease tag check by [@WAHIB-EL-KHADIRI](https://github.com/WAHIB-EL-KHADIRI) in [#22882](https://github.com/PrefectHQ/prefect/pull/22882)
+* Make tests independent of ambient OpenTelemetry context and non-setting `PREFECT_` env vars by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22867](https://github.com/PrefectHQ/prefect/pull/22867)
+* Deflake concurrency lease tests by waiting for the API-visible slot release by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22884](https://github.com/PrefectHQ/prefect/pull/22884)
+* Scope the deployment name assertion to the breadcrumb in the flaky runs tab test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22878](https://github.com/PrefectHQ/prefect/pull/22878)
+* Scope details assertions to the sidebar in the flaky deployment detail e2e tests by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22880](https://github.com/PrefectHQ/prefect/pull/22880)
+* Scope block cleanup to a single test in the flaky blocks e2e test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22892](https://github.com/PrefectHQ/prefect/pull/22892)
+* Scope metadata assertions to the sidebar in the flaky work pool detail e2e test by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22899](https://github.com/PrefectHQ/prefect/pull/22899)
+
+**Documentation 📓**
+
+* Update the Google Tag Manager ID in `docs.json` by [@zzstoatzz](https://github.com/zzstoatzz) in [#22891](https://github.com/PrefectHQ/prefect/pull/22891)
+* Add new Prefect Managed outbound IPs by [@mitchnielsen](https://github.com/mitchnielsen) in [#22934](https://github.com/PrefectHQ/prefect/pull/22934)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.8.3...3.8.4
+
+
+---
+
+## 3.8.3 - Insert batching pun here
+
+*Released on August 13, 2026*
+
+**Enhancements ➕➕**
+
+* Stop fragmenting task run recorder bulk upserts by [@chuqCTC](https://github.com/chuqCTC) in [#22808](https://github.com/PrefectHQ/prefect/pull/22808)
+* Engage the auto-`uv run` launcher for process workers by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22723](https://github.com/PrefectHQ/prefect/pull/22723)
+* Show elapsed time for running flow runs in the V2 UI flow run header by [@vyagubov](https://github.com/vyagubov) in [#22811](https://github.com/PrefectHQ/prefect/pull/22811)
+* Block submission when a required array parameter is emptied in the V2 UI by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22750](https://github.com/PrefectHQ/prefect/pull/22750)
+
+**Bug Fixes 🐞**
+
+* Preserve a statement cache size of 0 by [@ckarnell](https://github.com/ckarnell) in [#22767](https://github.com/PrefectHQ/prefect/pull/22767)
+* Reject option-like Git branch values by [@desertaxle](https://github.com/desertaxle) in [#22819](https://github.com/PrefectHQ/prefect/pull/22819)
+* Stop leaking watcher-thread timeout enforcers by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22817](https://github.com/PrefectHQ/prefect/pull/22817)
+* Send basic auth header on the self-hosted events WebSocket handshake by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22813](https://github.com/PrefectHQ/prefect/pull/22813)
+* Confirm suspension events against the flow run instead of state-by-id by [@joshuastagner](https://github.com/joshuastagner) in [#22820](https://github.com/PrefectHQ/prefect/pull/22820)
+* Select a valid `anyOf` branch for record values in V2 UI schema forms by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22806](https://github.com/PrefectHQ/prefect/pull/22806)
+* Select the matching enum branch for `anyOf` string values in V2 UI schema forms by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22754](https://github.com/PrefectHQ/prefect/pull/22754)
+* Persist explicit null values from the schema form null branch by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22774](https://github.com/PrefectHQ/prefect/pull/22774)
+* Fix nested deployment parameter rendering in the V2 UI by [@Abhinav0905](https://github.com/Abhinav0905) in [#22760](https://github.com/PrefectHQ/prefect/pull/22760)
+* Render sanitized inline HTML in markdown content in the V2 UI by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22763](https://github.com/PrefectHQ/prefect/pull/22763)
+* Stop applying inline code styling inside fenced code blocks in the V2 UI by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22771](https://github.com/PrefectHQ/prefect/pull/22771)
+
+**Development & Tidiness 🧹**
+
+* Tidy up the task run recorder bulk upsert path by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22814](https://github.com/PrefectHQ/prefect/pull/22814)
+* Make `FileSystemLockManager` hold-timeout tests time-independent by [@devin-ai-integration](https://github.com/devin-ai-integration)[bot] in [#22716](https://github.com/PrefectHQ/prefect/pull/22716)
+
+**Documentation 📓**
+
+* Close an unterminated code block in a `flows` docstring by [@cbrown1234](https://github.com/cbrown1234) in [#22802](https://github.com/PrefectHQ/prefect/pull/22802)
+* Update the order of the guide by [@anthonyylee](https://github.com/anthonyylee) in [#22687](https://github.com/PrefectHQ/prefect/pull/22687)
+* Fix the `.deploy()` example in the versioning how-to guide by [@uinstinct](https://github.com/uinstinct) in [#22810](https://github.com/PrefectHQ/prefect/pull/22810)
+
+**Full Changelog**: https://github.com/PrefectHQ/prefect/compare/3.8.2...3.8.3
+
+
+---
+
 ## 3.8.2 - Array we there yet?
 
 *Released on August 07, 2026*

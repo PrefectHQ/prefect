@@ -25,7 +25,7 @@ jobs:
           persist-credentials: false
 
       - name: Set up uv and Python
-        uses: astral-sh/setup-uv@v9.0.0
+        uses: astral-sh/setup-uv@v10.0.1
         with:
           enable-cache: true
           python-version: "3.10"
@@ -76,7 +76,7 @@ jobs:
       - name: Validate Prerelease Tag
         if: ${{ github.event_name == 'release' && github.event.release.prerelease == true }}
         run: |
-          TAG_NAME=${{ github.ref }}
+          TAG_NAME="$GITHUB_REF"
           if [[ ! "$TAG_NAME" =~ ^refs/tags/[0-9]+\.[0-9]+\.[0-9]+([a-zA-Z0-9]+|\.dev[0-9]+)$ ]]; then
             echo "Error: Tag $TAG_NAME does not match prerelease version pattern."
             exit 1
