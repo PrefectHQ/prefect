@@ -19,6 +19,18 @@ const columns = columnHelper.columns([
 	}),
 ]);
 
+const ignoredColumns = columnHelper.columns([
+	columnHelper.accessor("name", {
+		header: "Name",
+		cell: (info) => (
+			<>
+				<span>{info.getValue()}</span>
+				<span data-row-click-ignore="true">portal content</span>
+			</>
+		),
+	}),
+]);
+
 const resizableColumns = columnHelper.columns([
 	columnHelper.accessor("name", {
 		id: "name",
@@ -49,6 +61,17 @@ const TestTable = ({
 		columns,
 		initialState: sorting ? { sorting } : undefined,
 	});
+	return <DataTable table={table} onRowClick={onRowClick} />;
+};
+
+const IgnoredContentTable = ({
+	data,
+	onRowClick,
+}: {
+	data: TestData[];
+	onRowClick?: (row: TestData) => void;
+}) => {
+	const table = useTable({ data, columns: ignoredColumns });
 	return <DataTable table={table} onRowClick={onRowClick} />;
 };
 
@@ -101,6 +124,15 @@ describe("DataTable", () => {
 		render(<TestTable data={testData} onRowClick={onRowClick} />);
 
 		await userEvent.click(screen.getByRole("button", { name: "Row action 1" }));
+
+		expect(onRowClick).not.toHaveBeenCalled();
+	});
+
+	it("does not call onRowClick when clicking an element with data-row-click-ignore", () => {
+		const onRowClick = vi.fn();
+		render(<IgnoredContentTable data={testData} onRowClick={onRowClick} />);
+
+		fireEvent.click(screen.getAllByText("portal content")[0]);
 
 		expect(onRowClick).not.toHaveBeenCalled();
 	});
