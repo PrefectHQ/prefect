@@ -2,6 +2,11 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { createColumnHelper, useTable } from "@/lib/tanstack-table";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
 import { DataTable } from "./data-table";
 
 type TestData = { id: string; name: string };
@@ -19,14 +24,18 @@ const columns = columnHelper.columns([
 	}),
 ]);
 
-const ignoredColumns = columnHelper.columns([
+// Renders a Popover that is always open so its portaled content is in the DOM.
+// Used to test that clicks inside a portal do not trigger the row click handler.
+const portalColumns = columnHelper.columns([
 	columnHelper.accessor("name", {
 		header: "Name",
-		cell: (info) => (
-			<>
-				<span>{info.getValue()}</span>
-				<span data-row-click-ignore="true">portal content</span>
-			</>
+		cell: () => (
+			<Popover open>
+				<PopoverTrigger>trigger</PopoverTrigger>
+				<PopoverContent>
+					<span>portal item</span>
+				</PopoverContent>
+			</Popover>
 		),
 	}),
 ]);
@@ -64,14 +73,14 @@ const TestTable = ({
 	return <DataTable table={table} onRowClick={onRowClick} />;
 };
 
-const IgnoredContentTable = ({
+const PortalTable = ({
 	data,
 	onRowClick,
 }: {
 	data: TestData[];
 	onRowClick?: (row: TestData) => void;
 }) => {
-	const table = useTable({ data, columns: ignoredColumns });
+	const table = useTable({ data, columns: portalColumns });
 	return <DataTable table={table} onRowClick={onRowClick} />;
 };
 
@@ -128,11 +137,14 @@ describe("DataTable", () => {
 		expect(onRowClick).not.toHaveBeenCalled();
 	});
 
-	it("does not call onRowClick when clicking an element with data-row-click-ignore", () => {
+	it("does not call onRowClick when clicking inside a portaled popover in a row", () => {
 		const onRowClick = vi.fn();
-		render(<IgnoredContentTable data={testData} onRowClick={onRowClick} />);
+		render(<PortalTable data={testData} onRowClick={onRowClick} />);
 
-		fireEvent.click(screen.getAllByText("portal content")[0]);
+		// "portal item" is rendered in a Radix portal (document.body), outside the
+		// table DOM. Clicking it should NOT trigger the row click handler because
+		// PopoverContent carries data-row-click-ignore="true".
+		fireEvent.click(screen.getAllByText("portal item")[0]);
 
 		expect(onRowClick).not.toHaveBeenCalled();
 	});
