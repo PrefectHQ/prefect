@@ -5,8 +5,10 @@ import os
 import signal
 import sys
 import traceback
+from collections.abc import Callable
 from pathlib import Path
 from types import FrameType
+from typing import Any, TypeAlias
 
 import anyio
 
@@ -20,7 +22,7 @@ from prefect.runner._workspace_runtime import (
     write_private_model,
 )
 from prefect.runner._workspace_starter import (
-    _workspace_command,
+    _workspace_command,  # pyright: ignore[reportPrivateUsage]
     workspace_environment,
 )
 from prefect.utilities.processutils import (
@@ -44,6 +46,12 @@ _RUNNER_OWNED_ENV_KEYS = {
     "PREFECT__DEPLOYMENT_NAME",
     "PREFECT_FLOWS_HEARTBEAT_FREQUENCY",
 }
+
+
+# Mirrors the handler type that `signal.getsignal` returns and `signal.signal` accepts.
+_SignalHandler: TypeAlias = (
+    Callable[[int, FrameType | None], Any] | int | signal.Handlers | None
+)
 
 
 def _runner_owns_environment_key(key: str) -> bool:
@@ -77,9 +85,9 @@ def _restore_runner_environment(
             environment.pop(key, None)
 
 
-def _install_engine_signal_handlers() -> dict[int, signal.Handlers]:
+def _install_engine_signal_handlers() -> dict[int, _SignalHandler]:
     """Keep the supervisor alive while its engine handles group signals."""
-    previous: dict[int, signal.Handlers] = {}
+    previous: dict[int, _SignalHandler] = {}
 
     def ignore_signal(_signum: int, _frame: FrameType | None) -> None:
         pass
@@ -94,7 +102,7 @@ def _install_engine_signal_handlers() -> dict[int, signal.Handlers]:
     return previous
 
 
-def _restore_signal_handlers(previous: dict[int, signal.Handlers]) -> None:
+def _restore_signal_handlers(previous: dict[int, _SignalHandler]) -> None:
     for handled_signal, handler in previous.items():
         signal.signal(handled_signal, handler)
 
