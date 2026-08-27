@@ -1,12 +1,12 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { createColumnHelper, useTable } from "@/lib/tanstack-table";
 import {
 	Popover,
 	PopoverContent,
 	PopoverTrigger,
 } from "@/components/ui/popover";
+import { createColumnHelper, useTable } from "@/lib/tanstack-table";
 import { DataTable } from "./data-table";
 
 type TestData = { id: string; name: string };
