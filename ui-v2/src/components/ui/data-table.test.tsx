@@ -1,6 +1,11 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
 import { createColumnHelper, useTable } from "@/lib/tanstack-table";
 import { DataTable } from "./data-table";
 
@@ -15,6 +20,22 @@ const columns = columnHelper.columns([
 				<span>{info.getValue()}</span>
 				<button type="button">Row action {info.row.original.id}</button>
 			</>
+		),
+	}),
+]);
+
+// Renders a Popover that is always open so its portaled content is in the DOM.
+// Used to test that clicks inside a portal do not trigger the row click handler.
+const portalColumns = columnHelper.columns([
+	columnHelper.accessor("name", {
+		header: "Name",
+		cell: () => (
+			<Popover open>
+				<PopoverTrigger>trigger</PopoverTrigger>
+				<PopoverContent>
+					<span>portal item</span>
+				</PopoverContent>
+			</Popover>
 		),
 	}),
 ]);
@@ -49,6 +70,17 @@ const TestTable = ({
 		columns,
 		initialState: sorting ? { sorting } : undefined,
 	});
+	return <DataTable table={table} onRowClick={onRowClick} />;
+};
+
+const PortalTable = ({
+	data,
+	onRowClick,
+}: {
+	data: TestData[];
+	onRowClick?: (row: TestData) => void;
+}) => {
+	const table = useTable({ data, columns: portalColumns });
 	return <DataTable table={table} onRowClick={onRowClick} />;
 };
 
@@ -101,6 +133,18 @@ describe("DataTable", () => {
 		render(<TestTable data={testData} onRowClick={onRowClick} />);
 
 		await userEvent.click(screen.getByRole("button", { name: "Row action 1" }));
+
+		expect(onRowClick).not.toHaveBeenCalled();
+	});
+
+	it("does not call onRowClick when clicking inside a portaled popover in a row", () => {
+		const onRowClick = vi.fn();
+		render(<PortalTable data={testData} onRowClick={onRowClick} />);
+
+		// "portal item" is rendered in a Radix portal (document.body), outside the
+		// table DOM. Clicking it should NOT trigger the row click handler because
+		// PopoverContent carries data-row-click-ignore="true".
+		fireEvent.click(screen.getAllByText("portal item")[0]);
 
 		expect(onRowClick).not.toHaveBeenCalled();
 	});
