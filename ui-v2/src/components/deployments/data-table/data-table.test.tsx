@@ -260,6 +260,41 @@ describe("DeploymentsDataTable", () => {
 		);
 	});
 
+	it("does not navigate when an enum value is selected in the quick run dialog", async () => {
+		mockPointerEvents();
+		const deployment = {
+			...mockDeployment,
+			parameters: {},
+			parameter_openapi_schema: {
+				title: "Parameters",
+				type: "object",
+				properties: {
+					name: { title: "Name", type: "string", enum: ["a", "b", "c"] },
+				},
+				required: ["name"],
+			},
+		};
+		const [, router] = renderDeploymentsDataTableRouter({
+			...defaultProps,
+			deployments: [deployment],
+		});
+
+		await screen.findByRole("button", { name: "Open menu" });
+		await userEvent.click(screen.getByRole("button", { name: "Open menu" }));
+		await userEvent.click(screen.getByRole("menuitem", { name: "Quick Run" }));
+		await screen.findByRole("heading", { name: "Run Deployment" });
+
+		await userEvent.click(
+			await screen.findByRole("button", { name: "Select Name" }),
+		);
+		await userEvent.click(await screen.findByRole("option", { name: "b" }));
+
+		expect(router.state.location.pathname).toBe("/deployments");
+		expect(
+			screen.getByRole("heading", { name: "Run Deployment" }),
+		).toBeVisible();
+	});
+
 	it("has an action menu item that links to create a custom run", async () => {
 		await waitFor(() =>
 			render(<DeploymentsDataTableRouter {...defaultProps} />, {
