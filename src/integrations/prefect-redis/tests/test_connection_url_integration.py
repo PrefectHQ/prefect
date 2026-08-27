@@ -1,5 +1,5 @@
 """Tests that a connection URL (including Sentinel) flows through the messaging
-client, the lock manager, and the `RedisDatabase` block.
+client, the worker cleanup queue, the lock manager, and the `RedisDatabase` block.
 
 These exercise client construction only; they do not require a live Sentinel
 topology (building a Sentinel-backed client is lazy and does not connect).
@@ -12,14 +12,14 @@ import redis
 import redis.asyncio
 from prefect_redis import client as client_module
 from prefect_redis.blocks import RedisDatabase
+from prefect_redis.cleanup_queue import WorkerCleanupQueue
 from prefect_redis.client import (
     RedisMessagingSettings,
     async_redis_from_settings,
     get_async_redis_client,
     is_cluster_url,
-    is_sentinel_url,
 )
-from prefect_redis.connection import RedisUrlError
+from prefect_redis.connection import aclose_redis_client, is_sentinel_url
 from prefect_redis.locking import RedisLockManager
 from redis.asyncio.sentinel import SentinelConnectionPool as AsyncSentinelPool
 from redis.sentinel import SentinelConnectionPool as SyncSentinelPool
@@ -44,8 +44,8 @@ def test_is_sentinel_url_tolerates_ipv6_members() -> None:
 
 
 def test_scheme_detection_is_case_insensitive() -> None:
-    """RFC 3986 schemes are case-insensitive; parse_redis_url lowercases, so the
-    dispatch predicates must too."""
+    """RFC 3986 schemes are case-insensitive; redis_from_url lowercases the
+    scheme, so the dispatch predicates must too."""
     assert is_sentinel_url("Redis+Sentinel://s1:26379/mymaster") is True
     assert is_cluster_url("Redis+Cluster://localhost:6379") is True
 
@@ -121,6 +121,50 @@ async def test_get_async_redis_client_sentinel_url_wins_over_host(
         client_module._client_cache.clear()
 
 
+async def test_get_async_redis_client_sentinel_url_options_win_over_settings() -> None:
+    """Sentinel URL options override the messaging settings defaults (socket
+    timeouts, protocol) exactly as they do for a standalone `Redis.from_url`."""
+    client_module._client_cache.clear()
+    try:
+        client = get_async_redis_client(
+            url=f"{SENTINEL_URL}?socket_timeout=7&protocol=3"
+        )
+        conn = client.connection_pool.connection_kwargs
+        assert conn["socket_timeout"] == 7.0
+        assert conn["protocol"] == 3
+        # Defaults the URL does not mention still come from the settings.
+        assert conn["decode_responses"] is True
+        assert (
+            conn["health_check_interval"]
+            == RedisMessagingSettings().health_check_interval
+        )
+    finally:
+        client_module._client_cache.clear()
+
+
+# ---------------------------------------------------------------------------
+# worker cleanup queue
+# ---------------------------------------------------------------------------
+
+
+async def test_cleanup_queue_sentinel_url_from_env(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PREFECT_REDIS_WORKER_CLEANUP_QUEUE_URL", SENTINEL_URL)
+    monkeypatch.setenv("PREFECT_REDIS_WORKER_CLEANUP_QUEUE_SOCKET_TIMEOUT", "4")
+    client = WorkerCleanupQueue()._client()
+    try:
+        pool = client.connection_pool
+        assert isinstance(pool, AsyncSentinelPool)
+        assert pool.service_name == "mymaster"
+        # The queue's connection defaults still apply to the master connections.
+        assert pool.connection_kwargs["decode_responses"] is True
+        assert pool.connection_kwargs["protocol"] == 2
+        assert pool.connection_kwargs["socket_timeout"] == 4.0
+    finally:
+        await aclose_redis_client(client)
+
+
 # ---------------------------------------------------------------------------
 # lock manager
 # ---------------------------------------------------------------------------
@@ -183,7 +227,7 @@ def test_block_connection_url_builds_sentinel_clients() -> None:
 
 
 def test_block_invalid_connection_url_rejected() -> None:
-    with pytest.raises(RedisUrlError, match="requires a service name"):
+    with pytest.raises(ValueError, match="requires a service name"):
         RedisDatabase(connection_url="redis+sentinel://s1:26379")
 
 

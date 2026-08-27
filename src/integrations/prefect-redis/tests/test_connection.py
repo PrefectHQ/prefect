@@ -1,555 +1,314 @@
-from dataclasses import dataclass
+"""Tests for `redis_from_url`, the single URL-to-client factory in `prefect_redis`.
+
+Standalone URLs are delegated to redis-py's `Redis.from_url`; Sentinel URLs build a
+Sentinel-backed client. The assertions inspect the resulting client and connection
+pool only. Building a client is lazy and opens no connection, so no Redis or
+Sentinel topology is required.
+"""
+
 from unittest import mock
 
 import pytest
 import redis
 import redis.asyncio
 from prefect_redis.connection import (
-    SENTINEL_SOCKET_KEEPALIVE_OPTIONS,
-    RedisConnectionConfig,
-    RedisUrlError,
     aclose_redis_client,
-    build_redis_client,
     close_redis_client,
-    parse_redis_url,
-    redact_redis_url,
+    redis_from_url,
 )
+from redis.asyncio.connection import Connection as AsyncConnection
+from redis.asyncio.connection import SSLConnection as AsyncSSLConnection
 from redis.asyncio.sentinel import SentinelConnectionPool as AsyncSentinelPool
+from redis.asyncio.sentinel import SentinelManagedConnection as AsyncSentinelManaged
+from redis.asyncio.sentinel import (
+    SentinelManagedSSLConnection as AsyncSentinelManagedSSL,
+)
+from redis.connection import Connection, SSLConnection
 from redis.sentinel import SentinelConnectionPool as SyncSentinelPool
+from redis.sentinel import SentinelManagedConnection, SentinelManagedSSLConnection
 
-# ---------------------------------------------------------------------------
-# parse_redis_url
-# ---------------------------------------------------------------------------
+SENTINEL_URL = "redis+sentinel://s1:26379,s2:26379/mymaster"
 
-
-@dataclass
-class ParseCase:
-    name: str
-    url: str
-    expected: RedisConnectionConfig
+sync_and_async = pytest.mark.parametrize(
+    "asynchronous", [False, True], ids=["sync", "async"]
+)
 
 
-PARSE_CASES = [
-    ParseCase(
-        name="single_node_minimal",
-        url="redis://localhost:6379/0",
-        expected=RedisConnectionConfig(
-            db=0,
-            is_sentinel=False,
-            host="localhost",
-            port=6379,
-        ),
-    ),
-    ParseCase(
-        name="single_node_default_port_and_db",
-        url="redis://cache",
-        expected=RedisConnectionConfig(
-            db=0,
-            is_sentinel=False,
-            host="cache",
-            port=6379,
-        ),
-    ),
-    ParseCase(
-        name="single_node_tls_with_auth_and_encoded_password",
-        url="rediss://user:pa%40ss@cache:6380/2",
-        expected=RedisConnectionConfig(
-            db=2,
-            is_sentinel=False,
-            host="cache",
-            port=6380,
-            connection_kwargs={
-                "username": "user",
-                "password": "pa@ss",
-                "ssl": True,
-            },
-        ),
-    ),
-    ParseCase(
-        # Redis servers can be configured with more than the default 16
-        # logical databases, so indexes above 15 are valid.
-        name="single_node_high_db_index",
-        url="redis://cache:6379/42",
-        expected=RedisConnectionConfig(
-            db=42,
-            is_sentinel=False,
-            host="cache",
-            port=6379,
-        ),
-    ),
-    ParseCase(
-        name="single_node_username_only",
-        url="redis://user@cache:6379",
-        expected=RedisConnectionConfig(
-            db=0,
-            is_sentinel=False,
-            host="cache",
-            port=6379,
-            connection_kwargs={"username": "user"},
-        ),
-    ),
-    ParseCase(
-        # TLS options are plain redis-py connection options; unknown keys pass
-        # through verbatim just like a standalone rediss:// URL.
-        name="single_node_tls_options_pass_through",
-        url="rediss://cache:6379?ssl_cert_reqs=none&ssl_ca_certs=/etc/ca.pem",
-        expected=RedisConnectionConfig(
-            db=0,
-            is_sentinel=False,
-            host="cache",
-            port=6379,
-            connection_kwargs={
-                "ssl": True,
-                "ssl_cert_reqs": "none",
-                "ssl_ca_certs": "/etc/ca.pem",
-            },
-        ),
-    ),
-    ParseCase(
-        name="sentinel_multi_member_with_data_and_sentinel_auth",
-        url="redis+sentinel://app:secret@s1:26379,s2:26379,s3:26379/mymaster/1"
-        "?sentinel_username=su&sentinel_password=sp",
-        expected=RedisConnectionConfig(
-            db=1,
-            is_sentinel=True,
-            service_name="mymaster",
-            sentinels=(("s1", 26379), ("s2", 26379), ("s3", 26379)),
-            connection_kwargs={"username": "app", "password": "secret"},
-            sentinel_kwargs={"username": "su", "password": "sp"},
-        ),
-    ),
-    ParseCase(
-        name="sentinel_members_default_to_sentinel_port",
-        url="redis+sentinel://s1,s2:26380,[::1]/mymaster",
-        expected=RedisConnectionConfig(
-            db=0,
-            is_sentinel=True,
-            service_name="mymaster",
-            sentinels=(("s1", 26379), ("s2", 26380), ("::1", 26379)),
-        ),
-    ),
-    ParseCase(
-        # A rediss prefix turns on TLS for both the data nodes and the Sentinel
-        # daemon connections, mirroring docket's parser.
-        name="sentinel_tls_follows_scheme",
-        url="rediss+sentinel://s1:26379/svc",
-        expected=RedisConnectionConfig(
-            db=0,
-            is_sentinel=True,
-            service_name="svc",
-            sentinels=(("s1", 26379),),
-            connection_kwargs={"ssl": True},
-            sentinel_kwargs={"ssl": True},
-        ),
-    ),
-    ParseCase(
-        # On a TLS scheme the ssl_* options also apply to the Sentinel daemon
-        # connections; otherwise a private CA would cover the data nodes only
-        # and every daemon connection would fail verification at discovery.
-        name="sentinel_tls_ssl_options_shared_with_daemons",
-        url=(
-            "rediss+sentinel://s1:26390/svc"
-            "?ssl_ca_certs=/etc/ca.pem&ssl_check_hostname=false"
-        ),
-        expected=RedisConnectionConfig(
-            db=0,
-            is_sentinel=True,
-            service_name="svc",
-            sentinels=(("s1", 26390),),
-            connection_kwargs={
-                "ssl": True,
-                "ssl_ca_certs": "/etc/ca.pem",
-                "ssl_check_hostname": False,
-            },
-            sentinel_kwargs={
-                "ssl": True,
-                "ssl_ca_certs": "/etc/ca.pem",
-                "ssl_check_hostname": False,
-            },
-        ),
-    ),
-    ParseCase(
-        # On a plaintext scheme the daemons stay plaintext: ssl_* options pass
-        # through to the data-node kwargs only, like any redis-py option.
-        name="sentinel_plaintext_daemons_get_no_ssl_options",
-        url="redis+sentinel://s1:26379/svc?ssl_ca_certs=/etc/ca.pem",
-        expected=RedisConnectionConfig(
-            db=0,
-            is_sentinel=True,
-            service_name="svc",
-            sentinels=(("s1", 26379),),
-            connection_kwargs={"ssl_ca_certs": "/etc/ca.pem"},
-        ),
-    ),
-    ParseCase(
-        # Leftover query params are standard redis-py connection options and get
-        # redis-py's own type conversion, exactly like a standalone redis:// URL.
-        name="single_node_query_options_funneled_through_redis_py",
-        url="redis://cache:6379/1?health_check_interval=30&socket_timeout=2.5",
-        expected=RedisConnectionConfig(
-            db=1,
-            is_sentinel=False,
-            host="cache",
-            port=6379,
-            connection_kwargs={
-                "health_check_interval": 30,
-                "socket_timeout": 2.5,
-            },
-        ),
-    ),
-    ParseCase(
-        name="sentinel_query_options_funneled_to_data_nodes",
-        url="redis+sentinel://s1:26379/svc?socket_timeout=2.5&max_connections=10",
-        expected=RedisConnectionConfig(
-            db=0,
-            is_sentinel=True,
-            service_name="svc",
-            sentinels=(("s1", 26379),),
-            connection_kwargs={
-                "socket_timeout": 2.5,
-                "max_connections": 10,
-            },
-        ),
-    ),
-    ParseCase(
-        # db comes from the path and credentials from the userinfo; the query
-        # string is not allowed to override them.
-        name="governed_keys_not_taken_from_query",
-        url="redis+sentinel://app:secret@s1:26379/svc/2?db=9&username=q&password=leak",
-        expected=RedisConnectionConfig(
-            db=2,
-            is_sentinel=True,
-            service_name="svc",
-            sentinels=(("s1", 26379),),
-            connection_kwargs={"username": "app", "password": "secret"},
-        ),
-    ),
-]
+def daemons(client: redis.Redis | redis.asyncio.Redis) -> list[redis.Redis]:
+    return list(client.connection_pool.sentinel_manager.sentinels)
 
 
-@pytest.mark.parametrize("case", PARSE_CASES, ids=lambda case: case.name)
-def test_parse_redis_url(case: ParseCase) -> None:
-    assert parse_redis_url(case.url) == case.expected
-
-
-@dataclass
-class ErrorCase:
-    name: str
-    url: str
-    match: str
-
-
-ERROR_CASES = [
-    ErrorCase(
-        name="unknown_scheme", url="http://cache:6379", match="Unsupported scheme"
-    ),
-    ErrorCase(
-        name="sentinel_without_service",
-        url="redis+sentinel://s1:26379",
-        match="requires a service name",
-    ),
-    ErrorCase(
-        name="multiple_hosts_without_sentinel",
-        url="redis://h1:6379,h2:6379",
-        match="require a \\+sentinel",
-    ),
-    ErrorCase(name="invalid_port", url="redis://cache:notaport", match="Invalid port"),
-    ErrorCase(
-        name="negative_db", url="redis://cache:6379/-1", match="must be non-negative"
-    ),
-    ErrorCase(
-        name="invalid_db", url="redis://cache:6379/abc", match="Invalid database index"
-    ),
-    ErrorCase(name="no_host", url="redis://", match="No host found"),
-    ErrorCase(
-        name="invalid_connection_option",
-        url="redis://cache:6379?socket_timeout=abc",
-        match="Invalid connection option",
-    ),
-]
-
-
-@pytest.mark.parametrize("case", ERROR_CASES, ids=lambda case: case.name)
-def test_parse_redis_url_errors(case: ErrorCase) -> None:
-    with pytest.raises(RedisUrlError, match=case.match):
-        parse_redis_url(case.url)
-
-
-def test_redis_url_error_is_value_error() -> None:
-    # Useful so callers (e.g. block validators) can treat it as a ValueError.
-    assert issubclass(RedisUrlError, ValueError)
+def daemon_addresses(
+    client: redis.Redis | redis.asyncio.Redis,
+) -> list[tuple[str, int]]:
+    return [
+        (
+            daemon.connection_pool.connection_kwargs["host"],
+            daemon.connection_pool.connection_kwargs["port"],
+        )
+        for daemon in daemons(client)
+    ]
 
 
 # ---------------------------------------------------------------------------
-# redact_redis_url
+# standalone URLs are redis-py's business
 # ---------------------------------------------------------------------------
 
 
-@dataclass
-class RedactCase:
-    name: str
-    url: str
-    expected: str
+@sync_and_async
+def test_standalone_url_is_delegated_to_redis_py(asynchronous: bool) -> None:
+    url = "rediss://user:pa%40ss@cache:6380/2?socket_timeout=2.5"
+    redis_class = redis.asyncio.Redis if asynchronous else redis.Redis
+    with mock.patch.object(
+        redis_class, "from_url", wraps=redis_class.from_url
+    ) as from_url:
+        client = redis_from_url(url, asynchronous=asynchronous, decode_responses=True)
+    from_url.assert_called_once_with(url, decode_responses=True)
 
-
-REDACT_CASES = [
-    RedactCase(
-        name="no_secret_unchanged",
-        url="redis://cache:6379/0",
-        expected="redis://cache:6379/0",
-    ),
-    RedactCase(
-        name="userinfo_password_masked",
-        url="redis://app:secret@cache:6379/0",
-        expected="redis://app:***@cache:6379/0",
-    ),
-    RedactCase(
-        name="username_only_kept",
-        url="redis://app@cache:6379/0",
-        expected="redis://app@cache:6379/0",
-    ),
-    RedactCase(
-        name="sensitive_query_params_masked",
-        url="redis+sentinel://app:secret@s1:26379/mymaster?sentinel_password=sp&sentinel_username=su",
-        expected="redis+sentinel://app:***@s1:26379/mymaster?sentinel_password=***&sentinel_username=su",
-    ),
-]
-
-
-@pytest.mark.parametrize("case", REDACT_CASES, ids=lambda case: case.name)
-def test_redact_redis_url(case: RedactCase) -> None:
-    assert redact_redis_url(case.url) == case.expected
-
-
-@dataclass
-class NoLeakCase:
-    name: str
-    url: str
-    secret: str
-
-
-NO_LEAK_CASES = [
-    NoLeakCase(
-        name="sentinel_no_service",
-        url="redis+sentinel://u:topsecret@s1:26379",
-        secret="topsecret",
-    ),
-    NoLeakCase(
-        name="bad_port", url="redis://u:topsecret@cache:nope", secret="topsecret"
-    ),
-    NoLeakCase(
-        name="bad_option",
-        url="rediss://u:topsecret@cache:6379?socket_timeout=maybe",
-        secret="topsecret",
-    ),
-]
-
-
-@pytest.mark.parametrize("case", NO_LEAK_CASES, ids=lambda case: case.name)
-def test_parse_redis_url_errors_redact_secrets(case: NoLeakCase) -> None:
-    with pytest.raises(RedisUrlError) as exc_info:
-        parse_redis_url(case.url)
-    assert case.secret not in str(exc_info.value)
-
-
-def test_connection_config_is_frozen() -> None:
-    config = RedisConnectionConfig(db=0, is_sentinel=False, host="cache", port=6379)
-    with pytest.raises(AttributeError):
-        config.host = "other"  # type: ignore[misc]
-
-
-# ---------------------------------------------------------------------------
-# build_redis_client
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("asynchronous", [False, True])
-def test_build_single_node_client(asynchronous: bool) -> None:
-    client = build_redis_client(
-        parse_redis_url("redis://cache:6380/3"), asynchronous=asynchronous
+    assert isinstance(client, redis_class)
+    assert not isinstance(client.connection_pool, (SyncSentinelPool, AsyncSentinelPool))
+    assert client.connection_pool.connection_class is (
+        AsyncSSLConnection if asynchronous else SSLConnection
     )
-    expected_type = redis.asyncio.Redis if asynchronous else redis.Redis
-    assert isinstance(client, expected_type)
     conn = client.connection_pool.connection_kwargs
-    assert conn["host"] == "cache"
-    assert conn["port"] == 6380
-    assert conn["db"] == 3
+    assert (conn["host"], conn["port"], conn["db"]) == ("cache", 6380, 2)
+    assert (conn["username"], conn["password"]) == ("user", "pa@ss")
+    assert conn["socket_timeout"] == 2.5
+    assert conn["decode_responses"] is True
 
 
-@pytest.mark.parametrize("asynchronous", [False, True])
-def test_build_sentinel_client_discovers_master(asynchronous: bool) -> None:
-    client = build_redis_client(
-        parse_redis_url("redis+sentinel://s1:26379,s2:26379/mymaster/1"),
-        asynchronous=asynchronous,
-    )
-    expected_type = redis.asyncio.Redis if asynchronous else redis.Redis
-    expected_pool = AsyncSentinelPool if asynchronous else SyncSentinelPool
-    assert isinstance(client, expected_type)
+# ---------------------------------------------------------------------------
+# Sentinel URLs
+# ---------------------------------------------------------------------------
+
+
+@sync_and_async
+def test_sentinel_url_builds_a_master_client(asynchronous: bool) -> None:
+    client = redis_from_url(f"{SENTINEL_URL}/1", asynchronous=asynchronous)
+    assert isinstance(client, redis.asyncio.Redis if asynchronous else redis.Redis)
     pool = client.connection_pool
-    assert isinstance(pool, expected_pool)
+    assert isinstance(pool, AsyncSentinelPool if asynchronous else SyncSentinelPool)
     assert pool.service_name == "mymaster"
     assert pool.is_master is True
     assert pool.connection_kwargs["db"] == 1
-    sentinel_hosts = [
-        (
-            s.connection_pool.connection_kwargs["host"],
-            s.connection_pool.connection_kwargs["port"],
+    assert pool.connection_class is (
+        AsyncSentinelManaged if asynchronous else SentinelManagedConnection
+    )
+    assert daemon_addresses(client) == [("s1", 26379), ("s2", 26379)]
+    for daemon in daemons(client):
+        assert daemon.connection_pool.connection_class is (
+            AsyncConnection if asynchronous else Connection
         )
-        for s in pool.sentinel_manager.sentinels
+        assert daemon.connection_pool.connection_kwargs.get("username") is None
+        assert daemon.connection_pool.connection_kwargs.get("password") is None
+
+
+@sync_and_async
+def test_sentinel_members_default_to_the_sentinel_port(asynchronous: bool) -> None:
+    client = redis_from_url(
+        "redis+sentinel://s1,s2:26380,[::1],[::2]:26381/mymaster",
+        asynchronous=asynchronous,
+    )
+    assert daemon_addresses(client) == [
+        ("s1", 26379),
+        ("s2", 26380),
+        ("::1", 26379),
+        ("::2", 26381),
     ]
-    assert sentinel_hosts == [("s1", 26379), ("s2", 26379)]
 
 
-def test_build_client_passes_extra_kwargs_to_data_connection() -> None:
-    client = build_redis_client(
-        parse_redis_url("redis://cache:6379/0"),
-        asynchronous=True,
-        decode_responses=True,
-        health_check_interval=42,
+@sync_and_async
+def test_sentinel_scheme_is_case_insensitive(asynchronous: bool) -> None:
+    client = redis_from_url("Redis+Sentinel://s1/mymaster", asynchronous=asynchronous)
+    assert isinstance(
+        client.connection_pool, AsyncSentinelPool if asynchronous else SyncSentinelPool
+    )
+    tls_client = redis_from_url(
+        "RedisS+Sentinel://s1/mymaster", asynchronous=asynchronous
+    )
+    assert tls_client.connection_pool.connection_class is (
+        AsyncSentinelManagedSSL if asynchronous else SentinelManagedSSLConnection
+    )
+
+
+@sync_and_async
+def test_data_node_and_daemon_credentials_are_separate(asynchronous: bool) -> None:
+    client = redis_from_url(
+        "redis+sentinel://app:pa%40ss@s1:26379/mymaster"
+        "?sentinel_username=su&sentinel_password=sp",
+        asynchronous=asynchronous,
     )
     conn = client.connection_pool.connection_kwargs
+    # Userinfo is decoded by redis-py, exactly as in a standalone URL.
+    assert (conn["username"], conn["password"]) == ("app", "pa@ss")
+    for daemon in daemons(client):
+        daemon_conn = daemon.connection_pool.connection_kwargs
+        assert (daemon_conn["username"], daemon_conn["password"]) == ("su", "sp")
+    # The daemon-only options must not leak into the data-node connections.
+    assert "sentinel_username" not in conn
+    assert "sentinel_password" not in conn
+
+
+@sync_and_async
+def test_tls_scheme_covers_data_nodes_and_daemons(asynchronous: bool) -> None:
+    client = redis_from_url(
+        "rediss+sentinel://s1:26379/mymaster"
+        "?ssl_ca_certs=/etc/ca.pem&ssl_check_hostname=false",
+        asynchronous=asynchronous,
+    )
+    pool = client.connection_pool
+    assert pool.connection_class is (
+        AsyncSentinelManagedSSL if asynchronous else SentinelManagedSSLConnection
+    )
+    assert pool.connection_kwargs["ssl_ca_certs"] == "/etc/ca.pem"
+    assert pool.connection_kwargs["ssl_check_hostname"] is False
+    # Without this a private CA would apply to the master connections only and
+    # every daemon connection would fail certificate verification at discovery.
+    for daemon in daemons(client):
+        assert daemon.connection_pool.connection_class is (
+            AsyncSSLConnection if asynchronous else SSLConnection
+        )
+        assert daemon.connection_pool.connection_kwargs["ssl_ca_certs"] == "/etc/ca.pem"
+        assert daemon.connection_pool.connection_kwargs["ssl_check_hostname"] is False
+
+
+@sync_and_async
+def test_sentinel_query_options_use_redis_py_parsing(asynchronous: bool) -> None:
+    client = redis_from_url(
+        f"{SENTINEL_URL}?socket_timeout=2.5&health_check_interval=30"
+        "&max_connections=10&protocol=3",
+        asynchronous=asynchronous,
+    )
+    pool = client.connection_pool
+    assert pool.connection_kwargs["socket_timeout"] == 2.5
+    assert pool.connection_kwargs["health_check_interval"] == 30
+    assert pool.connection_kwargs["protocol"] == 3
+    # Pool-level options reach the pool rather than the connections.
+    assert pool.max_connections == 10
+
+
+@sync_and_async
+@pytest.mark.parametrize(
+    "url",
+    ["redis://cache:6379/0", SENTINEL_URL],
+    ids=["standalone", "sentinel"],
+)
+def test_url_options_override_caller_defaults(asynchronous: bool, url: str) -> None:
+    # Callers pass settings-derived defaults; an explicit URL option must win over
+    # them for Sentinel URLs exactly as it does for `Redis.from_url`.
+    client = redis_from_url(
+        f"{url}?socket_timeout=7&protocol=3",
+        asynchronous=asynchronous,
+        socket_timeout=None,
+        protocol=2,
+        decode_responses=True,
+    )
+    conn = client.connection_pool.connection_kwargs
+    assert conn["socket_timeout"] == 7.0
+    assert conn["protocol"] == 3
+    # Defaults the URL does not mention still apply.
     assert conn["decode_responses"] is True
-    assert conn["health_check_interval"] == 42
 
 
-# ---------------------------------------------------------------------------
-# Sentinel daemon socket timeouts
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("asynchronous", [False, True])
-def test_sentinel_daemons_inherit_caller_socket_timeouts(asynchronous: bool) -> None:
-    # redis-py only copies socket_* options into sentinel_kwargs when
-    # sentinel_kwargs is None; since the builder always passes an explicit
-    # dict, it must forward the caller's timeouts itself so a partitioned
-    # daemon fails fast during discovery.
-    client = build_redis_client(
-        parse_redis_url("redis+sentinel://s1:26379,s2:26379/mymaster"),
+@sync_and_async
+def test_daemons_inherit_socket_options_like_redis_py(asynchronous: bool) -> None:
+    # redis-py only copies socket_* options into sentinel_kwargs when none are
+    # given; the factory always passes daemon kwargs, so it must apply the same
+    # fallback itself for a partitioned daemon to fail fast during discovery.
+    client = redis_from_url(
+        f"{SENTINEL_URL}?socket_timeout=2",
         asynchronous=asynchronous,
         socket_timeout=1.5,
         socket_connect_timeout=0.25,
     )
-    for sentinel in client.connection_pool.sentinel_manager.sentinels:
-        conn = sentinel.connection_pool.connection_kwargs
-        assert conn["socket_timeout"] == 1.5
+    assert client.connection_pool.connection_kwargs["socket_timeout"] == 2.0
+    for daemon in daemons(client):
+        conn = daemon.connection_pool.connection_kwargs
+        assert conn["socket_timeout"] == 2.0
         assert conn["socket_connect_timeout"] == 0.25
-    data_conn = client.connection_pool.connection_kwargs
-    assert data_conn["socket_timeout"] == 1.5
-    assert data_conn["socket_connect_timeout"] == 0.25
 
 
 # ---------------------------------------------------------------------------
-# close helpers
+# errors
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("url", "match"),
+    [
+        pytest.param(
+            "redis+sentinel://s1:26379", "requires a service name", id="no_service"
+        ),
+        pytest.param(
+            "redis+sentinel:///mymaster",
+            "at least one Sentinel member",
+            id="no_members",
+        ),
+        pytest.param(
+            "redis+sentinel://s1:notaport/mymaster", "Invalid port", id="bad_port"
+        ),
+        pytest.param(
+            "redis+sentinel://:26379/mymaster", "missing a host", id="no_host"
+        ),
+        pytest.param(
+            "redis+sentinel://s1:26379/mymaster?socket_timeout=abc",
+            "Invalid value for 'socket_timeout'",
+            id="bad_option_is_rejected_by_redis_py",
+        ),
+        pytest.param(
+            "http://cache:6379",
+            "must specify one of the following schemes",
+            id="unknown_scheme_is_rejected_by_redis_py",
+        ),
+    ],
+)
+def test_malformed_urls_raise_value_error(url: str, match: str) -> None:
+    with pytest.raises(ValueError, match=match):
+        redis_from_url(url)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "redis+sentinel://u:topsecret@s1:26379",
+        "redis+sentinel://u:topsecret@s1:26379/mymaster?socket_timeout=maybe",
+        "redis+sentinel://u:topsecret@s1:26379/mymaster?sentinel_password=topsecret&protocol=x",
+        "rediss://u:topsecret@cache:6379?socket_timeout=maybe",
+    ],
+)
+def test_errors_do_not_leak_credentials(url: str) -> None:
+    with pytest.raises(ValueError) as exc_info:
+        redis_from_url(url)
+    assert "topsecret" not in str(exc_info.value)
+
+
+# ---------------------------------------------------------------------------
+# lifecycle
 # ---------------------------------------------------------------------------
 
 
 def test_close_redis_client_closes_sentinel_daemons() -> None:
-    client = build_redis_client(
-        parse_redis_url("redis+sentinel://s1:26379,s2:26379/mymaster"),
-        asynchronous=False,
-    )
-    daemons = list(client.connection_pool.sentinel_manager.sentinels)
+    client = redis_from_url(SENTINEL_URL)
+    expected = [client, *daemons(client)]
     with mock.patch.object(redis.Redis, "close", autospec=True) as mock_close:
         close_redis_client(client)
-    closed = {id(call.args[0]) for call in mock_close.call_args_list}
-    assert id(client) in closed
-    for daemon in daemons:
-        assert id(daemon) in closed
+    closed = [call.args[0] for call in mock_close.call_args_list]
+    assert closed == expected
 
 
 async def test_aclose_redis_client_closes_sentinel_daemons() -> None:
-    client = build_redis_client(
-        parse_redis_url("redis+sentinel://s1:26379,s2:26379/mymaster"),
-        asynchronous=True,
-    )
-    daemons = list(client.connection_pool.sentinel_manager.sentinels)
+    client = redis_from_url(SENTINEL_URL, asynchronous=True)
+    expected = [client, *daemons(client)]
     with mock.patch.object(redis.asyncio.Redis, "aclose", autospec=True) as mock_close:
         await aclose_redis_client(client)
-    closed = {id(call.args[0]) for call in mock_close.call_args_list}
-    assert id(client) in closed
-    for daemon in daemons:
-        assert id(daemon) in closed
+    closed = [call.args[0] for call in mock_close.call_args_list]
+    assert closed == expected
 
 
-async def test_aclose_redis_client_single_node() -> None:
+def test_close_redis_client_standalone() -> None:
     # No sentinel manager on the pool; the helper must not raise.
-    client = build_redis_client(
-        parse_redis_url("redis://cache:6379/0"), asynchronous=True
-    )
-    await aclose_redis_client(client)
+    close_redis_client(redis_from_url("redis://cache:6379/0"))
 
 
-def test_close_redis_client_single_node() -> None:
-    client = build_redis_client(
-        parse_redis_url("redis://cache:6379/0"), asynchronous=False
-    )
-    close_redis_client(client)
-
-
-# ---------------------------------------------------------------------------
-# Sentinel data-node TCP keepalive (mirrors docket's _redis_sentinel defaults)
-# ---------------------------------------------------------------------------
-
-
-def test_keepalive_options_match_expected_timers() -> None:
-    # 30s idle, 5s interval, 3 probes — names guarded for platforms that lack
-    # them, so the dict holds only the constants this OS actually defines.
-    assert SENTINEL_SOCKET_KEEPALIVE_OPTIONS
-    assert all(
-        isinstance(option, int) and isinstance(value, int)
-        for option, value in SENTINEL_SOCKET_KEEPALIVE_OPTIONS.items()
-    )
-
-
-# redis-py 8 already defaults socket_keepalive to True, while the redis 6/7
-# releases prefect also supports default to no keepalive. So the version-stable
-# signal that our pinned timers were applied is the explicit options dict, not
-# the bool: only the Sentinel data-node connections carry our exact options.
-
-
-@pytest.mark.parametrize("asynchronous", [False, True])
-def test_sentinel_data_node_gets_keepalive_defaults(asynchronous: bool) -> None:
-    client = build_redis_client(
-        parse_redis_url("redis+sentinel://s1:26379,s2:26379/mymaster/1"),
-        asynchronous=asynchronous,
-    )
-    conn = client.connection_pool.connection_kwargs
-    assert conn["socket_keepalive"] is True
-    assert conn["socket_keepalive_options"] == SENTINEL_SOCKET_KEEPALIVE_OPTIONS
-
-
-@pytest.mark.parametrize("asynchronous", [False, True])
-def test_sentinel_daemon_connections_have_no_pinned_keepalive(
-    asynchronous: bool,
-) -> None:
-    # Keepalive is pinned only on the long-lived data-node connections, not on
-    # the short discovery polls to the Sentinel daemons.
-    client = build_redis_client(
-        parse_redis_url("redis+sentinel://s1:26379/mymaster"),
-        asynchronous=asynchronous,
-    )
-    sentinel_manager = client.connection_pool.sentinel_manager
-    for sentinel in sentinel_manager.sentinels:
-        conn = sentinel.connection_pool.connection_kwargs
-        assert conn.get("socket_keepalive_options") != SENTINEL_SOCKET_KEEPALIVE_OPTIONS
-
-
-@pytest.mark.parametrize("asynchronous", [False, True])
-def test_single_node_has_no_pinned_keepalive(asynchronous: bool) -> None:
-    client = build_redis_client(
-        parse_redis_url("redis://cache:6379/0"), asynchronous=asynchronous
-    )
-    conn = client.connection_pool.connection_kwargs
-    assert conn.get("socket_keepalive_options") != SENTINEL_SOCKET_KEEPALIVE_OPTIONS
-
-
-@pytest.mark.parametrize("asynchronous", [False, True])
-def test_caller_kwargs_override_keepalive_defaults(asynchronous: bool) -> None:
-    # The pinned defaults go in first, so a caller (or URL) can still turn
-    # keepalive off; this overrides the True our builder would otherwise set.
-    client = build_redis_client(
-        parse_redis_url("redis+sentinel://s1:26379/mymaster"),
-        asynchronous=asynchronous,
-        socket_keepalive=False,
-    )
-    assert client.connection_pool.connection_kwargs["socket_keepalive"] is False
+async def test_aclose_redis_client_standalone() -> None:
+    await aclose_redis_client(redis_from_url("redis://cache:6379/0", asynchronous=True))

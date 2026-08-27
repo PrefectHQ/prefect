@@ -1,6 +1,6 @@
 """Redis credentials handling"""
 
-from typing import Any, Dict, Optional, Union, cast
+from typing import Any, Dict, Optional, Union
 
 import redis
 import redis.asyncio
@@ -12,10 +12,9 @@ from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect.filesystems import WritableFileSystem
 from prefect_redis.connection import (
     aclose_redis_client,
-    build_redis_client,
     close_redis_client,
     is_sentinel_url,
-    parse_redis_url,
+    redis_from_url,
 )
 
 DEFAULT_PORT = 6379
@@ -95,8 +94,9 @@ class RedisDatabase(WritableFileSystem):
         """Validate parameters"""
 
         if self.connection_url is not None:
-            # Fail fast on a malformed URL rather than at first connection.
-            parse_redis_url(self.connection_url.get_secret_value())
+            # Fail fast on a malformed URL rather than at first use; building a
+            # client is lazy and opens no connection.
+            close_redis_client(redis_from_url(self.connection_url.get_secret_value()))
             return
         if not self.host:
             raise ValueError("Missing hostname")
@@ -192,13 +192,7 @@ class RedisDatabase(WritableFileSystem):
             An initialized Redis client
         """
         if self.connection_url is not None:
-            return cast(
-                redis.Redis,
-                build_redis_client(
-                    parse_redis_url(self.connection_url.get_secret_value()),
-                    asynchronous=False,
-                ),
-            )
+            return redis_from_url(self.connection_url.get_secret_value())
         return redis.Redis(
             host=self.host,
             port=self.port,
@@ -215,12 +209,8 @@ class RedisDatabase(WritableFileSystem):
             An initialized Redis async client
         """
         if self.connection_url is not None:
-            return cast(
-                redis.asyncio.Redis,
-                build_redis_client(
-                    parse_redis_url(self.connection_url.get_secret_value()),
-                    asynchronous=True,
-                ),
+            return redis_from_url(
+                self.connection_url.get_secret_value(), asynchronous=True
             )
         return redis.asyncio.Redis(
             host=self.host,
