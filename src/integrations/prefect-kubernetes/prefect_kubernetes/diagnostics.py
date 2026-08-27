@@ -39,12 +39,26 @@ class DiagnosisCategory(str, enum.Enum):
     UNSCHEDULABLE_TAINT = "Unschedulable.Taint"
 
 
-_NUMERIC_COUNT_PATTERN = re.compile(r"\d+")
+_SCHEDULER_COUNT_PATTERN = re.compile(r"\b\d+(?:/\d+)?\b")
+
+_UNSCHEDULABLE_CATEGORIES = frozenset(
+    {
+        DiagnosisCategory.UNSCHEDULABLE,
+        DiagnosisCategory.UNSCHEDULABLE_INSUFFICIENT_RESOURCES,
+        DiagnosisCategory.UNSCHEDULABLE_NODE_AFFINITY,
+        DiagnosisCategory.UNSCHEDULABLE_TAINT,
+    }
+)
 
 
-def _normalize_counts(text: str) -> str:
-    """Replace numeric counts in a message with a placeholder."""
-    return _NUMERIC_COUNT_PATTERN.sub("#", text)
+def _normalize_scheduler_reasons(detail: str) -> tuple[str, ...]:
+    """Return scheduler reasons without volatile counts and in a stable order."""
+    normalized = _SCHEDULER_COUNT_PATTERN.sub("#", detail)
+    _, separator, reasons = normalized.partition(": ")
+    if separator:
+        normalized = reasons
+    normalized = normalized.rstrip(".")
+    return tuple(sorted(part.strip() for part in normalized.split(",") if part.strip()))
 
 
 @dataclasses.dataclass(frozen=True)
@@ -57,20 +71,25 @@ class InfrastructureDiagnosis:
     detail: str
     resolution: str
 
-    def dedupe_key(self) -> tuple[str, str, str]:
+    def dedupe_key(self) -> tuple[str, ...]:
         """Return a key identifying this diagnosis by its normalized causes.
 
-        Numeric counts in scheduler messages (e.g. `0/3 nodes are available:
-        3 Insufficient cpu`) change as cluster capacity fluctuates without the
-        underlying cause changing, so they are normalized away. Distinct
-        causes (e.g. `Insufficient cpu` vs `Insufficient ephemeral-storage`)
-        still produce distinct keys.
+        Node and reason counts in scheduler messages (e.g. `0/3 nodes are
+        available: 3 Insufficient cpu`) change as cluster capacity fluctuates
+        without the underlying cause changing, so they are removed and the
+        reasons are sorted for `Unschedulable` diagnoses. Distinct causes
+        (e.g. `Insufficient cpu` vs `Insufficient ephemeral-storage`) still
+        produce distinct keys. Other categories compare exactly, so failures
+        that differ only in a number (e.g. a container name or image tag) are
+        not collapsed.
         """
-        return (
-            self.category.value,
-            _normalize_counts(self.summary),
-            _normalize_counts(self.detail),
-        )
+        if self.category in _UNSCHEDULABLE_CATEGORIES:
+            return (
+                self.category.value,
+                self.summary,
+                *_normalize_scheduler_reasons(self.detail),
+            )
+        return (self.category.value, self.summary, self.detail)
 
 
 def diagnose_k8s_pod(status: dict[str, Any]) -> InfrastructureDiagnosis | None:

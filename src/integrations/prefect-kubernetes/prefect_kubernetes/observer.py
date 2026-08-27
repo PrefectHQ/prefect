@@ -49,14 +49,33 @@ _last_event_cache: TTLCache[str, Event] = TTLCache(
 # dedupe key so scheduler count changes for an unchanged cause don't
 # produce duplicate logs.  An LRU cache without a TTL is used so an
 # unchanged pod is not reprocessed after a time-based expiry.
-_last_diagnosis_cache: LRUCache[str, tuple[str, str, str]] = LRUCache(maxsize=1000)
+# Shared bound for the per-pod caches below, sized for the number of pods a
+# single observer is expected to watch concurrently. Entries are small (a pod
+# UID key plus a short value), so a high bound is cheap and avoids evicting
+# live pending pods, which would repeat the work these caches suppress.
+_POD_CACHE_MAXSIZE = 100_000
+
+_last_diagnosis_cache: LRUCache[str, tuple[str, ...]] = LRUCache(
+    maxsize=_POD_CACHE_MAXSIZE
+)
 
 # Tracks pods whose Pending-phase flow run state check completed so
 # repeated watch events don't repeat `read_flow_run`/`propose_state`
 # calls.  Entries are removed when the pod leaves the Pending phase.
-# Failures and timeouts are not cached so they are retried on the next
-# event.
-_completed_state_check_cache: LRUCache[str, str] = LRUCache(maxsize=1000)
+# Transient failures and timeouts are not cached so they are retried on the
+# next event.
+_completed_state_check_cache: LRUCache[str, str] = LRUCache(maxsize=_POD_CACHE_MAXSIZE)
+
+
+def _is_completed_flow_run_state(state: State | None) -> bool:
+    """Return whether a flow run state means no `InfrastructurePending` proposal is needed."""
+    return state is not None and (
+        state.is_running()
+        or state.is_final()
+        or state.is_paused()
+        or state.is_cancelling()
+        or state.name == "InfrastructurePending"
+    )
 
 
 def _parse_k8s_datetime(value: Any) -> DateTime | None:
@@ -264,13 +283,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                 flow_run = await orchestration_client.read_flow_run(
                     flow_run_id=flow_run_id
                 )
-                if flow_run.state is not None and (
-                    flow_run.state.is_running()
-                    or flow_run.state.is_final()
-                    or flow_run.state.is_paused()
-                    or flow_run.state.is_cancelling()
-                    or flow_run.state.name == "InfrastructurePending"
-                ):
+                if _is_completed_flow_run_state(flow_run.state):
                     logger.debug(
                         f"Flow run {flow_run_id} is in state {flow_run.state.name!r}, "
                         f"skipping InfrastructurePending proposal"
@@ -293,19 +306,20 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                             f"Timed out proposing InfrastructurePending for flow "
                             f"run {flow_run_id}; will retry on the next event"
                         )
-                    elif proposed_state.is_scheduled():
-                        # The proposal was rejected with a Scheduled replacement
-                        # (e.g. the run was rescheduled), so the run still needs
-                        # a state check on the next event.
+                    elif _is_completed_flow_run_state(proposed_state):
+                        _completed_state_check_cache[uid] = phase
+                    else:
                         logger.debug(
                             f"InfrastructurePending proposal for flow run "
-                            f"{flow_run_id} was rejected with a Scheduled "
-                            f"replacement; will retry on the next event"
+                            f"{flow_run_id} was rejected and returned state "
+                            f"{proposed_state.name!r}; will retry on the next event"
                         )
-                    else:
-                        _completed_state_check_cache[uid] = phase
             except ObjectNotFound:
-                logger.debug(f"Flow run {flow_run_id} not found, skipping")
+                _completed_state_check_cache[uid] = phase
+                logger.debug(
+                    f"Flow run {flow_run_id} does not exist, skipping; "
+                    "the check will not be repeated while the pod stays Pending"
+                )
             except (Abort, Exception):
                 logger.debug(
                     f"Failed to propose InfrastructurePending for flow run {flow_run_id}",

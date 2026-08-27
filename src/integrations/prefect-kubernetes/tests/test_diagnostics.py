@@ -451,3 +451,59 @@ class TestDiagnoseKubernetesPod:
         )
         assert unschedulable is not None and oom is not None
         assert unschedulable.dedupe_key() != oom.dedupe_key()
+
+    def test_dedupe_key_distinguishes_oom_killed_containers(self):
+        worker_one = diagnose_k8s_pod(
+            {
+                "containerStatuses": [
+                    {
+                        "name": "worker-1",
+                        "state": {"terminated": {"reason": "OOMKilled"}},
+                    }
+                ]
+            }
+        )
+        worker_two = diagnose_k8s_pod(
+            {
+                "containerStatuses": [
+                    {
+                        "name": "worker-2",
+                        "state": {"terminated": {"reason": "OOMKilled"}},
+                    }
+                ]
+            }
+        )
+        assert worker_one is not None and worker_two is not None
+        assert worker_one.dedupe_key() != worker_two.dedupe_key()
+
+    def test_dedupe_key_ignores_scheduler_reason_order(self):
+        first = diagnose_k8s_pod(
+            {
+                "conditions": [
+                    {
+                        "type": "PodScheduled",
+                        "reason": "Unschedulable",
+                        "message": (
+                            "0/3 nodes are available: 2 Insufficient cpu, "
+                            "1 Insufficient memory."
+                        ),
+                    }
+                ]
+            }
+        )
+        second = diagnose_k8s_pod(
+            {
+                "conditions": [
+                    {
+                        "type": "PodScheduled",
+                        "reason": "Unschedulable",
+                        "message": (
+                            "0/4 nodes are available: 1 Insufficient memory, "
+                            "3 Insufficient cpu."
+                        ),
+                    }
+                ]
+            }
+        )
+        assert first is not None and second is not None
+        assert first.dedupe_key() == second.dedupe_key()
