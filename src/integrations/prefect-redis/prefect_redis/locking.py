@@ -1,4 +1,4 @@
-from typing import Any, Optional, cast
+from typing import Any, Optional
 
 from redis import Redis
 from redis.asyncio import Redis as AsyncRedis
@@ -6,7 +6,7 @@ from redis.asyncio.lock import Lock as AsyncLock
 from redis.lock import Lock
 
 from prefect.locking.protocol import LockManager
-from prefect_redis.connection import build_redis_client, parse_redis_url
+from prefect_redis.connection import redis_from_url
 
 
 class RedisLockManager(LockManager):
@@ -109,11 +109,8 @@ class RedisLockManager(LockManager):
         # A connection URL is authoritative over the scalar fields and selects single-node
         # or Sentinel mode from its scheme; Sentinel connections follow master failover.
         if self.connection_url is not None:
-            config = parse_redis_url(self.connection_url)
-            self.client = cast(Redis, build_redis_client(config, asynchronous=False))
-            self.async_client = cast(
-                AsyncRedis, build_redis_client(config, asynchronous=True)
-            )
+            self.client = redis_from_url(self.connection_url)
+            self.async_client = redis_from_url(self.connection_url, asynchronous=True)
             return
         self.client = Redis(
             host=self.host,

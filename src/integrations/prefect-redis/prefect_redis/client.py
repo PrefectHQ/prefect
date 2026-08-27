@@ -1,7 +1,7 @@
 import asyncio
 import functools
 import warnings
-from typing import Any, Callable, Optional, Union, cast
+from typing import Any, Callable, Optional, Union
 from urllib.parse import urlparse, urlunparse
 
 from pydantic import Field, model_validator
@@ -12,12 +12,7 @@ from prefect.settings.base import (
     PrefectBaseSettings,
     build_settings_config,  # type: ignore[reportPrivateUsage]
 )
-from prefect_redis.connection import (
-    aclose_redis_client,
-    build_redis_client,
-    is_sentinel_url,
-    parse_redis_url,
-)
+from prefect_redis.connection import aclose_redis_client, redis_from_url
 
 _UNSET: Any = object()
 
@@ -212,12 +207,13 @@ def get_async_redis_client(
 ) -> Redis:
     """Retrieves an async Redis client.
 
-    When a standalone `url` is provided (or configured via
-    `PREFECT_REDIS_MESSAGING_URL`), `Redis.from_url` is used and
-    the discrete host/port/… arguments are ignored. `redis+sentinel://`
-    and `rediss+sentinel://` URLs resolve the current master through the
-    listed Sentinel daemons and follow failover automatically. Redis
-    Cluster URLs are detected but intentionally not enabled yet.
+    When a `url` is provided (or configured via `PREFECT_REDIS_MESSAGING_URL`)
+    the discrete host/port/… arguments are ignored. Standalone URLs are passed
+    to `Redis.from_url`; `redis+sentinel://` and `rediss+sentinel://` URLs
+    resolve the current master through the listed Sentinel daemons and follow
+    failover automatically. URL query options override the settings-derived
+    connection defaults. Redis Cluster URLs are detected but intentionally not
+    enabled yet.
 
     Args:
         url: Full Redis URL (e.g. `redis://localhost:6379/0` or
@@ -254,22 +250,9 @@ def get_async_redis_client(
     if url:
         if is_cluster_url(url):
             _raise_cluster_not_supported()
-        if is_sentinel_url(url):
-            return cast(
-                Redis,
-                build_redis_client(
-                    parse_redis_url(url),
-                    asynchronous=True,
-                    health_check_interval=health_check_interval
-                    or settings.health_check_interval,
-                    decode_responses=decode_responses,
-                    socket_timeout=resolved_socket_timeout,
-                    socket_connect_timeout=resolved_socket_connect_timeout,
-                    protocol=resolved_protocol,
-                ),
-            )
-        return Redis.from_url(
+        return redis_from_url(
             url,
+            asynchronous=True,
             health_check_interval=(
                 health_check_interval
                 if health_check_interval is not None
@@ -315,18 +298,9 @@ def async_redis_from_settings(
     if settings.url:
         if is_cluster_url(settings.url):
             _raise_cluster_not_supported()
-        if is_sentinel_url(settings.url):
-            return cast(
-                Redis,
-                build_redis_client(
-                    parse_redis_url(settings.url),
-                    asynchronous=True,
-                    health_check_interval=settings.health_check_interval,
-                    **options,
-                ),
-            )
-        return Redis.from_url(
+        return redis_from_url(
             settings.url,
+            asynchronous=True,
             health_check_interval=settings.health_check_interval,
             **options,
         )
