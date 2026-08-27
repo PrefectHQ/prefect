@@ -102,6 +102,7 @@ class TestWriteEvents:
         dialect = postgresql.dialect()
 
         assert len(event_rows) == len(events)
+        assert event_statement.get_execution_options()["dml_strategy"] == "raw"
         assert len(resource_rows) == sum(
             len(event.involved_resources) for event in events
         )

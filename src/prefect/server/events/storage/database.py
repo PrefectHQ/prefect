@@ -260,9 +260,10 @@ async def _write_postgres_events(
         session: a Postgres events session
         events: the events to insert
     """
+    # Early SQLAlchemy 2.0 ORM bulk inserts reject conflict-skipped RETURNING rows.
     event_insert = (
         db.queries.insert(db.Event).on_conflict_do_nothing().returning(db.Event.id)
-    )
+    ).execution_options(dml_strategy="raw")
     resource_insert = db.queries.insert(db.EventResource)
 
     for batch in _in_safe_batches(events):
