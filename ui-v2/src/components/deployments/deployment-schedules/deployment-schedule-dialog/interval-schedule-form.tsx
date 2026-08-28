@@ -1,4 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { format, set } from "date-fns";
+import { fromZonedTime, toZonedTime } from "date-fns-tz";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -21,6 +23,7 @@ import {
 } from "@/components/ui/form";
 import { Icon } from "@/components/ui/icons";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
 	Popover,
 	PopoverContent,
@@ -83,11 +86,35 @@ const parseIntervalToTime = (
 	} as const;
 };
 
+const TIME_INPUT_FORMAT = "HH:mm";
+
+/** Applies the time of day from an `<input type="time">` value to a date */
+const setTimeOfDay = (date: Date, time: string): Date => {
+	const [hours, minutes] = time.split(":").map(Number);
+	if (Number.isNaN(hours) || Number.isNaN(minutes)) {
+		return date;
+	}
+
+	return set(date, { hours, minutes, seconds: 0, milliseconds: 0 });
+};
+
+/** Applies the day of a calendar selection while keeping the current time of day */
+const setDayOfMonth = (date: Date, day: Date): Date =>
+	set(day, {
+		hours: date.getHours(),
+		minutes: date.getMinutes(),
+		seconds: date.getSeconds(),
+		milliseconds: date.getMilliseconds(),
+	});
+
 const formSchema = z.object({
 	active: z.boolean(),
 	schedule: z.object({
 		/** Coerce to solve common issue of transforming a string number to a number type */
-		interval_value: z.number().or(z.string()).pipe(z.coerce.number()),
+		interval_value: z
+			.number()
+			.or(z.string())
+			.pipe(z.coerce.number<string | number>()),
 		interval_time: z.enum(["seconds", "minutes", "hours", "days"]),
 		anchor_date: z.date(),
 		timezone: z.string().default("UTC"),
@@ -100,7 +127,7 @@ const DEFAULT_VALUES: FormSchema = {
 	schedule: {
 		interval_value: 60,
 		interval_time: "minutes",
-		anchor_date: new Date(),
+		anchor_date: toZonedTime(new Date(), "UTC"),
 		timezone: "UTC",
 	},
 };
@@ -135,13 +162,17 @@ export const IntervalScheduleForm = ({
 			if ("interval" in schedule) {
 				const { interval, anchor_date, timezone } = schedule;
 				const { interval_value, interval_time } = parseIntervalToTime(interval);
+				const scheduleTimezone = timezone ?? "UTC";
 				form.reset({
 					active,
 					schedule: {
 						interval_value,
 						interval_time,
-						anchor_date: anchor_date ? new Date(anchor_date) : new Date(),
-						timezone: timezone ?? "UTC",
+						anchor_date: toZonedTime(
+							anchor_date ? new Date(anchor_date) : new Date(),
+							scheduleTimezone,
+						),
+						timezone: scheduleTimezone,
 					},
 				});
 			}
@@ -151,6 +182,12 @@ export const IntervalScheduleForm = ({
 	}, [form, scheduleToEdit]);
 
 	const handleSave = (values: FormSchema) => {
+		/** The anchor date holds the wall clock time of the selected timezone */
+		const anchorDate = fromZonedTime(
+			values.schedule.anchor_date,
+			values.schedule.timezone,
+		).toISOString();
+
 		const onSettled = () => {
 			form.reset(DEFAULT_VALUES);
 			onSubmit();
@@ -166,7 +203,7 @@ export const IntervalScheduleForm = ({
 						interval:
 							values.schedule.interval_value *
 							INTERVAL_SECONDS[values.schedule.interval_time],
-						anchor_date: values.schedule.anchor_date.toISOString(),
+						anchor_date: anchorDate,
 						timezone: values.schedule.timezone,
 					},
 				},
@@ -192,7 +229,7 @@ export const IntervalScheduleForm = ({
 						interval:
 							values.schedule.interval_value *
 							INTERVAL_SECONDS[values.schedule.interval_time],
-						anchor_date: values.schedule.anchor_date.toISOString(),
+						anchor_date: anchorDate,
 						timezone: values.schedule.timezone,
 					},
 				},
@@ -316,8 +353,26 @@ export const IntervalScheduleForm = ({
 										<Calendar
 											mode="single"
 											selected={field.value}
-											onSelect={field.onChange}
+											onSelect={(day) => {
+												if (day) {
+													field.onChange(setDayOfMonth(field.value, day));
+												}
+											}}
 										/>
+										<div className="flex flex-col gap-2 border-t p-3">
+											<Label htmlFor="anchor-time">Time</Label>
+											<Input
+												id="anchor-time"
+												type="time"
+												step={60}
+												value={format(field.value, TIME_INPUT_FORMAT)}
+												onChange={(e) =>
+													field.onChange(
+														setTimeOfDay(field.value, e.target.value),
+													)
+												}
+											/>
+										</div>
 									</PopoverContent>
 								</Popover>
 								<FormMessage />

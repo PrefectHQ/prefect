@@ -193,6 +193,20 @@ class TestGitRepository:
                 branch="main",
             )
 
+    @pytest.mark.parametrize(
+        "branch",
+        [
+            "--upload-pack=touch /tmp/pwned",
+            "-u touch /tmp/pwned",
+        ],
+    )
+    def test_init_rejects_option_like_branch(self, branch: str):
+        with pytest.raises(ValueError, match="Branch names cannot start with '-'"):
+            GitRepository(
+                url="https://github.com/org/repo.git",
+                branch=branch,
+            )
+
     def test_init_with_username_no_token(self):
         with pytest.raises(
             ValueError,

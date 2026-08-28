@@ -1,12 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import humanizeDuration from "humanize-duration";
 import { buildGetTaskRunResultQuery } from "@/api/artifacts";
 import type { TaskRun } from "@/api/task-runs";
 import { Icon } from "@/components/ui/icons";
 import { LazyMarkdown } from "@/components/ui/lazy-markdown";
 import { TagBadge } from "@/components/ui/tag-badge";
 import { formatDate } from "@/utils/date";
+import { secondsToApproximateString } from "@/utils/seconds";
 
 function formatTaskDate(dateString: string | null | undefined): string {
 	if (!dateString) return "None";
@@ -15,10 +15,7 @@ function formatTaskDate(dateString: string | null | undefined): string {
 
 function formatTaskDuration(seconds: number | null | undefined): string {
 	if (seconds === null || seconds === undefined) return "None";
-	return humanizeDuration(seconds * 1000, {
-		maxDecimalPoints: 2,
-		units: ["s"],
-	});
+	return secondsToApproximateString(seconds);
 }
 
 export type TaskRunDetailsProps = {

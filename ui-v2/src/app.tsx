@@ -1,4 +1,4 @@
-import { QueryClientProvider } from "@tanstack/react-query";
+import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { RouterProvider } from "@tanstack/react-router";
 import { AnalyticsProvider } from "@/analytics/analytics-provider";
@@ -7,17 +7,34 @@ import { queryClient, router } from "./router";
 
 const showDevtools = import.meta.env.VITE_DISABLE_DEVTOOLS !== "true";
 
-function InnerApp() {
+function InnerApp({
+	appRouter,
+	appQueryClient,
+}: {
+	appRouter: typeof router;
+	appQueryClient: QueryClient;
+}) {
 	const auth = useAuth();
-	return <RouterProvider router={router} context={{ queryClient, auth }} />;
+	return (
+		<RouterProvider
+			router={appRouter}
+			context={{ queryClient: appQueryClient, auth }}
+		/>
+	);
 }
 
-export const App = () => {
+export const App = ({
+	appRouter = router,
+	appQueryClient = queryClient,
+}: {
+	appRouter?: typeof router;
+	appQueryClient?: QueryClient;
+}) => {
 	return (
-		<QueryClientProvider client={queryClient}>
+		<QueryClientProvider client={appQueryClient}>
 			<AnalyticsProvider>
 				<AuthProvider>
-					<InnerApp />
+					<InnerApp appRouter={appRouter} appQueryClient={appQueryClient} />
 				</AuthProvider>
 			</AnalyticsProvider>
 			{showDevtools && <ReactQueryDevtools />}

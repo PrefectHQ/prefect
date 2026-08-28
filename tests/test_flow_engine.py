@@ -4,6 +4,7 @@ import signal
 import threading
 import time
 import uuid
+from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
 from contextlib import asynccontextmanager, contextmanager, nullcontext
 from textwrap import dedent
 from types import SimpleNamespace
@@ -23,6 +24,7 @@ from prefect._flow_run_suspension import (
     FlowRunSuspensionRequest,
     mark_flow_run_suspension_requested,
 )
+from prefect._internal.attempt_control import EngineOutcomeReceipt
 from prefect.cache_policies import INPUTS
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas.filters import FlowFilter, FlowFilterName, FlowRunFilter
@@ -363,7 +365,7 @@ class TestAsyncFlowRunEngine:
 
 
 class TestCancellationAndCrashedHookGating:
-    def test_runner_managed_subflows_respect_env_suppression(
+    def test_runner_managed_subflows_suppress_only_cancellation_hooks(
         self, monkeypatch: pytest.MonkeyPatch
     ):
         hook_calls: list[str] = []
@@ -389,7 +391,35 @@ class TestCancellationAndCrashedHookGating:
         engine.call_hooks(states.Cancelling())
         engine.call_hooks(states.Crashed(message="boom"))
 
-        assert hook_calls == []
+        assert hook_calls == ["crash"]
+
+    async def test_async_runner_managed_subflows_suppress_only_cancellation_hooks(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        hook_calls: list[str] = []
+        monkeypatch.setenv("PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "false")
+
+        async def on_cancellation(flow, flow_run, state):
+            hook_calls.append("cancel")
+
+        async def on_crashed(flow, flow_run, state):
+            hook_calls.append("crash")
+
+        @flow(on_cancellation=[on_cancellation], on_crashed=[on_crashed])
+        async def child_flow():
+            return None
+
+        flow_run = MagicMock()
+        flow_run.parent_task_run_id = uuid.uuid4()
+        flow_run.deployment_id = uuid.uuid4()
+
+        engine = AsyncFlowRunEngine(flow=child_flow, flow_run=flow_run)
+        engine._started_with_in_process_parent_flow_run_context = False
+
+        await engine.call_hooks(states.Cancelling())
+        await engine.call_hooks(states.Crashed(message="boom"))
+
+        assert hook_calls == ["crash"]
 
     def test_same_process_subflows_ignore_env_suppression(
         self, monkeypatch: pytest.MonkeyPatch
@@ -559,6 +589,393 @@ class TestStartAsyncFlowRunEngine:
 
             # avoid error on teardown
             await engine.begin_run()
+
+
+FlowExecutionShape = Literal["sync", "async", "generator", "async-generator"]
+
+
+def _reject_terminal_transition(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    async_engine: bool,
+    exception: BaseException,
+) -> None:
+    if not async_engine:
+        original_propose_state = flow_engine_module.propose_state_sync
+
+        def reject_terminal_state(
+            client: Any, state: states.State[Any], **kwargs: Any
+        ) -> Any:
+            if state.is_final():
+                raise exception
+            return original_propose_state(client, state, **kwargs)
+
+        monkeypatch.setattr(
+            flow_engine_module,
+            "propose_state_sync",
+            reject_terminal_state,
+        )
+        return
+
+    original_propose_state = flow_engine_module.propose_state
+
+    async def reject_terminal_state_async(
+        client: Any, state: states.State[Any], **kwargs: Any
+    ) -> Any:
+        if state.is_final():
+            raise exception
+        return await original_propose_state(client, state, **kwargs)
+
+    monkeypatch.setattr(
+        flow_engine_module,
+        "propose_state",
+        reject_terminal_state_async,
+    )
+
+
+@pytest.mark.parametrize(
+    "execution_shape", ["sync", "async", "generator", "async-generator"]
+)
+class TestEngineOutcomeReceiptExecutionShapes:
+    @pytest.fixture
+    def build_flow_shape(
+        self,
+        execution_shape: FlowExecutionShape,
+    ) -> Callable[[Callable[[], str], int], Flow[Any, Any]]:
+        def build(flow_body: Callable[[], str], retries: int = 0) -> Flow[Any, Any]:
+            if execution_shape == "sync":
+
+                @flow(retries=retries)
+                def test_flow() -> str:
+                    return flow_body()
+
+            elif execution_shape == "async":
+
+                @flow(retries=retries)
+                async def test_flow() -> str:
+                    return flow_body()
+
+            elif execution_shape == "generator":
+
+                @flow(retries=retries)
+                def test_flow() -> Generator[str, None, str]:
+                    yield "yielded"
+                    return flow_body()
+
+            else:
+
+                @flow(retries=retries)
+                async def test_flow() -> AsyncGenerator[str, None]:
+                    yield "yielded"
+                    flow_body()
+
+            return test_flow
+
+        return build
+
+    @pytest.fixture
+    def run_flow_shape(
+        self,
+        execution_shape: FlowExecutionShape,
+    ) -> Callable[[Flow[Any, Any], list[Any]], Awaitable[Any]]:
+        async def run(test_flow: Flow[Any, Any], yielded: list[Any]) -> Any:
+            flow_result: Any = test_flow()
+            if execution_shape == "sync":
+                return flow_result
+            if execution_shape == "async":
+                return await flow_result
+            if execution_shape == "generator":
+                yielded.extend(flow_result)
+                return yielded
+            async for value in flow_result:
+                yielded.append(value)
+            return yielded
+
+        return run
+
+    @pytest.mark.parametrize(
+        ("eventual_state_type", "retries"),
+        [
+            (StateType.COMPLETED, 0),
+            (StateType.FAILED, 0),
+            (StateType.COMPLETED, 1),
+            (StateType.FAILED, 1),
+        ],
+    )
+    async def test_reports_one_authoritative_conclusion(
+        self,
+        execution_shape: FlowExecutionShape,
+        eventual_state_type: StateType,
+        retries: int,
+        build_flow_shape: Callable[[Callable[[], str], int], Flow[Any, Any]],
+        run_flow_shape: Callable[[Flow[Any, Any], list[Any]], Awaitable[Any]],
+        sync_prefect_client: SyncPrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        attempts = 0
+        flow_run_id: UUID | None = None
+        observed_events: list[str] = []
+
+        def record_receipt(_receipt: EngineOutcomeReceipt) -> bool:
+            observed_events.append("receipt")
+            return True
+
+        report_engine_outcome = MagicMock(side_effect=record_receipt)
+        monkeypatch.setattr(
+            flow_engine_module,
+            "report_engine_outcome",
+            report_engine_outcome,
+        )
+
+        def begin_attempt() -> None:
+            nonlocal attempts, flow_run_id
+            attempts += 1
+            flow_run_id = FlowRunContext.get().flow_run.id
+            if attempts > 1:
+                report_engine_outcome.assert_not_called()
+
+        def finish_attempt() -> str:
+            if attempts <= retries or eventual_state_type == StateType.FAILED:
+                raise ValueError(f"attempt {attempts} failed")
+            return "completed"
+
+        def flow_body() -> str:
+            begin_attempt()
+            return finish_attempt()
+
+        yielded: list[Any] = []
+        test_flow = build_flow_shape(flow_body, retries)
+        if eventual_state_type == StateType.FAILED:
+            with pytest.raises(ValueError, match=f"attempt {retries + 1} failed"):
+                await run_flow_shape(test_flow, yielded)
+            observed_events.append("exception")
+            assert observed_events == ["receipt", "exception"]
+        else:
+            result = await run_flow_shape(test_flow, yielded)
+            if execution_shape in ("generator", "async-generator"):
+                assert result == ["yielded"] * (retries + 1)
+            else:
+                assert result == "completed"
+            assert observed_events == ["receipt"]
+
+        assert attempts == retries + 1
+        assert flow_run_id is not None
+        flow_run = sync_prefect_client.read_flow_run(flow_run_id)
+        assert flow_run.state is not None
+        assert flow_run.state.type == eventual_state_type
+        report_engine_outcome.assert_called_once_with(
+            EngineOutcomeReceipt.state_reported(
+                state_id=flow_run.state.id,
+                state_type=flow_run.state.type.value,
+                state_name=flow_run.state.name,
+            )
+        )
+
+    async def test_reports_rejected_paused_transition(
+        self,
+        execution_shape: FlowExecutionShape,
+        build_flow_shape: Callable[[Callable[[], str], int], Flow[Any, Any]],
+        run_flow_shape: Callable[[Flow[Any, Any], list[Any]], Awaitable[Any]],
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        paused_state = states.Paused(
+            id=uuid.uuid4(),
+            name="PausedByOrchestration",
+            message="private message",
+            data="private result",
+        )
+        report_engine_outcome = MagicMock(return_value=True)
+        monkeypatch.setattr(
+            flow_engine_module,
+            "report_engine_outcome",
+            report_engine_outcome,
+        )
+
+        _reject_terminal_transition(
+            monkeypatch,
+            async_engine=execution_shape in ("async", "async-generator"),
+            exception=Pause("paused by orchestration", state=paused_state),
+        )
+
+        yielded: list[Any] = []
+        test_flow = build_flow_shape(lambda: "completed", 0)
+        with pytest.raises(Pause, match="paused by orchestration"):
+            await run_flow_shape(test_flow, yielded)
+
+        if execution_shape in ("generator", "async-generator"):
+            assert yielded == ["yielded"]
+        report_engine_outcome.assert_called_once_with(
+            EngineOutcomeReceipt.state_reported(
+                state_id=paused_state.id,
+                state_type=paused_state.type.value,
+                state_name=paused_state.name,
+            )
+        )
+
+
+@pytest.mark.parametrize("engine_type", ["sync", "async"])
+class TestEngineOutcomeReceipts:
+    @pytest.fixture
+    def run_rejected_terminal_transition(
+        self,
+        engine_type: Literal["sync", "async"],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> Callable[[BaseException], Awaitable[None]]:
+        if engine_type == "sync":
+
+            async def run_sync_engine(exception: BaseException) -> None:
+                _reject_terminal_transition(
+                    monkeypatch, async_engine=False, exception=exception
+                )
+
+                @flow
+                def test_flow() -> str:
+                    return "done"
+
+                run_flow_sync(test_flow)
+
+            return run_sync_engine
+
+        async def run_async_engine(exception: BaseException) -> None:
+            _reject_terminal_transition(
+                monkeypatch, async_engine=True, exception=exception
+            )
+
+            @flow
+            async def test_flow() -> str:
+                return "done"
+
+            await run_flow_async(test_flow)
+
+        return run_async_engine
+
+    @pytest.mark.parametrize(
+        ("state_type", "raised_exception"),
+        [
+            (StateType.CANCELLED, None),
+            (StateType.CRASHED, KeyboardInterrupt),
+        ],
+    )
+    async def test_reports_nonstandard_authoritative_terminal_state(
+        self,
+        engine_type: Literal["sync", "async"],
+        state_type: StateType,
+        raised_exception: type[BaseException] | None,
+        sync_prefect_client: SyncPrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        flow_run_id: UUID | None = None
+        report_engine_outcome = MagicMock(return_value=False)
+        monkeypatch.setattr(
+            flow_engine_module,
+            "report_engine_outcome",
+            report_engine_outcome,
+        )
+
+        def sync_flow_body() -> Any:
+            nonlocal flow_run_id
+            flow_run_id = FlowRunContext.get().flow_run.id
+            if raised_exception is ValueError:
+                raise ValueError("application failure")
+            if raised_exception is KeyboardInterrupt:
+                raise KeyboardInterrupt()
+            if state_type == StateType.CANCELLED:
+                return states.Cancelled(data="private result")
+            return "completed"
+
+        if engine_type == "sync":
+            test_flow = flow(sync_flow_body)
+        else:
+
+            @flow
+            async def test_flow() -> str:
+                return sync_flow_body()
+
+        if state_type == StateType.CANCELLED:
+            if engine_type == "sync":
+                run_flow_sync(test_flow, return_type="state")
+            else:
+                await run_flow_async(test_flow, return_type="state")
+        elif raised_exception is None:
+            if engine_type == "sync":
+                assert run_flow_sync(test_flow) == "completed"
+            else:
+                assert await run_flow_async(test_flow) == "completed"
+        else:
+            with pytest.raises(raised_exception):
+                if engine_type == "sync":
+                    run_flow_sync(test_flow)
+                else:
+                    await run_flow_async(test_flow)
+
+        assert flow_run_id is not None
+        flow_run = sync_prefect_client.read_flow_run(flow_run_id)
+        assert flow_run.state is not None
+        assert flow_run.state.type == state_type
+        report_engine_outcome.assert_called_once_with(
+            EngineOutcomeReceipt.state_reported(
+                state_id=flow_run.state.id,
+                state_type=flow_run.state.type.value,
+                state_name=flow_run.state.name,
+            )
+        )
+
+    @pytest.mark.parametrize("state_name", ["", "x" * 257])
+    async def test_reports_authoritative_state_name_without_altering_it(
+        self,
+        engine_type: Literal["sync", "async"],
+        state_name: str,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        report_engine_outcome = MagicMock(return_value=True)
+        monkeypatch.setattr(
+            flow_engine_module,
+            "report_engine_outcome",
+            report_engine_outcome,
+        )
+
+        if engine_type == "sync":
+
+            @flow
+            def test_flow() -> states.State[str]:
+                return states.Completed(name=state_name, data="private result")
+
+            state = run_flow_sync(test_flow, return_type="state")
+        else:
+
+            @flow
+            async def test_flow() -> states.State[str]:
+                return states.Completed(name=state_name, data="private result")
+
+            state = await run_flow_async(test_flow, return_type="state")
+
+        assert isinstance(state, states.State)
+        report_engine_outcome.assert_called_once_with(
+            EngineOutcomeReceipt.state_reported(
+                state_id=state.id,
+                state_type=state.type.value,
+                state_name=state_name,
+            )
+        )
+
+    async def test_reports_orchestration_abort_without_state(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        run_rejected_terminal_transition: Callable[[BaseException], Awaitable[None]],
+    ):
+        report_engine_outcome = MagicMock(return_value=True)
+        monkeypatch.setattr(
+            flow_engine_module,
+            "report_engine_outcome",
+            report_engine_outcome,
+        )
+
+        with pytest.raises(Abort, match="aborted by orchestration"):
+            await run_rejected_terminal_transition(Abort("aborted by orchestration"))
+
+        report_engine_outcome.assert_called_once_with(
+            EngineOutcomeReceipt.orchestration_aborted()
+        )
 
 
 class TestFlowRunsAsync:
@@ -918,6 +1335,51 @@ class TestFlowRunsSync:
         run = sync_prefect_client.read_flow_run(ID)
 
         assert run.state_type == StateType.FAILED
+
+    async def test_failed_subflow_does_not_report_child_attempt_outcome(
+        self,
+        sync_prefect_client: SyncPrefectClient,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        child_flow_run_id: UUID | None = None
+        parent_flow_run_id: UUID | None = None
+        report_engine_outcome = MagicMock(return_value=True)
+        monkeypatch.setattr(
+            flow_engine_module,
+            "report_engine_outcome",
+            report_engine_outcome,
+        )
+
+        @flow
+        def child():
+            nonlocal child_flow_run_id
+            child_flow_run_id = FlowRunContext.get().flow_run.id
+            raise ValueError("child failure")
+
+        @flow
+        def parent():
+            nonlocal parent_flow_run_id
+            parent_flow_run_id = FlowRunContext.get().flow_run.id
+            with pytest.raises(ValueError, match="child failure"):
+                child()
+
+        run_flow_sync(parent)
+
+        assert child_flow_run_id is not None
+        assert parent_flow_run_id is not None
+        child_flow_run = sync_prefect_client.read_flow_run(child_flow_run_id)
+        parent_flow_run = sync_prefect_client.read_flow_run(parent_flow_run_id)
+        assert child_flow_run.state is not None
+        assert child_flow_run.state.is_failed()
+        assert parent_flow_run.state is not None
+        assert parent_flow_run.state.is_completed()
+        report_engine_outcome.assert_called_once_with(
+            EngineOutcomeReceipt.state_reported(
+                state_id=parent_flow_run.state.id,
+                state_type=parent_flow_run.state.type.value,
+                state_name=parent_flow_run.state.name,
+            )
+        )
 
     async def test_with_provided_context(self, prefect_client: PrefectClient):
         tags_context = TagsContext(current_tags={"foo", "bar"})
@@ -2037,7 +2499,10 @@ class TestFlowCrashDetection:
         engine.handle_cancellation = AsyncMock()
         engine.handle_crash = AsyncMock()
 
-        monkeypatch.setattr("prefect.flow_engine._termination_intent", lambda: "cancel")
+        monkeypatch.setattr(
+            "prefect._internal.control_listener.get_intent", lambda: "cancel"
+        )
+        monkeypatch.setattr("prefect.flow_engine.get_intent", lambda: "cancel")
 
         with pytest.raises(TerminationSignal) as exc_info:
             async with engine.initialize_run():
@@ -2100,7 +2565,10 @@ class TestRunFlowBaseExceptionErrorLogger:
 
         error_logger = MagicMock()
 
-        monkeypatch.setattr("prefect.flow_engine._termination_intent", lambda: "cancel")
+        monkeypatch.setattr(
+            "prefect._internal.control_listener.get_intent", lambda: "cancel"
+        )
+        monkeypatch.setattr("prefect.flow_engine.get_intent", lambda: "cancel")
 
         with mock.patch.object(
             FlowRunEngine,
@@ -2135,10 +2603,22 @@ class TestHandleEngineSignals:
         self, monkeypatch: pytest.MonkeyPatch
     ):
         monkeypatch.setattr("prefect.engine.get_intent", lambda: None)
+        monkeypatch.setattr("prefect.engine.engine_outcome_is_handled", lambda: False)
 
         with pytest.raises(TerminationSignal):
             with handle_engine_signals(uuid.uuid4()):
                 raise TerminationSignal(signal=signal.SIGTERM)
+
+    def test_handled_engine_outcome_exits_zero_on_exception(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setattr("prefect.engine.engine_outcome_is_handled", lambda: True)
+
+        with pytest.raises(SystemExit) as exc:
+            with handle_engine_signals(uuid.uuid4()):
+                raise ValueError("application failure")
+
+        assert exc.value.code == 0
 
 
 class TestDriveRunFlowResult:
@@ -2229,7 +2709,10 @@ class TestCaptureSigterm:
         engine = FlowRunEngine(flow=foo, flow_run=MagicMock(state=states.Pending()))
         engine.cancel_all_tasks = MagicMock()
         engine.handle_crash = MagicMock()
-        monkeypatch.setattr("prefect.flow_engine._termination_intent", lambda: intent)
+        monkeypatch.setattr(
+            "prefect._internal.control_listener.get_intent", lambda: intent
+        )
+        monkeypatch.setattr("prefect.flow_engine.get_intent", lambda: intent)
         monkeypatch.setattr(
             "prefect.flow_engine.SyncClientContext.get_or_create",
             _fake_sync_client_context,
@@ -2267,8 +2750,9 @@ class TestCaptureSigterm:
         engine.cancel_all_tasks = MagicMock()
         engine.handle_crash = AsyncMock()
         monkeypatch.setattr(
-            "prefect.flow_engine._termination_intent", lambda: "relinquish"
+            "prefect._internal.control_listener.get_intent", lambda: "relinquish"
         )
+        monkeypatch.setattr("prefect.flow_engine.get_intent", lambda: "relinquish")
         monkeypatch.setattr(
             "prefect.flow_engine.AsyncClientContext.get_or_create",
             _fake_async_client_context,
@@ -2328,8 +2812,9 @@ class TestCaptureSigterm:
         TerminationSignal; it must bubble rather than crash the run."""
         engine = async_cancellation_engine
         monkeypatch.setattr(
-            "prefect.flow_engine._termination_intent", lambda: "relinquish"
+            "prefect._internal.control_listener.get_intent", lambda: "relinquish"
         )
+        monkeypatch.setattr("prefect.flow_engine.get_intent", lambda: "relinquish")
 
         with pytest.raises(TerminationSignal):
             async with engine.initialize_run():
@@ -2345,7 +2830,10 @@ class TestCaptureSigterm:
         """An ordinary cancellation (e.g. a flow timeout) carries no intent, so it
         must still crash rather than be mistaken for a supervisor termination."""
         engine = async_cancellation_engine
-        monkeypatch.setattr("prefect.flow_engine._termination_intent", lambda: None)
+        monkeypatch.setattr(
+            "prefect._internal.control_listener.get_intent", lambda: None
+        )
+        monkeypatch.setattr("prefect.flow_engine.get_intent", lambda: None)
 
         with pytest.raises(anyio.get_cancelled_exc_class()):
             async with engine.initialize_run():
@@ -4702,7 +5190,7 @@ class TestRunFlowInSubprocess:
         process = run_flow_in_subprocess(foo)
 
         process.join()
-        assert process.exitcode == 1
+        assert process.exitcode == 0
 
         flow_run = await self.get_flow_run_for_flow(foo.name)
 
@@ -4928,7 +5416,7 @@ class TestRunFlowInSubprocess:
 
         process = run_flow_in_subprocess(foo)
         process.join()
-        assert process.exitcode == 1
+        assert process.exitcode == 0
 
         flow_run = await self.get_flow_run_for_flow(foo.name)
         assert flow_run.state.is_crashed()

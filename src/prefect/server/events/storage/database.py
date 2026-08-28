@@ -20,7 +20,7 @@ from prefect.server.events.storage import (
     process_time_based_counts,
     to_page_token,
 )
-from prefect.server.utilities.database import get_dialect
+from prefect.server.utilities.database import get_dialect, get_max_query_parameters
 from prefect.settings import PREFECT_API_DATABASE_CONNECTION_URL
 
 if TYPE_CHECKING:
@@ -139,7 +139,7 @@ async def read_events(
 
     Args:
         session: a Postgres events session.
-        filter: filter criteria for events.
+        events_filter: filter criteria for events.
         limit: limit for the query.
         offset: offset for the query.
 
@@ -260,14 +260,15 @@ async def _write_postgres_events(
         session: a Postgres events session
         events: the events to insert
     """
+    # Use Core DML so ON CONFLICT may return fewer rows than were submitted.
+    event_insert = (
+        db.queries.insert(db.Event).on_conflict_do_nothing().returning(db.Event.id)
+    ).execution_options(dml_strategy="raw")
+    resource_insert = db.queries.insert(db.EventResource)
+
     for batch in _in_safe_batches(events):
         event_rows = [event.as_database_row() for event in batch]
-        result = await session.scalars(
-            db.queries.insert(db.Event)
-            .on_conflict_do_nothing()
-            .returning(db.Event.id)
-            .values(event_rows)
-        )
+        result = await session.scalars(event_insert, event_rows)
         inserted_event_ids = set(result.all())
 
         resource_rows: list[dict[str, Any]] = []
@@ -282,15 +283,7 @@ async def _write_postgres_events(
         if not resource_rows:
             continue
 
-        await session.execute(db.queries.insert(db.EventResource).values(resource_rows))
-
-
-def get_max_query_parameters() -> int:
-    dialect = get_dialect(PREFECT_API_DATABASE_CONNECTION_URL.value())
-    if dialect.name == "postgresql":
-        return 32_767
-    else:
-        return 999
+        await session.execute(resource_insert, resource_rows)
 
 
 # Events require a fixed number of parameters per event,...

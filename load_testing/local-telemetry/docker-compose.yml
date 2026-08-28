@@ -1,12 +1,12 @@
 services:
   prometheus:
-    image: prom/prometheus:v2.48.0
+    image: prom/prometheus:v3.14.0
     ports:
       - 9090:9090
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
   jaeger:
-    image: jaegertracing/all-in-one:1.51.0
+    image: jaegertracing/all-in-one:1.76.0
     depends_on:
       - prometheus
     ports:
@@ -20,7 +20,7 @@ services:
       - 14269:14269 # jaeger's health check
       - 9411:9411 # zipkin (http)
   collector:
-    image: otel/opentelemetry-collector-contrib:0.113.0
+    image: otel/opentelemetry-collector-contrib:0.159.0
     depends_on:
       - jaeger
       - prometheus

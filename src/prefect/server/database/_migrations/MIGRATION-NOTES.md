@@ -8,6 +8,13 @@ Each time a database migration is written, an entry is included here with:
 
 This gives us a history of changes and will create merge conflicts if two migrations are made at once, flagging situations where a branch needs to be updated before merging.
 
+# Add `flow_run.deployment_id` index for deployment-filtered queries
+SQLite: `f416ea180ae1`
+Postgres: `9e9dadc36797`
+
+Postgres creates the index concurrently and rebuilds an invalid index left by an
+interrupted prior attempt. Downgrading removes the index.
+
 # Add `event_resources.event_id` index for retention vacuum
 SQLite: `14806cb26270`
 Postgres: `50737cdaee36`

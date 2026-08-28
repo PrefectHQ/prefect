@@ -1,6 +1,5 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { categorizeError } from "@/api/error-utils";
 import { buildListGlobalConcurrencyLimitsQuery } from "@/api/global-concurrency-limits";
@@ -22,7 +21,7 @@ const searchParams = z.object({
 export type TabOptions = z.infer<typeof searchParams>["tab"];
 
 export const Route = createFileRoute("/concurrency-limits/")({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	component: ConcurrencyLimitsPage,
 	wrapInSuspense: true,
 	pendingComponent: PrefectLoading,
