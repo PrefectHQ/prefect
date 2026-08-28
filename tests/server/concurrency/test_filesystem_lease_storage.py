@@ -1,3 +1,4 @@
+import asyncio
 import json
 import tempfile
 from datetime import datetime, timedelta, timezone
@@ -667,3 +668,80 @@ class TestFilesystemConcurrencyLeaseStorage:
         # Verify no temp files left behind
         temp_files = list(storage.storage_path.glob(".lease_*.tmp"))
         assert len(temp_files) == 0
+
+    async def test_concurrent_index_updates_do_not_lose_a_write(
+        self,
+        storage: ConcurrencyLeaseStorage,
+        sample_resource_ids: list[UUID],
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Two renewals whose index reads and writes interleave should both
+        end up recorded, not just whichever one saved last. The lock around
+        the read-modify-write cycle is what's supposed to guarantee that, so
+        this forces the interleaving instead of hoping the event loop
+        schedules things unluckily on its own.
+        """
+        ttl = timedelta(minutes=5)
+        lease_a = await storage.create_lease(sample_resource_ids, ttl)
+        lease_b = await storage.create_lease(sample_resource_ids, ttl)
+
+        original_load = storage._load_expiration_index
+        call_count = 0
+
+        async def load_with_a_delay_on_the_first_call():
+            nonlocal call_count
+            call_count += 1
+            result = await original_load()
+            if call_count == 1:
+                # Give the second update a chance to read, write, and finish
+                # before this one acts on what it already read.
+                await asyncio.sleep(0.05)
+            return result
+
+        monkeypatch.setattr(
+            storage, "_load_expiration_index", load_with_a_delay_on_the_first_call
+        )
+
+        new_expiration_a = datetime.now(timezone.utc) + timedelta(minutes=10)
+        new_expiration_b = datetime.now(timezone.utc) + timedelta(minutes=20)
+
+        await asyncio.gather(
+            storage._update_expiration_index(lease_a.id, new_expiration_a),
+            storage._update_expiration_index(lease_b.id, new_expiration_b),
+        )
+
+        monkeypatch.undo()
+        index = await storage._load_expiration_index()
+        assert index.get(str(lease_a.id)) == new_expiration_a.isoformat()
+        assert index.get(str(lease_b.id)) == new_expiration_b.isoformat()
+
+    async def test_read_expired_lease_ids_trusts_the_lease_file_over_a_stale_index(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        """If the index says a lease expired but the lease file (the thing
+        renew_lease actually stamped) says it's still good, the reaper
+        shouldn't kill it. A stale index entry, from a lost update or just an
+        old read, is meant to be harmless rather than fatal.
+        """
+        ttl = timedelta(minutes=30)
+        lease = await storage.create_lease(sample_resource_ids, ttl)
+
+        # Back the index entry up to look expired, without touching the
+        # lease file itself, exactly what a lost update would leave behind.
+        stale_expiration = datetime.now(timezone.utc) - timedelta(minutes=5)
+        index = await storage._load_expiration_index()
+        index[str(lease.id)] = stale_expiration.isoformat()
+        storage._save_expiration_index(index)
+
+        expired_ids = await storage.read_expired_lease_ids()
+        assert lease.id not in expired_ids
+
+        # An entry with no matching lease file at all is a genuine orphan,
+        # and should still come back as expired so it gets cleaned up.
+        orphan_id = uuid4()
+        index = await storage._load_expiration_index()
+        index[str(orphan_id)] = stale_expiration.isoformat()
+        storage._save_expiration_index(index)
+
+        expired_ids = await storage.read_expired_lease_ids()
+        assert orphan_id in expired_ids

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import tempfile
@@ -39,6 +40,11 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         self.storage_path: Path = Path(
             storage_path or prefect_home / "concurrency_leases"
         )
+        # Guards the index's read-modify-write cycle within this process.
+        # _atomic_write_json only keeps a single write from being torn; it
+        # does nothing to stop two renewals from reading the same snapshot
+        # and one clobbering the other's update on save.
+        self._index_lock = asyncio.Lock()
 
     def _ensure_storage_path(self) -> None:
         """Ensure the storage path exists, creating it if necessary."""
@@ -98,15 +104,17 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         self, lease_id: UUID, expiration: datetime
     ) -> None:
         """Update a single lease's expiration in the index."""
-        index = await self._load_expiration_index()
-        index[str(lease_id)] = expiration.isoformat()
-        self._save_expiration_index(index)
+        async with self._index_lock:
+            index = await self._load_expiration_index()
+            index[str(lease_id)] = expiration.isoformat()
+            self._save_expiration_index(index)
 
     async def _remove_from_expiration_index(self, lease_id: UUID) -> None:
         """Remove a lease from the expiration index."""
-        index = await self._load_expiration_index()
-        index.pop(str(lease_id), None)
-        self._save_expiration_index(index)
+        async with self._index_lock:
+            index = await self._load_expiration_index()
+            index.pop(str(lease_id), None)
+            self._save_expiration_index(index)
 
     def _serialize_lease(
         self, lease: ResourceLease[ConcurrencyLimitLeaseMetadata]
@@ -281,8 +289,22 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
                 lease_id = UUID(lease_id_str)
                 expiration = datetime.fromisoformat(expiration_str)
 
-                if expiration < now:
-                    expired_leases.append(lease_id)
+                if expiration >= now:
+                    continue
+
+                # The index can lag behind a renewal that landed on disk
+                # (a lost update from a concurrent write, or just an older
+                # snapshot read a moment ago). The lease file itself is
+                # what renew_lease actually stamped, so it's the one to
+                # trust before we tell the reaper to kill something that's
+                # still alive. A missing lease file means the index entry
+                # is genuinely orphaned, so we still report it expired -
+                # revoking it just removes the stale entry.
+                lease = await self.read_lease(lease_id)
+                if lease is not None and lease.expiration >= now:
+                    continue
+
+                expired_leases.append(lease_id)
             except (ValueError, TypeError):
                 continue
 
