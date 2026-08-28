@@ -1,5 +1,6 @@
 import copy
 import uuid
+from pathlib import Path
 from unittest.mock import MagicMock, call, patch
 
 import anyio.abc
@@ -19,10 +20,12 @@ from prefect_docker.worker import (
 from pydantic import TypeAdapter, ValidationError
 
 import prefect.main  # noqa
-from prefect import get_client
+from prefect import flow, get_client
 from prefect.client.schemas import FlowRun
 from prefect.client.schemas.actions import WorkPoolCreate
+from prefect.client.schemas.objects import WorkPool
 from prefect.events import RelatedResource
+from prefect.flows import bind_flow_to_infrastructure
 from prefect.settings import (
     PREFECT_API_URL,
     PREFECT_SERVER_ALLOW_EPHEMERAL_MODE,
@@ -1635,6 +1638,35 @@ class TestSubmitAdhocRunWithFlowRunParameter:
             # Verify a new flow run was created
             final_flow_runs = await client.read_flow_runs()
             assert len(final_flow_runs) > initial_count
+
+    async def test_submit_adhoc_run_crashes_when_bundle_creation_fails(
+        self,
+        mock_docker_client: MagicMock,
+        work_pool: WorkPool,
+        tmp_path: Path,
+    ):
+        @flow
+        def test_flow() -> None:
+            pass
+
+        bound_flow = bind_flow_to_infrastructure(
+            flow=test_flow,
+            work_pool=work_pool.name,
+            worker_cls=DockerWorker,
+            include_files=["config.yaml"],
+            include_files_base_dir=tmp_path / "missing",
+        )
+
+        async with get_client() as client:
+            async with DockerWorker(work_pool_name=work_pool.name) as worker:
+                with pytest.warns(FutureWarning):
+                    future = await worker.submit(bound_flow)
+
+            flow_run = await client.read_flow_run(future.flow_run_id)
+            assert flow_run.state is not None
+            assert flow_run.state.is_crashed()
+            assert flow_run.state.message is not None
+            assert "include_files_base_dir" in flow_run.state.message
 
     async def test_submit_adhoc_run_passes_worker_id_for_attribution(
         self, mock_docker_client, work_pool, test_flow

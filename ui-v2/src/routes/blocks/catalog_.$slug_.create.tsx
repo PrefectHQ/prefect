@@ -1,7 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { buildListFilterBlockSchemasQuery } from "@/api/block-schemas";
 import { buildGetBlockTypeQuery } from "@/api/block-types";
@@ -15,7 +14,7 @@ const blockCreateSearchSchema = z.object({
 });
 
 export const Route = createFileRoute("/blocks/catalog_/$slug_/create")({
-	validateSearch: zodValidator(blockCreateSearchSchema),
+	validateSearch: blockCreateSearchSchema,
 	component: function RouteComponent() {
 		const { slug } = Route.useParams();
 		const { redirect } = Route.useSearch();

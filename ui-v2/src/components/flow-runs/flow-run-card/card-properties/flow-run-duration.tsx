@@ -1,4 +1,3 @@
-import humanizeDuration from "humanize-duration";
 import type { FlowRunCardData } from "@/components/flow-runs/flow-run-card";
 import { Icon } from "@/components/ui/icons";
 import {
@@ -7,6 +6,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { secondsToApproximateString, secondsToString } from "@/utils/seconds";
 
 type FlowRunDurationProps = {
 	flowRun: FlowRunCardData;
@@ -14,15 +14,9 @@ type FlowRunDurationProps = {
 
 export const FlowRunDuration = ({ flowRun }: FlowRunDurationProps) => {
 	const { estimated_run_time, total_run_time } = flowRun;
-	const duration = (estimated_run_time || total_run_time) * 1000;
-	const durationLabel = humanizeDuration(duration, {
-		maxDecimalPoints: 2,
-		units: ["s"],
-	});
-	const durationTooltip = humanizeDuration(duration, {
-		maxDecimalPoints: 5,
-		units: ["s"],
-	});
+	const duration = estimated_run_time || total_run_time;
+	const durationLabel = secondsToApproximateString(duration);
+	const durationTooltip = secondsToString(duration);
 
 	return (
 		<TooltipProvider>

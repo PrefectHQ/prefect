@@ -312,7 +312,33 @@ def my_flow():
     print(config)
 ```
 
-The `include_files` parameter accepts a list of relative paths and glob patterns. Paths are resolved relative to the directory containing the flow file.
+The `include_files` parameter accepts a list of relative paths and glob patterns. By default, paths are resolved relative to the directory containing the flow file.
+
+### Choosing the base directory
+
+Set `include_files_base_dir` when the files are rooted somewhere other than the flow file's directory. This is useful when a flow is defined in an installed SDK while configuration or data files belong to the calling project.
+
+{/* pmd-metadata: notest */}
+```python
+from pathlib import Path
+
+from prefect import flow
+from prefect_kubernetes.decorators import kubernetes
+
+
+@kubernetes(
+    work_pool="my-kubernetes-pool",
+    include_files=["config.yaml", "data/"],
+    include_files_base_dir=Path("/srv/customer-project"),
+)
+@flow
+def process_customer_data():
+    ...
+```
+
+The base directory can be absolute or relative. Relative paths are resolved from the working directory when Prefect creates the bundle, and `~` expands to the current user's home directory. The directory must exist, be readable, and be a directory when the bundle is created.
+
+The base directory is the root for file collection, `.prefectignore` filtering, containment checks, and paths in the resulting archive. Included paths cannot escape it. Omitting `include_files_base_dir` preserves the flow-file-directory default.
 
 ### Supported patterns
 
@@ -345,7 +371,7 @@ This example includes all JSON files except those in the `fixtures/` directory.
 
 ### Filtering with `.prefectignore`
 
-If a `.prefectignore` file exists in the flow file's directory or at the project root (detected via `pyproject.toml`), its patterns are applied to filter out matching files. The `.prefectignore` file uses gitignore-style syntax:
+If a `.prefectignore` file exists in the include-files base directory or at its project root (detected via `pyproject.toml`), its patterns are applied to filter out matching files. When `include_files_base_dir` is omitted, the base directory is the flow file's directory. The `.prefectignore` file uses gitignore-style syntax:
 
 ```text
 # .prefectignore

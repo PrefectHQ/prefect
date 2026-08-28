@@ -35,7 +35,9 @@ test("TimezoneSelect can select a timezone late in the list", async () => {
 
 	await user.click(screen.getByLabelText(/select timezone/i));
 	await user.type(screen.getByPlaceholderText(/search/i), "Singapore");
-	await user.click(screen.getByRole("option", { name: /asia \/ singapore/i }));
+	await user.click(
+		await screen.findByRole("option", { name: /asia \/ singapore/i }),
+	);
 
 	expect(mockOnSelectFn).toBeCalledWith("Asia/Singapore");
 });

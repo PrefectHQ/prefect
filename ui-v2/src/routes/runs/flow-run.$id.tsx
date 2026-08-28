@@ -1,6 +1,5 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute, notFound, useNavigate } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { z } from "zod";
 import { buildListArtifactsQuery } from "@/api/artifacts";
 import { categorizeError } from "@/api/error-utils";
@@ -30,7 +29,7 @@ const searchParams = z.object({
 export type FlowRunDetailsTabOptions = z.infer<typeof searchParams>["tab"];
 
 export const Route = createFileRoute("/runs/flow-run/$id")({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	component: function RouteComponent() {
 		const { id } = Route.useParams();
 		const { tab } = Route.useSearch();

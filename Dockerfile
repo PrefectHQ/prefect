@@ -87,7 +87,7 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
     (echo "ERROR: git version must be >= 1:2.47.3" && exit 1)
 
 # Install UV from official image - pin to specific version for build caching
-COPY --from=ghcr.io/astral-sh/uv:0.11.21 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /bin/uv
 
 # Copy the repository in; requires full git history for versions to generate correctly
 COPY . ./
@@ -122,6 +122,7 @@ SHELL ["/bin/bash", "--login", "-c"]
 FROM ${BASE_IMAGE} AS final
 
 # Redeclare ARGs needed in this stage
+ARG BASE_IMAGE
 ARG PYTHON_VERSION
 ARG SQLITE_VERSION
 
@@ -179,19 +180,26 @@ COPY --from=sqlite-builder /usr/local/lib/pkgconfig/sqlite3.pc /usr/local/lib/pk
 RUN ldconfig
 
 # Install UV from official image - pin to specific version for build caching
-COPY --from=ghcr.io/astral-sh/uv:0.11.21 /uv /bin/uv
-
-# Install prefect from the sdist
-COPY --from=python-builder /opt/prefect/dist ./dist
+COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /bin/uv
 
 # Extras to include during installation
 ARG PREFECT_EXTRAS=[redis,client,otel]
-RUN --mount=type=cache,target=/root/.cache/uv \
-    UV_COMPILE_BYTECODE=1 uv pip install "./dist/prefect.tar.gz${PREFECT_EXTRAS:-""}" && \
-    rm -rf dist/
 
-# Remove setuptools
-RUN uv pip uninstall setuptools
+# Install prefect from the sdist.
+#
+# The sdist is bind-mounted rather than copied. A COPY commits the archive to its
+# own layer, and a `rm -rf` in a later RUN can only add a whiteout on top of that
+# layer -- it cannot remove it from the image, so the archive ships in everything
+# we push. A bind mount is never committed to a layer.
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,from=python-builder,source=/opt/prefect/dist,target=/dist \
+    UV_COMPILE_BYTECODE=1 uv pip install "/dist/prefect.tar.gz${PREFECT_EXTRAS:-""}"
+
+# Setuptools is required by pip in the conda environment. Remove it only from
+# base images where it is not managed as part of the environment.
+RUN if [ "${BASE_IMAGE}" != "prefect-conda" ]; then \
+        uv pip uninstall setuptools; \
+    fi
 
 # Install any extra packages
 ARG EXTRA_PIP_PACKAGES
