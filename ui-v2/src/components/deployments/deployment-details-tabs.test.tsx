@@ -6,7 +6,6 @@ import {
 	createRouter,
 	RouterProvider,
 } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { render, screen, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
@@ -76,7 +75,7 @@ const renderDeploymentDetailsTabs = ({
 	const deploymentRoute = createRoute({
 		path: "/deployments/deployment/$id",
 		getParentRoute: () => rootRoute,
-		validateSearch: zodValidator(searchParams),
+		validateSearch: searchParams,
 		component: () => (
 			<DeploymentDetailsTabs
 				deployment={deployment}

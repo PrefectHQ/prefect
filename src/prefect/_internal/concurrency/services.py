@@ -408,10 +408,21 @@ class FutureQueueService(
             # If the request to the increment endpoint fails in a non-standard
             # way, we need to set the future's result so it'll be re-raised in
             # the context of the caller.
-            future.set_exception(exc)
+            if future.set_running_or_notify_cancel():
+                future.set_exception(exc)
             raise exc
         else:
-            future.set_result(response)
+            # Transitioning the future to running before setting its result closes
+            # the window where the caller cancels it while `acquire` is in flight:
+            # after this point `cancel()` fails, and if the caller got there first
+            # the acquired resource is nobody's and must be discarded.
+            if future.set_running_or_notify_cancel():
+                future.set_result(response)
+            else:
+                await self._discard(response)
+
+    async def _discard(self, response: R) -> None:
+        """Dispose of a result whose caller is no longer waiting for it."""
 
     @abc.abstractmethod
     async def acquire(self, *args: Unpack[Ts]) -> R:

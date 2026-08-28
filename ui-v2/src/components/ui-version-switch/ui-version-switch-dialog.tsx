@@ -34,7 +34,7 @@ const formSchema = z.object({
 			...UiSwitchReason[],
 		],
 		{
-			required_error: "Select a reason before switching back.",
+			error: "Select a reason before switching back.",
 		},
 	),
 	notes: z.string().max(2000).default(""),

@@ -1,6 +1,5 @@
 import { cva } from "class-variance-authority";
 import { format, parseISO } from "date-fns";
-import humanizeDuration from "humanize-duration";
 import type { components } from "@/api/prefect";
 import {
 	Breadcrumb,
@@ -13,6 +12,7 @@ import { Card } from "@/components/ui/card";
 import { Icon } from "@/components/ui/icons";
 import { StateBadge } from "@/components/ui/state-badge";
 import { TagBadgeGroup } from "@/components/ui/tag-badge-group";
+import { secondsToApproximateString } from "@/utils/seconds";
 
 const getValues = ({
 	flowRun,
@@ -118,12 +118,7 @@ const TimeRan = ({ duration }: TimeRanProps) => {
 	return (
 		<div className="flex gap-1 items-center">
 			<Icon id="Clock" className="size-4" />
-			<p className="text-sm">
-				{humanizeDuration(duration * 1000, {
-					maxDecimalPoints: 3,
-					units: ["s"],
-				})}
-			</p>
+			<p className="text-sm">{secondsToApproximateString(duration)}</p>
 		</div>
 	);
 };

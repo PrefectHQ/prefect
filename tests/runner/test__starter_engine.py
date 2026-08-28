@@ -582,28 +582,40 @@ class TestEngineCommandStarter:
         mock_flow_run.id = uuid4()
         mock_process = MagicMock()
 
-        starter = EngineCommandStarter(tmp_dir=Path("/tmp/test"))
+        starter = EngineCommandStarter(
+            tmp_dir=Path("/tmp/test"),
+            isolate_process_group=True,
+        )
 
-        with patch(
-            "prefect.runner._starter_engine.run_process",
-            new_callable=AsyncMock,
-            return_value=mock_process,
-        ) as mock_run:
-            with patch(
+        termination_scope = MagicMock()
+        with (
+            patch(
+                "prefect.runner._starter_engine.run_process",
+                new_callable=AsyncMock,
+                return_value=mock_process,
+            ) as mock_run,
+            patch(
+                "prefect.runner._starter_engine.create_isolated_termination_scope",
+                return_value=termination_scope,
+            ) as create_scope,
+            patch(
                 "prefect.runner._starter_engine.get_sys_executable",
                 return_value="python",
-            ):
-                with patch(
-                    "prefect.runner._starter_engine.get_current_settings"
-                ) as mock_settings:
-                    mock_settings.return_value.to_environment_variables.return_value = {}
-                    await starter.start(mock_flow_run)
+            ),
+            patch(
+                "prefect.runner._starter_engine.get_current_settings"
+            ) as mock_settings,
+        ):
+            mock_settings.return_value.to_environment_variables.return_value = {}
+            await starter.start(mock_flow_run)
 
             handler = mock_run.call_args.kwargs["task_status_handler"]
             raw_process = MagicMock(pid=99, returncode=0)
             handle = handler(raw_process)
             assert isinstance(handle, ProcessHandle)
             assert handle.pid == 99
+            assert handle.termination_scope is termination_scope
+            create_scope.assert_called_once_with(99)
 
     async def test_start_uses_storage_destination_as_cwd(self):
         mock_flow_run = MagicMock()

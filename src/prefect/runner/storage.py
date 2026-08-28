@@ -217,6 +217,9 @@ class GitRepository:
                 "Cannot provide both a branch and a commit SHA. Please provide only one."
             )
 
+        if branch and branch.startswith("-"):
+            raise ValueError("Branch names cannot start with '-'.")
+
         if commit_sha and not re.match(r"^[0-9a-fA-F]{4,64}$", commit_sha):
             raise ValueError(
                 f"Invalid commit SHA: {commit_sha!r}."
