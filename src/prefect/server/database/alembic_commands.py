@@ -56,7 +56,7 @@ def alembic_upgrade(revision: str = "head", dry_run: bool = False) -> None:
     Run alembic upgrades on Prefect REST API database
 
     Args:
-        revision: The revision passed to `alembic downgrade`. Defaults to 'head', upgrading all revisions.
+        revision: The revision passed to `alembic upgrade`. Defaults to 'head', upgrading all revisions.
         dry_run: Show what migrations would be made without applying them. Will emit sql statements to stdout.
     """
     # lazy import for performance
@@ -78,7 +78,8 @@ def alembic_downgrade(revision: str = "-1", dry_run: bool = False) -> None:
     Run alembic downgrades on Prefect REST API database
 
     Args:
-        revision: The revision passed to `alembic downgrade`. Defaults to 'base', downgrading all revisions.
+        revision: The revision passed to `alembic downgrade`. Defaults to '-1', downgrading
+            one revision. Use 'base' to downgrade all revisions.
         dry_run: Show what migrations would be made without applying them. Will emit sql statements to stdout.
     """
     # lazy import for performance
