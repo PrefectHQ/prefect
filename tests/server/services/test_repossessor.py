@@ -344,3 +344,22 @@ class TestMonitorExpiredLeases:
             # Verify all tasks were scheduled
             snapshot = await docket.snapshot()
             assert snapshot.total_tasks == 3
+
+    async def test_monitor_does_not_enqueue_a_lease_twice(
+        self, lease_storage, concurrency_limit
+    ):
+        """A second pass before the first task runs must not enqueue a duplicate"""
+        await lease_storage.create_lease(
+            resource_ids=[concurrency_limit.id],
+            ttl=timedelta(seconds=-1),  # Already expired
+            metadata=ConcurrencyLimitLeaseMetadata(slots=2),
+        )
+
+        async with Docket(name=f"test-{uuid4()}", url="memory://") as docket:
+            docket.register(revoke_expired_lease)
+
+            await monitor_expired_leases(docket=docket, lease_storage=lease_storage)
+            await monitor_expired_leases(docket=docket, lease_storage=lease_storage)
+
+            snapshot = await docket.snapshot()
+            assert snapshot.total_tasks == 1

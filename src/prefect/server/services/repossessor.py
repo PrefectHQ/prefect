@@ -92,4 +92,6 @@ async def monitor_expired_leases(
         logger.info(f"Scheduling revocation of {len(expired_lease_ids)} expired leases")
 
     for lease_id in expired_lease_ids:
-        await docket.add(revoke_expired_lease)(lease_id)
+        await docket.add(revoke_expired_lease, key=f"revoke-expired-lease:{lease_id}")(
+            lease_id
+        )
