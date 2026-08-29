@@ -99,9 +99,16 @@ describe("Dashboard page", () => {
 
 			await renderDashboardPage();
 
+			// Wait until no more count requests arrive between two polls, so
+			// deferred requests are also asserted on.
+			let lastSeen = -1;
 			await waitFor(() => {
 				expect(countFilters.length).toBeGreaterThan(0);
+				const settled = countFilters.length === lastSeen;
+				lastSeen = countFilters.length;
+				expect(settled).toBe(true);
 			});
+
 			for (const filter of countFilters) {
 				expect(filter.flow_runs?.expected_start_time?.after_).toBeTruthy();
 				expect(filter.flow_runs?.expected_start_time?.before_).toBeTruthy();
