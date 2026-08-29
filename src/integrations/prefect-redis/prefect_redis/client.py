@@ -231,6 +231,11 @@ def get_async_redis_client(
         else socket_connect_timeout
     )
     resolved_protocol = protocol if protocol is not None else settings.protocol
+    resolved_health_check_interval = (
+        health_check_interval
+        if health_check_interval is not None
+        else settings.health_check_interval
+    )
 
     url = url or settings.url
     if url:
@@ -238,8 +243,7 @@ def get_async_redis_client(
             _raise_cluster_not_supported()
         return Redis.from_url(
             url,
-            health_check_interval=health_check_interval
-            or settings.health_check_interval,
+            health_check_interval=resolved_health_check_interval,
             decode_responses=decode_responses,
             socket_timeout=resolved_socket_timeout,
             socket_connect_timeout=resolved_socket_connect_timeout,
@@ -248,12 +252,12 @@ def get_async_redis_client(
 
     return Redis(
         host=host or settings.host,
-        port=port or settings.port,
-        db=db or settings.db,
+        port=port if port is not None else settings.port,
+        db=db if db is not None else settings.db,
         password=password or settings.password,
         username=username or settings.username,
-        health_check_interval=health_check_interval or settings.health_check_interval,
-        ssl=ssl or settings.ssl,
+        health_check_interval=resolved_health_check_interval,
+        ssl=ssl if ssl is not None else settings.ssl,
         decode_responses=decode_responses,
         socket_timeout=resolved_socket_timeout,
         socket_connect_timeout=resolved_socket_connect_timeout,

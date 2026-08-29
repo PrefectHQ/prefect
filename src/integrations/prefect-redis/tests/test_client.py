@@ -395,6 +395,39 @@ async def test_async_redis_from_settings_url_with_connection_defaults():
     _client_cache.clear()
 
 
+async def test_get_async_redis_client_explicit_falsy_overrides_settings(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Explicit False/0 overrides are preserved instead of falling back to settings."""
+    monkeypatch.setenv("PREFECT_REDIS_MESSAGING_SSL", "true")
+    monkeypatch.setenv("PREFECT_REDIS_MESSAGING_PORT", "6380")
+    monkeypatch.setenv("PREFECT_REDIS_MESSAGING_DB", "1")
+    monkeypatch.setenv("PREFECT_REDIS_MESSAGING_HEALTH_CHECK_INTERVAL", "30")
+    _client_cache.clear()
+    with patch("prefect_redis.client.Redis") as mock_redis:
+        get_async_redis_client(ssl=False, port=0, db=0, health_check_interval=0)
+
+    kwargs = mock_redis.call_args.kwargs
+    assert kwargs["ssl"] is False
+    assert kwargs["port"] == 0
+    assert kwargs["db"] == 0
+    assert kwargs["health_check_interval"] == 0
+    _client_cache.clear()
+
+
+async def test_get_async_redis_client_url_explicit_falsy_health_check_interval(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """health_check_interval=0 is preserved on the url path."""
+    monkeypatch.setenv("PREFECT_REDIS_MESSAGING_HEALTH_CHECK_INTERVAL", "30")
+    _client_cache.clear()
+    with patch("prefect_redis.client.Redis") as mock_redis:
+        get_async_redis_client(url="redis://localhost:6379/0", health_check_interval=0)
+
+    assert mock_redis.from_url.call_args.kwargs["health_check_interval"] == 0
+    _client_cache.clear()
+
+
 @patch("prefect_redis.client._client_cache")
 def test_close_all_cached_connections(mock_cache):
     """Test that close_all_cached_connections properly closes all clients"""
