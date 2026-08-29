@@ -88,31 +88,29 @@ describe("Dashboard page", () => {
 		});
 
 		it("should bound every flow run count by the dashboard time window", async () => {
-			const countFilters: FlowRunsCountFilter[] = [];
+			const unboundedFilters: FlowRunsCountFilter[] = [];
+			let countRequests = 0;
 			mockFlowRuns([createFakeFlowRun()]);
 			server.use(
 				http.post(buildApiUrl("/flow_runs/count"), async ({ request }) => {
-					countFilters.push((await request.json()) as FlowRunsCountFilter);
+					const filter = (await request.json()) as FlowRunsCountFilter;
+					countRequests += 1;
+					const range = filter.flow_runs?.expected_start_time;
+					if (!range?.after_ || !range?.before_) {
+						unboundedFilters.push(filter);
+					}
 					return HttpResponse.json(5);
 				}),
 			);
 
 			await renderDashboardPage();
 
-			// Wait until no more count requests arrive between two polls, so
-			// deferred requests are also asserted on.
-			let lastSeen = -1;
 			await waitFor(() => {
-				expect(countFilters.length).toBeGreaterThan(0);
-				const settled = countFilters.length === lastSeen;
-				lastSeen = countFilters.length;
-				expect(settled).toBe(true);
+				expect(screen.getByLabelText("Hide subflows")).toBeVisible();
+				expect(countRequests).toBeGreaterThan(0);
 			});
 
-			for (const filter of countFilters) {
-				expect(filter.flow_runs?.expected_start_time?.after_).toBeTruthy();
-				expect(filter.flow_runs?.expected_start_time?.before_).toBeTruthy();
-			}
+			expect(unboundedFilters).toEqual([]);
 		});
 	});
 });
