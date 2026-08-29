@@ -39,7 +39,10 @@ class DiagnosisCategory(str, enum.Enum):
     UNSCHEDULABLE_TAINT = "Unschedulable.Taint"
 
 
-_SCHEDULER_COUNT_PATTERN = re.compile(r"\b\d+(?:/\d+)?\b")
+_NODE_SUMMARY_PATTERN = re.compile(r"\d+/\d+ nodes are available:")
+_PREEMPTION_SPLIT_PATTERN = re.compile(r"\bpreemption:")
+_REASON_SPLIT_PATTERN = re.compile(r"[.,]")
+_LEADING_COUNT_PATTERN = re.compile(r"^\d+\s+")
 
 _UNSCHEDULABLE_CATEGORIES = frozenset(
     {
@@ -52,13 +55,25 @@ _UNSCHEDULABLE_CATEGORIES = frozenset(
 
 
 def _normalize_scheduler_reasons(detail: str) -> tuple[str, ...]:
-    """Return scheduler reasons without volatile counts and in a stable order."""
-    normalized = _SCHEDULER_COUNT_PATTERN.sub("#", detail)
-    _, separator, reasons = normalized.partition(": ")
-    if separator:
-        normalized = reasons
-    normalized = normalized.rstrip(".")
-    return tuple(sorted(part.strip() for part in normalized.split(",") if part.strip()))
+    """Return the scheduler reasons without volatile counts and in a stable order.
+
+    Kubernetes formats a scheduling failure as `<filter reasons>. preemption:
+    <post-filter reason>`, where each section starts with a `0/N nodes are
+    available:` summary and each reason carries a leading count. The summaries
+    and the leading counts change with cluster capacity, and Kubernetes orders
+    the reasons by count, so both are removed and the reasons are sorted. The
+    two sections are normalized independently so a post-filter reason is never
+    joined to a filter reason. Numbers inside a reason, such as the taint value
+    in `node(s) had untolerated taint {gpu-tier: 1}`, are kept.
+    """
+    reasons: list[str] = []
+    for index, section in enumerate(_PREEMPTION_SPLIT_PATTERN.split(detail)):
+        prefix = "" if index == 0 else "preemption: "
+        for part in _REASON_SPLIT_PATTERN.split(_NODE_SUMMARY_PATTERN.sub("", section)):
+            reason = _LEADING_COUNT_PATTERN.sub("", part.strip()).strip()
+            if reason:
+                reasons.append(prefix + reason)
+    return tuple(sorted(reasons))
 
 
 @dataclasses.dataclass(frozen=True)

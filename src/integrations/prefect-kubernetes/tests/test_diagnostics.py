@@ -507,3 +507,71 @@ class TestDiagnoseKubernetesPod:
         )
         assert first is not None and second is not None
         assert first.dedupe_key() == second.dedupe_key()
+
+    def test_dedupe_key_ignores_preemption_reason_count_changes(self):
+        first = diagnose_k8s_pod(
+            {
+                "conditions": [
+                    {
+                        "type": "PodScheduled",
+                        "reason": "Unschedulable",
+                        "message": (
+                            "0/8 nodes are available: 8 Insufficient cpu, "
+                            "2 node(s) had untolerated taint. preemption: "
+                            "0/8 nodes are available: 8 Preemption is not "
+                            "helpful for scheduling."
+                        ),
+                    }
+                ]
+            }
+        )
+        second = diagnose_k8s_pod(
+            {
+                "conditions": [
+                    {
+                        "type": "PodScheduled",
+                        "reason": "Unschedulable",
+                        "message": (
+                            "0/12 nodes are available: 4 node(s) had "
+                            "untolerated taint, 12 Insufficient cpu. "
+                            "preemption: 0/15 nodes are available: 3 "
+                            "Preemption is not helpful for scheduling."
+                        ),
+                    }
+                ]
+            }
+        )
+        assert first is not None and second is not None
+        assert first.dedupe_key() == second.dedupe_key()
+
+    def test_dedupe_key_preserves_taint_value_changes(self):
+        first = diagnose_k8s_pod(
+            {
+                "conditions": [
+                    {
+                        "type": "PodScheduled",
+                        "reason": "Unschedulable",
+                        "message": (
+                            "0/3 nodes are available: 3 node(s) had "
+                            "untolerated taint {gpu-tier: 1}."
+                        ),
+                    }
+                ]
+            }
+        )
+        second = diagnose_k8s_pod(
+            {
+                "conditions": [
+                    {
+                        "type": "PodScheduled",
+                        "reason": "Unschedulable",
+                        "message": (
+                            "0/3 nodes are available: 3 node(s) had "
+                            "untolerated taint {gpu-tier: 2}."
+                        ),
+                    }
+                ]
+            }
+        )
+        assert first is not None and second is not None
+        assert first.dedupe_key() != second.dedupe_key()

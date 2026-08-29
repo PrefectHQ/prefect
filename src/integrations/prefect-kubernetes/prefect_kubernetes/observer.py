@@ -27,7 +27,7 @@ from prefect.events.filters import (
     EventResourceFilter,
 )
 from prefect.events.schemas.events import Resource
-from prefect.exceptions import Abort, ObjectNotFound
+from prefect.exceptions import Abort, ObjectNotFound, Pause
 from prefect.logging.loggers import flow_run_logger
 from prefect.settings import get_current_settings
 from prefect.states import Crashed, InfrastructurePending, State
@@ -59,12 +59,12 @@ _last_diagnosis_cache: LRUCache[str, tuple[str, ...]] = LRUCache(
     maxsize=_POD_CACHE_MAXSIZE
 )
 
-# Tracks pods whose Pending-phase flow run state check completed so
-# repeated watch events don't repeat `read_flow_run`/`propose_state`
-# calls.  Entries are removed when the pod leaves the Pending phase.
+# Tracks pods whose Pending-phase flow run state check completed so repeated
+# watch events don't repeat `read_flow_run`/`propose_state` calls. Values are
+# `None` markers, and entries are removed when the pod leaves Pending.
 # Transient failures and timeouts are not cached so they are retried on the
 # next event.
-_completed_state_check_cache: LRUCache[str, str] = LRUCache(maxsize=_POD_CACHE_MAXSIZE)
+_completed_state_check_cache: LRUCache[str, None] = LRUCache(maxsize=_POD_CACHE_MAXSIZE)
 
 
 def _is_completed_flow_run_state(state: State | None) -> bool:
@@ -274,7 +274,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     # repeat the state lookup and proposal; failures and timeouts are not
     # cached so they are retried on the next event.
     if phase == "Pending" and flow_run_id and orchestration_client:
-        if _completed_state_check_cache.get(uid) == phase:
+        if uid in _completed_state_check_cache:
             logger.debug(
                 f"State check already completed for pending pod {uid}, skipping"
             )
@@ -288,7 +288,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                         f"Flow run {flow_run_id} is in state {flow_run.state.name!r}, "
                         f"skipping InfrastructurePending proposal"
                     )
-                    _completed_state_check_cache[uid] = phase
+                    _completed_state_check_cache[uid] = None
                 else:
                     proposed_state: State | None = None
                     # Use a timeout to prevent propose_state's internal WAIT
@@ -307,7 +307,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                             f"run {flow_run_id}; will retry on the next event"
                         )
                     elif _is_completed_flow_run_state(proposed_state):
-                        _completed_state_check_cache[uid] = phase
+                        _completed_state_check_cache[uid] = None
                     else:
                         logger.debug(
                             f"InfrastructurePending proposal for flow run "
@@ -315,11 +315,19 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                             f"{proposed_state.name!r}; will retry on the next event"
                         )
             except ObjectNotFound:
-                _completed_state_check_cache[uid] = phase
+                _completed_state_check_cache[uid] = None
                 logger.debug(
                     f"Flow run {flow_run_id} does not exist, skipping; "
                     "the check will not be repeated while the pod stays Pending"
                 )
+            except Pause:
+                # `propose_state` raises `Pause` instead of returning the paused
+                # replacement state, so the check is complete for this pod.
+                logger.debug(
+                    f"Flow run {flow_run_id} is paused; skipping "
+                    f"InfrastructurePending proposal"
+                )
+                _completed_state_check_cache[uid] = None
             except (Abort, Exception):
                 logger.debug(
                     f"Failed to propose InfrastructurePending for flow run {flow_run_id}",

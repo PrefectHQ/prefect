@@ -23,7 +23,7 @@ from prefect_kubernetes.observer import (
 
 from prefect.client.schemas.objects import FlowRun, State
 from prefect.events.schemas.events import RelatedResource, Resource
-from prefect.exceptions import Abort, ObjectNotFound
+from prefect.exceptions import Abort, ObjectNotFound, Pause
 from prefect.types import DateTime
 
 
@@ -810,6 +810,45 @@ class TestReplicatePodEvent:
 
         assert mock_orchestration_client.read_flow_run.call_count == 2
         assert mock_propose.call_count == 2
+
+    async def test_paused_proposal_is_cached(
+        self,
+        mock_events_client: AsyncMock,
+        mock_orchestration_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """A paused proposal is completed and cached for repeated events."""
+        _completed_state_check_cache.clear()
+        flow_run_id = uuid.uuid4()
+        pod_uid = str(uuid.uuid4())
+        mock_propose = AsyncMock(
+            side_effect=Pause(state=State(type="PAUSED", name="Paused"))
+        )
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+
+        mock_orchestration_client.read_flow_run.return_value = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="SCHEDULED", name="Scheduled"),
+        )
+
+        for _ in range(2):
+            await _replicate_pod_event(
+                event={"type": "MODIFIED"},
+                uid=pod_uid,
+                name="test",
+                namespace="test",
+                labels={
+                    "prefect.io/flow-run-id": str(flow_run_id),
+                    "prefect.io/flow-run-name": "test-run",
+                },
+                status={"phase": "Pending"},
+                logger=MagicMock(),
+            )
+
+        assert mock_orchestration_client.read_flow_run.call_count == 1
+        assert mock_propose.call_count == 1
 
     async def test_pending_state_check_cache_cleared_on_phase_change(
         self,
