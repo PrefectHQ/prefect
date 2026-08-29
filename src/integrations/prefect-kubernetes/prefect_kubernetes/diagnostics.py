@@ -41,7 +41,6 @@ class DiagnosisCategory(str, enum.Enum):
 
 _NODE_SUMMARY_PATTERN = re.compile(r"\d+/\d+ nodes are available:")
 _PREEMPTION_SPLIT_PATTERN = re.compile(r"\bpreemption:")
-_REASON_SPLIT_PATTERN = re.compile(r"[.,]")
 _LEADING_COUNT_PATTERN = re.compile(r"^\d+\s+")
 
 _UNSCHEDULABLE_CATEGORIES = frozenset(
@@ -69,8 +68,12 @@ def _normalize_scheduler_reasons(detail: str) -> tuple[str, ...]:
     reasons: list[str] = []
     for index, section in enumerate(_PREEMPTION_SPLIT_PATTERN.split(detail)):
         prefix = "" if index == 0 else "preemption: "
-        for part in _REASON_SPLIT_PATTERN.split(_NODE_SUMMARY_PATTERN.sub("", section)):
-            reason = _LEADING_COUNT_PATTERN.sub("", part.strip()).strip()
+        if node_summary := _NODE_SUMMARY_PATTERN.search(section):
+            section = section[node_summary.end() :]
+        else:
+            section = _NODE_SUMMARY_PATTERN.sub("", section)
+        for part in section.split(","):
+            reason = _LEADING_COUNT_PATTERN.sub("", part.strip()).strip(".").strip()
             if reason:
                 reasons.append(prefix + reason)
     return tuple(sorted(reasons))
@@ -86,7 +89,7 @@ class InfrastructureDiagnosis:
     detail: str
     resolution: str
 
-    def dedupe_key(self) -> tuple[str, ...]:
+    def _dedupe_key(self) -> tuple[str, ...]:
         """Return a key identifying this diagnosis by its normalized causes.
 
         Node and reason counts in scheduler messages (e.g. `0/3 nodes are

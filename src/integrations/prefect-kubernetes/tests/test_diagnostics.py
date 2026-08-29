@@ -397,7 +397,7 @@ class TestDiagnoseKubernetesPod:
         )
         assert first is not None and second is not None
         assert first != second
-        assert first.dedupe_key() == second.dedupe_key()
+        assert first._dedupe_key() == second._dedupe_key()
 
     def test_dedupe_key_preserves_cause_changes(self):
         cpu = diagnose_k8s_pod(
@@ -425,7 +425,7 @@ class TestDiagnoseKubernetesPod:
             }
         )
         assert cpu is not None and storage is not None
-        assert cpu.dedupe_key() != storage.dedupe_key()
+        assert cpu._dedupe_key() != storage._dedupe_key()
 
     def test_dedupe_key_distinguishes_categories(self):
         unschedulable = diagnose_k8s_pod(
@@ -450,7 +450,7 @@ class TestDiagnoseKubernetesPod:
             }
         )
         assert unschedulable is not None and oom is not None
-        assert unschedulable.dedupe_key() != oom.dedupe_key()
+        assert unschedulable._dedupe_key() != oom._dedupe_key()
 
     def test_dedupe_key_distinguishes_oom_killed_containers(self):
         worker_one = diagnose_k8s_pod(
@@ -474,7 +474,7 @@ class TestDiagnoseKubernetesPod:
             }
         )
         assert worker_one is not None and worker_two is not None
-        assert worker_one.dedupe_key() != worker_two.dedupe_key()
+        assert worker_one._dedupe_key() != worker_two._dedupe_key()
 
     def test_dedupe_key_ignores_scheduler_reason_order(self):
         first = diagnose_k8s_pod(
@@ -506,7 +506,7 @@ class TestDiagnoseKubernetesPod:
             }
         )
         assert first is not None and second is not None
-        assert first.dedupe_key() == second.dedupe_key()
+        assert first._dedupe_key() == second._dedupe_key()
 
     def test_dedupe_key_ignores_preemption_reason_count_changes(self):
         first = diagnose_k8s_pod(
@@ -542,7 +542,7 @@ class TestDiagnoseKubernetesPod:
             }
         )
         assert first is not None and second is not None
-        assert first.dedupe_key() == second.dedupe_key()
+        assert first._dedupe_key() == second._dedupe_key()
 
     def test_dedupe_key_preserves_taint_value_changes(self):
         first = diagnose_k8s_pod(
@@ -574,4 +574,104 @@ class TestDiagnoseKubernetesPod:
             }
         )
         assert first is not None and second is not None
-        assert first.dedupe_key() != second.dedupe_key()
+        assert first._dedupe_key() != second._dedupe_key()
+
+    def test_dedupe_key_preserves_dotted_taint_key_changes(self):
+        first = diagnose_k8s_pod(
+            {
+                "conditions": [
+                    {
+                        "type": "PodScheduled",
+                        "reason": "Unschedulable",
+                        "message": (
+                            "0/3 nodes are available: 3 node(s) had "
+                            "untolerated taint "
+                            "{node-role.kubernetes.io/master: }."
+                        ),
+                    }
+                ]
+            }
+        )
+        second = diagnose_k8s_pod(
+            {
+                "conditions": [
+                    {
+                        "type": "PodScheduled",
+                        "reason": "Unschedulable",
+                        "message": (
+                            "0/3 nodes are available: 3 node(s) had "
+                            "untolerated taint "
+                            "{node-role.kubernetes.io/worker: }."
+                        ),
+                    }
+                ]
+            }
+        )
+        assert first is not None and second is not None
+        assert first._dedupe_key() != second._dedupe_key()
+
+    def test_dedupe_key_ignores_dotted_taint_count_changes(self):
+        first = diagnose_k8s_pod(
+            {
+                "conditions": [
+                    {
+                        "type": "PodScheduled",
+                        "reason": "Unschedulable",
+                        "message": (
+                            "0/3 nodes are available: 3 node(s) had "
+                            "untolerated taint "
+                            "{node-role.kubernetes.io/master: }."
+                        ),
+                    }
+                ]
+            }
+        )
+        second = diagnose_k8s_pod(
+            {
+                "conditions": [
+                    {
+                        "type": "PodScheduled",
+                        "reason": "Unschedulable",
+                        "message": (
+                            "0/8 nodes are available: 8 node(s) had "
+                            "untolerated taint "
+                            "{node-role.kubernetes.io/master: }."
+                        ),
+                    }
+                ]
+            }
+        )
+        assert first is not None and second is not None
+        assert first._dedupe_key() == second._dedupe_key()
+
+    def test_dedupe_key_preserves_dotted_resource_name_changes(self):
+        first = diagnose_k8s_pod(
+            {
+                "conditions": [
+                    {
+                        "type": "PodScheduled",
+                        "reason": "Unschedulable",
+                        "message": (
+                            "0/3 nodes are available: 3 Insufficient "
+                            "example.com/gpu, 2 Insufficient vendor.io/fpga."
+                        ),
+                    }
+                ]
+            }
+        )
+        second = diagnose_k8s_pod(
+            {
+                "conditions": [
+                    {
+                        "type": "PodScheduled",
+                        "reason": "Unschedulable",
+                        "message": (
+                            "0/3 nodes are available: 3 Insufficient "
+                            "example.io/fpga, 2 Insufficient vendor.com/gpu."
+                        ),
+                    }
+                ]
+            }
+        )
+        assert first is not None and second is not None
+        assert first._dedupe_key() != second._dedupe_key()

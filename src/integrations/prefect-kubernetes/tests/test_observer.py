@@ -850,6 +850,127 @@ class TestReplicatePodEvent:
         assert mock_orchestration_client.read_flow_run.call_count == 1
         assert mock_propose.call_count == 1
 
+    async def test_deleted_pending_pod_clears_state_check_cache(
+        self,
+        mock_events_client: AsyncMock,
+        mock_orchestration_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """A deleted Pending pod can retry its state check if it reappears."""
+        _completed_state_check_cache.clear()
+        flow_run_id = uuid.uuid4()
+        pod_uid = str(uuid.uuid4())
+        mock_propose = AsyncMock(
+            return_value=State(type="PENDING", name="InfrastructurePending")
+        )
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+
+        mock_orchestration_client.read_flow_run.return_value = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="SCHEDULED", name="Scheduled"),
+        )
+        labels = {
+            "prefect.io/flow-run-id": str(flow_run_id),
+            "prefect.io/flow-run-name": "test-run",
+        }
+
+        await _replicate_pod_event(
+            event={"type": "MODIFIED"},
+            uid=pod_uid,
+            name="test",
+            namespace="test",
+            labels=labels,
+            status={"phase": "Pending"},
+            logger=MagicMock(),
+        )
+        assert pod_uid in _completed_state_check_cache
+
+        await _replicate_pod_event(
+            event={"type": "DELETED"},
+            uid=pod_uid,
+            name="test",
+            namespace="test",
+            labels=labels,
+            status={"phase": "Pending"},
+            logger=MagicMock(),
+        )
+        assert pod_uid not in _completed_state_check_cache
+
+        await _replicate_pod_event(
+            event={"type": "MODIFIED"},
+            uid=pod_uid,
+            name="test",
+            namespace="test",
+            labels=labels,
+            status={"phase": "Pending"},
+            logger=MagicMock(),
+        )
+        assert mock_orchestration_client.read_flow_run.call_count == 2
+        assert mock_propose.call_count == 2
+
+    async def test_deleted_diagnosed_pod_clears_diagnosis_cache(
+        self,
+        mock_events_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """A deleted diagnosed pod can log its diagnosis if it reappears."""
+        _last_diagnosis_cache.clear()
+        flow_run_id = uuid.uuid4()
+        pod_uid = str(uuid.uuid4())
+        mock_logger = MagicMock()
+        mock_child = MagicMock()
+        mock_logger.return_value = mock_child
+        mock_child.getChild.return_value = mock_child
+        monkeypatch.setattr("prefect_kubernetes.observer.flow_run_logger", mock_logger)
+        labels = {
+            "prefect.io/flow-run-id": str(flow_run_id),
+            "prefect.io/flow-run-name": "test-run",
+        }
+        status = {
+            "phase": "Failed",
+            "containerStatuses": [
+                {
+                    "name": "main",
+                    "state": {"terminated": {"reason": "OOMKilled", "exitCode": 137}},
+                }
+            ],
+        }
+
+        await _replicate_pod_event(
+            event={"type": "MODIFIED"},
+            uid=pod_uid,
+            name="test",
+            namespace="test",
+            labels=labels,
+            status=status,
+            logger=MagicMock(),
+        )
+        assert pod_uid in _last_diagnosis_cache
+
+        await _replicate_pod_event(
+            event={"type": "DELETED"},
+            uid=pod_uid,
+            name="test",
+            namespace="test",
+            labels=labels,
+            status=status,
+            logger=MagicMock(),
+        )
+        assert pod_uid not in _last_diagnosis_cache
+
+        await _replicate_pod_event(
+            event={"type": "MODIFIED"},
+            uid=pod_uid,
+            name="test",
+            namespace="test",
+            labels=labels,
+            status=status,
+            logger=MagicMock(),
+        )
+        assert mock_child.log.call_count == 2
+
     async def test_pending_state_check_cache_cleared_on_phase_change(
         self,
         mock_events_client: AsyncMock,

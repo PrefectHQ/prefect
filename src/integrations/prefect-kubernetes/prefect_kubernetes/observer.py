@@ -341,9 +341,9 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     # MODIFIED events for the same failure condition.  Clear the cache
     # entry when the pod recovers so a recurrence is logged again.
     if diagnosis and flow_run_id:
-        dedupe_key = diagnosis.dedupe_key()
-        if dedupe_key != _last_diagnosis_cache.get(uid):
-            _last_diagnosis_cache[uid] = dedupe_key
+        key = diagnosis._dedupe_key()
+        if key != _last_diagnosis_cache.get(uid):
+            _last_diagnosis_cache[uid] = key
             fr_logger = flow_run_logger(flow_run_id=flow_run_id).getChild("observer")
             fr_logger.log(
                 logging.ERROR if diagnosis.level.value == "error" else logging.WARNING,
@@ -398,6 +398,11 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
         raise RuntimeError("Events client not initialized")
     await events_client.emit(event=prefect_event)
     _last_event_cache[uid] = prefect_event
+    if event_type == "DELETED":
+        # A deleted pod keeps its final phase and diagnosis, so the phase- and
+        # diagnosis-based cleanup above never runs for it.
+        _completed_state_check_cache.pop(uid, None)
+        _last_diagnosis_cache.pop(uid, None)
 
 
 if settings.observer.replicate_pod_events:
