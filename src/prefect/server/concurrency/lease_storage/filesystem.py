@@ -6,7 +6,7 @@ import os
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, TypedDict
+from typing import Any, ClassVar, TypedDict
 from uuid import UUID
 
 import anyio
@@ -35,16 +35,20 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     A file-based concurrency lease storage implementation that stores leases on disk.
     """
 
+    # Guards the index's read-modify-write cycle within this process.
+    # _atomic_write_json only keeps a single write from being torn; it does
+    # nothing to stop two renewals from reading the same snapshot and one
+    # clobbering the other's update on save. A class-level lock is required
+    # because get_concurrency_lease_storage() builds a fresh instance per
+    # call, so an instance attribute here would never be shared between the
+    # concurrent renewals it's meant to serialize.
+    _index_lock: ClassVar[asyncio.Lock] = asyncio.Lock()
+
     def __init__(self, storage_path: Path | None = None):
         prefect_home = get_current_settings().home
         self.storage_path: Path = Path(
             storage_path or prefect_home / "concurrency_leases"
         )
-        # Guards the index's read-modify-write cycle within this process.
-        # _atomic_write_json only keeps a single write from being torn; it
-        # does nothing to stop two renewals from reading the same snapshot
-        # and one clobbering the other's update on save.
-        self._index_lock = asyncio.Lock()
 
     def _ensure_storage_path(self) -> None:
         """Ensure the storage path exists, creating it if necessary."""

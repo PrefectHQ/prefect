@@ -715,6 +715,54 @@ class TestFilesystemConcurrencyLeaseStorage:
         assert index.get(str(lease_a.id)) == new_expiration_a.isoformat()
         assert index.get(str(lease_b.id)) == new_expiration_b.isoformat()
 
+    async def test_concurrent_updates_from_separate_instances_do_not_lose_a_write(
+        self,
+        temp_dir: Path,
+        sample_resource_ids: list[UUID],
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """get_concurrency_lease_storage() builds a fresh instance per call, so
+        two concurrent renewals never share the same Python object even though
+        they share the same storage_path. The lock has to be shared across
+        those instances for it to serialize anything in production.
+        """
+        storage_a = ConcurrencyLeaseStorage(storage_path=temp_dir)
+        storage_b = ConcurrencyLeaseStorage(storage_path=temp_dir)
+
+        ttl = timedelta(minutes=5)
+        lease_a = await storage_a.create_lease(sample_resource_ids, ttl)
+        lease_b = await storage_a.create_lease(sample_resource_ids, ttl)
+
+        original_load = storage_a._load_expiration_index
+        call_count = 0
+
+        async def load_with_a_delay_on_the_first_call():
+            nonlocal call_count
+            call_count += 1
+            result = await original_load()
+            if call_count == 1:
+                # Give the second instance's update a chance to read, write,
+                # and finish before this one acts on what it already read.
+                await asyncio.sleep(0.05)
+            return result
+
+        monkeypatch.setattr(
+            storage_a, "_load_expiration_index", load_with_a_delay_on_the_first_call
+        )
+
+        new_expiration_a = datetime.now(timezone.utc) + timedelta(minutes=10)
+        new_expiration_b = datetime.now(timezone.utc) + timedelta(minutes=20)
+
+        await asyncio.gather(
+            storage_a._update_expiration_index(lease_a.id, new_expiration_a),
+            storage_b._update_expiration_index(lease_b.id, new_expiration_b),
+        )
+
+        monkeypatch.undo()
+        index = await storage_a._load_expiration_index()
+        assert index.get(str(lease_a.id)) == new_expiration_a.isoformat()
+        assert index.get(str(lease_b.id)) == new_expiration_b.isoformat()
+
     async def test_read_expired_lease_ids_trusts_the_lease_file_over_a_stale_index(
         self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
     ):
