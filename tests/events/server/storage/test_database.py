@@ -1,13 +1,17 @@
 import datetime
 from datetime import timezone
+from types import SimpleNamespace
 from typing import List
+from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID, uuid4
 
 import pytest
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect.server.database import PrefectDBInterface
+from prefect.server.database.query_components import AsyncPostgresQueryComponents
 from prefect.server.events.filters import (
     EventFilter,
     EventIDFilter,
@@ -16,6 +20,7 @@ from prefect.server.events.filters import (
 )
 from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.events.storage.database import (
+    _write_postgres_events,
     get_number_of_event_fields,
     get_number_of_resource_fields,
     read_events,
@@ -74,6 +79,40 @@ def other_events() -> List[ReceivedEvent]:
 
 
 class TestWriteEvents:
+    async def test_postgres_write_uses_execution_time_parameters(
+        self,
+        db: PrefectDBInterface,
+        event: ReceivedEvent,
+    ):
+        events = [event, event.model_copy(update={"id": uuid4()})]
+        postgres_db = SimpleNamespace(
+            Event=db.Event,
+            EventResource=db.EventResource,
+            queries=AsyncPostgresQueryComponents(),
+        )
+        session = AsyncMock(spec=AsyncSession)
+        result = MagicMock()
+        result.all.return_value = [event.id for event in events]
+        session.scalars.return_value = result
+
+        await _write_postgres_events.__wrapped__(postgres_db, session, events)
+
+        event_statement, event_rows = session.scalars.await_args.args
+        resource_statement, resource_rows = session.execute.await_args.args
+        dialect = postgresql.dialect()
+
+        assert len(event_rows) == len(events)
+        assert event_statement.get_execution_options()["dml_strategy"] == "raw"
+        assert len(resource_rows) == sum(
+            len(event.involved_resources) for event in events
+        )
+        assert len(event_statement.compile(dialect=dialect).params) == (
+            get_number_of_event_fields()
+        )
+        assert len(resource_statement.compile(dialect=dialect).params) == (
+            get_number_of_resource_fields()
+        )
+
     async def test_write_event(self, session: AsyncSession, event: ReceivedEvent):
         # Write the event
         async with session as session:
