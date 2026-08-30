@@ -374,7 +374,7 @@ async def test_backoff_increases_jittered_interval_on_each_consecutive_group(
     assert len(sleep_times) == len(expected_intervals)
     for sleep_time, expected_interval in zip(sleep_times, expected_intervals):
         assert (
-            expected_interval * (1 - 0.3) < sleep_time < expected_interval * (1 + 0.3)
+            expected_interval * (1 - 0.3) <= sleep_time <= expected_interval * (1 + 0.3)
         )
 
 
