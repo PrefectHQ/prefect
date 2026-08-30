@@ -923,3 +923,22 @@ class TestUIAPIURL:
         assert mock_foreground.called
         server_settings = mock_foreground.call_args[0][1]
         assert "PREFECT_UI_API_URL" not in server_settings
+
+    @pytest.mark.parametrize("host", ["0.0.0.0", "::"])
+    def test_wildcard_host_is_left_alone(
+        self, host: str, monkeypatch: pytest.MonkeyPatch
+    ):
+        """A wildcard bind is not an address a browser can use, so the profile's
+        URL — which may be the externally reachable one, as in a container — is
+        a better answer than the bind address."""
+        mock_foreground = self._mock_foreground(monkeypatch)
+
+        with temporary_settings({PREFECT_API_URL: "https://prefect.example.com/api"}):
+            invoke_and_assert(
+                command=["server", "start", "--host", host, "--port", "4244"],
+                expected_code=0,
+            )
+
+        assert mock_foreground.called
+        server_settings = mock_foreground.call_args[0][1]
+        assert "PREFECT_UI_API_URL" not in server_settings

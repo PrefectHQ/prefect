@@ -188,8 +188,12 @@ def start(
 
     # Unset, PREFECT_UI_API_URL falls back to PREFECT_API_URL — the active
     # profile's server, which may be Cloud. Only a user-set value is theirs to
-    # keep; the reverse-proxy case is what that setting is for.
-    if "api_url" not in get_current_settings().server.ui.model_fields_set:
+    # keep; the reverse-proxy case is what that setting is for. A wildcard bind
+    # is not an address a browser can use, so leave that case alone too.
+    if (
+        host not in ("0.0.0.0", "::", "")
+        and "api_url" not in get_current_settings().server.ui.model_fields_set
+    ):
         server_settings["PREFECT_UI_API_URL"] = f"{base_url}/api"
 
     pid_file = Path(PREFECT_HOME.value()) / SERVER_PID_FILE_NAME
