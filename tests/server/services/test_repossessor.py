@@ -114,7 +114,7 @@ class TestRevokeExpiredLease:
         assert lease_storage.expirations == {}
 
     async def test_revoke_expired_lease_renewed_before_revocation(
-        self, lease_storage, session: AsyncSession
+        self, lease_storage: ConcurrencyLeaseStorage, session: AsyncSession
     ):
         """A lease renewed after being listed as expired must not be revoked"""
         concurrency_limit = await create_concurrency_limit(
