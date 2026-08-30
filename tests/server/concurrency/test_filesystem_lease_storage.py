@@ -764,68 +764,85 @@ class TestFilesystemConcurrencyLeaseStorage:
         assert index.get(str(lease_a.id)) == new_expiration_a.isoformat()
         assert index.get(str(lease_b.id)) == new_expiration_b.isoformat()
 
-    async def test_index_lock_survives_a_new_event_loop(
+    async def test_concurrent_updates_from_separate_event_loops_do_not_lose_a_write(
         self,
         temp_dir: Path,
         sample_resource_ids: list[UUID],
+        monkeypatch: pytest.MonkeyPatch,
     ):
-        """An asyncio.Lock only binds to a loop once something actually
-        contends on it (an uncontended acquire never touches the loop at
-        all), and raises if a later loop also contends on it. That means a
-        second round of concurrent renewals, after an embedded server
-        restart or a fresh asyncio.run() call in the same process, has to
-        keep serializing instead of blowing up just because a previous loop
-        is gone.
+        """Two renewals landing on separate event loops in separate threads,
+        which is what actually happens when multiple worker threads each run
+        their own loop against the same storage_path, have to serialize the
+        same way two renewals on the same loop do. A lock keyed per event
+        loop hands each thread's loop its own lock and lets both critical
+        sections run at once, losing whichever update saves first; this
+        forces that overlap instead of hoping the OS schedules the threads
+        unluckily on its own.
         """
-        storage = ConcurrencyLeaseStorage(storage_path=temp_dir)
+        setup_storage = ConcurrencyLeaseStorage(storage_path=temp_dir)
         ttl = timedelta(minutes=5)
-        lease_a = await storage.create_lease(sample_resource_ids, ttl)
-        lease_b = await storage.create_lease(sample_resource_ids, ttl)
+        lease_a = await setup_storage.create_lease(sample_resource_ids, ttl)
+        lease_b = await setup_storage.create_lease(sample_resource_ids, ttl)
 
-        async def contend_on_the_index(
-            first_expiration: datetime, second_expiration: datetime
-        ) -> None:
-            async def hold_the_lock_briefly(lease_id: UUID, expiration: datetime):
-                async with storage._get_index_lock():
-                    await asyncio.sleep(0.05)
-                    index = await storage._load_expiration_index()
-                    index[str(lease_id)] = expiration.isoformat()
-                    storage._save_expiration_index(index)
+        original_load = ConcurrencyLeaseStorage._load_expiration_index
+        thread_a_is_mid_update = threading.Event()
 
-            # gather starts both coroutines, so the second one reaches the
-            # lock while the first is still holding it during its sleep,
-            # which is exactly the real contention the lock has to survive.
-            await asyncio.gather(
-                hold_the_lock_briefly(lease_a.id, first_expiration),
-                hold_the_lock_briefly(lease_b.id, second_expiration),
-            )
+        async def load_then_hold_the_critical_section_open(self):
+            result = await original_load(self)
+            thread_a_is_mid_update.set()
+            # Keep the critical section open long enough that a genuinely
+            # concurrent second thread, if nothing serializes it, reads the
+            # same stale snapshot and clobbers this update on save.
+            await asyncio.sleep(0.2)
+            return result
 
-        # The first round of genuine contention happens on this test's own
-        # event loop, which is what actually binds the lock to it.
-        await contend_on_the_index(
-            datetime.now(timezone.utc) + timedelta(minutes=10),
-            datetime.now(timezone.utc) + timedelta(minutes=20),
+        monkeypatch.setattr(
+            ConcurrencyLeaseStorage,
+            "_load_expiration_index",
+            load_then_hold_the_critical_section_open,
         )
 
-        errors: list[RuntimeError] = []
+        new_expiration_a = datetime.now(timezone.utc) + timedelta(minutes=10)
+        new_expiration_b = datetime.now(timezone.utc) + timedelta(minutes=20)
+        errors: list[Exception] = []
 
-        def run_contention_on_a_fresh_loop() -> None:
-            async def contend_again() -> None:
-                await contend_on_the_index(
-                    datetime.now(timezone.utc) + timedelta(minutes=30),
-                    datetime.now(timezone.utc) + timedelta(minutes=40),
-                )
+        def update_lease_a_on_its_own_loop() -> None:
+            async def update() -> None:
+                storage = ConcurrencyLeaseStorage(storage_path=temp_dir)
+                await storage._update_expiration_index(lease_a.id, new_expiration_a)
 
             try:
-                asyncio.run(contend_again())
-            except RuntimeError as exc:
+                asyncio.run(update())
+            except Exception as exc:  # noqa: BLE001
                 errors.append(exc)
 
-        thread = threading.Thread(target=run_contention_on_a_fresh_loop)
-        thread.start()
-        thread.join()
+        def update_lease_b_on_its_own_loop() -> None:
+            # Wait for thread A to already be mid-update before starting, so
+            # this is a genuine overlap rather than a lucky race.
+            assert thread_a_is_mid_update.wait(timeout=5)
 
-        assert not errors, f"contention from a new event loop raised: {errors!r}"
+            async def update() -> None:
+                storage = ConcurrencyLeaseStorage(storage_path=temp_dir)
+                await storage._update_expiration_index(lease_b.id, new_expiration_b)
+
+            try:
+                asyncio.run(update())
+            except Exception as exc:  # noqa: BLE001
+                errors.append(exc)
+
+        thread_a = threading.Thread(target=update_lease_a_on_its_own_loop)
+        thread_b = threading.Thread(target=update_lease_b_on_its_own_loop)
+        thread_a.start()
+        thread_b.start()
+        thread_a.join(timeout=5)
+        thread_b.join(timeout=5)
+
+        monkeypatch.undo()
+        assert not errors, f"concurrent updates from separate loops raised: {errors!r}"
+
+        index = await setup_storage._load_expiration_index()
+        assert index.get(str(lease_a.id)) == new_expiration_a.isoformat()
+        assert index.get(str(lease_b.id)) == new_expiration_b.isoformat()
 
     async def test_read_expired_lease_ids_trusts_the_lease_file_over_a_stale_index(
         self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
