@@ -223,7 +223,7 @@ class ReceivedEvent(Event):
         return url_for(self, url_type="ui")
 
     def as_database_row(self) -> dict[str, Any]:
-        row = self.model_dump()
+        row = self.model_dump(exclude={"url"})
         row["resource_id"] = self.resource.id
         row["recorded"] = prefect.types._datetime.now("UTC")
         row["related_resource_ids"] = [related.id for related in self.related]
