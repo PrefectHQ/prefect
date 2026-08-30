@@ -354,6 +354,29 @@ async def test_backoff_increases_interval_on_each_consecutive_group(
     assert workload.await_count == 16
 
 
+async def test_backoff_increases_interval_when_jittered(monkeypatch):
+    workload = AsyncMock(
+        side_effect=[httpx.TimeoutException("boo")] * 15 + [UncapturedException]
+    )
+    sleeper = AsyncMock()
+
+    monkeypatch.setattr("prefect.utilities.services.anyio.sleep", sleeper)
+
+    with pytest.raises(UncapturedException):
+        await critical_service_loop(
+            workload, 1, consecutive=3, backoff=6, jitter_range=0.3
+        )
+
+    assert workload.await_count == 16
+
+    # Jitter is drawn around the backed off interval, not around the base interval
+    expected_intervals = [1] * 2 + [2] * 3 + [4] * 3 + [8] * 3 + [16] * 3 + [32]
+    sleep_times = [call.args[0] for call in sleeper.await_args_list]
+    assert len(sleep_times) == len(expected_intervals)
+    for sleep_time, expected in zip(sleep_times, expected_intervals):
+        assert expected * (1 - 0.3) < sleep_time < expected * (1 + 0.3)
+
+
 async def test_sleeps_for_interval(capsys: pytest.CaptureFixture, mock_anyio_sleep):
     workload = AsyncMock(
         side_effect=[
