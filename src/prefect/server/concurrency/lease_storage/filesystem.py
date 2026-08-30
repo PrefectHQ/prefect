@@ -4,6 +4,7 @@ import asyncio
 import json
 import os
 import tempfile
+import weakref
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, ClassVar, TypedDict
@@ -38,11 +39,28 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
     # Guards the index's read-modify-write cycle within this process.
     # _atomic_write_json only keeps a single write from being torn; it does
     # nothing to stop two renewals from reading the same snapshot and one
-    # clobbering the other's update on save. A class-level lock is required
-    # because get_concurrency_lease_storage() builds a fresh instance per
-    # call, so an instance attribute here would never be shared between the
-    # concurrent renewals it's meant to serialize.
-    _index_lock: ClassVar[asyncio.Lock] = asyncio.Lock()
+    # clobbering the other's update on save. A class-level lock registry is
+    # required because get_concurrency_lease_storage() builds a fresh
+    # instance per call, so an instance attribute here would never be shared
+    # between the concurrent renewals it's meant to serialize. The registry
+    # is keyed by event loop, rather than holding one asyncio.Lock directly,
+    # because an asyncio.Lock binds to whichever loop first awaits it and
+    # raises if a later loop (an embedded server restart, a fresh
+    # asyncio.run() call) tries to use it. Keying by loop with a
+    # WeakKeyDictionary hands each loop its own lock and lets old ones be
+    # collected once their loop is gone.
+    _index_locks: ClassVar[
+        weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Lock]
+    ] = weakref.WeakKeyDictionary()
+
+    @classmethod
+    def _get_index_lock(cls) -> asyncio.Lock:
+        loop = asyncio.get_running_loop()
+        lock = cls._index_locks.get(loop)
+        if lock is None:
+            lock = asyncio.Lock()
+            cls._index_locks[loop] = lock
+        return lock
 
     def __init__(self, storage_path: Path | None = None):
         prefect_home = get_current_settings().home
@@ -108,14 +126,14 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         self, lease_id: UUID, expiration: datetime
     ) -> None:
         """Update a single lease's expiration in the index."""
-        async with self._index_lock:
+        async with self._get_index_lock():
             index = await self._load_expiration_index()
             index[str(lease_id)] = expiration.isoformat()
             self._save_expiration_index(index)
 
     async def _remove_from_expiration_index(self, lease_id: UUID) -> None:
         """Remove a lease from the expiration index."""
-        async with self._index_lock:
+        async with self._get_index_lock():
             index = await self._load_expiration_index()
             index.pop(str(lease_id), None)
             self._save_expiration_index(index)

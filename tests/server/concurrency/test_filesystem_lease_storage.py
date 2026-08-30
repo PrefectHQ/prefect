@@ -1,6 +1,7 @@
 import asyncio
 import json
 import tempfile
+import threading
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -762,6 +763,69 @@ class TestFilesystemConcurrencyLeaseStorage:
         index = await storage_a._load_expiration_index()
         assert index.get(str(lease_a.id)) == new_expiration_a.isoformat()
         assert index.get(str(lease_b.id)) == new_expiration_b.isoformat()
+
+    async def test_index_lock_survives_a_new_event_loop(
+        self,
+        temp_dir: Path,
+        sample_resource_ids: list[UUID],
+    ):
+        """An asyncio.Lock only binds to a loop once something actually
+        contends on it (an uncontended acquire never touches the loop at
+        all), and raises if a later loop also contends on it. That means a
+        second round of concurrent renewals, after an embedded server
+        restart or a fresh asyncio.run() call in the same process, has to
+        keep serializing instead of blowing up just because a previous loop
+        is gone.
+        """
+        storage = ConcurrencyLeaseStorage(storage_path=temp_dir)
+        ttl = timedelta(minutes=5)
+        lease_a = await storage.create_lease(sample_resource_ids, ttl)
+        lease_b = await storage.create_lease(sample_resource_ids, ttl)
+
+        async def contend_on_the_index(
+            first_expiration: datetime, second_expiration: datetime
+        ) -> None:
+            async def hold_the_lock_briefly(lease_id: UUID, expiration: datetime):
+                async with storage._get_index_lock():
+                    await asyncio.sleep(0.05)
+                    index = await storage._load_expiration_index()
+                    index[str(lease_id)] = expiration.isoformat()
+                    storage._save_expiration_index(index)
+
+            # gather starts both coroutines, so the second one reaches the
+            # lock while the first is still holding it during its sleep,
+            # which is exactly the real contention the lock has to survive.
+            await asyncio.gather(
+                hold_the_lock_briefly(lease_a.id, first_expiration),
+                hold_the_lock_briefly(lease_b.id, second_expiration),
+            )
+
+        # The first round of genuine contention happens on this test's own
+        # event loop, which is what actually binds the lock to it.
+        await contend_on_the_index(
+            datetime.now(timezone.utc) + timedelta(minutes=10),
+            datetime.now(timezone.utc) + timedelta(minutes=20),
+        )
+
+        errors: list[RuntimeError] = []
+
+        def run_contention_on_a_fresh_loop() -> None:
+            async def contend_again() -> None:
+                await contend_on_the_index(
+                    datetime.now(timezone.utc) + timedelta(minutes=30),
+                    datetime.now(timezone.utc) + timedelta(minutes=40),
+                )
+
+            try:
+                asyncio.run(contend_again())
+            except RuntimeError as exc:
+                errors.append(exc)
+
+        thread = threading.Thread(target=run_contention_on_a_fresh_loop)
+        thread.start()
+        thread.join()
+
+        assert not errors, f"contention from a new event loop raised: {errors!r}"
 
     async def test_read_expired_lease_ids_trusts_the_lease_file_over_a_stale_index(
         self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
