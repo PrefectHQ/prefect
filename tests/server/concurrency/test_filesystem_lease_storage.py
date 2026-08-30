@@ -795,3 +795,23 @@ class TestExpirationIndexRaces:
         (temp_dir / f"{lease.id}.json").unlink()
 
         assert await storage.read_expired_lease_ids() == [lease.id]
+
+    async def test_unusable_index_entry_is_skipped(
+        self, storage: ConcurrencyLeaseStorage, temp_dir: Path
+    ):
+        """A bad entry is skipped, not raised, and does not hide the good ones.
+
+        A naive datetime is the interesting case: it parses, so it survives
+        `fromisoformat`, and only blows up on the comparison against an aware
+        `now`.
+        """
+        lease = await storage.create_lease([uuid4()], timedelta(seconds=-1))
+
+        index_path = temp_dir / "expirations.json"
+        index = json.loads(index_path.read_text())
+        index[str(uuid4())] = datetime.now().isoformat()  # naive
+        index[str(uuid4())] = "not a datetime"
+        index["not-a-uuid"] = datetime.now(timezone.utc).isoformat()
+        index_path.write_text(json.dumps(index))
+
+        assert await storage.read_expired_lease_ids() == [lease.id]

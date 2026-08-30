@@ -313,32 +313,35 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             if len(expired_leases) >= limit:
                 break
 
+            # Everything that reads an entry stays inside the try, so a single
+            # unparseable or non-comparable entry is skipped rather than
+            # failing the whole scan.
             try:
                 lease_id = UUID(lease_id_str)
                 expiration = datetime.fromisoformat(expiration_str)
+
+                if expiration >= now:
+                    continue
+
+                lease = await self.read_lease(lease_id)
+
+                if lease is None:
+                    # There is no lease file behind the entry, so the lease
+                    # really is gone. Report it so `revoke_expired_lease`
+                    # clears the orphaned index entry.
+                    expired_leases.append(lease_id)
+                    continue
+
+                if lease.expiration >= now:
+                    # The lease was renewed but the index kept an older
+                    # expiration. Leave the lease alone and repair the entry so
+                    # the active-lease reads agree with the lease file again.
+                    await self._update_expiration_index(lease_id, lease.expiration)
+                    continue
+
+                expired_leases.append(lease_id)
             except (ValueError, TypeError):
                 continue
-
-            if expiration >= now:
-                continue
-
-            lease = await self.read_lease(lease_id)
-
-            if lease is None:
-                # There is no lease file behind the entry, so the lease really
-                # is gone. Report it so the revocation path clears the orphaned
-                # index entry.
-                expired_leases.append(lease_id)
-                continue
-
-            if lease.expiration >= now:
-                # The lease was renewed but the index kept an older expiration.
-                # Leave the lease alone and repair the entry so the active-lease
-                # reads agree with the lease file again.
-                await self._update_expiration_index(lease_id, lease.expiration)
-                continue
-
-            expired_leases.append(lease_id)
 
         return expired_leases
 
