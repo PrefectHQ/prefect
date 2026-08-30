@@ -792,7 +792,12 @@ class TestFilesystemConcurrencyLeaseStorage:
             thread_a_is_mid_update.set()
             # Keep the critical section open long enough that a genuinely
             # concurrent second thread, if nothing serializes it, reads the
-            # same stale snapshot and clobbers this update on save.
+            # same stale snapshot and clobbers this update on save. A fixed
+            # sleep is unavoidable here rather than some cross-thread signal:
+            # with the lock actually working, thread B cannot reach this
+            # function at all until thread A releases it, so waiting for any
+            # signal from B before proceeding would deadlock on the very
+            # serialization this test exists to confirm.
             await asyncio.sleep(0.2)
             return result
 
@@ -836,6 +841,8 @@ class TestFilesystemConcurrencyLeaseStorage:
         thread_b.start()
         thread_a.join(timeout=5)
         thread_b.join(timeout=5)
+        assert not thread_a.is_alive(), "thread A did not finish within the timeout"
+        assert not thread_b.is_alive(), "thread B did not finish within the timeout"
 
         monkeypatch.undo()
         assert not errors, f"concurrent updates from separate loops raised: {errors!r}"
