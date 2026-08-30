@@ -47,8 +47,9 @@ async def critical_service_loop(
         printer: a `print`-like function where errors will be reported
         run_once: if set, the loop will only run once then return
         jitter_range: if set, the interval will be a random variable (rv) drawn from
-            a clamped Poisson distribution where lambda = interval and the rv is bound
-            between `interval * (1 - range) < rv < interval * (1 + range)`
+            a clamped Poisson distribution where lambda = the current (possibly backed
+            off) interval and the rv is bound between
+            `interval * (1 - range) < rv < interval * (1 + range)`
     """
 
     track_record: deque[bool] = deque([True] * consecutive, maxlen=consecutive)
@@ -148,10 +149,14 @@ async def critical_service_loop(
         if run_once:
             return
 
+        backoff_interval = interval * 2**backoff_count
+
         if jitter_range is not None:
-            sleep = clamped_poisson_interval(interval, clamping_factor=jitter_range)
+            sleep = clamped_poisson_interval(
+                backoff_interval, clamping_factor=jitter_range
+            )
         else:
-            sleep = interval * 2**backoff_count
+            sleep = backoff_interval
 
         await anyio.sleep(sleep)
 
