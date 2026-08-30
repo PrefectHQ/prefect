@@ -27,6 +27,7 @@ from prefect.settings import (
     PREFECT_PROFILES_PATH,
     PREFECT_SERVER_CONCURRENCY_LEASE_STORAGE,
     PREFECT_SERVER_EVENTS_CAUSAL_ORDERING,
+    PREFECT_UI_API_URL,
     Profile,
     ProfilesCollection,
     get_current_settings,
@@ -862,3 +863,63 @@ class TestFormatHostForUrl:
         Regression test for https://github.com/PrefectHQ/prefect/issues/20343
         """
         assert _format_host_for_url(host) == expected
+
+
+class TestUIAPIURL:
+    """Regression test for https://github.com/PrefectHQ/prefect/issues/18764
+
+    The UI served by `prefect server start` was pointed at PREFECT_API_URL from
+    the active profile rather than at the server serving it, so starting a
+    local server while a Cloud or remote profile was active produced a UI that
+    could not reach its own API.
+    """
+
+    def _mock_foreground(self, monkeypatch: pytest.MonkeyPatch) -> "MagicMock":
+        from unittest.mock import MagicMock
+
+        mock_foreground = MagicMock()
+        monkeypatch.setattr(
+            "prefect.cli._server_utils._run_in_foreground", mock_foreground
+        )
+        monkeypatch.setattr("prefect.cli._server_utils.prestart_check", MagicMock())
+        monkeypatch.setattr("prefect.cli._app.is_interactive", lambda: False)
+        return mock_foreground
+
+    def test_ui_api_url_points_at_the_started_server(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """A remote PREFECT_API_URL must not be handed to the local UI."""
+        mock_foreground = self._mock_foreground(monkeypatch)
+
+        with temporary_settings(
+            {
+                PREFECT_API_URL: (
+                    "https://api.prefect.cloud/api/accounts/abc/workspaces/def"
+                )
+            }
+        ):
+            invoke_and_assert(
+                command=["server", "start", "--port", "4242"],
+                expected_code=0,
+            )
+
+        assert mock_foreground.called
+        server_settings = mock_foreground.call_args[0][1]
+        assert server_settings["PREFECT_UI_API_URL"] == "http://127.0.0.1:4242/api"
+
+    def test_explicit_ui_api_url_is_not_overridden(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """A PREFECT_UI_API_URL the user set on purpose — the reverse-proxy case
+        the setting exists for — must survive."""
+        mock_foreground = self._mock_foreground(monkeypatch)
+
+        with temporary_settings({PREFECT_UI_API_URL: "https://proxy.example.com/api"}):
+            invoke_and_assert(
+                command=["server", "start", "--port", "4243"],
+                expected_code=0,
+            )
+
+        assert mock_foreground.called
+        server_settings = mock_foreground.call_args[0][1]
+        assert "PREFECT_UI_API_URL" not in server_settings

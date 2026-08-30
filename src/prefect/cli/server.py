@@ -139,6 +139,7 @@ def start(
         PREFECT_SERVER_SERVICES_LATE_RUNS_ENABLED,
         PREFECT_SERVER_SERVICES_SCHEDULER_ENABLED,
         PREFECT_SERVER_UI_ENABLED,
+        get_current_settings,
     )
 
     # Resolve settings-backed defaults
@@ -184,6 +185,12 @@ def start(
 
     if no_services:
         server_settings["PREFECT_SERVER_ANALYTICS_ENABLED"] = "False"
+
+    # Unset, PREFECT_UI_API_URL falls back to PREFECT_API_URL — the active
+    # profile's server, which may be Cloud. Only a user-set value is theirs to
+    # keep; the reverse-proxy case is what that setting is for.
+    if "api_url" not in get_current_settings().server.ui.model_fields_set:
+        server_settings["PREFECT_UI_API_URL"] = f"{base_url}/api"
 
     pid_file = Path(PREFECT_HOME.value()) / SERVER_PID_FILE_NAME
 
