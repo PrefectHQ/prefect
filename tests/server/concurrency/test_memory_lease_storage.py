@@ -152,6 +152,21 @@ class TestMemoryConcurrencyLeaseStorage:
         new_expiration = storage.expirations[lease_id]
         assert new_expiration > original_expiration
 
+    async def test_renew_lease_updates_lease_expiration(
+        self, storage: ConcurrencyLeaseStorage, sample_resource_ids: list[UUID]
+    ):
+        created_lease = await storage.create_lease(
+            sample_resource_ids, timedelta(seconds=-1)
+        )
+
+        renewed = await storage.renew_lease(created_lease.id, timedelta(minutes=10))
+
+        assert renewed is True
+        read_lease = await storage.read_lease(created_lease.id)
+        assert read_lease is not None
+        assert read_lease.expiration == storage.expirations[created_lease.id]
+        assert read_lease.expiration > datetime.now(timezone.utc)
+
     async def test_renew_lease_non_existing(self, storage: ConcurrencyLeaseStorage):
         non_existing_id = uuid4()
         renewed = await storage.renew_lease(non_existing_id, timedelta(minutes=5))
