@@ -81,6 +81,15 @@ def test_automation_url(chonk_party: Automation):
     )
 
 
+def test_received_event_url_is_preserved_when_serialized(
+    woodchonk_walked: ReceivedEvent,
+):
+    assert woodchonk_walked.model_dump(mode="json")["url"] == (
+        f"http://localhost:3000/events/event/{woodchonk_walked.occurred:%Y-%m-%d}/"
+        f"{woodchonk_walked.id}"
+    )
+
+
 def test_deployment_resource_url(chonk_party: Automation):
     deployment_id = uuid4()
 

@@ -22,6 +22,7 @@ from pydantic import (
     ConfigDict,
     Field,
     RootModel,
+    computed_field,
     field_validator,
     model_validator,
 )
@@ -214,6 +215,7 @@ class ReceivedEvent(Event):
         description="When the event was received by Prefect Cloud",
     )
 
+    @computed_field
     @property
     def url(self) -> Optional[str]:
         """Returns the UI URL for this event, allowing users to link to events
