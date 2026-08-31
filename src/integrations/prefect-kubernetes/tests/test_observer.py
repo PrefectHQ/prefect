@@ -1853,6 +1853,24 @@ class TestReplicatePodEvent:
         await _replicate_pod_event(**kwargs)
         assert mock_observer_log.log.call_count == 2
 
+    async def test_diagnosis_logs_distinct_unrecognized_scheduler_messages(
+        self,
+        mock_events_client: AsyncMock,
+        mock_observer_log: MagicMock,
+    ):
+        """Unsupported scheduler formats retain their exact log identity."""
+        flow_run_id = uuid.uuid4()
+        kwargs = _pending_event_kwargs(flow_run_id, str(uuid.uuid4()))
+
+        for message in (
+            "scheduler v2: 0/3 nodes are available: 3 Insufficient cpu.",
+            "scheduler v3: 0/3 nodes are available: 3 Insufficient cpu.",
+        ):
+            kwargs["status"] = _unschedulable_status(message)
+            await _replicate_pod_event(**kwargs)
+
+        assert mock_observer_log.log.call_count == 2
+
     async def test_diagnosis_cache_survives_more_than_100_000_other_pods(
         self,
         mock_events_client: AsyncMock,

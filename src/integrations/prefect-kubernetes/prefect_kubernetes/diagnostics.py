@@ -39,12 +39,27 @@ class DiagnosisCategory(str, enum.Enum):
     UNSCHEDULABLE_TAINT = "Unschedulable.Taint"
 
 
-_NODE_SUMMARY_PATTERN = re.compile(r"\d+/\d+ nodes are available:")
-_LEADING_COUNT_PATTERN = re.compile(r"^\d+\s+")
-_REASON_BOUNDARY_PATTERN = re.compile(r",\s+(?=\d+\s+)")
+_UNSCHEDULABLE_DETAIL_PREFIX = (
+    "Kubernetes cannot find a suitable node to run this pod. "
+)
+_NODE_SUMMARY_PATTERN = re.compile(r"^0/\d+ nodes are available:")
+_COUNTED_REASON_PATTERN = re.compile(r"^\d+ (?P<reason>\S.*)$")
+_REASON_BOUNDARY_PATTERN = re.compile(r", (?=\d+ )")
 _DEFAULT_PREEMPTION_PREFIX = "preemption:"
-_NODE_DECLARED_FEATURES_PREFIX = (
-    "node declared features check failed - unsatisfied requirements:"
+_NODE_DECLARED_FEATURES_PATTERN = re.compile(
+    r"^node declared features check failed - unsatisfied requirements: "
+    r"(?P<requirements>[^,]+(?:, [^,]+)*)$"
+)
+_PREFILTER_PATTERN = re.compile(r"^Node\(s\) failed PreFilter plugin \S+$")
+_KNOWN_FILTER_REASON_PATTERNS = (
+    re.compile(r"^[Ii]nsufficient [A-Za-z0-9./_-]+$"),
+    re.compile(r"^node\(s\) had untolerated taint(?: \{[^{}]*\})?$"),
+    re.compile(r"^node\(s\) didn't match Pod's node affinity/selector$"),
+    re.compile(r"^node\(s\) had volume node affinity conflict$"),
+    re.compile(r"^node\(s\) didn't match pod topology spread constraints$"),
+    re.compile(r"^cannot allocate all claims$"),
+    re.compile(r"^Preemption is not helpful for scheduling$"),
+    re.compile(r"^No preemption victims found for incoming pod$"),
 )
 
 _UNSCHEDULABLE_CATEGORIES = frozenset(
@@ -57,102 +72,138 @@ _UNSCHEDULABLE_CATEGORIES = frozenset(
 )
 
 
-def _normalize_scheduler_reason(reason: str) -> str:
-    """Canonicalize scheduler-owned ordering within one filter reason."""
-    prefix, separator, requirements = reason.partition(_NODE_DECLARED_FEATURES_PREFIX)
-    if not separator:
+def _normalize_scheduler_reason(reason: str) -> str | None:
+    """Canonicalize one recognized Kubernetes-owned filter reason."""
+    if match := _NODE_DECLARED_FEATURES_PATTERN.fullmatch(reason):
+        requirements = match.group("requirements").split(", ")
+        if any(requirement != requirement.strip() for requirement in requirements):
+            return None
+        return (
+            "node declared features check failed - unsatisfied requirements: "
+            + ", ".join(sorted(requirements))
+        )
+
+    if any(pattern.fullmatch(reason) for pattern in _KNOWN_FILTER_REASON_PATTERNS):
         return reason
-
-    normalized_requirements = ", ".join(
-        sorted(requirement.strip() for requirement in requirements.split(","))
-    )
-    return f"{prefix}{separator} {normalized_requirements}"
+    return None
 
 
-def _split_default_preemption(post_filter: str) -> tuple[str | None, str | None]:
+def _split_default_preemption(post_filter: str) -> tuple[str | None, str] | None:
     """Separate a default-preemption summary from earlier post-filter output."""
-    if post_filter.startswith(_DEFAULT_PREEMPTION_PREFIX):
+    prefix = f"{_DEFAULT_PREEMPTION_PREFIX} "
+    if post_filter.startswith(prefix):
         general_post_filter = None
-        preemption_detail = post_filter.removeprefix(
-            _DEFAULT_PREEMPTION_PREFIX
-        ).lstrip()
+        preemption_detail = post_filter.removeprefix(prefix)
     else:
-        marker = f", {_DEFAULT_PREEMPTION_PREFIX}"
+        marker = f", {_DEFAULT_PREEMPTION_PREFIX} "
         marker_index = post_filter.find(marker)
-        if marker_index == -1:
-            return None, None
+        if marker_index <= 0:
+            return None
+        if post_filter.find(marker, marker_index + len(marker)) != -1:
+            return None
         general_post_filter = post_filter[:marker_index]
-        preemption_detail = post_filter[marker_index + len(marker) :].lstrip()
+        preemption_detail = post_filter[marker_index + len(marker) :]
 
-    if not _NODE_SUMMARY_PATTERN.search(preemption_detail):
-        return None, None
     return general_post_filter, preemption_detail
 
 
-def _normalize_post_filter(post_filter: str) -> list[tuple[str, str]]:
+def _normalize_post_filter(post_filter: str) -> list[tuple[str, str]] | None:
     """Preserve post-filter output, normalizing default-preemption summaries."""
-    general_post_filter, preemption_detail = _split_default_preemption(post_filter)
-    if preemption_detail is not None:
-        normalized = []
-        if general_post_filter:
-            normalized.append(("postfilter", general_post_filter))
-        normalized.extend(
-            (f"postfilter/preemption/{section}", reason)
-            for section, reason in _parse_scheduler_message(preemption_detail)
-        )
-        return normalized
-    return [("postfilter", post_filter)]
+    preemption = _split_default_preemption(post_filter)
+    if preemption is None:
+        if _DEFAULT_PREEMPTION_PREFIX in post_filter:
+            return None
+        return [("postfilter", post_filter)]
 
+    general_post_filter, preemption_detail = preemption
+    parsed_preemption = _parse_scheduler_message(preemption_detail)
+    if not parsed_preemption or any(
+        section != "filter" for section, _ in parsed_preemption
+    ):
+        return None
 
-def _parse_scheduler_message(message: str) -> list[tuple[str, str]]:
-    """Parse scheduler output into tagged prefilter, filter, and postfilter data."""
-    if node_summary := _NODE_SUMMARY_PATTERN.search(message):
-        payload = message[node_summary.end() :].lstrip()
-    else:
-        payload = message
-
-    first_section, separator, post_filter = payload.partition(". ")
-    if not _LEADING_COUNT_PATTERN.match(payload):
-        _, preemption_detail = _split_default_preemption(payload)
-        if preemption_detail is not None:
-            return _normalize_post_filter(payload)
-
-        normalized = [("prefilter", first_section.rstrip("."))]
-        if separator:
-            normalized.extend(_normalize_post_filter(post_filter))
-        return normalized
-
-    filter_reasons = first_section
-    parts = _REASON_BOUNDARY_PATTERN.split(filter_reasons)
-    if not separator:
-        parts[-1] = parts[-1].rstrip(".")
-
-    normalized: list[tuple[str, str]] = []
-    for part in parts:
-        reason = _LEADING_COUNT_PATTERN.sub("", part.strip())
-        if reason:
-            normalized.append(("filter", _normalize_scheduler_reason(reason)))
-    if separator:
-        normalized.extend(_normalize_post_filter(post_filter))
+    normalized = []
+    if general_post_filter:
+        normalized.append(("postfilter", general_post_filter))
+    normalized.extend(
+        (f"postfilter/preemption/{section}", reason)
+        for section, reason in parsed_preemption
+    )
     return normalized
 
 
-def _normalize_scheduler_reasons(detail: str) -> tuple[str, ...]:
-    """Return stable, tagged scheduler reasons without volatile node counts.
+def _parse_scheduler_message(message: str) -> list[tuple[str, str]] | None:
+    """Parse one complete, recognized Kubernetes scheduler message."""
+    node_summary = _NODE_SUMMARY_PATTERN.match(message)
+    if node_summary is None:
+        return None
 
-    Filter histograms are split only where Kubernetes starts the next counted
-    reason, keeping commas within a reason intact. Prefilter, filter, and
-    postfilter sections are tagged so identical text in different scheduler
-    stages remains distinct. General postfilter output is preserved exactly;
-    default-preemption node summaries are parsed recursively because their node
-    counts and reason order are volatile too.
+    remainder = message[node_summary.end() :]
+    if not remainder:
+        return []
+    if not remainder.startswith(" ") or remainder.startswith("  "):
+        return None
+    payload = remainder.removeprefix(" ")
+    if not payload:
+        return None
+
+    if payload.startswith(_DEFAULT_PREEMPTION_PREFIX):
+        if not payload.startswith(f"{_DEFAULT_PREEMPTION_PREFIX} "):
+            return None
+        return _normalize_post_filter(payload)
+
+    if ". " in payload:
+        first_section, post_filter = payload.split(". ", 1)
+        if not post_filter:
+            return None
+    elif payload.endswith("."):
+        first_section = payload.removesuffix(".")
+        post_filter = None
+    else:
+        return None
+
+    if not first_section:
+        return None
+
+    normalized: list[tuple[str, str]] = []
+    if first_section[0].isdigit():
+        for part in _REASON_BOUNDARY_PATTERN.split(first_section):
+            counted_reason = _COUNTED_REASON_PATTERN.fullmatch(part)
+            if counted_reason is None:
+                return None
+            reason = _normalize_scheduler_reason(counted_reason.group("reason"))
+            if reason is None:
+                return None
+            normalized.append(("filter", reason))
+    elif _PREFILTER_PATTERN.fullmatch(first_section):
+        normalized.append(("prefilter", first_section))
+    else:
+        return None
+
+    if post_filter is not None:
+        normalized_post_filter = _normalize_post_filter(post_filter)
+        if normalized_post_filter is None:
+            return None
+        normalized.extend(normalized_post_filter)
+    return normalized
+
+
+def _scheduler_dedupe_key(detail: str) -> tuple[str, ...]:
+    """Return a conservative key for recognized Kubernetes scheduler output.
+
+    Unknown or malformed formats retain their exact text. This deliberately
+    prefers an occasional duplicate log after an upstream format change over
+    suppressing a meaningfully different diagnosis.
     """
-    return tuple(
-        sorted(
-            f"{section}: {reason}"
-            for section, reason in _parse_scheduler_message(detail)
-            if reason
-        )
+    if not detail.startswith(_UNSCHEDULABLE_DETAIL_PREFIX):
+        return ("scheduler/raw", detail)
+
+    parsed = _parse_scheduler_message(detail.removeprefix(_UNSCHEDULABLE_DETAIL_PREFIX))
+    if parsed is None:
+        return ("scheduler/raw", detail)
+    return (
+        "scheduler/normalized",
+        *(sorted(f"{section}: {reason}" for section, reason in parsed if reason)),
     )
 
 
@@ -169,20 +220,16 @@ class InfrastructureDiagnosis:
     def _dedupe_key(self) -> tuple[str, ...]:
         """Return a key identifying this diagnosis by its normalized causes.
 
-        Node and reason counts in scheduler messages (e.g. `0/3 nodes are
-        available: 3 Insufficient cpu`) change as cluster capacity fluctuates
-        without the underlying cause changing, so they are removed and the
-        reasons are sorted for `Unschedulable` diagnoses. Distinct causes
-        (e.g. `Insufficient cpu` vs `Insufficient ephemeral-storage`) still
-        produce distinct keys. Other categories compare exactly, so failures
-        that differ only in a number (e.g. a container name or image tag) are
-        not collapsed.
+        Counts and ordering are normalized only for recognized Kubernetes
+        scheduler formats. Unfamiliar scheduler output and all other diagnosis
+        categories compare exactly, so upstream format changes or meaningful
+        failures that differ only in a number are not collapsed.
         """
         if self.category in _UNSCHEDULABLE_CATEGORIES:
             return (
                 self.category.value,
                 self.summary,
-                *_normalize_scheduler_reasons(self.detail),
+                *_scheduler_dedupe_key(self.detail),
             )
         return (self.category.value, self.summary, self.detail)
 
@@ -347,10 +394,7 @@ def _check_unschedulable(
                 level=DiagnosisLevel.WARNING,
                 category=_categorize_unschedulable(message),
                 summary="Pod is unschedulable",
-                detail=(
-                    f"Kubernetes cannot find a suitable node to run "
-                    f"this pod. {message}".strip()
-                ),
+                detail=f"{_UNSCHEDULABLE_DETAIL_PREFIX}{message}".strip(),
                 resolution=(
                     "Check that the cluster has nodes with sufficient "
                     "resources, matching node selectors, and "

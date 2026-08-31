@@ -478,18 +478,6 @@ class TestDiagnoseKubernetesPod:
             ),
             (
                 (
-                    "0/1 nodes are available: 1 cannot allocate all claims. "
-                    "preemption: 0/1 nodes are available: 1 Preemption is not "
-                    "helpful for scheduling."
-                ),
-                (
-                    "0/1 nodes are available: 1 cannot allocate all claims. "
-                    "preemption: 0/1 nodes are available: 1 Preemption is not "
-                    "helpful for scheduling.."
-                ),
-            ),
-            (
-                (
                     "0/3 nodes are available: Node(s) failed PreFilter plugin "
                     "FalsePreFilter. preemption: 0/3 nodes are available: "
                     "3 Preemption is not helpful for scheduling."
@@ -508,6 +496,36 @@ class TestDiagnoseKubernetesPod:
                 (
                     "0/8 nodes are available: 8 node(s) had untolerated taint "
                     "{node-role.kubernetes.io/master: }."
+                ),
+            ),
+            (
+                (
+                    "0/3 nodes are available: 3 node(s) didn't match Pod's node "
+                    "affinity/selector."
+                ),
+                (
+                    "0/5 nodes are available: 5 node(s) didn't match Pod's node "
+                    "affinity/selector."
+                ),
+            ),
+            (
+                (
+                    "0/3 nodes are available: 3 node(s) had volume node affinity "
+                    "conflict."
+                ),
+                (
+                    "0/5 nodes are available: 5 node(s) had volume node affinity "
+                    "conflict."
+                ),
+            ),
+            (
+                (
+                    "0/3 nodes are available: 3 node(s) didn't match pod topology "
+                    "spread constraints."
+                ),
+                (
+                    "0/5 nodes are available: 5 node(s) didn't match pod topology "
+                    "spread constraints."
                 ),
             ),
             (
@@ -537,9 +555,11 @@ class TestDiagnoseKubernetesPod:
             "preemption-counts-and-order",
             "count-only-preemption",
             "general-postfilter-preemption",
-            "extra-preemption-terminator",
             "prefilter-preemption",
             "dotted-taint-counts",
+            "node-affinity-counts",
+            "volume-node-affinity-counts",
+            "topology-spread-counts",
             "node-declared-feature-order",
             "filter-order-with-postfilter",
         ],
@@ -550,6 +570,79 @@ class TestDiagnoseKubernetesPod:
         first = _unschedulable_diagnosis(first_detail)
         second = _unschedulable_diagnosis(second_detail)
         assert first._dedupe_key() == second._dedupe_key()
+
+    @pytest.mark.parametrize(
+        ("first_detail", "second_detail"),
+        [
+            (
+                "0/3 nodes are available: 3 Insufficient cpu.",
+                "scheduler report: 0/3 nodes are available: 3 Insufficient cpu.",
+            ),
+            (
+                "0/3 nodes are available: 3 Insufficient cpu, 2",
+                "0/5 nodes are available: 5 Insufficient cpu, 2",
+            ),
+            (
+                "0/3 nodes are available: 3 custom plugin reason.",
+                "0/5 nodes are available: 5 custom plugin reason.",
+            ),
+            (
+                "0/3 nodes are available: FutureSchedulerPlugin changed its wording.",
+                "0/5 nodes are available: FutureSchedulerPlugin changed its wording.",
+            ),
+            (
+                (
+                    "0/1 nodes are available: 1 custom plugin observed node "
+                    "declared features check failed - unsatisfied requirements: "
+                    "FeatureA, FeatureB."
+                ),
+                (
+                    "0/1 nodes are available: 1 custom plugin observed node "
+                    "declared features check failed - unsatisfied requirements: "
+                    "FeatureB, FeatureA."
+                ),
+            ),
+            (
+                (
+                    "0/1 nodes are available: 1 cannot allocate all claims. "
+                    "preemption: scheduler report: 0/1 nodes are available: "
+                    "1 Preemption is not helpful for scheduling."
+                ),
+                (
+                    "0/2 nodes are available: 2 cannot allocate all claims. "
+                    "preemption: scheduler report: 0/2 nodes are available: "
+                    "2 Preemption is not helpful for scheduling."
+                ),
+            ),
+            (
+                (
+                    "0/1 nodes are available: 1 cannot allocate all claims. "
+                    "preemption: 0/1 nodes are available: 1 Preemption is not "
+                    "helpful for scheduling."
+                ),
+                (
+                    "0/1 nodes are available: 1 cannot allocate all claims. "
+                    "preemption: 0/1 nodes are available: 1 Preemption is not "
+                    "helpful for scheduling.."
+                ),
+            ),
+        ],
+        ids=[
+            "changed-outer-scaffold",
+            "incomplete-filter-histogram",
+            "unrecognized-filter-reason",
+            "unrecognized-prefilter-reason",
+            "embedded-node-declared-features-prefix",
+            "malformed-nested-preemption",
+            "extra-preemption-terminator",
+        ],
+    )
+    def test_dedupe_key_preserves_unrecognized_scheduler_messages(
+        self, first_detail: str, second_detail: str
+    ):
+        first = _unschedulable_diagnosis(first_detail)
+        second = _unschedulable_diagnosis(second_detail)
+        assert first._dedupe_key() != second._dedupe_key()
 
     @pytest.mark.parametrize(
         ("first_detail", "second_detail"),
