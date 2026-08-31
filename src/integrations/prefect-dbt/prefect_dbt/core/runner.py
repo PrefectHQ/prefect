@@ -754,14 +754,30 @@ class PrefectDbtRunner(DbtHookMixin):
 
                 # Skip logging for skipped nodes
                 if node_id not in self._skipped_nodes:
-                    flow_run_context: Optional[dict[str, Any]] = context.get(
-                        "flow_run_context"
-                    )
-                    logger = task_state.get_task_logger(
-                        node_id,
-                        flow_run_context.get("flow_run") if flow_run_context else None,
-                        flow_run_context.get("flow") if flow_run_context else None,
-                    )
+                    task_run_id = task_state.get_task_run_id(node_id)
+                    if task_run_id is not None:
+                        # Node has an associated Prefect task — log into that task.
+                        flow_run_context: Optional[dict[str, Any]] = context.get(
+                            "flow_run_context"
+                        )
+                        logger = task_state.get_task_logger(
+                            node_id,
+                            flow_run_context.get("flow_run")
+                            if flow_run_context
+                            else None,
+                            flow_run_context.get("flow") if flow_run_context else None,
+                        )
+                    else:
+                        # No Prefect task was created for this node (e.g. source
+                        # nodes during `dbt source freshness`). Fall back to the
+                        # caller's run context so logs appear in the enclosing
+                        # task or flow run rather than being lost with
+                        # task_run_id=None.
+                        try:
+                            with hydrated_context(context) as run_context:
+                                logger = get_run_logger(run_context)
+                        except MissingContextError:
+                            logger = None
                 else:
                     logger = None
             else:
@@ -955,14 +971,30 @@ class PrefectDbtRunner(DbtHookMixin):
 
                 # Skip logging for skipped nodes
                 if node_id not in self._skipped_nodes:
-                    flow_run_context: Optional[dict[str, Any]] = context.get(
-                        "flow_run_context"
-                    )
-                    logger = task_state.get_task_logger(
-                        node_id,
-                        flow_run_context.get("flow_run") if flow_run_context else None,
-                        flow_run_context.get("flow") if flow_run_context else None,
-                    )
+                    task_run_id = task_state.get_task_run_id(node_id)
+                    if task_run_id is not None:
+                        # Node has an associated Prefect task — log into that task.
+                        flow_run_context: Optional[dict[str, Any]] = context.get(
+                            "flow_run_context"
+                        )
+                        logger = task_state.get_task_logger(
+                            node_id,
+                            flow_run_context.get("flow_run")
+                            if flow_run_context
+                            else None,
+                            flow_run_context.get("flow") if flow_run_context else None,
+                        )
+                    else:
+                        # No Prefect task was created for this node (e.g. source
+                        # nodes during `dbt source freshness`). Fall back to the
+                        # caller's run context so logs appear in the enclosing
+                        # task or flow run rather than being lost with
+                        # task_run_id=None.
+                        try:
+                            with hydrated_context(context) as run_context:
+                                logger = get_run_logger(run_context)
+                        except MissingContextError:
+                            logger = None
                 else:
                     logger = None
             else:
