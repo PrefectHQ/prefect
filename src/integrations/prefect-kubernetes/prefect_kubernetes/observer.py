@@ -9,7 +9,7 @@ import threading
 import uuid
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from typing import Any
+from typing import Any, cast
 
 import anyio
 import kopf
@@ -56,6 +56,119 @@ _last_diagnosis_cache: dict[str, tuple[str, ...]] = {}
 # until the pod leaves Pending or is deleted. Transient failures and timeouts
 # are not cached so they are retried on the next event.
 _completed_state_check_cache: set[str] = set()
+# Each in-flight reconciliation owns an identity-keyed set populated by pod
+# events that arrive after its Kubernetes LIST begins. This prevents a stale
+# LIST snapshot from pruning state for a pod that was concurrently observed
+# again, including when reconciliation passes overlap.
+_pod_cache_reconciliation_touches: dict[object, set[str]] = {}
+_POD_LIST_PAGE_SIZE = 500
+_POD_CACHE_RECONCILIATION_INTERVAL_SECONDS = 5 * 60
+
+
+def _pod_label_filters() -> dict[str, Any]:
+    """Return the label filters shared by pod watching and reconciliation."""
+    additional_label_filters = cast(
+        dict[str, str], settings.observer.additional_label_filters
+    )
+    return {
+        "prefect.io/flow-run-id": kopf.PRESENT,
+        **additional_label_filters,
+    }
+
+
+def _pod_label_selector() -> str:
+    """Render the pod observer's label filters for Kubernetes list calls."""
+    return ",".join(
+        key if value is kopf.PRESENT else f"{key}={value}"
+        for key, value in sorted(_pod_label_filters().items())
+    )
+
+
+async def _reconcile_pod_lifecycle_caches(logger: kopf.Logger) -> None:
+    """Release lifecycle state for pods absent from a complete Kubernetes list."""
+    # Only entries present before the list started are eligible for removal;
+    # another pod event may populate either cache while Kubernetes I/O is in flight.
+    candidates = set(_completed_state_check_cache) | set(_last_diagnosis_cache)
+    if not candidates:
+        return
+
+    reconciliation = object()
+    touched_uids: set[str] = set()
+    _pod_cache_reconciliation_touches[reconciliation] = touched_uids
+    live_uids: set[str] = set()
+    try:
+        client = await _get_kubernetes_client()
+        try:
+            core_client = CoreV1Api(client)
+            configured_namespaces = cast(set[str], settings.observer.namespaces)
+            namespaces: tuple[str | None, ...] = tuple(
+                sorted(configured_namespaces)
+            ) or (None,)
+            for namespace in namespaces:
+                continue_token: str | None = None
+                while True:
+                    list_kwargs: dict[str, Any] = {
+                        "label_selector": _pod_label_selector(),
+                        "limit": _POD_LIST_PAGE_SIZE,
+                    }
+                    if continue_token:
+                        list_kwargs["_continue"] = continue_token
+                    if namespace is None:
+                        pods = await core_client.list_pod_for_all_namespaces(
+                            **list_kwargs
+                        )
+                    else:
+                        pods = await core_client.list_namespaced_pod(
+                            namespace=namespace, **list_kwargs
+                        )
+                    for pod in pods.items:
+                        uid = pod.metadata.uid
+                        if not uid:
+                            raise RuntimeError(
+                                "Kubernetes pod listing returned an object missing a UID"
+                            )
+                        if uid in candidates:
+                            live_uids.add(uid)
+                    continue_token = pods.metadata._continue
+                    if not continue_token:
+                        break
+        finally:
+            # A close failure must not replace an active LIST failure or
+            # cancellation; preserving cancellation lets observer shutdown finish.
+            pending_failure = sys.exc_info()[0] is not None
+            try:
+                await client.close()
+            except Exception:
+                if not pending_failure:
+                    raise
+                logger.debug(
+                    "Failed to close the Kubernetes client after pod reconciliation",
+                    exc_info=True,
+                )
+    finally:
+        _pod_cache_reconciliation_touches.pop(reconciliation, None)
+
+    # Mutate only after every page in every configured namespace succeeds.
+    stale_uids = candidates - live_uids - touched_uids
+    _completed_state_check_cache.difference_update(stale_uids)
+    for uid in stale_uids:
+        _last_diagnosis_cache.pop(uid, None)
+    logger.debug("Released lifecycle state for %d deleted pods", len(stale_uids))
+
+
+async def _periodically_reconcile_pod_lifecycle_caches(
+    logger: kopf.Logger,
+) -> None:
+    """Reconcile lifecycle state without expiring entries for live pods."""
+    while True:
+        await asyncio.sleep(_POD_CACHE_RECONCILIATION_INTERVAL_SECONDS)
+        try:
+            await _reconcile_pod_lifecycle_caches(logger)
+        except Exception:
+            logger.debug(
+                "Failed to reconcile Kubernetes pod lifecycle state",
+                exc_info=True,
+            )
 
 
 def _is_completed_flow_run_state(state: State | None) -> bool:
@@ -126,6 +239,7 @@ settings = KubernetesSettings()
 events_client: EventsClient | None = None
 orchestration_client: PrefectClient | None = None
 _startup_event_semaphore: asyncio.Semaphore | None = None
+_pod_cache_reconciliation_task: asyncio.Task[None] | None = None
 
 
 @kopf.on.startup()
@@ -139,23 +253,40 @@ async def initialize_clients(logger: kopf.Logger, **kwargs: Any):
     global events_client
     global orchestration_client
     global _startup_event_semaphore
+    global _pod_cache_reconciliation_task
     _startup_event_semaphore = asyncio.Semaphore(
         settings.observer.startup_event_concurrency
     )
     orchestration_client = await get_client().__aenter__()
     events_client = await get_events_client().__aenter__()
+    if settings.observer.replicate_pod_events:
+        _pod_cache_reconciliation_task = asyncio.create_task(
+            _periodically_reconcile_pod_lifecycle_caches(logger),
+            name="reconcile Kubernetes observer pod lifecycle state",
+        )
     logger.info("Clients successfully initialized")
 
 
 @kopf.on.cleanup()
 async def cleanup_fn(logger: kopf.Logger, **kwargs: Any):
+    global _pod_cache_reconciliation_task
     logger.info("Cleaning up clients")
     try:
         try:
-            await events_client.__aexit__(None, None, None)
+            if _pod_cache_reconciliation_task is not None:
+                _pod_cache_reconciliation_task.cancel()
+                try:
+                    await _pod_cache_reconciliation_task
+                except asyncio.CancelledError:
+                    pass
         finally:
+            # Reconciliation teardown is newly owned here and must not prevent
+            # the observer's existing client cleanup path from running.
+            await events_client.__aexit__(None, None, None)
             await orchestration_client.__aexit__(None, None, None)
     finally:
+        _pod_cache_reconciliation_task = None
+        _pod_cache_reconciliation_touches.clear()
         _completed_state_check_cache.clear()
         _last_diagnosis_cache.clear()
     logger.info("Clients successfully cleaned up")
@@ -197,6 +328,8 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     """
     global events_client
     global orchestration_client
+    for touched_uids in _pod_cache_reconciliation_touches.values():
+        touched_uids.add(uid)
     event_type = event["type"]
     phase = status["phase"]
 
@@ -421,10 +554,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
 if settings.observer.replicate_pod_events:
     kopf.on.event(
         "pods",
-        labels={
-            "prefect.io/flow-run-id": kopf.PRESENT,
-            **settings.observer.additional_label_filters,
-        },
+        labels=_pod_label_filters(),
     )(_replicate_pod_event)  # type: ignore
 
 
