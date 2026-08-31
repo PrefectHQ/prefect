@@ -12,7 +12,7 @@ from typing import Any
 
 import anyio
 import kopf
-from cachetools import LRUCache, TTLCache
+from cachetools import TTLCache
 from kubernetes_asyncio import config
 from kubernetes_asyncio.client import ApiClient, BatchV1Api, CoreV1Api, V1Job
 
@@ -44,27 +44,17 @@ _last_event_cache: TTLCache[str, Event] = TTLCache(
     maxsize=1000, ttl=60 * 5
 )  # 5 minutes
 
-# Tracks the last diagnosis per pod UID so we don't emit duplicate
-# flow run logs on repeated MODIFIED events.  Stores the normalized
-# dedupe key so scheduler count changes for an unchanged cause don't
-# produce duplicate logs.  An LRU cache without a TTL is used so an
-# unchanged pod is not reprocessed after a time-based expiry.
-# Shared bound for the per-pod caches below, sized for the number of pods a
-# single observer is expected to watch concurrently. Entries are small (a pod
-# UID key plus a short value), so a high bound is cheap and avoids evicting
-# live pending pods, which would repeat the work these caches suppress.
-_POD_CACHE_MAXSIZE = 100_000
-
-_last_diagnosis_cache: LRUCache[str, tuple[str, ...]] = LRUCache(
-    maxsize=_POD_CACHE_MAXSIZE
-)
+# Tracks the last diagnosis per pod UID so we don't emit duplicate flow run
+# logs on repeated MODIFIED events. Entries live for the pod lifecycle and are
+# removed on recovery or deletion, so active pods cannot be evicted by other
+# pods entering the cache.
+_last_diagnosis_cache: dict[str, tuple[str, ...]] = {}
 
 # Tracks pods whose Pending-phase flow run state check completed so repeated
-# watch events don't repeat `read_flow_run`/`propose_state` calls. Values are
-# `None` markers, and entries are removed when the pod leaves Pending.
-# Transient failures and timeouts are not cached so they are retried on the
-# next event.
-_completed_state_check_cache: LRUCache[str, None] = LRUCache(maxsize=_POD_CACHE_MAXSIZE)
+# watch events don't repeat `read_flow_run`/`propose_state` calls. Entries live
+# until the pod leaves Pending or is deleted. Transient failures and timeouts
+# are not cached so they are retried on the next event.
+_completed_state_check_cache: set[str] = set()
 
 
 def _is_completed_flow_run_state(state: State | None) -> bool:
@@ -159,8 +149,12 @@ async def initialize_clients(logger: kopf.Logger, **kwargs: Any):
 @kopf.on.cleanup()
 async def cleanup_fn(logger: kopf.Logger, **kwargs: Any):
     logger.info("Cleaning up clients")
-    await events_client.__aexit__(None, None, None)
-    await orchestration_client.__aexit__(None, None, None)
+    try:
+        await events_client.__aexit__(None, None, None)
+        await orchestration_client.__aexit__(None, None, None)
+    finally:
+        _completed_state_check_cache.clear()
+        _last_diagnosis_cache.clear()
     logger.info("Clients successfully cleaned up")
 
 
@@ -201,6 +195,14 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     # Diagnose pod failures up front so the category can participate in both
     # the event identity and the emitted labels below.
     diagnosis = diagnose_k8s_pod(status)
+
+    # Reconcile lifecycle-owned caches before any event-deduplication return.
+    # Startup events can observe a phase change or diagnosis recovery that
+    # occurred while the observer was offline.
+    if phase != "Pending":
+        _completed_state_check_cache.discard(uid)
+    if not diagnosis:
+        _last_diagnosis_cache.pop(uid, None)
 
     # Create a deterministic event ID based on the pod's ID, phase, restart
     # count, and diagnosis category.  This ensures that the event ID is the
@@ -288,7 +290,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                         f"Flow run {flow_run_id} is in state {flow_run.state.name!r}, "
                         f"skipping InfrastructurePending proposal"
                     )
-                    _completed_state_check_cache[uid] = None
+                    _completed_state_check_cache.add(uid)
                 else:
                     proposed_state: State | None = None
                     # Use a timeout to prevent propose_state's internal WAIT
@@ -307,7 +309,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                             f"run {flow_run_id}; will retry on the next event"
                         )
                     elif _is_completed_flow_run_state(proposed_state):
-                        _completed_state_check_cache[uid] = None
+                        _completed_state_check_cache.add(uid)
                     else:
                         logger.debug(
                             f"InfrastructurePending proposal for flow run "
@@ -315,7 +317,7 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                             f"{proposed_state.name!r}; will retry on the next event"
                         )
             except ObjectNotFound:
-                _completed_state_check_cache[uid] = None
+                _completed_state_check_cache.add(uid)
                 logger.debug(
                     f"Flow run {flow_run_id} does not exist, skipping; "
                     "the check will not be repeated while the pod stays Pending"
@@ -327,15 +329,12 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                     f"Flow run {flow_run_id} is paused; skipping "
                     f"InfrastructurePending proposal"
                 )
-                _completed_state_check_cache[uid] = None
+                _completed_state_check_cache.add(uid)
             except (Abort, Exception):
                 logger.debug(
                     f"Failed to propose InfrastructurePending for flow run {flow_run_id}",
                     exc_info=True,
                 )
-    elif phase != "Pending":
-        _completed_state_check_cache.pop(uid, None)
-
     # Emit actionable flow run logs for the diagnosis computed above.
     # Only log when the diagnosis changes to avoid spamming on repeated
     # MODIFIED events for the same failure condition.  Clear the cache
@@ -352,8 +351,6 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
                 diagnosis.detail,
                 diagnosis.resolution,
             )
-    elif not diagnosis:
-        _last_diagnosis_cache.pop(uid, None)
 
     resource = {
         "prefect.resource.id": f"prefect.kubernetes.pod.{uid}",
@@ -396,13 +393,16 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
             prefect_event.follows = prev_event.id
     if events_client is None:
         raise RuntimeError("Events client not initialized")
-    await events_client.emit(event=prefect_event)
-    _last_event_cache[uid] = prefect_event
-    if event_type == "DELETED":
-        # A deleted pod keeps its final phase and diagnosis, so the phase- and
-        # diagnosis-based cleanup above never runs for it.
-        _completed_state_check_cache.pop(uid, None)
-        _last_diagnosis_cache.pop(uid, None)
+    try:
+        await events_client.emit(event=prefect_event)
+        _last_event_cache[uid] = prefect_event
+    finally:
+        if event_type == "DELETED":
+            # A deleted pod keeps its final phase and diagnosis, so the phase-
+            # and diagnosis-based cleanup above never runs for it. Cleanup is
+            # still authoritative if event emission fails.
+            _completed_state_check_cache.discard(uid)
+            _last_diagnosis_cache.pop(uid, None)
 
 
 if settings.observer.replicate_pod_events:

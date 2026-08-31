@@ -40,8 +40,12 @@ class DiagnosisCategory(str, enum.Enum):
 
 
 _NODE_SUMMARY_PATTERN = re.compile(r"\d+/\d+ nodes are available:")
-_PREEMPTION_SPLIT_PATTERN = re.compile(r"\bpreemption:")
 _LEADING_COUNT_PATTERN = re.compile(r"^\d+\s+")
+_REASON_BOUNDARY_PATTERN = re.compile(r",\s+(?=\d+\s+)")
+_DEFAULT_PREEMPTION_PREFIX = "preemption:"
+_NODE_DECLARED_FEATURES_PREFIX = (
+    "node declared features check failed - unsatisfied requirements:"
+)
 
 _UNSCHEDULABLE_CATEGORIES = frozenset(
     {
@@ -53,30 +57,103 @@ _UNSCHEDULABLE_CATEGORIES = frozenset(
 )
 
 
-def _normalize_scheduler_reasons(detail: str) -> tuple[str, ...]:
-    """Return the scheduler reasons without volatile counts and in a stable order.
+def _normalize_scheduler_reason(reason: str) -> str:
+    """Canonicalize scheduler-owned ordering within one filter reason."""
+    prefix, separator, requirements = reason.partition(_NODE_DECLARED_FEATURES_PREFIX)
+    if not separator:
+        return reason
 
-    Kubernetes formats a scheduling failure as `<filter reasons>. preemption:
-    <post-filter reason>`, where each section starts with a `0/N nodes are
-    available:` summary and each reason carries a leading count. The summaries
-    and the leading counts change with cluster capacity, and Kubernetes orders
-    the reasons by count, so both are removed and the reasons are sorted. The
-    two sections are normalized independently so a post-filter reason is never
-    joined to a filter reason. Numbers inside a reason, such as the taint value
-    in `node(s) had untolerated taint {gpu-tier: 1}`, are kept.
+    normalized_requirements = ", ".join(
+        sorted(requirement.strip() for requirement in requirements.split(","))
+    )
+    return f"{prefix}{separator} {normalized_requirements}"
+
+
+def _split_default_preemption(post_filter: str) -> tuple[str | None, str | None]:
+    """Separate a default-preemption summary from earlier post-filter output."""
+    if post_filter.startswith(_DEFAULT_PREEMPTION_PREFIX):
+        general_post_filter = None
+        preemption_detail = post_filter.removeprefix(
+            _DEFAULT_PREEMPTION_PREFIX
+        ).lstrip()
+    else:
+        marker = f", {_DEFAULT_PREEMPTION_PREFIX}"
+        marker_index = post_filter.find(marker)
+        if marker_index == -1:
+            return None, None
+        general_post_filter = post_filter[:marker_index]
+        preemption_detail = post_filter[marker_index + len(marker) :].lstrip()
+
+    if not _NODE_SUMMARY_PATTERN.search(preemption_detail):
+        return None, None
+    return general_post_filter, preemption_detail
+
+
+def _normalize_post_filter(post_filter: str) -> list[tuple[str, str]]:
+    """Preserve post-filter output, normalizing default-preemption summaries."""
+    general_post_filter, preemption_detail = _split_default_preemption(post_filter)
+    if preemption_detail is not None:
+        normalized = []
+        if general_post_filter:
+            normalized.append(("postfilter", general_post_filter))
+        normalized.extend(
+            (f"postfilter/preemption/{section}", reason)
+            for section, reason in _parse_scheduler_message(preemption_detail)
+        )
+        return normalized
+    return [("postfilter", post_filter)]
+
+
+def _parse_scheduler_message(message: str) -> list[tuple[str, str]]:
+    """Parse scheduler output into tagged prefilter, filter, and postfilter data."""
+    if node_summary := _NODE_SUMMARY_PATTERN.search(message):
+        payload = message[node_summary.end() :].lstrip()
+    else:
+        payload = message
+
+    first_section, separator, post_filter = payload.partition(". ")
+    if not _LEADING_COUNT_PATTERN.match(payload):
+        _, preemption_detail = _split_default_preemption(payload)
+        if preemption_detail is not None:
+            return _normalize_post_filter(payload)
+
+        normalized = [("prefilter", first_section.rstrip("."))]
+        if separator:
+            normalized.extend(_normalize_post_filter(post_filter))
+        return normalized
+
+    filter_reasons = first_section
+    parts = _REASON_BOUNDARY_PATTERN.split(filter_reasons)
+    if not separator:
+        parts[-1] = parts[-1].rstrip(".")
+
+    normalized: list[tuple[str, str]] = []
+    for part in parts:
+        reason = _LEADING_COUNT_PATTERN.sub("", part.strip())
+        if reason:
+            normalized.append(("filter", _normalize_scheduler_reason(reason)))
+    if separator:
+        normalized.extend(_normalize_post_filter(post_filter))
+    return normalized
+
+
+def _normalize_scheduler_reasons(detail: str) -> tuple[str, ...]:
+    """Return stable, tagged scheduler reasons without volatile node counts.
+
+    Filter histograms are split only where Kubernetes starts the next counted
+    reason, keeping commas within a reason intact. Prefilter, filter, and
+    postfilter sections are tagged so identical text in different scheduler
+    stages remains distinct. General postfilter output is preserved exactly;
+    default-preemption node summaries are parsed recursively because their node
+    counts and reason order are volatile too.
     """
-    reasons: list[str] = []
-    for index, section in enumerate(_PREEMPTION_SPLIT_PATTERN.split(detail)):
-        prefix = "" if index == 0 else "preemption: "
-        if node_summary := _NODE_SUMMARY_PATTERN.search(section):
-            section = section[node_summary.end() :]
-        else:
-            section = _NODE_SUMMARY_PATTERN.sub("", section)
-        for part in section.split(","):
-            reason = _LEADING_COUNT_PATTERN.sub("", part.strip()).strip(".").strip()
-            if reason:
-                reasons.append(prefix + reason)
-    return tuple(sorted(reasons))
+    return tuple(
+        sorted(
+            f"{section}: {reason}"
+            for section, reason in _parse_scheduler_message(detail)
+            if reason
+        )
+    )
 
 
 @dataclasses.dataclass(frozen=True)

@@ -9,6 +9,22 @@ from prefect_kubernetes.diagnostics import (
 )
 
 
+def _unschedulable_diagnosis(message: str) -> InfrastructureDiagnosis:
+    diagnosis = diagnose_k8s_pod(
+        {
+            "conditions": [
+                {
+                    "type": "PodScheduled",
+                    "reason": "Unschedulable",
+                    "message": message,
+                }
+            ]
+        }
+    )
+    assert diagnosis is not None
+    return diagnosis
+
+
 class TestDiagnoseKubernetesPod:
     """Tests for diagnose_k8s_pod."""
 
@@ -373,71 +389,23 @@ class TestDiagnoseKubernetesPod:
     # --- dedupe_key --------------------------------------------------------
 
     def test_dedupe_key_ignores_numeric_count_changes(self):
-        first = diagnose_k8s_pod(
-            {
-                "conditions": [
-                    {
-                        "type": "PodScheduled",
-                        "reason": "Unschedulable",
-                        "message": "0/3 nodes are available: 3 Insufficient cpu.",
-                    }
-                ]
-            }
+        first = _unschedulable_diagnosis("0/3 nodes are available: 3 Insufficient cpu.")
+        second = _unschedulable_diagnosis(
+            "0/5 nodes are available: 5 Insufficient cpu."
         )
-        second = diagnose_k8s_pod(
-            {
-                "conditions": [
-                    {
-                        "type": "PodScheduled",
-                        "reason": "Unschedulable",
-                        "message": "0/5 nodes are available: 5 Insufficient cpu.",
-                    }
-                ]
-            }
-        )
-        assert first is not None and second is not None
         assert first != second
         assert first._dedupe_key() == second._dedupe_key()
 
     def test_dedupe_key_preserves_cause_changes(self):
-        cpu = diagnose_k8s_pod(
-            {
-                "conditions": [
-                    {
-                        "type": "PodScheduled",
-                        "reason": "Unschedulable",
-                        "message": "0/3 nodes are available: 3 Insufficient cpu.",
-                    }
-                ]
-            }
+        cpu = _unschedulable_diagnosis("0/3 nodes are available: 3 Insufficient cpu.")
+        storage = _unschedulable_diagnosis(
+            "0/3 nodes are available: 3 Insufficient ephemeral-storage."
         )
-        storage = diagnose_k8s_pod(
-            {
-                "conditions": [
-                    {
-                        "type": "PodScheduled",
-                        "reason": "Unschedulable",
-                        "message": (
-                            "0/3 nodes are available: 3 Insufficient ephemeral-storage."
-                        ),
-                    }
-                ]
-            }
-        )
-        assert cpu is not None and storage is not None
         assert cpu._dedupe_key() != storage._dedupe_key()
 
     def test_dedupe_key_distinguishes_categories(self):
-        unschedulable = diagnose_k8s_pod(
-            {
-                "conditions": [
-                    {
-                        "type": "PodScheduled",
-                        "reason": "Unschedulable",
-                        "message": "0/3 nodes are available: 3 node(s) had untolerated taint.",
-                    }
-                ]
-            }
+        unschedulable = _unschedulable_diagnosis(
+            "0/3 nodes are available: 3 node(s) had untolerated taint."
         )
         oom = diagnose_k8s_pod(
             {
@@ -449,7 +417,7 @@ class TestDiagnoseKubernetesPod:
                 ]
             }
         )
-        assert unschedulable is not None and oom is not None
+        assert oom is not None
         assert unschedulable._dedupe_key() != oom._dedupe_key()
 
     def test_dedupe_key_distinguishes_oom_killed_containers(self):
@@ -477,201 +445,196 @@ class TestDiagnoseKubernetesPod:
         assert worker_one._dedupe_key() != worker_two._dedupe_key()
 
     def test_dedupe_key_ignores_scheduler_reason_order(self):
-        first = diagnose_k8s_pod(
-            {
-                "conditions": [
-                    {
-                        "type": "PodScheduled",
-                        "reason": "Unschedulable",
-                        "message": (
-                            "0/3 nodes are available: 2 Insufficient cpu, "
-                            "1 Insufficient memory."
-                        ),
-                    }
-                ]
-            }
+        first = _unschedulable_diagnosis(
+            "0/3 nodes are available: 2 Insufficient cpu, 1 Insufficient memory."
         )
-        second = diagnose_k8s_pod(
-            {
-                "conditions": [
-                    {
-                        "type": "PodScheduled",
-                        "reason": "Unschedulable",
-                        "message": (
-                            "0/4 nodes are available: 1 Insufficient memory, "
-                            "3 Insufficient cpu."
-                        ),
-                    }
-                ]
-            }
+        second = _unschedulable_diagnosis(
+            "0/4 nodes are available: 1 Insufficient memory, 3 Insufficient cpu."
         )
-        assert first is not None and second is not None
         assert first._dedupe_key() == second._dedupe_key()
 
     def test_dedupe_key_ignores_preemption_reason_count_changes(self):
-        first = diagnose_k8s_pod(
-            {
-                "conditions": [
-                    {
-                        "type": "PodScheduled",
-                        "reason": "Unschedulable",
-                        "message": (
-                            "0/8 nodes are available: 8 Insufficient cpu, "
-                            "2 node(s) had untolerated taint. preemption: "
-                            "0/8 nodes are available: 8 Preemption is not "
-                            "helpful for scheduling."
-                        ),
-                    }
-                ]
-            }
+        first = _unschedulable_diagnosis(
+            "0/8 nodes are available: 8 Insufficient cpu, "
+            "2 node(s) had untolerated taint. preemption: "
+            "0/8 nodes are available: 8 Preemption is not helpful for "
+            "scheduling, 2 No preemption victims found for incoming pod."
         )
-        second = diagnose_k8s_pod(
-            {
-                "conditions": [
-                    {
-                        "type": "PodScheduled",
-                        "reason": "Unschedulable",
-                        "message": (
-                            "0/12 nodes are available: 4 node(s) had "
-                            "untolerated taint, 12 Insufficient cpu. "
-                            "preemption: 0/15 nodes are available: 3 "
-                            "Preemption is not helpful for scheduling."
-                        ),
-                    }
-                ]
-            }
+        second = _unschedulable_diagnosis(
+            "0/12 nodes are available: 4 node(s) had untolerated taint, "
+            "12 Insufficient cpu. preemption: 0/15 nodes are available: "
+            "3 No preemption victims found for incoming pod, 12 Preemption "
+            "is not helpful for scheduling."
         )
-        assert first is not None and second is not None
+        assert first._dedupe_key() == second._dedupe_key()
+
+    def test_dedupe_key_ignores_count_only_preemption_changes(self):
+        first = _unschedulable_diagnosis(
+            "0/1 nodes are available: preemption: 0/1 nodes are available: "
+            "1 Preemption is not helpful for scheduling."
+        )
+        second = _unschedulable_diagnosis(
+            "0/2 nodes are available: preemption: 0/2 nodes are available: "
+            "2 Preemption is not helpful for scheduling."
+        )
+        assert first._dedupe_key() == second._dedupe_key()
+
+    def test_dedupe_key_normalizes_preemption_after_general_post_filter(self):
+        first = _unschedulable_diagnosis(
+            "0/1 nodes are available: 1 cannot allocate all claims. "
+            "still not schedulable, preemption: 0/1 nodes are available: "
+            "1 Preemption is not helpful for scheduling."
+        )
+        second = _unschedulable_diagnosis(
+            "0/2 nodes are available: 2 cannot allocate all claims. "
+            "still not schedulable, preemption: 0/2 nodes are available: "
+            "2 Preemption is not helpful for scheduling."
+        )
+        assert first._dedupe_key() == second._dedupe_key()
+
+    def test_dedupe_key_ignores_extra_preemption_terminator(self):
+        single_period = _unschedulable_diagnosis(
+            "0/1 nodes are available: 1 cannot allocate all claims. "
+            "preemption: 0/1 nodes are available: 1 Preemption is not "
+            "helpful for scheduling."
+        )
+        double_period = _unschedulable_diagnosis(
+            "0/1 nodes are available: 1 cannot allocate all claims. "
+            "preemption: 0/1 nodes are available: 1 Preemption is not "
+            "helpful for scheduling.."
+        )
+        assert single_period._dedupe_key() == double_period._dedupe_key()
+
+    def test_dedupe_key_separates_prefilter_and_post_filter(self):
+        first = _unschedulable_diagnosis(
+            "0/3 nodes are available: Node(s) failed PreFilter plugin "
+            "FalsePreFilter. Error running PostFilter plugin FailedPostFilter"
+        )
+        changed_post_filter = _unschedulable_diagnosis(
+            "0/3 nodes are available: Node(s) failed PreFilter plugin "
+            "FalsePreFilter. Error running PostFilter plugin OtherPostFilter"
+        )
+        assert (
+            "prefilter: Node(s) failed PreFilter plugin FalsePreFilter"
+            in first._dedupe_key()
+        )
+        assert (
+            "postfilter: Error running PostFilter plugin FailedPostFilter"
+            in first._dedupe_key()
+        )
+        assert first._dedupe_key() != changed_post_filter._dedupe_key()
+
+    def test_dedupe_key_normalizes_preemption_after_prefilter(self):
+        first = _unschedulable_diagnosis(
+            "0/3 nodes are available: Node(s) failed PreFilter plugin "
+            "FalsePreFilter. preemption: 0/3 nodes are available: "
+            "3 Preemption is not helpful for scheduling."
+        )
+        second = _unschedulable_diagnosis(
+            "0/5 nodes are available: Node(s) failed PreFilter plugin "
+            "FalsePreFilter. preemption: 0/5 nodes are available: "
+            "5 Preemption is not helpful for scheduling."
+        )
         assert first._dedupe_key() == second._dedupe_key()
 
     def test_dedupe_key_preserves_taint_value_changes(self):
-        first = diagnose_k8s_pod(
-            {
-                "conditions": [
-                    {
-                        "type": "PodScheduled",
-                        "reason": "Unschedulable",
-                        "message": (
-                            "0/3 nodes are available: 3 node(s) had "
-                            "untolerated taint {gpu-tier: 1}."
-                        ),
-                    }
-                ]
-            }
+        first = _unschedulable_diagnosis(
+            "0/3 nodes are available: 3 node(s) had untolerated taint {gpu-tier: 1}."
         )
-        second = diagnose_k8s_pod(
-            {
-                "conditions": [
-                    {
-                        "type": "PodScheduled",
-                        "reason": "Unschedulable",
-                        "message": (
-                            "0/3 nodes are available: 3 node(s) had "
-                            "untolerated taint {gpu-tier: 2}."
-                        ),
-                    }
-                ]
-            }
+        second = _unschedulable_diagnosis(
+            "0/3 nodes are available: 3 node(s) had untolerated taint {gpu-tier: 2}."
         )
-        assert first is not None and second is not None
         assert first._dedupe_key() != second._dedupe_key()
 
     def test_dedupe_key_preserves_dotted_taint_key_changes(self):
-        first = diagnose_k8s_pod(
-            {
-                "conditions": [
-                    {
-                        "type": "PodScheduled",
-                        "reason": "Unschedulable",
-                        "message": (
-                            "0/3 nodes are available: 3 node(s) had "
-                            "untolerated taint "
-                            "{node-role.kubernetes.io/master: }."
-                        ),
-                    }
-                ]
-            }
+        first = _unschedulable_diagnosis(
+            "0/3 nodes are available: 3 node(s) had untolerated taint "
+            "{node-role.kubernetes.io/master: }."
         )
-        second = diagnose_k8s_pod(
-            {
-                "conditions": [
-                    {
-                        "type": "PodScheduled",
-                        "reason": "Unschedulable",
-                        "message": (
-                            "0/3 nodes are available: 3 node(s) had "
-                            "untolerated taint "
-                            "{node-role.kubernetes.io/worker: }."
-                        ),
-                    }
-                ]
-            }
+        second = _unschedulable_diagnosis(
+            "0/3 nodes are available: 3 node(s) had untolerated taint "
+            "{node-role.kubernetes.io/worker: }."
         )
-        assert first is not None and second is not None
         assert first._dedupe_key() != second._dedupe_key()
 
     def test_dedupe_key_ignores_dotted_taint_count_changes(self):
-        first = diagnose_k8s_pod(
-            {
-                "conditions": [
-                    {
-                        "type": "PodScheduled",
-                        "reason": "Unschedulable",
-                        "message": (
-                            "0/3 nodes are available: 3 node(s) had "
-                            "untolerated taint "
-                            "{node-role.kubernetes.io/master: }."
-                        ),
-                    }
-                ]
-            }
+        first = _unschedulable_diagnosis(
+            "0/3 nodes are available: 3 node(s) had untolerated taint "
+            "{node-role.kubernetes.io/master: }."
         )
-        second = diagnose_k8s_pod(
-            {
-                "conditions": [
-                    {
-                        "type": "PodScheduled",
-                        "reason": "Unschedulable",
-                        "message": (
-                            "0/8 nodes are available: 8 node(s) had "
-                            "untolerated taint "
-                            "{node-role.kubernetes.io/master: }."
-                        ),
-                    }
-                ]
-            }
+        second = _unschedulable_diagnosis(
+            "0/8 nodes are available: 8 node(s) had untolerated taint "
+            "{node-role.kubernetes.io/master: }."
         )
-        assert first is not None and second is not None
         assert first._dedupe_key() == second._dedupe_key()
 
     def test_dedupe_key_preserves_dotted_resource_name_changes(self):
-        first = diagnose_k8s_pod(
-            {
-                "conditions": [
-                    {
-                        "type": "PodScheduled",
-                        "reason": "Unschedulable",
-                        "message": (
-                            "0/3 nodes are available: 3 Insufficient "
-                            "example.com/gpu, 2 Insufficient vendor.io/fpga."
-                        ),
-                    }
-                ]
-            }
+        first = _unschedulable_diagnosis(
+            "0/3 nodes are available: 3 Insufficient example.com/gpu, "
+            "2 Insufficient vendor.io/fpga."
         )
-        second = diagnose_k8s_pod(
-            {
-                "conditions": [
-                    {
-                        "type": "PodScheduled",
-                        "reason": "Unschedulable",
-                        "message": (
-                            "0/3 nodes are available: 3 Insufficient "
-                            "example.io/fpga, 2 Insufficient vendor.com/gpu."
-                        ),
-                    }
-                ]
-            }
+        second = _unschedulable_diagnosis(
+            "0/3 nodes are available: 3 Insufficient example.io/fpga, "
+            "2 Insufficient vendor.com/gpu."
         )
-        assert first is not None and second is not None
+        assert first._dedupe_key() != second._dedupe_key()
+
+    def test_dedupe_key_ignores_node_declared_feature_order(self):
+        first = _unschedulable_diagnosis(
+            "0/1 nodes are available: 1 node declared features "
+            "check failed - unsatisfied requirements: FeatureA, FeatureB."
+        )
+        second = _unschedulable_diagnosis(
+            "0/1 nodes are available: 1 node declared features "
+            "check failed - unsatisfied requirements: FeatureB, FeatureA."
+        )
+        assert first._dedupe_key() == second._dedupe_key()
+
+    def test_dedupe_key_preserves_node_declared_feature_changes(self):
+        first = _unschedulable_diagnosis(
+            "0/1 nodes are available: 1 node declared features "
+            "check failed - unsatisfied requirements: FeatureA, FeatureB."
+        )
+        second = _unschedulable_diagnosis(
+            "0/1 nodes are available: 1 node declared features "
+            "check failed - unsatisfied requirements: FeatureA, FeatureC."
+        )
+        assert first._dedupe_key() != second._dedupe_key()
+
+    def test_dedupe_key_ignores_filter_reordering_with_same_post_filter(self):
+        first = _unschedulable_diagnosis(
+            "0/4 nodes are available: 3 Insufficient cpu, "
+            "1 Insufficient memory. custom post-filter result"
+        )
+        second = _unschedulable_diagnosis(
+            "0/4 nodes are available: 3 Insufficient memory, "
+            "1 Insufficient cpu. custom post-filter result"
+        )
+        assert first._dedupe_key() == second._dedupe_key()
+
+    def test_dedupe_key_preserves_post_filter_changes(self):
+        first = _unschedulable_diagnosis(
+            "0/4 nodes are available: 3 Insufficient cpu, "
+            "1 Insufficient memory. custom post-filter result A"
+        )
+        second = _unschedulable_diagnosis(
+            "0/4 nodes are available: 3 Insufficient cpu, "
+            "1 Insufficient memory. custom post-filter result B"
+        )
+        assert first._dedupe_key() != second._dedupe_key()
+
+    def test_dedupe_key_distinguishes_prefilter_from_filter_content(self):
+        prefilter = _unschedulable_diagnosis("0/1 nodes are available: policy blocked.")
+        filter_reason = _unschedulable_diagnosis(
+            "0/1 nodes are available: 1 policy blocked."
+        )
+        assert prefilter._dedupe_key() != filter_reason._dedupe_key()
+
+    def test_dedupe_key_distinguishes_filter_from_post_filter_content(self):
+        first = _unschedulable_diagnosis(
+            "0/2 nodes are available: 1 policy A. policy B"
+        )
+        second = _unschedulable_diagnosis(
+            "0/2 nodes are available: 1 policy B. policy A"
+        )
         assert first._dedupe_key() != second._dedupe_key()

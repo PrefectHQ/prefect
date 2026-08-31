@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import uuid
+from collections.abc import Iterator
 from contextlib import asynccontextmanager
 from io import StringIO
 from time import sleep
@@ -17,6 +18,7 @@ from prefect_kubernetes.observer import (
     _mark_flow_run_as_crashed,
     _replicate_pod_event,
     _send_crashed_pod_logs,
+    cleanup_fn,
     start_observer,
     stop_observer,
 )
@@ -25,6 +27,44 @@ from prefect.client.schemas.objects import FlowRun, State
 from prefect.events.schemas.events import RelatedResource, Resource
 from prefect.exceptions import Abort, ObjectNotFound, Pause
 from prefect.types import DateTime
+
+
+@pytest.fixture(autouse=True)
+def clear_observer_lifecycle_caches() -> Iterator[None]:
+    _completed_state_check_cache.clear()
+    _last_diagnosis_cache.clear()
+    yield
+    _completed_state_check_cache.clear()
+    _last_diagnosis_cache.clear()
+
+
+def _pending_event_kwargs(flow_run_id: uuid.UUID, pod_uid: str) -> dict[str, object]:
+    return {
+        "event": {"type": "MODIFIED"},
+        "uid": pod_uid,
+        "name": "test",
+        "namespace": "test",
+        "labels": {
+            "prefect.io/flow-run-id": str(flow_run_id),
+            "prefect.io/flow-run-name": "test-run",
+        },
+        "status": {"phase": "Pending"},
+        "logger": MagicMock(),
+    }
+
+
+def _unschedulable_status(message: str) -> dict[str, object]:
+    return {
+        "phase": "Pending",
+        "conditions": [
+            {
+                "type": "PodScheduled",
+                "status": "False",
+                "reason": "Unschedulable",
+                "message": message,
+            }
+        ],
+    }
 
 
 @pytest.fixture
@@ -403,6 +443,51 @@ class TestReplicatePodEvent:
         # Verify no event was emitted since one already existed
         mock_events_client.emit.assert_not_called()
 
+    async def test_existing_startup_event_reconciles_lifecycle_caches(
+        self,
+        mock_events_client: AsyncMock,
+        mock_orchestration_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Startup deduplication still observes recovery from cached work."""
+        flow_run_id = uuid.uuid4()
+        pod_uid = str(uuid.uuid4())
+        mock_propose = AsyncMock(
+            return_value=State(type="PENDING", name="InfrastructurePending")
+        )
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+        mock_orchestration_client.read_flow_run.return_value = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="SCHEDULED", name="Scheduled"),
+        )
+        mock_logger = MagicMock()
+        mock_child = MagicMock()
+        mock_logger.return_value = mock_child
+        mock_child.getChild.return_value = mock_child
+        monkeypatch.setattr("prefect_kubernetes.observer.flow_run_logger", mock_logger)
+        kwargs = _pending_event_kwargs(flow_run_id, pod_uid)
+        kwargs["status"] = _unschedulable_status(
+            "0/1 nodes are available: 1 Insufficient cpu."
+        )
+
+        await _replicate_pod_event(**kwargs)
+        await _replicate_pod_event(
+            event={"type": None},
+            uid=pod_uid,
+            name="test",
+            namespace="test",
+            labels=kwargs["labels"],
+            status={"phase": "Running"},
+            logger=MagicMock(),
+        )
+        await _replicate_pod_event(**kwargs)
+
+        assert mock_orchestration_client.read_flow_run.call_count == 2
+        assert mock_propose.call_count == 2
+        assert mock_child.log.call_count == 2
+
     @pytest.mark.parametrize("phase", ["Pending", "Running", "Succeeded", "Failed"])
     async def test_different_phases(self, mock_events_client: AsyncMock, phase: str):
         """Test handling of different pod phases"""
@@ -545,7 +630,6 @@ class TestReplicatePodEvent:
     ):
         """Test that InfrastructurePending is not proposed when the flow run
         does not exist."""
-        _completed_state_check_cache.clear()
         flow_run_id = uuid.uuid4()
         pod_uid = str(uuid.uuid4())
         mock_propose = AsyncMock()
@@ -591,7 +675,6 @@ class TestReplicatePodEvent:
         monkeypatch: pytest.MonkeyPatch,
     ):
         """Repeated Pending events don't repeat the state lookup and proposal."""
-        _completed_state_check_cache.clear()
         flow_run_id = uuid.uuid4()
         pod_uid = str(uuid.uuid4())
         mock_propose = AsyncMock(
@@ -623,6 +706,37 @@ class TestReplicatePodEvent:
         assert mock_orchestration_client.read_flow_run.call_count == 1
         assert mock_propose.call_count == 1
 
+    async def test_pending_state_check_survives_more_than_100_000_other_pods(
+        self,
+        mock_events_client: AsyncMock,
+        mock_orchestration_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """A live pod's completed check remains cached for its lifecycle."""
+        flow_run_id = uuid.uuid4()
+        pod_uid = str(uuid.uuid4())
+        mock_propose = AsyncMock(
+            return_value=State(type="PENDING", name="InfrastructurePending")
+        )
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+        mock_orchestration_client.read_flow_run.return_value = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="SCHEDULED", name="Scheduled"),
+        )
+
+        await _replicate_pod_event(**_pending_event_kwargs(flow_run_id, pod_uid))
+        _completed_state_check_cache.update(
+            {f"other-pod-{index}": None for index in range(100_001)}
+        )
+        await _replicate_pod_event(**_pending_event_kwargs(flow_run_id, pod_uid))
+
+        mock_orchestration_client.read_flow_run.assert_awaited_once_with(
+            flow_run_id=flow_run_id
+        )
+        mock_propose.assert_awaited_once()
+
     async def test_pending_state_check_cached_when_flow_run_already_advanced(
         self,
         mock_events_client: AsyncMock,
@@ -630,7 +744,6 @@ class TestReplicatePodEvent:
         monkeypatch: pytest.MonkeyPatch,
     ):
         """A completed check that requires no proposal is also cached."""
-        _completed_state_check_cache.clear()
         flow_run_id = uuid.uuid4()
         pod_uid = str(uuid.uuid4())
         mock_propose = AsyncMock()
@@ -667,7 +780,6 @@ class TestReplicatePodEvent:
         monkeypatch: pytest.MonkeyPatch,
     ):
         """A failed state check is not cached and is retried on the next event."""
-        _completed_state_check_cache.clear()
         flow_run_id = uuid.uuid4()
         pod_uid = str(uuid.uuid4())
         mock_propose = AsyncMock()
@@ -698,7 +810,6 @@ class TestReplicatePodEvent:
         monkeypatch: pytest.MonkeyPatch,
     ):
         """A timed-out proposal is not cached and is retried on the next event."""
-        _completed_state_check_cache.clear()
         flow_run_id = uuid.uuid4()
         pod_uid = str(uuid.uuid4())
 
@@ -737,17 +848,24 @@ class TestReplicatePodEvent:
 
         assert mock_propose.call_count == 2
 
-    async def test_rejected_scheduled_proposal_not_cached(
+    @pytest.mark.parametrize(
+        ("replacement_type", "replacement_name"),
+        [("SCHEDULED", "Scheduled"), ("PENDING", "Pending")],
+    )
+    async def test_rejected_proposal_not_cached(
         self,
         mock_events_client: AsyncMock,
         mock_orchestration_client: AsyncMock,
         monkeypatch: pytest.MonkeyPatch,
+        replacement_type: str,
+        replacement_name: str,
     ):
-        """A proposal rejected with a Scheduled replacement is retried."""
-        _completed_state_check_cache.clear()
+        """A rejected proposal is retried on the next pod event."""
         flow_run_id = uuid.uuid4()
         pod_uid = str(uuid.uuid4())
-        mock_propose = AsyncMock(return_value=State(type="SCHEDULED", name="Scheduled"))
+        mock_propose = AsyncMock(
+            return_value=State(type=replacement_type, name=replacement_name)
+        )
         monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
 
         mock_orchestration_client.read_flow_run.return_value = FlowRun(
@@ -758,55 +876,7 @@ class TestReplicatePodEvent:
         )
 
         for _ in range(2):
-            await _replicate_pod_event(
-                event={"type": "MODIFIED"},
-                uid=pod_uid,
-                name="test",
-                namespace="test",
-                labels={
-                    "prefect.io/flow-run-id": str(flow_run_id),
-                    "prefect.io/flow-run-name": "test-run",
-                },
-                status={"phase": "Pending"},
-                logger=MagicMock(),
-            )
-
-        assert mock_orchestration_client.read_flow_run.call_count == 2
-        assert mock_propose.call_count == 2
-
-    async def test_rejected_pending_proposal_not_cached(
-        self,
-        mock_events_client: AsyncMock,
-        mock_orchestration_client: AsyncMock,
-        monkeypatch: pytest.MonkeyPatch,
-    ):
-        """A proposal rejected with a Pending replacement is retried."""
-        _completed_state_check_cache.clear()
-        flow_run_id = uuid.uuid4()
-        pod_uid = str(uuid.uuid4())
-        mock_propose = AsyncMock(return_value=State(type="PENDING", name="Pending"))
-        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
-
-        mock_orchestration_client.read_flow_run.return_value = FlowRun(
-            id=flow_run_id,
-            name="test-flow-run",
-            flow_id=uuid.uuid4(),
-            state=State(type="SCHEDULED", name="Scheduled"),
-        )
-
-        for _ in range(2):
-            await _replicate_pod_event(
-                event={"type": "MODIFIED"},
-                uid=pod_uid,
-                name="test",
-                namespace="test",
-                labels={
-                    "prefect.io/flow-run-id": str(flow_run_id),
-                    "prefect.io/flow-run-name": "test-run",
-                },
-                status={"phase": "Pending"},
-                logger=MagicMock(),
-            )
+            await _replicate_pod_event(**_pending_event_kwargs(flow_run_id, pod_uid))
 
         assert mock_orchestration_client.read_flow_run.call_count == 2
         assert mock_propose.call_count == 2
@@ -818,7 +888,6 @@ class TestReplicatePodEvent:
         monkeypatch: pytest.MonkeyPatch,
     ):
         """A paused proposal is completed and cached for repeated events."""
-        _completed_state_check_cache.clear()
         flow_run_id = uuid.uuid4()
         pod_uid = str(uuid.uuid4())
         mock_propose = AsyncMock(
@@ -857,7 +926,6 @@ class TestReplicatePodEvent:
         monkeypatch: pytest.MonkeyPatch,
     ):
         """A deleted Pending pod can retry its state check if it reappears."""
-        _completed_state_check_cache.clear()
         flow_run_id = uuid.uuid4()
         pod_uid = str(uuid.uuid4())
         mock_propose = AsyncMock(
@@ -916,7 +984,6 @@ class TestReplicatePodEvent:
         monkeypatch: pytest.MonkeyPatch,
     ):
         """A deleted diagnosed pod can log its diagnosis if it reappears."""
-        _last_diagnosis_cache.clear()
         flow_run_id = uuid.uuid4()
         pod_uid = str(uuid.uuid4())
         mock_logger = MagicMock()
@@ -971,6 +1038,61 @@ class TestReplicatePodEvent:
         )
         assert mock_child.log.call_count == 2
 
+    async def test_deleted_pod_clears_caches_when_event_emission_fails(
+        self,
+        mock_events_client: AsyncMock,
+        mock_orchestration_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """A failed deletion emission does not retain pod-owned cache entries."""
+        flow_run_id = uuid.uuid4()
+        pod_uid = str(uuid.uuid4())
+        mock_propose = AsyncMock(
+            return_value=State(type="PENDING", name="InfrastructurePending")
+        )
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+        mock_orchestration_client.read_flow_run.return_value = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="SCHEDULED", name="Scheduled"),
+        )
+        mock_logger = MagicMock()
+        mock_child = MagicMock()
+        mock_logger.return_value = mock_child
+        mock_child.getChild.return_value = mock_child
+        monkeypatch.setattr("prefect_kubernetes.observer.flow_run_logger", mock_logger)
+        kwargs = _pending_event_kwargs(flow_run_id, pod_uid)
+        kwargs["status"] = _unschedulable_status(
+            "0/1 nodes are available: 1 Insufficient cpu."
+        )
+
+        await _replicate_pod_event(**kwargs)
+        mock_events_client.emit.side_effect = RuntimeError("event service unavailable")
+        with pytest.raises(RuntimeError, match="event service unavailable"):
+            await _replicate_pod_event(**{**kwargs, "event": {"type": "DELETED"}})
+
+        mock_events_client.emit.side_effect = None
+        await _replicate_pod_event(**kwargs)
+
+        assert mock_orchestration_client.read_flow_run.call_count == 2
+        assert mock_propose.call_count == 2
+        assert mock_child.log.call_count == 2
+
+    async def test_cleanup_clears_lifecycle_caches(
+        self,
+        mock_events_client: AsyncMock,
+        mock_orchestration_client: AsyncMock,
+    ):
+        """Observer shutdown releases all pod-owned deduplication state."""
+        _completed_state_check_cache.add("pending-pod")
+        _last_diagnosis_cache["diagnosed-pod"] = ("diagnosis",)
+
+        await cleanup_fn(logger=MagicMock())
+
+        assert not _completed_state_check_cache
+        assert not _last_diagnosis_cache
+
     async def test_pending_state_check_cache_cleared_on_phase_change(
         self,
         mock_events_client: AsyncMock,
@@ -978,7 +1100,6 @@ class TestReplicatePodEvent:
         monkeypatch: pytest.MonkeyPatch,
     ):
         """The cached state check is dropped when the pod leaves Pending."""
-        _completed_state_check_cache.clear()
         flow_run_id = uuid.uuid4()
         pod_uid = str(uuid.uuid4())
         mock_propose = AsyncMock(
@@ -998,16 +1119,7 @@ class TestReplicatePodEvent:
             "prefect.io/flow-run-name": "test-run",
         }
 
-        await _replicate_pod_event(
-            event={"type": "MODIFIED"},
-            uid=pod_uid,
-            name="test",
-            namespace="test",
-            labels=labels,
-            status={"phase": "Pending"},
-            logger=MagicMock(),
-        )
-        assert pod_uid in _completed_state_check_cache
+        await _replicate_pod_event(**_pending_event_kwargs(flow_run_id, pod_uid))
 
         await _replicate_pod_event(
             event={"type": "MODIFIED"},
@@ -1018,7 +1130,11 @@ class TestReplicatePodEvent:
             status={"phase": "Running"},
             logger=MagicMock(),
         )
-        assert pod_uid not in _completed_state_check_cache
+
+        await _replicate_pod_event(**_pending_event_kwargs(flow_run_id, pod_uid))
+
+        assert mock_orchestration_client.read_flow_run.call_count == 2
+        assert mock_propose.call_count == 2
 
     async def test_diagnosis_emits_flow_run_log_for_oom(
         self,
@@ -1266,9 +1382,6 @@ class TestReplicatePodEvent:
         mock_child.getChild.return_value = mock_child
         monkeypatch.setattr("prefect_kubernetes.observer.flow_run_logger", mock_logger)
 
-        # Clear the cache to avoid interference from other tests
-        _last_diagnosis_cache.clear()
-
         oom_status = {
             "phase": "Failed",
             "containerStatuses": [
@@ -1345,7 +1458,6 @@ class TestReplicatePodEvent:
         monkeypatch: pytest.MonkeyPatch,
     ):
         """Scheduler count changes for an unchanged cause don't log again."""
-        _last_diagnosis_cache.clear()
         flow_run_id = uuid.uuid4()
         pod_uid = str(uuid.uuid4())
         mock_logger = MagicMock()
@@ -1359,26 +1471,15 @@ class TestReplicatePodEvent:
             "prefect.io/flow-run-name": "test-run",
         }
 
-        def unschedulable_status(message: str):
-            return {
-                "phase": "Pending",
-                "conditions": [
-                    {
-                        "type": "PodScheduled",
-                        "status": "False",
-                        "reason": "Unschedulable",
-                        "message": message,
-                    }
-                ],
-            }
-
         await _replicate_pod_event(
             event={"type": "MODIFIED"},
             uid=pod_uid,
             name="test",
             namespace="test",
             labels=labels,
-            status=unschedulable_status("0/3 nodes are available: 3 Insufficient cpu."),
+            status=_unschedulable_status(
+                "0/3 nodes are available: 3 Insufficient cpu."
+            ),
             logger=MagicMock(),
         )
         assert mock_child.log.call_count == 1
@@ -1390,7 +1491,9 @@ class TestReplicatePodEvent:
             name="test",
             namespace="test",
             labels=labels,
-            status=unschedulable_status("0/5 nodes are available: 5 Insufficient cpu."),
+            status=_unschedulable_status(
+                "0/5 nodes are available: 5 Insufficient cpu."
+            ),
             logger=MagicMock(),
         )
         assert mock_child.log.call_count == 1
@@ -1402,12 +1505,62 @@ class TestReplicatePodEvent:
             name="test",
             namespace="test",
             labels=labels,
-            status=unschedulable_status(
+            status=_unschedulable_status(
                 "0/5 nodes are available: 5 Insufficient ephemeral-storage."
             ),
             logger=MagicMock(),
         )
         assert mock_child.log.call_count == 2
+
+    async def test_diagnosis_dedup_ignores_node_declared_feature_order(
+        self,
+        mock_events_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Scheduler-owned requirement ordering does not repeat the log."""
+        flow_run_id = uuid.uuid4()
+        pod_uid = str(uuid.uuid4())
+        mock_logger = MagicMock()
+        mock_child = MagicMock()
+        mock_logger.return_value = mock_child
+        mock_child.getChild.return_value = mock_child
+        monkeypatch.setattr("prefect_kubernetes.observer.flow_run_logger", mock_logger)
+        kwargs = _pending_event_kwargs(flow_run_id, pod_uid)
+
+        for requirements in ("FeatureA, FeatureB", "FeatureB, FeatureA"):
+            kwargs["status"] = _unschedulable_status(
+                "0/1 nodes are available: 1 node declared features check failed "
+                f"- unsatisfied requirements: {requirements}."
+            )
+            await _replicate_pod_event(**kwargs)
+
+        assert mock_child.log.call_count == 1
+
+    async def test_diagnosis_cache_survives_more_than_100_000_other_pods(
+        self,
+        mock_events_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """An active pod's diagnosis remains cached for its lifecycle."""
+        flow_run_id = uuid.uuid4()
+        pod_uid = str(uuid.uuid4())
+        mock_logger = MagicMock()
+        mock_child = MagicMock()
+        mock_logger.return_value = mock_child
+        mock_child.getChild.return_value = mock_child
+        monkeypatch.setattr("prefect_kubernetes.observer.flow_run_logger", mock_logger)
+        kwargs = _pending_event_kwargs(flow_run_id, pod_uid)
+        kwargs["status"] = _unschedulable_status(
+            "0/1 nodes are available: 1 Insufficient cpu."
+        )
+
+        await _replicate_pod_event(**kwargs)
+        _last_diagnosis_cache.update(
+            {f"other-pod-{index}": ("other",) for index in range(100_001)}
+        )
+        await _replicate_pod_event(**kwargs)
+
+        assert mock_child.log.call_count == 1
 
     async def test_startup_event_semaphore_limits_concurrency(
         self,
