@@ -32,8 +32,8 @@ from prefect.logging import get_logger
 from prefect.server.events.schemas.labelling import Labelled
 from prefect.server.utilities.schemas import PrefectBaseModel
 from prefect.settings import (
-    PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE,
     PREFECT_EVENTS_MAXIMUM_RELATED_RESOURCES,
+    get_current_settings,
 )
 from prefect.utilities.urls import url_for
 
@@ -48,10 +48,12 @@ class Resource(Labelled):
 
     @model_validator(mode="after")
     def enforce_maximum_labels(self) -> Self:
-        if len(self.root) > PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE.value():
+        maximum_labels = (
+            get_current_settings().server.events.maximum_labels_per_resource
+        )
+        if len(self.root) > maximum_labels:
             raise ValueError(
-                "The maximum number of labels per resource "
-                f"is {PREFECT_EVENTS_MAXIMUM_LABELS_PER_RESOURCE.value()}"
+                f"The maximum number of labels per resource is {maximum_labels}"
             )
 
         return self
