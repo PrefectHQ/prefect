@@ -1806,6 +1806,46 @@ class TestReplicatePodEvent:
         )
         assert mock_child.log.call_count == 2  # logged again after recovery
 
+    async def test_diagnosis_logging_failure_retries_on_next_event(
+        self,
+        mock_events_client: AsyncMock,
+        mock_observer_log: MagicMock,
+    ):
+        """A failed diagnosis log does not mark the diagnosis as delivered."""
+        flow_run_id = uuid.uuid4()
+        pod_uid = str(uuid.uuid4())
+        mock_observer_log.log.side_effect = [RuntimeError("log failed"), None]
+        kwargs = {
+            "event": {"type": "MODIFIED"},
+            "uid": pod_uid,
+            "name": "test",
+            "namespace": "test",
+            "labels": {
+                "prefect.io/flow-run-id": str(flow_run_id),
+                "prefect.io/flow-run-name": "test-run",
+            },
+            "status": {
+                "phase": "Failed",
+                "containerStatuses": [
+                    {
+                        "name": "main",
+                        "state": {
+                            "terminated": {"reason": "OOMKilled", "exitCode": 137}
+                        },
+                    }
+                ],
+            },
+            "logger": MagicMock(),
+        }
+
+        with pytest.raises(RuntimeError, match="log failed"):
+            await _replicate_pod_event(**kwargs)
+
+        await _replicate_pod_event(**kwargs)
+
+        assert mock_observer_log.log.call_count == 2
+        mock_events_client.emit.assert_awaited_once()
+
     @pytest.mark.parametrize(
         ("first_message", "equivalent_message", "changed_message"),
         [
