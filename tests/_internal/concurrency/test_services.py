@@ -90,6 +90,45 @@ def test_instance_returns_new_instance_after_stopping():
     assert isinstance(new_instance, MockService)
 
 
+def test_instance_does_not_cache_service_that_stops_while_it_is_created():
+    class FailingStartupService(QueueService[int]):
+        fail = True
+
+        async def _handle(self, item: int):
+            pass
+
+        @contextlib.asynccontextmanager
+        async def _lifespan(self):
+            if type(self).fail:
+                raise RuntimeError("startup failed")
+            yield
+
+        @classmethod
+        def _new_instance(cls, *args):
+            instance = super()._new_instance(*args)
+            if cls.fail:
+                # Wait for the failed service to finish so that it removes itself from
+                # the instance cache before `instance()` stores it there
+                instance.drain()
+            return instance
+
+    try:
+        failed_instance = FailingStartupService.instance()
+        assert failed_instance._stopped
+        assert FailingStartupService._instances.get(failed_instance._key) is None
+
+        FailingStartupService.fail = False
+        new_instance = FailingStartupService.instance()
+        assert new_instance is not failed_instance
+        assert not new_instance._stopped
+
+        # The replacement accepts work, and the failed service did not remove it
+        new_instance.send(1)
+        assert FailingStartupService._instances[new_instance._key] is new_instance
+    finally:
+        FailingStartupService.drain_all()
+
+
 def test_instance_returns_new_instance_if_cached_instance_is_stopped():
     instance = MockService.instance()
     instance._stop()
