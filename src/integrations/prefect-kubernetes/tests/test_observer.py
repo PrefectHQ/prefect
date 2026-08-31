@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import anyio
 import pytest
 from prefect_kubernetes._logging import KopfObjectJsonFormatter
+from prefect_kubernetes.diagnostics import diagnose_k8s_pod
 from prefect_kubernetes.observer import (
     _completed_state_check_cache,
     _ContainerLogEntry,
@@ -1079,6 +1080,52 @@ class TestReplicatePodEvent:
         assert mock_propose.call_count == 2
         assert mock_child.log.call_count == 2
 
+    async def test_deleted_pod_clears_caches_when_handler_fails_early(
+        self,
+        mock_events_client: AsyncMock,
+        mock_orchestration_client: AsyncMock,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Deletion owns cache cleanup even when handling stops before emission."""
+        flow_run_id = uuid.uuid4()
+        pod_uid = str(uuid.uuid4())
+        mock_propose = AsyncMock(
+            return_value=State(type="PENDING", name="InfrastructurePending")
+        )
+        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
+        mock_orchestration_client.read_flow_run.return_value = FlowRun(
+            id=flow_run_id,
+            name="test-flow-run",
+            flow_id=uuid.uuid4(),
+            state=State(type="SCHEDULED", name="Scheduled"),
+        )
+        mock_logger = MagicMock()
+        mock_child = MagicMock()
+        mock_logger.return_value = mock_child
+        mock_child.getChild.return_value = mock_child
+        monkeypatch.setattr("prefect_kubernetes.observer.flow_run_logger", mock_logger)
+        kwargs = _pending_event_kwargs(flow_run_id, pod_uid)
+        kwargs["status"] = _unschedulable_status(
+            "0/1 nodes are available: 1 Insufficient cpu."
+        )
+
+        await _replicate_pod_event(**kwargs)
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.diagnose_k8s_pod",
+            MagicMock(side_effect=RuntimeError("diagnosis failed")),
+        )
+        with pytest.raises(RuntimeError, match="diagnosis failed"):
+            await _replicate_pod_event(**{**kwargs, "event": {"type": "DELETED"}})
+
+        monkeypatch.setattr(
+            "prefect_kubernetes.observer.diagnose_k8s_pod", diagnose_k8s_pod
+        )
+        await _replicate_pod_event(**kwargs)
+
+        assert mock_orchestration_client.read_flow_run.call_count == 2
+        assert mock_propose.call_count == 2
+        assert mock_child.log.call_count == 2
+
     async def test_cleanup_clears_lifecycle_caches(
         self,
         mock_events_client: AsyncMock,
@@ -1092,6 +1139,19 @@ class TestReplicatePodEvent:
 
         assert not _completed_state_check_cache
         assert not _last_diagnosis_cache
+
+    async def test_cleanup_closes_orchestration_if_events_cleanup_fails(
+        self,
+        mock_events_client: AsyncMock,
+        mock_orchestration_client: AsyncMock,
+    ):
+        """Each observer client gets its own cleanup attempt."""
+        mock_events_client.__aexit__.side_effect = RuntimeError("events cleanup failed")
+
+        with pytest.raises(RuntimeError, match="events cleanup failed"):
+            await cleanup_fn(logger=MagicMock())
+
+        mock_orchestration_client.__aexit__.assert_awaited_once_with(None, None, None)
 
     async def test_pending_state_check_cache_cleared_on_phase_change(
         self,

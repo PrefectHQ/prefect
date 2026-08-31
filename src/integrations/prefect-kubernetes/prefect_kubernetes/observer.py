@@ -8,6 +8,7 @@ import sys
 import threading
 import uuid
 from datetime import datetime, timedelta, timezone
+from functools import wraps
 from typing import Any
 
 import anyio
@@ -150,14 +151,34 @@ async def initialize_clients(logger: kopf.Logger, **kwargs: Any):
 async def cleanup_fn(logger: kopf.Logger, **kwargs: Any):
     logger.info("Cleaning up clients")
     try:
-        await events_client.__aexit__(None, None, None)
-        await orchestration_client.__aexit__(None, None, None)
+        try:
+            await events_client.__aexit__(None, None, None)
+        finally:
+            await orchestration_client.__aexit__(None, None, None)
     finally:
         _completed_state_check_cache.clear()
         _last_diagnosis_cache.clear()
     logger.info("Clients successfully cleaned up")
 
 
+def _cleanup_deleted_pod(handler: Any) -> Any:
+    """Ensure a deleted pod releases its lifecycle-owned cache entries."""
+
+    @wraps(handler)
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
+        try:
+            return await handler(*args, **kwargs)
+        finally:
+            event = kwargs.get("event") or {}
+            uid = kwargs.get("uid")
+            if event.get("type") == "DELETED" and uid:
+                _completed_state_check_cache.discard(uid)
+                _last_diagnosis_cache.pop(uid, None)
+
+    return wrapper
+
+
+@_cleanup_deleted_pod
 async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     event: kopf.RawEvent,
     uid: str,
@@ -393,16 +414,8 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
             prefect_event.follows = prev_event.id
     if events_client is None:
         raise RuntimeError("Events client not initialized")
-    try:
-        await events_client.emit(event=prefect_event)
-        _last_event_cache[uid] = prefect_event
-    finally:
-        if event_type == "DELETED":
-            # A deleted pod keeps its final phase and diagnosis, so the phase-
-            # and diagnosis-based cleanup above never runs for it. Cleanup is
-            # still authoritative if event emission fails.
-            _completed_state_check_cache.discard(uid)
-            _last_diagnosis_cache.pop(uid, None)
+    await events_client.emit(event=prefect_event)
+    _last_event_cache[uid] = prefect_event
 
 
 if settings.observer.replicate_pod_events:
