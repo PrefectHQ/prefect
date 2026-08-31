@@ -90,6 +90,20 @@ def test_instance_returns_new_instance_after_stopping():
     assert isinstance(new_instance, MockService)
 
 
+def test_instance_returns_new_instance_if_cached_instance_is_stopped():
+    instance = MockService.instance()
+    instance._stop()
+
+    # A service that stops while it is created removes itself from the instance cache
+    # before the caller of `instance()` stores it there, which leaves a stopped
+    # instance in the cache
+    MockService._instances[instance._key] = instance
+
+    new_instance = MockService.instance()
+    assert new_instance is not instance
+    assert not new_instance._stopped
+
+
 def test_instance_returns_new_instance_with_unique_key():
     instance = MockService.instance(1)
     new_instance = MockService.instance(2)

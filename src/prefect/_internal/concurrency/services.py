@@ -312,12 +312,25 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
         """
         with cls._instance_lock:
             key = hash((cls, *args))
-            if key not in cls._instances:
-                cls._instances[key] = cls._new_instance(*args)
+            instance = cls._instances.get(key)
 
-            return cls._instances[key]
+            # A service that stops while it is being created removes itself from
+            # `_instances` before the creating caller stores it there, so a stopped
+            # instance can stay cached. A stopped instance never accepts items again,
+            # so it must be replaced instead of returned.
+            if instance is None or instance._stopped:
+                instance = cls._new_instance(*args)
+                if instance._stopped:
+                    cls._instances.pop(key, None)
+                else:
+                    cls._instances[key] = instance
+
+            return instance
 
     def _remove_instance(self):
+        # Mark the instance as stopped before it is removed so that a concurrent
+        # `instance()` call always observes a removed instance as stopped
+        self._stopped = True
         self._instances.pop(self._key, None)
 
     @classmethod
