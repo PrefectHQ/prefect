@@ -496,15 +496,27 @@ async def _replicate_pod_event(  # pyright: ignore[reportUnusedFunction]
     if diagnosis and flow_run_id:
         key = diagnosis._dedupe_key()
         if key != _last_diagnosis_cache.get(uid):
-            fr_logger = flow_run_logger(flow_run_id=flow_run_id).getChild("observer")
-            fr_logger.log(
-                logging.ERROR if diagnosis.level.value == "error" else logging.WARNING,
-                "%s: %s Resolution: %s",
-                diagnosis.summary,
-                diagnosis.detail,
-                diagnosis.resolution,
-            )
-            _last_diagnosis_cache[uid] = key
+            try:
+                fr_logger = flow_run_logger(flow_run_id=flow_run_id).getChild(
+                    "observer"
+                )
+                fr_logger.log(
+                    logging.ERROR
+                    if diagnosis.level.value == "error"
+                    else logging.WARNING,
+                    "%s: %s Resolution: %s",
+                    diagnosis.summary,
+                    diagnosis.detail,
+                    diagnosis.resolution,
+                )
+            except Exception:  # noqa: BLE001
+                logger.debug(
+                    f"Failed to log diagnosis for flow run {flow_run_id}; "
+                    "will retry on the next pod event",
+                    exc_info=True,
+                )
+            else:
+                _last_diagnosis_cache[uid] = key
 
     resource = {
         "prefect.resource.id": f"prefect.kubernetes.pod.{uid}",

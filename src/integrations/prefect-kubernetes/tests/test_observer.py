@@ -1806,12 +1806,12 @@ class TestReplicatePodEvent:
         )
         assert mock_child.log.call_count == 2  # logged again after recovery
 
-    async def test_diagnosis_logging_failure_retries_on_next_event(
+    async def test_diagnosis_logging_failure_retries_without_suppressing_event(
         self,
         mock_events_client: AsyncMock,
         mock_observer_log: MagicMock,
     ):
-        """A failed diagnosis log does not mark the diagnosis as delivered."""
+        """A failed diagnosis log retries without suppressing pod events."""
         flow_run_id = uuid.uuid4()
         pod_uid = str(uuid.uuid4())
         mock_observer_log.log.side_effect = [RuntimeError("log failed"), None]
@@ -1838,13 +1838,11 @@ class TestReplicatePodEvent:
             "logger": MagicMock(),
         }
 
-        with pytest.raises(RuntimeError, match="log failed"):
-            await _replicate_pod_event(**kwargs)
-
+        await _replicate_pod_event(**kwargs)
         await _replicate_pod_event(**kwargs)
 
         assert mock_observer_log.log.call_count == 2
-        mock_events_client.emit.assert_awaited_once()
+        assert mock_events_client.emit.await_count == 2
 
     @pytest.mark.parametrize(
         ("first_message", "equivalent_message", "changed_message"),
