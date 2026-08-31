@@ -328,9 +328,6 @@ class _QueueServiceBase(abc.ABC, Generic[T]):
             return instance
 
     def _remove_instance(self):
-        # Mark the instance as stopped before it is removed so that a concurrent
-        # `instance()` call always observes a removed instance as stopped
-        self._stopped = True
         self._instances.pop(self._key, None)
 
     @classmethod
