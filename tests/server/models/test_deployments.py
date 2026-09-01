@@ -2097,10 +2097,13 @@ class TestMarkDeploymentsReady:
                 db=db, deployment_ids=[deployment.id]
             )
         )
-        # let mark_deployments_ready reach the database while the lock is held
-        await asyncio.sleep(0.5)
-        release.set()
-        await holder
+        try:
+            with pytest.raises(asyncio.TimeoutError):
+                await asyncio.wait_for(asyncio.shield(marker), timeout=1.0)
+            assert not marker.done()
+        finally:
+            release.set()
+            await holder
         await marker
 
         async with db.session_context() as session:
@@ -2183,9 +2186,13 @@ class TestMarkDeploymentsNotReady:
                 deployment_ids=[deployment.id]
             )
         )
-        await asyncio.sleep(0.5)
-        release.set()
-        await holder
+        try:
+            with pytest.raises(asyncio.TimeoutError):
+                await asyncio.wait_for(asyncio.shield(marker), timeout=1.0)
+            assert not marker.done()
+        finally:
+            release.set()
+            await holder
         await marker
 
         async with db.session_context() as session:
