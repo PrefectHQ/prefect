@@ -15,7 +15,7 @@ from prefect_dbt.cli.configs.base import BaseTargetConfigs, MissingExtrasRequire
 try:
     from google.auth.transport.requests import Request
     from prefect_gcp.credentials import GcpCredentials
-except ImportError as e:
+except ModuleNotFoundError as e:
     raise MissingExtrasRequireError("BigQuery") from e
 
 

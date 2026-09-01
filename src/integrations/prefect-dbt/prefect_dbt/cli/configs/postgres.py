@@ -9,7 +9,7 @@ from prefect_dbt.cli.configs.base import BaseTargetConfigs, MissingExtrasRequire
 
 try:
     from prefect_sqlalchemy import SqlAlchemyConnector
-except ImportError as e:
+except ModuleNotFoundError as e:
     raise MissingExtrasRequireError("Postgres") from e
 
 
