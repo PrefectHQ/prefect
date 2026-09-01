@@ -1362,6 +1362,56 @@ class TestCreateDeploymentReplaces:
         assert "new-name" in detail
         assert "already exists" in detail
 
+    async def test_replaces_rename_emits_updated_event_with_name_change(
+        self,
+        client,
+        flow,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """A rename must emit `prefect.deployment.updated` carrying the old and
+        new names, so subscribers and automations observe the change."""
+        monkeypatch.setattr(
+            "prefect.server.models.deployments.PrefectServerEventsClient",
+            AssertingEventsClient,
+        )
+
+        original = DeploymentCreate(
+            name="old-name",
+            flow_id=flow.id,
+        ).model_dump(mode="json")
+        response = await client.post("/deployments/", json=original)
+        assert response.status_code == status.HTTP_201_CREATED
+        original_id = response.json()["id"]
+
+        AssertingEventsClient.reset()
+
+        # Rename only — no other field changes
+        replacement = DeploymentCreate(
+            name="new-name",
+            flow_id=flow.id,
+            replaces="old-name",
+        ).model_dump(mode="json")
+        response = await client.post("/deployments/", json=replacement)
+        assert response.status_code in (status.HTTP_200_OK, status.HTTP_201_CREATED)
+        assert response.json()["id"] == original_id
+
+        AssertingEventsClient.assert_emitted_event_with(
+            event="prefect.deployment.updated",
+            resource={
+                "prefect.resource.id": f"prefect.deployment.{original_id}",
+                "prefect.resource.name": "new-name",
+            },
+            payload={
+                "updated_fields": ["name"],
+                "updates": {
+                    "name": {
+                        "from": "old-name",
+                        "to": "new-name",
+                    }
+                },
+            },
+        )
+
 
 class TestReadDeployment:
     async def test_read_deployment(

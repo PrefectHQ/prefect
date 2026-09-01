@@ -930,6 +930,10 @@ When you run `prefect deploy`:
 - No new deployment is created, and no orphaned deployment remains
 - All run history stays attached because the deployment's ID is preserved
 
+Everything else in the deployment definition is applied exactly as it would be on
+any other `prefect deploy` — for example, schedules are reconciled from your YAML
+rather than carried over from the old name.
+
 After a successful deploy, you can remove the `replaces` field from your YAML — it becomes a no-op once the old name no longer exists.
 
 <Note>

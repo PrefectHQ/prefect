@@ -49,6 +49,7 @@ T = TypeVar("T", bound=tuple[Any, ...])
 logger: logging.Logger = get_logger("prefect.server.models.deployments")
 
 DEPLOYMENT_EVENT_FIELDS = {
+    "name",
     "description",
     "tags",
     "parameters",
