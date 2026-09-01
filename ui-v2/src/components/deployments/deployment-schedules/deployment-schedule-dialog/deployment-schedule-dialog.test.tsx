@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
@@ -106,6 +106,36 @@ describe("DeploymentScheduleDialog", () => {
 				expect.objectContaining({
 					parameters: { name: "my override" },
 				}),
+			]),
+		);
+	});
+
+	it("saves an override changed immediately before submit", async () => {
+		let createdSchedules: unknown;
+		server.use(
+			http.post(
+				buildApiUrl("/deployments/:id/schedules"),
+				async ({ request }) => {
+					createdSchedules = await request.json();
+					return HttpResponse.json([], { status: 201 });
+				},
+			),
+			http.post(buildApiUrl("/ui/schemas/validate"), () =>
+				HttpResponse.json({ valid: true, errors: [] }),
+			),
+		);
+
+		render(<DeploymentScheduleDialogTest />, { wrapper: createWrapper() });
+
+		fireEvent.change(await screen.findByLabelText(/name \(optional\)/i), {
+			target: { value: "final edit" },
+		});
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		fireEvent.click(screen.getByRole("button", { name: /save/i }));
+
+		await vi.waitFor(() =>
+			expect(createdSchedules).toEqual([
+				expect.objectContaining({ parameters: { name: "final edit" } }),
 			]),
 		);
 	});
