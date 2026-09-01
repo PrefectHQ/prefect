@@ -1389,6 +1389,133 @@ async def test_logs_when_unexpected_docker_error(
     )
 
 
+def podman_missing_container_error() -> docker.errors.APIError:
+    """The HTTP 500 that Podman gives for a container that no longer exists."""
+    return docker.errors.APIError(
+        "500 Server Error for http+docker://localhost/v1.41/containers/"
+        f"{FAKE_CONTAINER_ID}/json: Internal Server Error",
+        explanation=(
+            f"container {FAKE_CONTAINER_ID} does not exist in database: "
+            "no such container"
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    "error",
+    [
+        podman_missing_container_error(),
+        docker.errors.NotFound("no such container"),
+    ],
+    ids=["podman_500", "docker_404"],
+)
+async def test_logs_warning_when_auto_removed_container_is_missing(
+    caplog,
+    mock_docker_client,
+    flow_run,
+    default_docker_worker_job_configuration,
+    error,
+):
+    default_docker_worker_job_configuration.auto_remove = True
+    mock_container = mock_docker_client.containers.get.return_value
+    mock_container.logs = MagicMock(side_effect=error)
+
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+
+    assert (
+        "Docker container fake-name was removed before logs could be retrieved"
+        in caplog.text
+    )
+
+
+@pytest.mark.parametrize("method", ["reload", "wait"])
+@pytest.mark.parametrize(
+    "error",
+    [
+        podman_missing_container_error(),
+        docker.errors.NotFound("no such container"),
+    ],
+    ids=["podman_500", "docker_404"],
+)
+async def test_warns_when_auto_removed_container_disappears_while_watching(
+    caplog,
+    mock_docker_client,
+    flow_run,
+    default_docker_worker_job_configuration,
+    error,
+    method,
+):
+    default_docker_worker_job_configuration.auto_remove = True
+    mock_container = mock_docker_client.containers.get.return_value
+    setattr(mock_container, method, MagicMock(side_effect=error))
+
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+
+    assert (
+        "Docker container fake-name was removed before we could wait for its completion"
+        in caplog.text
+    )
+
+
+@pytest.mark.parametrize("method", ["reload", "wait"])
+async def test_unrelated_docker_api_error_while_watching_is_raised(
+    mock_docker_client, flow_run, default_docker_worker_job_configuration, method
+):
+    default_docker_worker_job_configuration.auto_remove = True
+    mock_container = mock_docker_client.containers.get.return_value
+    error = docker.errors.APIError(
+        "500 Server Error", explanation="something else went wrong"
+    )
+    setattr(mock_container, method, MagicMock(side_effect=error))
+
+    with pytest.raises(docker.errors.APIError, match="something else went wrong"):
+        async with DockerWorker(work_pool_name="test") as worker:
+            await worker.run(
+                flow_run=flow_run, configuration=default_docker_worker_job_configuration
+            )
+
+
+@pytest.mark.parametrize("method", ["reload", "wait"])
+async def test_missing_container_while_watching_is_raised_without_auto_remove(
+    mock_docker_client, flow_run, default_docker_worker_job_configuration, method
+):
+    assert default_docker_worker_job_configuration.auto_remove is False
+    mock_container = mock_docker_client.containers.get.return_value
+    setattr(
+        mock_container, method, MagicMock(side_effect=podman_missing_container_error())
+    )
+
+    with pytest.raises(docker.errors.APIError, match="no such container"):
+        async with DockerWorker(work_pool_name="test") as worker:
+            await worker.run(
+                flow_run=flow_run, configuration=default_docker_worker_job_configuration
+            )
+
+
+async def test_missing_container_logs_are_unexpected_without_auto_remove(
+    caplog, mock_docker_client, flow_run, default_docker_worker_job_configuration
+):
+    assert default_docker_worker_job_configuration.auto_remove is False
+    mock_container = mock_docker_client.containers.get.return_value
+    mock_container.logs = MagicMock(side_effect=podman_missing_container_error())
+
+    async with DockerWorker(work_pool_name="test") as worker:
+        await worker.run(
+            flow_run=flow_run, configuration=default_docker_worker_job_configuration
+        )
+
+    assert (
+        "An unexpected Docker API error occurred while streaming output from container"
+        " fake-name." in caplog.text
+    )
+
+
 async def test_stream_container_logs_on_real_container(
     capsys, flow_run, default_docker_worker_job_configuration
 ):
