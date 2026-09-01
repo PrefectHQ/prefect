@@ -8,7 +8,7 @@ export const ScheduleParameterOverridesFormSection = ({
 	errors,
 	setValues,
 }: ScheduleParameterOverrides) => {
-	if (!schema || isEmptyObject(schema.properties)) {
+	if (!schema?.properties || isEmptyObject(schema.properties)) {
 		return null;
 	}
 
