@@ -225,6 +225,9 @@ async def read_concurrency_limits(
     session: AsyncSession,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
+    concurrency_limit_filter: Optional[
+        schemas.filters.ConcurrencyLimitFilter
+    ] = None,
 ) -> Sequence[orm_models.ConcurrencyLimit]:
     """
     Reads a concurrency limits. If used for orchestration, simultaneous read race
@@ -234,6 +237,7 @@ async def read_concurrency_limits(
         session: A database session
         offset: Query offset
         limit: Query limit
+        concurrency_limit_filter: Filter criteria for the concurrency limits
 
     Returns:
         List[orm_models.ConcurrencyLimit]: concurrency limits
@@ -241,6 +245,8 @@ async def read_concurrency_limits(
 
     query = sa.select(db.ConcurrencyLimit).order_by(db.ConcurrencyLimit.tag)
 
+    if concurrency_limit_filter is not None:
+        query = query.where(concurrency_limit_filter.as_sql_filter())
     if offset is not None:
         query = query.offset(offset)
     if limit is not None:
@@ -248,3 +254,41 @@ async def read_concurrency_limits(
 
     result = await session.execute(query)
     return result.scalars().unique().all()
+
+
+@db_injector
+async def count_concurrency_limits(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    concurrency_limit_filter: Optional[
+        schemas.filters.ConcurrencyLimitFilter
+    ] = None,
+    exclude_tags_with_v2_limit: bool = False,
+) -> int:
+    """
+    Counts concurrency limits.
+
+    Args:
+        session: A database session
+        concurrency_limit_filter: Filter criteria for the concurrency limits
+        exclude_tags_with_v2_limit: If set, tags that also have a v2 concurrency
+            limit are not counted. The v1 API prefers the v2 limit for a tag, so
+            this keeps the count consistent with the limits that the API returns.
+
+    Returns:
+        int: the number of concurrency limits
+    """
+
+    query = sa.select(sa.func.count(db.ConcurrencyLimit.id))
+
+    if concurrency_limit_filter is not None:
+        query = query.where(concurrency_limit_filter.as_sql_filter())
+    if exclude_tags_with_v2_limit:
+        query = query.where(
+            ~sa.select(db.ConcurrencyLimitV2.id)
+            .where(db.ConcurrencyLimitV2.name == "tag:" + db.ConcurrencyLimit.tag)
+            .exists()
+        )
+
+    result = await session.execute(query)
+    return result.scalar_one()

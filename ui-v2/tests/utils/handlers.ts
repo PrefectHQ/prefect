@@ -340,6 +340,9 @@ const taskRunConcurrencyLimitsHandlers = [
 	http.post(buildApiUrl("/concurrency_limits/filter"), () => {
 		return HttpResponse.json([]);
 	}),
+	http.post(buildApiUrl("/concurrency_limits/count"), () => {
+		return HttpResponse.json(0);
+	}),
 	http.post(buildApiUrl("/concurrency_limits/tag/:tag/reset"), () => {
 		return HttpResponse.json({ status: 200 });
 	}),

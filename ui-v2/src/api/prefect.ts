@@ -1371,6 +1371,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/concurrency_limits/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Count Concurrency Limits
+         * @description Count concurrency limits.
+         */
+        post: operations["count_concurrency_limits_concurrency_limits_count_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/concurrency_limits/tag/{tag}/reset": {
         parameters: {
             query?: never;
@@ -4440,6 +4460,10 @@ export interface components {
             block_types?: components["schemas"]["BlockTypeFilter"] | null;
             block_schemas?: components["schemas"]["BlockSchemaFilter"] | null;
         };
+        /** Body_count_concurrency_limits_concurrency_limits_count_post */
+        Body_count_concurrency_limits_concurrency_limits_count_post: {
+            concurrency_limits?: components["schemas"]["ConcurrencyLimitFilter"] | null;
+        };
         /** Body_count_deployments_by_flow_ui_flows_count_deployments_post */
         Body_count_deployments_by_flow_ui_flows_count_deployments_post: {
             /** Flow Ids */
@@ -4832,6 +4856,7 @@ export interface components {
              * @default 0
              */
             offset: number;
+            concurrency_limits?: components["schemas"]["ConcurrencyLimitFilter"] | null;
             /**
              * Limit
              * @description Defaults to PREFECT_SERVER_API_DEFAULT_LIMIT if not provided.
@@ -5587,6 +5612,36 @@ export interface components {
             concurrency_limit: number;
         };
         /**
+         * ConcurrencyLimitFilter
+         * @description Filter task run concurrency limits. Only limits matching all criteria will be returned
+         */
+        ConcurrencyLimitFilter: {
+            /**
+             * @description Operator for combining filter criteria. Defaults to 'and_'.
+             * @default and_
+             */
+            operator: components["schemas"]["Operator"];
+            /** @description Filter criteria for `ConcurrencyLimit.tag` */
+            tag?: components["schemas"]["ConcurrencyLimitFilterTag"] | null;
+        };
+        /**
+         * ConcurrencyLimitFilterTag
+         * @description Filter by `ConcurrencyLimit.tag`.
+         */
+        ConcurrencyLimitFilterTag: {
+            /**
+             * Any
+             * @description A list of tags to include
+             */
+            any_?: string[] | null;
+            /**
+             * Like
+             * @description A string to match tags against. This can include SQL wildcard characters like `%` and `_`.
+             * @example my-tag-%
+             */
+            like_?: string | null;
+        };
+        /**
          * ConcurrencyLimitStrategy
          * @description Enumeration of concurrency collision strategies.
          * @enum {string}
@@ -5716,6 +5771,12 @@ export interface components {
              * @example my-limit-%
              */
             like_?: string | null;
+            /**
+             * Starts With
+             * @description A prefix that concurrency limit names must start with
+             * @example tag:
+             */
+            starts_with_?: string | null;
         };
         /**
          * ConcurrencyLimitV2Update
@@ -15570,6 +15631,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConcurrencyLimit"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    count_concurrency_limits_concurrency_limits_count_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-prefect-api-version"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Body_count_concurrency_limits_concurrency_limits_count_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": number;
                 };
             };
             /** @description Validation Error */

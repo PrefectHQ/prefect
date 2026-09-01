@@ -2579,6 +2579,11 @@ class ConcurrencyLimitV2FilterName(PrefectFilterBaseModel):
         ),
         examples=["my-limit-%"],
     )
+    starts_with_: Optional[str] = Field(
+        default=None,
+        description="A prefix that concurrency limit names must start with",
+        examples=["tag:"],
+    )
 
     def _get_filter_list(
         self, db: "PrefectDBInterface"
@@ -2588,6 +2593,8 @@ class ConcurrencyLimitV2FilterName(PrefectFilterBaseModel):
             filters.append(db.ConcurrencyLimitV2.name.in_(self.any_))
         if self.like_:
             filters.append(db.ConcurrencyLimitV2.name.ilike(f"%{self.like_}%"))
+        if self.starts_with_:
+            filters.append(db.ConcurrencyLimitV2.name.startswith(self.starts_with_))
         return filters
 
 
@@ -2605,4 +2612,47 @@ class ConcurrencyLimitV2Filter(PrefectOperatorFilterBaseModel):
 
         if self.name is not None:
             filters.append(self.name.as_sql_filter())
+        return filters
+
+
+class ConcurrencyLimitFilterTag(PrefectFilterBaseModel):
+    """Filter by `ConcurrencyLimit.tag`."""
+
+    any_: Optional[list[str]] = Field(
+        default=None, description="A list of tags to include"
+    )
+    like_: Optional[str] = Field(
+        default=None,
+        description=(
+            "A string to match tags against. This can include SQL wildcard "
+            "characters like `%` and `_`."
+        ),
+        examples=["my-tag-%"],
+    )
+
+    def _get_filter_list(
+        self, db: "PrefectDBInterface"
+    ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
+        filters: list[sa.ColumnExpressionArgument[bool]] = []
+        if self.any_ is not None:
+            filters.append(db.ConcurrencyLimit.tag.in_(self.any_))
+        if self.like_:
+            filters.append(db.ConcurrencyLimit.tag.ilike(f"%{self.like_}%"))
+        return filters
+
+
+class ConcurrencyLimitFilter(PrefectOperatorFilterBaseModel):
+    """Filter task run concurrency limits. Only limits matching all criteria will be returned"""
+
+    tag: Optional[ConcurrencyLimitFilterTag] = Field(
+        default=None, description="Filter criteria for `ConcurrencyLimit.tag`"
+    )
+
+    def _get_filter_list(
+        self, db: "PrefectDBInterface"
+    ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
+        filters: list[sa.ColumnExpressionArgument[bool]] = []
+
+        if self.tag is not None:
+            filters.append(self.tag.as_sql_filter())
         return filters
