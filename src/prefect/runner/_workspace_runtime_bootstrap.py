@@ -84,7 +84,7 @@ def _absolute_file_entrypoint(manifest: dict[str, Any]) -> str:
 
 
 async def _run_sync(call: Callable[..., Any], *args: Any) -> Any:
-    import anyio
+    import anyio.to_thread
 
     return await anyio.to_thread.run_sync(call, *args)
 

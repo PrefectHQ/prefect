@@ -187,6 +187,16 @@ def prefect_test_harness(server_startup_timeout: int | None = 30):
                 },
             )
         )
+        # Also expose the harness settings as the process-global settings context
+        # so that code running in a `contextvars` context copied before the
+        # harness started, such as a `unittest.IsolatedAsyncioTestCase` that was
+        # constructed at collection time, uses the harness server.
+        # See https://github.com/PrefectHQ/prefect/issues/15818
+        stack.enter_context(
+            prefect.context._temporary_global_settings_context(
+                prefect.context.get_settings_context()
+            )
+        )
         yield
         # drain the logs before stopping the server to avoid connection errors on shutdown
         # When running in an async context, drain() and drain_all() return awaitables.

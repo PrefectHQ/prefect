@@ -106,6 +106,21 @@ class ImagePullPolicy(enum.Enum):
     NEVER = "Never"
 
 
+def _is_missing_container_error(exc: docker.errors.APIError) -> bool:
+    """
+    Report if a Docker API error says that a container does not exist.
+
+    The Docker Engine gives a 404 for a container that does not exist, but
+    Docker-compatible APIs are less consistent. Podman, for example, gives a 500
+    with the explanation `container <id> does not exist in database: no such
+    container`.
+    """
+    return (
+        isinstance(exc, docker.errors.NotFound)
+        or "no such container" in str(exc).lower()
+    )
+
+
 class DockerWorkerJobConfiguration(BaseJobConfiguration):
     """
     Configuration class used by the Docker worker.
@@ -899,8 +914,13 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                         container, configuration, last_event=last_event
                     )
 
-        except docker.errors.NotFound:
+        except docker.errors.APIError as exc:
             # The container was removed during watching
+            if not (
+                isinstance(exc, docker.errors.NotFound)
+                or (configuration.auto_remove and _is_missing_container_error(exc))
+            ):
+                raise
             self._logger.warning(
                 f"Docker container {container.name} was removed before we could wait "
                 "for its completion."
@@ -939,6 +959,11 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
                         f"Docker container {container.name} was marked for removal"
                         " before logs could be retrieved. Output will not be"
                         " streamed. "
+                    )
+                elif configuration.auto_remove and _is_missing_container_error(exc):
+                    self._logger.warning(
+                        f"Docker container {container.name} was removed before logs"
+                        " could be retrieved. Output will not be streamed."
                     )
                 else:
                     self._logger.exception(

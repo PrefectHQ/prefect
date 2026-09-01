@@ -9,9 +9,9 @@ ARG BASE_IMAGE=python:${PYTHON_VERSION}-slim
 # The version used to build the Python distributable.
 ARG BUILD_PYTHON_VERSION=3.10
 # The version used to build the V1 UI distributable.
-ARG NODE_VERSION=20.19.0
+ARG NODE_VERSION=20.20.2
 # The version used to build the V2 UI distributable (requires Node 22+).
-ARG NODE_V2_VERSION=22.12.0
+ARG NODE_V2_VERSION=22.23.2
 # SQLite version — must match the tag published to prefecthq/prefect-sqlite on DockerHub
 # See Dockerfile.sqlite-builder and .github/workflows/sqlite-builder.yaml
 ARG SQLITE_VERSION=3.50.4
@@ -87,7 +87,7 @@ RUN echo 'Acquire::Retries "3";' > /etc/apt/apt.conf.d/80-retries && \
     (echo "ERROR: git version must be >= 1:2.47.3" && exit 1)
 
 # Install UV from official image - pin to specific version for build caching
-COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.12.7 /uv /bin/uv
 
 # Copy the repository in; requires full git history for versions to generate correctly
 COPY . ./
@@ -104,7 +104,7 @@ RUN mv "dist/prefect-"*".tar.gz" "dist/prefect.tar.gz"
 
 
 # Setup a base final image from miniconda
-FROM continuumio/miniconda3:26.5.3 AS prefect-conda
+FROM continuumio/miniconda3:26.7.1 AS prefect-conda
 
 # Create a new conda environment with our required Python version
 ARG PYTHON_VERSION
@@ -180,7 +180,7 @@ COPY --from=sqlite-builder /usr/local/lib/pkgconfig/sqlite3.pc /usr/local/lib/pk
 RUN ldconfig
 
 # Install UV from official image - pin to specific version for build caching
-COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.12.7 /uv /bin/uv
 
 # Extras to include during installation
 ARG PREFECT_EXTRAS=[redis,client,otel]
