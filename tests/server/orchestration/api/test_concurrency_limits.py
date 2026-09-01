@@ -460,9 +460,9 @@ class TestV1ToV2Adapter:
         for tag in ["alpha", "beta", "alpha-two"]:
             await client.post(
                 "/concurrency_limits/",
-                json=ConcurrencyLimitCreate(
-                    tag=tag, concurrency_limit=1
-                ).model_dump(mode="json"),
+                json=ConcurrencyLimitCreate(tag=tag, concurrency_limit=1).model_dump(
+                    mode="json"
+                ),
             )
 
         response = await client.post(
@@ -576,9 +576,9 @@ class TestV1ToV2Adapter:
         for tag in ["gamma", "delta"]:
             await client.post(
                 "/concurrency_limits/",
-                json=ConcurrencyLimitCreate(
-                    tag=tag, concurrency_limit=1
-                ).model_dump(mode="json"),
+                json=ConcurrencyLimitCreate(tag=tag, concurrency_limit=1).model_dump(
+                    mode="json"
+                ),
             )
 
         response = await client.post(

@@ -225,9 +225,7 @@ async def read_concurrency_limits(
     session: AsyncSession,
     limit: Optional[int] = None,
     offset: Optional[int] = None,
-    concurrency_limit_filter: Optional[
-        schemas.filters.ConcurrencyLimitFilter
-    ] = None,
+    concurrency_limit_filter: Optional[schemas.filters.ConcurrencyLimitFilter] = None,
 ) -> Sequence[orm_models.ConcurrencyLimit]:
     """
     Reads a concurrency limits. If used for orchestration, simultaneous read race
@@ -260,9 +258,7 @@ async def read_concurrency_limits(
 async def count_concurrency_limits(
     db: PrefectDBInterface,
     session: AsyncSession,
-    concurrency_limit_filter: Optional[
-        schemas.filters.ConcurrencyLimitFilter
-    ] = None,
+    concurrency_limit_filter: Optional[schemas.filters.ConcurrencyLimitFilter] = None,
     exclude_tags_with_v2_limit: bool = False,
 ) -> int:
     """
