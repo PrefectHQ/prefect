@@ -63,7 +63,7 @@ export const DeploymentScheduleDialog = ({
 			{open && (
 				// nb: Remounted per schedule so form state starts from the schedule
 				<DeploymentScheduleDialogForms
-					key={scheduleToEdit?.id ?? "new-schedule"}
+					key={`${deployment.id}-${scheduleToEdit?.id ?? "new-schedule"}`}
 					deployment={deployment}
 					scheduleToEdit={scheduleToEdit}
 					onSubmit={onSubmit}

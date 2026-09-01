@@ -31,33 +31,41 @@ export type ScheduleParameterOverrides = {
 /**
  * Manages the parameter overrides of a deployment schedule.
  *
- * Overrides are partial by design, so the deployment's parameter schema is
- * relaxed to make every property optional before validating.
+ * Overrides are partial by design, so every property is optional in the form's
+ * schema. Scheduled runs receive the deployment parameters merged with the
+ * overrides, so that merged dictionary is what gets validated.
  */
 export const useScheduleParameterOverrides = (
 	deployment: Deployment,
 	scheduleToEdit?: DeploymentSchedule,
 ): ScheduleParameterOverrides => {
-	const schema = useMemo(() => {
+	const deploymentSchema = useMemo(() => {
 		const { parameter_openapi_schema } = deployment;
 		if (!parameter_openapi_schema) {
 			return undefined;
 		}
-		const relaxedSchema = { ...parameter_openapi_schema, required: [] };
-		return isObjectSchema(relaxedSchema) ? relaxedSchema : undefined;
+		return isObjectSchema(parameter_openapi_schema)
+			? parameter_openapi_schema
+			: undefined;
 	}, [deployment]);
+
+	const schema = useMemo(
+		() =>
+			deploymentSchema ? { ...deploymentSchema, required: [] } : undefined,
+		[deploymentSchema],
+	);
 
 	const [values, setValues] = useSchemaFormValues(scheduleToEdit?.parameters);
 	const [errors, setErrors] = useSchemaFormErrors();
 
 	const validate = async () => {
-		if (!schema || !deployment.enforce_parameter_schema) {
+		if (!deploymentSchema || !deployment.enforce_parameter_schema) {
 			return true;
 		}
 		try {
 			const { errors: validationErrors, valid } = await validateSchemaValues(
-				schema,
-				values,
+				deploymentSchema,
+				{ ...deployment.parameters, ...values },
 			);
 			setErrors(valid ? [] : validationErrors);
 			return valid;

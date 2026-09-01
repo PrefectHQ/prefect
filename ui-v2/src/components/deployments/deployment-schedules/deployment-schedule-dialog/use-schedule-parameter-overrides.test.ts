@@ -118,6 +118,31 @@ describe("useScheduleParameterOverrides", () => {
 		await waitFor(() => expect(result.current.errors).toEqual([]));
 	});
 
+	it("validates the deployment parameters merged with the overrides", async () => {
+		let body: unknown;
+		server.use(
+			http.post(buildApiUrl("/ui/schemas/validate"), async ({ request }) => {
+				body = await request.json();
+				return HttpResponse.json({ valid: true, errors: [] });
+			}),
+		);
+		const deployment = createFakeDeployment({
+			parameter_openapi_schema: PARAMETER_SCHEMA,
+			parameters: { name: "deployment default", other: "kept" },
+			enforce_parameter_schema: true,
+		});
+
+		const { result } = renderHook(() =>
+			useScheduleParameterOverrides(deployment, MOCK_SCHEDULE),
+		);
+
+		await expect(result.current.validate()).resolves.toBe(true);
+		expect(body).toEqual({
+			schema: PARAMETER_SCHEMA,
+			values: { name: "override", other: "kept" },
+		});
+	});
+
 	it("fails validation when the request errors", async () => {
 		mockValidation("error");
 		const deployment = createFakeDeployment({
