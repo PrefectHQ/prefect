@@ -439,14 +439,19 @@ describe("property.type", () => {
 			fireEvent.change(input, { target: { value: "ba" } });
 			fireEvent.change(input, { target: { value: "bar" } });
 
+			// let the latest value emit before the parent commits an older snapshot
+			await act(async () => {
+				await Promise.resolve();
+			});
+
 			// the parent commits the value of the first keystroke after two more
 			fireEvent.click(screen.getByRole("button", { name: "commit" }));
 
-			// eslint-disable-next-line @typescript-eslint/require-await
 			await act(async () => {
-				vi.runAllTimers();
+				await Promise.resolve();
 			});
 
+			expect(pendingValues).toEqual([{ name: "bar" }, { name: "bar" }]);
 			expect(input).toHaveValue("bar");
 		});
 	});

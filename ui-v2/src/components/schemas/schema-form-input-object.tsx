@@ -47,19 +47,6 @@ export function SchemaFormInputObject({
 		}
 	}, [isOpenObject, nested, values, onValuesChange]);
 
-	useEffect(() => {
-		for (const [key, value] of pendingPatches.current) {
-			const acknowledged =
-				value === undefined
-					? !Object.hasOwn(values ?? {}, key)
-					: Object.is(values?.[key], value);
-
-			if (acknowledged) {
-				pendingPatches.current.delete(key);
-			}
-		}
-	}, [values]);
-
 	const flushPatches = useCallback(() => {
 		flushScheduled.current = false;
 		const { values: currentValues, onValuesChange: emitValues } =
@@ -85,6 +72,23 @@ export function SchemaFormInputObject({
 		flushScheduled.current = true;
 		queueMicrotask(flushPatches);
 	}, [flushPatches]);
+
+	useEffect(() => {
+		for (const [key, value] of pendingPatches.current) {
+			const acknowledged =
+				value === undefined
+					? !Object.hasOwn(values ?? {}, key)
+					: Object.is(values?.[key], value);
+
+			if (acknowledged) {
+				pendingPatches.current.delete(key);
+			}
+		}
+
+		if (pendingPatches.current.size > 0) {
+			scheduleFlush();
+		}
+	}, [values, scheduleFlush]);
 
 	const properties = useMemo(() => {
 		return Object.entries(property.properties ?? {}).sort(([, a], [, b]) =>
