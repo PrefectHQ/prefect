@@ -42,7 +42,7 @@ def _register_stable_transforms() -> None:
     type cannot exist before its module is imported, so this runs when inputs are
     hashed instead of at import time.
     """
-    if "pandas" in sys.modules:
+    if sys.modules.get("pandas") is not None:
         import pandas as pd  # pyright: ignore
 
         STABLE_TRANSFORMS[pd.DataFrame] = lambda df: [  # pyright: ignore
