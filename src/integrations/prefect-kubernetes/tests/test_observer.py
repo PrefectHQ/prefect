@@ -13,10 +13,8 @@ from prefect_kubernetes import observer
 from prefect_kubernetes._logging import KopfObjectJsonFormatter
 from prefect_kubernetes.diagnostics import diagnose_k8s_pod
 from prefect_kubernetes.observer import (
-    _completed_state_check_cache,
     _ContainerLogEntry,
     _fetch_crashed_pod_logs,
-    _last_diagnosis_cache,
     _mark_flow_run_as_crashed,
     _replicate_pod_event,
     _send_crashed_pod_logs,
@@ -32,14 +30,10 @@ from prefect.types import DateTime
 
 
 @pytest.fixture(autouse=True)
-def clear_observer_lifecycle_caches() -> Iterator[None]:
-    _completed_state_check_cache.clear()
-    _last_diagnosis_cache.clear()
-    observer._pod_cache_reconciliation_touches.clear()
+def reset_observer_lifecycle_state() -> Iterator[None]:
+    observer._pod_lifecycle_states.clear()
     yield
-    _completed_state_check_cache.clear()
-    _last_diagnosis_cache.clear()
-    observer._pod_cache_reconciliation_touches.clear()
+    observer._pod_lifecycle_states.clear()
 
 
 def _pending_event_kwargs(flow_run_id: uuid.UUID, pod_uid: str) -> dict[str, object]:
@@ -502,13 +496,13 @@ class TestReplicatePodEvent:
         # Verify no event was emitted since one already existed
         mock_events_client.emit.assert_not_called()
 
-    async def test_existing_startup_event_reconciles_lifecycle_caches(
+    async def test_existing_startup_event_reconciles_lifecycle_state(
         self,
         mock_events_client: AsyncMock,
         mock_orchestration_client: AsyncMock,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        """Startup deduplication still observes recovery from cached work."""
+        """Startup deduplication still observes recovery from retained work."""
         flow_run_id = uuid.uuid4()
         pod_uid = str(uuid.uuid4())
         mock_propose = AsyncMock(
@@ -727,7 +721,7 @@ class TestReplicatePodEvent:
         mock_propose.assert_not_called()
         assert mock_orchestration_client.read_flow_run.call_count == 1
 
-    async def test_pending_state_check_cached_for_repeated_events(
+    async def test_pending_state_check_deduplicates_repeated_events(
         self,
         mock_events_client: AsyncMock,
         mock_orchestration_client: AsyncMock,
@@ -765,36 +759,33 @@ class TestReplicatePodEvent:
         assert mock_orchestration_client.read_flow_run.call_count == 1
         assert mock_propose.call_count == 1
 
-    async def test_pending_state_check_survives_more_than_100_000_other_pods(
+    async def test_pod_lifecycle_state_survives_more_than_100_000_other_pods(
         self,
         mock_events_client: AsyncMock,
         mock_orchestration_client: AsyncMock,
-        monkeypatch: pytest.MonkeyPatch,
+        mock_observer_log: MagicMock,
+        pending_state_case: tuple[uuid.UUID, AsyncMock],
     ):
-        """A live pod's completed check remains cached for its lifecycle."""
-        flow_run_id = uuid.uuid4()
+        """A live pod retains all deduplication state for its lifecycle."""
+        flow_run_id, mock_propose = pending_state_case
         pod_uid = str(uuid.uuid4())
-        mock_propose = AsyncMock(
-            return_value=State(type="PENDING", name="InfrastructurePending")
-        )
-        monkeypatch.setattr("prefect_kubernetes.observer.propose_state", mock_propose)
-        mock_orchestration_client.read_flow_run.return_value = FlowRun(
-            id=flow_run_id,
-            name="test-flow-run",
-            flow_id=uuid.uuid4(),
-            state=State(type="SCHEDULED", name="Scheduled"),
+        kwargs = _pending_event_kwargs(flow_run_id, pod_uid)
+        kwargs["status"] = _unschedulable_status(
+            "0/1 nodes are available: 1 Insufficient cpu."
         )
 
-        await _replicate_pod_event(**_pending_event_kwargs(flow_run_id, pod_uid))
-        _completed_state_check_cache.update(
-            f"other-pod-{index}" for index in range(100_001)
-        )
-        await _replicate_pod_event(**_pending_event_kwargs(flow_run_id, pod_uid))
+        await _replicate_pod_event(**kwargs)
+        for index in range(100_001):
+            other_uid = f"other-pod-{index}"
+            observer._pod_lifecycle_states.mark_state_check_completed(other_uid)
+            observer._pod_lifecycle_states.mark_diagnosis_logged(other_uid, ("other",))
+        await _replicate_pod_event(**kwargs)
 
         mock_orchestration_client.read_flow_run.assert_awaited_once_with(
             flow_run_id=flow_run_id
         )
         mock_propose.assert_awaited_once()
+        assert mock_observer_log.log.call_count == 1
 
     async def test_reconciliation_reenables_absent_pending_pod(
         self,
@@ -818,7 +809,7 @@ class TestReplicatePodEvent:
         )
 
         await _replicate_pod_event(**kwargs)
-        await observer._reconcile_pod_lifecycle_caches(logger=MagicMock())
+        await observer._reconcile_pod_lifecycle_states(logger=MagicMock())
         await _replicate_pod_event(**kwargs)
 
         assert mock_orchestration_client.read_flow_run.call_count == 2
@@ -855,7 +846,7 @@ class TestReplicatePodEvent:
         )
 
         await _replicate_pod_event(**kwargs)
-        await observer._reconcile_pod_lifecycle_caches(logger=MagicMock())
+        await observer._reconcile_pod_lifecycle_states(logger=MagicMock())
         await _replicate_pod_event(**kwargs)
 
         assert core_client.list_namespaced_pod.await_args_list == [
@@ -899,7 +890,7 @@ class TestReplicatePodEvent:
             ]
         )
         await _replicate_pod_event(**kwargs)
-        await observer._reconcile_pod_lifecycle_caches(logger=MagicMock())
+        await observer._reconcile_pod_lifecycle_states(logger=MagicMock())
         await _replicate_pod_event(**kwargs)
 
         assert core_client.list_pod_for_all_namespaces.await_args_list == [
@@ -936,7 +927,7 @@ class TestReplicatePodEvent:
 
         await _replicate_pod_event(**kwargs)
         with pytest.raises(RuntimeError, match="missing a UID"):
-            await observer._reconcile_pod_lifecycle_caches(logger=MagicMock())
+            await observer._reconcile_pod_lifecycle_states(logger=MagicMock())
         await _replicate_pod_event(**kwargs)
 
         assert mock_orchestration_client.read_flow_run.call_count == 1
@@ -967,7 +958,7 @@ class TestReplicatePodEvent:
 
         await _replicate_pod_event(**kwargs)
         with pytest.raises(RuntimeError, match="namespace unavailable"):
-            await observer._reconcile_pod_lifecycle_caches(logger=MagicMock())
+            await observer._reconcile_pod_lifecycle_states(logger=MagicMock())
         await _replicate_pod_event(**kwargs)
 
         assert mock_orchestration_client.read_flow_run.call_count == 1
@@ -1001,7 +992,7 @@ class TestReplicatePodEvent:
         )
 
         await _replicate_pod_event(**old_kwargs)
-        await observer._reconcile_pod_lifecycle_caches(logger=MagicMock())
+        await observer._reconcile_pod_lifecycle_states(logger=MagicMock())
         await _replicate_pod_event(**new_kwargs)
 
         assert mock_orchestration_client.read_flow_run.call_count == 2
@@ -1033,7 +1024,7 @@ class TestReplicatePodEvent:
         )
 
         await _replicate_pod_event(**kwargs)
-        await observer._reconcile_pod_lifecycle_caches(logger=MagicMock())
+        await observer._reconcile_pod_lifecycle_states(logger=MagicMock())
         await _replicate_pod_event(**kwargs)
 
         assert mock_orchestration_client.read_flow_run.call_count == 1
@@ -1075,10 +1066,10 @@ class TestReplicatePodEvent:
 
         await _replicate_pod_event(**kwargs)
         first = asyncio.create_task(
-            observer._reconcile_pod_lifecycle_caches(logger=MagicMock())
+            observer._reconcile_pod_lifecycle_states(logger=MagicMock())
         )
         await asyncio.wait_for(first_started.wait(), timeout=1)
-        await observer._reconcile_pod_lifecycle_caches(logger=MagicMock())
+        await observer._reconcile_pod_lifecycle_states(logger=MagicMock())
         await _replicate_pod_event(**kwargs)
         finish_first.set()
         await asyncio.wait_for(first, timeout=1)
@@ -1111,7 +1102,7 @@ class TestReplicatePodEvent:
         )
 
         reconciliation = asyncio.create_task(
-            observer._reconcile_pod_lifecycle_caches(logger=MagicMock())
+            observer._reconcile_pod_lifecycle_states(logger=MagicMock())
         )
         await asyncio.wait_for(started.wait(), timeout=1)
         reconciliation.cancel()
@@ -1120,13 +1111,13 @@ class TestReplicatePodEvent:
             await asyncio.wait_for(reconciliation, timeout=1)
         api_client.close.assert_awaited_once()
 
-    async def test_pending_state_check_cached_when_flow_run_already_advanced(
+    async def test_completed_state_check_deduplicates_when_flow_run_already_advanced(
         self,
         mock_events_client: AsyncMock,
         mock_orchestration_client: AsyncMock,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        """A completed check that requires no proposal is also cached."""
+        """A completed check that requires no proposal is also deduplicated."""
         flow_run_id = uuid.uuid4()
         pod_uid = str(uuid.uuid4())
         mock_propose = AsyncMock()
@@ -1162,7 +1153,7 @@ class TestReplicatePodEvent:
         mock_orchestration_client: AsyncMock,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        """A failed state check is not cached and is retried on the next event."""
+        """A failed state check is retried on the next event."""
         flow_run_id = uuid.uuid4()
         pod_uid = str(uuid.uuid4())
         mock_propose = AsyncMock()
@@ -1192,7 +1183,7 @@ class TestReplicatePodEvent:
         mock_orchestration_client: AsyncMock,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        """A timed-out proposal is not cached and is retried on the next event."""
+        """A timed-out proposal is retried on the next event."""
         flow_run_id = uuid.uuid4()
         pod_uid = str(uuid.uuid4())
 
@@ -1235,7 +1226,7 @@ class TestReplicatePodEvent:
         ("replacement_type", "replacement_name"),
         [("SCHEDULED", "Scheduled"), ("PENDING", "Pending")],
     )
-    async def test_rejected_proposal_not_cached(
+    async def test_rejected_proposal_retried(
         self,
         mock_events_client: AsyncMock,
         mock_orchestration_client: AsyncMock,
@@ -1264,13 +1255,13 @@ class TestReplicatePodEvent:
         assert mock_orchestration_client.read_flow_run.call_count == 2
         assert mock_propose.call_count == 2
 
-    async def test_paused_proposal_is_cached(
+    async def test_paused_proposal_completes_state_check(
         self,
         mock_events_client: AsyncMock,
         mock_orchestration_client: AsyncMock,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        """A paused proposal is completed and cached for repeated events."""
+        """A paused proposal completes the state check for repeated events."""
         flow_run_id = uuid.uuid4()
         pod_uid = str(uuid.uuid4())
         mock_propose = AsyncMock(
@@ -1367,19 +1358,27 @@ class TestReplicatePodEvent:
         assert mock_propose.call_count == 2
         assert mock_observer_log.log.call_count == 2
 
-    async def test_cleanup_clears_lifecycle_caches(
+    async def test_cleanup_reenables_lifecycle_processing(
         self,
         mock_events_client: AsyncMock,
         mock_orchestration_client: AsyncMock,
+        mock_observer_log: MagicMock,
+        pending_state_case: tuple[uuid.UUID, AsyncMock],
     ):
         """Observer shutdown releases all pod-owned deduplication state."""
-        _completed_state_check_cache.add("pending-pod")
-        _last_diagnosis_cache["diagnosed-pod"] = ("diagnosis",)
+        flow_run_id, mock_propose = pending_state_case
+        kwargs = _pending_event_kwargs(flow_run_id, str(uuid.uuid4()))
+        kwargs["status"] = _unschedulable_status(
+            "0/1 nodes are available: 1 Insufficient cpu."
+        )
 
+        await _replicate_pod_event(**kwargs)
         await cleanup_fn(logger=MagicMock())
+        await _replicate_pod_event(**kwargs)
 
-        assert not _completed_state_check_cache
-        assert not _last_diagnosis_cache
+        assert mock_orchestration_client.read_flow_run.call_count == 2
+        assert mock_propose.call_count == 2
+        assert mock_observer_log.log.call_count == 2
 
     async def test_observer_lifecycle_owns_reconciliation_task(
         self,
@@ -1400,7 +1399,7 @@ class TestReplicatePodEvent:
 
         monkeypatch.setattr(
             observer,
-            "_periodically_reconcile_pod_lifecycle_caches",
+            "_periodically_reconcile_pod_lifecycle_states",
             reconciliation_loop,
         )
 
@@ -1410,21 +1409,32 @@ class TestReplicatePodEvent:
 
         assert stopped.is_set()
 
-    async def test_cleanup_clears_caches_if_client_cleanup_fails(
+    async def test_cleanup_reenables_lifecycle_processing_if_client_cleanup_fails(
         self,
         mock_events_client: AsyncMock,
         mock_orchestration_client: AsyncMock,
+        mock_observer_log: MagicMock,
+        pending_state_case: tuple[uuid.UUID, AsyncMock],
     ):
         """Lifecycle state is released even when client cleanup fails."""
-        _completed_state_check_cache.add("pending-pod")
-        _last_diagnosis_cache["diagnosed-pod"] = ("diagnosis",)
+        flow_run_id, mock_propose = pending_state_case
+        kwargs = _pending_event_kwargs(flow_run_id, str(uuid.uuid4()))
+        kwargs["status"] = _unschedulable_status(
+            "0/1 nodes are available: 1 Insufficient cpu."
+        )
+
+        await _replicate_pod_event(**kwargs)
         mock_events_client.__aexit__.side_effect = RuntimeError("events cleanup failed")
 
         with pytest.raises(RuntimeError, match="events cleanup failed"):
             await cleanup_fn(logger=MagicMock())
 
-        assert not _completed_state_check_cache
-        assert not _last_diagnosis_cache
+        mock_events_client.__aexit__.side_effect = None
+        await _replicate_pod_event(**kwargs)
+
+        assert mock_orchestration_client.read_flow_run.call_count == 2
+        assert mock_propose.call_count == 2
+        assert mock_observer_log.log.call_count == 2
 
     async def test_reconciliation_task_failure_does_not_skip_client_cleanup(
         self,
@@ -1439,7 +1449,7 @@ class TestReplicatePodEvent:
 
         task = asyncio.create_task(fail_reconciliation())
         await asyncio.sleep(0)
-        monkeypatch.setattr(observer, "_pod_cache_reconciliation_task", task)
+        monkeypatch.setattr(observer, "_pod_lifecycle_reconciliation_task", task)
 
         with pytest.raises(RuntimeError, match="reconciliation failed"):
             await cleanup_fn(logger=MagicMock())
@@ -1447,13 +1457,13 @@ class TestReplicatePodEvent:
         mock_events_client.__aexit__.assert_awaited_once_with(None, None, None)
         mock_orchestration_client.__aexit__.assert_awaited_once_with(None, None, None)
 
-    async def test_pending_state_check_cache_cleared_on_phase_change(
+    async def test_pending_state_check_reenabled_on_phase_change(
         self,
         mock_events_client: AsyncMock,
         mock_orchestration_client: AsyncMock,
         monkeypatch: pytest.MonkeyPatch,
     ):
-        """The cached state check is dropped when the pod leaves Pending."""
+        """The completed state check is dropped when the pod leaves Pending."""
         flow_run_id = uuid.uuid4()
         pod_uid = str(uuid.uuid4())
         mock_propose = AsyncMock(
@@ -1774,7 +1784,7 @@ class TestReplicatePodEvent:
         )
         assert mock_child.log.call_count == 1  # still 1
 
-        # Pod recovers (healthy status clears cache)
+        # Pod recovers (healthy status releases diagnosis state)
         await _replicate_pod_event(
             event={"type": "MODIFIED"},
             uid=pod_uid,
@@ -1908,27 +1918,6 @@ class TestReplicatePodEvent:
             await _replicate_pod_event(**kwargs)
 
         assert mock_observer_log.log.call_count == 2
-
-    async def test_diagnosis_cache_survives_more_than_100_000_other_pods(
-        self,
-        mock_events_client: AsyncMock,
-        mock_observer_log: MagicMock,
-    ):
-        """An active pod's diagnosis remains cached for its lifecycle."""
-        flow_run_id = uuid.uuid4()
-        pod_uid = str(uuid.uuid4())
-        kwargs = _pending_event_kwargs(flow_run_id, pod_uid)
-        kwargs["status"] = _unschedulable_status(
-            "0/1 nodes are available: 1 Insufficient cpu."
-        )
-
-        await _replicate_pod_event(**kwargs)
-        _last_diagnosis_cache.update(
-            {f"other-pod-{index}": ("other",) for index in range(100_001)}
-        )
-        await _replicate_pod_event(**kwargs)
-
-        assert mock_observer_log.log.call_count == 1
 
     async def test_startup_event_semaphore_limits_concurrency(
         self,
