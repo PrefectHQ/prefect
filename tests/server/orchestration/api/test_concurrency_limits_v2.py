@@ -254,6 +254,75 @@ async def test_read_all_concurrency_limits_returns_decayed_active_slots(
     assert limits_by_id[str(concurrency_limit.id)]["active_slots"] == 7
 
 
+async def test_read_all_concurrency_limits_filters_by_name_like(
+    concurrency_limit: ConcurrencyLimitV2,
+    locked_concurrency_limit: ConcurrencyLimitV2,
+    concurrency_limit_with_decay: ConcurrencyLimitV2,
+    client: AsyncClient,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/filter",
+        json={"concurrency_limits": {"name": {"like_": "test_limit"}}},
+    )
+    assert response.status_code == 200
+
+    data = response.json()
+    assert {limit["id"] for limit in data} == {
+        str(concurrency_limit.id),
+        str(concurrency_limit_with_decay.id),
+    }
+
+
+async def test_read_all_concurrency_limits_filters_by_name_any(
+    concurrency_limit: ConcurrencyLimitV2,
+    locked_concurrency_limit: ConcurrencyLimitV2,
+    client: AsyncClient,
+):
+    response = await client.post(
+        "/v2/concurrency_limits/filter",
+        json={"concurrency_limits": {"name": {"any_": [concurrency_limit.name]}}},
+    )
+    assert response.status_code == 200
+
+    data = response.json()
+    assert {limit["id"] for limit in data} == {str(concurrency_limit.id)}
+
+
+async def test_read_all_concurrency_limits_respects_limit_and_offset(
+    concurrency_limit: ConcurrencyLimitV2,
+    locked_concurrency_limit: ConcurrencyLimitV2,
+    concurrency_limit_with_decay: ConcurrencyLimitV2,
+    client: AsyncClient,
+):
+    response = await client.post("/v2/concurrency_limits/filter", json={"limit": 1})
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+
+    response = await client.post(
+        "/v2/concurrency_limits/filter", json={"limit": 1, "offset": 1}
+    )
+    assert response.status_code == 200
+    assert len(response.json()) == 1
+
+
+async def test_count_concurrency_limits(
+    concurrency_limit: ConcurrencyLimitV2,
+    locked_concurrency_limit: ConcurrencyLimitV2,
+    concurrency_limit_with_decay: ConcurrencyLimitV2,
+    client: AsyncClient,
+):
+    response = await client.post("/v2/concurrency_limits/count")
+    assert response.status_code == 200
+    assert response.json() == 3
+
+    response = await client.post(
+        "/v2/concurrency_limits/count",
+        json={"concurrency_limits": {"name": {"like_": "test_limit"}}},
+    )
+    assert response.status_code == 200
+    assert response.json() == 2
+
+
 async def test_update_concurrency_limit_by_id(
     concurrency_limit: ConcurrencyLimitV2,
     client: AsyncClient,
