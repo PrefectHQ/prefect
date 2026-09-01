@@ -14,7 +14,7 @@ from prefect_dbt.cli.configs.base import BaseTargetConfigs, MissingExtrasRequire
 
 try:
     from prefect_snowflake.database import SnowflakeConnector
-except ModuleNotFoundError as e:
+except ImportError as e:
     raise MissingExtrasRequireError("Snowflake") from e
 
 
