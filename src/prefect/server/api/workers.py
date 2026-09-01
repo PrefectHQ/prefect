@@ -929,7 +929,7 @@ async def create_work_queue(
             status_code=status.HTTP_409_CONFLICT,
             detail=(
                 "A work queue with this name already exists in work pool"
-                " {work_pool_name!r}."
+                f" {work_pool_name!r}."
             ),
         )
 
