@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { createWrapper } from "@tests/utils";
 import { describe, expect, it, vi } from "vitest";
 import { Toaster } from "@/components/ui/sonner";
-import { Table } from "./global-concurrency-limits-data-table";
+import { GlobalConcurrencyLimitsDataTable } from "./global-concurrency-limits-data-table";
 
 const MOCK_ROW = {
 	id: "0",
@@ -19,7 +19,7 @@ const MOCK_ROW = {
 describe("GlobalConcurrencyLimitTable -- table", () => {
 	it("renders row data", () => {
 		render(
-			<Table
+			<GlobalConcurrencyLimitsDataTable
 				data={[MOCK_ROW]}
 				onDeleteRow={vi.fn()}
 				onEditRow={vi.fn()}
@@ -28,6 +28,9 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 				onSearchChange={vi.fn()}
 				showFilteredEmptyState={false}
 				onClearSearch={vi.fn()}
+				pageCount={1}
+				pagination={{ pageIndex: 0, pageSize: 10 }}
+				onPaginationChange={vi.fn()}
 			/>,
 			{ wrapper: createWrapper() },
 		);
@@ -39,13 +42,93 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 		).toBeChecked();
 	});
 
+	it("calls onPaginationChange upon paging through server-side pages", async () => {
+		const user = userEvent.setup();
+		const mockFn = vi.fn();
+
+		render(
+			<GlobalConcurrencyLimitsDataTable
+				data={[MOCK_ROW]}
+				onDeleteRow={vi.fn()}
+				onEditRow={vi.fn()}
+				onResetRow={vi.fn()}
+				searchValue=""
+				onSearchChange={vi.fn()}
+				showFilteredEmptyState={false}
+				onClearSearch={vi.fn()}
+				pageCount={30}
+				pagination={{ pageIndex: 0, pageSize: 10 }}
+				onPaginationChange={mockFn}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		expect(screen.getByText(/page 1 of 30/i)).toBeVisible();
+
+		await user.click(screen.getByRole("button", { name: /go to next page/i }));
+		expect(mockFn).toHaveBeenCalledWith({ pageIndex: 1, pageSize: 10 });
+	});
+
+	it("calls onSearchChange upon typing in the search input", async () => {
+		const user = userEvent.setup();
+		const mockFn = vi.fn();
+
+		render(
+			<GlobalConcurrencyLimitsDataTable
+				data={[MOCK_ROW]}
+				onDeleteRow={vi.fn()}
+				onEditRow={vi.fn()}
+				onResetRow={vi.fn()}
+				searchValue=""
+				onSearchChange={mockFn}
+				showFilteredEmptyState={false}
+				onClearSearch={vi.fn()}
+				pageCount={1}
+				pagination={{ pageIndex: 0, pageSize: 10 }}
+				onPaginationChange={vi.fn()}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		await user.type(
+			screen.getByPlaceholderText(/search global concurrency limit/i),
+			"a",
+		);
+		await waitFor(() => expect(mockFn).toHaveBeenCalledWith("a"));
+	});
+
+	it("renders the filtered empty state when nothing matches the search", async () => {
+		const user = userEvent.setup();
+		const mockFn = vi.fn();
+
+		render(
+			<GlobalConcurrencyLimitsDataTable
+				data={[]}
+				onDeleteRow={vi.fn()}
+				onEditRow={vi.fn()}
+				onResetRow={vi.fn()}
+				searchValue="nothing matches"
+				onSearchChange={vi.fn()}
+				showFilteredEmptyState
+				onClearSearch={mockFn}
+				pageCount={0}
+				pagination={{ pageIndex: 0, pageSize: 10 }}
+				onPaginationChange={vi.fn()}
+			/>,
+			{ wrapper: createWrapper() },
+		);
+
+		await user.click(screen.getByRole("button", { name: /clear search/i }));
+		expect(mockFn).toHaveBeenCalled();
+	});
+
 	it("calls onDelete upon clicking delete action menu item", async () => {
 		const user = userEvent.setup();
 
 		const mockFn = vi.fn();
 
 		render(
-			<Table
+			<GlobalConcurrencyLimitsDataTable
 				data={[MOCK_ROW]}
 				onDeleteRow={mockFn}
 				onEditRow={vi.fn()}
@@ -54,6 +137,9 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 				onSearchChange={vi.fn()}
 				showFilteredEmptyState={false}
 				onClearSearch={vi.fn()}
+				pageCount={1}
+				pagination={{ pageIndex: 0, pageSize: 10 }}
+				onPaginationChange={vi.fn()}
 			/>,
 			{ wrapper: createWrapper() },
 		);
@@ -68,7 +154,7 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 		const mockFn = vi.fn();
 
 		render(
-			<Table
+			<GlobalConcurrencyLimitsDataTable
 				data={[MOCK_ROW]}
 				onDeleteRow={vi.fn()}
 				onEditRow={mockFn}
@@ -77,6 +163,9 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 				onSearchChange={vi.fn()}
 				showFilteredEmptyState={false}
 				onClearSearch={vi.fn()}
+				pageCount={1}
+				pagination={{ pageIndex: 0, pageSize: 10 }}
+				onPaginationChange={vi.fn()}
 			/>,
 			{ wrapper: createWrapper() },
 		);
@@ -92,7 +181,7 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 		const mockFn = vi.fn();
 
 		render(
-			<Table
+			<GlobalConcurrencyLimitsDataTable
 				data={[MOCK_ROW]}
 				onDeleteRow={vi.fn()}
 				onEditRow={vi.fn()}
@@ -101,6 +190,9 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 				onSearchChange={vi.fn()}
 				showFilteredEmptyState={false}
 				onClearSearch={vi.fn()}
+				pageCount={1}
+				pagination={{ pageIndex: 0, pageSize: 10 }}
+				onPaginationChange={vi.fn()}
 			/>,
 			{ wrapper: createWrapper() },
 		);
@@ -117,7 +209,7 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 		const { rerender } = render(
 			<>
 				<Toaster />
-				<Table
+				<GlobalConcurrencyLimitsDataTable
 					data={[MOCK_ROW]}
 					onDeleteRow={vi.fn()}
 					onEditRow={vi.fn()}
@@ -126,6 +218,9 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 					onSearchChange={vi.fn()}
 					showFilteredEmptyState={false}
 					onClearSearch={vi.fn()}
+					pageCount={1}
+					pagination={{ pageIndex: 0, pageSize: 10 }}
+					onPaginationChange={vi.fn()}
 				/>
 			</>,
 			{ wrapper: createWrapper() },
@@ -145,7 +240,7 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 		});
 
 		rerender(
-			<Table
+			<GlobalConcurrencyLimitsDataTable
 				data={[{ ...MOCK_ROW, active: false }]}
 				onDeleteRow={vi.fn()}
 				onEditRow={vi.fn()}
@@ -154,6 +249,9 @@ describe("GlobalConcurrencyLimitTable -- table", () => {
 				onSearchChange={vi.fn()}
 				showFilteredEmptyState={false}
 				onClearSearch={vi.fn()}
+				pageCount={1}
+				pagination={{ pageIndex: 0, pageSize: 10 }}
+				onPaginationChange={vi.fn()}
 			/>,
 		);
 

@@ -1,4 +1,5 @@
 import {
+	keepPreviousData,
 	queryOptions,
 	useMutation,
 	useQueryClient,
@@ -11,6 +12,8 @@ export type GlobalConcurrencyLimit =
 	components["schemas"]["GlobalConcurrencyLimitResponse"];
 export type GlobalConcurrencyLimitsFilter =
 	components["schemas"]["Body_read_all_concurrency_limits_v2_v2_concurrency_limits_filter_post"];
+export type GlobalConcurrencyLimitsCountFilter =
+	components["schemas"]["Body_count_all_concurrency_limits_v2_v2_concurrency_limits_count_post"];
 
 /**
  * ```
@@ -19,6 +22,10 @@ export type GlobalConcurrencyLimitsFilter =
  *  list  =>   ['global-concurrency-limits', 'list'] // key to match ['global-concurrency-limits', 'list', ...
  *             ['global-concurrency-limits', 'list', { ...filter1 }]
  *             ['global-concurrency-limits', 'list', { ...filter2 }]
+ *  listsPaginate  =>  ['global-concurrency-limits', 'list', 'paginate']
+ *             ['global-concurrency-limits', 'list', 'paginate', { ...filter1 }]
+ *  counts =>  ['global-concurrency-limits', 'counts'] // key to match ['global-concurrency-limits', 'counts', ...
+ *             ['global-concurrency-limits', 'counts', { ...filter1 }]
  * ```
  * */
 export const queryKeyFactory = {
@@ -26,7 +33,36 @@ export const queryKeyFactory = {
 	lists: () => [...queryKeyFactory.all(), "list"] as const,
 	list: (filter: GlobalConcurrencyLimitsFilter) =>
 		[...queryKeyFactory.lists(), filter] as const,
+	listsPaginate: () => [...queryKeyFactory.lists(), "paginate"] as const,
+	listPaginate: (filter: GlobalConcurrencyLimitsFilter) =>
+		[...queryKeyFactory.listsPaginate(), filter] as const,
+	counts: () => [...queryKeyFactory.all(), "counts"] as const,
+	count: (filter: GlobalConcurrencyLimitsCountFilter) =>
+		[...queryKeyFactory.counts(), filter] as const,
 };
+
+/**
+ * Builds the request body for a page of global concurrency limits
+ *
+ * @param options - the page number (1-based), page size and name search value
+ * @returns a filter that pages and filters global concurrency limits server-side
+ */
+export const buildGlobalConcurrencyLimitsPaginationBody = ({
+	page = 1,
+	limit = 10,
+	search = "",
+}: {
+	page?: number;
+	limit?: number;
+	search?: string;
+}): GlobalConcurrencyLimitsFilter => ({
+	limit,
+	offset: (page - 1) * limit,
+	concurrency_limits: {
+		operator: "and_",
+		name: { like_: search },
+	},
+});
 
 // ----- 🔑 Queries 🗄️
 // ----------------------------
@@ -41,6 +77,51 @@ export const buildListGlobalConcurrencyLimitsQuery = (
 				{ body: filter },
 			);
 			return res.data ?? [];
+		},
+		refetchInterval: 30_000,
+	});
+
+/**
+ * Builds a query for a page of global concurrency limits.
+ *
+ * The server applies the name filter and the page bounds, so the page can be
+ * any page of the full set of limits.
+ *
+ * @param filter - the page bounds and the name filter to apply
+ * @returns a queryOptions object for the requested page
+ */
+export const buildPaginateGlobalConcurrencyLimitsQuery = (
+	filter: GlobalConcurrencyLimitsFilter = { offset: 0 },
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.listPaginate(filter),
+		queryFn: async () => {
+			const res = await (await getQueryService()).POST(
+				"/v2/concurrency_limits/filter",
+				{ body: filter },
+			);
+			return res.data ?? [];
+		},
+		placeholderData: keepPreviousData,
+		refetchInterval: 30_000,
+	});
+
+/**
+ *
+ * @param filter
+ * @returns count of global concurrency limits matching the filter as a queryOptions object
+ */
+export const buildCountGlobalConcurrencyLimitsQuery = (
+	filter: GlobalConcurrencyLimitsCountFilter = {},
+) =>
+	queryOptions({
+		queryKey: queryKeyFactory.count(filter),
+		queryFn: async () => {
+			const res = await (await getQueryService()).POST(
+				"/v2/concurrency_limits/count",
+				{ body: filter },
+			);
+			return res.data ?? 0;
 		},
 		refetchInterval: 30_000,
 	});
@@ -86,10 +167,11 @@ export const useDeleteGlobalConcurrencyLimit = () => {
 				params: { path: { id_or_name } },
 			}),
 		onSuccess: () => {
-			// After a successful deletion, invalidate the listing queries only to refetch
-			return queryClient.invalidateQueries({
-				queryKey: queryKeyFactory.lists(),
-			});
+			// After a successful deletion, invalidate the listing and count queries to refetch
+			return Promise.all([
+				queryClient.invalidateQueries({ queryKey: queryKeyFactory.lists() }),
+				queryClient.invalidateQueries({ queryKey: queryKeyFactory.counts() }),
+			]);
 		},
 	});
 	return {
@@ -135,10 +217,11 @@ export const useCreateGlobalConcurrencyLimit = () => {
 				body,
 			}),
 		onSuccess: () => {
-			// After a successful creation, invalidate the listing queries only to refetch
-			return queryClient.invalidateQueries({
-				queryKey: queryKeyFactory.lists(),
-			});
+			// After a successful creation, invalidate the listing and count queries to refetch
+			return Promise.all([
+				queryClient.invalidateQueries({ queryKey: queryKeyFactory.lists() }),
+				queryClient.invalidateQueries({ queryKey: queryKeyFactory.counts() }),
+			]);
 		},
 	});
 	return {
