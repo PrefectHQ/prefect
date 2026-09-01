@@ -1255,6 +1255,114 @@ class TestCreateDeployment:
         assert response.status_code == 201
 
 
+class TestCreateDeploymentReplaces:
+    async def test_replaces_renames_in_place_preserving_id_and_history(
+        self,
+        session,
+        hosted_api_client,
+        flow,
+    ):
+        """replaces renames the existing deployment in place: same ID, run history
+        intact, new fields applied, old name gone. Applying the same payload a
+        second time (idempotency) must also succeed."""
+        # Create original deployment
+        original = DeploymentCreate(
+            name="old-name",
+            flow_id=flow.id,
+            tags=["v1"],
+            description="original",
+        ).model_dump(mode="json")
+        response = await hosted_api_client.post("/deployments/", json=original)
+        assert response.status_code == status.HTTP_201_CREATED
+        original_id = response.json()["id"]
+
+        # Create a flow run under the original deployment
+        run_response = await hosted_api_client.post(
+            f"/deployments/{original_id}/create_flow_run", json={}
+        )
+        assert run_response.status_code == status.HTTP_201_CREATED
+        run_id = run_response.json()["id"]
+
+        # Rename via replaces, also updating fields
+        replacement = DeploymentCreate(
+            name="new-name",
+            flow_id=flow.id,
+            replaces="old-name",
+            tags=["v2"],
+            description="updated",
+        ).model_dump(mode="json")
+        response = await hosted_api_client.post("/deployments/", json=replacement)
+        assert response.status_code in (status.HTTP_200_OK, status.HTTP_201_CREATED)
+        data = response.json()
+
+        # Same ID — renamed in place
+        assert data["id"] == original_id
+        assert data["name"] == "new-name"
+        assert data["tags"] == ["v2"]
+        assert data["description"] == "updated"
+
+        # Old name no longer exists
+        old_response = await hosted_api_client.get(
+            f"/deployments/name/{flow.name}/old-name"
+        )
+        assert old_response.status_code == status.HTTP_404_NOT_FOUND
+
+        # Flow run is still linked to the (renamed) deployment
+        run_detail = await hosted_api_client.get(f"/flow_runs/{run_id}")
+        assert run_detail.status_code == status.HTTP_200_OK
+        assert run_detail.json()["deployment_id"] == original_id
+
+        # Apply the exact same payload again — old-name is already gone (idempotency)
+        response = await hosted_api_client.post("/deployments/", json=replacement)
+        assert response.status_code in (status.HTTP_200_OK, status.HTTP_201_CREATED)
+        data = response.json()
+        assert data["id"] == original_id
+        assert data["name"] == "new-name"
+
+    async def test_replaces_nonexistent_falls_back_to_create(
+        self,
+        hosted_api_client,
+        flow,
+    ):
+        """replaces pointing to a missing deployment creates a new one and warns."""
+        data = DeploymentCreate(
+            name="brand-new",
+            flow_id=flow.id,
+            replaces="does-not-exist",
+        ).model_dump(mode="json")
+        response = await hosted_api_client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_201_CREATED
+        assert response.json()["name"] == "brand-new"
+
+    async def test_replaces_errors_when_new_name_already_exists(
+        self,
+        hosted_api_client,
+        flow,
+    ):
+        """replaces should return 422 when the target name is already taken by
+        a different deployment, rather than crashing with a DB constraint error."""
+        for name in ("old-name", "new-name"):
+            r = await hosted_api_client.post(
+                "/deployments/",
+                json=DeploymentCreate(name=name, flow_id=flow.id).model_dump(
+                    mode="json"
+                ),
+            )
+            assert r.status_code in (status.HTTP_200_OK, status.HTTP_201_CREATED)
+
+        data = DeploymentCreate(
+            name="new-name",
+            flow_id=flow.id,
+            replaces="old-name",
+        ).model_dump(mode="json")
+        response = await hosted_api_client.post("/deployments/", json=data)
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        detail = response.json()["detail"]
+        assert "replaces: old-name" in detail
+        assert "new-name" in detail
+        assert "already exists" in detail
+
+
 class TestReadDeployment:
     async def test_read_deployment(
         self,

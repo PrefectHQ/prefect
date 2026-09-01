@@ -160,6 +160,7 @@ async def create_deployment(
             )
             deployment_dict["work_queue_id"] = work_queue.id
 
+        replaces = deployment_dict.pop("replaces", None)
         deployment = schemas.core.Deployment(**deployment_dict)
         # check to see if relevant blocks exist, allowing us throw a useful error message
         # for debugging
@@ -198,9 +199,15 @@ async def create_deployment(
                 )
 
         right_now = now("UTC")
-        model = await models.deployments.create_deployment(
-            session=session, deployment=deployment
-        )
+        try:
+            model = await models.deployments.create_deployment(
+                session=session, deployment=deployment, replaces=replaces
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=str(exc),
+            ) from exc
 
         if model.created >= right_now:
             response.status_code = status.HTTP_201_CREATED
