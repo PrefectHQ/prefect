@@ -1,6 +1,5 @@
 import type { ObjectSubtype, SchemaObject } from "openapi-typescript";
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import useDebounceCallback from "@/hooks/use-debounce-callback";
 import { Card } from "../ui/card";
 import { SchemaFormProperty } from "./schema-form-property";
 import {
@@ -33,7 +32,12 @@ export function SchemaFormInputObject({
 	nested,
 }: SchemaFormInputObjectProps) {
 	const isOpenObject = !hasDefinedProperties(property);
-	const patches = useRef<{ key: string; value: unknown }[]>([]);
+	// Child inputs can emit in the same turn and parents can echo stale values.
+	// Retain patches until acknowledged, but flush before the next browser event.
+	const pendingPatches = useRef(new Map<string, unknown>());
+	const flushScheduled = useRef(false);
+	const currentProps = useRef({ values, onValuesChange });
+	currentProps.current = { values, onValuesChange };
 
 	useEffect(() => {
 		if (isOpenObject && nested && !values) {
@@ -43,29 +47,48 @@ export function SchemaFormInputObject({
 		}
 	}, [isOpenObject, nested, values, onValuesChange]);
 
-	const flush = useDebounceCallback(
-		useCallback(() => {
-			const newValues = { ...values };
+	const flushPatches = useCallback(() => {
+		flushScheduled.current = false;
+		const { values: currentValues, onValuesChange: emitValues } =
+			currentProps.current;
+		const newValues = { ...currentValues };
 
-			for (const { key, value } of patches.current) {
-				newValues[key] = value;
+		for (const [key, value] of pendingPatches.current) {
+			newValues[key] = value;
 
-				if (value === undefined) {
-					delete newValues[key];
-				}
+			if (value === undefined) {
+				delete newValues[key];
 			}
+		}
 
-			patches.current = [];
+		emitValues(Object.keys(newValues).length === 0 ? undefined : newValues);
+	}, []);
 
-			if (Object.keys(newValues).length === 0) {
-				onValuesChange(undefined);
-				return;
+	const scheduleFlush = useCallback(() => {
+		if (flushScheduled.current) {
+			return;
+		}
+
+		flushScheduled.current = true;
+		queueMicrotask(flushPatches);
+	}, [flushPatches]);
+
+	useEffect(() => {
+		for (const [key, value] of pendingPatches.current) {
+			const acknowledged =
+				value === undefined
+					? !Object.hasOwn(values ?? {}, key)
+					: Object.is(values?.[key], value);
+
+			if (acknowledged) {
+				pendingPatches.current.delete(key);
 			}
+		}
 
-			onValuesChange(newValues);
-		}, [values, onValuesChange]),
-		10,
-	);
+		if (pendingPatches.current.size > 0) {
+			scheduleFlush();
+		}
+	}, [values, scheduleFlush]);
 
 	const properties = useMemo(() => {
 		return Object.entries(property.properties ?? {}).sort(([, a], [, b]) =>
@@ -78,9 +101,9 @@ export function SchemaFormInputObject({
 	}
 
 	function onPropertyValueChange(key: string, value: unknown) {
-		patches.current.push({ key, value });
+		pendingPatches.current.set(key, value);
 
-		flush();
+		scheduleFlush();
 	}
 
 	function getPropertyValue(key: string): unknown {

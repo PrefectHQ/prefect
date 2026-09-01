@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import type { DeploymentSchedule } from "@/api/deployments";
+import { useState } from "react";
+import type { Deployment, DeploymentSchedule } from "@/api/deployments";
 import {
 	Dialog,
 	DialogContent,
@@ -10,11 +10,34 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CronScheduleForm } from "./cron-schedule-form";
 import { IntervalScheduleForm } from "./interval-schedule-form";
 import { RRuleScheduleForm } from "./rrule-schedule-form";
+import { useScheduleParameterOverrides } from "./use-schedule-parameter-overrides";
 
 type ScheduleTypes = "interval" | "cron" | "rrule";
 
+const SCHEDULE_TAB_OPTIONS = [
+	{ value: "interval", label: "Interval" },
+	{ value: "cron", label: "Cron" },
+	{ value: "rrule", label: "RRule" },
+] as const satisfies { value: ScheduleTypes; label: string }[];
+
+const getScheduleType = (
+	scheduleToEdit?: DeploymentSchedule,
+): ScheduleTypes => {
+	if (!scheduleToEdit) {
+		return "interval";
+	}
+	const { schedule } = scheduleToEdit;
+	if ("interval" in schedule) {
+		return "interval";
+	}
+	if ("cron" in schedule) {
+		return "cron";
+	}
+	return "rrule";
+};
+
 type DeploymentScheduleDialogProps = {
-	deploymentId: string;
+	deployment: Deployment;
 	onOpenChange: (open: boolean) => void;
 	open: boolean;
 	scheduleToEdit?: DeploymentSchedule;
@@ -22,81 +45,85 @@ type DeploymentScheduleDialogProps = {
 };
 
 export const DeploymentScheduleDialog = ({
-	deploymentId,
+	deployment,
 	onOpenChange,
 	open,
 	scheduleToEdit,
 	onSubmit,
-}: DeploymentScheduleDialogProps) => {
-	const [scheduleTab, setScheduleTab] = useState<ScheduleTypes>("interval");
+}: DeploymentScheduleDialogProps) => (
+	<Dialog open={open} onOpenChange={onOpenChange}>
+		<DialogContent
+			aria-describedby={undefined}
+			className="max-h-[85vh] overflow-y-auto"
+		>
+			<DialogHeader>
+				<DialogTitle>{scheduleToEdit ? "Edit" : "Add"} Schedule</DialogTitle>
+			</DialogHeader>
 
-	// sync tab with scheduleToEdit
-	useEffect(() => {
-		if (!scheduleToEdit) {
-			return;
-		}
-		const { schedule } = scheduleToEdit;
-		if ("interval" in schedule) {
-			setScheduleTab("interval");
-		} else if ("cron" in schedule) {
-			setScheduleTab("cron");
-		} else {
-			setScheduleTab("rrule");
-		}
-	}, [scheduleToEdit]);
+			{open && (
+				// nb: Remounted per schedule so form state starts from the schedule
+				<DeploymentScheduleDialogForms
+					key={`${deployment.id}-${scheduleToEdit?.id ?? "new-schedule"}`}
+					deployment={deployment}
+					scheduleToEdit={scheduleToEdit}
+					onSubmit={onSubmit}
+				/>
+			)}
+		</DialogContent>
+	</Dialog>
+);
 
-	const SCHEDULE_TAB_OPTIONS = [
-		{
-			value: "interval",
-			label: "Interval",
-			Component: () => (
-				<IntervalScheduleForm
-					deployment_id={deploymentId}
-					onSubmit={onSubmit}
-					scheduleToEdit={scheduleToEdit}
-				/>
-			),
-		},
-		{
-			value: "cron",
-			label: "Cron",
-			Component: () => (
-				<CronScheduleForm
-					deployment_id={deploymentId}
-					onSubmit={onSubmit}
-					scheduleToEdit={scheduleToEdit}
-				/>
-			),
-		},
-		{ value: "rrule", label: "RRule", Component: () => <RRuleScheduleForm /> },
-	] as const;
+type DeploymentScheduleDialogFormsProps = {
+	deployment: Deployment;
+	scheduleToEdit?: DeploymentSchedule;
+	onSubmit: () => void;
+};
+
+const DeploymentScheduleDialogForms = ({
+	deployment,
+	scheduleToEdit,
+	onSubmit,
+}: DeploymentScheduleDialogFormsProps) => {
+	const [scheduleTab, setScheduleTab] = useState<ScheduleTypes>(() =>
+		getScheduleType(scheduleToEdit),
+	);
+	const parameterOverrides = useScheduleParameterOverrides(
+		deployment,
+		scheduleToEdit,
+	);
 
 	return (
-		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent aria-describedby={undefined}>
-				<DialogHeader>
-					<DialogTitle>{scheduleToEdit ? "Edit" : "Add"} Schedule</DialogTitle>
-				</DialogHeader>
-
-				<Tabs defaultValue={SCHEDULE_TAB_OPTIONS[0].value} value={scheduleTab}>
-					<TabsList>
-						{SCHEDULE_TAB_OPTIONS.map(({ value, label }) => (
-							<TabsTrigger
-								key={value}
-								value={value}
-								onClick={() => setScheduleTab(value)}
-							>
-								{label}
-							</TabsTrigger>
-						))}
-					</TabsList>
-					{SCHEDULE_TAB_OPTIONS.map(({ value, Component }) => (
-						<TabsContent key={value} value={value}>
-							<Component />
-						</TabsContent>
-					))}
-				</Tabs>
-			</DialogContent>
-		</Dialog>
+		<Tabs value={scheduleTab}>
+			<TabsList>
+				{SCHEDULE_TAB_OPTIONS.map(({ value, label }) => (
+					<TabsTrigger
+						key={value}
+						value={value}
+						onClick={() => setScheduleTab(value)}
+					>
+						{label}
+					</TabsTrigger>
+				))}
+			</TabsList>
+			<TabsContent value="interval">
+				<IntervalScheduleForm
+					deployment_id={deployment.id}
+					onSubmit={onSubmit}
+					scheduleToEdit={scheduleToEdit}
+					parameterOverrides={parameterOverrides}
+				/>
+			</TabsContent>
+			<TabsContent value="cron">
+				<CronScheduleForm
+					deployment_id={deployment.id}
+					onSubmit={onSubmit}
+					scheduleToEdit={scheduleToEdit}
+					parameterOverrides={parameterOverrides}
+				/>
+			</TabsContent>
+			<TabsContent value="rrule">
+				<RRuleScheduleForm />
+			</TabsContent>
+		</Tabs>
 	);
 };
