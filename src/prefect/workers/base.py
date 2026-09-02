@@ -1652,6 +1652,21 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
                 task_status=task_status,
                 configuration=configuration,
             )
+        except anyio.get_cancelled_exc_class():
+            # The worker is shutting down and this run's infrastructure went with
+            # it. Cancellation is a `BaseException`, so it does not reach the
+            # handler below and the run would otherwise be left `Running` for
+            # ever, holding a work pool concurrency slot that nothing releases.
+            # Only report a run that actually started; one cancelled while still
+            # being submitted never had infrastructure to lose. The scope is
+            # already cancelled, so the call has to be shielded to survive.
+            if task_status and getattr(task_status, "_future").done():
+                with anyio.CancelScope(shield=True):
+                    await self._propose_crashed_state(
+                        flow_run,
+                        "Flow run infrastructure was interrupted by worker shutdown.",
+                    )
+            raise
         except Exception as exc:
             if task_status and not getattr(task_status, "_future").done():
                 # This flow run was being submitted and did not start successfully
