@@ -28,6 +28,7 @@ import {
 import { StateBadge } from "../state-badge";
 import { TagBadgeGroup } from "../tag-badge-group";
 import { FlowRunActivityBarGraphTooltipContext } from "./context";
+import { useStickyHoverTarget } from "./use-sticky-hover-target";
 import { organizeFlowRunsWithGaps } from "./utils";
 
 type CustomShapeProps = {
@@ -303,6 +304,38 @@ type FlowRunTooltipProps = Partial<TooltipContentProps<number, string>> & {
 	chartRef: RefObject<HTMLDivElement | null>;
 };
 
+type HoveredFlowRun = {
+	flowRun: EnrichedFlowRun;
+	x: number;
+	y: number;
+};
+
+const getHoveredFlowRun = (
+	payload: FlowRunTooltipProps["payload"],
+	coordinate: FlowRunTooltipProps["coordinate"],
+): HoveredFlowRun | undefined => {
+	const firstPayloadItem = payload?.[0] as { payload?: unknown } | undefined;
+	const nestedPayload: unknown = firstPayloadItem?.payload;
+	if (
+		!nestedPayload ||
+		typeof nestedPayload !== "object" ||
+		!("flowRun" in nestedPayload)
+	) {
+		return undefined;
+	}
+	const flowRun = nestedPayload.flowRun as EnrichedFlowRun | undefined;
+	if (
+		!flowRun?.id ||
+		coordinate?.x === undefined ||
+		coordinate.y === undefined
+	) {
+		return undefined;
+	}
+	return { flowRun, x: coordinate.x, y: coordinate.y };
+};
+
+const getHoveredFlowRunKey = ({ flowRun }: HoveredFlowRun) => flowRun.id;
+
 const FlowRunTooltip = ({
 	payload,
 	active,
@@ -311,7 +344,14 @@ const FlowRunTooltip = ({
 }: FlowRunTooltipProps) => {
 	const ref = useRef<HTMLDivElement>(null);
 	const [style, setStyle] = useState<CSSProperties>({ visibility: "hidden" });
-	const { x, y } = coordinate ?? {};
+
+	// Keep showing the originally hovered run while the cursor travels across
+	// neighboring bars toward the tooltip, and freeze it once the cursor is inside.
+	const { target, pin, unpin } = useStickyHoverTarget(
+		active ? getHoveredFlowRun(payload, coordinate) : undefined,
+		getHoveredFlowRunKey,
+	);
+	const { x, y } = target ?? {};
 
 	// Position the tooltip next to the cursor and clamped to the viewport so it is never clipped
 	useLayoutEffect(() => {
@@ -329,25 +369,16 @@ const FlowRunTooltip = ({
 		setStyle({
 			left: clamp(chartRect.left + x + OFFSET, innerWidth - PADDING - width),
 			top: clamp(chartRect.top + y + OFFSET, innerHeight - PADDING - height),
+			// Recharts hides its wrapper when the cursor leaves the plot area; stay
+			// visible so the tooltip can be reached and its links clicked.
+			visibility: "visible",
 		});
 	}, [chartRef, x, y]);
 
-	if (!active || !payload?.length) {
+	if (!target) {
 		return null;
 	}
-	const firstPayloadItem = payload[0] as { payload?: unknown } | undefined;
-	const nestedPayload: unknown = firstPayloadItem?.payload;
-	if (
-		!nestedPayload ||
-		typeof nestedPayload !== "object" ||
-		!("flowRun" in nestedPayload)
-	) {
-		return null;
-	}
-	const flowRun = nestedPayload.flowRun as EnrichedFlowRun;
-	if (!flowRun?.id) {
-		return null;
-	}
+	const { flowRun } = target;
 
 	const flow = flowRun.flow;
 	const deployment = flowRun.deployment;
@@ -359,7 +390,13 @@ const FlowRunTooltip = ({
 			: null;
 
 	return (
-		<Card ref={ref} className="fixed z-50" style={style}>
+		<Card
+			ref={ref}
+			className="fixed z-50"
+			style={style}
+			onMouseEnter={pin}
+			onMouseLeave={unpin}
+		>
 			<CardHeader>
 				<CardTitle className="flex items-center gap-1">
 					{flow?.id && (
