@@ -51,7 +51,7 @@ class ServerServicesCancellationCleanupSettings(ServicesBaseSetting):
     )
 
 
-_VALID_VACUUM_TYPES = frozenset({"events", "flow_runs"})
+_VALID_VACUUM_TYPES = frozenset({"events", "flow_runs", "orphans"})
 
 
 def _parse_vacuum_enabled(
@@ -98,7 +98,7 @@ class ServerServicesDBVacuumSettings(ServicesBaseSetting):
         BeforeValidator(_parse_vacuum_enabled),
     ] = Field(
         default={"events"},
-        description="Comma-separated set of vacuum types to enable. Valid values: 'events', 'flow_runs'. Defaults to 'events'. For backward compatibility, 'true' maps to 'events,flow_runs' and 'false' maps to 'events'. Event vacuum also requires event_persister.enabled (the default).",
+        description="Comma-separated set of vacuum types to enable. Valid values: 'events', 'flow_runs', 'orphans'. Defaults to 'events'. Enabling 'flow_runs' also enables lower-frequency orphan cleanup; 'orphans' can enable that cleanup independently. For backward compatibility, 'true' maps to all vacuum types and 'false' maps to 'events'. Event vacuum also requires event_persister.enabled (the default).",
     )
 
     @property
@@ -106,27 +106,39 @@ class ServerServicesDBVacuumSettings(ServicesBaseSetting):
         """Resolve `enabled` to a concrete set of vacuum type strings.
 
         Handles legacy boolean values:
-        * `True`  → `{"events", "flow_runs"}`
+        * `True`  → `{"events", "flow_runs", "orphans"}`
         * `False` → `{"events"}` (preserves old default)
         * `None`  → `set()`
+
+        Enabling `flow_runs` implies `orphans` to preserve the flow run
+        vacuum's historical orphan-cleanup behavior.
         """
         if isinstance(self.enabled, bool):
-            return {"events", "flow_runs"} if self.enabled else {"events"}
-        if self.enabled is None:
+            raw = {"events", "flow_runs"} if self.enabled else {"events"}
+        elif self.enabled is None:
             return set()
-        raw = set(self.enabled)
+        else:
+            raw = set(self.enabled)
         invalid = raw - _VALID_VACUUM_TYPES
         if invalid:
             raise ValueError(
                 f"Invalid vacuum type(s): {sorted(invalid)}. "
                 f"Valid values are: {sorted(_VALID_VACUUM_TYPES)}"
             )
+        if "flow_runs" in raw:
+            raw.add("orphans")
         return raw
 
     loop_seconds: float = Field(
         default=3600,
         gt=0,
         description="The database vacuum service will run this often, in seconds. Defaults to `3600` (1 hour).",
+    )
+
+    orphan_cleanup_loop_seconds: float = Field(
+        default=86400,
+        gt=0,
+        description="The database vacuum service will scan for orphaned logs and artifacts this often, in seconds. Defaults to `86400` (24 hours).",
     )
 
     retention_period: SecondsTimeDelta = Field(
