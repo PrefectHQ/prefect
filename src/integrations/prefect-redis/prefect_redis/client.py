@@ -63,8 +63,9 @@ class RedisMessagingSettings(PrefectBaseSettings):
         default=60.0,
         description=(
             "Timeout in seconds for socket read operations. None means no "
-            "timeout. Must exceed PREFECT_REDIS_MESSAGING_CONSUMER_BLOCK, or "
-            "idle blocking reads (e.g. XREADGROUP) will time out spuriously."
+            "timeout. Consumers with a longer PREFECT_REDIS_MESSAGING_CONSUMER_BLOCK "
+            "extend this automatically for their own client, so idle blocking "
+            "reads (e.g. XREADGROUP) don't time out spuriously."
         ),
     )
     socket_connect_timeout: Optional[float] = Field(

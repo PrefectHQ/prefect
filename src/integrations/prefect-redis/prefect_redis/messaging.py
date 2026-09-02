@@ -40,6 +40,7 @@ from prefect.server.utilities.messaging import (
 from prefect.server.utilities.messaging import Publisher as _Publisher
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
 from prefect_redis.client import (
+    RedisMessagingSettings,
     clear_cached_clients,
     cluster_key_prefix,
     get_async_redis_client,
@@ -425,6 +426,16 @@ class Consumer(_Consumer):
         self._read_batch_size: Optional[int] = read_batch_size
         self.use_consumer_group = use_consumer_group
 
+    def _get_redis_client(self) -> Redis:
+        """Blocking reads hold the socket for `self.block`, so a socket timeout
+        shorter than that fires before the read can return."""
+        socket_timeout = RedisMessagingSettings().socket_timeout
+        if socket_timeout is None or socket_timeout > self.block.total_seconds():
+            return get_async_redis_client()
+        return get_async_redis_client(
+            socket_timeout=self.block.total_seconds() + socket_timeout
+        )
+
     async def _ensure_stream_and_group(self, redis_client: Redis) -> None:
         """Ensure the stream and consumer group exist."""
         try:
@@ -545,7 +556,7 @@ class Consumer(_Consumer):
 
         while True:  # Outer loop for connection resilience
             try:
-                redis_client = get_async_redis_client()
+                redis_client = self._get_redis_client()
 
                 if not self.use_consumer_group:
                     await self._run_without_consumer_group(handler, redis_client)

@@ -8,8 +8,13 @@ from typing import AsyncGenerator, Generator, Optional
 from unittest.mock import patch
 
 import anyio
+import prefect_redis.messaging as messaging
 import pytest
-from prefect_redis.client import _client_cache, clear_cached_clients
+from prefect_redis.client import (
+    RedisMessagingSettings,
+    _client_cache,
+    clear_cached_clients,
+)
 from prefect_redis.messaging import (
     Cache,
     Consumer,
@@ -819,6 +824,31 @@ class TestRedisMessagingSettings:
         monkeypatch.setenv("PREFECT_REDIS_MESSAGING_CONSUMER_BLOCK", "10")
         settings = RedisMessagingConsumerSettings()
         assert settings.block == timedelta(seconds=10)
+
+    async def test_consumer_extends_socket_timeout_for_long_block(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """A block longer than the socket timeout must not time out the read."""
+        monkeypatch.setenv("PREFECT_REDIS_MESSAGING_CONSUMER_BLOCK", "90")
+        client = Consumer("message-tests")._get_redis_client()
+        try:
+            assert client.get_connection_kwargs()["socket_timeout"] == 150.0
+        finally:
+            await clear_cached_clients(client=client)
+
+    async def test_consumer_keeps_default_client_for_short_block(self, redis: Redis):
+        assert Consumer("message-tests")._get_redis_client() is redis
+
+    async def test_consumer_preserves_no_socket_timeout(
+        self, monkeypatch: pytest.MonkeyPatch, redis: Redis
+    ):
+        monkeypatch.setattr(
+            messaging,
+            "RedisMessagingSettings",
+            partial(RedisMessagingSettings, socket_timeout=None),
+        )
+        monkeypatch.setenv("PREFECT_REDIS_MESSAGING_CONSUMER_BLOCK", "90")
+        assert Consumer("message-tests")._get_redis_client() is redis
 
 
 async def test_trimming_with_no_delivered_messages(redis: Redis):
