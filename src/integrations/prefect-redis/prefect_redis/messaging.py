@@ -278,7 +278,14 @@ class Publisher(_Publisher):
             async def _publish_periodically() -> None:
                 while True:
                     await asyncio.sleep(interval)
-                    await asyncio.shield(self._publish_current_batch())
+                    try:
+                        await asyncio.shield(self._publish_current_batch())
+                    except asyncio.CancelledError:
+                        raise
+                    except Exception:
+                        logger.exception(
+                            "Error publishing batch for topic %s", self.topic
+                        )
 
             self._periodic_task = asyncio.create_task(_publish_periodically())
 
@@ -323,6 +330,7 @@ class Publisher(_Publisher):
 
         self._batch.clear()
 
+        published = 0
         try:
             for message in to_publish:
                 await self._client.xadd(
@@ -332,9 +340,12 @@ class Publisher(_Publisher):
                         "attributes": orjson.dumps(message.attributes),
                     },
                 )
+                published += 1
         except Exception:
+            unsent = to_publish[published:]
             if self.deduplicate_by:
-                await self.cache.forget_duplicates(self.deduplicate_by, to_publish)
+                await self.cache.forget_duplicates(self.deduplicate_by, unsent)
+            self._batch[:0] = unsent
             raise
 
 
@@ -513,10 +524,11 @@ class Consumer(_Consumer):
         attempt = 0
         base_delay = 1.0
         max_delay = 60.0
+        redis_client: Optional[Redis] = None
 
         while True:  # Outer loop for connection resilience
             try:
-                redis_client: Redis = get_async_redis_client()
+                redis_client = get_async_redis_client()
 
                 if not self.use_consumer_group:
                     await self._run_without_consumer_group(handler, redis_client)
@@ -603,8 +615,9 @@ class Consumer(_Consumer):
                     f"reconnecting in {delay:.1f}s (attempt {attempt + 1}): {e}"
                 )
 
-                # Clear cached clients to force fresh connections
-                await clear_cached_clients()
+                # Retire only the client that failed; other endpoints'
+                # cached clients are unaffected.
+                await clear_cached_clients(client=redis_client)
 
                 await asyncio.sleep(delay)
                 attempt += 1

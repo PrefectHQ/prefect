@@ -356,10 +356,10 @@ async def test_async_redis_from_settings_with_cluster_url_raises():
 
 
 def test_redis_settings_connection_defaults():
-    """Settings default to socket_timeout=None, socket_connect_timeout=None, protocol=2."""
+    """Settings default to socket_timeout=60.0, socket_connect_timeout=10.0, protocol=2."""
     settings = RedisMessagingSettings()
-    assert settings.socket_timeout is None
-    assert settings.socket_connect_timeout is None
+    assert settings.socket_timeout == 60.0
+    assert settings.socket_connect_timeout == 10.0
     assert settings.protocol == 2
 
 
@@ -375,12 +375,12 @@ def test_redis_settings_connection_from_env(monkeypatch: pytest.MonkeyPatch):
 
 
 async def test_get_async_redis_client_default_socket_timeout():
-    """Default clients have socket_timeout=None (no timeout) for redis-py 8 compat."""
+    """Default clients have socket_timeout=60.0, socket_connect_timeout=10.0."""
     _client_cache.clear()
     client = get_async_redis_client()
     conn_kwargs = client.connection_pool.connection_kwargs
-    assert conn_kwargs.get("socket_timeout") is None
-    assert conn_kwargs.get("socket_connect_timeout") is None
+    assert conn_kwargs.get("socket_timeout") == 60.0
+    assert conn_kwargs.get("socket_connect_timeout") == 10.0
     await client.aclose()
     _client_cache.clear()
 
@@ -411,8 +411,8 @@ async def test_get_async_redis_client_url_passes_socket_timeout():
     _client_cache.clear()
     client = get_async_redis_client(url="redis://localhost:6379/0")
     conn_kwargs = client.connection_pool.connection_kwargs
-    assert conn_kwargs.get("socket_timeout") is None
-    assert conn_kwargs.get("socket_connect_timeout") is None
+    assert conn_kwargs.get("socket_timeout") == 60.0
+    assert conn_kwargs.get("socket_connect_timeout") == 10.0
     assert conn_kwargs.get("protocol") == 2
     await client.aclose()
     _client_cache.clear()
@@ -437,8 +437,8 @@ async def test_async_redis_from_settings_passes_connection_defaults():
     settings = RedisMessagingSettings()
     client = async_redis_from_settings(settings)
     conn_kwargs = client.connection_pool.connection_kwargs
-    assert conn_kwargs.get("socket_timeout") is None
-    assert conn_kwargs.get("socket_connect_timeout") is None
+    assert conn_kwargs.get("socket_timeout") == 60.0
+    assert conn_kwargs.get("socket_connect_timeout") == 10.0
     assert conn_kwargs.get("protocol") == 2
     await client.aclose()
     _client_cache.clear()
@@ -462,7 +462,7 @@ async def test_async_redis_from_settings_url_with_connection_defaults():
     settings = RedisMessagingSettings(url="redis://localhost:6379/0")
     client = async_redis_from_settings(settings)
     conn_kwargs = client.connection_pool.connection_kwargs
-    assert conn_kwargs.get("socket_timeout") is None
+    assert conn_kwargs.get("socket_timeout") == 60.0
     assert conn_kwargs.get("protocol") == 2
     await client.aclose()
     _client_cache.clear()
@@ -570,6 +570,34 @@ class TestClearCachedClients:
 
         client.aclose.assert_awaited_once()
         assert key not in _client_cache
+
+    async def test_clear_cached_clients_with_client_arg_targets_only_that_client(
+        self,
+    ):
+        """One broker's outage must not force-close a healthy client cached
+        for a different endpoint."""
+        loop = asyncio.get_running_loop()
+
+        failed_client = MagicMock()
+        failed_client.aclose = AsyncMock()
+        failed_key = (get_async_redis_client, (), (("url", "redis://failed"),), loop)
+        _client_cache[failed_key] = failed_client
+
+        healthy_client = MagicMock()
+        healthy_client.aclose = AsyncMock()
+        healthy_key = (get_async_redis_client, (), (("url", "redis://healthy"),), loop)
+        _client_cache[healthy_key] = healthy_client
+
+        try:
+            await clear_cached_clients(client=failed_client)
+
+            failed_client.aclose.assert_awaited_once()
+            assert failed_key not in _client_cache
+            healthy_client.aclose.assert_not_awaited()
+            assert _client_cache[healthy_key] is healthy_client
+        finally:
+            _client_cache.pop(failed_key, None)
+            _client_cache.pop(healthy_key, None)
 
     async def test_clear_cached_clients_releases_in_use_connections(self):
         """End-to-end regression test against a real Redis: prove the fix

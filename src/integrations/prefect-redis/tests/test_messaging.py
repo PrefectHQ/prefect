@@ -583,6 +583,45 @@ async def test_publisher_respects_batch_size(
         assert message.attributes == {"id": str(i)}
 
 
+async def test_publisher_periodic_task_survives_outage_and_redelivers(
+    cache: Cache, redis: Redis
+):
+    """A failed periodic flush must not kill the periodic task or drop the
+    batch: the message should stay queued through the outage and be
+    delivered exactly once Redis recovers."""
+    async with Publisher(
+        "message-tests",
+        cache=cache,
+        batch_size=100,  # large enough that publish_data never auto-flushes
+        publish_every=timedelta(milliseconds=50),
+    ) as p:
+        real_xadd = p._client.xadd
+        calls = {"n": 0}
+
+        async def flaky_xadd(*args: object, **kwargs: object):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise RedisConnectionError("simulated outage")
+            return await real_xadd(*args, **kwargs)
+
+        # Stays patched for the rest of the test so recovery is driven by the
+        # call count, not by unpatching mid-flight racing the periodic task.
+        with patch.object(p._client, "xadd", side_effect=flaky_xadd):
+            await p.publish_data(b"hello", {"id": "1"})
+            await asyncio.sleep(0.1)  # first periodic tick fails
+
+            assert p._periodic_task is not None
+            assert not p._periodic_task.done(), (
+                "periodic task must survive a flush failure"
+            )
+            assert len(p._batch) == 1, "unsent message must be re-queued, not dropped"
+
+            await asyncio.sleep(0.1)  # second tick succeeds; xlen becomes 1
+
+    assert await redis.xlen("message-tests") == 1
+    assert calls["n"] == 2
+
+
 async def test_trimming_streams(
     redis: Redis, publisher: Publisher, consumer_a: Consumer, consumer_b: Consumer
 ) -> None:

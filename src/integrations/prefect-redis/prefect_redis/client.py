@@ -60,17 +60,18 @@ class RedisMessagingSettings(PrefectBaseSettings):
         description="Whether to use SSL for the Redis connection",
     )
     socket_timeout: Optional[float] = Field(
-        default=None,
+        default=60.0,
         description=(
-            "Timeout in seconds for socket read operations. "
-            "None means no timeout (preserves pre-redis-py-8 behavior)."
+            "Timeout in seconds for socket read operations. None means no "
+            "timeout. Must exceed PREFECT_REDIS_MESSAGING_CONSUMER_BLOCK, or "
+            "idle blocking reads (e.g. XREADGROUP) will time out spuriously."
         ),
     )
     socket_connect_timeout: Optional[float] = Field(
-        default=None,
+        default=10.0,
         description=(
             "Timeout in seconds for socket connect operations. "
-            "None means no timeout (preserves pre-redis-py-8 behavior)."
+            "None means no timeout."
         ),
     )
     protocol: int = Field(
@@ -177,22 +178,29 @@ def close_all_cached_connections() -> None:
         loop.run_until_complete(client.aclose())
 
 
-async def clear_cached_clients() -> None:
+async def clear_cached_clients(client: Union[Redis, None] = None) -> None:
     """Close and clear cached Redis clients and the messaging URL lookup.
 
     Without closing, connections stuck in-use from a hung operation are never
     released and the pool eventually exhausts its connection cap.
+
+    Args:
+        client: If given, only this cached client is closed and evicted;
+            other cached clients (e.g. for other endpoints) are left running.
+            If omitted, every current-loop client is closed.
     """
     _get_redis_messaging_url.cache_clear()
 
     current_loop = _running_loop()
-    for key, client in list(_client_cache.items()):
+    for key, cached_client in list(_client_cache.items()):
+        if client is not None and cached_client is not client:
+            continue
         _, _, _, loop = key
         if loop is not None and loop is not current_loop:
             continue  # can't await a client bound to another loop
         _client_cache.pop(key, None)
         try:
-            await client.aclose()
+            await cached_client.aclose()
         except Exception:
             logger.exception("Error closing cached Redis client")
 
