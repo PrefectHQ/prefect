@@ -30,6 +30,7 @@ export const useStickyHoverTarget = <T>(
 
 	useEffect(() => {
 		if (!enabled) {
+			setIsPinned(false);
 			setTarget(undefined);
 			return;
 		}

@@ -119,6 +119,7 @@ describe("useStickyHoverTarget", () => {
 		});
 		rerender({ candidate: undefined, enabled: false });
 		expect(result.current.target).toBeUndefined();
+		expect(result.current.isPinned).toBe(false);
 	});
 
 	it("resumes following the candidate after unpinning", () => {
