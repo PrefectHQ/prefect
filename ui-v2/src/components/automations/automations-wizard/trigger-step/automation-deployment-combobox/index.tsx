@@ -160,7 +160,7 @@ export const AutomationDeploymentCombobox = ({
 		return (
 			<div
 				ref={containerRef}
-				className="flex min-w-0 items-center justify-start gap-1"
+				className="flex flex-1 min-w-0 items-center justify-start gap-1"
 			>
 				<span className="truncate min-w-0 text-left">{visible.join(", ")}</span>
 				{extraCount > 0 && (
