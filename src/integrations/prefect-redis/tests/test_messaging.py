@@ -697,6 +697,55 @@ async def test_publisher_redelivers_when_dedup_cleanup_also_fails(
     assert await redis.xlen("message-tests") == 2
 
 
+async def test_publisher_redelivers_when_dedup_check_also_fails(
+    cache: Cache, redis: Redis
+):
+    """If without_duplicates fails and forget_duplicates also fails, the batch
+    must not be claimed wholesale, or a retry would skip dedup for a message
+    whose marker predates this batch and republish it."""
+    await cache.without_duplicates(
+        "my-message-id",
+        [RedisStreamsMessage(data=b"old", attributes={"my-message-id": "1"})],
+    )
+
+    async with Publisher(
+        "message-tests",
+        cache=cache,
+        deduplicate_by="my-message-id",
+        batch_size=100,
+        publish_every=timedelta(milliseconds=50),
+    ) as p:
+        real_without_duplicates = p.cache.without_duplicates
+        outage = {"on": True}
+
+        async def flaky_without_duplicates(*args: object, **kwargs: object):
+            if outage["on"]:
+                raise RedisConnectionError("simulated outage")
+            return await real_without_duplicates(*args, **kwargs)
+
+        async def failing_forget_duplicates(*args: object, **kwargs: object):
+            raise RedisConnectionError("simulated outage")
+
+        with (
+            patch.object(
+                p.cache, "without_duplicates", side_effect=flaky_without_duplicates
+            ),
+            patch.object(
+                p.cache, "forget_duplicates", side_effect=failing_forget_duplicates
+            ),
+        ):
+            await p.publish_data(b"hello", {"my-message-id": "1"})
+            await p.publish_data(b"world", {"my-message-id": "2"})
+            await asyncio.sleep(0.1)  # first periodic tick fails dedup and cleanup
+
+            assert len(p._batch) == 2, "unsent messages must be re-queued, not dropped"
+
+        outage["on"] = False
+        await asyncio.sleep(0.1)  # recovery tick; dedup must run again for "1"
+
+    assert await redis.xlen("message-tests") == 1
+
+
 async def test_publisher_exit_waits_for_inflight_periodic_flush(
     cache: Cache, redis: Redis
 ):

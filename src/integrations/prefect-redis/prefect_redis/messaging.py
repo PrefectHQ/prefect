@@ -336,6 +336,7 @@ class Publisher(_Publisher):
 
             to_publish = batch
             published = 0
+            claimed = claimed_count
             try:
                 if self.deduplicate_by:
                     fresh = batch[claimed_count:]
@@ -344,6 +345,7 @@ class Publisher(_Publisher):
                         if fresh
                         else []
                     )
+                    claimed = len(to_publish)
                 for message in to_publish:
                     await self._client.xadd(
                         self.stream,
@@ -360,7 +362,7 @@ class Publisher(_Publisher):
                     try:
                         await self.cache.forget_duplicates(self.deduplicate_by, unsent)
                     except Exception:
-                        self._claimed_count = len(unsent)
+                        self._claimed_count = max(0, claimed - published)
                         logger.exception(
                             "Error clearing deduplication markers for topic %s",
                             self.topic,
