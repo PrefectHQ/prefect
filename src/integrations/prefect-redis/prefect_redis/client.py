@@ -2,7 +2,7 @@ import asyncio
 import functools
 import warnings
 from typing import Any, Callable, Optional, Union
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
 
 from pydantic import Field, model_validator
 from redis.asyncio import Redis
@@ -71,8 +71,7 @@ class RedisMessagingSettings(PrefectBaseSettings):
     socket_connect_timeout: Optional[float] = Field(
         default=10.0,
         description=(
-            "Timeout in seconds for socket connect operations. "
-            "None means no timeout."
+            "Timeout in seconds for socket connect operations. None means no timeout."
         ),
     )
     protocol: int = Field(
@@ -120,6 +119,25 @@ def normalize_cluster_url(url: str) -> str:
         return url
 
     return urlunparse(parsed._replace(scheme=parsed.scheme.replace("+cluster", "")))
+
+
+def url_socket_timeout(url: str) -> Optional[float]:
+    """Return the `socket_timeout` query parameter of a Redis URL, if set.
+
+    `Redis.from_url` gives querystring arguments precedence over keyword
+    arguments, so this is the effective timeout regardless of what a caller
+    passes alongside the URL.
+    """
+    values = parse_qs(urlparse(url).query).get("socket_timeout")
+    return float(values[0]) if values else None
+
+
+def with_socket_timeout(url: str, socket_timeout: float) -> str:
+    """Return `url` with its `socket_timeout` query parameter set to `socket_timeout`."""
+    parsed = urlparse(url)
+    query = parse_qs(parsed.query)
+    query["socket_timeout"] = [str(socket_timeout)]
+    return urlunparse(parsed._replace(query=urlencode(query, doseq=True)))
 
 
 @functools.cache

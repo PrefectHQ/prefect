@@ -361,6 +361,33 @@ async def test_publisher_will_avoid_sending_duplicate_messages_in_same_batch(
     assert not remaining_message
 
 
+async def test_publish_during_blocked_deduplication_check(
+    redis: Redis, deduplicating_publisher: Publisher
+):
+    """A publish that lands while a flush is blocked inside the dedup pipeline
+    must not be dropped when that flush clears its batch."""
+    release = asyncio.Event()
+    original_without_duplicates = Cache.without_duplicates
+
+    async def blocked_without_duplicates(self: Cache, attribute: str, messages: list):
+        await release.wait()
+        return await original_without_duplicates(self, attribute, messages)
+
+    async with deduplicating_publisher as p:
+        with patch.object(Cache, "without_duplicates", blocked_without_duplicates):
+            await p.publish_data(b"first", {"my-message-id": "A"})
+            flush_task = asyncio.create_task(p._publish_current_batch())
+            await asyncio.sleep(0.1)  # let the flush park on the dedup call
+
+            await p.publish_data(b"second", {"my-message-id": "B"})
+
+            release.set()
+            await flush_task
+
+    entries = await redis.xrange(p.stream)
+    assert len(entries) == 2
+
+
 async def test_repeatedly_failed_message_is_moved_to_dead_letter_queue(
     redis: Redis,
     deduplicating_publisher: Publisher,
@@ -849,6 +876,22 @@ class TestRedisMessagingSettings:
         )
         monkeypatch.setenv("PREFECT_REDIS_MESSAGING_CONSUMER_BLOCK", "90")
         assert Consumer("message-tests")._get_redis_client() is redis
+
+    async def test_consumer_extends_url_socket_timeout_for_long_block(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """A `socket_timeout` set via the URL query takes precedence over the
+        settings field, so it must be the value that gets extended."""
+        monkeypatch.setenv(
+            "PREFECT_REDIS_MESSAGING_URL",
+            "redis://localhost:6379/0?socket_timeout=5",
+        )
+        monkeypatch.setenv("PREFECT_REDIS_MESSAGING_CONSUMER_BLOCK", "10")
+        client = Consumer("message-tests")._get_redis_client()
+        try:
+            assert client.get_connection_kwargs()["socket_timeout"] == 15.0
+        finally:
+            await clear_cached_clients(client=client)
 
 
 async def test_trimming_with_no_delivered_messages(redis: Redis):

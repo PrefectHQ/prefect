@@ -44,6 +44,8 @@ from prefect_redis.client import (
     clear_cached_clients,
     cluster_key_prefix,
     get_async_redis_client,
+    url_socket_timeout,
+    with_socket_timeout,
 )
 
 logger = get_logger(__name__)
@@ -327,22 +329,21 @@ class Publisher(_Publisher):
             if not self._batch:
                 return
 
-            if self.deduplicate_by:
-                claimed = self._batch[: self._claimed_count]
-                fresh = self._batch[self._claimed_count :]
-                to_publish = claimed + (
-                    await self.cache.without_duplicates(self.deduplicate_by, fresh)
-                    if fresh
-                    else []
-                )
-            else:
-                to_publish = list(self._batch)
-
-            self._batch.clear()
+            batch = self._batch
+            claimed_count = self._claimed_count
+            self._batch = []
             self._claimed_count = 0
 
+            to_publish = batch
             published = 0
             try:
+                if self.deduplicate_by:
+                    fresh = batch[claimed_count:]
+                    to_publish = batch[:claimed_count] + (
+                        await self.cache.without_duplicates(self.deduplicate_by, fresh)
+                        if fresh
+                        else []
+                    )
                 for message in to_publish:
                     await self._client.xadd(
                         self.stream,
@@ -428,13 +429,27 @@ class Consumer(_Consumer):
 
     def _get_redis_client(self) -> Redis:
         """Blocking reads hold the socket for `self.block`, so a socket timeout
-        shorter than that fires before the read can return."""
-        socket_timeout = RedisMessagingSettings().socket_timeout
-        if socket_timeout is None or socket_timeout > self.block.total_seconds():
-            return get_async_redis_client()
-        return get_async_redis_client(
-            socket_timeout=self.block.total_seconds() + socket_timeout
+        shorter than that fires before the read can return.
+
+        A `socket_timeout` in the settings' URL query takes precedence over any
+        keyword argument (that's how `Redis.from_url` behaves), so it must be
+        read from the URL and extended there rather than passed as a keyword.
+        """
+        settings = RedisMessagingSettings()
+        block = self.block.total_seconds()
+        url = settings.url
+        url_timeout = url_socket_timeout(url) if url else None
+        socket_timeout = (
+            url_timeout if url_timeout is not None else settings.socket_timeout
         )
+
+        if socket_timeout is None or socket_timeout > block:
+            return get_async_redis_client()
+        if url:
+            return get_async_redis_client(
+                url=with_socket_timeout(url, block + socket_timeout)
+            )
+        return get_async_redis_client(socket_timeout=block + socket_timeout)
 
     async def _ensure_stream_and_group(self, redis_client: Redis) -> None:
         """Ensure the stream and consumer group exist."""
