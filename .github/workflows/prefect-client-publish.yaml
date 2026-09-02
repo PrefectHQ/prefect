@@ -19,6 +19,8 @@ jobs:
     environment: "prod"
     needs: [verify-prefect-client-build]
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
 
     steps:
       - name: Download build artifacts
@@ -29,6 +31,3 @@ jobs:
 
       - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PREFECT_CLIENT_PYPI_API_TOKEN }}
-          name: ci
