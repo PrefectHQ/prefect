@@ -210,6 +210,7 @@ Prefect server includes a built-in database vacuum service that automatically cl
 - Orphaned artifacts left by other flow run deletion paths
 - Stale artifact collections (collections whose latest artifact has been deleted)
 - Old events and event resources past the event retention period
+- Optionally, orphaned logs and artifacts left by interrupted cleanup, late writes, direct SQL deletion, or older Prefect versions
 
 <Warning>
 The flow run vacuum permanently deletes data. Back up your database before enabling it, and test in a non-production environment first.
@@ -217,10 +218,11 @@ The flow run vacuum permanently deletes data. Back up your database before enabl
 
 ### Enable the vacuum service
 
-The vacuum service has two independent components controlled by `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED`:
+The vacuum service has three independent components controlled by `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED`:
 
 - **Event vacuum** (`events`): Cleans up old events and event resources. Enabled by default.
 - **Flow run vacuum** (`flow_runs`): Cleans up old flow runs with their logs and artifacts, removes orphaned artifacts, and reconciles stale artifact collections. Disabled by default.
+- **Orphan backfill** (`orphans`): Finds and removes orphaned logs and artifacts. Disabled by default because each pass can scan the full child tables.
 
 To enable flow run cleanup in addition to the default event cleanup:
 
@@ -240,7 +242,7 @@ The following settings control vacuum behavior:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED` | `events` | Comma-separated set of vacuum types to enable. Valid values: `events`, `flow_runs`. |
+| `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED` | `events` | Comma-separated set of vacuum types to enable. Valid values: `events`, `flow_runs`, `orphans`. |
 | `PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS` | `3600` (1 hour) | How often the vacuum cycle runs, in seconds. |
 | `PREFECT_SERVER_SERVICES_DB_VACUUM_RETENTION_PERIOD` | `7776000` (90 days) | How old a flow run must be (based on end time) before it is eligible for deletion. Accepts seconds. Must be greater than 1 hour. |
 | `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE` | `200` | Number of records to delete per database transaction. |
@@ -262,9 +264,15 @@ Each vacuum cycle schedules independent cleanup tasks:
 <Steps>
 ### Flow run vacuum (when `flow_runs` is enabled)
 
-1. **Delete old flow runs**: Selects top-level terminal flow runs whose end time is older than the configured retention period. For each selected batch, the service deletes logs and artifacts by `flow_run_id` before deleting the runs. It does not scan the log table for orphaned logs. Subflows are cleaned up independently by later batches and cycles once they meet the same criteria.
+1. **Delete old flow runs**: Selects and deletes a locked batch of top-level terminal flow runs whose end time is older than the configured retention period. It then deletes logs and artifacts by `flow_run_id`, without scanning the log table. Subflows are cleaned up independently by later batches and cycles once they meet the same criteria.
 2. **Delete orphaned artifacts**: Removes artifacts whose flow run no longer exists, including artifacts left by other flow run deletion paths.
 3. **Reconcile stale artifact collections**: For collections pointing to a deleted artifact, re-points to the next most recent artifact version. If no versions remain, deletes the collection.
+
+### Orphan backfill (when `orphans` is enabled)
+
+1. **Delete orphaned logs**: Removes logs whose flow run no longer exists.
+2. **Delete orphaned artifacts**: Removes artifacts whose flow run no longer exists.
+3. **Reconcile stale artifact collections**: Repairs collections affected by artifact cleanup.
 
 ### Event vacuum (when `events` is enabled)
 
@@ -276,7 +284,11 @@ Each vacuum cycle schedules independent cleanup tasks:
 The event vacuum only runs when the event persister service is also enabled (`PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED=true`, which is the default). This prevents unexpected data deletion for deployments that have disabled event processing.
 </Note>
 
-Flow run selection and event cleanup use transaction batches controlled by `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE`. The logs and artifacts of the selected runs are deleted in their own batches of the same size, so a run with many child rows does not create one large transaction. Each run is deleted after its logs and artifacts, which means an interrupted vacuum cycle leaves the run in place and cleans it up on the next cycle.
+Flow run selection and event cleanup use transaction batches controlled by `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE`. Once a locked flow run batch is deleted, its logs and artifacts are deleted in their own batches of the same size, so a run with many child rows does not create one large transaction.
+
+<Warning>
+The orphan backfill uses anti-joins that can scan the full `log` and `artifact` tables. Enable `orphans` only to drain a known backlog, then disable it. It is not part of steady-state flow run cleanup.
+</Warning>
 
 ### Tune the vacuum for your workload
 
@@ -390,6 +402,10 @@ async with asyncpg.connect(connection_url) as conn:
         AND state_type IN ('COMPLETED', 'FAILED', 'CANCELLED')
     """, cutoff)
 ```
+
+<Tip>
+After direct SQL deletion, temporarily enable the orphan backfill with `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED="events,orphans"` to remove child rows that no longer reference an existing flow run.
+</Tip>
 
 ### Important considerations
 

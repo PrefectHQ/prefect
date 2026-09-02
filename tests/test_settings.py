@@ -1288,6 +1288,18 @@ class TestSettingAccess:
         with pytest.raises(ValueError, match="Invalid vacuum type"):
             settings.server.services.db_vacuum.enabled_vacuum_types
 
+    def test_db_vacuum_orphan_backfill_can_be_enabled(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setenv(
+            "PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED", "events,orphans"
+        )
+        settings = Settings()
+        assert settings.server.services.db_vacuum.enabled_vacuum_types == {
+            "events",
+            "orphans",
+        }
+
     def test_db_vacuum_event_retention_override_rejects_negative(
         self, monkeypatch: pytest.MonkeyPatch
     ):

@@ -24,6 +24,7 @@ from prefect.server.services import db_vacuum
 from prefect.server.services.db_vacuum import (
     _maintenance_database_config,
     _maintenance_session,
+    schedule_orphan_vacuum_tasks,
     schedule_vacuum_tasks,
     vacuum_events_with_retention_overrides,
     vacuum_old_events,
@@ -421,6 +422,29 @@ class TestVacuumOldFlowRuns:
             assert surviving_run is not None
             assert surviving_run.state_type == schemas.states.StateType.RUNNING
 
+    async def test_deletes_run_before_starting_child_cleanup(
+        self, session, flow, monkeypatch
+    ):
+        """Child cleanup cannot delete data from a run that still exists."""
+        db = provide_database_interface()
+        flow_run = await _create_flow_run(session, flow, end_time=OLD)
+        await _create_log(session, flow_run_id=flow_run.id)
+        original_batch_delete = db_vacuum._batch_delete
+
+        async def assert_run_was_deleted_before_children(*args, **kwargs):
+            async with db.session_context() as read_session:
+                assert await read_session.get(db.FlowRun, flow_run.id) is None
+            return await original_batch_delete(*args, **kwargs)
+
+        monkeypatch.setattr(
+            db_vacuum, "_batch_delete", assert_run_was_deleted_before_children
+        )
+
+        await vacuum_old_flow_runs(db=db)
+
+        async with db.session_context() as read_session:
+            assert await _count(read_session, db, db.Log) == 0
+
     async def test_reconciles_collections_of_deleted_artifacts(self, session, flow):
         """Collections left stale by inline artifact deletion are reconciled."""
         db = provide_database_interface()
@@ -453,6 +477,27 @@ async def test_flow_run_vacuum_schedules_only_expected_cleanup_tasks():
 
     assert scheduled == [
         (vacuum_old_flow_runs, "db-vacuum:old-flow-runs"),
+        (vacuum_orphaned_artifacts, "db-vacuum:orphaned-artifacts"),
+        (vacuum_stale_artifact_collections, "db-vacuum:stale-collections"),
+    ]
+
+
+async def test_orphan_backfill_schedules_orphan_cleanup_tasks():
+    scheduled: list[tuple[object, str | None]] = []
+
+    class FakeDocket:
+        def add(self, function, key=None):
+            scheduled.append((function, key))
+
+            async def enqueue():
+                return None
+
+            return enqueue
+
+    await schedule_orphan_vacuum_tasks(docket=FakeDocket())
+
+    assert scheduled == [
+        (vacuum_orphaned_logs, "db-vacuum:orphaned-logs"),
         (vacuum_orphaned_artifacts, "db-vacuum:orphaned-artifacts"),
         (vacuum_stale_artifact_collections, "db-vacuum:stale-collections"),
     ]

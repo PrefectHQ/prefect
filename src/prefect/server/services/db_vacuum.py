@@ -1,11 +1,11 @@
 """
-The database vacuum service. Two perpetual services schedule cleanup tasks
+The database vacuum service. Three perpetual services schedule cleanup tasks
 independently, gated by the `enabled` set in
 `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED` (default `["events"]`):
 
-1. schedule_vacuum_tasks — Cleans up old flow runs, deleting their logs and
-   artifacts by `flow_run_id` in the same batch, removes orphaned artifacts,
-   then reconciles the artifact collections those deletions left stale.
+1. schedule_vacuum_tasks — Cleans up old flow runs, then deletes their logs
+   and artifacts by `flow_run_id` in bounded batches, removes orphaned
+   artifacts, and reconciles the artifact collections those deletions left stale.
    Enabled when `"flow_runs"` is in the enabled set.
 
 2. schedule_event_vacuum_tasks — Cleans up old events, including any
@@ -13,6 +13,10 @@ independently, gated by the `enabled` set in
    is in the enabled set **and** `event_persister.enabled` is true
    (the default), so that operators who disabled event processing are not
    surprised on upgrade. Runs in all server modes, including ephemeral.
+
+3. schedule_orphan_vacuum_tasks — Opt-in backfill for logs and artifacts
+   orphaned by interrupted cleanup, late writes, direct SQL deletion, or older
+   Prefect versions. It is disabled by default because it scans child tables.
 
 Per-event-type retention can be customised via
 `PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES`. Event types
@@ -182,6 +186,33 @@ async def schedule_event_vacuum_tasks(
     await docket.add(vacuum_old_events, key="db-vacuum:old-events")()
 
 
+@perpetual_service(
+    enabled_getter=lambda: (
+        "orphans"
+        in get_current_settings().server.services.db_vacuum.enabled_vacuum_types
+    ),
+)
+async def schedule_orphan_vacuum_tasks(
+    docket: Docket = CurrentDocket(),
+    perpetual: Perpetual = Perpetual(
+        automatic=True,
+        every=timedelta(
+            seconds=get_current_settings().server.services.db_vacuum.loop_seconds
+        ),
+    ),
+) -> None:
+    """Schedule opt-in orphan backfill tasks.
+
+    Each pass can scan the full log and artifact tables. Operators should
+    enable this service only to drain a known orphan backlog, then disable it.
+    """
+    await docket.add(vacuum_orphaned_logs, key="db-vacuum:orphaned-logs")()
+    await docket.add(vacuum_orphaned_artifacts, key="db-vacuum:orphaned-artifacts")()
+    await docket.add(
+        vacuum_stale_artifact_collections, key="db-vacuum:stale-collections"
+    )()
+
+
 # ---------------------------------------------------------------------------
 # Cleanup tasks (docket task functions)
 # ---------------------------------------------------------------------------
@@ -256,16 +287,16 @@ async def vacuum_old_flow_runs(
 ) -> None:
     """Delete old top-level terminal flow runs past the retention period.
 
-    `log` and `artifact` have no `ON DELETE CASCADE` from `flow_run`, so each
-    batch deletes those children by `flow_run_id` (an indexed lookup) before
-    deleting the runs themselves.
+    `log` and `artifact` have no `ON DELETE CASCADE` from `flow_run`. Each run
+    batch is selected and deleted in one locking transaction, then its children
+    are deleted by `flow_run_id` using indexed lookups.
 
     `batch_size` bounds how many runs are selected, not how many children they
     have, so children are deleted in separately committed batches rather than
     in one transaction with the runs and their cascaded task runs and states.
-    Deleting children before the run keeps that safe to interrupt: a run whose
-    children are partly deleted is still reachable and is picked up again on
-    the next pass, whereas deleting the run first would orphan them.
+    Deleting the runs first prevents a concurrent state transition from
+    preserving a run after some of its children were permanently deleted. If
+    child cleanup is interrupted, the opt-in orphan backfill can recover it.
     """
     settings = get_current_settings().server.services.db_vacuum
     retention_cutoff = now("UTC") - settings.retention_period
@@ -281,12 +312,16 @@ async def vacuum_old_flow_runs(
     artifacts_deleted = 0
     ids_per_statement = max(1, get_max_query_parameters() - _DELETE_BIND_OVERHEAD)
     while True:
-        flow_run_ids = await _lock_flow_run_ids(db, eligible, settings.batch_size)
+        flow_run_ids = await _delete_flow_run_batch(
+            db,
+            eligible,
+            settings.batch_size,
+            ids_per_statement,
+        )
         if not flow_run_ids:
             break
 
         # Bound each statement's bind count as well as its row count.
-        batch_runs_deleted = 0
         for flow_run_id_batch in batched_iterable(flow_run_ids, ids_per_statement):
             logs_deleted += await _batch_delete(
                 db,
@@ -300,15 +335,7 @@ async def vacuum_old_flow_runs(
                 db.Artifact.flow_run_id.in_(flow_run_id_batch),
                 settings.batch_size,
             )
-            batch_runs_deleted += await _delete_flow_runs(
-                db, flow_run_id_batch, eligible
-            )
-
-        runs_deleted += batch_runs_deleted
-        if batch_runs_deleted == 0:
-            # Every selected run became ineligible or locked while its children
-            # were being deleted; re-selecting them would spin.
-            break
+        runs_deleted += len(flow_run_ids)
 
         await asyncio.sleep(0)  # yield to event loop between batches
 
@@ -416,18 +443,20 @@ async def vacuum_old_events(
 # ---------------------------------------------------------------------------
 
 
-async def _lock_flow_run_ids(
+async def _delete_flow_run_batch(
     db: PrefectDBInterface,
     condition: sa.ColumnElement[bool],
     limit: int,
+    ids_per_statement: int,
 ) -> Sequence[UUID]:
-    """Select flow run ids matching `condition`, skipping locked rows.
+    """Select and delete a batch of flow runs in one locking transaction.
 
     Runs being updated concurrently are left for a later pass instead of
-    blocking the vacuum on their row locks.
+    blocking the vacuum on their row locks. Returning only committed deletions
+    ensures child cleanup can never target a surviving run.
     """
     async with _maintenance_session(db, with_for_update=True) as session:
-        return (
+        flow_run_ids = (
             (
                 await session.execute(
                     sa.select(db.FlowRun.id)
@@ -440,37 +469,11 @@ async def _lock_flow_run_ids(
             .scalars()
             .all()
         )
-
-
-async def _delete_flow_runs(
-    db: PrefectDBInterface,
-    flow_run_ids: Sequence[UUID],
-    eligible: sa.ColumnElement[bool],
-) -> int:
-    """Delete the given flow runs that still satisfy `eligible`.
-
-    Eligibility is re-checked because the runs were selected before their logs
-    and artifacts were deleted, and a run may have been transitioned out of a
-    terminal state in the meantime.
-    """
-    async with _maintenance_session(db, with_for_update=True) as session:
-        still_eligible = (
-            (
-                await session.execute(
-                    sa.select(db.FlowRun.id)
-                    .where(sa.and_(db.FlowRun.id.in_(flow_run_ids), eligible))
-                    .with_for_update(skip_locked=True)
-                )
+        for flow_run_id_batch in batched_iterable(flow_run_ids, ids_per_statement):
+            await session.execute(
+                sa.delete(db.FlowRun).where(db.FlowRun.id.in_(flow_run_id_batch))
             )
-            .scalars()
-            .all()
-        )
-        if not still_eligible:
-            return 0
-        result = await session.execute(
-            sa.delete(db.FlowRun).where(db.FlowRun.id.in_(still_eligible))
-        )
-        return result.rowcount
+        return flow_run_ids
 
 
 async def _reconcile_artifact_collections(

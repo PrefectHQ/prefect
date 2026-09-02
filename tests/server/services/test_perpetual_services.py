@@ -33,6 +33,37 @@ def test_event_vacuum_service_registered():
     assert "schedule_event_vacuum_tasks" in service_names
 
 
+def test_orphan_vacuum_service_registered():
+    """Test that the opt-in orphan vacuum service is registered."""
+    service_names = [config.function.__name__ for config in _PERPETUAL_SERVICES]
+    assert "schedule_orphan_vacuum_tasks" in service_names
+
+
+def test_orphan_vacuum_disabled_by_default():
+    """Test that orphan scans are not part of steady-state cleanup."""
+    config = next(
+        c
+        for c in _PERPETUAL_SERVICES
+        if c.function.__name__ == "schedule_orphan_vacuum_tasks"
+    )
+    assert config.enabled_getter() is False
+
+
+def test_orphan_vacuum_enabled_when_requested(monkeypatch):
+    """Test that operators can explicitly enable the orphan backfill."""
+    from prefect.settings.context import get_current_settings
+
+    settings = get_current_settings()
+    monkeypatch.setattr(settings.server.services.db_vacuum, "enabled", {"orphans"})
+
+    config = next(
+        c
+        for c in _PERPETUAL_SERVICES
+        if c.function.__name__ == "schedule_orphan_vacuum_tasks"
+    )
+    assert config.enabled_getter() is True
+
+
 def test_event_vacuum_enabled_by_default(monkeypatch):
     """Test that event vacuum is enabled by default when event persister is also enabled."""
     from prefect.settings.context import get_current_settings
