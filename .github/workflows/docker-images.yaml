@@ -32,8 +32,53 @@ on:
         type: string
 
 jobs:
+  prepare-release-recovery:
+    name: Prepare release recovery
+    runs-on: ubuntu-latest
+    outputs:
+      publish_minor: ${{ steps.recovery.outputs.publish_minor }}
+      publish_2_latest: ${{ steps.recovery.outputs.publish_2_latest }}
+    steps:
+      - name: Resolve release recovery aliases
+        id: recovery
+        if: ${{ inputs.tag != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$TAG" =~ ^2\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release recovery requires a stable 2.x tag, got: $TAG" >&2
+            exit 1
+          fi
+
+          stable_tags="$(
+            gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+              --jq '.[] | select(.draft == false and .prerelease == false) | .tag_name' \
+            | grep -E '^2\.[0-9]+\.[0-9]+$' \
+            | sort -V
+          )"
+
+          if ! grep -Fxq "$TAG" <<< "$stable_tags"; then
+            echo "Release recovery requires a published stable 2.x release, got: $TAG" >&2
+            exit 1
+          fi
+
+          IFS=. read -r major minor _ <<< "$TAG"
+          latest_minor="$(grep -E "^${major}\\.${minor}\\.[0-9]+$" <<< "$stable_tags" | tail -n 1)"
+          latest_2x="$(tail -n 1 <<< "$stable_tags")"
+
+          [[ "$TAG" == "$latest_minor" ]] && publish_minor=true || publish_minor=false
+          [[ "$TAG" == "$latest_2x" ]] && publish_2_latest=true || publish_2_latest=false
+
+          echo "publish_minor=$publish_minor" >> "$GITHUB_OUTPUT"
+          echo "publish_2_latest=$publish_2_latest" >> "$GITHUB_OUTPUT"
+
   publish-docker-images:
     name: Build and publish to DockerHub
+    needs: prepare-release-recovery
     runs-on: ubuntu-latest
     environment: ${{ ( (github.event_name == 'release' || inputs.tag != '') && 'prod' ) || 'dev' }}
     strategy:
@@ -106,9 +151,9 @@ jobs:
           # push `2-latest` tags on any non-prerelease 2.x release
           tags: |
             type=pep440,pattern={{version}},value=${{ inputs.tag || github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
-            type=pep440,pattern={{major}}.{{minor}},value=${{ inputs.tag || github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ (github.event_name == 'release' && github.event.release.prerelease == false) || inputs.tag != '' }}
+            type=pep440,pattern={{major}}.{{minor}},value=${{ inputs.tag || github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ (github.event_name == 'release' && github.event.release.prerelease == false) || needs.prepare-release-recovery.outputs.publish_minor == 'true' }}
             type=pep440,pattern={{major}},value=${{ inputs.tag || github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ github.event.release.prerelease == false && github.ref_name == env.LATEST_TAG }}
-            type=raw,value=2-latest${{ matrix.flavor }},enable=${{ matrix.python-version == '3.10' && ((github.event_name == 'release' && github.event.release.prerelease == false) || inputs.tag != '') }}
+            type=raw,value=2-latest${{ matrix.flavor }},enable=${{ matrix.python-version == '3.10' && ((github.event_name == 'release' && github.event.release.prerelease == false) || needs.prepare-release-recovery.outputs.publish_2_latest == 'true') }}
           flavor: |
             latest=false
 
