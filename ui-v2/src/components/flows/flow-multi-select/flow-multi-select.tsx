@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useDeferredValue, useMemo, useState } from "react";
 import { buildListFlowsQuery, type Flow } from "@/api/flows";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Combobox,
 	ComboboxCommandEmtpy,
@@ -16,13 +17,13 @@ const MAX_VISIBLE_FLOWS = 2;
 
 type FlowMultiSelectProps = {
 	selectedFlowIds: string[];
-	onToggleFlow: (flowId: string) => void;
+	onSelectFlowIds: (flowIds: string[]) => void;
 	emptyMessage?: string;
 };
 
 export function FlowMultiSelect({
 	selectedFlowIds,
-	onToggleFlow,
+	onSelectFlowIds,
 	emptyMessage = "Any flow",
 }: FlowMultiSelectProps) {
 	const [search, setSearch] = useState("");
@@ -70,7 +71,7 @@ export function FlowMultiSelect({
 
 	const renderSelectedFlows = () => {
 		if (selectedFlowIds.length === 0) {
-			return <span className="text-muted-foreground">{emptyMessage}</span>;
+			return emptyMessage;
 		}
 
 		const selectedFlowNames = selectedFlowsData
@@ -94,7 +95,7 @@ export function FlowMultiSelect({
 
 	return (
 		<Combobox>
-			<ComboboxTrigger selected={selectedFlowIds.length > 0}>
+			<ComboboxTrigger selected={selectedFlowIds.length === 0}>
 				{renderSelectedFlows()}
 			</ComboboxTrigger>
 			<ComboboxContent>
@@ -106,17 +107,31 @@ export function FlowMultiSelect({
 				<ComboboxCommandList>
 					<ComboboxCommandEmtpy>No flows found</ComboboxCommandEmtpy>
 					<ComboboxCommandGroup>
+						<ComboboxCommandItem
+							aria-label={emptyMessage}
+							onSelect={() => onSelectFlowIds([])}
+							closeOnSelect={false}
+							value="__all__"
+						>
+							<Checkbox checked={selectedFlowIds.length === 0} />
+							{emptyMessage}
+						</ComboboxCommandItem>
 						{filteredFlows.map((flow: Flow) => (
 							<ComboboxCommandItem
 								key={flow.id}
-								selected={selectedFlowIds.includes(flow.id)}
+								aria-label={flow.name}
 								onSelect={() => {
-									onToggleFlow(flow.id);
+									onSelectFlowIds(
+										selectedFlowIds.includes(flow.id)
+											? selectedFlowIds.filter((id) => id !== flow.id)
+											: [...selectedFlowIds, flow.id],
+									);
 									setSearch("");
 								}}
 								closeOnSelect={false}
 								value={flow.id}
 							>
+								<Checkbox checked={selectedFlowIds.includes(flow.id)} />
 								{flow.name}
 							</ComboboxCommandItem>
 						))}
