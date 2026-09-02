@@ -401,6 +401,9 @@ const FlowRunTooltip = ({
 		{ enabled: active !== false },
 	);
 	const targetKey = target ? getHoveredFlowRunKey(target) : undefined;
+	const flowRun = target
+		? flowRuns.find((flowRun) => flowRun.id === target.flowRun.id)
+		: undefined;
 	const deferredUnpinRef = useRef<ReturnType<typeof setTimeout> | undefined>(
 		undefined,
 	);
@@ -411,6 +414,11 @@ const FlowRunTooltip = ({
 			deferredUnpinRef.current = undefined;
 		}
 	}, []);
+	const dismissTooltip = useCallback(() => {
+		cancelDeferredUnpin();
+		setIsCardHovered(false);
+		onDismiss();
+	}, [cancelDeferredUnpin, onDismiss]);
 
 	useEffect(() => {
 		return cancelDeferredUnpin;
@@ -458,15 +466,19 @@ const FlowRunTooltip = ({
 
 		const handleKeyDown = (event: KeyboardEvent) => {
 			if (event.key === "Escape") {
-				cancelDeferredUnpin();
-				setIsCardHovered(false);
-				onDismiss();
+				dismissTooltip();
 			}
 		};
 
 		document.addEventListener("keydown", handleKeyDown);
 		return () => document.removeEventListener("keydown", handleKeyDown);
-	}, [cancelDeferredUnpin, onDismiss, targetKey]);
+	}, [dismissTooltip, targetKey]);
+
+	useEffect(() => {
+		if (active !== false && targetKey !== undefined && flowRun === undefined) {
+			dismissTooltip();
+		}
+	}, [active, dismissTooltip, flowRun, targetKey]);
 
 	// Position the tooltip next to the cursor and clamped to the viewport so it is never clipped
 	useLayoutEffect(() => {
@@ -490,12 +502,9 @@ const FlowRunTooltip = ({
 		});
 	}, [chartRef, x, y]);
 
-	if (active === false || !target) {
+	if (active === false || !target || !flowRun) {
 		return null;
 	}
-	const flowRun =
-		flowRuns.find((flowRun) => flowRun.id === target.flowRun.id) ??
-		target.flowRun;
 
 	const flow = flowRun.flow;
 	const deployment = flowRun.deployment;

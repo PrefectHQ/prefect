@@ -148,7 +148,11 @@ describe("FlowRunActivityBarChart", () => {
 			endDate: new Date("2024-01-01T04:00:00Z"),
 			numberOfBars: 4,
 		};
-		const RefreshableChart = () => {
+		const FlowRunDataHarness = ({
+			withSecondChart = false,
+		}: {
+			withSecondChart?: boolean;
+		}) => {
 			const [flowRuns, setFlowRuns] = useState(hourlyFlowRuns);
 
 			return (
@@ -167,11 +171,35 @@ describe("FlowRunActivityBarChart", () => {
 					>
 						Refresh data
 					</button>
-					<FlowRunActivityBarChart
-						{...tooltipProps}
-						// @ts-expect-error - Type error from test data not matching schema
-						enrichedFlowRuns={flowRuns}
-					/>
+					<button
+						type="button"
+						onClick={() => {
+							setFlowRuns((current) =>
+								current.filter((flowRun) => flowRun.id !== "run-0"),
+							);
+						}}
+					>
+						Remove run 0
+					</button>
+					<FlowRunActivityBarGraphTooltipProvider>
+						<div data-testid="refresh-chart-a">
+							<FlowRunActivityBarChart
+								chartId="refresh-a"
+								{...tooltipProps}
+								// @ts-expect-error - Type error from test data not matching schema
+								enrichedFlowRuns={flowRuns}
+							/>
+						</div>
+						{withSecondChart && (
+							<div data-testid="refresh-chart-b">
+								{/* @ts-expect-error - Type error from test data not matching schema */}
+								<FlowRunActivityBarChart
+									chartId="refresh-b"
+									{...tooltipProps}
+								/>
+							</div>
+						)}
+					</FlowRunActivityBarGraphTooltipProvider>
 				</>
 			);
 		};
@@ -231,7 +259,7 @@ describe("FlowRunActivityBarChart", () => {
 		});
 
 		it("refreshes hovered run details without moving the tooltip", async () => {
-			const { container } = await renderWithRouter(<RefreshableChart />);
+			const { container } = await renderWithRouter(<FlowRunDataHarness />);
 			const svg = getSvg(container);
 
 			hoverBar(svg, screen.getByTestId("bar-rect-run-0"));
@@ -255,6 +283,39 @@ describe("FlowRunActivityBarChart", () => {
 			expect(getTooltipRunLink("run-0 refreshed")).toBeVisible();
 			expect(card.style.left).toBe(initialPosition.left);
 			expect(card.style.top).toBe(initialPosition.top);
+		});
+
+		it("dismisses a pinned tooltip when its run is removed", async () => {
+			const { container } = await renderWithRouter(
+				<FlowRunDataHarness withSecondChart />,
+			);
+			const chartA = screen.getByTestId("refresh-chart-a");
+			const chartB = screen.getByTestId("refresh-chart-b");
+			const svgA = getSvg(chartA);
+			const svgB = getSvg(chartB);
+
+			hoverBar(svgA, within(chartA).getByTestId("bar-rect-run-0"));
+			const link = within(chartA).getByRole("link", { name: "run-0" });
+			const card = link.closest('[data-slot="card"]');
+			if (!card) throw new Error("tooltip card not found");
+			hoverBar(svgA, within(chartA).getByTestId("bar-rect-run-1"));
+			fireEvent.mouseOut(svgA, { relatedTarget: card });
+			act(() => {
+				vi.advanceTimersByTime(1000);
+			});
+			expect(link).toBeVisible();
+
+			fireEvent.click(screen.getByRole("button", { name: "Remove run 0" }));
+
+			expect(container.querySelectorAll('[data-slot="card"]')).toHaveLength(0);
+			hoverBar(svgB, within(chartB).getByTestId("bar-rect-run-1"));
+			expect(within(chartB).getByRole("link", { name: "run-1" })).toBeVisible();
+			expect(container.querySelectorAll('[data-slot="card"]')).toHaveLength(1);
+			act(() => {
+				vi.advanceTimersByTime(500);
+			});
+			expect(within(chartB).getByRole("link", { name: "run-1" })).toBeVisible();
+			expect(within(chartA).queryByRole("link", { name: "run-0" })).toBeNull();
 		});
 
 		it("freezes the tooltip while the cursor is inside it", async () => {
