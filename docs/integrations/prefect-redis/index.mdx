@@ -30,6 +30,22 @@ Register the block types in the `prefect-redis` module to make them available fo
 prefect block register -m prefect_redis
 ```
 
+## Connection timeouts
+
+`PREFECT_REDIS_MESSAGING_SOCKET_TIMEOUT` (default `60` seconds) and
+`PREFECT_REDIS_MESSAGING_SOCKET_CONNECT_TIMEOUT` (default `10` seconds) bound
+how long a Redis client waits on a read or connect before raising. Earlier
+versions defaulted both to no timeout, so a dead connection during a Redis
+outage could hang forever instead of failing and reconnecting. There's
+currently no way to restore the old no-timeout behavior from an environment
+variable; set `socket_timeout=None` when constructing `RedisMessagingSettings`
+directly if you need it.
+
+A consumer whose `PREFECT_REDIS_MESSAGING_CONSUMER_BLOCK` exceeds
+`PREFECT_REDIS_MESSAGING_SOCKET_TIMEOUT` extends its own client's timeout
+automatically, so a longer blocking read won't time out spuriously — no
+manual coordination between the two settings is needed.
+
 ## Resources
 
 Refer to the [SDK documentation](/integrations/prefect-redis/api-ref/prefect_redis-blocks) to explore all the capabilities of `prefect-redis`.
