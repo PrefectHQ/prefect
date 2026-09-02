@@ -175,7 +175,7 @@ class Cache(_Cache):
         return
 
     async def without_duplicates(
-        self, attribute: str, messages: list[M], claim_id: str = "1"
+        self, attribute: str, messages: list[M], claim_id: Optional[str] = None
     ) -> list[M]:
         # Collapse same-key messages to their first occurrence before touching Redis,
         # so an intra-batch duplicate is never mistaken for our own claim_id below.
@@ -196,13 +196,13 @@ class Cache(_Cache):
         keys = list(first_by_key)
         async with self._client.pipeline() as p:
             for key in keys:
-                p.set(key, claim_id, nx=True, ex=MESSAGE_DEDUPLICATION_LOOKBACK)
+                p.set(key, claim_id or "1", nx=True, ex=MESSAGE_DEDUPLICATION_LOOKBACK)
             results: list[Optional[bool]] = await p.execute()
 
         # A marker holding our own claim_id is ours from a prior retry, not a duplicate.
         already_ours: set[int] = set()
         contested = [i for i, r in enumerate(results) if not r]
-        if contested:
+        if claim_id is not None and contested:
             async with self._client.pipeline() as p:
                 for i in contested:
                     p.get(keys[i])

@@ -329,6 +329,16 @@ async def test_erroring_handler_does_not_ack(
     assert not remaining_message  # Finally acknowledged
 
 
+async def test_without_duplicates_without_claim_id_still_dedupes(cache: Cache):
+    message = RedisStreamsMessage(data=b"hello", attributes={"my-message-id": "1"})
+
+    first = await cache.without_duplicates("my-message-id", [message])
+    second = await cache.without_duplicates("my-message-id", [message])
+
+    assert first == [message]
+    assert second == []
+
+
 async def test_publisher_will_avoid_sending_duplicate_messages_in_same_batch(
     deduplicating_publisher: Publisher, consumer: Consumer
 ):
