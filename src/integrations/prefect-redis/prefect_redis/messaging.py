@@ -196,7 +196,12 @@ class Cache(_Cache):
         keys = list(first_by_key)
         async with self._client.pipeline() as p:
             for key in keys:
-                p.set(key, claim_id or "1", nx=True, ex=MESSAGE_DEDUPLICATION_LOOKBACK)
+                p.set(
+                    key,
+                    claim_id if claim_id is not None else "1",
+                    nx=True,
+                    ex=MESSAGE_DEDUPLICATION_LOOKBACK,
+                )
             results: list[Optional[bool]] = await p.execute()
 
         # A marker holding our own claim_id is ours from a prior retry, not a duplicate.
