@@ -347,9 +347,12 @@ const FlowRunTooltip = ({
 
 	// Keep showing the originally hovered run while the cursor travels across
 	// neighboring bars toward the tooltip, and freeze it once the cursor is inside.
+	// `active` is `false` only when another chart owns the shared tooltip, in
+	// which case this one has to disappear at once rather than linger.
 	const { target, pin, unpin } = useStickyHoverTarget(
 		active ? getHoveredFlowRun(payload, coordinate) : undefined,
 		getHoveredFlowRunKey,
+		{ enabled: active !== false },
 	);
 	const { x, y } = target ?? {};
 
@@ -375,7 +378,7 @@ const FlowRunTooltip = ({
 		});
 	}, [chartRef, x, y]);
 
-	if (!target) {
+	if (active === false || !target) {
 		return null;
 	}
 	const { flowRun } = target;

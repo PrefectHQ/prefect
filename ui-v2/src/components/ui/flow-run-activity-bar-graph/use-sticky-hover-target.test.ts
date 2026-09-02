@@ -6,10 +6,12 @@ type Target = { id: string; x: number };
 
 const getKey = (target: Target) => target.id;
 
+type Props = { candidate: Target | undefined; enabled?: boolean };
+
 const renderSticky = (initial: Target | undefined) =>
-	renderHook(
-		({ candidate }: { candidate: Target | undefined }) =>
-			useStickyHoverTarget(candidate, getKey, 150),
+	renderHook<ReturnType<typeof useStickyHoverTarget<Target>>, Props>(
+		({ candidate, enabled = true }) =>
+			useStickyHoverTarget(candidate, getKey, { switchDelay: 150, enabled }),
 		{ initialProps: { candidate: initial } },
 	);
 
@@ -107,6 +109,16 @@ describe("useStickyHoverTarget", () => {
 			vi.advanceTimersByTime(500);
 		});
 		expect(result.current.target).toEqual({ id: "a", x: 1 });
+	});
+
+	it("clears the target immediately when disabled, even while pinned", () => {
+		const { result, rerender } = renderSticky({ id: "a", x: 1 });
+
+		act(() => {
+			result.current.pin();
+		});
+		rerender({ candidate: undefined, enabled: false });
+		expect(result.current.target).toBeUndefined();
 	});
 
 	it("resumes following the candidate after unpinning", () => {
