@@ -160,12 +160,12 @@ export const AutomationDeploymentCombobox = ({
 		return (
 			<div
 				ref={containerRef}
-				className="flex flex-1 min-w-0 items-center gap-2"
+				className="flex flex-1 min-w-0 items-center justify-start gap-1"
 			>
-				<div className="flex flex-1 min-w-0 items-center gap-2 overflow-hidden">
-					<span className="truncate">{visible.join(", ")}</span>
-				</div>
-				{extraCount > 0 && <p className="text-sm shrink-0">+ {extraCount}</p>}
+				<span className="truncate min-w-0 text-left">{visible.join(", ")}</span>
+				{extraCount > 0 && (
+					<span className="shrink-0 text-muted-foreground">+{extraCount}</span>
+				)}
 				{/* Hidden element for measuring text width */}
 				<div
 					ref={measureRef}
