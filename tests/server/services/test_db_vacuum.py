@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import datetime
 import uuid
 from datetime import timedelta
@@ -9,6 +10,7 @@ from types import SimpleNamespace
 
 import pytest
 import sqlalchemy as sa
+from docket import Docket, Worker
 
 from prefect.server import models, schemas
 from prefect.server.database import PrefectDBInterface, provide_database_interface
@@ -23,6 +25,8 @@ from prefect.server.services import db_vacuum
 from prefect.server.services.db_vacuum import (
     _maintenance_database_config,
     _maintenance_session,
+    schedule_event_vacuum_tasks,
+    schedule_vacuum_tasks,
     vacuum_events_with_retention_overrides,
     vacuum_old_events,
     vacuum_old_flow_runs,
@@ -763,3 +767,72 @@ class TestMaintenanceSession:
 
         async with _maintenance_session(db) as session:
             assert await session.execute(sa.select(sa.literal(1))) is not None
+
+
+class TestVacuumTaskSerialization:
+    async def test_vacuum_tasks_share_one_concurrency_slot(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        """All scheduled vacuum tasks run one at a time, even with a worker
+        that allows more concurrency, so they never contend for the
+        single-connection maintenance pool."""
+        settings = get_current_settings()
+        monkeypatch.setattr(
+            settings.server.services.db_vacuum,
+            "event_retention_overrides",
+            {"prefect.flow-run.heartbeat": timedelta(days=1)},
+        )
+
+        active = 0
+        max_active = 0
+        ran: set[str] = set()
+
+        async def tracked_batch_delete(
+            db: PrefectDBInterface,
+            model: type,
+            condition: sa.ColumnElement[bool],
+            batch_size: int,
+        ) -> int:
+            nonlocal active, max_active
+            active += 1
+            max_active = max(max_active, active)
+            ran.add(model.__name__)
+            try:
+                await asyncio.sleep(0.05)
+            finally:
+                active -= 1
+            return 0
+
+        async def tracked_reconcile(
+            db: PrefectDBInterface, batch_size: int
+        ) -> tuple[int, int]:
+            nonlocal active, max_active
+            active += 1
+            max_active = max(max_active, active)
+            ran.add("ArtifactCollection")
+            try:
+                await asyncio.sleep(0.05)
+            finally:
+                active -= 1
+            return (0, 0)
+
+        monkeypatch.setattr(db_vacuum, "_batch_delete", tracked_batch_delete)
+        monkeypatch.setattr(
+            db_vacuum, "_reconcile_artifact_collections", tracked_reconcile
+        )
+
+        async with Docket(name=f"test-{uuid.uuid4()}", url="memory://") as docket:
+            await schedule_vacuum_tasks(docket=docket)
+            await schedule_event_vacuum_tasks(docket=docket)
+            async with Worker(docket, concurrency=6) as worker:
+                await worker.run_until_finished()
+
+        assert ran == {
+            "Log",
+            "Artifact",
+            "ArtifactCollection",
+            "FlowRun",
+            "Event",
+            "EventResource",
+        }
+        assert max_active == 1
