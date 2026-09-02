@@ -4,9 +4,8 @@ independently, gated by the `enabled` set in
 `PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED` (default `["events"]`):
 
 1. schedule_vacuum_tasks — Cleans up old flow runs, then deletes their logs
-   and artifacts by `flow_run_id` in bounded batches, removes orphaned
-   artifacts, and reconciles the artifact collections those deletions left stale.
-   Enabled when `"flow_runs"` is in the enabled set.
+   and artifacts by `flow_run_id` in bounded batches. Enabled when
+   `"flow_runs"` is in the enabled set.
 
 2. schedule_event_vacuum_tasks — Cleans up old events, including any
    event types with per-type retention overrides. Enabled when `"events"`
@@ -14,9 +13,10 @@ independently, gated by the `enabled` set in
    (the default), so that operators who disabled event processing are not
    surprised on upgrade. Runs in all server modes, including ephemeral.
 
-3. schedule_orphan_vacuum_tasks — Opt-in backfill for logs and artifacts
-   orphaned by interrupted cleanup, late writes, direct SQL deletion, or older
-   Prefect versions. It is disabled by default because it scans child tables.
+3. schedule_orphan_vacuum_tasks — Cleans up logs and artifacts orphaned by
+   interrupted cleanup, late writes, direct SQL deletion, or older Prefect
+   versions. It runs daily when flow run vacuum is enabled, rather than on the
+   hourly vacuum loop, and can also be enabled independently with `"orphans"`.
 
 Per-event-type retention can be customised via
 `PREFECT_SERVER_SERVICES_DB_VACUUM_EVENT_RETENTION_OVERRIDES`. Event types
@@ -83,7 +83,7 @@ def _maintenance_database_config(
     if cached is None:
         cached = AsyncPostgresConfiguration(connection_url=config.connection_url)
         # Opt out of the API statement timeout and keep a minimal pool, since
-        # vacuum tasks run sequentially on an hourly loop.
+        # vacuum tasks run sequentially on maintenance loops.
         cached.timeout = None
         cached.sqlalchemy_pool_size = 1
         cached.sqlalchemy_max_overflow = 0
@@ -139,7 +139,7 @@ async def schedule_vacuum_tasks(
         ),
     ),
 ) -> None:
-    """Schedule cleanup tasks for old flow runs and orphaned artifacts.
+    """Schedule cleanup tasks for old flow runs.
 
     Each task is enqueued with a deterministic key so that overlapping
     cycles (e.g. when cleanup takes longer than loop_seconds) naturally
@@ -149,10 +149,6 @@ async def schedule_vacuum_tasks(
     via PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED=true.
     """
     await docket.add(vacuum_old_flow_runs, key="db-vacuum:old-flow-runs")()
-    await docket.add(vacuum_orphaned_artifacts, key="db-vacuum:orphaned-artifacts")()
-    await docket.add(
-        vacuum_stale_artifact_collections, key="db-vacuum:stale-collections"
-    )()
 
 
 @perpetual_service(
@@ -197,14 +193,14 @@ async def schedule_orphan_vacuum_tasks(
     perpetual: Perpetual = Perpetual(
         automatic=True,
         every=timedelta(
-            seconds=get_current_settings().server.services.db_vacuum.loop_seconds
+            seconds=get_current_settings().server.services.db_vacuum.orphan_cleanup_loop_seconds
         ),
     ),
 ) -> None:
-    """Schedule opt-in orphan backfill tasks.
+    """Schedule lower-frequency orphan reconciliation tasks.
 
-    Each pass can scan the full log and artifact tables. Operators should
-    enable this service only to drain a known orphan backlog, then disable it.
+    Each pass can scan the full log and artifact tables, so this service runs
+    less often than the normal flow run and event vacuum loops.
     """
     await docket.add(vacuum_orphaned_logs, key="db-vacuum:orphaned-logs")()
     await docket.add(vacuum_orphaned_artifacts, key="db-vacuum:orphaned-artifacts")()
@@ -296,7 +292,7 @@ async def vacuum_old_flow_runs(
     in one transaction with the runs and their cascaded task runs and states.
     Deleting the runs first prevents a concurrent state transition from
     preserving a run after some of its children were permanently deleted. If
-    child cleanup is interrupted, the opt-in orphan backfill can recover it.
+    child cleanup is interrupted, orphan reconciliation recovers it.
     """
     settings = get_current_settings().server.services.db_vacuum
     retention_cutoff = now("UTC") - settings.retention_period

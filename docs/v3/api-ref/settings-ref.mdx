@@ -2053,7 +2053,7 @@ The maximum number of expired cleanup message leases to process per service loop
 ## ServerServicesDBVacuumSettings
 Settings for controlling the database vacuum service
 ### `enabled`
-Comma-separated set of vacuum types to enable. Valid values: 'events', 'flow_runs'. Defaults to 'events'. For backward compatibility, 'true' maps to 'events,flow_runs' and 'false' maps to 'events'. Event vacuum also requires event_persister.enabled (the default).
+Comma-separated set of vacuum types to enable. Valid values: 'events', 'flow_runs', 'orphans'. Defaults to 'events'. Enabling 'flow_runs' also enables lower-frequency orphan cleanup; 'orphans' can enable that cleanup independently. For backward compatibility, 'true' maps to all vacuum types and 'false' maps to 'events'. Event vacuum also requires event_persister.enabled (the default).
 
 **Type**: `array | boolean | None`
 
@@ -2075,6 +2075,18 @@ The database vacuum service will run this often, in seconds. Defaults to `3600` 
 
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS`
+
+### `orphan_cleanup_loop_seconds`
+The database vacuum service will scan for orphaned logs and artifacts this often, in seconds. Defaults to `86400` (24 hours).
+
+**Type**: `number`
+
+**Default**: `86400`
+
+**TOML dotted key path**: `server.services.db_vacuum.orphan_cleanup_loop_seconds`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_DB_VACUUM_ORPHAN_CLEANUP_LOOP_SECONDS`
 
 ### `retention_period`
 How old a flow run must be (based on end_time) before it is eligible for deletion. Accepts seconds. Minimum 1 hour. Defaults to 90 days.

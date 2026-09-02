@@ -477,12 +477,10 @@ async def test_flow_run_vacuum_schedules_only_expected_cleanup_tasks():
 
     assert scheduled == [
         (vacuum_old_flow_runs, "db-vacuum:old-flow-runs"),
-        (vacuum_orphaned_artifacts, "db-vacuum:orphaned-artifacts"),
-        (vacuum_stale_artifact_collections, "db-vacuum:stale-collections"),
     ]
 
 
-async def test_orphan_backfill_schedules_orphan_cleanup_tasks():
+async def test_orphan_reconciliation_schedules_cleanup_tasks():
     scheduled: list[tuple[object, str | None]] = []
 
     class FakeDocket:

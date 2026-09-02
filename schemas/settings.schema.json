@@ -1855,7 +1855,7 @@
                     "default": [
                         "events"
                     ],
-                    "description": "Comma-separated set of vacuum types to enable. Valid values: 'events', 'flow_runs'. Defaults to 'events'. For backward compatibility, 'true' maps to 'events,flow_runs' and 'false' maps to 'events'. Event vacuum also requires event_persister.enabled (the default).",
+                    "description": "Comma-separated set of vacuum types to enable. Valid values: 'events', 'flow_runs', 'orphans'. Defaults to 'events'. Enabling 'flow_runs' also enables lower-frequency orphan cleanup; 'orphans' can enable that cleanup independently. For backward compatibility, 'true' maps to all vacuum types and 'false' maps to 'events'. Event vacuum also requires event_persister.enabled (the default).",
                     "supported_environment_variables": [
                         "PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED"
                     ],
@@ -1869,6 +1869,16 @@
                         "PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS"
                     ],
                     "title": "Loop Seconds",
+                    "type": "number"
+                },
+                "orphan_cleanup_loop_seconds": {
+                    "default": 86400,
+                    "description": "The database vacuum service will scan for orphaned logs and artifacts this often, in seconds. Defaults to `86400` (24 hours).",
+                    "exclusiveMinimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_SERVER_SERVICES_DB_VACUUM_ORPHAN_CLEANUP_LOOP_SECONDS"
+                    ],
+                    "title": "Orphan Cleanup Loop Seconds",
                     "type": "number"
                 },
                 "retention_period": {
