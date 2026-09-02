@@ -220,14 +220,14 @@ def test_get_async_redis_client_none_overrides_inherit_settings(
 def test_get_async_redis_client_url_preserves_explicit_zero_health_check_interval(
     monkeypatch: pytest.MonkeyPatch,
 ):
-    redis = MagicMock()
-    monkeypatch.setattr("prefect_redis.client.Redis", redis)
+    redis_from_url = MagicMock()
+    monkeypatch.setattr("prefect_redis.client.redis_from_url", redis_from_url)
     _client_cache.clear()
 
     try:
         get_async_redis_client(url="redis://localhost:6379/0", health_check_interval=0)
 
-        assert redis.from_url.call_args.kwargs["health_check_interval"] == 0
+        assert redis_from_url.call_args.kwargs["health_check_interval"] == 0
     finally:
         _client_cache.clear()
 
