@@ -1,6 +1,7 @@
 import asyncio
 import concurrent.futures
 import signal
+import sys
 import threading
 import time
 from unittest.mock import MagicMock
@@ -141,6 +142,38 @@ def test_cancel_sync_after_in_worker_thread():
     with concurrent.futures.ThreadPoolExecutor() as executor:
         future = executor.submit(on_worker_thread)
         scope = future.result()
+
+    assert scope.cancelled()
+    assert not completed
+
+
+def test_cancel_sync_after_uses_watcher_thread_on_windows(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """
+    Windows has no `SIGALRM`, so the alarm scope is unavailable there. The watcher
+    thread scope uses no signals and must be used instead.
+    """
+    monkeypatch.setattr(sys, "platform", "win32")
+
+    with cancel_sync_after(1) as scope:
+        pass
+
+    assert isinstance(scope, WatcherThreadCancelScope)
+
+
+def test_cancel_sync_after_in_main_thread_on_windows(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(sys, "platform", "win32")
+
+    completed = False
+    with pytest.raises(CancelledError):
+        with cancel_sync_after(0.1) as scope:
+            # this timeout method does not interrupt sleep calls, the timeout is
+            # raised on the next instruction
+            for _ in range(20):
+                time.sleep(0.1)
+
+            completed = True
 
     assert scope.cancelled()
     assert not completed

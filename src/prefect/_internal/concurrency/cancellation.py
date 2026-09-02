@@ -560,24 +560,23 @@ def cancel_sync_after(timeout: Optional[float], name: Optional[str] = None):
     Cancel any sync calls within the context if it does not exit after the given
     timeout.
 
-    The timeout method varies depending on if this is called in the main thread or not.
-    See `AlarmCancelScope` and `WatcherThreadCancelScope` for details.
+    The timeout method varies depending on the platform and on if this is called in
+    the main thread or not. See `AlarmCancelScope` and `WatcherThreadCancelScope` for
+    details.
 
     Yields a `CancelContext`.
     """
 
-    if sys.platform.startswith("win"):
-        yield NullCancelScope(reason="cancellation is not supported on Windows")
-        return
-
     thread = threading.current_thread()
-    existing_alarm_handler = signal.getsignal(signal.SIGALRM) != signal.SIG_DFL
 
     if (
-        thread is threading.main_thread()
+        # Alarms are not available on Windows, which has no `SIGALRM`; the watcher
+        # thread scope does not use signals and works there
+        not sys.platform.startswith("win")
+        and thread is threading.main_thread()
         # Avoid nested alarm handlers; it's hard to follow and they will interfere with
         # each other
-        and not existing_alarm_handler
+        and signal.getsignal(signal.SIGALRM) == signal.SIG_DFL
         # Avoid using an alarm when there is no timeout; it's better saved for that case
         and timeout is not None
     ):
