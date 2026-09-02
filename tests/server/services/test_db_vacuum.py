@@ -30,6 +30,7 @@ from prefect.server.services.db_vacuum import (
     vacuum_orphaned_logs,
     vacuum_stale_artifact_collections,
 )
+from prefect.settings import temporary_settings
 from prefect.settings.context import get_current_settings
 from prefect.types._datetime import now
 
@@ -746,6 +747,56 @@ class TestMaintenanceSession:
         second = _maintenance_database_config(db)
 
         assert first is second
+
+    def test_postgres_config_honors_pool_settings(self) -> None:
+        db = SimpleNamespace(
+            database_config=AsyncPostgresConfiguration(
+                connection_url="postgresql+asyncpg://u:p@host/db"
+            )
+        )
+
+        with temporary_settings(
+            {
+                "server.services.db_vacuum.maintenance_pool_size": 4,
+                "server.services.db_vacuum.maintenance_max_overflow": 2,
+            }
+        ):
+            config = _maintenance_database_config(db)
+
+        assert config is not None
+        assert config.sqlalchemy_pool_size == 4
+        assert config.sqlalchemy_max_overflow == 2
+
+    def test_postgres_configs_with_different_pool_settings_do_not_collide(
+        self,
+    ) -> None:
+        db = SimpleNamespace(
+            database_config=AsyncPostgresConfiguration(
+                connection_url="postgresql+asyncpg://u:p@host/db"
+            )
+        )
+
+        with temporary_settings(
+            {
+                "server.services.db_vacuum.maintenance_pool_size": 2,
+                "server.services.db_vacuum.maintenance_max_overflow": 1,
+            }
+        ):
+            first = _maintenance_database_config(db)
+
+        with temporary_settings(
+            {
+                "server.services.db_vacuum.maintenance_pool_size": 4,
+                "server.services.db_vacuum.maintenance_max_overflow": 3,
+            }
+        ):
+            second = _maintenance_database_config(db)
+
+        assert first is not None
+        assert second is not None
+        assert first is not second
+        assert (first.sqlalchemy_pool_size, first.sqlalchemy_max_overflow) == (2, 1)
+        assert (second.sqlalchemy_pool_size, second.sqlalchemy_max_overflow) == (4, 3)
 
     def test_non_postgres_returns_none(self) -> None:
         db = SimpleNamespace(

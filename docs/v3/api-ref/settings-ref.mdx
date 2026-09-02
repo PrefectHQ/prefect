@@ -2100,6 +2100,33 @@ The number of records to delete per database transaction. Defaults to `200`.
 **Supported environment variables**:
 `PREFECT_SERVER_SERVICES_DB_VACUUM_BATCH_SIZE`
 
+### `maintenance_pool_size`
+Size of the dedicated connection pool used for vacuum maintenance queries. Increasing this can help when event and flow-run vacuum tasks contend on high-volume deployments. Defaults to `1`.
+
+**Type**: `integer`
+
+**Default**: `1`
+
+**TOML dotted key path**: `server.services.db_vacuum.maintenance_pool_size`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_DB_VACUUM_MAINTENANCE_POOL_SIZE`
+
+### `maintenance_max_overflow`
+Number of overflow connections allowed for the vacuum maintenance connection pool. Defaults to `0`.
+
+**Type**: `integer`
+
+**Default**: `0`
+
+**Constraints**:
+- Minimum: 0
+
+**TOML dotted key path**: `server.services.db_vacuum.maintenance_max_overflow`
+
+**Supported environment variables**:
+`PREFECT_SERVER_SERVICES_DB_VACUUM_MAINTENANCE_MAX_OVERFLOW`
+
 ### `event_retention_overrides`
 Per-event-type retention period overrides. Keys are event type strings (e.g. 'prefect.flow-run.heartbeat'), values are retention periods in seconds. Event types not listed fall back to server.events.retention_period. Each override is capped by the global events retention period.
 
