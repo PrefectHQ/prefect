@@ -622,6 +622,49 @@ async def test_publisher_periodic_task_survives_outage_and_redelivers(
     assert calls["n"] == 2
 
 
+async def test_publisher_redelivers_when_dedup_cleanup_also_fails(
+    cache: Cache, redis: Redis
+):
+    """If both xadd and forget_duplicates fail during an outage, the batch must
+    survive and each message must land exactly once on recovery."""
+    async with Publisher(
+        "message-tests",
+        cache=cache,
+        deduplicate_by="my-message-id",
+        batch_size=100,
+        publish_every=timedelta(milliseconds=50),
+    ) as p:
+        real_xadd = p._client.xadd
+        outage = {"on": True}
+
+        async def flaky_xadd(*args: object, **kwargs: object):
+            if outage["on"]:
+                raise RedisConnectionError("simulated outage")
+            return await real_xadd(*args, **kwargs)
+
+        async def failing_forget_duplicates(*args: object, **kwargs: object):
+            raise RedisConnectionError("simulated outage")
+
+        with (
+            patch.object(p._client, "xadd", side_effect=flaky_xadd),
+            patch.object(
+                p.cache, "forget_duplicates", side_effect=failing_forget_duplicates
+            ),
+        ):
+            await p.publish_data(b"hello", {"my-message-id": "1"})
+            await p.publish_data(b"world", {"my-message-id": "2"})
+            await asyncio.sleep(0.1)  # first periodic tick fails both xadd and cleanup
+
+            assert p._periodic_task is not None
+            assert not p._periodic_task.done()
+            assert len(p._batch) == 2, "unsent messages must be re-queued, not dropped"
+
+        outage["on"] = False
+        await asyncio.sleep(0.1)  # recovery tick; markers must not filter the re-queue
+
+    assert await redis.xlen("message-tests") == 2
+
+
 async def test_trimming_streams(
     redis: Redis, publisher: Publisher, consumer_a: Consumer, consumer_b: Consumer
 ) -> None:
