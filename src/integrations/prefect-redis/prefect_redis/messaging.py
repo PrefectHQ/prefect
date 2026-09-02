@@ -174,30 +174,45 @@ class Cache(_Cache):
     async def clear_recently_seen_messages(self) -> None:
         return
 
-    async def without_duplicates(self, attribute: str, messages: list[M]) -> list[M]:
-        messages_with_attribute: list[M] = []
+    async def without_duplicates(
+        self, attribute: str, messages: list[M], claim_id: str = "1"
+    ) -> list[M]:
+        # Collapse same-key messages to their first occurrence before touching Redis,
+        # so an intra-batch duplicate is never mistaken for our own claim_id below.
+        first_by_key: dict[str, M] = {}
         messages_without_attribute: list[M] = []
-        async with self._client.pipeline() as p:
-            for m in messages:
-                if m.attributes is None or attribute not in m.attributes:
-                    logger.warning(
-                        "Message is missing deduplication attribute %r",
-                        attribute,
-                        extra={"event_message": m},
-                    )
-                    messages_without_attribute.append(m)
-                    continue
-                p.set(
-                    _deduplication_key(self.topic, m.attributes[attribute]),
-                    "1",
-                    nx=True,
-                    ex=MESSAGE_DEDUPLICATION_LOOKBACK,
+        for m in messages:
+            if m.attributes is None or attribute not in m.attributes:
+                logger.warning(
+                    "Message is missing deduplication attribute %r",
+                    attribute,
+                    extra={"event_message": m},
                 )
-                messages_with_attribute.append(m)
+                messages_without_attribute.append(m)
+                continue
+            key = _deduplication_key(self.topic, m.attributes[attribute])
+            first_by_key.setdefault(key, m)
+
+        keys = list(first_by_key)
+        async with self._client.pipeline() as p:
+            for key in keys:
+                p.set(key, claim_id, nx=True, ex=MESSAGE_DEDUPLICATION_LOOKBACK)
             results: list[Optional[bool]] = await p.execute()
 
+        # A marker holding our own claim_id is ours from a prior retry, not a duplicate.
+        already_ours: set[int] = set()
+        contested = [i for i, r in enumerate(results) if not r]
+        if contested:
+            async with self._client.pipeline() as p:
+                for i in contested:
+                    p.get(keys[i])
+                values = await p.execute()
+            already_ours = {i for i, v in zip(contested, values) if v == claim_id}
+
         return [
-            m for i, m in enumerate(messages_with_attribute) if results[i]
+            first_by_key[key]
+            for i, key in enumerate(keys)
+            if results[i] or i in already_ours
         ] + messages_without_attribute
 
     async def forget_duplicates(self, attribute: str, messages: list[M]) -> None:
@@ -274,7 +289,7 @@ class Publisher(_Publisher):
     async def __aenter__(self) -> Self:
         self._client = get_async_redis_client()
         self._batch: list[RedisStreamsMessage] = []
-        self._claimed_count = 0
+        self._claim_id: Optional[str] = None
         self._flush_lock = asyncio.Lock()
 
         if self.publish_every is not None:
@@ -330,22 +345,18 @@ class Publisher(_Publisher):
                 return
 
             batch = self._batch
-            claimed_count = self._claimed_count
+            claim_id = self._claim_id or uuid.uuid4().hex
             self._batch = []
-            self._claimed_count = 0
 
             to_publish = batch
             published = 0
-            claimed = claimed_count
+            dedup_ran = False
             try:
                 if self.deduplicate_by:
-                    fresh = batch[claimed_count:]
-                    to_publish = batch[:claimed_count] + (
-                        await self.cache.without_duplicates(self.deduplicate_by, fresh)
-                        if fresh
-                        else []
+                    to_publish = await self.cache.without_duplicates(
+                        self.deduplicate_by, batch, claim_id=claim_id
                     )
-                    claimed = len(to_publish)
+                    dedup_ran = True
                 for message in to_publish:
                     await self._client.xadd(
                         self.stream,
@@ -355,14 +366,16 @@ class Publisher(_Publisher):
                         },
                     )
                     published += 1
+                self._claim_id = None
             except Exception:
                 unsent = to_publish[published:]
                 self._batch[:0] = unsent
-                if self.deduplicate_by and unsent:
+                self._claim_id = claim_id
+                # dedup_ran False means we don't know which markers, if any, got written
+                if self.deduplicate_by and unsent and dedup_ran:
                     try:
                         await self.cache.forget_duplicates(self.deduplicate_by, unsent)
                     except Exception:
-                        self._claimed_count = max(0, claimed - published)
                         logger.exception(
                             "Error clearing deduplication markers for topic %s",
                             self.topic,

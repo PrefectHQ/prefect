@@ -369,9 +369,13 @@ async def test_publish_during_blocked_deduplication_check(
     release = asyncio.Event()
     original_without_duplicates = Cache.without_duplicates
 
-    async def blocked_without_duplicates(self: Cache, attribute: str, messages: list):
+    async def blocked_without_duplicates(
+        self: Cache, attribute: str, messages: list, claim_id: str = "1"
+    ):
         await release.wait()
-        return await original_without_duplicates(self, attribute, messages)
+        return await original_without_duplicates(
+            self, attribute, messages, claim_id=claim_id
+        )
 
     async with deduplicating_publisher as p:
         with patch.object(Cache, "without_duplicates", blocked_without_duplicates):
@@ -697,10 +701,16 @@ async def test_publisher_redelivers_when_dedup_cleanup_also_fails(
     assert await redis.xlen("message-tests") == 2
 
 
+@pytest.mark.parametrize(
+    "call_real_before_raising",
+    [False, True],
+    ids=["raises_before_write", "raises_after_write"],
+)
 async def test_publisher_redelivers_when_dedup_check_also_fails(
-    cache: Cache, redis: Redis
+    cache: Cache, redis: Redis, call_real_before_raising: bool
 ):
-    """If without_duplicates fails and forget_duplicates also fails, the batch
+    """If without_duplicates fails (whether or not its writes actually landed
+    before the reply was lost) and forget_duplicates also fails, the batch
     must not be claimed wholesale, or a retry would skip dedup for a message
     whose marker predates this batch and republish it."""
     await cache.without_duplicates(
@@ -720,6 +730,8 @@ async def test_publisher_redelivers_when_dedup_check_also_fails(
 
         async def flaky_without_duplicates(*args: object, **kwargs: object):
             if outage["on"]:
+                if call_real_before_raising:
+                    await real_without_duplicates(*args, **kwargs)
                 raise RedisConnectionError("simulated outage")
             return await real_without_duplicates(*args, **kwargs)
 
