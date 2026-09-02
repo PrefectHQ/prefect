@@ -1,7 +1,7 @@
 ---
 title: How to customize Prefect's logging configuration
 sidebarTitle: Customize logging
-keywords: ["logging", "custom handler", "log level", "log format", "structured logging"]
+keywords: ["logging", "custom handler", "log level", "log format", "structured logging", "disable logging", "opt out", "PREFECT_LOGGING_TO_API_ENABLED", "send_to_api"]
 ---
 
 Prefect relies on [the standard Python implementation of logging configuration](https://docs.python.org/3/library/logging.config.html).
@@ -212,3 +212,116 @@ and SciPy logging statements with your flow and task run logs, use:
 
 Configure this setting as an environment variable or in a profile. See
 [Settings](/v3/develop/settings-and-profiles/) for more details about how to use settings.
+
+## Disable logging
+
+Prefect prints run logs to the console and sends them to the API.
+Use the settings in this section to turn off one or both outputs.
+
+### Stop sending logs to the API
+
+Set `PREFECT_LOGGING_TO_API_ENABLED` to `false` to keep logs out of the API.
+This setting works with Prefect Cloud and with a self-hosted Prefect server.
+
+<CodeGroup>
+```bash Environment variable
+export PREFECT_LOGGING_TO_API_ENABLED=false
+```
+
+```bash Profile
+prefect config set PREFECT_LOGGING_TO_API_ENABLED=false
+```
+
+```toml prefect.toml
+[logging.to_api]
+enabled = false
+```
+</CodeGroup>
+
+When this setting is `false`:
+
+- Flow run logs, task run logs, Prefect Cloud worker logs, and logs from [extra loggers](#include-logs-from-other-libraries) are not sent to the API.
+- Logs still print to the console.
+- States, events, artifacts, and other run data are still sent to the API. Only log records are affected.
+
+#### Where to set it
+
+Prefect reads this setting in the process that runs your flow.
+Set it at the scope that matches how you run your flows:
+
+| Scope | How to set it |
+|---|---|
+| A local run, or a flow served with `.serve()` | An environment variable, your active profile, or a `prefect.toml` file. See [Settings and profiles](/v3/concepts/settings-and-profiles). The process that calls `.serve()` passes its settings to each flow run it starts. |
+| Every flow run started by a worker | The environment or profile of the worker process. A worker passes each setting that is explicitly set in its own configuration to every flow run it starts. |
+| Every deployment in a work pool | The `env` field in the work pool's base job template. |
+| One deployment | The `env` job variable in `prefect.yaml` or in `.deploy()`. See [Customize job variables](/v3/how-to-guides/deployments/customize-job-variables). |
+| One flow run | The `env` job variable on the custom run form in the UI, or the `--job-variable` option on the CLI. |
+
+Environment variables from these scopes are merged key by key, and the most specific scope wins.
+A flow run's `env` overrides the deployment's, the deployment's overrides the work pool's, and all of them override the worker's own settings.
+
+### Silence a logger
+
+To stop a logger from writing to the console and to the API, raise its level or disable it.
+
+To keep only `WARNING` and higher records from task runs, raise the level of the task run logger:
+
+```bash
+prefect config set PREFECT_LOGGING_LOGGERS_PREFECT_TASK_RUNS_LEVEL="WARNING"
+```
+
+To disable the flow run and task run loggers for a block of code, use `disable_run_logger`.
+Inside the block, `get_run_logger()` returns a logger that discards every record, even outside of a run.
+This is useful when you call a task's function directly in a test:
+
+```python
+from prefect import task
+from prefect.logging import disable_run_logger, get_run_logger
+
+
+@task
+def process_order(order_id: int) -> int:
+    get_run_logger().info(f"Processing order {order_id}")
+    return order_id
+
+
+with disable_run_logger():
+    assert process_order.fn(42) == 42
+```
+
+See [Test workflows](/v3/how-to-guides/workflows/test-workflows) for more testing patterns.
+
+### Keep one message out of the API
+
+To print a single log record to the console without sending it to the API, pass `send_to_api=False` in the `extra` argument of the log call:
+
+```python
+from prefect import flow
+from prefect.logging import get_run_logger
+
+
+@flow
+def sync_customers():
+    logger = get_run_logger()
+    logger.info("Starting customer sync")
+    logger.info("Local debug detail", extra={"send_to_api": False})
+
+
+sync_customers()
+```
+
+The second message prints to the console but is not sent to the API.
+
+### Silence the warning for logs outside of a run
+
+Prefect can only send a log record to the API when the record belongs to a flow run.
+If a logger that is attached to the API handler is used outside of a run, Prefect drops the record and prints a warning.
+This happens, for example, when a library listed in `PREFECT_LOGGING_EXTRA_LOGGERS` logs outside of a flow run.
+
+To turn the warning off:
+
+```bash
+prefect config set PREFECT_LOGGING_TO_API_WHEN_MISSING_FLOW=ignore
+```
+
+The default value is `warn`. Set the value to `error` to raise an exception instead.
