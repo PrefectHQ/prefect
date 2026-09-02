@@ -23,15 +23,21 @@ on:
       - ".github/workflows/docker-images.yaml"
       - "ui/**"
 
-  # On workflow_dispatch, push sha and branch patterns to prefect-dev
+  # On workflow_dispatch, push sha and branch patterns to prefect-dev or recover an existing stable release
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing stable release tag to publish to prefecthq/prefect"
+        required: false
+        type: string
 
 jobs:
   publish-docker-images:
     name: Build and publish to DockerHub
     runs-on: ubuntu-latest
-    environment: ${{ ( github.event_name == 'release' && 'prod' ) || 'dev' }}
+    environment: ${{ ( (github.event_name == 'release' || inputs.tag != '') && 'prod' ) || 'dev' }}
     strategy:
+      fail-fast: false
       matrix:
         flavor:
           - ""
@@ -57,18 +63,19 @@ jobs:
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          password: ${{ secrets.DOCKERHUB_TOKEN_RW }}
 
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
 
       - name: Generate tags for prefecthq/prefect-dev
         id: metadata-dev
         uses: docker/metadata-action@v5
         # do not generate the development tags on release events
-        if: ${{ github.event_name != 'release' }}
+        if: ${{ github.event_name != 'release' && inputs.tag == '' }}
         with:
           images: prefecthq/prefect-dev
           tags: |
@@ -90,18 +97,18 @@ jobs:
       - name: Generate tags for prefecthq/prefect
         id: metadata-prod
         uses: docker/metadata-action@v5
-        # only generate the production tags on release events
-        if: ${{ github.event_name == 'release' }}
+        # generate production tags on release events or when recovering an existing stable release
+        if: ${{ github.event_name == 'release' || inputs.tag != '' }}
         with:
           images: prefecthq/prefect
           # push `latest`, `X.Y` and `X` tags only when the release is not marked as prerelease
           # push `latest` and `X` tags only when the release is marked as latest
           # push `2-latest` tags on any non-prerelease 2.x release
           tags: |
-            type=pep440,pattern={{version}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
-            type=pep440,pattern={{major}}.{{minor}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ github.event.release.prerelease == false }}
-            type=pep440,pattern={{major}},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ github.event.release.prerelease == false && github.ref_name == env.LATEST_TAG }}
-            type=raw,value=2-latest${{ matrix.flavor }},enable=${{ matrix.python-version == '3.10' && github.event.release.prerelease == false }}
+            type=pep440,pattern={{version}},value=${{ inputs.tag || github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }}
+            type=pep440,pattern={{major}}.{{minor}},value=${{ inputs.tag || github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ (github.event_name == 'release' && github.event.release.prerelease == false) || inputs.tag != '' }}
+            type=pep440,pattern={{major}},value=${{ inputs.tag || github.ref_name }},suffix=-python${{ matrix.python-version }}${{ matrix.flavor }},enable=${{ github.event.release.prerelease == false && github.ref_name == env.LATEST_TAG }}
+            type=raw,value=2-latest${{ matrix.flavor }},enable=${{ matrix.python-version == '3.10' && ((github.event_name == 'release' && github.event.release.prerelease == false) || inputs.tag != '') }}
           flavor: |
             latest=false
 
