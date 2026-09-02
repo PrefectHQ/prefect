@@ -1,5 +1,6 @@
+import asyncio
 import warnings
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from prefect_redis.client import (
@@ -483,3 +484,105 @@ def test_close_all_cached_connections(mock_cache):
 
     # Verify run_until_complete was called twice (for disconnect and close)
     assert mock_loop.run_until_complete.call_count == 2
+
+
+class TestClearCachedClients:
+    """Regression tests for clear_cached_clients().
+
+    clear_cached_clients() is called on every reconnect attempt after a
+    RedisError (see messaging.py's consumer loop). It must actually close
+    each evicted client's connections -- including ones stuck "in use" from
+    a hung operation -- or those sockets leak until the pool's connection
+    cap is exhausted, permanently, even once Redis is healthy again.
+    """
+
+    def _cached_client(
+        self, loop: asyncio.AbstractEventLoop
+    ) -> tuple[tuple, MagicMock]:
+        client = MagicMock()
+        client.aclose = AsyncMock()
+        key = (get_async_redis_client, (), (), loop)
+        _client_cache[key] = client
+        return key, client
+
+    async def test_clear_cached_clients_closes_current_loop_clients(self):
+        key, client = self._cached_client(asyncio.get_running_loop())
+
+        await clear_cached_clients()
+
+        client.aclose.assert_awaited_once()
+        assert key not in _client_cache
+
+    async def test_clear_cached_clients_leaves_other_loop_clients(self):
+        other_loop = asyncio.new_event_loop()
+        key, client = self._cached_client(other_loop)
+        try:
+            await clear_cached_clients()
+
+            client.aclose.assert_not_awaited()
+            assert _client_cache[key] is client
+        finally:
+            del _client_cache[key]
+            other_loop.close()
+
+    async def test_clear_cached_clients_tolerates_close_failures(self):
+        """A dead connection failing to close must not abort the recovery
+        path that called clear_cached_clients()."""
+        key, client = self._cached_client(asyncio.get_running_loop())
+        client.aclose.side_effect = ConnectionError("gone")
+
+        await clear_cached_clients()  # must not raise
+
+        assert key not in _client_cache
+
+    async def test_clear_cached_clients_is_safe_under_concurrent_caching(self):
+        """A second consumer racing to cache a client mid-close must not be
+        lost or hit a 'dictionary changed size during iteration' error."""
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def slow_aclose():
+            started.set()
+            await release.wait()
+
+        key, client = self._cached_client(asyncio.get_running_loop())
+        client.aclose.side_effect = slow_aclose
+
+        task = asyncio.ensure_future(clear_cached_clients())
+        await started.wait()
+
+        other_key, other_client = self._cached_client(asyncio.get_running_loop())
+        try:
+            release.set()
+            await task  # must not raise
+
+            assert _client_cache[other_key] is other_client
+        finally:
+            _client_cache.pop(other_key, None)
+
+    async def test_clear_cached_clients_closes_none_loop_clients(self):
+        """A client cached from sync context (no running loop) has a None
+        loop key. Nothing else ever closes these, so clear_cached_clients()
+        must reap them on whatever loop is running now."""
+        key, client = self._cached_client(None)
+
+        await clear_cached_clients()
+
+        client.aclose.assert_awaited_once()
+        assert key not in _client_cache
+
+    async def test_clear_cached_clients_releases_in_use_connections(self):
+        """End-to-end regression test against a real Redis: prove the fix
+        actually reaps a connection stuck in-use, not just that the cache
+        dict gets emptied (which passes even without the fix)."""
+        client = get_async_redis_client()
+        await client.ping()
+
+        pool = client.connection_pool
+        leaked_connection = await pool.get_connection()
+        assert leaked_connection in pool._in_use_connections
+        assert leaked_connection.is_connected
+
+        await clear_cached_clients()
+
+        assert not leaked_connection.is_connected

@@ -8,10 +8,13 @@ from pydantic import Field, model_validator
 from redis.asyncio import Redis
 from typing_extensions import Self, TypeAlias
 
+from prefect.logging import get_logger
 from prefect.settings.base import (
     PrefectBaseSettings,
     build_settings_config,  # type: ignore[reportPrivateUsage]
 )
+
+logger = get_logger(__name__)
 
 _UNSET: Any = object()
 
@@ -175,9 +178,23 @@ def close_all_cached_connections() -> None:
 
 
 async def clear_cached_clients() -> None:
-    """Clear cached Redis clients and the messaging URL lookup."""
+    """Close and clear cached Redis clients and the messaging URL lookup.
+
+    Without closing, connections stuck in-use from a hung operation are never
+    released and the pool eventually exhausts its connection cap.
+    """
     _get_redis_messaging_url.cache_clear()
-    _client_cache.clear()
+
+    current_loop = _running_loop()
+    for key, client in list(_client_cache.items()):
+        _, _, _, loop = key
+        if loop is not None and loop is not current_loop:
+            continue  # can't await a client bound to another loop
+        _client_cache.pop(key, None)
+        try:
+            await client.aclose()
+        except Exception:
+            logger.exception("Error closing cached Redis client")
 
 
 @cached
