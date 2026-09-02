@@ -5,7 +5,7 @@ import json
 import socket
 import time
 import uuid
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from datetime import timedelta
 from functools import partial
 from types import TracebackType
@@ -272,6 +272,7 @@ class Publisher(_Publisher):
         self._client = get_async_redis_client()
         self._batch: list[RedisStreamsMessage] = []
         self._claimed_count = 0
+        self._flush_lock = asyncio.Lock()
 
         if self.publish_every is not None:
             interval = self.publish_every.total_seconds()
@@ -304,6 +305,8 @@ class Publisher(_Publisher):
         try:
             if self._periodic_task:
                 self._periodic_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await self._periodic_task
             await self._publish_current_batch()
         except Exception:
             if self.deduplicate_by:
@@ -319,47 +322,48 @@ class Publisher(_Publisher):
             await asyncio.shield(self._publish_current_batch())
 
     async def _publish_current_batch(self) -> None:
-        if not self._batch:
-            return
+        async with self._flush_lock:
+            if not self._batch:
+                return
 
-        if self.deduplicate_by:
-            claimed = self._batch[: self._claimed_count]
-            fresh = self._batch[self._claimed_count :]
-            to_publish = claimed + (
-                await self.cache.without_duplicates(self.deduplicate_by, fresh)
-                if fresh
-                else []
-            )
-        else:
-            to_publish = list(self._batch)
-
-        self._batch.clear()
-        self._claimed_count = 0
-
-        published = 0
-        try:
-            for message in to_publish:
-                await self._client.xadd(
-                    self.stream,
-                    {
-                        "data": message.data,
-                        "attributes": orjson.dumps(message.attributes),
-                    },
+            if self.deduplicate_by:
+                claimed = self._batch[: self._claimed_count]
+                fresh = self._batch[self._claimed_count :]
+                to_publish = claimed + (
+                    await self.cache.without_duplicates(self.deduplicate_by, fresh)
+                    if fresh
+                    else []
                 )
-                published += 1
-        except Exception:
-            unsent = to_publish[published:]
-            self._batch[:0] = unsent
-            if self.deduplicate_by and unsent:
-                try:
-                    await self.cache.forget_duplicates(self.deduplicate_by, unsent)
-                except Exception:
-                    self._claimed_count = len(unsent)
-                    logger.exception(
-                        "Error clearing deduplication markers for topic %s",
-                        self.topic,
+            else:
+                to_publish = list(self._batch)
+
+            self._batch.clear()
+            self._claimed_count = 0
+
+            published = 0
+            try:
+                for message in to_publish:
+                    await self._client.xadd(
+                        self.stream,
+                        {
+                            "data": message.data,
+                            "attributes": orjson.dumps(message.attributes),
+                        },
                     )
-            raise
+                    published += 1
+            except Exception:
+                unsent = to_publish[published:]
+                self._batch[:0] = unsent
+                if self.deduplicate_by and unsent:
+                    try:
+                        await self.cache.forget_duplicates(self.deduplicate_by, unsent)
+                    except Exception:
+                        self._claimed_count = len(unsent)
+                        logger.exception(
+                            "Error clearing deduplication markers for topic %s",
+                            self.topic,
+                        )
+                raise
 
 
 class Consumer(_Consumer):

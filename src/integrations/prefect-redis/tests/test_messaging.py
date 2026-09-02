@@ -665,6 +665,39 @@ async def test_publisher_redelivers_when_dedup_cleanup_also_fails(
     assert await redis.xlen("message-tests") == 2
 
 
+async def test_publisher_exit_waits_for_inflight_periodic_flush(
+    cache: Cache, redis: Redis
+):
+    """Exiting while a periodic flush is stuck in xadd must not return until
+    that flush finishes; its failed message is republished, not dropped."""
+    real_xadd = redis.xadd
+    gate = asyncio.Event()
+    calls = {"n": 0}
+
+    async def gated_xadd(*args: object, **kwargs: object):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            await gate.wait()
+            raise RedisConnectionError("simulated outage")
+        return await real_xadd(*args, **kwargs)
+
+    with patch.object(redis, "xadd", side_effect=gated_xadd):
+        async with Publisher(
+            "message-tests",
+            cache=cache,
+            batch_size=100,
+            publish_every=timedelta(milliseconds=50),
+        ) as p:
+            await p.publish_data(b"hello", {"id": "1"})
+            await asyncio.sleep(0.1)  # periodic tick is now blocked inside xadd
+            assert calls["n"] == 1
+            asyncio.get_running_loop().call_later(0.05, gate.set)
+        # __aexit__ returned: it waited, and republished
+
+    assert await redis.xlen("message-tests") == 1
+    assert calls["n"] == 2
+
+
 async def test_trimming_streams(
     redis: Redis, publisher: Publisher, consumer_a: Consumer, consumer_b: Consumer
 ) -> None:
