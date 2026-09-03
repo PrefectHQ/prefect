@@ -101,9 +101,11 @@ def _parse_sentinel_url(
     """Split a Sentinel URL into members, service name, daemon kwargs and data-node options.
 
     Only the Sentinel-specific parts are parsed here: the member list, the service
-    name and the `sentinel_*` options. Credentials, the database index and every
+    name, the database index and the `sentinel_*` options. Credentials and every
     other option are rebuilt into a standalone URL and parsed by redis-py, so they
-    get exactly the semantics of a `redis://` URL.
+    get exactly the semantics of a `redis://` URL. The database index is validated
+    here, as docket does, because redis-py ignores a path it cannot parse as an
+    integer and silently falls back to database 0.
     """
     scheme, _, remainder = url.partition("://")
     # Carve the netloc off by hand: urlsplit rejects a multi-host netloc with an
@@ -122,8 +124,20 @@ def _parse_sentinel_url(
             "A Sentinel connection URL requires a service name after the member "
             "list, e.g. redis+sentinel://sentinel-a:26379,sentinel-b:26379/mymaster"
         )
-    service_name = segments[0]
-    db_path = f"/{segments[1]}" if len(segments) > 1 else ""
+    service_name, *rest = segments
+    if len(rest) > 1:
+        raise ValueError(
+            "A Sentinel connection URL path is /service_name[/db]; unexpected "
+            "segments after the database index in connection URL"
+        )
+    db_path = ""
+    if rest:
+        try:
+            db_path = f"/{int(rest[0])}"
+        except ValueError as exc:
+            raise ValueError(
+                f"Invalid database index {rest[0]!r} in Sentinel connection URL"
+            ) from exc
 
     query = parse_qs(parts.query, keep_blank_values=True)
     sentinel_kwargs: dict[str, Any] = {}
