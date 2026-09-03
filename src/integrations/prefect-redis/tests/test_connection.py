@@ -103,6 +103,22 @@ def test_sentinel_url_builds_a_master_client(asynchronous: bool) -> None:
         assert daemon.connection_pool.connection_kwargs.get("password") is None
 
 
+@pytest.mark.parametrize(
+    ("path", "db"),
+    [
+        pytest.param("/mymaster", 0, id="no_db"),
+        pytest.param("/mymaster/", 0, id="trailing_slash"),
+        pytest.param("/mymaster/3", 3, id="db"),
+        pytest.param("/mymaster/3/", 3, id="db_trailing_slash"),
+    ],
+)
+def test_sentinel_path_is_service_name_then_database(path: str, db: int) -> None:
+    client = redis_from_url(f"redis+sentinel://s1:26379{path}")
+    pool = client.connection_pool
+    assert pool.service_name == "mymaster"
+    assert pool.connection_kwargs.get("db", 0) == db
+
+
 @sync_and_async
 def test_sentinel_members_default_to_the_sentinel_port(asynchronous: bool) -> None:
     client = redis_from_url(
@@ -251,6 +267,16 @@ def test_daemons_inherit_socket_options_like_redis_py(asynchronous: bool) -> Non
             "redis+sentinel://:26379/mymaster", "missing a host", id="no_host"
         ),
         pytest.param(
+            "redis+sentinel://s1:26379/mymaster/abc",
+            "Invalid database index 'abc'",
+            id="bad_db",
+        ),
+        pytest.param(
+            "redis+sentinel://s1:26379/mymaster/1/2",
+            "unexpected segments after the database index",
+            id="extra_path_segments",
+        ),
+        pytest.param(
             "redis+sentinel://s1:26379/mymaster?socket_timeout=abc",
             "Invalid value for 'socket_timeout'",
             id="bad_option_is_rejected_by_redis_py",
@@ -272,6 +298,7 @@ def test_malformed_urls_raise_value_error(url: str, match: str) -> None:
     [
         "redis+sentinel://u:topsecret@s1:26379",
         "redis+sentinel://u:topsecret@s1:26379/mymaster?socket_timeout=maybe",
+        "redis+sentinel://u:topsecret@s1:26379/mymaster/abc",
         "redis+sentinel://u:topsecret@s1:26379/mymaster?sentinel_password=topsecret&protocol=x",
         "rediss://u:topsecret@cache:6379?socket_timeout=maybe",
     ],
