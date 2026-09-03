@@ -2427,6 +2427,84 @@ class TestFlowCrashDetection:
             "BaseException was raised after user code finished executing" in caplog.text
         )
 
+    async def test_termination_signal_after_user_code_finishes_does_not_crash_sync(
+        self, prefect_client, monkeypatch, caplog
+    ):
+        """
+        A SIGTERM that lands during post-completion teardown must not overwrite
+        the already-reported Completed state with Crashed (sync flow).
+        """
+        flow_name = f"my-flow-{uuid.uuid4()}"
+
+        @flow(name=flow_name)
+        def my_flow():
+            return 42
+
+        original_handle_success = FlowRunEngine.handle_success
+
+        def handle_success_with_sigterm(self, result):
+            original_handle_success(self, result)
+            raise TerminationSignal(signal=signal.SIGTERM)
+
+        monkeypatch.setattr(
+            FlowRunEngine, "handle_success", handle_success_with_sigterm
+        )
+
+        result = my_flow()
+        assert result == 42
+
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        assert flow_run.state.is_completed()
+        assert not flow_run.state.is_crashed()
+        assert "Crash detected!" not in caplog.text
+        assert (
+            "Termination signal was received after the flow run reached a final state"
+            in caplog.text
+        )
+
+    async def test_termination_signal_after_user_code_finishes_does_not_crash_async(
+        self, prefect_client, monkeypatch, caplog
+    ):
+        """
+        A SIGTERM that lands during post-completion teardown must not overwrite
+        the already-reported Completed state with Crashed (async flow).
+        """
+        flow_name = f"my-flow-{uuid.uuid4()}"
+
+        @flow(name=flow_name)
+        async def my_flow():
+            return 42
+
+        original_handle_success = AsyncFlowRunEngine.handle_success
+
+        async def handle_success_with_sigterm(self, result):
+            await original_handle_success(self, result)
+            raise TerminationSignal(signal=signal.SIGTERM)
+
+        monkeypatch.setattr(
+            AsyncFlowRunEngine, "handle_success", handle_success_with_sigterm
+        )
+
+        result = await my_flow()
+        assert result == 42
+
+        flow_runs = await prefect_client.read_flow_runs(
+            flow_filter=FlowFilter(name=FlowFilterName(any_=[flow_name]))
+        )
+        assert len(flow_runs) == 1
+        flow_run = flow_runs[0]
+        assert flow_run.state.is_completed()
+        assert not flow_run.state.is_crashed()
+        assert "Crash detected!" not in caplog.text
+        assert (
+            "Termination signal was received after the flow run reached a final state"
+            in caplog.text
+        )
+
     async def test_base_exception_before_user_code_finishes_crashes_sync(
         self, prefect_client, monkeypatch
     ):
