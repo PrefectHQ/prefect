@@ -6,7 +6,6 @@ import type { SchemaFormErrors } from "./types/errors";
 import { useSchemaFormContext } from "./use-schema-form-context";
 import { getIndexForAnyOfPropertyValue } from "./utilities/getIndexForAnyOfPropertyValue";
 import { getSchemaObjectLabel } from "./utilities/getSchemaObjectLabel";
-import { isDefined } from "./utilities/guards";
 import { mergeSchemaPropertyDefinition } from "./utilities/mergeSchemaPropertyDefinition";
 export type SchemaFormInputAnyOfProps = {
 	value: unknown;
@@ -62,18 +61,16 @@ export function SchemaFormInputAnyOf({
 	// a definition with a const has exactly one valid value. The user cannot type
 	// it, so the const is the value for that definition
 	function getValueForIndex(index: number): unknown {
-		const value = values.current.get(index);
-
-		if (isDefined(value)) {
-			return value;
-		}
-
 		const definition = mergeSchemaPropertyDefinition(
 			property.anyOf[index],
 			schema,
 		);
 
-		return isDefined(definition.const) ? definition.const : value;
+		if ("const" in definition) {
+			return definition.const;
+		}
+
+		return values.current.get(index);
 	}
 
 	return (
