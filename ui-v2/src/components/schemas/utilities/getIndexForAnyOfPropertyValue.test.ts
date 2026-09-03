@@ -245,6 +245,81 @@ describe("getIndexForAnyOfPropertyValue", () => {
 		).toBe(0);
 	});
 
+	test("returns index of the definition whose const matches the value", () => {
+		const property = {
+			anyOf: [
+				{ type: "string" },
+				{ type: "string", const: "bar" },
+				{ type: "null" },
+			],
+		} as unknown as SchemaObject;
+		expect(
+			getIndexForAnyOfPropertyValue({ value: "bar", property, schema }),
+		).toBe(1);
+	});
+
+	test("returns index of the string definition when no const matches the value", () => {
+		const property = {
+			anyOf: [
+				{ type: "null" },
+				{ type: "string" },
+				{ type: "string", const: "bar" },
+			],
+		} as unknown as SchemaObject;
+		expect(
+			getIndexForAnyOfPropertyValue({ value: "foo", property, schema }),
+		).toBe(1);
+	});
+
+	test("returns index of the string definition that follows a const definition", () => {
+		const property = {
+			anyOf: [{ type: "string", const: "bar" }, { type: "string" }],
+		} as unknown as SchemaObject;
+		expect(
+			getIndexForAnyOfPropertyValue({ value: "foo", property, schema }),
+		).toBe(1);
+	});
+
+	test("returns index of the definition whose const is structurally equal to the value", () => {
+		const property = {
+			anyOf: [
+				{ type: "object" },
+				{ type: "object", const: { mode: "fast" } },
+				{ type: "array", const: ["a", "b"] },
+			],
+		} as unknown as SchemaObject;
+		expect(
+			getIndexForAnyOfPropertyValue({
+				value: { mode: "fast" },
+				property,
+				schema,
+			}),
+		).toBe(1);
+		expect(
+			getIndexForAnyOfPropertyValue({ value: ["a", "b"], property, schema }),
+		).toBe(2);
+	});
+
+	test("returns index of the referenced definition whose const sibling matches the value", () => {
+		const schemaWithDefinitions = {
+			type: "object",
+			properties: {},
+			definitions: {
+				Mode: { type: "string" },
+			},
+		} as unknown as SchemaObject;
+		const property = {
+			anyOf: [{ type: "string" }, { $ref: "#/definitions/Mode", const: "bar" }],
+		} as SchemaObject & { anyOf: (SchemaObject | ReferenceObject)[] };
+		expect(
+			getIndexForAnyOfPropertyValue({
+				value: "bar",
+				property,
+				schema: schemaWithDefinitions,
+			}),
+		).toBe(1);
+	});
+
 	test("returns 0 when using default value and value is undefined", () => {
 		const property = {
 			anyOf: [{ type: "string" }, { type: "number" }],
