@@ -80,7 +80,7 @@ from prefect.utilities.dockerutils import (
 from prefect.utilities.processutils import command_to_string
 from prefect.workers.base import BaseJobConfiguration, BaseWorker, BaseWorkerResult
 from prefect_docker.credentials import DockerRegistryCredentials
-from prefect_docker.types import VolumeStr
+from prefect_docker.types import VolumeStr, is_relative_bind_source
 
 if TYPE_CHECKING:
     from uuid import UUID
@@ -94,6 +94,21 @@ if TYPE_CHECKING:
 CONTAINER_LABELS = {
     "io.prefect.version": prefect.__version__,
 }
+
+
+def _resolve_volumes(volumes: list[str]) -> list[str]:
+    """
+    Resolve explicit relative bind-mount sources (e.g. `.`, `./dir`, `../dir`)
+    against the worker process's current working directory, leaving absolute
+    paths, named volumes, and anonymous volumes unchanged.
+    """
+    resolved: list[str] = []
+    for volume in volumes:
+        source, sep, rest = volume.partition(":")
+        if sep and is_relative_bind_source(source):
+            volume = f"{os.path.abspath(source)}{sep}{rest}"
+        resolved.append(volume)
+    return resolved
 
 
 class ImagePullPolicy(enum.Enum):
@@ -143,6 +158,8 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
             If 'networks' is set, this cannot be set.
         auto_remove: If set, containers will be deleted on completion.
         volumes: Docker volumes that should be mounted in created containers.
+            Relative bind-mount sources (e.g. `.` or `./data`) are resolved
+            against the worker's current working directory.
         stream_output: If set, the output from created containers will be streamed
             to local standard output.
         mem_limit: Memory limit of created containers. Accepts a value
@@ -191,8 +208,10 @@ class DockerWorkerJobConfiguration(BaseJobConfiguration):
     )
     volumes: list[VolumeStr] = Field(
         default_factory=list,
-        description="A list of volume to mount into created containers.",
-        examples=["/my/local/path:/path/in/container"],
+        description="A list of volumes to mount into created containers."
+        " Relative bind-mount sources (e.g. '.' or './data') are resolved"
+        " against the worker's current working directory.",
+        examples=["/my/local/path:/path/in/container", "./data:/path/in/container"],
     )
     stream_output: bool = Field(
         default=True,
@@ -797,7 +816,7 @@ class DockerWorker(BaseWorker[DockerWorkerJobConfiguration, Any, DockerWorkerRes
             labels=configuration.labels,
             extra_hosts=extra_hosts,
             name=configuration.name,
-            volumes=configuration.volumes,
+            volumes=_resolve_volumes(configuration.volumes),
             mem_limit=configuration.mem_limit,
             memswap_limit=configuration.memswap_limit,
             privileged=configuration.privileged,
