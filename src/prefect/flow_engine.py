@@ -1238,7 +1238,7 @@ class FlowRunEngine(BaseFlowRunEngine[P, R]):
                             )
                         else:
                             self.handle_crash(exc)
-                            raise
+                        raise
                     except Exception:
                         # regular exceptions are caught and re-raised to the user
                         raise
@@ -1944,7 +1944,7 @@ class AsyncFlowRunEngine(BaseFlowRunEngine[P, R]):
                             )
                         else:
                             await self.handle_crash(exc)
-                            raise
+                        raise
                     except Exception:
                         # regular exceptions are caught and re-raised to the user
                         raise
