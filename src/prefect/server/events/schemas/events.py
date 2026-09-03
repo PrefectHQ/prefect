@@ -215,7 +215,8 @@ class ReceivedEvent(Event):
         description="When the event was received by Prefect Cloud",
     )
 
-    @computed_field(return_type=Optional[str])`n    @property
+    @computed_field(return_type=Optional[str])
+    @property
     def url(self) -> Optional[str]:
         """Returns the UI URL for this event, allowing users to link to events
         in automation templates without parsing date strings."""
