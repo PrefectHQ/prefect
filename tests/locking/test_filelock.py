@@ -1,5 +1,7 @@
 import asyncio
+import ctypes
 import os
+import sys
 import threading
 import time
 from pathlib import Path
@@ -23,6 +25,38 @@ class TestIsPidAlive:
         # PID 0 is the kernel on Unix — we can't signal it, but a very
         # large PID is almost certainly unused.
         assert _is_pid_alive(4_000_000) is False
+
+    @pytest.mark.windows
+    def test_protected_process_is_alive_on_windows(self):
+        # PID 4 is the Windows `System` process. It is always running but
+        # `OpenProcess` fails with ERROR_ACCESS_DENIED, which must not be
+        # mistaken for a dead process.
+        assert _is_pid_alive(4) is True
+
+    @pytest.mark.parametrize(
+        "last_error, expected",
+        [
+            (5, True),  # ERROR_ACCESS_DENIED: process exists, can't open it
+            (87, False),  # ERROR_INVALID_PARAMETER: no such process
+        ],
+    )
+    def test_windows_open_process_failure_is_classified_by_last_error(
+        self, monkeypatch: pytest.MonkeyPatch, last_error: int, expected: bool
+    ):
+        class FakeKernel32:
+            def OpenProcess(self, access: int, inherit: bool, pid: int) -> int:
+                return 0
+
+            def CloseHandle(self, handle: int) -> int:
+                raise AssertionError("CloseHandle must not be called")
+
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setattr(
+            ctypes, "WinDLL", lambda *args, **kwargs: FakeKernel32(), raising=False
+        )
+        monkeypatch.setattr(ctypes, "get_last_error", lambda: last_error, raising=False)
+
+        assert _is_pid_alive(12345) is expected
 
 
 class TestRemoveStaleLock:

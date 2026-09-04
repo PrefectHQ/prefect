@@ -28,13 +28,15 @@ def _is_pid_alive(pid: int) -> bool:
         import ctypes
 
         _PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-        handle = ctypes.windll.kernel32.OpenProcess(  # type: ignore[attr-defined]
-            _PROCESS_QUERY_LIMITED_INFORMATION, False, pid
-        )
+        _ERROR_ACCESS_DENIED = 5
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)  # type: ignore[attr-defined]
+        handle = kernel32.OpenProcess(_PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
         if handle:
-            ctypes.windll.kernel32.CloseHandle(handle)  # type: ignore[attr-defined]
+            kernel32.CloseHandle(handle)
             return True
-        return False
+        # ERROR_ACCESS_DENIED means the process exists but we can't open it
+        # (another user, higher integrity, or a protected process).
+        return ctypes.get_last_error() == _ERROR_ACCESS_DENIED
 
     try:
         os.kill(pid, 0)
