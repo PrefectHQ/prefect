@@ -564,6 +564,95 @@ class TestValidateDeploymentConcurrencyAtRunning:
             if limit.active_slots != 1:
                 raise ExpectedDeploymentConcurrencyReleaseRace
 
+    @pytest.mark.xfail(
+        strict=True,
+        raises=ExpectedDeploymentConcurrencyReleaseRace,
+        reason="Flow-run deletion leaves its lease able to decrement replacement capacity",
+    )
+    @pytest.mark.parametrize("delete_many", [False, True], ids=["single", "bulk"])
+    async def test_flow_run_deletion_reaper_preserves_replacement_slot(
+        self,
+        session: AsyncSession,
+        flow: orm_models.Flow,
+        delete_many: bool,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        assert deployment.concurrency_limit_id is not None
+        limit_id = deployment.concurrency_limit_id
+
+        acquired = await models.concurrency_limits_v2.bulk_increment_active_slots(
+            session=session,
+            concurrency_limit_ids=[limit_id],
+            slots=1,
+        )
+        assert acquired
+
+        lease_storage = get_concurrency_lease_storage()
+        old_lease = await lease_storage.create_lease(
+            resource_ids=[limit_id],
+            ttl=datetime.timedelta(seconds=-1),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                state=states.State(
+                    type=states.StateType.RUNNING,
+                    state_details=states.StateDetails(
+                        deployment_concurrency_lease_id=old_lease.id
+                    ),
+                ),
+            ),
+        )
+        await session.commit()
+
+        if delete_many:
+            assert await models.flow_runs.delete_flow_runs(
+                session=session,
+                flow_run_ids=[flow_run.id],
+            ) == [flow_run.id]
+        else:
+            assert await models.flow_runs.delete_flow_run(
+                session=session,
+                flow_run_id=flow_run.id,
+            )
+        await session.commit()
+
+        replacement_acquired = (
+            await models.concurrency_limits_v2.bulk_increment_active_slots(
+                session=session,
+                concurrency_limit_ids=[limit_id],
+                slots=1,
+            )
+        )
+        assert replacement_acquired
+        await session.commit()
+        replacement_lease = await lease_storage.create_lease(
+            resource_ids=[limit_id],
+            ttl=datetime.timedelta(minutes=5),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+
+        await revoke_expired_lease(
+            old_lease.id,
+            db=provide_database_interface(),
+            lease_storage=lease_storage,
+        )
+
+        assert await lease_storage.read_lease(replacement_lease.id) is not None
+        async with provide_database_interface().session_context() as read_session:
+            limit = await models.concurrency_limits_v2.read_concurrency_limit(
+                session=read_session,
+                concurrency_limit_id=limit_id,
+            )
+            assert limit is not None
+            if limit.active_slots != 1:
+                raise ExpectedDeploymentConcurrencyReleaseRace
+
     async def test_skips_validation_for_old_client_versions(
         self,
         session: AsyncSession,

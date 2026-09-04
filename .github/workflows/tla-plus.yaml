@@ -110,3 +110,6 @@ jobs:
           check_counterexample \
             CounterexampleReadPresentRelease.cfg \
             NoForeignRelease
+          check_counterexample \
+            CounterexampleFlowRunDeletion.cfg \
+            NoForeignRelease

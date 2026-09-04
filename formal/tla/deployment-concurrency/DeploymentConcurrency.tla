@@ -4,9 +4,8 @@ EXTENDS Naturals, FiniteSets, TLC
 (***************************************************************************)
 (* A bounded safety model of Prefect's deployment-concurrency lease        *)
 (* protocol. In ClaimAuthoritySpec, claim, leaseOwner, leaseState, and      *)
-(* epoch model the proposed durable SQL claim authority. The stale-reaper   *)
-(* and fallback configurations deliberately disable target guards. In the  *)
-(* read-present release-order spec, claim and leaseOwner are ghost state and *)
+(* epoch model the proposed durable SQL claim authority. In the split-path  *)
+(* counterexamples, claim and leaseOwner are ghost slot attribution while  *)
 (* leaseState is the current external record. The target never mirrors      *)
 (* claims into external lease storage.                                      *)
 (***************************************************************************)
@@ -398,6 +397,21 @@ CommitFallbackRelease ==
         reapPhase, scanEpoch, badStaleReap
         >>
 
+DeleteFlowRun(r) ==
+    LET l == stateLease[r] IN
+    /\ txnKind = "None"
+    /\ runState[r] \in {"Pending", "Running"}
+    /\ l # NoLease
+    /\ claim[l]
+    /\ runState' = [runState EXCEPT ![r] = "Terminal"]
+    /\ claim' = [claim EXCEPT ![l] = FALSE]
+    /\ dbSlots' = Decrement(dbSlots)
+    /\ UNCHANGED <<
+        stateLease, leaseState, leaseOwner, epoch,
+        reapPhase, scanEpoch, releasePhase, txnKind, txnRun, txnLease,
+        badForeignDecrement, badStaleReap
+        >>
+
 (***************************************************************************)
 (* Target SQL-claim protocol. Acquisition and release update the claim and  *)
 (* aggregate in one action, representing one database transaction. An      *)
@@ -504,6 +518,9 @@ PresentReleaseActions ==
     \/ ReleaseRevoke
     \/ CommitPresentRelease
 
+DeletionActions ==
+    \/ \E r \in Runs : DeleteFlowRun(r)
+
 StaleReapNext ==
     \/ AcquireActions
     \/ \E r \in Runs : Renew(r)
@@ -518,6 +535,11 @@ ReadPresentNext ==
     \/ AcquireActions
     \/ ReapActions
     \/ PresentReleaseActions
+
+DeletionNext ==
+    \/ AcquireActions
+    \/ ReapActions
+    \/ DeletionActions
 
 ClaimAuthorityNext ==
     \/ \E r \in Runs, l \in LeaseIds : ClaimAcquire(r, l)
@@ -534,6 +556,7 @@ ClaimAuthorityNext ==
 StaleReapSpec == Init /\ [][StaleReapNext]_vars
 FallbackSpec == Init /\ [][FallbackNext]_vars
 ReadPresentSpec == Init /\ [][ReadPresentNext]_vars
+DeletionSpec == Init /\ [][DeletionNext]_vars
 ClaimAuthoritySpec == Init /\ [][ClaimAuthorityNext]_vars
 
 TypeOK ==
