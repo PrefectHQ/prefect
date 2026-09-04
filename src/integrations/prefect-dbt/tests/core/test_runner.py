@@ -968,6 +968,63 @@ class TestPrefectDbtRunnerCallbackCreation:
             True,
         )
 
+    def test_unified_callback_falls_back_to_context_logger_when_no_task(
+        self, mock_manifest
+    ):
+        """Nodes without an associated Prefect task (e.g. source nodes during
+        `dbt source freshness`) should log into the caller's run context rather
+        than creating a logger with task_run_id=None that routes to the flow."""
+        mock_manifest.nodes = {}
+        runner = PrefectDbtRunner(manifest=mock_manifest)
+        context = {"flow_run_context": {"flow_run": {"id": "fr-1", "name": "my-flow"}}}
+
+        task_state = Mock(spec=NodeTaskTracker)
+        # Simulate no task registered for this node
+        task_state.get_task_run_id.return_value = None
+        task_state.get_task_run_name.return_value = None
+
+        source_node_id = "source.my_project.my_schema.my_table"
+
+        mock_context_logger = Mock()
+
+        with (
+            patch("prefect_dbt.core.runner.hydrated_context") as mock_hydrated_context,
+            patch(
+                "prefect_dbt.core.runner.get_run_logger",
+                return_value=mock_context_logger,
+            ),
+        ):
+            mock_hydrated_context.return_value.__enter__ = Mock(return_value=Mock())
+            mock_hydrated_context.return_value.__exit__ = Mock(return_value=False)
+
+            callback = runner._create_unified_callback(
+                task_state, EventLevel.INFO, context
+            )
+
+            log_event = Mock(spec=EventMsg)
+            log_event.info = Mock()
+            log_event.info.name = "FreshnessCheckDone"
+            log_event.info.level = EventLevel.INFO
+            log_event.info.msg = "source freshness result"
+            log_event.data = Mock()
+            log_event.data.node_info = Mock()
+            log_event.data.node_info.unique_id = source_node_id
+
+            with patch(
+                "prefect_dbt.core.runner.MessageToDict",
+                return_value={"node_info": {"unique_id": source_node_id}},
+            ):
+                callback(log_event)
+
+                if runner._event_queue:
+                    runner._event_queue.join()
+                    runner._stop_callback_processor()
+
+        # Should NOT use task_state.get_task_logger — no task was registered
+        task_state.get_task_logger.assert_not_called()
+        # Should use the context-based logger instead
+        mock_hydrated_context.assert_called_with(context)
+
 
 class TestPrefectDbtRunnerManifestNodeOperations:
     """Test manifest node operations."""
