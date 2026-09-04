@@ -1,4 +1,4 @@
-import { QueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { QueryClient, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
@@ -12,6 +12,9 @@ import {
 } from "@/mocks";
 import {
 	buildConcurrenyLimitDetailsActiveRunsQuery,
+	buildCountTaskRunConcurrencyLimitsQuery,
+	buildPaginateTaskRunConcurrencyLimitsQuery,
+	buildTaskRunConcurrencyLimitsPaginationBody,
 	queryKeyFactory,
 	type TaskRunConcurrencyLimit,
 	useCreateTaskRunConcurrencyLimit,
@@ -74,6 +77,83 @@ describe("task run concurrency limits hooks", () => {
 		// ------------ Assert
 		await waitFor(() => expect(result.current.isSuccess).toBe(true));
 		expect(result.current.data).toEqual(mockList);
+	});
+
+	it("builds a pagination body that offsets and filters server-side", () => {
+		expect(
+			buildTaskRunConcurrencyLimitsPaginationBody({
+				page: 42,
+				limit: 10,
+				search: "my-tag",
+			}),
+		).toEqual({
+			limit: 10,
+			offset: 410,
+			concurrency_limits: {
+				operator: "and_",
+				tag: { like_: "my-tag" },
+			},
+		});
+	});
+
+	it("requests a page of limits beyond the first page of results", async () => {
+		const mockList = seedData();
+		let requestBody: unknown;
+		server.use(
+			http.post(
+				buildApiUrl("/concurrency_limits/filter"),
+				async ({ request }) => {
+					requestBody = await request.json();
+					return HttpResponse.json(mockList);
+				},
+			),
+		);
+
+		const { result } = renderHook(
+			() =>
+				useQuery(
+					buildPaginateTaskRunConcurrencyLimitsQuery(
+						buildTaskRunConcurrencyLimitsPaginationBody({
+							page: 42,
+							limit: 10,
+							search: "tag",
+						}),
+					),
+				),
+			{ wrapper: createWrapper({}) },
+		);
+
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		expect(result.current.data).toEqual(mockList);
+		expect(requestBody).toEqual({
+			limit: 10,
+			offset: 410,
+			concurrency_limits: {
+				operator: "and_",
+				tag: { like_: "tag" },
+			},
+		});
+	});
+
+	it("counts limits matching a filter", async () => {
+		server.use(
+			http.post(buildApiUrl("/concurrency_limits/count"), () => {
+				return HttpResponse.json(202);
+			}),
+		);
+
+		const { result } = renderHook(
+			() =>
+				useQuery(
+					buildCountTaskRunConcurrencyLimitsQuery({
+						concurrency_limits: { operator: "and_", tag: { like_: "" } },
+					}),
+				),
+			{ wrapper: createWrapper({}) },
+		);
+
+		await waitFor(() => expect(result.current.isSuccess).toBe(true));
+		expect(result.current.data).toBe(202);
 	});
 
 	/**

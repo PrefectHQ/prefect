@@ -1,7 +1,11 @@
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import type { PaginationState } from "@tanstack/react-table";
 import { useState } from "react";
 import {
+	buildCountGlobalConcurrencyLimitsQuery,
+	buildGlobalConcurrencyLimitsPaginationBody,
+	buildPaginateGlobalConcurrencyLimitsQuery,
 	type GlobalConcurrencyLimit,
-	useListGlobalConcurrencyLimits,
 } from "@/api/global-concurrency-limits";
 
 import { GlobalConcurrencyLimitsDataTable } from "@/components/concurrency/global-concurrency-limits/global-concurrency-limits-data-table";
@@ -13,13 +17,41 @@ import {
 	GlobalConcurrencyLimitsDialog,
 } from "./global-conccurency-limits-dialog";
 
-export const GlobalConcurrencyLimitsView = () => {
+type GlobalConcurrencyLimitsViewProps = {
+	search: string | undefined;
+	onSearchChange: (value: string) => void;
+	pagination: PaginationState;
+	onPaginationChange: (pagination: PaginationState) => void;
+};
+
+export const GlobalConcurrencyLimitsView = ({
+	search,
+	onSearchChange,
+	pagination,
+	onPaginationChange,
+}: GlobalConcurrencyLimitsViewProps) => {
 	const [openDialog, setOpenDialog] = useState<DialogState>({
 		dialog: null,
 		data: undefined,
 	});
 
-	const { data } = useListGlobalConcurrencyLimits();
+	const filter = buildGlobalConcurrencyLimitsPaginationBody({
+		page: pagination.pageIndex + 1,
+		limit: pagination.pageSize,
+		search,
+	});
+
+	const { data: totalCount } = useSuspenseQuery(
+		buildCountGlobalConcurrencyLimitsQuery(),
+	);
+	const { data, isPending } = useQuery(
+		buildPaginateGlobalConcurrencyLimitsQuery(filter),
+	);
+	const { data: filteredCount = 0 } = useQuery(
+		buildCountGlobalConcurrencyLimitsQuery({
+			concurrency_limits: filter.concurrency_limits,
+		}),
+	);
 
 	const handleAddRow = () =>
 		setOpenDialog({ dialog: "create", data: undefined });
@@ -46,11 +78,18 @@ export const GlobalConcurrencyLimitsView = () => {
 	return (
 		<div className="flex flex-col gap-4">
 			<GlobalConcurrencyLimitsHeader onAdd={handleAddRow} />
-			{data.length === 0 ? (
+			{totalCount === 0 ? (
 				<GlobalConcurrencyLimitsEmptyState onAdd={handleAddRow} />
 			) : (
 				<GlobalConcurrencyLimitsDataTable
-					data={data}
+					data={data ?? []}
+					pageCount={Math.ceil(filteredCount / pagination.pageSize)}
+					pagination={pagination}
+					onPaginationChange={onPaginationChange}
+					searchValue={search}
+					onSearchChange={onSearchChange}
+					showFilteredEmptyState={filteredCount === 0 && !isPending}
+					onClearSearch={() => onSearchChange("")}
 					onEditRow={handleEditRow}
 					onDeleteRow={handleDeleteRow}
 					onResetRow={handleResetRow}

@@ -240,6 +240,9 @@ const globalConcurrencyLimitsHandlers = [
 	http.post(buildApiUrl("/v2/concurrency_limits/filter"), () => {
 		return HttpResponse.json([]);
 	}),
+	http.post(buildApiUrl("/v2/concurrency_limits/count"), () => {
+		return HttpResponse.json(0);
+	}),
 	http.post(buildApiUrl("/v2/concurrency_limits/"), () => {
 		return HttpResponse.json({ status: "success" }, { status: 201 });
 	}),
@@ -336,6 +339,9 @@ const taskRunHandlers = [
 const taskRunConcurrencyLimitsHandlers = [
 	http.post(buildApiUrl("/concurrency_limits/filter"), () => {
 		return HttpResponse.json([]);
+	}),
+	http.post(buildApiUrl("/concurrency_limits/count"), () => {
+		return HttpResponse.json(0);
 	}),
 	http.post(buildApiUrl("/concurrency_limits/tag/:tag/reset"), () => {
 		return HttpResponse.json({ status: 200 });
