@@ -143,9 +143,21 @@ if __name__ == "__main__":
 
 In both examples, the `concurrency` context manager occupies one slot on the `database` concurrency limit. If no slots are available, execution blocks until a slot becomes available.
 
+<Note>
+Before running these examples, create an **active** global concurrency limit that matches the name used in code:
+
+```bash
+prefect gcl create database --limit 1
+```
+
+If the limit does not exist, the default behavior is to log a warning and continue execution without blocking. Use `strict=True` when you need concurrency enforcement to fail fast when the specified limit does not exist instead of silently proceeding.
+
+`strict=True` does not enforce limits that exist but are inactive — ensure the limit is active (the default for `prefect gcl create`) before expecting tasks to block.
+</Note>
+
 ### Using strict mode
 
-Enable strict mode to ensure errors are raised if the limit doesn't exist or if lease renewal fails:
+Enable strict mode to ensure errors are raised if the limit doesn't exist (not if it is merely inactive) or if lease renewal fails:
 
 ```python
 from prefect import flow, task
@@ -153,7 +165,7 @@ from prefect.concurrency.sync import concurrency
 
 @task
 def process_critical_data(x, y):
-    # strict=True ensures this task fails fast if concurrency can't be enforced
+    # strict=True fails fast when the limit is missing, not when it is inactive
     with concurrency("database", occupy=1, strict=True):
         return x + y
 
