@@ -5,7 +5,7 @@ import json
 import socket
 import time
 import uuid
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from datetime import timedelta
 from functools import partial
 from types import TracebackType
@@ -40,9 +40,12 @@ from prefect.server.utilities.messaging import (
 from prefect.server.utilities.messaging import Publisher as _Publisher
 from prefect.settings.base import PrefectBaseSettings, build_settings_config
 from prefect_redis.client import (
+    RedisMessagingSettings,
     clear_cached_clients,
     cluster_key_prefix,
     get_async_redis_client,
+    url_socket_timeout,
+    with_socket_timeout,
 )
 
 logger = get_logger(__name__)
@@ -171,30 +174,50 @@ class Cache(_Cache):
     async def clear_recently_seen_messages(self) -> None:
         return
 
-    async def without_duplicates(self, attribute: str, messages: list[M]) -> list[M]:
-        messages_with_attribute: list[M] = []
+    async def without_duplicates(
+        self, attribute: str, messages: list[M], claim_id: Optional[str] = None
+    ) -> list[M]:
+        # Collapse same-key messages to their first occurrence before touching Redis,
+        # so an intra-batch duplicate is never mistaken for our own claim_id below.
+        first_by_key: dict[str, M] = {}
         messages_without_attribute: list[M] = []
+        for m in messages:
+            if m.attributes is None or attribute not in m.attributes:
+                logger.warning(
+                    "Message is missing deduplication attribute %r",
+                    attribute,
+                    extra={"event_message": m},
+                )
+                messages_without_attribute.append(m)
+                continue
+            key = _deduplication_key(self.topic, m.attributes[attribute])
+            first_by_key.setdefault(key, m)
+
+        keys = list(first_by_key)
         async with self._client.pipeline() as p:
-            for m in messages:
-                if m.attributes is None or attribute not in m.attributes:
-                    logger.warning(
-                        "Message is missing deduplication attribute %r",
-                        attribute,
-                        extra={"event_message": m},
-                    )
-                    messages_without_attribute.append(m)
-                    continue
+            for key in keys:
                 p.set(
-                    _deduplication_key(self.topic, m.attributes[attribute]),
-                    "1",
+                    key,
+                    claim_id if claim_id is not None else "1",
                     nx=True,
                     ex=MESSAGE_DEDUPLICATION_LOOKBACK,
                 )
-                messages_with_attribute.append(m)
             results: list[Optional[bool]] = await p.execute()
 
+        # A marker holding our own claim_id is ours from a prior retry, not a duplicate.
+        already_ours: set[int] = set()
+        contested = [i for i, r in enumerate(results) if not r]
+        if claim_id is not None and contested:
+            async with self._client.pipeline() as p:
+                for i in contested:
+                    p.get(keys[i])
+                values = await p.execute()
+            already_ours = {i for i, v in zip(contested, values) if v == claim_id}
+
         return [
-            m for i, m in enumerate(messages_with_attribute) if results[i]
+            first_by_key[key]
+            for i, key in enumerate(keys)
+            if results[i] or i in already_ours
         ] + messages_without_attribute
 
     async def forget_duplicates(self, attribute: str, messages: list[M]) -> None:
@@ -271,6 +294,8 @@ class Publisher(_Publisher):
     async def __aenter__(self) -> Self:
         self._client = get_async_redis_client()
         self._batch: list[RedisStreamsMessage] = []
+        self._claim_id: Optional[str] = None
+        self._flush_lock = asyncio.Lock()
 
         if self.publish_every is not None:
             interval = self.publish_every.total_seconds()
@@ -278,7 +303,14 @@ class Publisher(_Publisher):
             async def _publish_periodically() -> None:
                 while True:
                     await asyncio.sleep(interval)
-                    await asyncio.shield(self._publish_current_batch())
+                    try:
+                        await asyncio.shield(self._publish_current_batch())
+                    except asyncio.CancelledError:
+                        raise
+                    except Exception:
+                        logger.exception(
+                            "Error publishing batch for topic %s", self.topic
+                        )
 
             self._periodic_task = asyncio.create_task(_publish_periodically())
 
@@ -296,6 +328,8 @@ class Publisher(_Publisher):
         try:
             if self._periodic_task:
                 self._periodic_task.cancel()
+                with suppress(asyncio.CancelledError):
+                    await self._periodic_task
             await self._publish_current_batch()
         except Exception:
             if self.deduplicate_by:
@@ -311,31 +345,47 @@ class Publisher(_Publisher):
             await asyncio.shield(self._publish_current_batch())
 
     async def _publish_current_batch(self) -> None:
-        if not self._batch:
-            return
+        async with self._flush_lock:
+            if not self._batch:
+                return
 
-        if self.deduplicate_by:
-            to_publish = await self.cache.without_duplicates(
-                self.deduplicate_by, self._batch
-            )
-        else:
-            to_publish = list(self._batch)
+            batch = self._batch
+            claim_id = self._claim_id or uuid.uuid4().hex
+            self._batch = []
 
-        self._batch.clear()
-
-        try:
-            for message in to_publish:
-                await self._client.xadd(
-                    self.stream,
-                    {
-                        "data": message.data,
-                        "attributes": orjson.dumps(message.attributes),
-                    },
-                )
-        except Exception:
-            if self.deduplicate_by:
-                await self.cache.forget_duplicates(self.deduplicate_by, to_publish)
-            raise
+            to_publish = batch
+            published = 0
+            dedup_ran = False
+            try:
+                if self.deduplicate_by:
+                    to_publish = await self.cache.without_duplicates(
+                        self.deduplicate_by, batch, claim_id=claim_id
+                    )
+                    dedup_ran = True
+                for message in to_publish:
+                    await self._client.xadd(
+                        self.stream,
+                        {
+                            "data": message.data,
+                            "attributes": orjson.dumps(message.attributes),
+                        },
+                    )
+                    published += 1
+                self._claim_id = None
+            except Exception:
+                unsent = to_publish[published:]
+                self._batch[:0] = unsent
+                self._claim_id = claim_id
+                # dedup_ran False means we don't know which markers, if any, got written
+                if self.deduplicate_by and unsent and dedup_ran:
+                    try:
+                        await self.cache.forget_duplicates(self.deduplicate_by, unsent)
+                    except Exception:
+                        logger.exception(
+                            "Error clearing deduplication markers for topic %s",
+                            self.topic,
+                        )
+                raise
 
 
 class Consumer(_Consumer):
@@ -396,6 +446,30 @@ class Consumer(_Consumer):
         self._last_trimmed: Optional[float] = None
         self._read_batch_size: Optional[int] = read_batch_size
         self.use_consumer_group = use_consumer_group
+
+    def _get_redis_client(self) -> Redis:
+        """Blocking reads hold the socket for `self.block`, so a socket timeout
+        shorter than that fires before the read can return.
+
+        A `socket_timeout` in the settings' URL query takes precedence over any
+        keyword argument (that's how `Redis.from_url` behaves), so it must be
+        read from the URL and extended there rather than passed as a keyword.
+        """
+        settings = RedisMessagingSettings()
+        block = self.block.total_seconds()
+        url = settings.url
+        url_timeout = url_socket_timeout(url) if url else None
+        socket_timeout = (
+            url_timeout if url_timeout is not None else settings.socket_timeout
+        )
+
+        if socket_timeout is None or socket_timeout > block:
+            return get_async_redis_client()
+        if url:
+            return get_async_redis_client(
+                url=with_socket_timeout(url, block + socket_timeout)
+            )
+        return get_async_redis_client(socket_timeout=block + socket_timeout)
 
     async def _ensure_stream_and_group(self, redis_client: Redis) -> None:
         """Ensure the stream and consumer group exist."""
@@ -513,10 +587,11 @@ class Consumer(_Consumer):
         attempt = 0
         base_delay = 1.0
         max_delay = 60.0
+        redis_client: Optional[Redis] = None
 
         while True:  # Outer loop for connection resilience
             try:
-                redis_client: Redis = get_async_redis_client()
+                redis_client = self._get_redis_client()
 
                 if not self.use_consumer_group:
                     await self._run_without_consumer_group(handler, redis_client)
@@ -603,8 +678,9 @@ class Consumer(_Consumer):
                     f"reconnecting in {delay:.1f}s (attempt {attempt + 1}): {e}"
                 )
 
-                # Clear cached clients to force fresh connections
-                await clear_cached_clients()
+                # Retire only the client that failed; other endpoints'
+                # cached clients are unaffected.
+                await clear_cached_clients(client=redis_client)
 
                 await asyncio.sleep(delay)
                 attempt += 1
