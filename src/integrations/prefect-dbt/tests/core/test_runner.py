@@ -3,6 +3,7 @@ Tests for the PrefectDbtRunner class and related functionality.
 """
 
 import json
+import logging
 import time
 from pathlib import Path
 from typing import Any
@@ -26,10 +27,11 @@ from prefect_dbt.core._tracker import NodeTaskTracker
 from prefect_dbt.core.runner import PrefectDbtRunner, execute_dbt_node
 from prefect_dbt.core.settings import PrefectDbtSettings
 
-from prefect import flow
+from prefect import flow, task
 from prefect.assets import Asset
 from prefect.assets.core import MAX_ASSET_DESCRIPTION_LENGTH
 from prefect.client.orchestration import PrefectClient
+from prefect.context import TaskRunContext, serialize_context
 from prefect.tasks import MaterializingTask, Task
 
 
@@ -966,6 +968,66 @@ class TestPrefectDbtRunnerCallbackCreation:
             mock_manifest_node,
             context,
             True,
+        )
+
+    def test_unified_callback_logs_untracked_node_events_to_calling_run(
+        self, mock_manifest, caplog
+    ):
+        """Nodes without a Prefect task log to the run that called `invoke()`.
+
+        Sources during `dbt source freshness` get no task representation.
+        """
+        mock_manifest.nodes = {}
+        runner = PrefectDbtRunner(manifest=mock_manifest)
+        task_run_ids: list[str] = []
+
+        @task
+        def emit_source_freshness_event():
+            task_run_context = TaskRunContext.get()
+            assert task_run_context is not None
+            task_run_ids.append(str(task_run_context.task_run.id))
+
+            callback = runner._create_unified_callback(
+                NodeTaskTracker(), EventLevel.INFO, serialize_context()
+            )
+
+            event = Mock(spec=EventMsg)
+            event.info = Mock()
+            event.info.name = "LogFreshnessResult"
+            event.info.level = EventLevel.INFO
+            event.info.msg = "1 of 1 START freshness of raw.customers"
+            event.data = Mock()
+            event.data.node_info = Mock()
+            event.data.node_info.unique_id = "source.test_project.raw.customers"
+
+            callback(event)
+
+            if runner._event_queue:
+                runner._event_queue.join()
+                runner._stop_callback_processor()
+
+        @flow
+        def freshness_flow():
+            emit_source_freshness_event()
+
+        with (
+            patch(
+                "prefect_dbt.core.runner.MessageToDict",
+                return_value={"node_info": {"node_status": "success"}},
+            ),
+            caplog.at_level(logging.INFO, logger="prefect.task_runs"),
+        ):
+            freshness_flow()
+
+        freshness_records = [
+            record
+            for record in caplog.records
+            if "freshness of raw.customers" in record.getMessage()
+        ]
+        assert freshness_records
+        assert all(
+            getattr(record, "task_run_id", None) == task_run_ids[0]
+            for record in freshness_records
         )
 
 
