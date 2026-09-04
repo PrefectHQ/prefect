@@ -1,68 +1,36 @@
 # TLA+ Protocol Models
 
-TLA+ is executable design evidence, not proof that Prefect's implementation
-conforms to a model.
+Add a model only when a bounded concurrency question can change a design or
+preserve a regression that cheaper tests cannot establish.
 
-## Selection
+## Model contract
 
-Add or expand a model only when:
-
-- correctness depends on concurrency, retries, duplication, reordering,
-  crashes, time, or authority split across durable systems;
-- the model answers one named question with explicit safety or liveness
-  properties that ordinary tests cannot establish cheaply;
-- every action maps to a production interface or a named environment action;
-- a domain maintainer owns the model and its mapped tests; and
-- the result can change a design, reject an unsafe alternative, or preserve a
-  concrete regression.
-
-Do not model whole subsystems, ordinary CRUD, implementation syntax, or a
-known defect already covered completely by cheaper tests.
-
-## Development
-
-- Keep one protocol per directory. Label every configuration as current,
-  target, or an intentional unsafe mutation.
-- Model current behavior before a proposed repair. A target configuration is a
+- Label each configuration as current, target, or intentionally unsafe. Model
+  or isolate current failure behavior before a repair; a target remains a
   proposal until mapped production tests pass.
 - Keep independently durable stores, queues, transactions, and clocks distinct
-  unless production gives them one atomic authority.
-- Give each critical invariant an unsafe configuration that violates that
-  exact invariant, and choose finite bounds that admit the contested trace.
-- State fairness and availability assumptions. Never infer liveness from a
-  safety-only run.
+  unless production makes them atomic. State fairness and availability
+  assumptions; never infer liveness from a safety-only run.
+- For each design-critical safety claim, include an unsafe configuration that
+  violates the exact named invariant, with bounds that admit the contested
+  trace and make critical actions reachable.
 
-## Model-to-code Mapping
+Each model README records its question, owner, bounds, assumptions and
+exclusions, configuration status, invariants, commands and expected results,
+action/state-to-production mapping, and review triggers. Every production
+writer of modeled state must map to an action or be explicitly out of scope.
 
-Each model README must record its question, owner, bounds, assumptions,
-exclusions, configuration status, invariants, commands, expected results, and
-review triggers. Map every state variable and action to observable production
-state, a production interface, or an environment action.
+Translate relevant counterexamples into deterministic behavior tests using
+explicit barriers, not sleeps. A target is implemented only when mapped
+contract tests pass; check database locking or serialization against
+PostgreSQL. Keep the model and its test oracle independent of production code.
 
-Every production writer of modeled state must map to an action or be explicitly
-outside the modeled authority. Prefer one narrow owning module whose interface
-matches the model actions; prevent other writers from bypassing it.
+## CI and lifecycle
 
-Translate relevant counterexamples into deterministic behavior-level pytest
-regressions using explicit barriers rather than sleeps. Before calling a target
-implemented, add contract tests at the owning interface and run database
-serialization or locking cases against PostgreSQL. Use a test-only refinement
-mapping when concrete state must be compared with abstract model state.
-
-Do not generate the model from production code or share implementation
-predicates with the test oracle. Independence is what lets the model expose a
-design error.
-
-## CI and Maintenance
-
-- Pin the JDK and TLA+ tools and verify downloaded artifacts by checksum.
-- Require target configurations to pass and wrappers to verify each unsafe
-  configuration's exact exit status and violated invariant.
-- Describe checks as model checks, never implementation verification. Mapped
-  code changes must also run their contract and behavior tests.
-- Keep checks advisory until the domain owner accepts the scope, invariants,
+- Pin JDK and TLA+ tool versions, verify downloads by checksum, run targets as
+  expected-green, and verify each unsafe configuration's exact exit and named
+  invariant. Do not commit tool JARs or TLC metadata.
+- Keep a new check advisory until its owner accepts the scope, invariants,
   runtime, and diagnostics.
-- Do not commit tool JARs or TLC metadata.
-- Remove a model and its dedicated CI when its protocol is abandoned, no owner
-  remains, the production mapping cannot be maintained, or a stronger artifact
-  replaces it. Preserve useful production regressions.
+- Remove an unowned, unmappable, or obsolete model and its dedicated CI;
+  preserve useful production regressions.
