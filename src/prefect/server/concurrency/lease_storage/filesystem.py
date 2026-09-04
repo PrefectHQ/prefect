@@ -10,6 +10,7 @@ from uuid import UUID
 
 import anyio
 
+from prefect.locking._filelock import FileLock
 from prefect.server.concurrency.lease_storage import (
     ConcurrencyLeaseHolder,
     ConcurrencyLimitLeaseMetadata,
@@ -49,6 +50,22 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
     def _expiration_index_path(self) -> anyio.Path:
         return anyio.Path(self.storage_path / "expirations.json")
+
+    def _index_lock_path(self) -> Path:
+        # Guards the index's read-modify-write cycle. _atomic_write_json
+        # only keeps a single write from being torn; it does nothing to
+        # stop two renewals from reading the same snapshot and one
+        # clobbering the other's update on save. get_concurrency_lease_storage()
+        # builds a fresh instance per call, so an instance-level lock would
+        # never be shared between the concurrent renewals it's meant to
+        # serialize, and a plain asyncio.Lock is bound to whichever event
+        # loop first awaits it, so it can't serialize renewals coming from
+        # different loops in the same process (an embedded server restart,
+        # separate worker threads each running their own loop) or from
+        # separate processes sharing this storage path. A lock file next to
+        # the index itself works across all of those the same way, and its
+        # aacquire() polls without blocking the event loop while waiting.
+        return self.storage_path / "expirations.json.lock"
 
     def _atomic_write_json(self, file_path: Path, data: Any) -> None:
         """
@@ -98,15 +115,25 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         self, lease_id: UUID, expiration: datetime
     ) -> None:
         """Update a single lease's expiration in the index."""
-        index = await self._load_expiration_index()
-        index[str(lease_id)] = expiration.isoformat()
-        self._save_expiration_index(index)
+        lock = FileLock(self._index_lock_path())
+        await lock.aacquire()
+        try:
+            index = await self._load_expiration_index()
+            index[str(lease_id)] = expiration.isoformat()
+            self._save_expiration_index(index)
+        finally:
+            lock.release()
 
     async def _remove_from_expiration_index(self, lease_id: UUID) -> None:
         """Remove a lease from the expiration index."""
-        index = await self._load_expiration_index()
-        index.pop(str(lease_id), None)
-        self._save_expiration_index(index)
+        lock = FileLock(self._index_lock_path())
+        await lock.aacquire()
+        try:
+            index = await self._load_expiration_index()
+            index.pop(str(lease_id), None)
+            self._save_expiration_index(index)
+        finally:
+            lock.release()
 
     def _serialize_lease(
         self, lease: ResourceLease[ConcurrencyLimitLeaseMetadata]
@@ -281,8 +308,22 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
                 lease_id = UUID(lease_id_str)
                 expiration = datetime.fromisoformat(expiration_str)
 
-                if expiration < now:
-                    expired_leases.append(lease_id)
+                if expiration >= now:
+                    continue
+
+                # The index can lag behind a renewal that landed on disk
+                # (a lost update from a concurrent write, or just an older
+                # snapshot read a moment ago). The lease file itself is
+                # what renew_lease actually stamped, so it's the one to
+                # trust before we tell the reaper to kill something that's
+                # still alive. A missing lease file means the index entry
+                # is genuinely orphaned, so we still report it expired -
+                # revoking it just removes the stale entry.
+                lease = await self.read_lease(lease_id)
+                if lease is not None and lease.expiration >= now:
+                    continue
+
+                expired_leases.append(lease_id)
             except (ValueError, TypeError):
                 continue
 
