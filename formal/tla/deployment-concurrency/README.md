@@ -4,25 +4,28 @@ This bounded safety model asks whether cleanup can revoke a renewed lease or
 decrement another run's capacity. Its unimplemented target makes a durable SQL
 claim the sole decrement authority, updates claim and accounting atomically,
 and rechecks the current deadline before expiry release. TLC checks that
-protocol, not the Python implementation.
+protocol, including duplicate reaper delivery and PENDING reacquisition, not
+the Python implementation.
 
 Owner: Prefect server orchestration maintainers.
 
 ## Model and checks
 
-Bounds: two runs, two unique lease IDs, capacity one, bounded lease revisions,
-and nondeterministic expiry, terminal release, flow-run deletion, and queued
-expiry release. The target result is exhaustive only within these bounds. No
-configuration models the whole current protocol; the unsafe configurations
-isolate known failures.
+Bounds: two runs, two unique lease IDs, two reaper work items per lease,
+capacity one, bounded lease revisions, and nondeterministic expiry, PENDING
+reacquisition, terminal release, flow-run deletion, and queued expiry release.
+The target result is exhaustive only within these bounds. No configuration
+models the whole current protocol; the unsafe configurations isolate known
+failures.
 
 | Configuration | Status | Expected TLC result |
 | --- | --- | --- |
-| `DeploymentConcurrency.cfg` | target claim protocol | passes; 2,087 states, depth 15 |
+| `DeploymentConcurrency.cfg` | target claim protocol | passes; 55,915 states, depth 19 |
 | `CounterexampleStaleReap.cfg` | unsafe: no deadline recheck | exit 12; `RenewWinsAgainstStaleScan`, depth 10 |
 | `CounterexampleFallbackRelease.cfg` | unsafe: no live-claim guard | exit 12; `NoForeignRelease`, depth 17 |
 | `CounterexampleReadPresentRelease.cfg` | unsafe: stale read-present release | exit 12; `NoForeignRelease`, depth 17 |
 | `CounterexampleFlowRunDeletion.cfg` | unsafe: deletion leaves its lease live | exit 12; `NoForeignRelease`, depth 14 |
+| `CounterexampleDuplicateReap.cfg` | unsafe: duplicate reaper decrement | exit 12; `NoForeignRelease`, depth 18 |
 
 These TLA+ tools v1.7.4 baselines record the explored graphs; the counterexample
 traces witness the unsafe paths. CI verifies each expected exit and invariant.
@@ -33,11 +36,12 @@ accounting; `NoForeignRelease` prevents cross-lease decrement; and
 `RenewWinsAgainstStaleScan` fences stale work after a renewal.
 
 This model excludes liveness, rate limits, legacy clients and stores, lease-ID
-reuse, holder indexing, SQL outages, arbitrary cardinalities, physical overlap
-during lease-loss reaction, response replay, and request identity. The target
-does not access an external lease store: projections, migration, and eventual
-reclamation need separate models or tests, and cannot authorize claim actions.
-Direct mutation through other concurrency APIs violates the model's assumptions.
+reuse, holder indexing, SQL outages, arbitrary cardinalities, more than two
+reaper jobs per lease, physical overlap during lease-loss reaction, response
+replay, and request identity. The target does not access an external lease
+store: projections, migration, and eventual reclamation need separate models
+or tests, and cannot authorize claim actions. Direct mutation through other
+concurrency APIs violates the model's assumptions.
 
 ## Run locally
 
@@ -70,12 +74,15 @@ use `concurrency/lease_storage/ConcurrencyLeaseStorage`.
 | `CancelAfterLostLease`, `TerminalRead*`, `Begin*Release`, `ReleaseRevoke`, `Commit*Release` | `core_policy.py::{ValidateDeploymentConcurrencyAtRunning, _release_concurrency_lease, ReleaseFlowConcurrencySlots}`; lease storage `read_lease`/`revoke_lease`; `models/concurrency_limits_v2.py::bulk_decrement_active_slots` |
 | `DeleteFlowRun` | `models/flow_runs.py::{cleanup_flow_run_concurrency_slots, delete_flow_run, delete_flow_runs}`; `models/concurrency_limits_v2.py::bulk_decrement_active_slots` |
 
-`ClaimAcquire`, `ClaimExpiryRelease`, `DiscardStaleExpiry`,
+`ClaimAcquire`, `ClaimReacquire`, `ClaimExpiryRelease`, `DiscardStaleExpiry`,
 `ClaimTerminalRelease`, and `ClaimTerminalNoop` are an unimplemented
 claim-module contract, not aliases for today's split paths. In the target,
 `Renew`/`Expire`/`ScanExpired` use its SQL deadline and queued-work hint;
 `CommitRunning` and `CancelAfterLostLease` project through
-`ValidateDeploymentConcurrencyAtRunning`. `CancelStaleReap` and
+`ValidateDeploymentConcurrencyAtRunning`; `ClaimReacquire` models that rule's
+successful PENDING reacquisition branch, covered by
+`tests/server/orchestration/test_validate_deployment_concurrency_at_running.py::TestValidateDeploymentConcurrencyAtRunning::test_reacquires_slot_after_lease_expiry`.
+`CancelStaleReap` and
 `SkipFallbackRelease` are the proposed safe branches. `ClaimTerminalRelease`
 also covers atomic claim release during flow-run deletion; `Terminal` abstracts
 removal from protocol participation.
@@ -84,8 +91,8 @@ removal from protocol participation.
 `deployment_concurrency_lease_id`, and `ConcurrencyLimitV2.active_slots`.
 The claim and lease ownership/lifecycle fields are proposed SQL state in the
 target; split-path models use ghost slot attribution around an external lease
-record. Phase, transaction, and `bad*` fields expose in-flight or
-counterexample state.
+record. Reaper phases and scan epochs track two independent work items per
+lease; transaction and `bad*` fields expose in-flight or counterexample state.
 
 | Counterexample | Production-boundary regression |
 | --- | --- |
@@ -93,6 +100,7 @@ counterexample state.
 | missing-lease fallback | `tests/server/orchestration/test_validate_deployment_concurrency_at_running.py::TestValidateDeploymentConcurrencyAtRunning::test_full_policy_missing_lease_release_preserves_replacement_slot` |
 | read-present release | `tests/server/orchestration/test_validate_deployment_concurrency_at_running.py::TestValidateDeploymentConcurrencyAtRunning::test_terminal_release_racing_reaper_preserves_replacement_slot` |
 | flow-run deletion | `tests/server/orchestration/test_validate_deployment_concurrency_at_running.py::TestValidateDeploymentConcurrencyAtRunning::test_flow_run_deletion_reaper_preserves_replacement_slot` |
+| duplicate reapers | `tests/server/services/test_repossessor.py::TestRevokeExpiredLease::test_duplicate_reapers_preserve_replacement_capacity` |
 
 These regressions are strict `xfail` tests while claim authority is absent.
 Implementing the target requires removing those marks and passing the same
@@ -100,4 +108,4 @@ boundary assertions; lower-level replacements are insufficient.
 
 Review the model when deployment or global concurrency changes admission,
 renewal, expiry scanning, terminal release, flow-run deletion, lease
-persistence, or accounting.
+persistence, queue delivery, PENDING reacquisition, or accounting.

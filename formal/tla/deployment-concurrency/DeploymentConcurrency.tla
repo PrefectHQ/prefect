@@ -33,7 +33,8 @@ ASSUME /\ Runs # {}
 
 RunStates == {"Scheduled", "Pending", "Running", "Cancelled", "Terminal"}
 LeaseStates == {"Unused", "Live", "Expired", "Absent"}
-ReapPhases == {"Idle", "Queued", "Read"}
+ReapPhases == {"Idle", "Queued", "Read", "Active"}
+ReapJobs == {"ReapJob1", "ReapJob2"}
 ReleasePhases == {"Idle", "ReadPresent", "ReadMissing"}
 TxnKinds == {
     "None",
@@ -92,8 +93,8 @@ Init ==
     /\ epoch = [l \in LeaseIds |-> 0]
     /\ claim = [l \in LeaseIds |-> FALSE]
     /\ dbSlots = 0
-    /\ reapPhase = [l \in LeaseIds |-> "Idle"]
-    /\ scanEpoch = [l \in LeaseIds |-> 0]
+    /\ reapPhase = [l \in LeaseIds |-> [j \in ReapJobs |-> "Idle"]]
+    /\ scanEpoch = [l \in LeaseIds |-> [j \in ReapJobs |-> 0]]
     /\ releasePhase = [r \in Runs |-> "Idle"]
     /\ txnKind = "None"
     /\ txnRun = NoRun
@@ -179,49 +180,52 @@ Renew(r) ==
         badForeignDecrement, badStaleReap
         >>
 
-ScanExpired(l) ==
+ScanExpired(l, j) ==
     /\ leaseState[l] = "Expired"
-    /\ reapPhase[l] = "Idle"
-    /\ reapPhase' = [reapPhase EXCEPT ![l] = "Queued"]
-    /\ scanEpoch' = [scanEpoch EXCEPT ![l] = epoch[l]]
+    /\ reapPhase[l][j] = "Idle"
+    /\ reapPhase' = [reapPhase EXCEPT ![l][j] = "Queued"]
+    /\ scanEpoch' = [scanEpoch EXCEPT ![l][j] = epoch[l]]
     /\ UNCHANGED <<
         runState, stateLease, leaseState, leaseOwner, epoch, claim,
         dbSlots, releasePhase, txnKind, txnRun, txnLease,
         badForeignDecrement, badStaleReap
         >>
 
-ReapRead(l) ==
-    /\ reapPhase[l] = "Queued"
+ReapRead(l, j) ==
+    /\ reapPhase[l][j] = "Queued"
     /\ leaseState[l] # "Absent"
-    /\ reapPhase' = [reapPhase EXCEPT ![l] = "Read"]
+    /\ reapPhase' = [reapPhase EXCEPT ![l][j] = "Read"]
     /\ UNCHANGED <<
         runState, stateLease, leaseState, leaseOwner, epoch, claim,
         dbSlots, scanEpoch, releasePhase, txnKind, txnRun, txnLease,
         badForeignDecrement, badStaleReap
         >>
 
-BeginReap(l) ==
-    /\ reapPhase[l] = "Read"
+BeginReap(l, j) ==
+    /\ reapPhase[l][j] = "Read"
     /\ txnKind = "None"
+    /\ reapPhase' = [reapPhase EXCEPT ![l][j] = "Active"]
     /\ txnKind' = "Reap"
     /\ txnRun' = NoRun
     /\ txnLease' = l
     /\ UNCHANGED <<
         runState, stateLease, leaseState, leaseOwner, epoch, claim,
-        dbSlots, reapPhase, scanEpoch, releasePhase,
+        dbSlots, scanEpoch, releasePhase,
         badForeignDecrement, badStaleReap
         >>
 
-ReapObservationIsCurrent(l) ==
+ReapObservationIsCurrent(l, j) ==
     /\ leaseState[l] = "Expired"
-    /\ epoch[l] = scanEpoch[l]
+    /\ epoch[l] = scanEpoch[l][j]
 
-ReapRevoke ==
+ReapRevoke(j) ==
     LET l == txnLease IN
     /\ txnKind = "Reap"
-    /\ (~RecheckExpiryAtRevoke \/ ReapObservationIsCurrent(l))
+    /\ reapPhase[l][j] = "Active"
+    /\ (~RecheckExpiryAtRevoke \/ ReapObservationIsCurrent(l, j))
     /\ badStaleReap' =
-        (badStaleReap \/ ~ReapObservationIsCurrent(l))
+        (badStaleReap \/
+         (leaseState[l] # "Absent" /\ ~ReapObservationIsCurrent(l, j)))
     /\ leaseState' = [leaseState EXCEPT ![l] = "Absent"]
     /\ txnKind' = "ReapRevoked"
     /\ UNCHANGED <<
@@ -230,12 +234,13 @@ ReapRevoke ==
         badForeignDecrement
         >>
 
-CancelStaleReap ==
+CancelStaleReap(j) ==
     LET l == txnLease IN
     /\ txnKind = "Reap"
+    /\ reapPhase[l][j] = "Active"
     /\ RecheckExpiryAtRevoke
-    /\ ~ReapObservationIsCurrent(l)
-    /\ reapPhase' = [reapPhase EXCEPT ![l] = "Idle"]
+    /\ ~ReapObservationIsCurrent(l, j)
+    /\ reapPhase' = [reapPhase EXCEPT ![l][j] = "Idle"]
     /\ txnKind' = "None"
     /\ txnRun' = NoRun
     /\ txnLease' = NoLease
@@ -245,9 +250,10 @@ CancelStaleReap ==
         badForeignDecrement, badStaleReap
         >>
 
-CommitReap ==
+CommitReap(j) ==
     LET l == txnLease IN
     /\ txnKind = "ReapRevoked"
+    /\ reapPhase[l][j] = "Active"
     /\ dbSlots' =
         IF claim[l]
         THEN Decrement(dbSlots)
@@ -258,7 +264,7 @@ CommitReap ==
     /\ badForeignDecrement' =
         (badForeignDecrement \/
          (~claim[l] /\ ~RequireClaimForDecrement /\ OtherClaim(l)))
-    /\ reapPhase' = [reapPhase EXCEPT ![l] = "Idle"]
+    /\ reapPhase' = [reapPhase EXCEPT ![l][j] = "Idle"]
     /\ txnKind' = "None"
     /\ txnRun' = NoRun
     /\ txnLease' = NoLease
@@ -436,8 +442,27 @@ ClaimAcquire(r, l) ==
         badForeignDecrement, badStaleReap
         >>
 
-ClaimExpiryRelease(l) ==
-    /\ reapPhase[l] = "Queued"
+ClaimReacquire(r, l) ==
+    LET old == stateLease[r] IN
+    /\ runState[r] = "Pending"
+    /\ old # NoLease
+    /\ leaseState[old] = "Absent"
+    /\ ~claim[old]
+    /\ leaseState[l] = "Unused"
+    /\ dbSlots < Limit
+    /\ stateLease' = [stateLease EXCEPT ![r] = l]
+    /\ leaseState' = [leaseState EXCEPT ![l] = "Live"]
+    /\ leaseOwner' = [leaseOwner EXCEPT ![l] = r]
+    /\ epoch' = [epoch EXCEPT ![l] = 1]
+    /\ claim' = [claim EXCEPT ![l] = TRUE]
+    /\ dbSlots' = dbSlots + 1
+    /\ UNCHANGED <<
+        runState, reapPhase, scanEpoch, releasePhase,
+        txnKind, txnRun, txnLease, badForeignDecrement, badStaleReap
+        >>
+
+ClaimExpiryRelease(l, j) ==
+    /\ reapPhase[l][j] = "Queued"
     /\ (~RequireClaimForDecrement \/ claim[l])
     /\ (~RecheckExpiryAtRevoke \/ leaseState[l] = "Expired")
     /\ badStaleReap' = (badStaleReap \/ leaseState[l] # "Expired")
@@ -446,17 +471,17 @@ ClaimExpiryRelease(l) ==
     /\ claim' = [claim EXCEPT ![l] = FALSE]
     /\ dbSlots' = Decrement(dbSlots)
     /\ leaseState' = [leaseState EXCEPT ![l] = "Absent"]
-    /\ reapPhase' = [reapPhase EXCEPT ![l] = "Idle"]
+    /\ reapPhase' = [reapPhase EXCEPT ![l][j] = "Idle"]
     /\ UNCHANGED <<
         runState, stateLease, leaseOwner, epoch, scanEpoch, releasePhase,
         txnKind, txnRun, txnLease
         >>
 
-DiscardStaleExpiry(l) ==
-    /\ reapPhase[l] = "Queued"
+DiscardStaleExpiry(l, j) ==
+    /\ reapPhase[l][j] = "Queued"
     /\ \/ ~claim[l]
        \/ leaseState[l] # "Expired"
-    /\ reapPhase' = [reapPhase EXCEPT ![l] = "Idle"]
+    /\ reapPhase' = [reapPhase EXCEPT ![l][j] = "Idle"]
     /\ UNCHANGED <<
         runState, stateLease, leaseState, leaseOwner, epoch, claim, dbSlots,
         scanEpoch, releasePhase, txnKind, txnRun, txnLease,
@@ -498,12 +523,12 @@ AcquireActions ==
 
 ReapActions ==
     \/ \E l \in LeaseIds : Expire(l)
-    \/ \E l \in LeaseIds : ScanExpired(l)
-    \/ \E l \in LeaseIds : ReapRead(l)
-    \/ \E l \in LeaseIds : BeginReap(l)
-    \/ ReapRevoke
-    \/ CancelStaleReap
-    \/ CommitReap
+    \/ \E l \in LeaseIds, j \in ReapJobs : ScanExpired(l, j)
+    \/ \E l \in LeaseIds, j \in ReapJobs : ReapRead(l, j)
+    \/ \E l \in LeaseIds, j \in ReapJobs : BeginReap(l, j)
+    \/ \E j \in ReapJobs : ReapRevoke(j)
+    \/ \E j \in ReapJobs : CancelStaleReap(j)
+    \/ \E j \in ReapJobs : CommitReap(j)
 
 FallbackActions ==
     \/ \E r \in Runs : CancelAfterLostLease(r)
@@ -541,14 +566,19 @@ DeletionNext ==
     \/ ReapActions
     \/ DeletionActions
 
+DuplicateReapNext ==
+    \/ AcquireActions
+    \/ ReapActions
+
 ClaimAuthorityNext ==
     \/ \E r \in Runs, l \in LeaseIds : ClaimAcquire(r, l)
+    \/ \E r \in Runs, l \in LeaseIds : ClaimReacquire(r, l)
     \/ \E r \in Runs : CommitRunning(r)
     \/ \E r \in Runs : Renew(r)
     \/ \E l \in LeaseIds : Expire(l)
-    \/ \E l \in LeaseIds : ScanExpired(l)
-    \/ \E l \in LeaseIds : ClaimExpiryRelease(l)
-    \/ \E l \in LeaseIds : DiscardStaleExpiry(l)
+    \/ \E l \in LeaseIds, j \in ReapJobs : ScanExpired(l, j)
+    \/ \E l \in LeaseIds, j \in ReapJobs : ClaimExpiryRelease(l, j)
+    \/ \E l \in LeaseIds, j \in ReapJobs : DiscardStaleExpiry(l, j)
     \/ \E r \in Runs : CancelAfterLostLease(r)
     \/ \E r \in Runs : ClaimTerminalRelease(r)
     \/ \E r \in Runs : ClaimTerminalNoop(r)
@@ -557,6 +587,7 @@ StaleReapSpec == Init /\ [][StaleReapNext]_vars
 FallbackSpec == Init /\ [][FallbackNext]_vars
 ReadPresentSpec == Init /\ [][ReadPresentNext]_vars
 DeletionSpec == Init /\ [][DeletionNext]_vars
+DuplicateReapSpec == Init /\ [][DuplicateReapNext]_vars
 ClaimAuthoritySpec == Init /\ [][ClaimAuthorityNext]_vars
 
 TypeOK ==
@@ -567,8 +598,8 @@ TypeOK ==
     /\ epoch \in [LeaseIds -> 0..MaxEpoch]
     /\ claim \in [LeaseIds -> BOOLEAN]
     /\ dbSlots \in 0..Limit
-    /\ reapPhase \in [LeaseIds -> ReapPhases]
-    /\ scanEpoch \in [LeaseIds -> 0..MaxEpoch]
+    /\ reapPhase \in [LeaseIds -> [ReapJobs -> ReapPhases]]
+    /\ scanEpoch \in [LeaseIds -> [ReapJobs -> 0..MaxEpoch]]
     /\ releasePhase \in [Runs -> ReleasePhases]
     /\ txnKind \in TxnKinds
     /\ txnRun \in Runs \cup {NoRun}

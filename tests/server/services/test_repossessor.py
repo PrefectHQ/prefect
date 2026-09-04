@@ -1,5 +1,6 @@
+import asyncio
 from datetime import timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from docket import Docket
@@ -9,6 +10,7 @@ from prefect.server.concurrency.lease_storage import ConcurrencyLimitLeaseMetada
 from prefect.server.concurrency.lease_storage.memory import (
     ConcurrencyLeaseStorage,
 )
+from prefect.server.database import orm_models
 from prefect.server.database.dependencies import provide_database_interface
 from prefect.server.models.concurrency_limits_v2 import (
     bulk_increment_active_slots,
@@ -20,12 +22,17 @@ from prefect.server.services.repossessor import (
     monitor_expired_leases,
     revoke_expired_lease,
 )
+from prefect.server.utilities.leasing import ResourceLease
 
 pytestmark = pytest.mark.clear_db
 
 
 class ExpectedStaleLeaseReaperRace(AssertionError):
     """The known stale expiry-scan race reached its unsafe outcome."""
+
+
+class ExpectedDuplicateLeaseReaperRace(AssertionError):
+    """Duplicate reapers consumed replacement capacity."""
 
 
 class TestRevokeExpiredLease:
@@ -118,6 +125,91 @@ class TestRevokeExpiredLease:
         await session.refresh(concurrency_limit)
         if lease_after_reap is None or concurrency_limit.active_slots != 1:
             raise ExpectedStaleLeaseReaperRace
+
+    @pytest.mark.xfail(
+        strict=True,
+        raises=ExpectedDuplicateLeaseReaperRace,
+        reason="Duplicate queued reapers can decrement replacement capacity",
+    )
+    async def test_duplicate_reapers_preserve_replacement_capacity(
+        self,
+        lease_storage: ConcurrencyLeaseStorage,
+        concurrency_limit: orm_models.ConcurrencyLimitV2,
+        session: AsyncSession,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        await bulk_increment_active_slots(session, [concurrency_limit.id], 1)
+        await session.commit()
+
+        expired_lease = await lease_storage.create_lease(
+            resource_ids=[concurrency_limit.id],
+            ttl=timedelta(seconds=-1),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+
+        original_read_lease = lease_storage.read_lease
+        first_read = asyncio.Event()
+        both_read = asyncio.Event()
+        release_second = asyncio.Event()
+        read_count = 0
+
+        async def read_lease(
+            lease_id: UUID,
+        ) -> ResourceLease[ConcurrencyLimitLeaseMetadata] | None:
+            nonlocal read_count
+            lease = await original_read_lease(lease_id)
+            read_count += 1
+            read_number = read_count
+            if read_number == 1:
+                first_read.set()
+            else:
+                both_read.set()
+            await both_read.wait()
+            if read_number == 2:
+                await release_second.wait()
+            return lease
+
+        monkeypatch.setattr(lease_storage, "read_lease", read_lease)
+        db = provide_database_interface()
+
+        first_reaper = asyncio.create_task(
+            revoke_expired_lease(
+                expired_lease.id,
+                db=db,
+                lease_storage=lease_storage,
+            )
+        )
+        second_reaper: asyncio.Task[None] | None = None
+        try:
+            await asyncio.wait_for(first_read.wait(), timeout=5)
+            second_reaper = asyncio.create_task(
+                revoke_expired_lease(
+                    expired_lease.id,
+                    db=db,
+                    lease_storage=lease_storage,
+                )
+            )
+
+            await asyncio.wait_for(first_reaper, timeout=5)
+            await bulk_increment_active_slots(session, [concurrency_limit.id], 1)
+            await session.commit()
+            replacement_lease = await lease_storage.create_lease(
+                resource_ids=[concurrency_limit.id],
+                ttl=timedelta(minutes=5),
+                metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+            )
+        finally:
+            release_second.set()
+            if second_reaper is not None:
+                await asyncio.wait_for(second_reaper, timeout=5)
+            if not first_reaper.done():
+                first_reaper.cancel()
+            await asyncio.gather(first_reaper, return_exceptions=True)
+
+        limits = await bulk_read_concurrency_limits(session, [concurrency_limit.name])
+        replacement = await original_read_lease(replacement_lease.id)
+        if replacement is None or limits[0].active_slots != 1:
+            raise ExpectedDuplicateLeaseReaperRace
 
     async def test_revoke_expired_lease_missing_lease(
         self, lease_storage, concurrency_limit

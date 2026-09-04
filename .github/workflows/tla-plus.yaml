@@ -113,3 +113,6 @@ jobs:
           check_counterexample \
             CounterexampleFlowRunDeletion.cfg \
             NoForeignRelease
+          check_counterexample \
+            CounterexampleDuplicateReap.cfg \
+            NoForeignRelease
