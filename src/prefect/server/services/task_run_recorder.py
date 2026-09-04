@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING, Any, AsyncGenerator, NamedTuple, NoReturn, Optional
 from uuid import UUID
 
@@ -229,6 +230,70 @@ def _segment_task_runs_for_upsert(
         segments.append(_UpsertSegment(conflict_target, union, null_filled, rows))
 
     return segments
+
+
+def _timestamp_key(value: datetime) -> tuple[int, int, int, int, int, int, int]:
+    """Compare timestamps by UTC wall time, ignoring datetime vs pendulum types."""
+    if value.tzinfo is None:
+        utc = value.replace(tzinfo=timezone.utc)
+    else:
+        utc = value.astimezone(timezone.utc)
+    return (
+        utc.year,
+        utc.month,
+        utc.day,
+        utc.hour,
+        utc.minute,
+        utc.second,
+        utc.microsecond,
+    )
+
+
+async def _uniquify_task_run_state_timestamps(
+    db: PrefectDBInterface,
+    session: AsyncSession,
+    records: list[_TaskRunRecord],
+) -> None:
+    """Advance colliding state timestamps by 1µs until `(task_run_id, timestamp)` is unique.
+
+    Client-orchestrated task events skip `EnsureFlowRunStateTimestampIsUnique`. On
+    coarse clocks (Windows ~15.6ms) or 0s tasks, Running and Completed can share a
+    timestamp. The unique index then rejects the later insert, the recorder drops the
+    event after retries, and the task run stays Running (issue #19261). The TaskRun
+    upsert also requires a strictly later `state_timestamp`, so this must run before
+    that upsert.
+    """
+    if not records:
+        return
+
+    occupied: dict[UUID, set[tuple[int, int, int, int, int, int, int]]] = {}
+    task_run_ids = {record.task_run.id for record in records}
+    result = await session.execute(
+        sa.select(db.TaskRunState.task_run_id, db.TaskRunState.timestamp).where(
+            db.TaskRunState.task_run_id.in_(task_run_ids)
+        )
+    )
+    for task_run_id, timestamp in result.all():
+        occupied.setdefault(task_run_id, set()).add(_timestamp_key(timestamp))
+
+    # Walk records in the caller's order (already sorted by timestamp, stable on
+    # ties) so later events in a flush keep a later timestamp than earlier ones.
+    # Sorting by state id would invert Running/Completed when UUIDs compare that
+    # way, and the TaskRun upsert would then keep the earlier state.
+    for record in records:
+        state = record.task_run.state
+        if state is None:
+            continue
+        taken = occupied.setdefault(record.task_run.id, set())
+        key = _timestamp_key(state.timestamp)
+        while key in taken:
+            # Add on the original value so pendulum DateTime keeps its tzinfo.
+            # Replacing it with a stdlib datetime can drop the timezone and
+            # fail Prefect's TIMESTAMP bind processor.
+            state.timestamp = state.timestamp + timedelta(microseconds=1)
+            key = _timestamp_key(state.timestamp)
+            record.task_run_dict["state_timestamp"] = state.timestamp
+        taken.add(key)
 
 
 @db_injector
@@ -492,6 +557,8 @@ async def _record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
 
         for tr in unique_task_runs:
             tr.resolve_conflict_target(conflict_target(tr))
+
+        await _uniquify_task_run_state_timestamps(db, session, all_task_runs)
 
         fillable = _fillable_columns(db)
         # Sized on how many columns the table has, not how many keys the rows
