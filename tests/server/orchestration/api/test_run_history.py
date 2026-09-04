@@ -9,7 +9,8 @@ from pydantic import TypeAdapter
 from whenever import Instant
 
 from prefect.server import models
-from prefect.server.schemas import actions, core, responses, states
+from prefect.server.api.run_history import run_history
+from prefect.server.schemas import actions, core, filters, responses, states
 from prefect.server.schemas.states import StateType
 
 pytestmark = pytest.mark.clear_db
@@ -65,6 +66,27 @@ def validate_response(response: Response, include=None) -> List[Dict[str, Any]]:
             ]
 
     return dumped
+
+
+async def create_history_flow(db, expected_start_times: list[datetime]) -> Any:
+    session = await db.session()
+    async with session:
+        flow = await models.flows.create_flow(
+            session=session,
+            flow=core.Flow(name=f"history-test-{expected_start_times[0].timestamp()}"),
+        )
+        for i, expected_start_time in enumerate(expected_start_times):
+            await models.flow_runs.create_flow_run(
+                session=session,
+                flow_run=core.FlowRun(
+                    name=f"history-run-{i}",
+                    flow_id=flow.id,
+                    expected_start_time=expected_start_time,
+                    state=states.Completed(timestamp=expected_start_time),
+                ),
+            )
+        await session.commit()
+    return flow
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -979,3 +1001,178 @@ async def test_flow_run_lateness(client, session):
         <= interval["states"][2]["sum_estimated_lateness"]
         <= maximum_expected_lateness + timedelta(seconds=2)
     )
+
+
+async def test_history_boundary_runs_land_in_later_bucket(client, db):
+    start = dt + timedelta(hours=1)
+    interval = timedelta(hours=1)
+    flow = await create_history_flow(db, [start, start + interval])
+
+    response = await client.post(
+        "/flow_runs/history",
+        json={
+            "history_start": start.isoformat(),
+            "history_end": (start + 2 * interval).isoformat(),
+            "history_interval_seconds": interval.total_seconds(),
+            "flows": {"id": {"any_": [str(flow.id)]}},
+        },
+    )
+
+    assert validate_response(response, include={"count_runs"}) == [
+        {
+            "interval_start": start,
+            "interval_end": start + interval,
+            "states": [{"count_runs": 1}],
+        },
+        {
+            "interval_start": start + interval,
+            "interval_end": start + 2 * interval,
+            "states": [{"count_runs": 1}],
+        },
+    ]
+
+
+async def test_history_boundaries_are_anchored_on_history_start(client, db):
+    start = dt + timedelta(seconds=37, milliseconds=500)
+    interval = timedelta(seconds=90)
+    flow = await create_history_flow(
+        db, [start, start + interval, start + 2 * interval]
+    )
+
+    response = await client.post(
+        "/flow_runs/history",
+        json={
+            "history_start": start.isoformat(),
+            "history_end": (start + 3 * interval).isoformat(),
+            "history_interval_seconds": interval.total_seconds(),
+            "flows": {"id": {"any_": [str(flow.id)]}},
+        },
+    )
+
+    assert validate_response(response, include={"count_runs"}) == [
+        {
+            "interval_start": start,
+            "interval_end": start + interval,
+            "states": [{"count_runs": 1}],
+        },
+        {
+            "interval_start": start + interval,
+            "interval_end": start + 2 * interval,
+            "states": [{"count_runs": 1}],
+        },
+        {
+            "interval_start": start + 2 * interval,
+            "interval_end": start + 3 * interval,
+            "states": [{"count_runs": 1}],
+        },
+    ]
+
+
+async def test_history_includes_empty_buckets(client, db):
+    start = dt + timedelta(hours=2)
+    interval = timedelta(minutes=5)
+    flow = await create_history_flow(db, [start, start + 2 * interval])
+
+    response = await client.post(
+        "/flow_runs/history",
+        json={
+            "history_start": start.isoformat(),
+            "history_end": (start + 4 * interval).isoformat(),
+            "history_interval_seconds": interval.total_seconds(),
+            "flows": {"id": {"any_": [str(flow.id)]}},
+        },
+    )
+
+    assert [history["states"] for history in validate_response(response)] == [
+        [
+            {
+                "state_name": "Completed",
+                "state_type": StateType.COMPLETED,
+                "count_runs": 1,
+                "sum_estimated_run_time": timedelta(0),
+                "sum_estimated_lateness": timedelta(0),
+            }
+        ],
+        [],
+        [
+            {
+                "state_name": "Completed",
+                "state_type": StateType.COMPLETED,
+                "count_runs": 1,
+                "sum_estimated_run_time": timedelta(0),
+                "sum_estimated_lateness": timedelta(0),
+            }
+        ],
+        [],
+    ]
+
+
+async def test_last_bin_contains_runs_past_history_end(client, db):
+    start = dt + timedelta(hours=3)
+    interval = timedelta(minutes=10)
+    flow = await create_history_flow(
+        db,
+        [start + 2 * interval, start + 2 * interval + timedelta(minutes=5)],
+    )
+
+    response = await client.post(
+        "/flow_runs/history",
+        json={
+            "history_start": start.isoformat(),
+            "history_end": (start + 2 * interval + timedelta(minutes=1)).isoformat(),
+            "history_interval_seconds": interval.total_seconds(),
+            "flows": {"id": {"any_": [str(flow.id)]}},
+        },
+    )
+
+    histories = validate_response(response, include={"count_runs"})
+    assert histories[-1] == {
+        "interval_start": start + 2 * interval,
+        "interval_end": start + 3 * interval,
+        "states": [{"count_runs": 2}],
+    }
+
+
+async def test_history_accepts_stdlib_datetimes(session, db):
+    start = datetime(2021, 7, 1, 0, 0, tzinfo=timezone.utc)
+    interval = timedelta(minutes=5)
+    flow = await create_history_flow(db, [start, start + interval])
+    flow_id = flow.id
+    assert flow_id is not None
+
+    histories = await run_history(
+        session=session,  # pyright: ignore[reportCallIssue]
+        run_type="flow_run",
+        history_start=start,
+        history_end=start + 2 * interval,
+        history_interval=interval,
+        flows=filters.FlowFilter(id=filters.FlowFilterId(any_=[flow_id])),
+    )
+
+    assert [history.interval_start for history in histories] == [
+        start,
+        start + interval,
+    ]
+    assert [history.states[0].count_runs for history in histories] == [1, 1]
+
+
+async def test_history_normalizes_interval_boundaries_to_utc(client, db):
+    offset = timezone(timedelta(hours=2))
+    start = datetime(2021, 7, 1, 2, 0, tzinfo=offset)
+    interval = timedelta(minutes=5)
+    flow = await create_history_flow(db, [start])
+
+    response = await client.post(
+        "/flow_runs/history",
+        json={
+            "history_start": start.isoformat(),
+            "history_end": (start + interval).isoformat(),
+            "history_interval_seconds": interval.total_seconds(),
+            "flows": {"id": {"any_": [str(flow.id)]}},
+        },
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    history = response.json()[0]
+    assert history["interval_start"] == "2021-07-01T00:00:00Z"
+    assert history["interval_end"] == "2021-07-01T00:05:00Z"
