@@ -40,6 +40,7 @@ from prefect.server.orchestration.core_policy import (
     PreserveDeploymentConcurrencyLeaseId,
     PreventDuplicateTransitions,
     PreventPendingTransitions,
+    PreventReportsFromReleasedRetries,
     PreventResultDataLoss,
     PreventRunningTasksFromStoppedFlows,
     ReleaseFlowConcurrencySlots,
@@ -759,6 +760,61 @@ class TestManualFlowRetries:
             assert ctx.run.empirical_policy.retry_type == "reschedule"
         else:
             assert ctx.run.empirical_policy.retry_type is None
+
+
+class TestPreventingReportsFromReleasedRetries:
+    @pytest.mark.parametrize(
+        "proposed_state_type", [states.StateType.FAILED, states.StateType.CRASHED]
+    )
+    async def test_rejects_reports_for_a_released_retry(
+        self,
+        session,
+        initialize_orchestration,
+        proposed_state_type,
+    ):
+        fencing_policy = [PreventReportsFromReleasedRetries]
+        intended_transition = (states.StateType.SCHEDULED, proposed_state_type)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.run.empirical_policy = schemas.core.FlowRunPolicy(
+            retries=1, retry_type="reschedule"
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in fencing_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state_type == states.StateType.SCHEDULED
+        assert ctx.run.empirical_policy.retry_type == "reschedule"
+
+    async def test_allows_reports_for_a_retry_a_process_still_owns(
+        self,
+        session,
+        initialize_orchestration,
+    ):
+        fencing_policy = [PreventReportsFromReleasedRetries]
+        intended_transition = (states.StateType.SCHEDULED, states.StateType.FAILED)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *intended_transition,
+        )
+        ctx.run.empirical_policy = schemas.core.FlowRunPolicy(
+            retries=1, retry_type="in_process"
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in fencing_policy:
+                ctx = await stack.enter_async_context(rule(ctx, *intended_transition))
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert ctx.validated_state_type == states.StateType.FAILED
 
 
 class TestUpdatingFlowRunTrackerOnTasks:
