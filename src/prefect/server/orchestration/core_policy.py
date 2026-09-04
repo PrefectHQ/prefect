@@ -1431,7 +1431,14 @@ class HandlePausingFlows(FlowRunOrchestrationRule):
 
 class HandleResumingPausedFlows(FlowRunOrchestrationRule):
     """
-    Governs runs attempting to leave a Paused state
+    Governs runs attempting to leave a Paused state.
+
+    A paused run may resume (Running), be rescheduled (Scheduled), be
+    cancelled (Cancelling), or be written directly into a terminal state.
+    Every other exit is rejected. Suspended runs never reach this rule with a
+    Cancelling proposal: `BypassCancellingFlowRunsWithNoInfra` runs earlier
+    and rewrites their cancel to Cancelled, because they have no process to
+    tear down.
     """
 
     FROM_STATES = {StateType.PAUSED}
@@ -1451,6 +1458,7 @@ class HandleResumingPausedFlows(FlowRunOrchestrationRule):
             and (
                 proposed_state.is_running()
                 or proposed_state.is_scheduled()
+                or proposed_state.is_cancelling()
                 or proposed_state.is_final()
             )
         ):

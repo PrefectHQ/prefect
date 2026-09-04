@@ -1860,6 +1860,70 @@ class TestSetFlowRunState:
         assert run.state.type == StateType.RUNNING
         assert run.state.name == "Test State"
 
+    async def test_cancelling_a_paused_flow_run_is_accepted(
+        self, flow, client, session
+    ):
+        """A blocking pause keeps its process alive, so a user cancel goes
+        through Cancelling the same way it does for a running flow run."""
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                flow_version="1.0",
+                state=schemas.states.Paused(timeout_seconds=300),
+            ),
+        )
+        await session.commit()
+
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(state=dict(type="CANCELLING", name="Cancelling")),
+        )
+        assert response.status_code == 201, response.text
+
+        api_response = OrchestrationResult.model_validate(response.json())
+        assert api_response.status == responses.SetStateStatus.ACCEPT
+        assert api_response.state.type == StateType.CANCELLING
+
+        flow_run_id = flow_run.id
+        session.expire(flow_run)
+        run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert run.state.type == StateType.CANCELLING
+
+    async def test_cancelling_a_suspended_flow_run_writes_cancelled(
+        self, flow, client, session
+    ):
+        """A suspended run has no process to tear down. The bypass rule runs
+        before the pause rule and turns the cancel into Cancelled."""
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                flow_version="1.0",
+                state=schemas.states.Suspended(timeout_seconds=300),
+            ),
+        )
+        await session.commit()
+
+        response = await client.post(
+            f"/flow_runs/{flow_run.id}/set_state",
+            json=dict(state=dict(type="CANCELLING", name="Cancelling")),
+        )
+        assert response.status_code == 201, response.text
+
+        api_response = OrchestrationResult.model_validate(response.json())
+        assert api_response.status == responses.SetStateStatus.REJECT
+        assert api_response.state.type == StateType.CANCELLED
+
+        flow_run_id = flow_run.id
+        session.expire(flow_run)
+        run = await models.flow_runs.read_flow_run(
+            session=session, flow_run_id=flow_run_id
+        )
+        assert run.state.type == StateType.CANCELLED
+
     async def test_set_flow_run_state_allows_cancelling_when_timeout_schedule_fails(
         self,
         app: FastAPI,
