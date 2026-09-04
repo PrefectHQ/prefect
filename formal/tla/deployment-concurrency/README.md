@@ -6,8 +6,7 @@ claim the sole decrement authority, updates claim and accounting atomically,
 and rechecks the current deadline before expiry release. TLC checks that
 protocol, not the Python implementation.
 
-Status: experimental and advisory; ownership review is pending. Proposed owner:
-Prefect server orchestration maintainers.
+Owner: Prefect server orchestration maintainers.
 
 ## Model and checks
 
