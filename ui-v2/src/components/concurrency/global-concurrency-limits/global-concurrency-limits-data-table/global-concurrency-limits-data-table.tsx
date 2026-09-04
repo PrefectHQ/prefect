@@ -1,5 +1,5 @@
-import { getRouteApi } from "@tanstack/react-router";
-import { useDeferredValue, useMemo } from "react";
+import type { OnChangeFn, PaginationState } from "@tanstack/react-table";
+import { useCallback } from "react";
 import type { GlobalConcurrencyLimit } from "@/api/global-concurrency-limits";
 import { Button } from "@/components/ui/button";
 import { DataTable } from "@/components/ui/data-table";
@@ -14,8 +14,6 @@ import { SearchInput } from "@/components/ui/input";
 import { createColumnHelper, useTable } from "@/lib/tanstack-table";
 import { ActionsCell } from "./actions-cell";
 import { ActiveCell } from "./active-cell";
-
-const routeApi = getRouteApi("/concurrency-limits/");
 
 const columnHelper = createColumnHelper<GlobalConcurrencyLimit>();
 
@@ -62,52 +60,45 @@ const createColumns = ({
 
 type GlobalConcurrencyLimitsDataTableProps = {
 	data: Array<GlobalConcurrencyLimit>;
+	currentCount: number;
+	pagination: PaginationState;
+	onPaginationChange: (newPagination: PaginationState) => void;
 	onEditRow: (row: GlobalConcurrencyLimit) => void;
 	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
 	onResetRow: (row: GlobalConcurrencyLimit) => void;
+	searchValue: string | undefined;
+	onSearchChange: (value: string) => void;
+	showFilteredEmptyState: boolean;
+	onClearSearch: () => void;
 };
 
 export const GlobalConcurrencyLimitsDataTable = ({
 	data,
+	currentCount,
+	pagination,
+	onPaginationChange,
 	onEditRow,
 	onDeleteRow,
 	onResetRow,
-}: GlobalConcurrencyLimitsDataTableProps) => {
-	const navigate = routeApi.useNavigate();
-	const { search } = routeApi.useSearch();
-	const deferredSearch = useDeferredValue(search ?? "");
-
-	const filteredData = useMemo(() => {
-		return data.filter((row) =>
-			row.name.toLowerCase().includes(deferredSearch.toLowerCase()),
-		);
-	}, [data, deferredSearch]);
-
-	const onClearSearch = () => {
-		void navigate({
-			to: ".",
-			search: (prev) => ({ ...prev, search: "" }),
-		});
-	};
-
-	return (
-		<Table
-			data={filteredData}
-			onDeleteRow={onDeleteRow}
-			onEditRow={onEditRow}
-			onResetRow={onResetRow}
-			searchValue={search}
-			onSearchChange={(value) =>
-				void navigate({
-					to: ".",
-					search: (prev) => ({ ...prev, search: value }),
-				})
-			}
-			showFilteredEmptyState={data.length > 0 && filteredData.length === 0}
-			onClearSearch={onClearSearch}
-		/>
-	);
-};
+	searchValue,
+	onSearchChange,
+	showFilteredEmptyState,
+	onClearSearch,
+}: GlobalConcurrencyLimitsDataTableProps) => (
+	<Table
+		data={data}
+		currentCount={currentCount}
+		pagination={pagination}
+		onPaginationChange={onPaginationChange}
+		onDeleteRow={onDeleteRow}
+		onEditRow={onEditRow}
+		onResetRow={onResetRow}
+		searchValue={searchValue}
+		onSearchChange={onSearchChange}
+		showFilteredEmptyState={showFilteredEmptyState}
+		onClearSearch={onClearSearch}
+	/>
+);
 
 const GlobalConcurrencyLimitsFilteredEmptyState = ({
 	onClearSearch,
@@ -132,6 +123,9 @@ const GlobalConcurrencyLimitsFilteredEmptyState = ({
 
 type TableProps = {
 	data: Array<GlobalConcurrencyLimit>;
+	currentCount: number;
+	pagination: PaginationState;
+	onPaginationChange: (newPagination: PaginationState) => void;
 	onDeleteRow: (row: GlobalConcurrencyLimit) => void;
 	onEditRow: (row: GlobalConcurrencyLimit) => void;
 	onResetRow: (row: GlobalConcurrencyLimit) => void;
@@ -143,6 +137,9 @@ type TableProps = {
 
 export function Table({
 	data,
+	currentCount,
+	pagination,
+	onPaginationChange,
 	onDeleteRow,
 	onEditRow,
 	onResetRow,
@@ -151,9 +148,24 @@ export function Table({
 	showFilteredEmptyState,
 	onClearSearch,
 }: TableProps) {
+	const handlePaginationChange: OnChangeFn<PaginationState> = useCallback(
+		(updater) => {
+			const newPagination =
+				typeof updater === "function" ? updater(pagination) : updater;
+			onPaginationChange(newPagination);
+		},
+		[pagination, onPaginationChange],
+	);
+
 	const table = useTable({
 		data,
 		columns: createColumns({ onDeleteRow, onEditRow, onResetRow }),
+		state: {
+			pagination,
+		},
+		manualPagination: true,
+		onPaginationChange: handlePaginationChange,
+		rowCount: currentCount,
 	});
 
 	return (
