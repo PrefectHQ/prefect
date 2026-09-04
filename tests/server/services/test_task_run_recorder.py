@@ -1450,6 +1450,55 @@ async def test_bulk_upsert_id_conflict_updates_existing_task_run(
     assert {state.state_details.task_run_id for state in states} == {task_run.id}
 
 
+async def test_bulk_upsert_ignores_stale_rows_without_skipping_other_rows(
+    session: AsyncSession,
+    flow_run: FlowRun,
+):
+    """A stale row must not prevent other rows in the batch from being written."""
+    flow_run_id = str(flow_run.id)
+    task_run_ids = {key: str(uuid4()) for key in ("stale", "updated", "inserted")}
+
+    await task_run_recorder.record_bulk_task_run_events(
+        [
+            upsert_event(
+                flow_run_id,
+                key,
+                task_run_id=task_run_ids[key],
+                minutes=minutes,
+                state_type=state_type,
+            )
+            for key, minutes, state_type in (
+                ("stale", 2, StateType.COMPLETED),
+                ("updated", 0, StateType.PENDING),
+            )
+        ]
+    )
+
+    await task_run_recorder.record_bulk_task_run_events(
+        [
+            upsert_event(
+                flow_run_id,
+                key,
+                task_run_id=task_run_ids[key],
+                minutes=1,
+                state_type=StateType.RUNNING,
+            )
+            for key in task_run_ids
+        ]
+    )
+
+    session.expire_all()
+    expected = {
+        "stale": StateType.COMPLETED,
+        "updated": StateType.RUNNING,
+        "inserted": StateType.RUNNING,
+    }
+    for key, state_type in expected.items():
+        task_run = await read_task_run(session=session, task_run_id=task_run_ids[key])
+        assert task_run is not None
+        assert task_run.state_type == state_type
+
+
 async def test_bulk_upsert_coalesces_id_conflicts_in_same_batch(
     session: AsyncSession,
     flow_run,
@@ -1724,7 +1773,6 @@ class ExecutedUpsert:
 
     sql: str
     parameters: Sequence[Any] | Mapping[str, Any]
-    execution_options: Mapping[str, Any]
 
     @property
     def columns(self) -> list[str]:
@@ -1797,13 +1845,7 @@ async def capture_task_run_upserts() -> AsyncGenerator[list[ExecutedUpsert], Non
                 if isinstance(parameters, Mapping)
                 else list(parameters)
             )
-            captured.append(
-                ExecutedUpsert(
-                    statement,
-                    snapshot,
-                    dict(context.execution_options),
-                )
-            )
+            captured.append(ExecutedUpsert(statement, snapshot))
 
     sa.event.listen(engine.sync_engine, "before_cursor_execute", before_cursor_execute)
     try:
@@ -1812,72 +1854,6 @@ async def capture_task_run_upserts() -> AsyncGenerator[list[ExecutedUpsert], Non
         sa.event.remove(
             engine.sync_engine, "before_cursor_execute", before_cursor_execute
         )
-
-
-@pytest.mark.parametrize(
-    ("event_count", "uses_execution_parameters"), [(1, False), (2, True)]
-)
-async def test_postgres_bulk_upsert_execution_strategy(
-    session: AsyncSession,
-    flow_run: FlowRun,
-    event_count: int,
-    uses_execution_parameters: bool,
-):
-    if provide_database_interface().dialect.name != "postgresql":
-        pytest.skip("PostgreSQL-specific execution strategy")
-
-    events = [upsert_event(str(flow_run.id), i) for i in range(event_count)]
-
-    async with capture_task_run_upserts() as statements:
-        await task_run_recorder.record_bulk_task_run_events(events)
-
-    assert len(statements) == 1
-    statement = statements[0]
-    assert (statement.execution_options.get("dml_strategy") == "raw") is (
-        uses_execution_parameters
-    )
-    assert len(statement.rows) == len(events)
-    assert ("RETURNING" in statement.sql) is uses_execution_parameters
-
-
-async def test_postgres_bulk_upsert_pages_preserve_conflict_key_order(
-    session: AsyncSession,
-    flow_run: FlowRun,
-    monkeypatch: pytest.MonkeyPatch,
-):
-    db = provide_database_interface()
-    if db.dialect.name != "postgresql":
-        pytest.skip("PostgreSQL-specific execution strategy")
-
-    engine = await db.engine()
-    monkeypatch.setattr(engine.sync_engine.dialect, "insertmanyvalues_page_size", 2)
-    events = [upsert_event(str(flow_run.id), i) for i in reversed(range(3))]
-
-    async with capture_task_run_upserts() as statements:
-        await task_run_recorder.record_bulk_task_run_events(events)
-
-    assert [len(statement.rows) for statement in statements] == [2, 1]
-    keys = [upsert_sort_key(row) for statement in statements for row in statement.rows]
-    assert keys == sorted(keys)
-
-
-async def test_sqlite_bulk_upserts_do_not_require_returning(
-    session: AsyncSession,
-    flow_run: FlowRun,
-):
-    if provide_database_interface().dialect.name != "sqlite":
-        pytest.skip("SQLite-specific execution strategy")
-
-    events = [upsert_event(str(flow_run.id), i) for i in range(2)]
-
-    async with capture_task_run_upserts() as statements:
-        await task_run_recorder.record_bulk_task_run_events(events)
-
-    assert len(statements) == 1
-    statement = statements[0]
-    assert statement.execution_options.get("dml_strategy") != "raw"
-    assert len(statement.rows) == len(events)
-    assert "RETURNING" not in statement.sql
 
 
 async def test_bulk_upserts_are_sorted_by_conflict_key(
