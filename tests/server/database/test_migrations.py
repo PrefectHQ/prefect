@@ -129,6 +129,23 @@ def flow_run_deployment_id_index_migration() -> ModuleType:
     return module
 
 
+@pytest.fixture
+def event_resources_occurred_index_repair_migration() -> ModuleType:
+    path = (
+        Path(__file__).parents[3]
+        / "src/prefect/server/database/_migrations/versions/postgresql"
+        / "2026_09_04_000000_c8d5f2a71b3e_rebuild_invalid_event_resources_occurred_index.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "test_event_resources_occurred_index_repair_migration", path
+    )
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 @pytest.mark.parametrize("migration_timeout", [None, 60.0])
 async def test_postgres_migration_engine_uses_migration_timeout(
     migration_environment: ModuleType,
@@ -482,6 +499,94 @@ def test_flow_run_deployment_id_index_migration_supports_postgres_dry_run(
     assert (
         "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
         "ix_flow_run__deployment_id ON flow_run (deployment_id)"
+        in " ".join(output.split())
+    )
+
+
+@pytest.mark.parametrize("index_is_invalid", [True, False])
+def test_event_resources_occurred_index_repair_migration_rebuilds_invalid_index(
+    event_resources_occurred_index_repair_migration: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    index_is_invalid: bool,
+):
+    catalog_queries: list[str] = []
+    statements: list[str] = []
+
+    class Result:
+        def scalar(self) -> int | None:
+            return 1 if index_is_invalid else None
+
+    class Bind:
+        def exec_driver_sql(self, statement: str) -> Result:
+            catalog_queries.append(" ".join(statement.split()))
+            return Result()
+
+    @contextlib.contextmanager
+    def autocommit_block():
+        yield
+
+    operation = SimpleNamespace(
+        get_context=lambda: SimpleNamespace(
+            as_sql=False,
+            autocommit_block=autocommit_block,
+        ),
+        get_bind=lambda: Bind(),
+        execute=lambda statement: statements.append(" ".join(statement.split())),
+    )
+    monkeypatch.setattr(
+        event_resources_occurred_index_repair_migration, "op", operation
+    )
+
+    event_resources_occurred_index_repair_migration.upgrade()
+
+    assert catalog_queries == [
+        (
+            "SELECT 1 FROM pg_class c JOIN pg_index i ON i.indexrelid = c.oid "
+            "WHERE c.relname = 'ix_event_resources__occurred' AND NOT i.indisvalid"
+        )
+    ]
+    create_statement = (
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
+        "ix_event_resources__occurred ON event_resources (occurred)"
+    )
+    if index_is_invalid:
+        assert statements == [
+            "DROP INDEX CONCURRENTLY IF EXISTS ix_event_resources__occurred",
+            create_statement,
+        ]
+    else:
+        assert statements == [create_statement]
+
+
+def test_event_resources_occurred_index_repair_migration_supports_postgres_dry_run(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+):
+    monkeypatch.setattr(
+        dependencies,
+        "MODELS_DEPENDENCIES",
+        {
+            "database_config": None,
+            "query_components": None,
+            "orm": None,
+            "interface_class": None,
+        },
+    )
+    monkeypatch.setattr(DBSingleton, "_instances", {})
+
+    with temporary_settings(
+        {
+            PREFECT_SERVER_DATABASE_CONNECTION_URL: (
+                "postgresql+asyncpg://localhost/prefect"
+            )
+        }
+    ):
+        alembic_upgrade("9e9dadc36797:c8d5f2a71b3e", dry_run=True)
+
+    output = capsys.readouterr().out
+    assert (
+        "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
+        "ix_event_resources__occurred ON event_resources (occurred)"
         in " ".join(output.split())
     )
 
