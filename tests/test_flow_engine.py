@@ -9,7 +9,7 @@ from collections.abc import AsyncGenerator, Awaitable, Callable, Generator
 from contextlib import asynccontextmanager, contextmanager, nullcontext
 from textwrap import dedent
 from types import SimpleNamespace
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, cast
 from unittest import mock
 from unittest.mock import ANY, AsyncMock, MagicMock
 from uuid import UUID
@@ -29,7 +29,13 @@ from prefect._internal.attempt_control import EngineOutcomeReceipt
 from prefect.cache_policies import INPUTS
 from prefect.client.orchestration import PrefectClient, SyncPrefectClient, get_client
 from prefect.client.schemas.filters import FlowFilter, FlowFilterName, FlowRunFilter
-from prefect.client.schemas.objects import StateType
+from prefect.client.schemas.objects import FlowRun, State, StateType
+from prefect.client.schemas.responses import (
+    OrchestrationResult,
+    SetStateStatus,
+    StateAcceptDetails,
+    StateWaitDetails,
+)
 from prefect.client.schemas.sorting import FlowRunSort
 from prefect.concurrency.asyncio import concurrency as aconcurrency
 from prefect.concurrency.sync import concurrency
@@ -40,6 +46,8 @@ from prefect.context import (
     get_run_context,
 )
 from prefect.engine import _drive_run_flow_result, handle_engine_signals
+from prefect.events.clients import AssertingEventsClient
+from prefect.events.worker import EventsWorker
 from prefect.exceptions import (
     Abort,
     CrashedRun,
@@ -53,12 +61,14 @@ from prefect.flow_engine import (
     AsyncFlowRunEngine,
     FlowRunEngine,
     NotSet,
+    _FlowRunHeartbeatSession,
     _load_flow_from_runtime_entrypoint,
     _main,
     _run_flow_from_runtime_entrypoint,
     _run_serialized_call_with_control_bootstrap,
     _runtime_subprocess_env,
     _send_heartbeats,
+    _send_heartbeats_async,
     load_flow_and_flow_run,
     run_flow,
     run_flow_async,
@@ -73,7 +83,11 @@ from prefect.results import get_result_store
 from prefect.runtime import flow_run as runtime_flow_run
 from prefect.server.schemas.core import ConcurrencyLimitV2
 from prefect.server.schemas.core import FlowRun as ServerFlowRun
-from prefect.settings import PREFECT_LOGGING_LOG_PRINTS, temporary_settings
+from prefect.settings import (
+    PREFECT_FLOWS_HEARTBEAT_FREQUENCY,
+    PREFECT_LOGGING_LOG_PRINTS,
+    temporary_settings,
+)
 from prefect.states import Running
 from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import capture_sigterm, propose_state, propose_state_sync
@@ -85,6 +99,11 @@ async def foo():
     return 42
 
 
+def test_state_proposal_compatibility_aliases():
+    assert flow_engine_module.propose_state is propose_state
+    assert flow_engine_module.propose_state_sync is propose_state_sync
+
+
 class TestFlowRunNameSetBeforeRunningEvent:
     @staticmethod
     def _track_sync_running_names(
@@ -92,15 +111,24 @@ class TestFlowRunNameSetBeforeRunningEvent:
         monkeypatch: pytest.MonkeyPatch,
     ) -> list[str]:
         names_at_running_transition: list[str] = []
-        original_propose = propose_state_sync
+        original_propose = flow_engine_module.SyncFlowRunStateProposer.propose
 
-        def tracking_propose(client, state, **kwargs):
+        def tracking_propose(
+            proposer: Any,
+            flow_run_id: UUID,
+            state: states.State[Any],
+            **kwargs: Any,
+        ) -> states.State[Any]:
             if state.is_running():
-                flow_run = sync_prefect_client.read_flow_run(kwargs["flow_run_id"])
+                flow_run = sync_prefect_client.read_flow_run(flow_run_id)
                 names_at_running_transition.append(flow_run.name)
-            return original_propose(client, state, **kwargs)
+            return original_propose(proposer, flow_run_id, state, **kwargs)
 
-        monkeypatch.setattr("prefect.flow_engine.propose_state_sync", tracking_propose)
+        monkeypatch.setattr(
+            flow_engine_module.SyncFlowRunStateProposer,
+            "propose",
+            tracking_propose,
+        )
         return names_at_running_transition
 
     @staticmethod
@@ -109,15 +137,24 @@ class TestFlowRunNameSetBeforeRunningEvent:
         monkeypatch: pytest.MonkeyPatch,
     ) -> list[str]:
         names_at_running_transition: list[str] = []
-        original_propose = propose_state
+        original_propose = flow_engine_module.FlowRunStateProposer.propose
 
-        async def tracking_propose(client, state, **kwargs):
+        async def tracking_propose(
+            proposer: Any,
+            flow_run_id: UUID,
+            state: states.State[Any],
+            **kwargs: Any,
+        ) -> states.State[Any]:
             if state.is_running():
-                flow_run = sync_prefect_client.read_flow_run(kwargs["flow_run_id"])
+                flow_run = sync_prefect_client.read_flow_run(flow_run_id)
                 names_at_running_transition.append(flow_run.name)
-            return await original_propose(client, state, **kwargs)
+            return await original_propose(proposer, flow_run_id, state, **kwargs)
 
-        monkeypatch.setattr("prefect.flow_engine.propose_state", tracking_propose)
+        monkeypatch.setattr(
+            flow_engine_module.FlowRunStateProposer,
+            "propose",
+            tracking_propose,
+        )
         return names_at_running_transition
 
     async def test_sync_flow_string_template_name_set_before_running(
@@ -602,34 +639,40 @@ def _reject_terminal_transition(
     exception: BaseException,
 ) -> None:
     if not async_engine:
-        original_propose_state = flow_engine_module.propose_state_sync
+        original_propose_state = flow_engine_module.SyncFlowRunStateProposer.propose
 
         def reject_terminal_state(
-            client: Any, state: states.State[Any], **kwargs: Any
+            proposer: Any,
+            flow_run_id: uuid.UUID,
+            state: states.State[Any],
+            **kwargs: Any,
         ) -> Any:
             if state.is_final():
                 raise exception
-            return original_propose_state(client, state, **kwargs)
+            return original_propose_state(proposer, flow_run_id, state, **kwargs)
 
         monkeypatch.setattr(
-            flow_engine_module,
-            "propose_state_sync",
+            flow_engine_module.SyncFlowRunStateProposer,
+            "propose",
             reject_terminal_state,
         )
         return
 
-    original_propose_state = flow_engine_module.propose_state
+    original_propose_state = flow_engine_module.FlowRunStateProposer.propose
 
     async def reject_terminal_state_async(
-        client: Any, state: states.State[Any], **kwargs: Any
+        proposer: Any,
+        flow_run_id: uuid.UUID,
+        state: states.State[Any],
+        **kwargs: Any,
     ) -> Any:
         if state.is_final():
             raise exception
-        return await original_propose_state(client, state, **kwargs)
+        return await original_propose_state(proposer, flow_run_id, state, **kwargs)
 
     monkeypatch.setattr(
-        flow_engine_module,
-        "propose_state",
+        flow_engine_module.FlowRunStateProposer,
+        "propose",
         reject_terminal_state_async,
     )
 
@@ -5737,8 +5780,234 @@ class TestLeaseRenewal:
         )
 
 
+@pytest.fixture
+def running_heartbeat_flow_run() -> FlowRun:
+    return FlowRun(
+        id=uuid.uuid4(),
+        flow_id=uuid.uuid4(),
+        name="test-flow-run",
+        state=states.Running(),
+    )
+
+
+class _SyncStateClientFake:
+    def __init__(self, request: Callable[[], OrchestrationResult[Any]]) -> None:
+        self._request = request
+
+    def set_flow_run_state(
+        self,
+        flow_run_id: UUID | str,
+        state: State[Any],
+        force: bool = False,
+    ) -> OrchestrationResult[Any]:
+        return self._request()
+
+
+class _AsyncStateClientFake:
+    def __init__(self, request: Callable[[], OrchestrationResult[Any]]) -> None:
+        self._request = request
+
+    async def set_flow_run_state(
+        self,
+        flow_run_id: UUID | str,
+        state: State[Any],
+        force: bool = False,
+    ) -> OrchestrationResult[Any]:
+        return self._request()
+
+
+class _InstrumentedHeartbeatGate:
+    """Signal state-request admission attempts without timing assertions."""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self.state_request_started = threading.Event()
+
+    def acquire(self, blocking: bool = True, timeout: float = -1) -> bool:
+        self.state_request_started.set()
+        return self._lock.acquire(blocking, timeout)
+
+    def release(self) -> None:
+        self._lock.release()
+
+    def __enter__(self) -> "_InstrumentedHeartbeatGate":
+        self._lock.acquire()
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        self._lock.release()
+
+
 class TestFlowRunEngineHeartbeat:
     """Tests for heartbeat integration in the flow run engine."""
+
+    @staticmethod
+    def _set_heartbeat_enqueue_barrier(
+        monkeypatch: pytest.MonkeyPatch,
+        enqueue: Callable[[object], None],
+    ) -> None:
+        prepared_event = object()
+
+        def prepare_event(**kwargs: object) -> object:
+            return prepared_event
+
+        monkeypatch.setattr(flow_engine_module, "_prepare_event", prepare_event)
+        monkeypatch.setattr(flow_engine_module, "_enqueue_prepared_event", enqueue)
+
+    @staticmethod
+    def _heartbeat_session_response(
+        status: SetStateStatus, state: State[Any] | None = None
+    ) -> OrchestrationResult[Any]:
+        details = (
+            StateWaitDetails(delay_seconds=0)
+            if status == SetStateStatus.WAIT
+            else StateAcceptDetails()
+        )
+        return OrchestrationResult(status=status, state=state, details=details)
+
+    def test_heartbeat_session_reopens_until_server_returns_final_state(
+        self,
+        running_heartbeat_flow_run: FlowRun,
+        asserting_events_worker: EventsWorker,
+    ):
+        engine = FlowRunEngine(
+            flow=flow(lambda: None),
+            flow_run=running_heartbeat_flow_run,
+        )
+        session = _FlowRunHeartbeatSession(engine, heartbeat_seconds=30)
+
+        with session.state_request() as resolve:
+            resolve(self._heartbeat_session_response(SetStateStatus.WAIT))
+        session.send_heartbeat()
+
+        with session.state_request() as resolve:
+            resolve(
+                self._heartbeat_session_response(
+                    SetStateStatus.ACCEPT, states.Running()
+                )
+            )
+        session.send_heartbeat()
+
+        with session.state_request() as resolve:
+            resolve(
+                self._heartbeat_session_response(
+                    SetStateStatus.ACCEPT, states.Completed()
+                )
+            )
+        session.send_heartbeat()
+
+        assert engine.flow_run.state.is_running()
+        asserting_events_worker.drain()
+        client = asserting_events_worker._client
+        assert isinstance(client, AssertingEventsClient)
+        assert [event.event for event in client.events] == [
+            "prefect.flow-run.heartbeat",
+            "prefect.flow-run.heartbeat",
+        ]
+
+    async def test_async_heartbeat_session_reopens_until_server_returns_final_state(
+        self,
+        running_heartbeat_flow_run: FlowRun,
+        asserting_events_worker: EventsWorker,
+    ):
+        engine = AsyncFlowRunEngine(
+            flow=flow(lambda: None),
+            flow_run=running_heartbeat_flow_run,
+        )
+        session = _FlowRunHeartbeatSession(engine, heartbeat_seconds=30)
+
+        async with session.state_request_async() as resolve:
+            resolve(self._heartbeat_session_response(SetStateStatus.WAIT))
+        session.send_heartbeat()
+
+        async with session.state_request_async() as resolve:
+            resolve(
+                self._heartbeat_session_response(
+                    SetStateStatus.ACCEPT, states.Running()
+                )
+            )
+        session.send_heartbeat()
+
+        async with session.state_request_async() as resolve:
+            resolve(
+                self._heartbeat_session_response(
+                    SetStateStatus.ACCEPT, states.Completed()
+                )
+            )
+        session.send_heartbeat()
+
+        assert engine.flow_run.state.is_running()
+        await asserting_events_worker.drain()
+        client = asserting_events_worker._client
+        assert isinstance(client, AssertingEventsClient)
+        assert [event.event for event in client.events] == [
+            "prefect.flow-run.heartbeat",
+            "prefect.flow-run.heartbeat",
+        ]
+
+    def test_terminal_transition_closes_heartbeat_during_event_preparation(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        running_heartbeat_flow_run: FlowRun,
+    ):
+        preparation_started = threading.Event()
+        allow_preparation = threading.Event()
+        state_request_started = threading.Event()
+        enqueued_events: list[object] = []
+
+        def prepare_event(**kwargs: object) -> object:
+            preparation_started.set()
+            allow_preparation.wait()
+            return object()
+
+        def set_flow_run_state(
+            *args: object, **kwargs: object
+        ) -> OrchestrationResult[Any]:
+            state_request_started.set()
+            return self._heartbeat_session_response(
+                SetStateStatus.ACCEPT, states.Completed()
+            )
+
+        monkeypatch.setattr(flow_engine_module, "_prepare_event", prepare_event)
+        monkeypatch.setattr(
+            flow_engine_module,
+            "_enqueue_prepared_event",
+            enqueued_events.append,
+        )
+        engine = FlowRunEngine(
+            flow=flow(lambda: None),
+            flow_run=running_heartbeat_flow_run,
+        )
+        engine._is_started = True
+        engine._client = cast(
+            SyncPrefectClient,
+            _SyncStateClientFake(set_flow_run_state),
+        )
+        session = _FlowRunHeartbeatSession(engine, heartbeat_seconds=30)
+        engine._heartbeat_session = session
+        transition_result: list[State[Any]] = []
+
+        def transition_to_completed() -> None:
+            transition_result.append(engine.set_state(states.Completed()))
+
+        transition_thread: threading.Thread | None = None
+        session.start()
+        try:
+            assert preparation_started.wait(timeout=1)
+            transition_thread = threading.Thread(target=transition_to_completed)
+            transition_thread.start()
+            assert state_request_started.wait(timeout=1)
+        finally:
+            allow_preparation.set()
+            if transition_thread is not None:
+                transition_thread.join(timeout=3)
+            session.close()
+            engine._heartbeat_session = None
+
+        assert transition_thread is not None
+        assert not transition_thread.is_alive()
+        assert transition_result[0].is_completed()
+        assert enqueued_events == []
 
     def test_heartbeat_context_manager_used_during_flow_execution_sync(
         self, monkeypatch: pytest.MonkeyPatch
@@ -5781,11 +6050,13 @@ class TestFlowRunEngineHeartbeat:
         self, monkeypatch: pytest.MonkeyPatch
     ):
         """Test that heartbeat context manager is used during async flow execution."""
-        context_entered = []
-        context_exited = []
+        context_entered: list[AsyncFlowRunEngine[Any, Any]] = []
+        context_exited: list[AsyncFlowRunEngine[Any, Any]] = []
 
-        @contextmanager
-        def mock__send_heartbeats(engine, **kwargs):
+        @asynccontextmanager
+        async def mock__send_heartbeats_async(
+            engine: AsyncFlowRunEngine[Any, Any], **kwargs: object
+        ) -> AsyncGenerator[None, None]:
             context_entered.append(engine)
             try:
                 yield
@@ -5793,7 +6064,8 @@ class TestFlowRunEngineHeartbeat:
                 context_exited.append(engine)
 
         monkeypatch.setattr(
-            "prefect.flow_engine._send_heartbeats", mock__send_heartbeats
+            "prefect.flow_engine._send_heartbeats_async",
+            mock__send_heartbeats_async,
         )
 
         monkeypatch.setattr(
@@ -5953,11 +6225,13 @@ class TestFlowRunEngineHeartbeat:
         self, monkeypatch: pytest.MonkeyPatch
     ):
         """Test that heartbeat context manager cleans up even when an exception occurs."""
-        context_entered = []
-        context_exited = []
+        context_entered: list[AsyncFlowRunEngine[Any, Any]] = []
+        context_exited: list[AsyncFlowRunEngine[Any, Any]] = []
 
-        @contextmanager
-        def mock__send_heartbeats(engine, **kwargs):
+        @asynccontextmanager
+        async def mock__send_heartbeats_async(
+            engine: AsyncFlowRunEngine[Any, Any], **kwargs: object
+        ) -> AsyncGenerator[None, None]:
             context_entered.append(engine)
             try:
                 yield
@@ -5965,7 +6239,8 @@ class TestFlowRunEngineHeartbeat:
                 context_exited.append(engine)
 
         monkeypatch.setattr(
-            "prefect.flow_engine._send_heartbeats", mock__send_heartbeats
+            "prefect.flow_engine._send_heartbeats_async",
+            mock__send_heartbeats_async,
         )
 
         monkeypatch.setattr(
@@ -6059,7 +6334,7 @@ class TestFlowRunEngineHeartbeat:
         the race condition where heartbeats could be emitted after a flow run
         completes, incorrectly triggering zombie flow detection automations.
         """
-        heartbeat_state_checks = []
+        heartbeat_state_checks: list[tuple[str, StateType | None]] = []
 
         # Track the original _send_heartbeats to wrap it
         original__send_heartbeats = _send_heartbeats
@@ -6112,18 +6387,20 @@ class TestFlowRunEngineHeartbeat:
         Async version: Verifies that the heartbeat context manager checks flow
         state before emitting heartbeats and stops if the state is terminal.
         """
-        heartbeat_state_checks = []
+        heartbeat_state_checks: list[tuple[str, StateType | None]] = []
 
-        # Track the original _send_heartbeats to wrap it
-        original__send_heartbeats = _send_heartbeats
+        # Track the original _send_heartbeats_async to wrap it
+        original__send_heartbeats_async = _send_heartbeats_async
 
-        @contextmanager
-        def tracking__send_heartbeats(engine, **kwargs):
+        @asynccontextmanager
+        async def tracking__send_heartbeats_async(
+            engine: AsyncFlowRunEngine[Any, Any], **kwargs: object
+        ) -> AsyncGenerator[None, None]:
             # Record state when entering context
             heartbeat_state_checks.append(
                 ("enter", engine.flow_run.state.type if engine.flow_run else None)
             )
-            with original__send_heartbeats(engine):
+            async with original__send_heartbeats_async(engine):
                 yield
             # Record state when exiting context
             heartbeat_state_checks.append(
@@ -6131,7 +6408,8 @@ class TestFlowRunEngineHeartbeat:
             )
 
         monkeypatch.setattr(
-            "prefect.flow_engine._send_heartbeats", tracking__send_heartbeats
+            "prefect.flow_engine._send_heartbeats_async",
+            tracking__send_heartbeats_async,
         )
 
         monkeypatch.setattr(
@@ -6153,6 +6431,126 @@ class TestFlowRunEngineHeartbeat:
             for state_type in exit_states
             if state_type is not None
         )
+
+    def test_no_heartbeat_emitted_after_terminal_transition_sync(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        running_heartbeat_flow_run: FlowRun,
+    ):
+        timeline: list[str] = []
+        heartbeat_send_started = threading.Event()
+        allow_heartbeat_send = threading.Event()
+
+        def enqueue_heartbeat(prepared: object) -> None:
+            heartbeat_send_started.set()
+            allow_heartbeat_send.wait()
+            timeline.append("heartbeat")
+
+        def set_flow_run_state() -> OrchestrationResult[Any]:
+            timeline.append("completed")
+            return OrchestrationResult(
+                state=states.Completed(),
+                status=SetStateStatus.ACCEPT,
+                details=StateAcceptDetails(),
+            )
+
+        self._set_heartbeat_enqueue_barrier(monkeypatch, enqueue_heartbeat)
+        engine = FlowRunEngine(
+            flow=flow(lambda: None),
+            flow_run=running_heartbeat_flow_run,
+        )
+        engine._is_started = True
+        engine._client = cast(
+            SyncPrefectClient,
+            _SyncStateClientFake(set_flow_run_state),
+        )
+        session = _FlowRunHeartbeatSession(engine, heartbeat_seconds=30)
+        gate = _InstrumentedHeartbeatGate()
+        session._gate = gate  # type: ignore[assignment]
+        engine._heartbeat_session = session
+
+        transition_result: list[State[Any]] = []
+
+        def transition_to_completed() -> None:
+            transition_result.append(engine.set_state(states.Completed()))
+
+        transition_thread: threading.Thread | None = None
+        session.start()
+        try:
+            assert heartbeat_send_started.wait(timeout=1)
+            transition_thread = threading.Thread(target=transition_to_completed)
+            transition_thread.start()
+            assert gate.state_request_started.wait(timeout=1)
+        finally:
+            allow_heartbeat_send.set()
+            if transition_thread is not None:
+                transition_thread.join(timeout=3)
+            session.close()
+            engine._heartbeat_session = None
+
+        assert transition_thread is not None
+        assert not transition_thread.is_alive()
+        assert transition_result[0].is_completed()
+        assert timeline == ["heartbeat", "completed"]
+
+    async def test_no_heartbeat_emitted_after_terminal_transition_async(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        running_heartbeat_flow_run: FlowRun,
+    ):
+        timeline: list[str] = []
+        heartbeat_send_started = threading.Event()
+        allow_heartbeat_send = threading.Event()
+
+        def enqueue_heartbeat(prepared: object) -> None:
+            heartbeat_send_started.set()
+            allow_heartbeat_send.wait()
+            timeline.append("heartbeat")
+
+        def set_flow_run_state() -> OrchestrationResult[Any]:
+            timeline.append("completed")
+            return OrchestrationResult(
+                state=states.Completed(),
+                status=SetStateStatus.ACCEPT,
+                details=StateAcceptDetails(),
+            )
+
+        self._set_heartbeat_enqueue_barrier(monkeypatch, enqueue_heartbeat)
+        engine = AsyncFlowRunEngine(
+            flow=flow(lambda: None),
+            flow_run=running_heartbeat_flow_run,
+        )
+        engine._is_started = True
+        engine._client = cast(
+            PrefectClient,
+            _AsyncStateClientFake(set_flow_run_state),
+        )
+        session = _FlowRunHeartbeatSession(engine, heartbeat_seconds=30)
+        gate = _InstrumentedHeartbeatGate()
+        session._gate = gate  # type: ignore[assignment]
+        engine._heartbeat_session = session
+
+        transition: asyncio.Task[State[Any]] | None = None
+        transition_result: State[Any] | None = None
+        session.start()
+        try:
+            assert await asyncio.to_thread(heartbeat_send_started.wait, 1)
+            transition = asyncio.create_task(engine.set_state(states.Completed()))
+            assert await asyncio.to_thread(gate.state_request_started.wait, 1)
+        finally:
+            allow_heartbeat_send.set()
+            try:
+                if transition is not None:
+                    with anyio.fail_after(3):
+                        transition_result = await transition
+            finally:
+                await session.aclose()
+                engine._heartbeat_session = None
+
+        assert transition is not None
+        assert transition_result is not None
+        assert transition_result.is_completed()
+        assert timeline == ["heartbeat", "completed"]
 
     @pytest.mark.parametrize("low_value", [1, 5, 10, 29])
     def test_heartbeat_seconds_property_clamps_low_values(
@@ -6239,33 +6637,27 @@ class TestFlowRunEngineHeartbeat:
             assert flow_related[0]["prefect.resource.name"] == "my-flow"
 
     def test_async_heartbeats_fire_when_event_loop_blocked(
-        self, monkeypatch: pytest.MonkeyPatch
+        self,
+        asserting_events_worker: EventsWorker,
     ):
         """Heartbeats use a daemon thread, so they fire even when the event loop is blocked.
 
         This is the core fix for issue #20887: CPU-bound async flows previously
         starved the asyncio-based heartbeat task.
         """
-        heartbeat_count = 0
-
-        def mock_emit_event(**kwargs: object) -> None:
-            nonlocal heartbeat_count
-            if kwargs.get("event") == "prefect.flow-run.heartbeat":
-                heartbeat_count += 1
-
-        monkeypatch.setattr("prefect.flow_engine.emit_event", mock_emit_event)
-        monkeypatch.setattr(
-            "prefect.flow_engine.get_current_settings",
-            lambda: MagicMock(flows=MagicMock(heartbeat_frequency=30)),
-        )
-
         engine = FlowRunEngine(flow=flow(lambda: None))
 
-        with engine.initialize_run():
-            with _send_heartbeats(engine):
-                # Block the current thread for 3 seconds — simulates a
-                # CPU-bound task that would starve an asyncio heartbeat task.
-                # The daemon thread should still emit at least one heartbeat.
-                time.sleep(3)
+        with temporary_settings({PREFECT_FLOWS_HEARTBEAT_FREQUENCY: 30}):
+            with engine.initialize_run():
+                with _send_heartbeats(engine):
+                    # Block the current thread for 3 seconds — simulates a
+                    # CPU-bound task that would starve an asyncio heartbeat task.
+                    # The daemon thread should still emit at least one heartbeat.
+                    time.sleep(3)
 
-        assert heartbeat_count >= 1
+        asserting_events_worker.drain()
+        client = asserting_events_worker._client
+        assert isinstance(client, AssertingEventsClient)
+        assert any(
+            event.event == "prefect.flow-run.heartbeat" for event in client.events
+        )
