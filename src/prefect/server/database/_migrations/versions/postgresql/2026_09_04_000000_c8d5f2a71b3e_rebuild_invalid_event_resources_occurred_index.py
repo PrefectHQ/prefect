@@ -16,9 +16,7 @@ This migration rebuilds an invalid leftover with `REINDEX INDEX CONCURRENTLY`,
 which preserves the existing index until its replacement is valid. When the
 index is already valid it is a no-op; when it does not exist it is created.
 Catalog lookups anchor the index to the resolved `event_resources` table so an
-identically named index in another schema cannot be inspected or rebuilt. Any
-invalid `_ccnew` or `_ccold` artifacts left by an interrupted concurrent reindex
-are dropped before retrying.
+identically named index in another schema cannot be inspected or rebuilt.
 """
 
 from alembic import op
@@ -35,48 +33,6 @@ def upgrade():
     with migration_context.autocommit_block():
         if migration_context.as_sql:
             raise RuntimeError("c8d5f2a71b3e requires an online PostgreSQL migration")
-
-        artifacts = (
-            op.get_bind()
-            .exec_driver_sql(
-                """
-                SELECT format('%I.%I', n.nspname, c.relname)
-                FROM pg_index i
-                JOIN pg_class c ON c.oid = i.indexrelid
-                JOIN pg_namespace n ON n.oid = c.relnamespace
-                JOIN pg_class target_c
-                  ON target_c.relnamespace = c.relnamespace
-                 AND target_c.relname = 'ix_event_resources__occurred'
-                JOIN pg_index target_i
-                  ON target_i.indexrelid = target_c.oid
-                 AND target_i.indrelid = i.indrelid
-                WHERE i.indrelid = to_regclass('event_resources')
-                  AND NOT i.indisvalid
-                  AND c.relname ~
-                      '^ix_event_resources__occurred_cc(new|old)[0-9]*$'
-                  AND c.relam = target_c.relam
-                  AND c.reltablespace = target_c.reltablespace
-                  AND c.reloptions IS NOT DISTINCT FROM target_c.reloptions
-                  AND i.indisunique = target_i.indisunique
-                  AND i.indisprimary = target_i.indisprimary
-                  AND i.indisexclusion = target_i.indisexclusion
-                  AND i.indimmediate = target_i.indimmediate
-                  AND i.indnatts = target_i.indnatts
-                  AND i.indnkeyatts = target_i.indnkeyatts
-                  AND i.indkey = target_i.indkey
-                  AND i.indcollation = target_i.indcollation
-                  AND i.indclass = target_i.indclass
-                  AND i.indoption = target_i.indoption
-                  AND pg_get_expr(i.indexprs, i.indrelid) IS NOT DISTINCT FROM
-                      pg_get_expr(target_i.indexprs, target_i.indrelid)
-                  AND pg_get_expr(i.indpred, i.indrelid) IS NOT DISTINCT FROM
-                      pg_get_expr(target_i.indpred, target_i.indrelid)
-                """
-            )
-            .all()
-        )
-        for artifact in artifacts:
-            op.execute(f"DROP INDEX CONCURRENTLY IF EXISTS {artifact[0]}")
 
         index_query = """
             SELECT format('%I.%I', n.nspname, c.relname), i.indisvalid

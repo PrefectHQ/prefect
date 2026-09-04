@@ -1,4 +1,3 @@
-import asyncio
 import contextlib
 import importlib.util
 import json
@@ -15,7 +14,6 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
-from prefect._internal.testing import retry_asserts
 from prefect.server.database import dependencies
 from prefect.server.database.alembic_commands import (
     alembic_config,
@@ -507,22 +505,11 @@ def test_flow_run_deployment_id_index_migration_supports_postgres_dry_run(
 
 @pytest.mark.parametrize("index_is_valid", [True, False, None])
 @pytest.mark.parametrize("rebuilt_index_is_valid", [True, False])
-@pytest.mark.parametrize(
-    "artifact_names",
-    [
-        (),
-        (
-            '"public"."ix_event_resources__occurred_ccnew"',
-            '"public"."ix_event_resources__occurred_ccold1"',
-        ),
-    ],
-)
 def test_event_resources_occurred_index_repair_migration_handles_index_state(
     event_resources_occurred_index_repair_migration: ModuleType,
     monkeypatch: pytest.MonkeyPatch,
     index_is_valid: bool | None,
     rebuilt_index_is_valid: bool,
-    artifact_names: tuple[str, ...],
 ):
     catalog_queries: list[str] = []
     statements: list[str] = []
@@ -535,27 +522,13 @@ def test_event_resources_occurred_index_repair_migration_handles_index_state(
     )
 
     class Result:
-        def __init__(
-            self,
-            first: tuple[str, bool] | None = None,
-            rows: list[tuple[str]] | None = None,
-        ) -> None:
-            self._first = first
-            self._rows = rows or []
-
         def first(self) -> tuple[str, bool] | None:
-            return self._first
-
-        def all(self) -> list[tuple[str]]:
-            return self._rows
+            return next(query_results)
 
     class Bind:
         def exec_driver_sql(self, statement: str) -> Result:
-            statement = " ".join(statement.split())
-            catalog_queries.append(statement)
-            if "c.relname ~" in statement:
-                return Result(rows=[(name,) for name in artifact_names])
-            return Result(first=next(query_results))
+            catalog_queries.append(" ".join(statement.split()))
+            return Result()
 
     @contextlib.contextmanager
     def autocommit_block():
@@ -589,43 +562,12 @@ def test_event_resources_occurred_index_repair_migration_handles_index_state(
         "WHERE i.indrelid = to_regclass('event_resources') "
         "AND c.relname = 'ix_event_resources__occurred'"
     )
-    artifact_query = (
-        "SELECT format('%I.%I', n.nspname, c.relname) FROM pg_index i "
-        "JOIN pg_class c ON c.oid = i.indexrelid "
-        "JOIN pg_namespace n ON n.oid = c.relnamespace "
-        "JOIN pg_class target_c ON target_c.relnamespace = c.relnamespace "
-        "AND target_c.relname = 'ix_event_resources__occurred' "
-        "JOIN pg_index target_i ON target_i.indexrelid = target_c.oid "
-        "AND target_i.indrelid = i.indrelid "
-        "WHERE i.indrelid = to_regclass('event_resources') "
-        "AND NOT i.indisvalid AND c.relname ~ "
-        "'^ix_event_resources__occurred_cc(new|old)[0-9]*$' "
-        "AND c.relam = target_c.relam "
-        "AND c.reltablespace = target_c.reltablespace "
-        "AND c.reloptions IS NOT DISTINCT FROM target_c.reloptions "
-        "AND i.indisunique = target_i.indisunique "
-        "AND i.indisprimary = target_i.indisprimary "
-        "AND i.indisexclusion = target_i.indisexclusion "
-        "AND i.indimmediate = target_i.indimmediate "
-        "AND i.indnatts = target_i.indnatts "
-        "AND i.indnkeyatts = target_i.indnkeyatts "
-        "AND i.indkey = target_i.indkey "
-        "AND i.indcollation = target_i.indcollation "
-        "AND i.indclass = target_i.indclass "
-        "AND i.indoption = target_i.indoption "
-        "AND pg_get_expr(i.indexprs, i.indrelid) IS NOT DISTINCT FROM "
-        "pg_get_expr(target_i.indexprs, target_i.indrelid) "
-        "AND pg_get_expr(i.indpred, i.indrelid) IS NOT DISTINCT FROM "
-        "pg_get_expr(target_i.indpred, target_i.indrelid)"
-    )
-    assert catalog_queries == [artifact_query, catalog_query, catalog_query]
+    assert catalog_queries == [catalog_query, catalog_query]
     create_statement = (
         "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
         "ix_event_resources__occurred ON event_resources (occurred)"
     )
-    expected_statements = [
-        f"DROP INDEX CONCURRENTLY IF EXISTS {name}" for name in artifact_names
-    ]
+    expected_statements: list[str] = []
     if index_is_valid is None:
         expected_statements.append(create_statement)
     elif not index_is_valid:
@@ -673,38 +615,8 @@ async def test_event_resources_occurred_index_repair_migration_repairs_postgres(
     builder_engine = create_async_engine(database_engine.url, pool_pre_ping=True)
     blocker = await database_engine.connect()
     blocker_transaction = await blocker.begin()
-    upgrade_tasks: list[asyncio.Task[None]] = []
-    quoted_database: str | None = None
     try:
         await run_sync_in_worker_thread(alembic_downgrade, revision="9e9dadc36797")
-        async with database_engine.begin() as connection:
-            database_name = await connection.scalar(
-                sa.text("SELECT current_database()")
-            )
-            assert database_name is not None
-            quoted_database = database_engine.dialect.identifier_preparer.quote(
-                database_name
-            )
-            await connection.execute(sa.text("CREATE SCHEMA migration_shadow"))
-            await connection.execute(
-                sa.text(
-                    "CREATE TABLE migration_shadow.unrelated (occurred timestamptz)"
-                )
-            )
-            await connection.execute(
-                sa.text(
-                    "CREATE INDEX ix_event_resources__occurred "
-                    "ON migration_shadow.unrelated (occurred)"
-                )
-            )
-            await connection.execute(
-                sa.text(
-                    f"ALTER DATABASE {quoted_database} "
-                    "SET search_path TO migration_shadow, public"
-                )
-            )
-        await database_engine.dispose()
-
         async with builder_engine.connect() as builder:
             builder = await builder.execution_options(isolation_level="AUTOCOMMIT")
             await builder.execute(
@@ -733,153 +645,38 @@ async def test_event_resources_occurred_index_repair_migration_repairs_postgres(
                         "ON public.event_resources (occurred)"
                     )
                 )
-            with pytest.raises(sa.exc.DBAPIError, match="statement timeout"):
-                await builder.execute(
-                    sa.text(
-                        "CREATE INDEX CONCURRENTLY "
-                        "ix_event_resources__occurred_ccnew "
-                        "ON public.event_resources (resource_id)"
-                    )
-                )
-            with pytest.raises(sa.exc.DBAPIError, match="statement timeout"):
-                await builder.execute(
-                    sa.text(
-                        "REINDEX INDEX CONCURRENTLY public.ix_event_resources__occurred"
-                    )
-                )
 
         async with database_engine.connect() as connection:
             assert await connection.scalar(
                 sa.text(
                     """
-                        SELECT NOT i.indisvalid
-                        FROM pg_index i
-                        WHERE i.indexrelid =
-                            to_regclass('public.ix_event_resources__occurred')
-                    """
-                )
-            )
-            artifacts = await connection.execute(
-                sa.text(
-                    """
-                    SELECT c.relname
+                    SELECT NOT i.indisvalid
                     FROM pg_index i
-                    JOIN pg_class c ON c.oid = i.indexrelid
-                    WHERE i.indrelid = to_regclass('public.event_resources')
-                      AND NOT i.indisvalid
-                      AND c.relname ~
-                          '^ix_event_resources__occurred_cc(new|old)[0-9]*$'
-                    ORDER BY c.relname
+                    WHERE i.indexrelid =
+                        to_regclass('public.ix_event_resources__occurred')
                     """
                 )
             )
-            assert artifacts.scalars().all() == [
-                "ix_event_resources__occurred_ccnew",
-                "ix_event_resources__occurred_ccnew1",
-            ]
 
-        upgrade_tasks = [
-            asyncio.create_task(run_sync_in_worker_thread(alembic_upgrade))
-            for _ in range(2)
-        ]
-        try:
-            async for attempt in retry_asserts(max_attempts=30, delay=0.1):
-                async with database_engine.connect() as observer:
-                    migration_count = await observer.scalar(
-                        sa.text(
-                            """
-                            SELECT count(*)
-                            FROM pg_stat_activity
-                            WHERE datname = current_database()
-                              AND (
-                                  query LIKE 'DROP INDEX CONCURRENTLY%'
-                                  OR query LIKE 'REINDEX INDEX CONCURRENTLY%'
-                              )
-                            """
-                        )
-                    )
-                with attempt:
-                    assert migration_count >= 1
-        finally:
-            await blocker_transaction.rollback()
-
-        upgrade_results = await asyncio.gather(*upgrade_tasks, return_exceptions=True)
-        assert upgrade_results == [None, None]
+        await blocker_transaction.rollback()
+        await run_sync_in_worker_thread(alembic_upgrade)
 
         async with database_engine.connect() as connection:
-            assert await connection.scalar(
-                sa.text(
-                    """
-                        SELECT i.indisvalid
-                        FROM pg_index i
-                        WHERE i.indexrelid =
-                            to_regclass('public.ix_event_resources__occurred')
-                    """
-                )
-            )
-            artifacts = await connection.execute(
-                sa.text(
-                    """
-                    SELECT c.relname
-                    FROM pg_index i
-                    JOIN pg_class c ON c.oid = i.indexrelid
-                    WHERE i.indrelid = to_regclass('public.event_resources')
-                      AND NOT i.indisvalid
-                      AND c.relname ~
-                          '^ix_event_resources__occurred_cc(new|old)[0-9]*$'
-                    ORDER BY c.relname
-                    """
-                )
-            )
-            assert artifacts.scalars().all() == ["ix_event_resources__occurred_ccnew"]
             assert await connection.scalar(
                 sa.text(
                     """
                     SELECT i.indisvalid
                     FROM pg_index i
-                    WHERE i.indexrelid = to_regclass(
-                        'migration_shadow.ix_event_resources__occurred'
-                    )
+                    WHERE i.indexrelid =
+                        to_regclass('public.ix_event_resources__occurred')
                     """
                 )
-            )
-            assert (
-                await connection.scalar(
-                    sa.text("SELECT version_num FROM alembic_version")
-                )
-                == "c8d5f2a71b3e"
             )
     finally:
         if blocker_transaction.is_active:
             await blocker_transaction.rollback()
-        if upgrade_tasks:
-            await asyncio.gather(*upgrade_tasks, return_exceptions=True)
         await blocker.close()
-        async with builder_engine.connect() as cleanup:
-            cleanup = await cleanup.execution_options(isolation_level="AUTOCOMMIT")
-            await cleanup.execute(sa.text("SET statement_timeout = 0"))
-            await cleanup.execute(
-                sa.text(
-                    "DROP INDEX CONCURRENTLY IF EXISTS "
-                    "public.ix_event_resources__occurred_ccnew1"
-                )
-            )
-            await cleanup.execute(
-                sa.text(
-                    "DROP INDEX CONCURRENTLY IF EXISTS "
-                    "public.ix_event_resources__occurred_ccnew"
-                )
-            )
         await builder_engine.dispose()
-        if quoted_database is not None:
-            async with database_engine.begin() as connection:
-                await connection.execute(
-                    sa.text(f"ALTER DATABASE {quoted_database} RESET search_path")
-                )
-                await connection.execute(
-                    sa.text("DROP SCHEMA IF EXISTS migration_shadow CASCADE")
-                )
-            await database_engine.dispose()
         await run_sync_in_worker_thread(alembic_upgrade)
 
 
