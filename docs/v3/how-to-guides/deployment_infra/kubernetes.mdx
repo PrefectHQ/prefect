@@ -234,6 +234,46 @@ Number of seconds before finished jobs are automatically cleaned up by the Kuber
 controller.
 Set to 60 so completed flow runs are cleaned up after a minute.
 
+**Backoff Limit**
+
+Number of times Kubernetes retries a job after its pod is terminated. Defaults to 0.
+
+When set to 0, Kubernetes does not retry the job. Instead, the worker sets
+`PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR=reschedule` in the pod's environment, so a
+flow run whose pod receives a `SIGTERM` (for example, from an eviction, node drain, or
+spot instance reclaim) moves to `AwaitingRetry` and starts again in a new pod.
+A forced termination such as `OOMKilled` never reaches the `SIGTERM` handler, so the run ends as
+`Crashed` regardless of this setting.
+
+`PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR` accepts the following values:
+
+| Value | Behavior on `SIGTERM` |
+| --- | --- |
+| `reschedule` | The run is rescheduled and the worker starts a new pod. |
+| `relinquish` | Prefect leaves the run state unchanged so a Kubernetes-retried pod can resume it. Requires Prefect 3.8.1 or later. |
+| `crash` (or any other value) | The run ends as `Crashed` and no new pod starts. |
+
+To keep the backoff limit at 0 but stop Prefect from rescheduling terminated runs, set
+the variable yourself in **Environment Variables**:
+
+```json
+{"PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR": "crash"}
+```
+
+The worker only injects its own value when the variable is unset.
+You can override this on each deployment through `job_variables`.
+
+When set to a value greater than 0, Kubernetes owns retries. The worker sets the
+variable to `relinquish` and Prefect leaves the run state unchanged so the retried pod
+can pick it up.
+
+<Note>
+The worker began injecting `reschedule` in prefect-kubernetes 0.5.9 and started
+respecting a preset `PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR` in prefect-kubernetes
+0.6.6. The `relinquish` value and its use when the backoff limit is greater than 0
+require Prefect 3.8.1 and prefect-kubernetes 0.7.12 or later.
+</Note>
+
 **Pod Watch Timeout Seconds**
 
 Number of seconds for pod creation to complete before timing out.
