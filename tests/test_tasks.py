@@ -3613,24 +3613,47 @@ class TestRunResultsIdentityTracking:
 
 class TestSubflowWaitForTasks:
     async def test_downstream_does_not_run_if_upstream_fails(self):
+        child_flow_calls: list[int] = []
+
         @task
-        def fails():
+        def fails() -> None:
             raise ValueError("Fail task!")
 
         @flow
-        def bar(y):
+        def bar(y: int) -> int:
+            child_flow_calls.append(y)
             return y
 
         @flow
         def test_flow():
-            f = fails.submit()
-            b = bar(2, wait_for=[f], return_state=True)
-            return b
+            failed = fails.submit()
+            blocked = bar(2, wait_for=[failed], return_state=True)
+            strict = bar(
+                3,
+                wait_for=[allow_failure(blocked, include_blocked=False)],
+                return_state=True,
+            )
+            return quote((failed.state, blocked, strict))
 
         flow_state = test_flow(return_state=True)
-        subflow_state = await flow_state.result(raise_on_failure=False)
-        assert subflow_state.is_pending()
-        assert subflow_state.name == "NotReady"
+        failed_state, blocked_state, strict_state = (
+            await flow_state.result(raise_on_failure=False)
+        ).unquote()
+
+        assert failed_state.is_failed()
+        assert blocked_state.is_pending()
+        assert blocked_state.name == "NotReady"
+        assert strict_state.is_pending()
+        assert child_flow_calls == []
+        assert (
+            blocked_state.state_details.upstream_cause_task_run_id
+            == failed_state.state_details.task_run_id
+        )
+        assert (
+            strict_state.state_details.upstream_cause_task_run_id
+            == failed_state.state_details.task_run_id
+        )
+        assert strict_state.state_details.upstream_cause_state_type == StateType.FAILED
 
     async def test_async_subflow_retains_root_cause_through_strict_blocking(self):
         child_flow_calls: list[str] = []
