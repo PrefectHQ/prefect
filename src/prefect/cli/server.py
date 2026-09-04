@@ -5,7 +5,6 @@ Start and manage the Prefect server.
 """
 
 import asyncio
-import inspect
 import os
 import signal
 import subprocess
@@ -561,27 +560,15 @@ def list_services(
     ] = None,
 ):
     """List all available services and their status."""
-    from prefect.server.services.base import Service
+    from prefect.server.services._inventory import _get_service_inventory
 
     if output is not None and output.lower() != "json":
         exit_with_error("Only 'json' output format is supported.")
 
+    inventory = _get_service_inventory()
+
     if output is not None:
-        payload: list[dict[str, Any]] = []
-        for svc in Service.all_services():
-            name = svc.__name__
-            enabled = bool(svc.enabled())
-            environment_variable = svc.environment_variable_name()
-            doc = inspect.getdoc(svc) or ""
-            description = doc.split("\n", 1)[0].strip()
-            payload.append(
-                {
-                    "name": name,
-                    "enabled": enabled,
-                    "environment_variable": environment_variable,
-                    "description": description,
-                }
-            )
+        payload = [item.to_json_dict() for item in inventory]
         _cli.console.print(
             orjson.dumps(payload, option=orjson.OPT_INDENT_2).decode(),
             soft_wrap=True,
@@ -593,14 +580,22 @@ def list_services(
     table.add_column("Enabled?", no_wrap=True)
     table.add_column("Description", style="cyan", no_wrap=False)
 
-    for svc in Service.all_services():
-        name = svc.__name__
-        setting_text = Text(f"\u2713 {svc.environment_variable_name()}", style="green")
-        if not svc.enabled():
-            setting_text = Text(f"x {svc.environment_variable_name()}", style="gray50")
-        doc = inspect.getdoc(svc) or ""
-        description = doc.split("\n", 1)[0].strip()
-        table.add_row(name, setting_text, description)
+    for item in inventory:
+        setting_text = Text(f"\u2713 {item.environment_variable}", style="green")
+        if not item.enabled:
+            setting_text = Text(f"x {item.environment_variable}", style="gray50")
+        description = item.description
+        if item.shared_control and item.components:
+            description = (
+                f"{description} Shared control ({', '.join(item.components)})."
+            )
+        if item.component_state:
+            parts = [
+                f"{name}={'enabled' if enabled else 'disabled'}"
+                for name, enabled in item.component_state
+            ]
+            description = f"{description} Components: {', '.join(parts)}."
+        table.add_row(item.name, setting_text, description)
 
     _cli.console.print(table)
 
@@ -625,7 +620,7 @@ def start_services(
         _run_all_services,
         _write_pid_file,
     )
-    from prefect.server.services.base import Service
+    from prefect.server.services._inventory import _has_enabled_background_services
 
     SERVICES_PID_FILE.parent.mkdir(parents=True, exist_ok=True)
 
@@ -640,7 +635,7 @@ def start_services(
         else:
             _cleanup_pid_file(SERVICES_PID_FILE)
 
-    if not Service.enabled_services():
+    if not _has_enabled_background_services():
         _cli.console.print("[red]No services are enabled![/]")
         raise SystemExit(1)
 
@@ -730,11 +725,11 @@ def run_manager_process():
     """Internal entrypoint for background services."""
     from prefect.cli._server_utils import _run_all_services
     from prefect.logging import get_logger
-    from prefect.server.services.base import Service
+    from prefect.server.services._inventory import _has_enabled_background_services
 
     logger = get_logger(__name__)
 
-    if not Service.enabled_services():
+    if not _has_enabled_background_services():
         logger.error("No services are enabled! Exiting manager.")
         sys.exit(1)
 
