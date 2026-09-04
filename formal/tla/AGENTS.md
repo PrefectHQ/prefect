@@ -27,8 +27,9 @@ PostgreSQL. Keep the model and its test oracle independent of production code.
 
 ## CI and lifecycle
 
-- Pin JDK and TLA+ tool versions, verify downloads by checksum, run targets as
-  expected-green, and verify each unsafe configuration's exact exit and named
+- Fix the JDK distribution and major version in CI and document the matching
+  local major. Pin and checksum the TLA+ tool release. Run targets as
+  expected-green and verify each unsafe configuration's exact exit and named
   invariant. Do not commit tool JARs or TLC metadata.
 - Keep a new check advisory until its owner accepts the scope, invariants,
   runtime, and diagnostics.

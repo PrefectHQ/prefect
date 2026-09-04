@@ -40,13 +40,19 @@ reuse, holder indexing, SQL outages, arbitrary cardinalities, more than two
 reaper jobs per lease, physical overlap during lease-loss reaction, response
 replay, and request identity. The target does not access an external lease
 store: projections, migration, and eventual reclamation need separate models
-or tests, and cannot authorize claim actions. Direct mutation through other
-concurrency APIs violates the model's assumptions.
+or tests, and cannot authorize claim actions.
+
+`Limit` maps to `ConcurrencyLimitV2.limit`, is selected before `Init`, and stays
+fixed for one modeled behavior. Runtime deployment-limit changes, including
+`_create_or_update_deployment_concurrency_limit`, `global_concurrency_limit_id`
+reassignment, and direct global-concurrency API mutation, are out of scope.
+Lowering a live limit may intentionally leave existing occupancy above the new
+limit until holders release.
 
 ## Run locally
 
-Use JDK 11 or newer. Download the TLA+ tools release and SHA-256 checksum pinned
-in `.github/workflows/tla-plus.yaml` to
+Use JDK 21 locally; CI uses Temurin 21. Download the TLA+ tools release and
+SHA-256 checksum pinned in `.github/workflows/tla-plus.yaml` to
 `.planning/tla-tools/tla2tools.jar`. Use `$JAVA_HOME/bin/java` if `java` is
 not on `PATH`, then run from the repository root:
 
@@ -87,12 +93,24 @@ successful PENDING reacquisition branch, covered by
 also covers atomic claim release during flow-run deletion; `Terminal` abstracts
 removal from protocol participation.
 
-`runState`, `stateLease`, and `dbSlots` correspond to flow-run state,
-`deployment_concurrency_lease_id`, and `ConcurrencyLimitV2.active_slots`.
-The claim and lease ownership/lifecycle fields are proposed SQL state in the
-target; split-path models use ghost slot attribution around an external lease
-record. Reaper phases and scan epochs track two independent work items per
-lease; transaction and `bad*` fields expose in-flight or counterexample state.
+The two flow-run-state writes in an in-process `Running` -> `AwaitingRetry` ->
+`Running` cycle refine to the stuttering alternative in
+`[ClaimAuthorityNext]_vars`: concrete `AwaitingRetry` maps to abstract
+`Running`. `RetryFailedFlows`, `ReleaseFlowConcurrencySlots`'s retry branch,
+and `PreserveDeploymentConcurrencyLeaseId` leave the lease identity and occupied
+slot unchanged, while the flow engine keeps lease renewal active during the
+wait. Existing `Renew`, `Expire`, queued-release, and terminal actions retain
+their guards and can interleave with that wait. The lease-preservation mapping
+is covered by
+`tests/server/orchestration/test_core_policy.py::TestFlowConcurrencyLimits::test_in_process_retry_transition_does_not_release_concurrency_slots`.
+
+`runState` is the concurrency-relevant phase rather than a one-to-one flow-run
+state projection; `stateLease` and `dbSlots` correspond to
+`deployment_concurrency_lease_id` and `ConcurrencyLimitV2.active_slots`. The
+claim and lease ownership/lifecycle fields are proposed SQL state in the target;
+split-path models use ghost slot attribution around an external lease record.
+Reaper phases and scan epochs track two independent work items per lease;
+transaction and `bad*` fields expose in-flight or counterexample state.
 
 | Counterexample | Production-boundary regression |
 | --- | --- |

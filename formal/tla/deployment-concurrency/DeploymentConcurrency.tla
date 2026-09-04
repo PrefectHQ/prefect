@@ -31,6 +31,8 @@ ASSUME /\ Runs # {}
        /\ FallbackDecrementsAggregate \in BOOLEAN
        /\ RequireClaimForDecrement \in BOOLEAN
 
+(* "Running" abstracts the in-process execution phase, including            *)
+(* AwaitingRetry states whose flow-state writes refine to stuttering.       *)
 RunStates == {"Scheduled", "Pending", "Running", "Cancelled", "Terminal"}
 LeaseStates == {"Unused", "Live", "Expired", "Absent"}
 ReapPhases == {"Idle", "Queued", "Read", "Active"}
