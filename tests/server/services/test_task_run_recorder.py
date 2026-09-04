@@ -1450,6 +1450,55 @@ async def test_bulk_upsert_id_conflict_updates_existing_task_run(
     assert {state.state_details.task_run_id for state in states} == {task_run.id}
 
 
+async def test_bulk_upsert_ignores_stale_rows_without_skipping_other_rows(
+    session: AsyncSession,
+    flow_run: FlowRun,
+):
+    """A stale row must not prevent other rows in the batch from being written."""
+    flow_run_id = str(flow_run.id)
+    task_run_ids = {key: str(uuid4()) for key in ("stale", "updated", "inserted")}
+
+    await task_run_recorder.record_bulk_task_run_events(
+        [
+            upsert_event(
+                flow_run_id,
+                key,
+                task_run_id=task_run_ids[key],
+                minutes=minutes,
+                state_type=state_type,
+            )
+            for key, minutes, state_type in (
+                ("stale", 2, StateType.COMPLETED),
+                ("updated", 0, StateType.PENDING),
+            )
+        ]
+    )
+
+    await task_run_recorder.record_bulk_task_run_events(
+        [
+            upsert_event(
+                flow_run_id,
+                key,
+                task_run_id=task_run_ids[key],
+                minutes=1,
+                state_type=StateType.RUNNING,
+            )
+            for key in task_run_ids
+        ]
+    )
+
+    session.expire_all()
+    expected = {
+        "stale": StateType.COMPLETED,
+        "updated": StateType.RUNNING,
+        "inserted": StateType.RUNNING,
+    }
+    for key, state_type in expected.items():
+        task_run = await read_task_run(session=session, task_run_id=task_run_ids[key])
+        assert task_run is not None
+        assert task_run.state_type == state_type
+
+
 async def test_bulk_upsert_coalesces_id_conflicts_in_same_batch(
     session: AsyncSession,
     flow_run,
