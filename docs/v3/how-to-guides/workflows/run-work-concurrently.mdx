@@ -386,6 +386,7 @@ To continue only when the annotated run executed and failed directly, set
 `include_blocked=False`. A dependency blocked by any earlier run will continue to
 block the downstream task:
 
+{/* pmd-metadata: notest */}
 ```python
 cleanup.submit(
     wait_for=[allow_failure(transformed, include_blocked=False)]
