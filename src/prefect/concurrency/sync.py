@@ -1,6 +1,10 @@
 from collections.abc import Generator
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Optional, TypeVar, Union
+import threading
+
+# Global semaphore to limit concurrent concurrency slot operations, preventing DB timeouts under high load
+_slot_operation_semaphore = threading.Semaphore(50)
 
 from ._events import (
     emit_concurrency_acquisition_events,
