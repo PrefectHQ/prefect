@@ -44,10 +44,33 @@ def upgrade():
                 FROM pg_index i
                 JOIN pg_class c ON c.oid = i.indexrelid
                 JOIN pg_namespace n ON n.oid = c.relnamespace
+                JOIN pg_class target_c
+                  ON target_c.relnamespace = c.relnamespace
+                 AND target_c.relname = 'ix_event_resources__occurred'
+                JOIN pg_index target_i
+                  ON target_i.indexrelid = target_c.oid
+                 AND target_i.indrelid = i.indrelid
                 WHERE i.indrelid = to_regclass('event_resources')
                   AND NOT i.indisvalid
                   AND c.relname ~
                       '^ix_event_resources__occurred_cc(new|old)[0-9]*$'
+                  AND c.relam = target_c.relam
+                  AND c.reltablespace = target_c.reltablespace
+                  AND c.reloptions IS NOT DISTINCT FROM target_c.reloptions
+                  AND i.indisunique = target_i.indisunique
+                  AND i.indisprimary = target_i.indisprimary
+                  AND i.indisexclusion = target_i.indisexclusion
+                  AND i.indimmediate = target_i.indimmediate
+                  AND i.indnatts = target_i.indnatts
+                  AND i.indnkeyatts = target_i.indnkeyatts
+                  AND i.indkey = target_i.indkey
+                  AND i.indcollation = target_i.indcollation
+                  AND i.indclass = target_i.indclass
+                  AND i.indoption = target_i.indoption
+                  AND pg_get_expr(i.indexprs, i.indrelid) IS NOT DISTINCT FROM
+                      pg_get_expr(target_i.indexprs, target_i.indrelid)
+                  AND pg_get_expr(i.indpred, i.indrelid) IS NOT DISTINCT FROM
+                      pg_get_expr(target_i.indpred, target_i.indrelid)
                 """
             )
             .all()

@@ -593,9 +593,30 @@ def test_event_resources_occurred_index_repair_migration_handles_index_state(
         "SELECT format('%I.%I', n.nspname, c.relname) FROM pg_index i "
         "JOIN pg_class c ON c.oid = i.indexrelid "
         "JOIN pg_namespace n ON n.oid = c.relnamespace "
+        "JOIN pg_class target_c ON target_c.relnamespace = c.relnamespace "
+        "AND target_c.relname = 'ix_event_resources__occurred' "
+        "JOIN pg_index target_i ON target_i.indexrelid = target_c.oid "
+        "AND target_i.indrelid = i.indrelid "
         "WHERE i.indrelid = to_regclass('event_resources') "
         "AND NOT i.indisvalid AND c.relname ~ "
-        "'^ix_event_resources__occurred_cc(new|old)[0-9]*$'"
+        "'^ix_event_resources__occurred_cc(new|old)[0-9]*$' "
+        "AND c.relam = target_c.relam "
+        "AND c.reltablespace = target_c.reltablespace "
+        "AND c.reloptions IS NOT DISTINCT FROM target_c.reloptions "
+        "AND i.indisunique = target_i.indisunique "
+        "AND i.indisprimary = target_i.indisprimary "
+        "AND i.indisexclusion = target_i.indisexclusion "
+        "AND i.indimmediate = target_i.indimmediate "
+        "AND i.indnatts = target_i.indnatts "
+        "AND i.indnkeyatts = target_i.indnkeyatts "
+        "AND i.indkey = target_i.indkey "
+        "AND i.indcollation = target_i.indcollation "
+        "AND i.indclass = target_i.indclass "
+        "AND i.indoption = target_i.indoption "
+        "AND pg_get_expr(i.indexprs, i.indrelid) IS NOT DISTINCT FROM "
+        "pg_get_expr(target_i.indexprs, target_i.indrelid) "
+        "AND pg_get_expr(i.indpred, i.indrelid) IS NOT DISTINCT FROM "
+        "pg_get_expr(target_i.indpred, target_i.indrelid)"
     )
     assert catalog_queries == [artifact_query, catalog_query, catalog_query]
     create_statement = (
@@ -715,6 +736,14 @@ async def test_event_resources_occurred_index_repair_migration_repairs_postgres(
             with pytest.raises(sa.exc.DBAPIError, match="statement timeout"):
                 await builder.execute(
                     sa.text(
+                        "CREATE INDEX CONCURRENTLY "
+                        "ix_event_resources__occurred_ccnew "
+                        "ON public.event_resources (resource_id)"
+                    )
+                )
+            with pytest.raises(sa.exc.DBAPIError, match="statement timeout"):
+                await builder.execute(
+                    sa.text(
                         "REINDEX INDEX CONCURRENTLY public.ix_event_resources__occurred"
                     )
                 )
@@ -730,19 +759,24 @@ async def test_event_resources_occurred_index_repair_migration_repairs_postgres(
                     """
                 )
             )
-            assert await connection.scalar(
+            artifacts = await connection.execute(
                 sa.text(
                     """
-                    SELECT count(*)
+                    SELECT c.relname
                     FROM pg_index i
                     JOIN pg_class c ON c.oid = i.indexrelid
                     WHERE i.indrelid = to_regclass('public.event_resources')
                       AND NOT i.indisvalid
                       AND c.relname ~
                           '^ix_event_resources__occurred_cc(new|old)[0-9]*$'
+                    ORDER BY c.relname
                     """
                 )
             )
+            assert artifacts.scalars().all() == [
+                "ix_event_resources__occurred_ccnew",
+                "ix_event_resources__occurred_ccnew1",
+            ]
 
         upgrade_tasks = [
             asyncio.create_task(run_sync_in_worker_thread(alembic_upgrade))
@@ -783,22 +817,21 @@ async def test_event_resources_occurred_index_repair_migration_repairs_postgres(
                     """
                 )
             )
-            assert (
-                await connection.scalar(
-                    sa.text(
-                        """
-                        SELECT count(*)
-                        FROM pg_index i
-                        JOIN pg_class c ON c.oid = i.indexrelid
-                        WHERE i.indrelid = to_regclass('public.event_resources')
-                          AND NOT i.indisvalid
-                          AND c.relname ~
-                              '^ix_event_resources__occurred_cc(new|old)[0-9]*$'
-                        """
-                    )
+            artifacts = await connection.execute(
+                sa.text(
+                    """
+                    SELECT c.relname
+                    FROM pg_index i
+                    JOIN pg_class c ON c.oid = i.indexrelid
+                    WHERE i.indrelid = to_regclass('public.event_resources')
+                      AND NOT i.indisvalid
+                      AND c.relname ~
+                          '^ix_event_resources__occurred_cc(new|old)[0-9]*$'
+                    ORDER BY c.relname
+                    """
                 )
-                == 0
             )
+            assert artifacts.scalars().all() == ["ix_event_resources__occurred_ccnew"]
             assert await connection.scalar(
                 sa.text(
                     """
@@ -822,6 +855,21 @@ async def test_event_resources_occurred_index_repair_migration_repairs_postgres(
         if upgrade_tasks:
             await asyncio.gather(*upgrade_tasks, return_exceptions=True)
         await blocker.close()
+        async with builder_engine.connect() as cleanup:
+            cleanup = await cleanup.execution_options(isolation_level="AUTOCOMMIT")
+            await cleanup.execute(sa.text("SET statement_timeout = 0"))
+            await cleanup.execute(
+                sa.text(
+                    "DROP INDEX CONCURRENTLY IF EXISTS "
+                    "public.ix_event_resources__occurred_ccnew1"
+                )
+            )
+            await cleanup.execute(
+                sa.text(
+                    "DROP INDEX CONCURRENTLY IF EXISTS "
+                    "public.ix_event_resources__occurred_ccnew"
+                )
+            )
         await builder_engine.dispose()
         if quoted_database is not None:
             async with database_engine.begin() as connection:
