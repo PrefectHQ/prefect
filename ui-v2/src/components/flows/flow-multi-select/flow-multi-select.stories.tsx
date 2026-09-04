@@ -46,17 +46,11 @@ const FlowMultiSelectWithState = ({
 	const [selectedFlowIds, setSelectedFlowIds] = useState<string[]>(
 		initialSelectedFlowIds,
 	);
-	const handleToggleFlow = (flowId: string) => {
-		setSelectedFlowIds((prev) =>
-			prev.includes(flowId)
-				? prev.filter((id) => id !== flowId)
-				: [...prev, flowId],
-		);
-	};
+
 	return (
 		<FlowMultiSelect
 			selectedFlowIds={selectedFlowIds}
-			onToggleFlow={handleToggleFlow}
+			onSelectFlowIds={setSelectedFlowIds}
 			emptyMessage={emptyMessage}
 		/>
 	);
