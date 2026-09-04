@@ -15,8 +15,10 @@ Postgres: `c8d5f2a71b3e`
 `bad1e352c597` used a plain `IF NOT EXISTS`, so an `INVALID` index left by an
 interrupted build was skipped and never repaired. This rebuilds an invalid
 `ix_event_resources__occurred` with `REINDEX INDEX CONCURRENTLY`, preserving the
-old index until its replacement is valid. Downgrading is a no-op; the index is
-removed by downgrading `bad1e352c597`.
+old index until its replacement is valid, and removes invalid artifacts from
+interrupted rebuilds. Offline SQL generation is rejected because it cannot
+safely inspect the catalog. Downgrading is a no-op; the index is removed by
+downgrading `bad1e352c597`.
 
 # Add `flow_run.deployment_id` index for deployment-filtered queries
 SQLite: `f416ea180ae1`

@@ -507,11 +507,22 @@ def test_flow_run_deployment_id_index_migration_supports_postgres_dry_run(
 
 @pytest.mark.parametrize("index_is_valid", [True, False, None])
 @pytest.mark.parametrize("rebuilt_index_is_valid", [True, False])
+@pytest.mark.parametrize(
+    "artifact_names",
+    [
+        (),
+        (
+            '"public"."ix_event_resources__occurred_ccnew"',
+            '"public"."ix_event_resources__occurred_ccold1"',
+        ),
+    ],
+)
 def test_event_resources_occurred_index_repair_migration_handles_index_state(
     event_resources_occurred_index_repair_migration: ModuleType,
     monkeypatch: pytest.MonkeyPatch,
     index_is_valid: bool | None,
     rebuilt_index_is_valid: bool,
+    artifact_names: tuple[str, ...],
 ):
     catalog_queries: list[str] = []
     statements: list[str] = []
@@ -524,13 +535,27 @@ def test_event_resources_occurred_index_repair_migration_handles_index_state(
     )
 
     class Result:
+        def __init__(
+            self,
+            first: tuple[str, bool] | None = None,
+            rows: list[tuple[str]] | None = None,
+        ) -> None:
+            self._first = first
+            self._rows = rows or []
+
         def first(self) -> tuple[str, bool] | None:
-            return next(query_results)
+            return self._first
+
+        def all(self) -> list[tuple[str]]:
+            return self._rows
 
     class Bind:
         def exec_driver_sql(self, statement: str) -> Result:
-            catalog_queries.append(" ".join(statement.split()))
-            return Result()
+            statement = " ".join(statement.split())
+            catalog_queries.append(statement)
+            if "c.relname ~" in statement:
+                return Result(rows=[(name,) for name in artifact_names])
+            return Result(first=next(query_results))
 
     @contextlib.contextmanager
     def autocommit_block():
@@ -564,24 +589,31 @@ def test_event_resources_occurred_index_repair_migration_handles_index_state(
         "WHERE i.indrelid = to_regclass('event_resources') "
         "AND c.relname = 'ix_event_resources__occurred'"
     )
-    assert catalog_queries == [catalog_query, catalog_query]
+    artifact_query = (
+        "SELECT format('%I.%I', n.nspname, c.relname) FROM pg_index i "
+        "JOIN pg_class c ON c.oid = i.indexrelid "
+        "JOIN pg_namespace n ON n.oid = c.relnamespace "
+        "WHERE i.indrelid = to_regclass('event_resources') "
+        "AND NOT i.indisvalid AND c.relname ~ "
+        "'^ix_event_resources__occurred_cc(new|old)[0-9]*$'"
+    )
+    assert catalog_queries == [artifact_query, catalog_query, catalog_query]
     create_statement = (
         "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
         "ix_event_resources__occurred ON event_resources (occurred)"
     )
+    expected_statements = [
+        f"DROP INDEX CONCURRENTLY IF EXISTS {name}" for name in artifact_names
+    ]
     if index_is_valid is None:
-        assert statements == [create_statement]
+        expected_statements.append(create_statement)
     elif not index_is_valid:
-        assert statements == [
-            f"REINDEX INDEX CONCURRENTLY {qualified_index}",
-        ]
-    else:
-        assert statements == []
+        expected_statements.append(f"REINDEX INDEX CONCURRENTLY {qualified_index}")
+    assert statements == expected_statements
 
 
-def test_event_resources_occurred_index_repair_migration_supports_postgres_dry_run(
+def test_event_resources_occurred_index_repair_migration_rejects_postgres_dry_run(
     monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
 ):
     monkeypatch.setattr(
         dependencies,
@@ -595,21 +627,18 @@ def test_event_resources_occurred_index_repair_migration_supports_postgres_dry_r
     )
     monkeypatch.setattr(DBSingleton, "_instances", {})
 
-    with temporary_settings(
-        {
-            PREFECT_SERVER_DATABASE_CONNECTION_URL: (
-                "postgresql+asyncpg://localhost/prefect"
-            )
-        }
+    with pytest.raises(
+        RuntimeError,
+        match="c8d5f2a71b3e requires an online PostgreSQL migration",
     ):
-        alembic_upgrade("9e9dadc36797:c8d5f2a71b3e", dry_run=True)
-
-    output = capsys.readouterr().out
-    assert (
-        "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
-        "ix_event_resources__occurred ON event_resources (occurred)"
-        in " ".join(output.split())
-    )
+        with temporary_settings(
+            {
+                PREFECT_SERVER_DATABASE_CONNECTION_URL: (
+                    "postgresql+asyncpg://localhost/prefect"
+                )
+            }
+        ):
+            alembic_upgrade("9e9dadc36797:c8d5f2a71b3e", dry_run=True)
 
 
 @pytest.mark.timeout(30)
@@ -683,6 +712,12 @@ async def test_event_resources_occurred_index_repair_migration_repairs_postgres(
                         "ON public.event_resources (occurred)"
                     )
                 )
+            with pytest.raises(sa.exc.DBAPIError, match="statement timeout"):
+                await builder.execute(
+                    sa.text(
+                        "REINDEX INDEX CONCURRENTLY public.ix_event_resources__occurred"
+                    )
+                )
 
         async with database_engine.connect() as connection:
             assert await connection.scalar(
@@ -695,6 +730,19 @@ async def test_event_resources_occurred_index_repair_migration_repairs_postgres(
                     """
                 )
             )
+            assert await connection.scalar(
+                sa.text(
+                    """
+                    SELECT count(*)
+                    FROM pg_index i
+                    JOIN pg_class c ON c.oid = i.indexrelid
+                    WHERE i.indrelid = to_regclass('public.event_resources')
+                      AND NOT i.indisvalid
+                      AND c.relname ~
+                          '^ix_event_resources__occurred_cc(new|old)[0-9]*$'
+                    """
+                )
+            )
 
         upgrade_tasks = [
             asyncio.create_task(run_sync_in_worker_thread(alembic_upgrade))
@@ -703,18 +751,21 @@ async def test_event_resources_occurred_index_repair_migration_repairs_postgres(
         try:
             async for attempt in retry_asserts(max_attempts=30, delay=0.1):
                 async with database_engine.connect() as observer:
-                    rebuild_count = await observer.scalar(
+                    migration_count = await observer.scalar(
                         sa.text(
                             """
                             SELECT count(*)
                             FROM pg_stat_activity
                             WHERE datname = current_database()
-                              AND query LIKE 'REINDEX INDEX CONCURRENTLY%'
+                              AND (
+                                  query LIKE 'DROP INDEX CONCURRENTLY%'
+                                  OR query LIKE 'REINDEX INDEX CONCURRENTLY%'
+                              )
                             """
                         )
                     )
                 with attempt:
-                    assert rebuild_count >= 1
+                    assert migration_count >= 1
         finally:
             await blocker_transaction.rollback()
 
@@ -731,6 +782,22 @@ async def test_event_resources_occurred_index_repair_migration_repairs_postgres(
                             to_regclass('public.ix_event_resources__occurred')
                     """
                 )
+            )
+            assert (
+                await connection.scalar(
+                    sa.text(
+                        """
+                        SELECT count(*)
+                        FROM pg_index i
+                        JOIN pg_class c ON c.oid = i.indexrelid
+                        WHERE i.indrelid = to_regclass('public.event_resources')
+                          AND NOT i.indisvalid
+                          AND c.relname ~
+                              '^ix_event_resources__occurred_cc(new|old)[0-9]*$'
+                        """
+                    )
+                )
+                == 0
             )
             assert await connection.scalar(
                 sa.text(
