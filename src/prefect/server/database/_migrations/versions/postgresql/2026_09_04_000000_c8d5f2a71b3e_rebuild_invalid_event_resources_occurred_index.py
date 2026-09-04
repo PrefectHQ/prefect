@@ -12,11 +12,11 @@ to migrate) leaves an `INVALID` index behind. On the next upgrade
 applied, so the planner never uses the index and the `db_vacuum` delete on
 `event_resources.occurred` falls back to a sequential scan.
 
-This migration drops any invalid leftover and rebuilds it, mirroring the guard
-in `50737cdaee36` and `9e9dadc36797`. When the index is already valid, or does
-not exist, `IF NOT EXISTS` makes this a no-op or a normal build respectively.
-The final catalog check prevents a concurrent migration from recording this
-revision while another replica's index build is still invalid.
+This migration rebuilds an invalid leftover with `REINDEX INDEX CONCURRENTLY`,
+which preserves the existing index until its replacement is valid. When the
+index is already valid it is a no-op; when it does not exist it is created.
+Catalog lookups anchor the index to the resolved `event_resources` table so an
+identically named index in another schema cannot be inspected or rebuilt.
 """
 
 from alembic import op
@@ -31,48 +31,41 @@ depends_on = None
 def upgrade():
     migration_context = op.get_context()
     with migration_context.autocommit_block():
-        if not migration_context.as_sql:
-            invalid_index = (
-                op.get_bind()
-                .exec_driver_sql(
-                    """
-                    SELECT 1
-                    FROM pg_index i
-                    WHERE i.indexrelid =
-                        to_regclass('ix_event_resources__occurred')
-                    AND NOT i.indisvalid
-                    """
-                )
-                .scalar()
+        if migration_context.as_sql:
+            op.execute(
+                """
+                CREATE INDEX CONCURRENTLY IF NOT EXISTS
+                ix_event_resources__occurred
+                ON event_resources (occurred)
+                """
             )
-            if invalid_index:
-                op.execute(
-                    "DROP INDEX CONCURRENTLY IF EXISTS ix_event_resources__occurred"
-                )
-        op.execute(
+            return
+
+        index_query = """
+            SELECT format('%I.%I', n.nspname, c.relname), i.indisvalid
+            FROM pg_index i
+            JOIN pg_class c ON c.oid = i.indexrelid
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE i.indrelid = to_regclass('event_resources')
+              AND c.relname = 'ix_event_resources__occurred'
             """
-            CREATE INDEX CONCURRENTLY IF NOT EXISTS
-            ix_event_resources__occurred
-            ON event_resources (occurred)
-            """
-        )
-        if not migration_context.as_sql:
-            index_is_valid = (
-                op.get_bind()
-                .exec_driver_sql(
-                    """
-                    SELECT i.indisvalid
-                    FROM pg_index i
-                    WHERE i.indexrelid =
-                        to_regclass('ix_event_resources__occurred')
-                    """
-                )
-                .scalar()
+        index = op.get_bind().exec_driver_sql(index_query).first()
+        if index is None:
+            op.execute(
+                """
+                CREATE INDEX CONCURRENTLY IF NOT EXISTS
+                ix_event_resources__occurred
+                ON event_resources (occurred)
+                """
             )
-            if not index_is_valid:
-                raise RuntimeError(
-                    "ix_event_resources__occurred is missing or invalid after creation"
-                )
+        elif not index[1]:
+            op.execute(f"REINDEX INDEX CONCURRENTLY {index[0]}")
+
+        index = op.get_bind().exec_driver_sql(index_query).first()
+        if index is None or not index[1]:
+            raise RuntimeError(
+                "ix_event_resources__occurred is missing or invalid after creation"
+            )
 
 
 def downgrade():

@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import importlib.util
 import json
@@ -14,6 +15,7 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
+from prefect._internal.testing import retry_asserts
 from prefect.server.database import dependencies
 from prefect.server.database.alembic_commands import (
     alembic_config,
@@ -503,20 +505,26 @@ def test_flow_run_deployment_id_index_migration_supports_postgres_dry_run(
     )
 
 
-@pytest.mark.parametrize("index_is_invalid", [True, False])
+@pytest.mark.parametrize("index_is_valid", [True, False, None])
 @pytest.mark.parametrize("rebuilt_index_is_valid", [True, False])
-def test_event_resources_occurred_index_repair_migration_rebuilds_invalid_index(
+def test_event_resources_occurred_index_repair_migration_handles_index_state(
     event_resources_occurred_index_repair_migration: ModuleType,
     monkeypatch: pytest.MonkeyPatch,
-    index_is_invalid: bool,
+    index_is_valid: bool | None,
     rebuilt_index_is_valid: bool,
 ):
     catalog_queries: list[str] = []
     statements: list[str] = []
-    query_results = iter([1 if index_is_invalid else None, rebuilt_index_is_valid])
+    qualified_index = '"public"."ix_event_resources__occurred"'
+    query_results = iter(
+        [
+            None if index_is_valid is None else (qualified_index, index_is_valid),
+            (qualified_index, rebuilt_index_is_valid),
+        ]
+    )
 
     class Result:
-        def scalar(self) -> int | bool | None:
+        def first(self) -> tuple[str, bool] | None:
             return next(query_results)
 
     class Bind:
@@ -549,27 +557,26 @@ def test_event_resources_occurred_index_repair_migration_rebuilds_invalid_index(
         ):
             event_resources_occurred_index_repair_migration.upgrade()
 
-    assert catalog_queries == [
-        (
-            "SELECT 1 FROM pg_index i WHERE i.indexrelid = "
-            "to_regclass('ix_event_resources__occurred') AND NOT i.indisvalid"
-        ),
-        (
-            "SELECT i.indisvalid FROM pg_index i WHERE i.indexrelid = "
-            "to_regclass('ix_event_resources__occurred')"
-        ),
-    ]
+    catalog_query = (
+        "SELECT format('%I.%I', n.nspname, c.relname), i.indisvalid "
+        "FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid "
+        "JOIN pg_namespace n ON n.oid = c.relnamespace "
+        "WHERE i.indrelid = to_regclass('event_resources') "
+        "AND c.relname = 'ix_event_resources__occurred'"
+    )
+    assert catalog_queries == [catalog_query, catalog_query]
     create_statement = (
         "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
         "ix_event_resources__occurred ON event_resources (occurred)"
     )
-    if index_is_invalid:
+    if index_is_valid is None:
+        assert statements == [create_statement]
+    elif not index_is_valid:
         assert statements == [
-            "DROP INDEX CONCURRENTLY IF EXISTS ix_event_resources__occurred",
-            create_statement,
+            f"REINDEX INDEX CONCURRENTLY {qualified_index}",
         ]
     else:
-        assert statements == [create_statement]
+        assert statements == []
 
 
 def test_event_resources_occurred_index_repair_migration_supports_postgres_dry_run(
@@ -616,13 +623,44 @@ async def test_event_resources_occurred_index_repair_migration_repairs_postgres(
     builder_engine = create_async_engine(database_engine.url, pool_pre_ping=True)
     blocker = await database_engine.connect()
     blocker_transaction = await blocker.begin()
+    upgrade_tasks: list[asyncio.Task[None]] = []
+    quoted_database: str | None = None
     try:
         await run_sync_in_worker_thread(alembic_downgrade, revision="9e9dadc36797")
+        async with database_engine.begin() as connection:
+            database_name = await connection.scalar(
+                sa.text("SELECT current_database()")
+            )
+            assert database_name is not None
+            quoted_database = database_engine.dialect.identifier_preparer.quote(
+                database_name
+            )
+            await connection.execute(sa.text("CREATE SCHEMA migration_shadow"))
+            await connection.execute(
+                sa.text(
+                    "CREATE TABLE migration_shadow.unrelated (occurred timestamptz)"
+                )
+            )
+            await connection.execute(
+                sa.text(
+                    "CREATE INDEX ix_event_resources__occurred "
+                    "ON migration_shadow.unrelated (occurred)"
+                )
+            )
+            await connection.execute(
+                sa.text(
+                    f"ALTER DATABASE {quoted_database} "
+                    "SET search_path TO migration_shadow, public"
+                )
+            )
+        await database_engine.dispose()
+
         async with builder_engine.connect() as builder:
             builder = await builder.execution_options(isolation_level="AUTOCOMMIT")
             await builder.execute(
                 sa.text(
-                    "DROP INDEX CONCURRENTLY IF EXISTS ix_event_resources__occurred"
+                    "DROP INDEX CONCURRENTLY IF EXISTS "
+                    "public.ix_event_resources__occurred"
                 )
             )
             await blocker.execute(
@@ -641,7 +679,8 @@ async def test_event_resources_occurred_index_repair_migration_repairs_postgres(
                 await builder.execute(
                     sa.text(
                         "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
-                        "ix_event_resources__occurred ON event_resources (occurred)"
+                        "ix_event_resources__occurred "
+                        "ON public.event_resources (occurred)"
                     )
                 )
 
@@ -649,33 +688,83 @@ async def test_event_resources_occurred_index_repair_migration_repairs_postgres(
             assert await connection.scalar(
                 sa.text(
                     """
-                    SELECT NOT i.indisvalid
-                    FROM pg_index i
-                    WHERE i.indexrelid =
-                        to_regclass('ix_event_resources__occurred')
+                        SELECT NOT i.indisvalid
+                        FROM pg_index i
+                        WHERE i.indexrelid =
+                            to_regclass('public.ix_event_resources__occurred')
                     """
                 )
             )
 
-        await blocker_transaction.rollback()
-        await run_sync_in_worker_thread(alembic_upgrade)
+        upgrade_tasks = [
+            asyncio.create_task(run_sync_in_worker_thread(alembic_upgrade))
+            for _ in range(2)
+        ]
+        try:
+            async for attempt in retry_asserts(max_attempts=30, delay=0.1):
+                async with database_engine.connect() as observer:
+                    rebuild_count = await observer.scalar(
+                        sa.text(
+                            """
+                            SELECT count(*)
+                            FROM pg_stat_activity
+                            WHERE datname = current_database()
+                              AND query LIKE 'REINDEX INDEX CONCURRENTLY%'
+                            """
+                        )
+                    )
+                with attempt:
+                    assert rebuild_count >= 1
+        finally:
+            await blocker_transaction.rollback()
+
+        upgrade_results = await asyncio.gather(*upgrade_tasks, return_exceptions=True)
+        assert upgrade_results == [None, None]
 
         async with database_engine.connect() as connection:
             assert await connection.scalar(
                 sa.text(
                     """
-                    SELECT i.indisvalid
-                    FROM pg_index i
-                    WHERE i.indexrelid =
-                        to_regclass('ix_event_resources__occurred')
+                        SELECT i.indisvalid
+                        FROM pg_index i
+                        WHERE i.indexrelid =
+                            to_regclass('public.ix_event_resources__occurred')
                     """
                 )
+            )
+            assert await connection.scalar(
+                sa.text(
+                    """
+                    SELECT i.indisvalid
+                    FROM pg_index i
+                    WHERE i.indexrelid = to_regclass(
+                        'migration_shadow.ix_event_resources__occurred'
+                    )
+                    """
+                )
+            )
+            assert (
+                await connection.scalar(
+                    sa.text("SELECT version_num FROM alembic_version")
+                )
+                == "c8d5f2a71b3e"
             )
     finally:
         if blocker_transaction.is_active:
             await blocker_transaction.rollback()
+        if upgrade_tasks:
+            await asyncio.gather(*upgrade_tasks, return_exceptions=True)
         await blocker.close()
         await builder_engine.dispose()
+        if quoted_database is not None:
+            async with database_engine.begin() as connection:
+                await connection.execute(
+                    sa.text(f"ALTER DATABASE {quoted_database} RESET search_path")
+                )
+                await connection.execute(
+                    sa.text("DROP SCHEMA IF EXISTS migration_shadow CASCADE")
+                )
+            await database_engine.dispose()
         await run_sync_in_worker_thread(alembic_upgrade)
 
 
