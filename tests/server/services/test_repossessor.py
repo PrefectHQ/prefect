@@ -113,6 +113,40 @@ class TestRevokeExpiredLease:
         # expired forever
         assert lease_storage.expirations == {}
 
+    async def test_revoke_expired_lease_renewed_before_revocation(
+        self, lease_storage, concurrency_limit, session: AsyncSession
+    ):
+        """A lease renewed after being listed as expired must not be revoked.
+
+        `monitor_expired_leases` lists expired leases and schedules a task per
+        lease; the holder can renew in between. Revoking then takes slots away
+        from a holder that is alive and renewing on schedule, and the holder
+        only finds out on its next renewal.
+        """
+        await bulk_increment_active_slots(session, [concurrency_limit.id], 2)
+        await session.commit()
+
+        lease = await lease_storage.create_lease(
+            resource_ids=[concurrency_limit.id],
+            ttl=timedelta(seconds=-1),  # Expired, so it gets scheduled
+            metadata=ConcurrencyLimitLeaseMetadata(slots=2),
+        )
+
+        # The holder renews before the revocation task runs
+        assert await lease_storage.renew_lease(lease.id, timedelta(minutes=5))
+
+        db = provide_database_interface()
+        await revoke_expired_lease(
+            lease.id,
+            db=db,
+            lease_storage=lease_storage,
+        )
+
+        # The lease is untouched and still holds its slots
+        assert len(lease_storage.leases) == 1
+        limits = await bulk_read_concurrency_limits(session, [concurrency_limit.name])
+        assert limits[0].active_slots == 2
+
     async def test_revoke_expired_lease_missing_metadata(
         self, lease_storage, concurrency_limit
     ):
