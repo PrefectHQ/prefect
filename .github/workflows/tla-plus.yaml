@@ -1,0 +1,112 @@
+name: TLA+ model check
+
+on:
+  workflow_dispatch:
+
+  pull_request:
+    paths:
+      - .github/workflows/tla-plus.yaml
+      - "formal/tla/**"
+
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/tla-plus.yaml
+      - "formal/tla/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  TLA_TOOLS_VERSION: "1.7.4"
+  TLA_MODEL_DIR: formal/tla/deployment-concurrency
+
+jobs:
+  check-deployment-concurrency:
+    name: Deployment concurrency
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Download TLA+ tools
+        run: |
+          tla_tools_url="https://github.com/tlaplus/tlaplus/releases/download/"
+          tla_tools_url+="v${TLA_TOOLS_VERSION}/tla2tools.jar"
+          tla_tools_sha256="936a262061c914694dfd669a543be2457"
+          tla_tools_sha256+="3c45d5aa0ff20a8b96b23d01e050e88"
+          curl --fail --location --silent --show-error \
+            "$tla_tools_url" \
+            --output "$RUNNER_TEMP/tla2tools.jar"
+          printf '%s  %s\n' \
+            "$tla_tools_sha256" \
+            "$RUNNER_TEMP/tla2tools.jar" \
+            | sha256sum --check -
+
+      - name: Check target protocol
+        run: |
+          mkdir -p "$RUNNER_TEMP/tlc/target"
+          java -XX:+UseParallelGC \
+            -jar "$RUNNER_TEMP/tla2tools.jar" \
+            -workers 1 \
+            -metadir "$RUNNER_TEMP/tlc/target" \
+            -config "$TLA_MODEL_DIR/DeploymentConcurrency.cfg" \
+            "$TLA_MODEL_DIR/DeploymentConcurrency.tla"
+
+      - name: Check expected counterexamples
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          check_counterexample() {
+            local config="$1"
+            local invariant="$2"
+            local name="${config%.cfg}"
+            local output="$RUNNER_TEMP/tlc/${name}.log"
+
+            mkdir -p "$RUNNER_TEMP/tlc/$name"
+            set +e
+            java -XX:+UseParallelGC \
+              -jar "$RUNNER_TEMP/tla2tools.jar" \
+              -workers 1 \
+              -metadir "$RUNNER_TEMP/tlc/$name" \
+              -config "$TLA_MODEL_DIR/$config" \
+              "$TLA_MODEL_DIR/DeploymentConcurrency.tla" \
+              2>&1 | tee "$output"
+            local status="${PIPESTATUS[0]}"
+            set -e
+
+            if [[ "$status" -ne 12 ]]; then
+              echo "Expected TLC exit 12 for $config, got $status" >&2
+              return 1
+            fi
+
+            if ! grep -Fq "Invariant $invariant is violated." "$output"; then
+              echo "Expected $config to violate $invariant" >&2
+              return 1
+            fi
+          }
+
+          check_counterexample \
+            CounterexampleStaleReap.cfg \
+            RenewWinsAgainstStaleScan
+          check_counterexample \
+            CounterexampleFallbackRelease.cfg \
+            NoForeignRelease
+          check_counterexample \
+            CounterexampleReadPresentRelease.cfg \
+            NoForeignRelease

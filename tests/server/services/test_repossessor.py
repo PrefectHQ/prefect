@@ -24,6 +24,10 @@ from prefect.server.services.repossessor import (
 pytestmark = pytest.mark.clear_db
 
 
+class ExpectedStaleLeaseReaperRace(AssertionError):
+    """The known stale expiry-scan race reached its unsafe outcome."""
+
+
 class TestRevokeExpiredLease:
     @pytest.fixture
     def lease_storage(self):
@@ -82,6 +86,38 @@ class TestRevokeExpiredLease:
         limits = await bulk_read_concurrency_limits(session, [concurrency_limit.name])
         assert len(limits) == 1
         assert limits[0].active_slots == 0
+
+    @pytest.mark.xfail(
+        strict=True,
+        raises=ExpectedStaleLeaseReaperRace,
+        reason="Queued reaper work does not revalidate expiry atomically",
+    )
+    async def test_does_not_revoke_lease_renewed_after_expiry_scan(
+        self, lease_storage, concurrency_limit, session: AsyncSession
+    ):
+        await bulk_increment_active_slots(session, [concurrency_limit.id], 1)
+        await session.commit()
+
+        lease = await lease_storage.create_lease(
+            resource_ids=[concurrency_limit.id],
+            ttl=timedelta(seconds=-1),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+        assert await lease_storage.read_expired_lease_ids() == [lease.id]
+
+        renewed = await lease_storage.renew_lease(lease.id, timedelta(minutes=5))
+        assert renewed is True
+
+        await revoke_expired_lease(
+            lease.id,
+            db=provide_database_interface(),
+            lease_storage=lease_storage,
+        )
+
+        lease_after_reap = await lease_storage.read_lease(lease.id)
+        await session.refresh(concurrency_limit)
+        if lease_after_reap is None or concurrency_limit.active_slots != 1:
+            raise ExpectedStaleLeaseReaperRace
 
     async def test_revoke_expired_lease_missing_lease(
         self, lease_storage, concurrency_limit

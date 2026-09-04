@@ -2,6 +2,7 @@
 Tests for the ValidateDeploymentConcurrencyAtRunning orchestration rule.
 """
 
+import asyncio
 import contextlib
 import datetime
 from uuid import UUID, uuid4
@@ -9,14 +10,13 @@ from uuid import UUID, uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-import prefect.server.models as models
-import prefect.server.schemas as schemas
+from prefect.server import models, schemas
 from prefect.server.concurrency.lease_storage import (
     ConcurrencyLeaseHolder,
     ConcurrencyLimitLeaseMetadata,
     get_concurrency_lease_storage,
 )
-from prefect.server.database import orm_models
+from prefect.server.database import orm_models, provide_database_interface
 from prefect.server.orchestration.core_policy import (
     CoreFlowPolicy,
     ValidateDeploymentConcurrencyAtRunning,
@@ -24,8 +24,13 @@ from prefect.server.orchestration.core_policy import (
 from prefect.server.schemas import states
 from prefect.server.schemas.core import ConcurrencyLimitStrategy
 from prefect.server.schemas.responses import SetStateStatus
+from prefect.server.services.repossessor import revoke_expired_lease
 
 pytestmark = pytest.mark.clear_db
+
+
+class ExpectedDeploymentConcurrencyReleaseRace(AssertionError):
+    """A known release race consumed another lease's capacity."""
 
 
 class TestValidateDeploymentConcurrencyAtRunning:
@@ -345,6 +350,219 @@ class TestValidateDeploymentConcurrencyAtRunning:
         )
         assert limit is not None
         assert limit.active_slots == 1, "Only Flow2 should have an active slot"
+
+    @pytest.mark.xfail(
+        strict=True,
+        raises=ExpectedDeploymentConcurrencyReleaseRace,
+        reason="Missing-lease fallback can decrement a replacement lease's slot",
+    )
+    async def test_full_policy_missing_lease_release_preserves_replacement_slot(
+        self,
+        session: AsyncSession,
+        initialize_orchestration,
+        flow: orm_models.Flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        assert deployment.concurrency_limit_id is not None
+        limit_id = deployment.concurrency_limit_id
+
+        acquired = await models.concurrency_limits_v2.bulk_increment_active_slots(
+            session=session,
+            concurrency_limit_ids=[limit_id],
+            slots=1,
+        )
+        assert acquired
+        await session.commit()
+
+        lease_storage = get_concurrency_lease_storage()
+        old_lease = await lease_storage.create_lease(
+            resource_ids=[limit_id],
+            ttl=datetime.timedelta(seconds=-1),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+        await revoke_expired_lease(
+            old_lease.id,
+            db=provide_database_interface(),
+            lease_storage=lease_storage,
+        )
+
+        replacement_acquired = (
+            await models.concurrency_limits_v2.bulk_increment_active_slots(
+                session=session,
+                concurrency_limit_ids=[limit_id],
+                slots=1,
+            )
+        )
+        assert replacement_acquired
+        await session.commit()
+        replacement_lease = await lease_storage.create_lease(
+            resource_ids=[limit_id],
+            ttl=datetime.timedelta(minutes=5),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+
+        running_transition = (states.StateType.PENDING, states.StateType.RUNNING)
+        ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *running_transition,
+            deployment_id=deployment.id,
+            initial_details={"deployment_concurrency_lease_id": old_lease.id},
+            client_version="3.5.0",
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in CoreFlowPolicy.compile_transition_rules(
+                ctx.initial_state_type, ctx.proposed_state_type
+            ):
+                ctx = await stack.enter_async_context(rule(ctx, *running_transition))
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.REJECT
+        assert ctx.validated_state is not None
+        assert ctx.validated_state.type == states.StateType.CANCELLED
+        assert await lease_storage.read_lease(replacement_lease.id) is not None
+
+        limit = await models.concurrency_limits_v2.read_concurrency_limit(
+            session=session,
+            concurrency_limit_id=limit_id,
+        )
+        assert limit is not None
+        await session.refresh(limit)
+        if limit.active_slots != 1:
+            raise ExpectedDeploymentConcurrencyReleaseRace
+
+    @pytest.mark.xfail(
+        strict=True,
+        raises=ExpectedDeploymentConcurrencyReleaseRace,
+        reason="Terminal release and the reaper can decrement the same lease twice",
+    )
+    async def test_terminal_release_racing_reaper_preserves_replacement_slot(
+        self,
+        session: AsyncSession,
+        initialize_orchestration,
+        flow: orm_models.Flow,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        assert deployment.concurrency_limit_id is not None
+        limit_id = deployment.concurrency_limit_id
+
+        acquired = await models.concurrency_limits_v2.bulk_increment_active_slots(
+            session=session,
+            concurrency_limit_ids=[limit_id],
+            slots=1,
+        )
+        assert acquired
+        await session.commit()
+
+        lease_storage = get_concurrency_lease_storage()
+        old_lease = await lease_storage.create_lease(
+            resource_ids=[limit_id],
+            ttl=datetime.timedelta(seconds=-1),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+
+        original_read_lease = lease_storage.read_lease
+        terminal_read_complete = asyncio.Event()
+        resume_terminal_release = asyncio.Event()
+        pause_next_read = True
+
+        async def read_lease_with_terminal_barrier(lease_id: UUID):
+            nonlocal pause_next_read
+            lease = await original_read_lease(lease_id)
+            if lease_id == old_lease.id and pause_next_read:
+                pause_next_read = False
+                terminal_read_complete.set()
+                await resume_terminal_release.wait()
+            return lease
+
+        monkeypatch.setattr(
+            lease_storage, "read_lease", read_lease_with_terminal_barrier
+        )
+
+        db = provide_database_interface()
+        completed_transition = (
+            states.StateType.RUNNING,
+            states.StateType.COMPLETED,
+        )
+
+        async def run_terminal_transition() -> SetStateStatus:
+            async with db.session_context() as terminal_session:
+                ctx = await initialize_orchestration(
+                    terminal_session,
+                    "flow",
+                    *completed_transition,
+                    deployment_id=deployment.id,
+                    initial_details={"deployment_concurrency_lease_id": old_lease.id},
+                    client_version="3.5.0",
+                )
+
+                async with contextlib.AsyncExitStack() as stack:
+                    for rule in CoreFlowPolicy.compile_transition_rules(
+                        ctx.initial_state_type, ctx.proposed_state_type
+                    ):
+                        ctx = await stack.enter_async_context(
+                            rule(ctx, *completed_transition)
+                        )
+                    await ctx.validate_proposed_state()
+                    # SQLite cannot reproduce the PostgreSQL interleaving
+                    # while retaining this state-write lock. Commit the test
+                    # state before the after-transition release barrier.
+                    await terminal_session.commit()
+
+                await terminal_session.commit()
+                return ctx.response_status
+
+        terminal_transition = asyncio.create_task(run_terminal_transition())
+        replacement_lease = None
+        terminal_status = None
+        try:
+            await asyncio.wait_for(terminal_read_complete.wait(), timeout=5)
+
+            await revoke_expired_lease(
+                old_lease.id,
+                db=db,
+                lease_storage=lease_storage,
+            )
+
+            async with db.session_context(
+                begin_transaction=True
+            ) as replacement_session:
+                replacement_acquired = (
+                    await models.concurrency_limits_v2.bulk_increment_active_slots(
+                        session=replacement_session,
+                        concurrency_limit_ids=[limit_id],
+                        slots=1,
+                    )
+                )
+                assert replacement_acquired
+
+            replacement_lease = await lease_storage.create_lease(
+                resource_ids=[limit_id],
+                ttl=datetime.timedelta(minutes=5),
+                metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+            )
+        finally:
+            resume_terminal_release.set()
+            terminal_status = await asyncio.wait_for(terminal_transition, timeout=5)
+
+        assert terminal_status == SetStateStatus.ACCEPT
+        assert replacement_lease is not None
+        assert await lease_storage.read_lease(replacement_lease.id) is not None
+
+        async with db.session_context() as verification_session:
+            limit = await models.concurrency_limits_v2.read_concurrency_limit(
+                session=verification_session,
+                concurrency_limit_id=limit_id,
+            )
+            assert limit is not None
+            if limit.active_slots != 1:
+                raise ExpectedDeploymentConcurrencyReleaseRace
 
     async def test_skips_validation_for_old_client_versions(
         self,
