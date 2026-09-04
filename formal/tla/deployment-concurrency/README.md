@@ -2,8 +2,9 @@
 
 This bounded safety model asks whether deployment-concurrency cleanup can
 revoke a renewed lease or decrement capacity owned by another run. It also
-specifies the intended claim-authority boundary described in
-[`plans/deployment-concurrency-lease-claims.md`](../../../plans/deployment-concurrency-lease-claims.md).
+specifies a target release-authority protocol: a durable SQL claim is the only
+identity allowed to decrement its allocation, claim changes and accounting are
+atomic, and expiry release rechecks the claim's current deadline.
 
 TLA+ specifies a protocol, not its Python implementation. Every relevant
 counterexample here has a deterministic pytest counterpart at the production
@@ -27,8 +28,8 @@ configuration:
   sequence consumed; `leaseState` is the current external lease record.
 
 The target claim path does not write or read the external memory, filesystem,
-or Redis lease store, so the model does not include it. Those stores remain
-legacy-only during migration and cannot enable a target action here.
+or Redis lease store, so external-store and migration behavior are outside this
+target model.
 
 ## Configurations
 
@@ -106,15 +107,16 @@ The target result is exhaustive only for these finite bounds.
 
 | Model boundary | Production boundary | Regression |
 | --- | --- | --- |
-| acquire and commit | `SecureFlowConcurrencySlots` | future claim-module contract |
-| renew | `ValidateDeploymentConcurrencyAtRunning` and renewal API | stale-reaper pytest |
-| scan and expiry release | `services/repossessor.py` | stale-reaper pytest |
-| terminal release | `_release_concurrency_lease` and `ReleaseFlowConcurrencySlots` | two release-race pytests |
-| claim decrement | proposed concurrency-claim module | all three pytests |
+| acquire and commit | `src/prefect/server/orchestration/core_policy.py::SecureFlowConcurrencySlots` | future claim-module contract |
+| renew | `src/prefect/server/orchestration/core_policy.py::ValidateDeploymentConcurrencyAtRunning` and the renewal route | stale-reaper pytest |
+| scan and expiry release | `src/prefect/server/services/repossessor.py::revoke_expired_lease` | `tests/server/services/test_repossessor.py::TestRevokeExpiredLease::test_does_not_revoke_lease_renewed_after_expiry_scan` |
+| terminal release | `src/prefect/server/orchestration/core_policy.py::_release_concurrency_lease` and `ReleaseFlowConcurrencySlots` | the two release-race tests in `tests/server/orchestration/test_validate_deployment_concurrency_at_running.py` |
+| claim decrement | abstract SQL claim authority; not implemented | all three pytests |
 
 The regressions are strict `xfail` tests while production lacks claim
-authority. Implementing the design must remove those marks and make the same
-assertions pass; replacing them with lower-level tests is not sufficient.
+authority. Any production implementation of the target protocol must remove
+those marks and make the same assertions pass; replacing them with lower-level
+tests is not sufficient.
 
 ## Interpretation limits
 
@@ -124,12 +126,10 @@ cardinalities. It also bounds logical claims, not the brief physical overlap
 possible while a process reacts to lease loss.
 
 Acquire, renew, and release are modeled as SQL-authoritative transitions. The
-model does not yet cover acquisition-response delivery or replay; the design's
-caller-supplied lease ID and request fingerprint require separate contract
-tests before implementation. Adding an external claim projection would require
-a new outbox/generation design and model review. Eventual reclamation requires
-explicit fairness and eventual availability assumptions before it can be added
-as a temporal property.
+model does not cover acquisition-response delivery, replay, or production
+request identity; those require separate contract tests. External claim
+projections and eventual reclamation require additional model work, including
+explicit fairness and availability assumptions for any temporal property.
 
 Owner: Prefect server orchestration maintainers.
 
