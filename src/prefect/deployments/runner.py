@@ -283,6 +283,14 @@ class RunnerDeployment(BaseModel):
             " a built runner."
         ),
     )
+    replaces: Optional[str] = Field(
+        default=None,
+        description=(
+            "The name of an existing deployment to replace. When set, the existing"
+            " deployment will be renamed to this deployment's name instead of"
+            " creating a new deployment."
+        ),
+    )
 
     # (Experimental) SLA configuration for the deployment. May be removed or modified at any time. Currently only supported on Prefect Cloud.
     _sla: Optional[Union[SlaTypes, list[SlaTypes]]] = PrivateAttr(
@@ -460,6 +468,7 @@ class RunnerDeployment(BaseModel):
                     exclude_unset=True
                 ),
                 enforce_parameter_schema=self.enforce_parameter_schema,
+                replaces=self.replaces,
             )
 
             if work_pool_name:
@@ -566,6 +575,7 @@ class RunnerDeployment(BaseModel):
                     exclude_unset=True
                 ),
                 enforce_parameter_schema=self.enforce_parameter_schema,
+                replaces=self.replaces,
             )
 
             if work_pool_name:
@@ -625,7 +635,14 @@ class RunnerDeployment(BaseModel):
         update_payload = self.model_dump(
             mode="json",
             exclude_unset=True,
-            exclude={"storage", "name", "flow_name", "triggers", "version_type"},
+            exclude={
+                "storage",
+                "name",
+                "flow_name",
+                "triggers",
+                "version_type",
+                "replaces",
+            },
         )
 
         if self.storage:
@@ -677,7 +694,14 @@ class RunnerDeployment(BaseModel):
         update_payload = self.model_dump(
             mode="json",
             exclude_unset=True,
-            exclude={"storage", "name", "flow_name", "triggers", "version_type"},
+            exclude={
+                "storage",
+                "name",
+                "flow_name",
+                "triggers",
+                "version_type",
+                "replaces",
+            },
         )
 
         if self.storage:
@@ -780,6 +804,23 @@ class RunnerDeployment(BaseModel):
                     ]
                 return await self._create(work_pool_name, image, version_info)
             else:
+                if self.replaces:
+                    # Only error when the old deployment still exists. If it's
+                    # already gone the rename already happened and re-applying
+                    # is idempotent — just fall through to a normal update.
+                    try:
+                        await client.read_deployment_by_name(
+                            f"{self.flow_name}/{self.replaces}"
+                        )
+                    except ObjectNotFound:
+                        pass
+                    else:
+                        raise ValueError(
+                            f"Cannot use 'replaces: {self.replaces}' for deployment"
+                            f" {self.name!r} because a deployment named {self.name!r}"
+                            f" already exists. Remove 'replaces' or delete the existing"
+                            f" {self.name!r} deployment first."
+                        )
                 if image:
                     self.job_variables["image"] = image
                 if work_pool_name:
@@ -825,6 +866,20 @@ class RunnerDeployment(BaseModel):
                     ]
                 return self._create_sync(work_pool_name, image, version_info)
             else:
+                if self.replaces:
+                    try:
+                        client.read_deployment_by_name(
+                            f"{self.flow_name}/{self.replaces}"
+                        )
+                    except ObjectNotFound:
+                        pass
+                    else:
+                        raise ValueError(
+                            f"Cannot use 'replaces: {self.replaces}' for deployment"
+                            f" {self.name!r} because a deployment named {self.name!r}"
+                            f" already exists. Remove 'replaces' or delete the existing"
+                            f" {self.name!r} deployment first."
+                        )
                 if image:
                     self.job_variables["image"] = image
                 if work_pool_name:
