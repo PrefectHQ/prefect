@@ -1,4 +1,3 @@
-import asyncio
 import contextlib
 import importlib.util
 import json
@@ -15,7 +14,6 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
-from prefect._internal.testing import retry_asserts
 from prefect.server.database import dependencies
 from prefect.server.database.alembic_commands import (
     alembic_config,
@@ -203,53 +201,6 @@ async def test_sqlite_migration_engine_reuses_application_engine(
 
     assert engine is application_engine
     database_interface.engine.assert_awaited_once_with()
-
-
-@pytest.mark.parametrize("migration_fails", [False, True])
-def test_postgres_migrations_release_database_lock(
-    migration_environment: ModuleType,
-    monkeypatch: pytest.MonkeyPatch,
-    migration_fails: bool,
-):
-    events: list[str] = []
-
-    class Connection:
-        def exec_driver_sql(self, statement: str) -> None:
-            events.append(" ".join(statement.split()))
-
-    @contextlib.contextmanager
-    def begin_transaction():
-        yield
-
-    def run_migrations() -> None:
-        events.append("run migrations")
-        if migration_fails:
-            raise RuntimeError("migration failed")
-
-    monkeypatch.setattr(
-        migration_environment, "dialect", SimpleNamespace(name="postgresql")
-    )
-    monkeypatch.setitem(vars(alembic.context), "configure", lambda **_: None)
-    monkeypatch.setitem(vars(alembic.context), "begin_transaction", begin_transaction)
-    monkeypatch.setitem(vars(alembic.context), "run_migrations", run_migrations)
-
-    if migration_fails:
-        with pytest.raises(RuntimeError, match="migration failed"):
-            migration_environment.do_run_migrations(Connection())
-    else:
-        migration_environment.do_run_migrations(Connection())
-
-    assert events == [
-        (
-            "SELECT pg_advisory_lock(hashtextextended("
-            "'prefect-server-migrations:' || current_database(), 0))"
-        ),
-        "run migrations",
-        (
-            "SELECT pg_advisory_unlock(hashtextextended("
-            "'prefect-server-migrations:' || current_database(), 0))"
-        ),
-    ]
 
 
 @pytest.mark.parametrize("migration_fails", [False, True])
@@ -553,17 +504,20 @@ def test_flow_run_deployment_id_index_migration_supports_postgres_dry_run(
 
 
 @pytest.mark.parametrize("index_is_invalid", [True, False])
+@pytest.mark.parametrize("rebuilt_index_is_valid", [True, False])
 def test_event_resources_occurred_index_repair_migration_rebuilds_invalid_index(
     event_resources_occurred_index_repair_migration: ModuleType,
     monkeypatch: pytest.MonkeyPatch,
     index_is_invalid: bool,
+    rebuilt_index_is_valid: bool,
 ):
     catalog_queries: list[str] = []
     statements: list[str] = []
+    query_results = iter([1 if index_is_invalid else None, rebuilt_index_is_valid])
 
     class Result:
-        def scalar(self) -> int | None:
-            return 1 if index_is_invalid else None
+        def scalar(self) -> int | bool | None:
+            return next(query_results)
 
     class Bind:
         def exec_driver_sql(self, statement: str) -> Result:
@@ -586,13 +540,24 @@ def test_event_resources_occurred_index_repair_migration_rebuilds_invalid_index(
         event_resources_occurred_index_repair_migration, "op", operation
     )
 
-    event_resources_occurred_index_repair_migration.upgrade()
+    if rebuilt_index_is_valid:
+        event_resources_occurred_index_repair_migration.upgrade()
+    else:
+        with pytest.raises(
+            RuntimeError,
+            match="ix_event_resources__occurred is missing or invalid after creation",
+        ):
+            event_resources_occurred_index_repair_migration.upgrade()
 
     assert catalog_queries == [
         (
             "SELECT 1 FROM pg_index i WHERE i.indexrelid = "
             "to_regclass('ix_event_resources__occurred') AND NOT i.indisvalid"
-        )
+        ),
+        (
+            "SELECT i.indisvalid FROM pg_index i WHERE i.indexrelid = "
+            "to_regclass('ix_event_resources__occurred')"
+        ),
     ]
     create_statement = (
         "CREATE INDEX CONCURRENTLY IF NOT EXISTS "
@@ -712,63 +677,6 @@ async def test_event_resources_occurred_index_repair_migration_repairs_postgres(
         await blocker.close()
         await builder_engine.dispose()
         await run_sync_in_worker_thread(alembic_upgrade)
-
-
-@pytest.mark.timeout(30)
-async def test_postgres_migrations_wait_for_database_lock(
-    db: PrefectDBInterface,
-    database_engine: AsyncEngine,
-):
-    if db.dialect.name != "postgresql":
-        pytest.skip(reason="advisory migration locks are PostgreSQL-specific")
-
-    await run_sync_in_worker_thread(alembic_downgrade, revision="9e9dadc36797")
-    upgrade_task: asyncio.Task[None] | None = None
-    try:
-        async with database_engine.connect() as lock_holder:
-            await lock_holder.execute(
-                sa.text(
-                    """
-                    SELECT pg_advisory_lock(hashtextextended(
-                        'prefect-server-migrations:' || current_database(), 0
-                    ))
-                    """
-                )
-            )
-            try:
-                upgrade_task = asyncio.create_task(
-                    run_sync_in_worker_thread(alembic_upgrade)
-                )
-                async for attempt in retry_asserts(max_attempts=20, delay=0.1):
-                    async with database_engine.connect() as observer:
-                        waiting = await observer.scalar(
-                            sa.text(
-                                """
-                                SELECT EXISTS (
-                                    SELECT 1
-                                    FROM pg_stat_activity
-                                    WHERE datname = current_database()
-                                      AND wait_event = 'advisory'
-                                      AND query LIKE 'SELECT pg_advisory_lock%'
-                                )
-                                """
-                            )
-                        )
-                    with attempt:
-                        assert waiting
-            finally:
-                await lock_holder.execute(
-                    sa.text(
-                        """
-                        SELECT pg_advisory_unlock(hashtextextended(
-                            'prefect-server-migrations:' || current_database(), 0
-                        ))
-                        """
-                    )
-                )
-    finally:
-        if upgrade_task is not None:
-            await upgrade_task
 
 
 @pytest.fixture

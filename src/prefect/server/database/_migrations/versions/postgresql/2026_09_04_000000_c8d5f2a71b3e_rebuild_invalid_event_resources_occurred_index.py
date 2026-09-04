@@ -15,8 +15,8 @@ applied, so the planner never uses the index and the `db_vacuum` delete on
 This migration drops any invalid leftover and rebuilds it, mirroring the guard
 in `50737cdaee36` and `9e9dadc36797`. When the index is already valid, or does
 not exist, `IF NOT EXISTS` makes this a no-op or a normal build respectively.
-The migration environment serializes PostgreSQL migration runs with a
-session-level advisory lock, including across the commits required here.
+The final catalog check prevents a concurrent migration from recording this
+revision while another replica's index build is still invalid.
 """
 
 from alembic import op
@@ -56,6 +56,23 @@ def upgrade():
             ON event_resources (occurred)
             """
         )
+        if not migration_context.as_sql:
+            index_is_valid = (
+                op.get_bind()
+                .exec_driver_sql(
+                    """
+                    SELECT i.indisvalid
+                    FROM pg_index i
+                    WHERE i.indexrelid =
+                        to_regclass('ix_event_resources__occurred')
+                    """
+                )
+                .scalar()
+            )
+            if not index_is_valid:
+                raise RuntimeError(
+                    "ix_event_resources__occurred is missing or invalid after creation"
+                )
 
 
 def downgrade():

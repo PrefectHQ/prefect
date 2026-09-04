@@ -19,9 +19,6 @@ db_interface = provide_database_interface()
 config = context.config
 target_metadata = db_interface.Base.metadata
 dialect = get_dialect(db_interface.database_config.connection_url)
-_POSTGRES_MIGRATION_LOCK_KEY = (
-    "hashtextextended('prefect-server-migrations:' || current_database(), 0)"
-)
 
 
 def include_object(
@@ -127,7 +124,7 @@ def dry_run_migrations() -> None:
         context.run_migrations()
 
 
-def do_run_migrations(connection: sqlalchemy.engine.Connection) -> None:
+def do_run_migrations(connection: AsyncEngine) -> None:
     """
     Run Alembic migrations using the connection.
 
@@ -155,23 +152,15 @@ def do_run_migrations(connection: sqlalchemy.engine.Connection) -> None:
         template_args={"dialect": dialect.name},
     )
 
-    if dialect.name == "postgresql":
-        connection.exec_driver_sql(
-            f"SELECT pg_advisory_lock({_POSTGRES_MIGRATION_LOCK_KEY})"
-        )
-
-    # PostgreSQL's session lock spans the commits required by concurrent index
-    # operations. SQLite migrations remain serialized by BEGIN IMMEDIATE.
+    # We override SQLAlchemy's handling of BEGIN on SQLite and Alembic bypasses our
+    # typical transaction context manager so we set the mode manually here
     token = SQLITE_BEGIN_MODE.set("IMMEDIATE")
     try:
-        with disable_sqlite_foreign_keys(context), context.begin_transaction():
-            context.run_migrations()
+        with disable_sqlite_foreign_keys(context):
+            with context.begin_transaction():
+                context.run_migrations()
     finally:
         SQLITE_BEGIN_MODE.reset(token)
-        if dialect.name == "postgresql":
-            connection.exec_driver_sql(
-                f"SELECT pg_advisory_unlock({_POSTGRES_MIGRATION_LOCK_KEY})"
-            )
 
 
 @contextlib.contextmanager
