@@ -911,9 +911,18 @@ class S3Bucket(WritableFileSystem, WritableDeploymentStorage, ObjectStorageBlock
         # the bucket. So we need to add it on the front of the path.
         #
         # AWS object key naming guidelines require '/' for bucket folders.
-        # Get POSIX path to prevent `pathlib` from inferring '\' on Windows OS
+        # Get POSIX path to prevent `pathlib` from inferring '\' on Windows OS.
+        #
+        # A leading '/' on `path` would make it absolute, and `Path.__truediv__`
+        # discards its left operand against an absolute right one -- silently
+        # dropping `bucket_folder`. Keys are not rooted, so that slash carries no
+        # meaning; strip it so the join keeps the folder. `bucket_folder` itself is
+        # left exactly as configured, so this stays consistent with
+        # `_join_bucket_folder`, which is what the object-level methods use.
         path = (
-            (Path(self.bucket_folder) / path).as_posix() if self.bucket_folder else path
+            (Path(self.bucket_folder) / path.lstrip("/")).as_posix()
+            if self.bucket_folder
+            else path
         )
 
         return path
