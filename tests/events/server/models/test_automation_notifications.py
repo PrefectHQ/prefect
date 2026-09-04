@@ -2,13 +2,17 @@
 
 import asyncio
 from unittest.mock import patch
+from uuid import UUID, uuid4
 
+import orjson
 import pytest
+import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.testing import retry_asserts
 from prefect.server.events.actions import DoNothing
 from prefect.server.events.models.automations import (
+    AUTOMATION_CHANGES_CHANNEL,
     create_automation,
     delete_automation,
     update_automation,
@@ -135,7 +139,7 @@ async def test_automation_listener_receives_notifications_and_processes_them(
         # Track all calls to automation_changed
         automation_changed_calls = []
 
-        async def mock_automation_changed(automation_id, event):
+        async def mock_automation_changed(automation_id: UUID, event: str) -> None:
             automation_changed_calls.append((automation_id, event))
 
         with patch(
@@ -145,15 +149,27 @@ async def test_automation_listener_receives_notifications_and_processes_them(
             listener_task = asyncio.create_task(listen_for_automation_changes())
 
             try:
-                await asyncio.sleep(0.1)
+                # Postgres only delivers a NOTIFY to connections that are already
+                # listening, so send probes until one comes back to confirm the
+                # listener is subscribed before making any real changes
+                probe_id = uuid4()
+                probe_payload = orjson.dumps(
+                    {"automation_id": str(probe_id), "event_type": "created"}
+                ).decode()
+                while not any(call[0] == probe_id for call in automation_changed_calls):
+                    await automations_session.execute(
+                        sa.text(
+                            f"NOTIFY {AUTOMATION_CHANGES_CHANNEL}, '{probe_payload}'"
+                        )
+                    )
+                    await automations_session.commit()
+                    await asyncio.sleep(0.1)
 
                 # Create automation - should trigger "created" notification
                 created = await create_automation(
                     automations_session, sample_automation
                 )
                 await automations_session.commit()
-
-                await asyncio.sleep(0.1)
 
                 # Update automation - should trigger "updated" notification
                 update = AutomationUpdate(
@@ -166,8 +182,6 @@ async def test_automation_listener_receives_notifications_and_processes_them(
                 await update_automation(automations_session, update, created.id)
                 await automations_session.commit()
 
-                await asyncio.sleep(0.1)
-
                 # Delete automation - should trigger "deleted" notification
                 await delete_automation(automations_session, created.id)
                 await automations_session.commit()
@@ -175,20 +189,16 @@ async def test_automation_listener_receives_notifications_and_processes_them(
                 # Retry assertions to handle NOTIFY propagation delays under load
                 async for attempt in retry_asserts(max_attempts=10, delay=0.25):
                     with attempt:
-                        assert len(automation_changed_calls) == 3
-
-                        assert automation_changed_calls[0] == (
-                            created.id,
-                            "automation__created",
-                        )
-                        assert automation_changed_calls[1] == (
-                            created.id,
-                            "automation__updated",
-                        )
-                        assert automation_changed_calls[2] == (
-                            created.id,
-                            "automation__deleted",
-                        )
+                        calls = [
+                            call
+                            for call in automation_changed_calls
+                            if call[0] == created.id
+                        ]
+                        assert calls == [
+                            (created.id, "automation__created"),
+                            (created.id, "automation__updated"),
+                            (created.id, "automation__deleted"),
+                        ]
 
             finally:
                 listener_task.cancel()
