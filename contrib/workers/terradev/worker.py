@@ -44,9 +44,7 @@ class TerradevWorker(BaseWorker):
         instance_id: Optional[str] = None
         provider_name: Optional[str] = None
         try:
-            instance_id, address, provider_name = await self._provision(
-                configuration
-            )
+            instance_id, address, provider_name = await self._provision(configuration)
             # _wait_for_address is separate from _provision so that instance_id
             # is captured before any timeout raises, allowing the finally block
             # to terminate the GPU even when IP assignment times out.
@@ -76,9 +74,7 @@ class TerradevWorker(BaseWorker):
             self._logger.error("Terradev worker failed: %s", exc)
             return TerradevWorkerResult(
                 status_code=1,
-                identifier=(
-                    f"{provider_name or 'unknown'}:{instance_id or 'unknown'}"
-                ),
+                identifier=(f"{provider_name or 'unknown'}:{instance_id or 'unknown'}"),
             )
         finally:
             if instance_id and provider_name:
