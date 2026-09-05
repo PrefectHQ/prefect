@@ -1,7 +1,9 @@
 import json
 import sys
+from pathlib import Path
 from typing import Any
 
+from prefect.bundles._zip_extractor import ZipExtractor
 from prefect.utilities.asyncutils import run_coro_as_sync
 
 
@@ -9,11 +11,29 @@ def execute_bundle_from_file(key: str) -> None:
     """
     Loads a bundle from a file and executes it.
 
+    If the bundle declares a sidecar zip of included files, the zip is read from
+    the directory of the bundle file and its contents are extracted into the
+    working directory before the flow runs.
+
     Args:
         key: The key of the bundle to execute.
     """
-    with open(key, "r") as f:
+    bundle_path = Path(key)
+    with open(bundle_path, "r") as f:
         bundle = json.load(f)
+
+    files_key: str | None = bundle.get("files_key")
+    if files_key:
+        sidecar_path = bundle_path.parent / files_key
+        if not sidecar_path.exists():
+            raise RuntimeError(
+                f"Bundle declares included files at {files_key!r}, but no archive"
+                f" was found at {sidecar_path}."
+            )
+        try:
+            ZipExtractor(sidecar_path).extract()
+        except Exception as e:
+            raise RuntimeError(f"Failed to extract included files: {e}") from e
 
     run_coro_as_sync(execute_bundle(bundle))
 
