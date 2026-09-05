@@ -1,6 +1,6 @@
 """Configuration schema for the Terradev work pool worker."""
 
-from typing import Any, Dict, Optional
+from typing import Optional
 
 import pydantic
 
@@ -14,8 +14,8 @@ class TerradevWorkerConfiguration(BaseJobConfiguration):
         default=None,
         description=(
             "GPU provider to use. If omitted, Terradev selects the cheapest "
-            "available provider at run time. One of: runpod, vastai, tensordock, "
-            "crusoe, hyperstack, latitude, e2enetworks, gcore, aws, gcp, azure, "
+            "available provider. One of: runpod, vastai, tensordock, crusoe, "
+            "hyperstack, latitude, e2enetworks, gcore, aws, gcp, azure, "
             "digitalocean, inferx, baseten, siliconflow, huggingface, yottalabs."
         ),
     )
@@ -38,12 +38,4 @@ class TerradevWorkerConfiguration(BaseJobConfiguration):
     ssh_user: str = pydantic.Field(
         default="ubuntu",
         description="SSH user on the provisioned instance.",
-    )
-    credentials: Dict[str, Any] = pydantic.Field(
-        default_factory=dict,
-        description=(
-            "Provider credentials keyed by provider name, e.g. "
-            "{'runpod': {'api_key': '...'}}. "
-            "Values are passed directly to the Terradev ProviderFactory."
-        ),
     )
