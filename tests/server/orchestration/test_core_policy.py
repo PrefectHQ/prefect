@@ -2,6 +2,7 @@ import contextlib
 import datetime
 import math
 import random
+from collections.abc import Awaitable, Callable
 from datetime import timedelta, timezone
 from itertools import product
 from typing import Optional
@@ -11,6 +12,7 @@ from uuid import uuid4
 
 import pytest
 import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from prefect._internal.result_records import ResultRecordMetadata
 from prefect.server import schemas
@@ -56,6 +58,7 @@ from prefect.server.orchestration.rules import (
     ALL_ORCHESTRATION_STATES,
     TERMINAL_STATES,
     BaseOrchestrationRule,
+    FlowOrchestrationContext,
     OrchestrationContext,
 )
 from prefect.server.schemas import actions, states
@@ -3875,6 +3878,31 @@ class TestFlowConcurrencyLimits:
         await session.flush()
         return deployment
 
+    async def secure_concurrency_slot(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
+        deployment: orm.Deployment,
+    ) -> FlowOrchestrationContext:
+        """Acquire a deployment concurrency slot and lease for a new flow run."""
+        pending_transition = (states.StateType.SCHEDULED, states.StateType.PENDING)
+
+        ctx = await initialize_orchestration(
+            session, "flow", *pending_transition, deployment_id=deployment.id
+        )
+        async with contextlib.AsyncExitStack() as stack:
+            ctx = await stack.enter_async_context(
+                SecureFlowConcurrencySlots(ctx, *pending_transition)
+            )
+            await ctx.validate_proposed_state()
+
+        assert ctx.response_status == SetStateStatus.ACCEPT
+        assert (
+            ctx.validated_state.state_details.deployment_concurrency_lease_id
+            is not None
+        )
+        return ctx
+
     @pytest.mark.parametrize(
         "intended_transition", ignored_secure_transitions, ids=transition_names
     )
@@ -4249,6 +4277,277 @@ class TestFlowConcurrencyLimits:
         lease_storage = get_concurrency_lease_storage()
         lease_ids = await lease_storage.read_active_lease_ids()
         assert len(lease_ids) == 0
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=0
+        )
+
+    async def test_in_process_retry_transition_does_not_release_concurrency_slots(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
+        flow: orm.Flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        ctx = await self.secure_concurrency_slot(
+            session, initialize_orchestration, deployment
+        )
+        lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+
+        # A failure with retries remaining is rejected into `AwaitingRetry`.
+        # The run keeps its concurrency slot and lease across the retry delay.
+        failed_transition = (states.StateType.RUNNING, states.StateType.FAILED)
+        retry_ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *failed_transition,
+            deployment_id=deployment.id,
+            run_override=ctx.run,
+            initial_details=ctx.validated_state.state_details,
+        )
+        retry_ctx.run.run_count = 1
+        retry_ctx.run_settings.retries = 1
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in [RetryFailedFlows, ReleaseFlowConcurrencySlots]:
+                retry_ctx = await stack.enter_async_context(
+                    rule(retry_ctx, *failed_transition)
+                )
+            await retry_ctx.validate_proposed_state()
+
+        assert retry_ctx.response_status == SetStateStatus.REJECT
+        assert retry_ctx.validated_state.name == "AwaitingRetry"
+        # The `AwaitingRetry` state must reference the lease so the next
+        # attempt keeps renewing it and terminal cleanup can revoke it.
+        assert (
+            retry_ctx.validated_state.state_details.deployment_concurrency_lease_id
+            == lease_id
+        )
+
+        lease_storage = get_concurrency_lease_storage()
+        assert await lease_storage.read_lease(lease_id) is not None
+        renewed = await lease_storage.renew_lease(
+            lease_id, ttl=datetime.timedelta(seconds=60)
+        )
+        assert renewed is not False
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=1
+        )
+
+        # The retry attempt returns to `Running` with the same lease.
+        running_transition = (states.StateType.SCHEDULED, states.StateType.RUNNING)
+        running_ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *running_transition,
+            deployment_id=deployment.id,
+            run_override=ctx.run,
+            initial_details=retry_ctx.validated_state.state_details,
+            initial_state_name="AwaitingRetry",
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            running_ctx = await stack.enter_async_context(
+                PreserveDeploymentConcurrencyLeaseId(running_ctx, *running_transition)
+            )
+            await running_ctx.validate_proposed_state()
+
+        assert running_ctx.response_status == SetStateStatus.ACCEPT
+        assert (
+            running_ctx.validated_state.state_details.deployment_concurrency_lease_id
+            == lease_id
+        )
+
+        # Terminal cleanup revokes the lease and releases the slot.
+        completed_transition = (states.StateType.RUNNING, states.StateType.COMPLETED)
+        completed_ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *completed_transition,
+            deployment_id=deployment.id,
+            run_override=ctx.run,
+            initial_details=running_ctx.validated_state.state_details,
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            completed_ctx = await stack.enter_async_context(
+                ReleaseFlowConcurrencySlots(completed_ctx, *completed_transition)
+            )
+            await completed_ctx.validate_proposed_state()
+
+        assert completed_ctx.response_status == SetStateStatus.ACCEPT
+        assert await lease_storage.read_lease(lease_id) is None
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=0
+        )
+
+    async def test_scheduled_transition_without_retry_releases_concurrency_slots(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
+        flow: orm.Flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        ctx = await self.secure_concurrency_slot(
+            session, initialize_orchestration, deployment
+        )
+        lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+
+        scheduled_transition = (states.StateType.RUNNING, states.StateType.SCHEDULED)
+
+        # A scheduled state that is not a retry releases the slot and lease.
+        scheduled_ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *scheduled_transition,
+            deployment_id=deployment.id,
+            run_override=ctx.run,
+            initial_details=ctx.validated_state.state_details,
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            scheduled_ctx = await stack.enter_async_context(
+                ReleaseFlowConcurrencySlots(scheduled_ctx, *scheduled_transition)
+            )
+            await scheduled_ctx.validate_proposed_state()
+
+        assert scheduled_ctx.response_status == SetStateStatus.ACCEPT
+
+        lease_storage = get_concurrency_lease_storage()
+        assert await lease_storage.read_lease(lease_id) is None
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=0
+        )
+
+    async def test_rescheduled_retry_transition_releases_concurrency_slots(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
+        flow: orm.Flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        ctx = await self.secure_concurrency_slot(
+            session, initialize_orchestration, deployment
+        )
+        lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+
+        scheduled_transition = (states.StateType.RUNNING, states.StateType.SCHEDULED)
+
+        # An `AwaitingRetry` state proposed directly (e.g. a SIGTERM
+        # reschedule) is not an in-process retry: the process exits, so the
+        # slot and lease are released.
+        rescheduled_ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *scheduled_transition,
+            deployment_id=deployment.id,
+            run_override=ctx.run,
+            initial_details=ctx.validated_state.state_details,
+            proposed_state_name="AwaitingRetry",
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            rescheduled_ctx = await stack.enter_async_context(
+                ReleaseFlowConcurrencySlots(rescheduled_ctx, *scheduled_transition)
+            )
+            await rescheduled_ctx.validate_proposed_state()
+
+        assert rescheduled_ctx.response_status == SetStateStatus.ACCEPT
+
+        lease_storage = get_concurrency_lease_storage()
+        assert await lease_storage.read_lease(lease_id) is None
+        await assert_deployment_concurrency_limit(
+            session, deployment, expected_limit=1, expected_active_slots=0
+        )
+
+    async def test_direct_reschedule_after_automatic_retry_releases_concurrency_slots(
+        self,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
+        flow: orm.Flow,
+    ):
+        deployment = await self.create_deployment_with_concurrency_limit(
+            session, 1, flow
+        )
+        ctx = await self.secure_concurrency_slot(
+            session, initialize_orchestration, deployment
+        )
+        lease_id = ctx.validated_state.state_details.deployment_concurrency_lease_id
+
+        # An automatic retry sets `retry_type` to "in_process" on the run.
+        failed_transition = (states.StateType.RUNNING, states.StateType.FAILED)
+        retry_ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *failed_transition,
+            deployment_id=deployment.id,
+            run_override=ctx.run,
+            initial_details=ctx.validated_state.state_details,
+        )
+        retry_ctx.run.run_count = 1
+        retry_ctx.run_settings.retries = 1
+
+        async with contextlib.AsyncExitStack() as stack:
+            for rule in [RetryFailedFlows, ReleaseFlowConcurrencySlots]:
+                retry_ctx = await stack.enter_async_context(
+                    rule(retry_ctx, *failed_transition)
+                )
+            await retry_ctx.validate_proposed_state()
+
+        assert retry_ctx.response_status == SetStateStatus.REJECT
+        assert retry_ctx.validated_state.name == "AwaitingRetry"
+        assert retry_ctx.run.empirical_policy.retry_type == "in_process"
+
+        # The retry attempt returns to `Running`.
+        running_transition = (states.StateType.SCHEDULED, states.StateType.RUNNING)
+        running_ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *running_transition,
+            deployment_id=deployment.id,
+            run_override=ctx.run,
+            initial_details=retry_ctx.validated_state.state_details,
+            initial_state_name="AwaitingRetry",
+        )
+
+        async with contextlib.AsyncExitStack() as stack:
+            running_ctx = await stack.enter_async_context(
+                PreserveDeploymentConcurrencyLeaseId(running_ctx, *running_transition)
+            )
+            await running_ctx.validate_proposed_state()
+
+        assert running_ctx.response_status == SetStateStatus.ACCEPT
+
+        # A direct `AwaitingRetry` proposal (e.g. a SIGTERM reschedule) must
+        # release the slot and lease even though the persisted `retry_type`
+        # is still "in_process".
+        scheduled_transition = (states.StateType.RUNNING, states.StateType.SCHEDULED)
+        rescheduled_ctx = await initialize_orchestration(
+            session,
+            "flow",
+            *scheduled_transition,
+            deployment_id=deployment.id,
+            run_override=ctx.run,
+            initial_details=running_ctx.validated_state.state_details,
+            proposed_state_name="AwaitingRetry",
+        )
+        assert rescheduled_ctx.run.empirical_policy.retry_type == "in_process"
+
+        async with contextlib.AsyncExitStack() as stack:
+            rescheduled_ctx = await stack.enter_async_context(
+                ReleaseFlowConcurrencySlots(rescheduled_ctx, *scheduled_transition)
+            )
+            await rescheduled_ctx.validate_proposed_state()
+
+        assert rescheduled_ctx.response_status == SetStateStatus.ACCEPT
+
+        lease_storage = get_concurrency_lease_storage()
+        assert await lease_storage.read_lease(lease_id) is None
         await assert_deployment_concurrency_limit(
             session, deployment, expected_limit=1, expected_active_slots=0
         )

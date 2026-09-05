@@ -81,7 +81,7 @@ Generally, the settings that are being used are a combination of values from the
 profile and environment. See `prefect.context.use_profile` for more details.
 
 
-### `tags` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L918" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `tags` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L944" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 tags(*new_tags: str) -> Generator[set[str], None, None]
@@ -145,7 +145,7 @@ with tags("a", "b"):
 ```
 
 
-### `use_profile` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L985" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `use_profile` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L1011" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 use_profile(profile: Union[Profile, str], override_environment_variables: bool = False, include_current_context: bool = True) -> Generator[SettingsContext, Any, None]
@@ -166,7 +166,7 @@ with the current settings context as a base. If not set, the use_base settings
 will be loaded from the environment and defaults.
 
 
-### `root_settings_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L1037" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `root_settings_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L1063" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 root_settings_context() -> SettingsContext
@@ -181,7 +181,7 @@ The profile to use is determined with the following precedence
 - Profiles file via the 'active' key
 
 
-### `refresh_global_settings_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L1090" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `refresh_global_settings_context` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/context.py#L1116" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 refresh_global_settings_context() -> None

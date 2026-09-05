@@ -1,17 +1,18 @@
-import {
-	createColumnHelper,
-	getCoreRowModel,
-	useReactTable,
-} from "@tanstack/react-table";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from "@/components/ui/popover";
+import { createColumnHelper, useTable } from "@/lib/tanstack-table";
 import { DataTable } from "./data-table";
 
 type TestData = { id: string; name: string };
 
 const columnHelper = createColumnHelper<TestData>();
-const columns = [
+const columns = columnHelper.columns([
 	columnHelper.accessor("name", {
 		header: "Name",
 		cell: (info) => (
@@ -21,9 +22,25 @@ const columns = [
 			</>
 		),
 	}),
-];
+]);
 
-const resizableColumns = [
+// Renders a Popover that is always open so its portaled content is in the DOM.
+// Used to test that clicks inside a portal do not trigger the row click handler.
+const portalColumns = columnHelper.columns([
+	columnHelper.accessor("name", {
+		header: "Name",
+		cell: () => (
+			<Popover open>
+				<PopoverTrigger>trigger</PopoverTrigger>
+				<PopoverContent>
+					<span>portal item</span>
+				</PopoverContent>
+			</Popover>
+		),
+	}),
+]);
+
+const resizableColumns = columnHelper.columns([
 	columnHelper.accessor("name", {
 		id: "name",
 		header: "Name",
@@ -37,28 +54,40 @@ const resizableColumns = [
 		enableResizing: false,
 		size: 60,
 	}),
-];
+]);
 
 const TestTable = ({
+	data,
+	onRowClick,
+	sorting,
+}: {
+	data: TestData[];
+	onRowClick?: (row: TestData) => void;
+	sorting?: Array<{ id: string; desc: boolean }>;
+}) => {
+	const table = useTable({
+		data,
+		columns,
+		initialState: sorting ? { sorting } : undefined,
+	});
+	return <DataTable table={table} onRowClick={onRowClick} />;
+};
+
+const PortalTable = ({
 	data,
 	onRowClick,
 }: {
 	data: TestData[];
 	onRowClick?: (row: TestData) => void;
 }) => {
-	const table = useReactTable({
-		data,
-		columns,
-		getCoreRowModel: getCoreRowModel(),
-	});
+	const table = useTable({ data, columns: portalColumns });
 	return <DataTable table={table} onRowClick={onRowClick} />;
 };
 
 const ResizableTestTable = ({ data }: { data: TestData[] }) => {
-	const table = useReactTable({
+	const table = useTable({
 		data,
 		columns: resizableColumns,
-		getCoreRowModel: getCoreRowModel(),
 		enableColumnResizing: true,
 		columnResizeMode: "onChange",
 	});
@@ -108,12 +137,41 @@ describe("DataTable", () => {
 		expect(onRowClick).not.toHaveBeenCalled();
 	});
 
+	it("does not call onRowClick when clicking inside a portaled popover in a row", () => {
+		const onRowClick = vi.fn();
+		render(<PortalTable data={testData} onRowClick={onRowClick} />);
+
+		// "portal item" is rendered in a Radix portal (document.body), outside the
+		// table DOM. Clicking it should NOT trigger the row click handler because
+		// PopoverContent carries data-row-click-ignore="true".
+		fireEvent.click(screen.getAllByText("portal item")[0]);
+
+		expect(onRowClick).not.toHaveBeenCalled();
+	});
+
 	it("does not call onRowClick when onRowClick is not provided and row is clicked", async () => {
 		render(<TestTable data={testData} />);
 
 		await userEvent.click(screen.getByText("Row 1"));
 		// No error thrown, row is simply not clickable
 		expect(screen.getByText("Row 1")).toBeInTheDocument();
+	});
+
+	it("uses natural ordering for automatically sorted text columns", () => {
+		render(
+			<TestTable
+				data={[
+					{ id: "3", name: "queue10" },
+					{ id: "2", name: "queue2" },
+					{ id: "1", name: "queue1" },
+				]}
+				sorting={[{ id: "name", desc: false }]}
+			/>,
+		);
+
+		expect(
+			screen.getAllByText(/^queue/).map((cell) => cell.textContent),
+		).toEqual(["queue1", "queue2", "queue10"]);
 	});
 
 	describe("column resizing", () => {

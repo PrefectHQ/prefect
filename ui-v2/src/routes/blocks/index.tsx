@@ -2,7 +2,6 @@ import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
 import type { PaginationState } from "@tanstack/react-table";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -34,7 +33,7 @@ const searchParams = z.object({
 });
 
 export const Route = createFileRoute("/blocks/")({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	component: function RouteComponent() {
 		usePageTitle("Blocks");
 		const navigate = Route.useNavigate();

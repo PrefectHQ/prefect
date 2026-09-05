@@ -794,12 +794,15 @@ class SnowflakeConnector(DatabaseBlock):
         try:
             self.reset_cursors()
         finally:
+            # No `return` in here: returning out of a `finally` block discards
+            # whatever exception `reset_cursors` was raising, so a failed cursor
+            # reset used to look like a clean close to the caller.
             if self._connection is None:
                 self.logger.info("There was no connection open to be closed.")
-                return
-            self._connection.close()
-            self._connection = None
-            self.logger.info("Successfully closed the Snowflake connection.")
+            else:
+                self._connection.close()
+                self._connection = None
+                self.logger.info("Successfully closed the Snowflake connection.")
 
     def __enter__(self):
         """

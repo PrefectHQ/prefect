@@ -90,7 +90,8 @@ def validate_excluded_test_types(
 ) -> list[str]:
     """Return errors for excludes whose test-type entry no longer matches."""
     known_test_types = {
-        (entry.get("name"), entry.get("modules")) for entry in test_types
+        (entry.get("id"), entry.get("name"), entry.get("modules"))
+        for entry in test_types
     }
 
     errors: list[str] = []
@@ -99,7 +100,11 @@ def validate_excluded_test_types(
         if not isinstance(test_type, dict):
             continue
 
-        key = (test_type.get("name"), test_type.get("modules"))
+        key = (
+            test_type.get("id"),
+            test_type.get("name"),
+            test_type.get("modules"),
+        )
         if key not in known_test_types:
             name = test_type.get("name", "<unnamed>")
             errors.append(

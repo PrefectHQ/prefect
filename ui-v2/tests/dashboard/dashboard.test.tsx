@@ -4,7 +4,16 @@ import userEvent from "@testing-library/user-event";
 import { buildApiUrl, createWrapper, server } from "@tests/utils";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
+import type { FlowRunsCountFilter } from "@/api/flow-runs";
+import { createFakeFlowRun } from "@/mocks";
 import { router } from "@/router";
+
+const mockFlowRuns = (flowRuns: unknown[]) =>
+	server.use(
+		http.post(buildApiUrl("/flow_runs/filter"), () =>
+			HttpResponse.json(flowRuns),
+		),
+	);
 
 const renderDashboardPage = async () => {
 	const user = userEvent.setup();
@@ -18,11 +27,7 @@ const renderDashboardPage = async () => {
 describe("Dashboard page", () => {
 	describe("Empty state", () => {
 		it("should render empty state when there are no flow runs", async () => {
-			server.use(
-				http.post(buildApiUrl("/flow_runs/count"), () => {
-					return HttpResponse.json(0);
-				}),
-			);
+			mockFlowRuns([]);
 
 			await renderDashboardPage();
 
@@ -38,11 +43,7 @@ describe("Dashboard page", () => {
 		});
 
 		it("should hide filters when empty state is shown", async () => {
-			server.use(
-				http.post(buildApiUrl("/flow_runs/count"), () => {
-					return HttpResponse.json(0);
-				}),
-			);
+			mockFlowRuns([]);
 
 			await renderDashboardPage();
 
@@ -51,11 +52,7 @@ describe("Dashboard page", () => {
 		});
 
 		it("should link to the correct docs URL", async () => {
-			server.use(
-				http.post(buildApiUrl("/flow_runs/count"), () => {
-					return HttpResponse.json(0);
-				}),
-			);
+			mockFlowRuns([]);
 
 			await renderDashboardPage();
 
@@ -69,11 +66,7 @@ describe("Dashboard page", () => {
 
 	describe("With flow runs", () => {
 		it("should not render empty state when flow runs exist", async () => {
-			server.use(
-				http.post(buildApiUrl("/flow_runs/count"), () => {
-					return HttpResponse.json(5);
-				}),
-			);
+			mockFlowRuns([createFakeFlowRun()]);
 
 			await renderDashboardPage();
 
@@ -85,8 +78,27 @@ describe("Dashboard page", () => {
 		});
 
 		it("should show filters when flow runs exist", async () => {
+			mockFlowRuns([createFakeFlowRun()]);
+
+			await renderDashboardPage();
+
+			await waitFor(() => {
+				expect(screen.getByLabelText("Hide subflows")).toBeVisible();
+			});
+		});
+
+		it("should bound every flow run count by the dashboard time window", async () => {
+			const unboundedFilters: FlowRunsCountFilter[] = [];
+			let countRequests = 0;
+			mockFlowRuns([createFakeFlowRun()]);
 			server.use(
-				http.post(buildApiUrl("/flow_runs/count"), () => {
+				http.post(buildApiUrl("/flow_runs/count"), async ({ request }) => {
+					const filter = (await request.json()) as FlowRunsCountFilter;
+					countRequests += 1;
+					const range = filter.flow_runs?.expected_start_time;
+					if (!range?.after_ || !range?.before_) {
+						unboundedFilters.push(filter);
+					}
 					return HttpResponse.json(5);
 				}),
 			);
@@ -95,7 +107,10 @@ describe("Dashboard page", () => {
 
 			await waitFor(() => {
 				expect(screen.getByLabelText("Hide subflows")).toBeVisible();
+				expect(countRequests).toBeGreaterThan(0);
 			});
+
+			expect(unboundedFilters).toEqual([]);
 		});
 	});
 });

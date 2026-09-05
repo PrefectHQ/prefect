@@ -113,15 +113,23 @@ export default function FlowDetail({
 				<FlowStatsSummary flowId={flow.id} flow={flow} />
 				<Tabs
 					value={tab}
-					onValueChange={(value) =>
+					onValueChange={(value) => {
+						if (
+							value !== "runs" &&
+							value !== "deployments" &&
+							value !== "details"
+						) {
+							return;
+						}
+
 						void navigate({
 							to: ".",
 							search: (prev) => ({
 								...prev,
 								tab: value,
 							}),
-						})
-					}
+						});
+					}}
 				>
 					<TabsList>
 						<TabsTrigger value="runs">Runs</TabsTrigger>

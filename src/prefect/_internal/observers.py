@@ -24,8 +24,9 @@ from prefect.exceptions import ObjectNotFound
 from prefect.logging.loggers import get_logger
 from prefect.utilities.services import critical_service_loop
 
-# How long to wait before warning that a suspension state is still unavailable,
-# how often to look initially, and the retry cap after the warning.
+# How long to wait before warning that a suspension transition is still not
+# visible on the flow run, how often to look initially, and the retry cap after
+# the warning.
 SUSPENSION_CONFIRMATION_WARNING_AFTER = 30.0
 SUSPENSION_CONFIRMATION_INTERVAL = 0.5
 SUSPENSION_CONFIRMATION_MAX_INTERVAL = 10.0
@@ -113,28 +114,40 @@ class _SuspensionWatch:
 
         while not self._closed and not self.is_suspended:
             try:
-                state = await self._client.read_flow_run_state(state_id)
+                flow_run = await self._client.read_flow_run(self.flow_run_id)
             except ObjectNotFound:
-                pass
+                self._logger.debug(
+                    "Flow run %s no longer exists; abandoning suspension confirmation.",
+                    self.flow_run_id,
+                )
+                return
             except Exception as exc:
                 last_error = exc
             else:
-                if state.state_details.flow_run_id not in (None, self.flow_run_id):
-                    self._logger.warning(
-                        "Suspension event for flow run %s referred to state %s owned"
-                        " by flow run %s.",
-                        self.flow_run_id,
-                        state_id,
-                        state.state_details.flow_run_id,
-                    )
-                    return
-                self.notify_if_suspended(state)
-                return
+                state = flow_run.state
+                if state is not None:
+                    if state.id == state_id or is_suspended_flow_run_state(state):
+                        self.notify_if_suspended(state)
+                        return
+                    if state.timestamp >= occurred:
+                        # Superseded (e.g. resumed) before confirmation: still
+                        # stop, or this engine could double-execute alongside
+                        # the resumed run's fresh submission.
+                        self.notify_if_suspended(
+                            State(
+                                id=state_id,
+                                type=StateType.PAUSED,
+                                name="Suspended",
+                                timestamp=occurred,
+                            )
+                        )
+                        return
 
             if not warned and time.monotonic() >= warning_deadline:
                 self._logger.warning(
-                    "Received a suspension event for flow run %s, but state %s has"
-                    " not become readable within %s seconds; continuing to retry.",
+                    "Received a suspension event for flow run %s, but its state %s"
+                    " has not become visible within %s seconds; continuing to"
+                    " retry.",
                     self.flow_run_id,
                     state_id,
                     SUSPENSION_CONFIRMATION_WARNING_AFTER,

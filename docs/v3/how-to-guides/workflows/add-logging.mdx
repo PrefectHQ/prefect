@@ -37,6 +37,8 @@ def logger_flow():
 
 The logger returned by `get_run_logger` support the [standard Python logging methods](https://docs.python.org/3/library/logging.html). Any logs emitted by the logger will be associated with the flow run or task run they are emitted from and sent to the Prefect backend. Logs sent to the Prefect backend are visible in the Prefect UI.
 
+To keep logs out of the Prefect backend, see [Disable logging](/v3/advanced/logging-customization#disable-logging).
+
 <Warning>
 `get_run_logger()` can only be used in the context of a flow or task run. Calling it
 outside that context — for example, inside a [state change hook](/v3/how-to-guides/workflows/state-change-hooks) — raises a `MissingContextError`.

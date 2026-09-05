@@ -1001,6 +1001,17 @@ class TestSetWorkingDirectory:
 
 
 class TestGitCloneStep:
+    async def test_git_clone_rejects_option_like_branch(self):
+        with pytest.raises(ValueError, match="Branch names cannot start with '-'"):
+            await run_step(
+                {
+                    "prefect.deployments.steps.git_clone": {
+                        "repository": "https://github.com/org/repo.git",
+                        "branch": "--upload-pack=touch /tmp/pwned",
+                    }
+                }
+            )
+
     async def test_git_clone(self, git_repository_mock):
         output = await run_step(
             {

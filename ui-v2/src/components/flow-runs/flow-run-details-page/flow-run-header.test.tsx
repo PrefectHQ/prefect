@@ -47,6 +47,7 @@ describe("FlowRunHeader", () => {
 		state_name: "Completed",
 		start_time: "2025-05-15T09:45:46Z",
 		total_run_time: 7,
+		estimated_run_time: 0,
 		state: createFakeState({
 			type: "COMPLETED",
 			name: "Completed",

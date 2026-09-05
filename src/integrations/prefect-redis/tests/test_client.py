@@ -6,6 +6,7 @@ from prefect_redis.client import (
     RedisMessagingSettings,
     _client_cache,
     async_redis_from_settings,
+    clear_cached_clients,
     close_all_cached_connections,
     cluster_key_prefix,
     get_async_redis_client,
@@ -93,6 +94,22 @@ def test_cluster_key_prefix_hash_tags_cluster_urls():
     )
 
 
+@patch("prefect_redis.client.RedisMessagingSettings")
+async def test_cluster_key_prefix_caches_settings_until_clients_are_cleared(
+    settings: MagicMock,
+):
+    settings.return_value.url = None
+
+    assert cluster_key_prefix("prefect:events") == "prefect:events"
+    assert cluster_key_prefix("prefect:events") == "prefect:events"
+    settings.assert_called_once_with()
+
+    await clear_cached_clients()
+
+    assert cluster_key_prefix("prefect:events") == "prefect:events"
+    assert settings.call_count == 2
+
+
 def test_redis_key_uses_cluster_aware_prefix():
     assert (
         redis_key(
@@ -139,6 +156,78 @@ def test_redis_settings_url_no_warning_with_defaults(monkeypatch: pytest.MonkeyP
         RedisMessagingSettings(url="redis://myhost:6380/2")
 
     assert len(caught) == 0
+
+
+@pytest.mark.parametrize(
+    ("overrides", "expected"),
+    [
+        ({"ssl": False}, {"ssl": False}),
+        ({"port": 0}, {"port": 0}),
+        ({"db": 0}, {"db": 0}),
+        ({"health_check_interval": 0}, {"health_check_interval": 0}),
+    ],
+)
+def test_get_async_redis_client_preserves_explicit_falsy_overrides(
+    monkeypatch: pytest.MonkeyPatch,
+    overrides: dict[str, bool | int],
+    expected: dict[str, bool | int],
+):
+    settings = RedisMessagingSettings(
+        ssl=True, port=6380, db=1, health_check_interval=30
+    )
+    redis = MagicMock()
+    monkeypatch.setattr("prefect_redis.client.RedisMessagingSettings", lambda: settings)
+    monkeypatch.setattr("prefect_redis.client.Redis", redis)
+    _client_cache.clear()
+
+    try:
+        get_async_redis_client(**overrides)
+
+        for key, value in expected.items():
+            assert redis.call_args.kwargs[key] == value
+    finally:
+        _client_cache.clear()
+
+
+def test_get_async_redis_client_none_overrides_inherit_settings(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    settings = RedisMessagingSettings(
+        ssl=True, port=6380, db=1, health_check_interval=30
+    )
+    redis = MagicMock()
+    monkeypatch.setattr("prefect_redis.client.RedisMessagingSettings", lambda: settings)
+    monkeypatch.setattr("prefect_redis.client.Redis", redis)
+    _client_cache.clear()
+
+    try:
+        get_async_redis_client()
+
+        expected = {
+            "ssl": True,
+            "port": 6380,
+            "db": 1,
+            "health_check_interval": 30,
+        }
+        for key, value in expected.items():
+            assert redis.call_args.kwargs[key] == value
+    finally:
+        _client_cache.clear()
+
+
+def test_get_async_redis_client_url_preserves_explicit_zero_health_check_interval(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    redis = MagicMock()
+    monkeypatch.setattr("prefect_redis.client.Redis", redis)
+    _client_cache.clear()
+
+    try:
+        get_async_redis_client(url="redis://localhost:6379/0", health_check_interval=0)
+
+        assert redis.from_url.call_args.kwargs["health_check_interval"] == 0
+    finally:
+        _client_cache.clear()
 
 
 async def test_get_async_redis_client_defaults():

@@ -11,6 +11,7 @@ import logging
 import multiprocessing
 import multiprocessing.context
 import os
+import stat
 import subprocess
 import sys
 import tempfile
@@ -395,6 +396,41 @@ def _pickle_local_modules_by_value(flow: Flow[Any, Any]):
                 )
 
 
+def _resolve_include_files_base_dir(value: Path | str) -> Path:
+    """Resolve and validate an explicitly configured include-files base directory."""
+    try:
+        candidate = Path(value).expanduser()
+    except RuntimeError as exc:
+        raise ValueError(
+            f"Invalid include_files_base_dir {str(value)!r}: {exc}"
+        ) from exc
+
+    if not candidate.is_absolute():
+        candidate = Path.cwd() / candidate
+
+    try:
+        base_dir = candidate.resolve(strict=True)
+        if not stat.S_ISDIR(base_dir.stat().st_mode):
+            raise ValueError(
+                f"include_files_base_dir {str(value)!r} must be a directory."
+            )
+
+        # Open the directory to verify that collection can read it. `os.access` is
+        # not sufficient because its result can differ from the actual operation.
+        with os.scandir(base_dir):
+            pass
+    except FileNotFoundError as exc:
+        raise ValueError(
+            f"include_files_base_dir {str(value)!r} does not exist."
+        ) from exc
+    except NotADirectoryError as exc:
+        raise ValueError(
+            f"include_files_base_dir {str(value)!r} must be a directory."
+        ) from exc
+
+    return base_dir
+
+
 def create_bundle_for_flow_run(
     flow: Flow[Any, Any],
     flow_run: FlowRun,
@@ -463,12 +499,16 @@ def create_bundle_for_flow_run(
     files_key: str | None = None
     zip_path: Path | None = None
     include_files = getattr(flow, "include_files", None)
+    include_files_base_dir = getattr(flow, "include_files_base_dir", None)
 
     if include_files:
         try:
-            # Get base directory from flow file location
-            flow_file = Path(inspect.getfile(flow.fn))
-            base_dir = flow_file.parent.resolve()
+            if include_files_base_dir is None:
+                # Preserve the existing default relative to the flow definition.
+                flow_file = Path(inspect.getfile(flow.fn))
+                base_dir = flow_file.parent.resolve()
+            else:
+                base_dir = _resolve_include_files_base_dir(include_files_base_dir)
 
             # Pipeline: collect -> filter -> check -> zip
             collector = FileCollector(base_dir)
@@ -498,6 +538,8 @@ def create_bundle_for_flow_run(
                         files_key,
                     )
         except (OSError, TypeError, AttributeError) as e:
+            if include_files_base_dir is not None:
+                raise
             # Handle cases where flow has no file (dynamic flow) or other IO errors
             logger.warning(
                 "Could not collect included files: %s. Files will not be bundled.",

@@ -8,7 +8,8 @@ from uuid import uuid4
 
 import pytest
 
-from prefect.runner._control_channel import ControlChannel
+from prefect._internal.attempt_control import EngineOutcomeReceipt
+from prefect.runner._control_channel import ControlChannel, ControlSignalStatus
 
 pytestmark = pytest.mark.clear_db
 
@@ -58,17 +59,41 @@ class TestControlChannel:
         assert flow_run_id not in channel._registrations
         assert token not in channel._tokens_to_id
 
-    async def test_signal_unregistered_returns_false(
+    async def test_signal_unregistered_is_not_acknowledged(
         self, channel: ControlChannel
     ) -> None:
-        assert await channel.signal(uuid4(), "cancel") is False
+        assert (
+            await channel.signal(uuid4(), "cancel")
+            is ControlSignalStatus.NOT_ACKNOWLEDGED
+        )
 
-    async def test_signal_with_no_connection_returns_false_immediately(
+    async def test_signal_with_no_connection_is_not_acknowledged_immediately(
         self, channel: ControlChannel
     ) -> None:
         flow_run_id = uuid4()
         channel.register(flow_run_id)
-        assert await channel.signal(flow_run_id, "cancel") is False
+        assert (
+            await channel.signal(flow_run_id, "cancel")
+            is ControlSignalStatus.NOT_ACKNOWLEDGED
+        )
+
+    async def test_signal_reports_when_an_engine_receipt_already_concluded_attempt(
+        self, channel: ControlChannel
+    ) -> None:
+        flow_run_id = uuid4()
+        channel.register(flow_run_id)
+        channel._registrations[
+            flow_run_id
+        ].conclusion = EngineOutcomeReceipt.state_reported(
+            state_id=uuid4(),
+            state_type="COMPLETED",
+            state_name="Completed",
+        )
+
+        assert (
+            await channel.signal(flow_run_id, "cancel")
+            is ControlSignalStatus.ALREADY_CONCLUDED
+        )
 
     async def test_signal_does_not_wait_for_not_yet_connected_child(
         self,
@@ -77,7 +102,7 @@ class TestControlChannel:
             flow_run_id = uuid4()
             channel.register(flow_run_id)
             result = await asyncio.wait_for(channel.signal(flow_run_id, "cancel"), 0.1)
-            assert result is False
+            assert result is ControlSignalStatus.NOT_ACKNOWLEDGED
 
     async def test_signal_returns_false_quickly_when_connected_child_disconnects_before_ack(
         self,
@@ -102,7 +127,7 @@ class TestControlChannel:
             result = await asyncio.wait_for(channel.signal(flow_run_id, "cancel"), 0.5)
             await child_task
 
-            assert result is False
+            assert result is ControlSignalStatus.NOT_ACKNOWLEDGED
 
     async def test_disconnect_clears_stale_acked_state_for_repeat_signal(self) -> None:
         async with ControlChannel(ack_timeout=0.05) as channel:
@@ -123,7 +148,10 @@ class TestControlChannel:
                 sock.close()
 
             child_task = asyncio.create_task(ack_then_disconnect())
-            assert await channel.signal(flow_run_id, "cancel") is True
+            assert (
+                await channel.signal(flow_run_id, "cancel")
+                is ControlSignalStatus.ACKNOWLEDGED
+            )
             await child_task
 
             reg = channel._registrations[flow_run_id]
@@ -136,7 +164,7 @@ class TestControlChannel:
             assert not reg.connected.is_set()
 
             result = await asyncio.wait_for(channel.signal(flow_run_id, "cancel"), 0.2)
-            assert result is False
+            assert result is ControlSignalStatus.ALREADY_CONCLUDED
             assert not reg.intent_acked.is_set()
 
     async def test_full_handshake_after_connection(
@@ -157,7 +185,7 @@ class TestControlChannel:
         result = await channel.signal(flow_run_id, "cancel")
         await child_task
         sock.close()
-        assert result is True
+        assert result is ControlSignalStatus.ACKNOWLEDGED
 
     async def test_late_connection_after_fallback_receives_no_intent(
         self, channel: ControlChannel
@@ -165,7 +193,10 @@ class TestControlChannel:
         flow_run_id = uuid4()
         port, token = channel.register(flow_run_id)
 
-        assert await channel.signal(flow_run_id, "cancel") is False
+        assert (
+            await channel.signal(flow_run_id, "cancel")
+            is ControlSignalStatus.NOT_ACKNOWLEDGED
+        )
 
         sock = await _connect_client(port, token)
         sock.settimeout(0.1)
@@ -183,7 +214,7 @@ class TestControlChannel:
         await asyncio.sleep(0.05)
         result = await channel.signal(flow_run_id, "cancel")
         sock.close()
-        assert result is False
+        assert result is ControlSignalStatus.NOT_ACKNOWLEDGED
 
     async def test_disabled_channel_raises_on_register(self) -> None:
         ch = ControlChannel()
@@ -204,6 +235,6 @@ class TestControlChannel:
         async with ControlChannel() as channel:
             result = await channel.signal(uuid4(), "cancel")
 
-        assert result is False
+        assert result is ControlSignalStatus.NOT_ACKNOWLEDGED
         with pytest.raises(RuntimeError):
             channel.register(uuid4())

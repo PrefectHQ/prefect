@@ -37,7 +37,7 @@ jobs:
           filter: blob:none
 
       - name: Install uv and set the python version
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v10.0.1
         with:
           python-version: "3.10"
           enable-cache: true
@@ -75,7 +75,7 @@ jobs:
           filter: blob:none
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v10.0.1
         with:
           python-version: "3.12"
           enable-cache: true
@@ -89,7 +89,8 @@ jobs:
           uv run pyright --ignoreexternal --verifytypes prefect
 
       - name: Run pyright check
-        run: >-
-          uv run pyright -p .github/pyrightconfig-ci.json --level error
+        run: |
+          uv run pyright -p pyrightconfig-ci.json --level error --outputjson > pyright-report.json && status=0 || status=$?
+          uv run python scripts/check_pyright_report.py pyright-report.json --pyright-status "$status"
 
 

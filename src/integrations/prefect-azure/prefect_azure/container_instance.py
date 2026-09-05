@@ -1,64 +1,13 @@
 """
-Integrations with the Azure Container Instances service.
-Note this module is experimental. The interfaces within may change without notice.
+Helpers for the Azure Container Instance worker.
 
-The `AzureContainerInstanceJob` infrastructure block in this module is ideally
-configured via the Prefect UI and run via a Prefect agent, but it can be called directly
-as demonstrated in the following examples.
+Use a work pool of type `azure-container-instance` and an Azure Container
+Instance worker to run flow runs in Azure Container Instances.
 
 Examples:
-    Run a command using an Azure Container Instances container.
-    ```python
-    AzureContainerInstanceJob(command=["echo", "hello world"]).run()
-    ```
-
-    Run a command and stream the container's output to the local terminal.
-    ```python
-    AzureContainerInstanceJob(
-        command=["echo", "hello world"],
-        stream_output=True,
-    )
-    ```
-
-    Run a command with a specific image
-    ```python
-    AzureContainerInstanceJob(command=["echo", "hello world"], image="alpine:latest")
-    ```
-
-    Run a task with custom memory and CPU requirements
-    ```python
-    AzureContainerInstanceJob(command=["echo", "hello world"], memory=1.0, cpu=1.0)
-    ```
-
-    Run a task with custom memory and CPU requirements
-    ```python
-    AzureContainerInstanceJob(command=["echo", "hello world"], memory=1.0, cpu=1.0)
-    ```
-
-    Run a task with custom memory, CPU, and GPU requirements
-    ```python
-    AzureContainerInstanceJob(command=["echo", "hello world"], memory=1.0, cpu=1.0,
-    gpu_count=1, gpu_sku="V100")
-    ```
-
-    Run a task with custom environment variables
-    ```python
-    AzureContainerInstanceJob(
-        command=["echo", "hello $PLANET"],
-        env={"PLANET": "earth"}
-    )
-    ```
-
-    Run a task that uses a private ACR registry with a managed identity
-    ```python
-    AzureContainerInstanceJob(
-        command=["echo", "hello $PLANET"],
-        image="my-registry.azurecr.io/my-image",
-        image_registry=ACRManagedIdentity(
-            registry_url="my-registry.azurecr.io",
-            identity="/my/managed/identity/123abc"
-        )
-    )
+    ```bash
+    prefect work-pool create --type azure-container-instance my-aci-work-pool
+    prefect worker start --pool my-aci-work-pool --type azure-container-instance
     ```
 """
 
@@ -124,5 +73,5 @@ class ACRManagedIdentity(BaseModel):
 
 class AzureContainerInstanceJobResult:
     """
-    The result of an `AzureContainerInstanceJob` run.
+    Legacy result type retained for compatibility with earlier integrations.
     """

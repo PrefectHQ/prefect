@@ -462,6 +462,26 @@ describe("Trigger Schemas", () => {
 	});
 
 	describe("AutomationWizardSchema", () => {
+		it.each([undefined, ""])("reports a missing name as required", (name) => {
+			const result = AutomationWizardSchema.safeParse({
+				name,
+				trigger: {
+					type: "event",
+					posture: "Reactive",
+					threshold: 1,
+					within: 0,
+				},
+				actions: [],
+			});
+
+			expect(result.error?.issues).toContainEqual(
+				expect.objectContaining({
+					path: ["name"],
+					message: "Name is required",
+				}),
+			);
+		});
+
 		it("requires a trigger field", () => {
 			const automation = {
 				name: "Test Automation",

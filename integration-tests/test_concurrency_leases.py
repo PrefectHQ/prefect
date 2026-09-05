@@ -117,21 +117,20 @@ async def test_async_concurrency_with_leases(concurrency_limit: GlobalConcurrenc
     # Force lease to expire immediately
     await lease_storage.renew_lease(active_lease.id, timedelta(seconds=0))
 
-    # Wait for this lease to be revoked and to leave the expiration index. Only
-    # this lease can be waited on: the lease storage is shared with tests
-    # running in parallel, so the set of expired leases may never be empty.
-    while (await lease_storage.read_lease(active_lease.id)) is not None or (
-        active_lease.id in await lease_storage.read_expired_lease_ids()
-    ):
-        await asyncio.sleep(1)
-
-    # Check that the concurrency limit has no slots taken after the lease is revoked
+    # Wait for the repossessor to release the slot. The lease is removed from
+    # lease storage before the slot release is committed, so the API is the only
+    # reliable signal that the revocation finished.
     async with prefect.get_client() as client:
         limit = await client.read_global_concurrency_limit_by_name(
             name=concurrency_limit.name
         )
-        assert limit.limit == 1
-        assert limit.active_slots == 0
+        while limit.active_slots != 0:
+            await asyncio.sleep(1)
+            limit = await client.read_global_concurrency_limit_by_name(
+                name=concurrency_limit.name
+            )
+
+    assert limit.limit == 1
 
 
 async def test_async_concurrency_with_lease_renewal_failure(
@@ -221,21 +220,20 @@ async def test_sync_concurrency_with_leases(concurrency_limit: GlobalConcurrency
     # Force lease to expire immediately
     await lease_storage.renew_lease(active_lease.id, timedelta(seconds=0))
 
-    # Wait for this lease to be revoked and to leave the expiration index. Only
-    # this lease can be waited on: the lease storage is shared with tests
-    # running in parallel, so the set of expired leases may never be empty.
-    while (await lease_storage.read_lease(active_lease.id)) is not None or (
-        active_lease.id in await lease_storage.read_expired_lease_ids()
-    ):
-        await asyncio.sleep(1)
-
-    # Check that the concurrency limit has no slots taken after the lease is revoked
+    # Wait for the repossessor to release the slot. The lease is removed from
+    # lease storage before the slot release is committed, so the API is the only
+    # reliable signal that the revocation finished.
     async with prefect.get_client() as client:
         limit = await client.read_global_concurrency_limit_by_name(
             name=concurrency_limit.name
         )
-        assert limit.limit == 1
-        assert limit.active_slots == 0
+        while limit.active_slots != 0:
+            await asyncio.sleep(1)
+            limit = await client.read_global_concurrency_limit_by_name(
+                name=concurrency_limit.name
+            )
+
+    assert limit.limit == 1
 
 
 async def test_sync_concurrency_with_lease_renewal_failure(

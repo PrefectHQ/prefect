@@ -219,7 +219,7 @@ export function SchemaFormInput({
 	}
 
 	if (property.type === "null") {
-		return <SchemaFormInputNull />;
+		return <SchemaFormInputNull value={value} onValueChange={onValueChange} />;
 	}
 
 	if (property.type === undefined) {

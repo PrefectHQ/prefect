@@ -1,16 +1,29 @@
 """Tests for the perpetual services registry and scheduling."""
 
+from datetime import timedelta
+
 import pytest
 from docket import Perpetual
 from docket.dependencies import get_single_dependency_parameter_of_type
 
 from prefect.server.services.perpetual_services import (
     _PERPETUAL_SERVICES,
+    PerpetualServiceConfig,
     get_enabled_perpetual_services,
     get_perpetual_services,
 )
+from prefect.settings.context import get_current_settings
 
 pytestmark = pytest.mark.clear_db
+
+
+@pytest.fixture
+def orphan_vacuum_config() -> PerpetualServiceConfig:
+    return next(
+        config
+        for config in _PERPETUAL_SERVICES
+        if config.function.__name__ == "schedule_orphan_vacuum_tasks"
+    )
 
 
 def test_db_vacuum_service_registered():
@@ -33,10 +46,56 @@ def test_event_vacuum_service_registered():
     assert "schedule_event_vacuum_tasks" in service_names
 
 
-def test_event_vacuum_enabled_by_default(monkeypatch):
-    """Test that event vacuum is enabled by default when event persister is also enabled."""
-    from prefect.settings.context import get_current_settings
+def test_orphan_vacuum_service_registered():
+    """Test that the orphan vacuum service is registered."""
+    service_names = [config.function.__name__ for config in _PERPETUAL_SERVICES]
+    assert "schedule_orphan_vacuum_tasks" in service_names
 
+
+def test_orphan_vacuum_runs_daily_by_default(
+    orphan_vacuum_config: PerpetualServiceConfig,
+):
+    """Expensive orphan scans run less often than the hourly vacuum cycle."""
+    perpetual = get_single_dependency_parameter_of_type(
+        orphan_vacuum_config.function, Perpetual
+    )
+    assert perpetual is not None
+    assert perpetual.every == timedelta(days=1)
+
+
+def test_orphan_vacuum_disabled_by_default(
+    orphan_vacuum_config: PerpetualServiceConfig,
+):
+    """Test that orphan scans stay off when flow run vacuum is disabled."""
+    assert orphan_vacuum_config.enabled_getter() is False
+
+
+def test_orphan_vacuum_enabled_when_requested(
+    monkeypatch: pytest.MonkeyPatch,
+    orphan_vacuum_config: PerpetualServiceConfig,
+):
+    """Test that operators can enable orphan cleanup independently."""
+    settings = get_current_settings()
+    monkeypatch.setattr(settings.server.services.db_vacuum, "enabled", {"orphans"})
+
+    assert orphan_vacuum_config.enabled_getter() is True
+
+
+def test_orphan_vacuum_enabled_with_flow_run_vacuum(
+    monkeypatch: pytest.MonkeyPatch,
+    orphan_vacuum_config: PerpetualServiceConfig,
+):
+    """Flow run cleanup retains automatic orphan reconciliation."""
+    settings = get_current_settings()
+    monkeypatch.setattr(
+        settings.server.services.db_vacuum, "enabled", {"events", "flow_runs"}
+    )
+
+    assert orphan_vacuum_config.enabled_getter() is True
+
+
+def test_event_vacuum_enabled_by_default(monkeypatch: pytest.MonkeyPatch):
+    """Test that event vacuum is enabled by default when event persister is also enabled."""
     settings = get_current_settings()
     # The test suite disables event_persister globally; restore the production
     # default so we can verify that event vacuum is enabled when both settings
@@ -51,10 +110,10 @@ def test_event_vacuum_enabled_by_default(monkeypatch):
     assert config.enabled_getter() is True
 
 
-def test_event_vacuum_disabled_when_not_in_enabled_set(monkeypatch):
+def test_event_vacuum_disabled_when_not_in_enabled_set(
+    monkeypatch: pytest.MonkeyPatch,
+):
     """Test that event vacuum is disabled when 'events' is not in the enabled set."""
-    from prefect.settings.context import get_current_settings
-
     settings = get_current_settings()
     monkeypatch.setattr(settings.server.services.event_persister, "enabled", True)
     monkeypatch.setattr(settings.server.services.db_vacuum, "enabled", set())
@@ -67,15 +126,15 @@ def test_event_vacuum_disabled_when_not_in_enabled_set(monkeypatch):
     assert config.enabled_getter() is False
 
 
-def test_event_vacuum_disabled_when_event_persister_disabled(monkeypatch):
+def test_event_vacuum_disabled_when_event_persister_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+):
     """Test that event vacuum is disabled when event persister is disabled.
 
     Operators who opted out of event processing via
     PREFECT_SERVER_SERVICES_EVENT_PERSISTER_ENABLED=false should not see
     unexpected trimming on upgrade.
     """
-    from prefect.settings.context import get_current_settings
-
     settings = get_current_settings()
     monkeypatch.setattr(settings.server.services.event_persister, "enabled", False)
 
@@ -87,10 +146,10 @@ def test_event_vacuum_disabled_when_event_persister_disabled(monkeypatch):
     assert config.enabled_getter() is False
 
 
-def test_flow_runs_vacuum_enabled_when_in_enabled_set(monkeypatch):
+def test_flow_runs_vacuum_enabled_when_in_enabled_set(
+    monkeypatch: pytest.MonkeyPatch,
+):
     """Test that flow_runs vacuum is enabled when 'flow_runs' is in the enabled set."""
-    from prefect.settings.context import get_current_settings
-
     settings = get_current_settings()
     monkeypatch.setattr(
         settings.server.services.db_vacuum, "enabled", {"events", "flow_runs"}
@@ -209,10 +268,10 @@ def test_get_perpetual_services_filters_webserver_mode():
     assert "monitor_subflow_runs" not in service_names
 
 
-def test_get_enabled_perpetual_services_respects_settings(monkeypatch):
+def test_get_enabled_perpetual_services_respects_settings(
+    monkeypatch: pytest.MonkeyPatch,
+):
     """Test that get_enabled_perpetual_services respects the enabled setting."""
-    from prefect.settings.context import get_current_settings
-
     settings = get_current_settings()
 
     # Enable cancellation cleanup

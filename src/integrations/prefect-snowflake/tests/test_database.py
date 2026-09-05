@@ -399,6 +399,20 @@ class TestSnowflakeConnector:
         assert snowflake_connector._connection is None
         assert snowflake_connector._unique_cursors == {}
 
+    def test_close_propagates_a_failing_cursor_reset(
+        self, snowflake_connector: SnowflakeConnector, monkeypatch
+    ):
+        """A `return` inside the `finally` block used to discard this error."""
+
+        def boom():
+            raise RuntimeError("cursor reset blew up")
+
+        monkeypatch.setattr(snowflake_connector, "reset_cursors", boom)
+
+        assert snowflake_connector._connection is None
+        with pytest.raises(RuntimeError, match="cursor reset blew up"):
+            snowflake_connector.close()
+
     def test_context_management(self, snowflake_connector):
         with snowflake_connector:
             assert snowflake_connector._connection is None

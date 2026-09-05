@@ -6,10 +6,12 @@ from uuid import UUID
 from typing_extensions import Self
 
 from prefect._internal.concurrency.services import QueueService
+from prefect.logging import get_logger
 from prefect.settings import (
     PREFECT_API_KEY,
     PREFECT_API_URL,
     PREFECT_CLOUD_API_URL,
+    get_current_settings,
 )
 from prefect.utilities.context import temporary_context
 
@@ -23,7 +25,11 @@ from .related import related_resources_from_run_context
 from .schemas.events import Event
 
 if TYPE_CHECKING:
+    import logging
+
     from prefect.client.orchestration import PrefectClient
+
+logger: "logging.Logger" = get_logger(__name__)
 
 
 class ProcessPoolForwardingEventsClient(EventsClient):
@@ -69,8 +75,6 @@ class EventsWorker(QueueService[Event]):
     def __init__(
         self, client_type: Type[EventsClient], client_options: Tuple[Tuple[str, Any]]
     ):
-        from prefect.settings import get_current_settings
-
         self._max_queue_size = get_current_settings().events.worker_max_queue_size
         super().__init__(client_type, client_options)
         self.client_type = client_type
@@ -113,9 +117,28 @@ class EventsWorker(QueueService[Event]):
             return
 
         exclude = {resource.id for resource in event.involved_resources}
-        event.related += await related_resources_from_run_context(
+        related = await related_resources_from_run_context(
             client=self._orchestration_client, exclude=exclude
         )
+
+        # The event was validated when it was created, before these resources were
+        # known, so only attach as many as keep the event within the same maximum that
+        # the Event schema validates.  Otherwise the event is no longer valid to send.
+        maximum = get_current_settings().server.events.maximum_related_resources
+        room = max(maximum - len(event.related), 0)
+        if len(related) > room:
+            logger.warning(
+                "Attaching only %s of the %s related resources from the run context "
+                "to event %s, which already has %s of a maximum %s related resources",
+                room,
+                len(related),
+                event.id,
+                len(event.related),
+                maximum,
+            )
+            related = related[:room]
+
+        event.related += related
 
     @classmethod
     def set_client_override(

@@ -31,6 +31,19 @@ if TYPE_CHECKING:
     from sqlalchemy.sql.expression import ColumnElement, ColumnExpressionArgument
 
 
+class AutomationFilterId(PrefectFilterBaseModel):
+    """Filter by `Automation.id`."""
+
+    any_: Optional[list[UUID]] = Field(
+        default=None, description="A list of automation ids to include"
+    )
+
+    def _get_filter_list(self, db: PrefectDBInterface) -> list[sa.ColumnElement[bool]]:
+        if self.any_ is not None:
+            return [db.Automation.id.in_(self.any_)]
+        return []
+
+
 class AutomationFilterCreated(PrefectFilterBaseModel):
     """Filter by `Automation.created`."""
 
@@ -96,6 +109,9 @@ class AutomationFilterTags(PrefectOperatorFilterBaseModel):
 
 
 class AutomationFilter(PrefectOperatorFilterBaseModel):
+    id: Optional[AutomationFilterId] = Field(
+        default=None, description="Filter criteria for `Automation.id`"
+    )
     name: Optional[AutomationFilterName] = Field(
         default=None, description="Filter criteria for `Automation.name`"
     )
@@ -111,6 +127,8 @@ class AutomationFilter(PrefectOperatorFilterBaseModel):
     ) -> Iterable[sa.ColumnExpressionArgument[bool]]:
         filters: list[sa.ColumnExpressionArgument[bool]] = []
 
+        if self.id is not None:
+            filters.append(self.id.as_sql_filter())
         if self.name is not None:
             filters.append(self.name.as_sql_filter())
         if self.created is not None:

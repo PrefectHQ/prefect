@@ -1,14 +1,11 @@
-"""
-Runner-side cross-platform control channel for delivering intent into child
-flow run processes.
+"""Runner side of the internal Attempt Control Session.
 
-The runner uses a TCP loopback socket to deliver a single-byte control
-*intent* into child flow run processes before killing them. The child
-connects back to the runner shortly after starting, validates a per-run
-token, and blocks on the socket waiting for an intent byte. When the runner
-wants to act on a run (today: cancel) it writes the intent byte to that
-connection, waits briefly for the child's `b'a'` ack, and only then asks
-the process manager to send the actual kill signal.
+Each child authenticates over a per-attempt TCP loopback connection. The
+version-one protocol delivers a single-byte control intent before the runner
+kills the child. Compatible version-two peers negotiate receipt support and
+may instead complete the session with one structured engine outcome receipt.
+The first valid receipt or acknowledged control intent is recorded as the
+attempt's immutable terminal conclusion.
 
 This separates "intent" from "trigger":
 
@@ -31,16 +28,9 @@ already returns the pre-seeded intent, so the engine's
 `except TerminationSignal` block can dispatch on it (`on_cancellation` vs
 `on_crashed`, or leaving the state alone for `"reschedule"`/`"relinquish"`).
 
-The channel is loopback-only, per-token authenticated, and best-effort: if
-the child never connects or never acks, `signal` returns `False`. Callers
-decide what that means: cancellation falls through to a graceful kill and lets
-the engine crash the run, while `prefect flow-run execute` kills without a
-grace period so an unacked engine cannot crash a run it is about to retry.
-
-This module is deliberately generic. The set of valid intents lives in
-`prefect._internal.control_listener` as `Intent`; the wire
-protocol is a single byte per intent, looked up via `_BYTE_FOR_INTENT`
-below. Adding a new intent is a one-line change on each side.
+The session is best-effort. Without terminal evidence, existing exit-code and
+kill behavior remains the compatibility fallback. Tokens are consumed by the
+first authenticated connection, so replay cannot replace the active child.
 """
 
 from __future__ import annotations
@@ -51,9 +41,28 @@ import socket
 import time
 import uuid
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import TYPE_CHECKING
 
-from prefect._internal.control_listener import Intent
+from typing_extensions import Self
+
+from prefect._internal.attempt_control import (
+    BYTE_FOR_INTENT,
+    CURRENT_PROTOCOL_VERSION,
+    LEGACY_PROTOCOL_VERSION,
+    MAX_RECEIPT_SIZE,
+    NEGOTIATION_FRAME_SIZE,
+    NEGOTIATION_PREFIX,
+    RECEIPT_ACK,
+    RECEIPT_CAPABILITY,
+    RECEIPT_PREFIX,
+    AttemptConclusion,
+    Intent,
+    StateOwnershipDelegation,
+    decode_negotiation,
+    decode_receipt,
+    encode_negotiation,
+)
 from prefect.logging import get_logger
 
 if TYPE_CHECKING:
@@ -63,14 +72,12 @@ if TYPE_CHECKING:
 _DEFAULT_ACK_TIMEOUT = 1.0
 
 
-# Runner-side wire protocol: intent -> byte. Kept in sync with
-# `_INTENT_FOR_BYTE` in `prefect._internal.control_listener`. Adding a new
-# intent is a matched one-line change on each side.
-_BYTE_FOR_INTENT: dict[Intent, bytes] = {
-    "cancel": b"c",
-    "reschedule": b"r",
-    "relinquish": b"q",
-}
+class ControlSignalStatus(str, Enum):
+    """Result of trying to delegate state ownership to a child process."""
+
+    ACKNOWLEDGED = "acknowledged"
+    ALREADY_CONCLUDED = "already_concluded"
+    NOT_ACKNOWLEDGED = "not_acknowledged"
 
 
 @dataclass
@@ -81,10 +88,15 @@ class _Registration:
     intent_acked: asyncio.Event = field(default_factory=asyncio.Event)
     reader: asyncio.StreamReader | None = None
     writer: asyncio.StreamWriter | None = None
+    negotiated_receipts: bool = False
+    pending_intent: Intent | None = None
+    conclusion: AttemptConclusion | None = None
+    conclusion_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    writer_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
 
 class ControlChannel:
-    """Cross-platform IPC channel for delivering control intent to child processes.
+    """Attempt-scoped IPC for control intent and negotiated outcome receipts.
 
     The runner owns one instance for its full lifetime. Each flow run subprocess
     spawned by the runner is registered before launch (via `register()`),
@@ -94,8 +106,8 @@ class ControlChannel:
     Use as an async context manager. Inside the context, `port` is the
     listener's bound port (suitable for injecting into child env vars).
 
-    Adding an intent means extending the `Intent` literal, the byte map, and the
-    engine's `except TerminationSignal` dispatch.
+        The shared internal protocol module owns intent bytes, negotiation frames,
+        receipt framing, and terminal conclusion types.
     """
 
     def __init__(
@@ -119,7 +131,7 @@ class ControlChannel:
             )
         return self._port
 
-    async def __aenter__(self) -> ControlChannel:
+    async def __aenter__(self) -> Self:
         try:
             self._server = await asyncio.start_server(
                 self._handle_connection,
@@ -137,8 +149,7 @@ class ControlChannel:
             self._server = None
             self._port = None
             return self
-        sockets = self._server.sockets or []
-        if not sockets:
+        if not self._server.sockets:
             self._logger.warning(
                 "Control channel listener started without a bound socket; "
                 "falling back to kill-only cancellation."
@@ -147,7 +158,7 @@ class ControlChannel:
             self._server = None
             self._port = None
             return self
-        self._port = sockets[0].getsockname()[1]
+        self._port = self._server.sockets[0].getsockname()[1]
         self._logger.debug("Control channel listening on 127.0.0.1:%s", self._port)
         return self
 
@@ -157,10 +168,7 @@ class ControlChannel:
         # until every accepted connection drains.
         for reg in list(self._registrations.values()):
             if reg.writer is not None:
-                try:
-                    reg.writer.close()
-                except Exception:
-                    pass
+                reg.writer.close()
         self._registrations.clear()
         self._tokens_to_id.clear()
 
@@ -168,7 +176,7 @@ class ControlChannel:
             self._server.close()
             try:
                 await asyncio.wait_for(self._server.wait_closed(), timeout=2.0)
-            except (asyncio.TimeoutError, Exception):
+            except (asyncio.TimeoutError, OSError):
                 pass
             self._server = None
         self._port = None
@@ -193,38 +201,38 @@ class ControlChannel:
             prior_writer = prior.writer
             self._reset_connection_state(prior)
             if prior_writer is not None:
-                try:
-                    prior_writer.close()
-                except Exception:
-                    pass
+                prior_writer.close()
 
         token = secrets.token_hex(16)
         self._registrations[flow_run_id] = _Registration(token=token)
         self._tokens_to_id[token] = flow_run_id
         return self._port, token
 
-    def unregister(self, flow_run_id: uuid.UUID) -> None:
-        """Drop a flow run's registration and close any associated connection."""
+    def get_conclusion(self, flow_run_id: uuid.UUID) -> AttemptConclusion | None:
+        """Return the immutable terminal conclusion recorded for an attempt."""
+        reg = self._registrations.get(flow_run_id)
+        return reg.conclusion if reg is not None else None
+
+    def unregister(self, flow_run_id: uuid.UUID) -> AttemptConclusion | None:
+        """Close an attempt registration and return its terminal conclusion."""
         reg = self._registrations.pop(flow_run_id, None)
         if reg is None:
-            return
+            return None
         self._tokens_to_id.pop(reg.token, None)
         reg_writer = reg.writer
         self._reset_connection_state(reg)
         if reg_writer is not None:
-            try:
-                reg_writer.close()
-            except Exception:
-                pass
+            reg_writer.close()
+        return reg.conclusion
 
-    async def signal(self, flow_run_id: uuid.UUID, intent: Intent) -> bool:
+    async def signal(
+        self, flow_run_id: uuid.UUID, intent: Intent
+    ) -> ControlSignalStatus:
         """Deliver a control intent byte to the child and wait for ack.
 
-        Returns `True` if the child acknowledged within the timeout, `False`
-        otherwise. A `False` return is a signal to the caller to fall through
-        to its fallback path (for `"cancel"` that means a forced kill) — the
-        engine has not been told to interpret the upcoming termination as
-        anything but a crash.
+        Returns `ACKNOWLEDGED` when the child accepts ownership,
+        `ALREADY_CONCLUDED` when an engine receipt already won, and
+        `NOT_ACKNOWLEDGED` when the caller should use its fallback path.
 
         If the child has not yet connected, the runner immediately falls
         through to its existing kill/crash path.
@@ -236,7 +244,16 @@ class ControlChannel:
                 intent,
                 flow_run_id,
             )
-            return False
+            return ControlSignalStatus.NOT_ACKNOWLEDGED
+
+        if reg.conclusion is not None:
+            reg.intent_acked.clear()
+            self._logger.debug(
+                "Ignoring %s intent for flow run '%s' after terminal conclusion",
+                intent,
+                flow_run_id,
+            )
+            return ControlSignalStatus.ALREADY_CONCLUDED
 
         if reg.disconnected.is_set():
             reg.connected.clear()
@@ -249,9 +266,9 @@ class ControlChannel:
                 flow_run_id,
                 intent,
             )
-            return False
+            return ControlSignalStatus.NOT_ACKNOWLEDGED
 
-        intent_byte = _BYTE_FOR_INTENT.get(intent)
+        intent_byte = BYTE_FOR_INTENT.get(intent)
         if intent_byte is None:
             # Defensive: Intent is a Literal so this should be unreachable,
             # but a runtime-only `Intent.__args__` expansion mistake would
@@ -261,33 +278,43 @@ class ControlChannel:
                 intent,
                 flow_run_id,
             )
-            return False
+            return ControlSignalStatus.NOT_ACKNOWLEDGED
 
         try:
-            await self._deliver_intent(reg, intent_byte)
+            if not await self._deliver_intent(reg, intent, intent_byte):
+                return (
+                    ControlSignalStatus.ALREADY_CONCLUDED
+                    if reg.conclusion is not None
+                    else ControlSignalStatus.NOT_ACKNOWLEDGED
+                )
 
             ack_wait_timeout = await self._wait_for_intent_ack(reg)
             if ack_wait_timeout is None:
                 reg_writer = reg.writer
                 self._reset_connection_state(reg)
                 if reg_writer is not None:
-                    try:
-                        reg_writer.close()
-                    except Exception:
-                        pass
+                    reg_writer.close()
                 self._logger.debug(
                     "Child for flow run '%s' did not ack %s within %.1fs",
                     flow_run_id,
                     intent,
                     self._ack_timeout,
                 )
-                return False
-            return True
+                return (
+                    ControlSignalStatus.ALREADY_CONCLUDED
+                    if reg.conclusion is not None
+                    else ControlSignalStatus.NOT_ACKNOWLEDGED
+                )
+            return ControlSignalStatus.ACKNOWLEDGED
         except Exception:
             self._logger.exception(
                 "Error delivering %s intent for flow run '%s'", intent, flow_run_id
             )
-            return False
+            return (
+                ControlSignalStatus.ALREADY_CONCLUDED
+                if reg.conclusion is not None
+                else ControlSignalStatus.NOT_ACKNOWLEDGED
+            )
 
     async def _wait_for_intent_ack(self, reg: _Registration) -> float | None:
         deadline = time.monotonic() + self._ack_timeout
@@ -309,14 +336,33 @@ class ControlChannel:
             except asyncio.TimeoutError:
                 continue
 
-    async def _deliver_intent(self, reg: _Registration, intent_byte: bytes) -> None:
-        if reg.writer is None:
-            return
-        try:
-            reg.writer.write(intent_byte)
-            await reg.writer.drain()
-        except (ConnectionError, OSError):
-            return
+    async def _deliver_intent(
+        self, reg: _Registration, intent: Intent, intent_byte: bytes
+    ) -> bool:
+        async with reg.writer_lock:
+            if (
+                reg.writer is None
+                or reg.conclusion is not None
+                or reg.pending_intent is not None
+            ):
+                return False
+            reg.pending_intent = intent
+            try:
+                reg.writer.write(intent_byte)
+                await reg.writer.drain()
+            except (ConnectionError, OSError):
+                reg.pending_intent = None
+                return False
+        return True
+
+    async def _record_conclusion(
+        self, reg: _Registration, conclusion: AttemptConclusion
+    ) -> bool:
+        async with reg.conclusion_lock:
+            if reg.conclusion is not None:
+                return False
+            reg.conclusion = conclusion
+            return True
 
     def _reset_connection_state(
         self, reg: _Registration, *, clear_ack: bool = True
@@ -345,9 +391,13 @@ class ControlChannel:
                 writer.close()
                 return
 
-            flow_run_id = self._tokens_to_id.get(token)
+            # Authentication consumes the token before the connection is bound.
+            # Replays and connection replacement therefore cannot find it.
+            flow_run_id = self._tokens_to_id.pop(token, None)
             if flow_run_id is None:
-                self._logger.debug("Control channel: rejected unknown token")
+                self._logger.warning(
+                    "Attempt control session rejected unauthenticated connection"
+                )
                 writer.close()
                 return
 
@@ -361,7 +411,8 @@ class ControlChannel:
             reg.disconnected.clear()
             reg.connected.set()
 
-            # Wait for the child's final ack byte.
+            # Process negotiation, a terminal receipt, or the child's final
+            # acknowledgement of a control intent.
             while True:
                 try:
                     data = await reader.read(1)
@@ -370,20 +421,91 @@ class ControlChannel:
                 if not data:
                     return
                 if data == b"a":
-                    reg.intent_acked.set()
+                    if reg.pending_intent is None:
+                        self._logger.warning(
+                            "Attempt control session received an unexpected intent acknowledgement"
+                        )
+                        return
+                    delegation = StateOwnershipDelegation(reg.pending_intent)
+                    if await self._record_conclusion(reg, delegation):
+                        reg.intent_acked.set()
+                        self._logger.debug(
+                            "Attempt control session recorded acknowledged %s intent",
+                            reg.pending_intent,
+                        )
+                    else:
+                        self._logger.debug(
+                            "Ignoring acknowledged control after terminal conclusion"
+                        )
                     return
+                if data == NEGOTIATION_PREFIX[:1]:
+                    try:
+                        remainder = await reader.readexactly(NEGOTIATION_FRAME_SIZE - 1)
+                        version, capabilities = decode_negotiation(data + remainder)
+                    except (asyncio.IncompleteReadError, TypeError, ValueError):
+                        self._logger.warning(
+                            "Attempt control session received malformed negotiation"
+                        )
+                        return
+                    selected_version = (
+                        CURRENT_PROTOCOL_VERSION
+                        if version >= CURRENT_PROTOCOL_VERSION
+                        and capabilities & RECEIPT_CAPABILITY
+                        else LEGACY_PROTOCOL_VERSION
+                    )
+                    selected_capabilities = (
+                        RECEIPT_CAPABILITY
+                        if selected_version == CURRENT_PROTOCOL_VERSION
+                        else 0
+                    )
+                    reg.negotiated_receipts = bool(selected_capabilities)
+                    async with reg.writer_lock:
+                        writer.write(
+                            encode_negotiation(selected_version, selected_capabilities)
+                        )
+                        await writer.drain()
+                    self._logger.debug(
+                        "Attempt control negotiation selected protocol %d with receipt support %s",
+                        selected_version,
+                        reg.negotiated_receipts,
+                    )
+                    continue
+                if data == RECEIPT_PREFIX:
+                    if not reg.negotiated_receipts:
+                        self._logger.warning(
+                            "Attempt control session received an unnegotiated receipt"
+                        )
+                        return
+                    try:
+                        size = int.from_bytes(await reader.readexactly(4), "big")
+                        if size > MAX_RECEIPT_SIZE:
+                            raise ValueError("Receipt payload is too large")
+                        receipt = decode_receipt(await reader.readexactly(size))
+                    except (asyncio.IncompleteReadError, ValueError):
+                        self._logger.warning(
+                            "Attempt control session received a malformed receipt"
+                        )
+                        return
+                    if await self._record_conclusion(reg, receipt):
+                        self._logger.debug(
+                            "Attempt control session recorded engine outcome receipt"
+                        )
+                        async with reg.writer_lock:
+                            writer.write(RECEIPT_ACK)
+                            await writer.drain()
+                    else:
+                        self._logger.debug("Ignoring receipt after terminal conclusion")
+                    return
+                self._logger.warning(
+                    "Attempt control session received a malformed message"
+                )
+                return
         except Exception:
             self._logger.exception(
                 "Unexpected error handling control channel connection"
             )
-            try:
-                writer.close()
-            except Exception:
-                pass
+            writer.close()
         finally:
             if reg is not None:
-                try:
-                    writer.close()
-                except Exception:
-                    pass
+                writer.close()
                 self._reset_connection_state(reg, clear_ack=False)

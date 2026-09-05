@@ -3,7 +3,11 @@ import sys
 from typing import AsyncGenerator, Generator
 
 import pytest
-from prefect_redis.client import close_all_cached_connections, get_async_redis_client
+from prefect_redis.client import (
+    _get_redis_messaging_url,
+    close_all_cached_connections,
+    get_async_redis_client,
+)
 from pytest_asyncio import is_async_test
 from redis.asyncio import Redis
 
@@ -49,6 +53,13 @@ def isolated_redis_db_number(worker_id, monkeypatch) -> Generator[int, None, Non
     # creates clients connected to this db_num
     monkeypatch.setenv("PREFECT_REDIS_MESSAGING_DB", str(db_num))
     yield db_num
+
+
+@pytest.fixture(autouse=True)
+def clear_redis_messaging_url_cache() -> Generator[None, None, None]:
+    _get_redis_messaging_url.cache_clear()
+    yield
+    _get_redis_messaging_url.cache_clear()
 
 
 @pytest.fixture(autouse=True)

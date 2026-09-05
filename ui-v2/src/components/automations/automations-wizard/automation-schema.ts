@@ -35,8 +35,8 @@ const RunDeploymentsSchema = z
 	.object({
 		type: z.literal("run-deployment"),
 		deployment_id: z.string().or(z.literal(UNASSIGNED)),
-		job_variables: z.record(z.unknown()).optional(),
-		parameters: z.record(z.unknown()).optional(),
+		job_variables: z.record(z.string(), z.unknown()).optional(),
+		parameters: z.record(z.string(), z.unknown()).optional(),
 	})
 	.transform((schema) => ({
 		...schema,
@@ -129,6 +129,7 @@ export type TriggerPosture = z.infer<typeof TriggerPostureSchema>;
 // Event trigger schema (the primary trigger type for form mode)
 // Resource specification schema (for match conditions)
 const ResourceSpecificationSchema = z.record(
+	z.string(),
 	z.union([z.string(), z.array(z.string())]),
 );
 const MatchRelatedSchema = z.union([
@@ -186,17 +187,14 @@ export type TriggerInput =
 	| CompoundTriggerInput
 	| SequenceTriggerInput;
 
-// Recursive trigger schemas with explicit type annotations
-// Using z.ZodType<Output, z.ZodTypeDef, Input> to handle input/output type differences from defaults
+// Recursive trigger schemas with explicit input/output annotations
 
-export const TriggerSchema: z.ZodType<Trigger, z.ZodTypeDef, TriggerInput> =
-	z.lazy(() =>
-		z.union([EventTriggerSchema, CompoundTriggerSchema, SequenceTriggerSchema]),
-	);
+export const TriggerSchema: z.ZodType<Trigger, TriggerInput> = z.lazy(() =>
+	z.union([EventTriggerSchema, CompoundTriggerSchema, SequenceTriggerSchema]),
+);
 
 export const CompoundTriggerSchema: z.ZodType<
 	CompoundTrigger,
-	z.ZodTypeDef,
 	CompoundTriggerInput
 > = z.lazy(() =>
 	z.object({
@@ -211,7 +209,6 @@ export const CompoundTriggerSchema: z.ZodType<
 
 export const SequenceTriggerSchema: z.ZodType<
 	SequenceTrigger,
-	z.ZodTypeDef,
 	SequenceTriggerInput
 > = z.lazy(() =>
 	z.object({
@@ -222,7 +219,7 @@ export const SequenceTriggerSchema: z.ZodType<
 );
 
 export const AutomationWizardSchema = z.object({
-	name: z.string().min(1, "Name is required"),
+	name: z.string({ error: "Name is required" }).min(1, "Name is required"),
 	description: z.string().optional(),
 	triggerTemplate: TriggerTemplateSchema.optional(),
 	trigger: TriggerSchema,
