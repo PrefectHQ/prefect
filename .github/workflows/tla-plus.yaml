@@ -116,3 +116,9 @@ jobs:
           check_counterexample \
             CounterexampleDuplicateReap.cfg \
             NoForeignRelease
+          check_counterexample \
+            CounterexampleAcquireAbort.cfg \
+            NoForeignRelease
+          check_counterexample \
+            CounterexampleReacquireNullification.cfg \
+            NoForeignRelease

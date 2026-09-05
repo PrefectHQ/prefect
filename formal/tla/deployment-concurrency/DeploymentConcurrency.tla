@@ -159,6 +159,86 @@ CommitRunning(r) ==
         badForeignDecrement, badStaleReap
         >>
 
+(* A storage or process failure can leave the external lease durable while  *)
+(* the SQL transaction that would account for it is abandoned. Once such a *)
+(* lease exists, require the next acquisition to belong to another run so   *)
+(* the counterexample witnesses cross-run capacity loss.                    *)
+UnclaimedLiveLeases ==
+    {l \in LeaseIds : leaseState[l] = "Live" /\ ~claim[l]}
+
+BeginAcquireAroundOrphan(r, l) ==
+    /\ BeginAcquire(r, l)
+    /\ \A orphan \in UnclaimedLiveLeases : leaseOwner[orphan] # r
+
+AbortAcquireAfterCreateLease ==
+    /\ txnKind = "Acquire"
+    /\ leaseState[txnLease] = "Live"
+    /\ ~claim[txnLease]
+    /\ txnKind' = "None"
+    /\ txnRun' = NoRun
+    /\ txnLease' = NoLease
+    /\ UNCHANGED <<
+        runState, stateLease, leaseState, leaseOwner, epoch, claim,
+        dbSlots, reapPhase, scanEpoch, releasePhase,
+        badForeignDecrement, badStaleReap
+        >>
+
+(* ValidateDeploymentConcurrencyAtRunning can acquire a replacement lease   *)
+(* while the persisted PENDING state still names a reaped lease. If a later *)
+(* rule nullifies the transition, the counter remains attributable to that  *)
+(* persisted lease while the replacement external lease is detached.       *)
+BeginPendingReacquire(r, l) ==
+    LET old == stateLease[r] IN
+    /\ txnKind = "None"
+    /\ runState[r] = "Pending"
+    /\ old # NoLease
+    /\ leaseState[old] = "Absent"
+    /\ ~claim[old]
+    /\ leaseState[l] = "Unused"
+    /\ dbSlots < Limit
+    /\ txnKind' = "Acquire"
+    /\ txnRun' = r
+    /\ txnLease' = l
+    /\ UNCHANGED <<
+        runState, stateLease, leaseState, leaseOwner, epoch, claim,
+        dbSlots, reapPhase, scanEpoch, releasePhase,
+        badForeignDecrement, badStaleReap
+        >>
+
+CommitNullifiedPendingReacquire ==
+    LET old == stateLease[txnRun] IN
+    /\ txnKind = "Acquire"
+    /\ runState[txnRun] = "Pending"
+    /\ old # NoLease
+    /\ leaseState[old] = "Absent"
+    /\ ~claim[old]
+    /\ leaseState[txnLease] = "Live"
+    /\ dbSlots < Limit
+    /\ claim' = [claim EXCEPT ![old] = TRUE]
+    /\ dbSlots' = dbSlots + 1
+    /\ txnKind' = "None"
+    /\ txnRun' = NoRun
+    /\ txnLease' = NoLease
+    /\ UNCHANGED <<
+        runState, stateLease, leaseState, leaseOwner, epoch,
+        reapPhase, scanEpoch, releasePhase,
+        badForeignDecrement, badStaleReap
+        >>
+
+DetachedLiveLeaseFor(r) ==
+    \E l \in LeaseIds :
+        /\ leaseState[l] = "Live"
+        /\ ~claim[l]
+        /\ leaseOwner[l] = r
+        /\ stateLease[r] # l
+
+BeginAcquireForReacquireNullification(r, l) ==
+    /\ BeginAcquire(r, l)
+    /\ \/ \A other \in Runs : runState[other] = "Scheduled"
+       \/ \E orphan \in UnclaimedLiveLeases :
+            /\ leaseOwner[orphan] # r
+            /\ runState[leaseOwner[orphan]] = "Terminal"
+
 Expire(l) ==
     /\ leaseState[l] = "Live"
     /\ leaseState' = [leaseState EXCEPT ![l] = "Expired"]
@@ -167,6 +247,12 @@ Expire(l) ==
         reapPhase, scanEpoch, releasePhase, txnKind, txnRun, txnLease,
         badForeignDecrement, badStaleReap
         >>
+
+ExpireForReacquireNullification(l) ==
+    /\ Expire(l)
+    /\ leaseOwner[l] \in Runs
+    /\ \/ stateLease[leaseOwner[l]] = l
+       \/ runState[leaseOwner[l]] = "Terminal"
 
 Renew(r) ==
     LET l == stateLease[r] IN
@@ -286,6 +372,10 @@ CancelAfterLostLease(r) ==
         reapPhase, scanEpoch, releasePhase, txnKind, txnRun, txnLease,
         badForeignDecrement, badStaleReap
         >>
+
+CancelAfterNullifiedReacquire(r) ==
+    /\ DetachedLiveLeaseFor(r)
+    /\ CancelAfterLostLease(r)
 
 TerminalReadPresent(r) ==
     LET l == stateLease[r] IN
@@ -532,6 +622,15 @@ ReapActions ==
     \/ \E j \in ReapJobs : CancelStaleReap(j)
     \/ \E j \in ReapJobs : CommitReap(j)
 
+ReacquireNullificationReapActions ==
+    \/ \E l \in LeaseIds : ExpireForReacquireNullification(l)
+    \/ \E l \in LeaseIds, j \in ReapJobs : ScanExpired(l, j)
+    \/ \E l \in LeaseIds, j \in ReapJobs : ReapRead(l, j)
+    \/ \E l \in LeaseIds, j \in ReapJobs : BeginReap(l, j)
+    \/ \E j \in ReapJobs : ReapRevoke(j)
+    \/ \E j \in ReapJobs : CancelStaleReap(j)
+    \/ \E j \in ReapJobs : CommitReap(j)
+
 FallbackActions ==
     \/ \E r \in Runs : CancelAfterLostLease(r)
     \/ \E r \in Runs : TerminalReadMissing(r)
@@ -572,6 +671,26 @@ DuplicateReapNext ==
     \/ AcquireActions
     \/ ReapActions
 
+AcquireAbortNext ==
+    \/ \E r \in Runs, l \in LeaseIds : BeginAcquireAroundOrphan(r, l)
+    \/ CreateLease
+    \/ CommitAcquire
+    \/ AbortAcquireAfterCreateLease
+    \/ ReapActions
+
+ReacquireNullificationNext ==
+    \/ \E r \in Runs, l \in LeaseIds :
+        BeginAcquireForReacquireNullification(r, l)
+    \/ CreateLease
+    \/ CommitAcquire
+    \/ \E r \in Runs, l \in LeaseIds : BeginPendingReacquire(r, l)
+    \/ CommitNullifiedPendingReacquire
+    \/ ReacquireNullificationReapActions
+    \/ \E r \in Runs : CancelAfterNullifiedReacquire(r)
+    \/ \E r \in Runs : TerminalReadMissing(r)
+    \/ \E r \in Runs : BeginFallbackRelease(r)
+    \/ CommitFallbackRelease
+
 ClaimAuthorityNext ==
     \/ \E r \in Runs, l \in LeaseIds : ClaimAcquire(r, l)
     \/ \E r \in Runs, l \in LeaseIds : ClaimReacquire(r, l)
@@ -590,6 +709,8 @@ FallbackSpec == Init /\ [][FallbackNext]_vars
 ReadPresentSpec == Init /\ [][ReadPresentNext]_vars
 DeletionSpec == Init /\ [][DeletionNext]_vars
 DuplicateReapSpec == Init /\ [][DuplicateReapNext]_vars
+AcquireAbortSpec == Init /\ [][AcquireAbortNext]_vars
+ReacquireNullificationSpec == Init /\ [][ReacquireNullificationNext]_vars
 ClaimAuthoritySpec == Init /\ [][ClaimAuthorityNext]_vars
 
 TypeOK ==

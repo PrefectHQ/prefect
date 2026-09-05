@@ -11,12 +11,12 @@ Owner: Prefect server orchestration maintainers.
 
 ## Model and checks
 
-Bounds: two runs, two unique lease IDs, two reaper work items per lease,
-capacity one, bounded lease revisions, and nondeterministic expiry, PENDING
-reacquisition, terminal release, flow-run deletion, and queued expiry release.
-The target result is exhaustive only within these bounds. No configuration
-models the whole current protocol; the unsafe configurations isolate known
-failures.
+Bounds: two runs, up to three unique lease IDs, two reaper work items per
+lease, capacity one, bounded lease revisions, and nondeterministic expiry,
+PENDING reacquisition and nullification, acquisition abort, terminal release,
+flow-run deletion, and queued expiry release. The target result is exhaustive
+only within these bounds. No configuration models the whole current protocol;
+the unsafe configurations isolate known failures.
 
 | Configuration | Status | Expected TLC result |
 | --- | --- | --- |
@@ -26,6 +26,8 @@ failures.
 | `CounterexampleReadPresentRelease.cfg` | unsafe: stale read-present release | exit 12; `NoForeignRelease`, depth 17 |
 | `CounterexampleFlowRunDeletion.cfg` | unsafe: deletion leaves its lease live | exit 12; `NoForeignRelease`, depth 14 |
 | `CounterexampleDuplicateReap.cfg` | unsafe: duplicate reaper decrement | exit 12; `NoForeignRelease`, depth 18 |
+| `CounterexampleAcquireAbort.cfg` | unsafe: external lease survives acquisition abort | exit 12; `NoForeignRelease`, depth 13 |
+| `CounterexampleReacquireNullification.cfg` | unsafe: nullification detaches replacement lease | exit 12; `NoForeignRelease`, depth 26 |
 
 These TLA+ tools v1.7.4 baselines record the explored graphs; the counterexample
 traces witness the unsafe paths. CI verifies each expected exit and invariant.
@@ -41,6 +43,11 @@ reaper jobs per lease, physical overlap during lease-loss reaction, response
 replay, and request identity. The target does not access an external lease
 store: projections, migration, and eventual reclamation need separate models
 or tests, and cannot authorize claim actions.
+
+The split-path model includes one process/storage failure boundary: external
+lease creation succeeds but the enclosing SQL acquisition does not commit.
+Other process failures, ambiguous operations, and recovery behavior are out of
+scope.
 
 `Limit` maps to `ConcurrencyLimitV2.limit`, is selected before `Init`, and stays
 fixed for one modeled behavior. The target assumes a dedicated, unshared limit
@@ -83,6 +90,8 @@ use `concurrency/lease_storage/ConcurrencyLeaseStorage`.
 | Split-path counterexample actions | Production boundary |
 | --- | --- |
 | `BeginAcquire`, `CreateLease`, `CommitAcquire` | `core_policy.py::SecureFlowConcurrencySlots`; `models/concurrency_limits_v2.py::bulk_increment_active_slots`; lease storage `create_lease` |
+| `AbortAcquireAfterCreateLease` | `api/flow_runs.py::set_flow_run_state` transaction rollback after `SecureFlowConcurrencySlots` creates an external lease |
+| `BeginPendingReacquire`, `CommitNullifiedPendingReacquire`, `CancelAfterNullifiedReacquire` | `core_policy.py::{ValidateDeploymentConcurrencyAtRunning, WaitForScheduledTime, ReleaseFlowConcurrencySlots}`; replacement lease creation and slot increment followed by a nullified transition |
 | `Renew`, `Expire`, `ScanExpired`, `ReapRead`, `BeginReap`, `ReapRevoke`, `CommitReap` | `api/concurrency_limits_v2.py::renew_concurrency_lease`; `core_policy.py::ValidateDeploymentConcurrencyAtRunning`; lease deadlines and `renew_lease`/`read_expired_lease_ids`; `services/repossessor.py::{monitor_expired_leases, revoke_expired_lease}`; `models/concurrency_limits_v2.py::bulk_decrement_active_slots` |
 | `CancelAfterLostLease`, `TerminalRead*`, `Begin*Release`, `ReleaseRevoke`, `Commit*Release` | `core_policy.py::{ValidateDeploymentConcurrencyAtRunning, _release_concurrency_lease, ReleaseFlowConcurrencySlots}`; lease storage `read_lease`/`revoke_lease`; `models/concurrency_limits_v2.py::bulk_decrement_active_slots` |
 | `DeleteFlowRun` | `models/flow_runs.py::{cleanup_flow_run_concurrency_slots, delete_flow_run, delete_flow_runs}`; `models/concurrency_limits_v2.py::bulk_decrement_active_slots` |
@@ -96,8 +105,11 @@ claim-module contract, not aliases for today's split paths. In the target,
 `Renew`/`Expire`/`ScanExpired` use its SQL deadline and queued-work hint;
 `CommitRunning` and `CancelAfterLostLease` project through
 `ValidateDeploymentConcurrencyAtRunning`; `ClaimReacquire` models that rule's
-successful PENDING reacquisition branch, covered by
+accepted PENDING reacquisition branch, covered by
 `tests/server/orchestration/test_validate_deployment_concurrency_at_running.py::TestValidateDeploymentConcurrencyAtRunning::test_reacquires_slot_after_lease_expiry`.
+A later rule's nullification must leave no claim and refines to stuttering; the
+split-path failure is covered by
+`tests/server/orchestration/test_validate_deployment_concurrency_at_running.py::TestValidateDeploymentConcurrencyAtRunning::test_full_policy_wait_after_reacquisition_releases_capacity`.
 `CancelStaleReap` and
 `SkipFallbackRelease` are the proposed safe branches. `ClaimTerminalRelease`
 also covers atomic claim release during flow-run deletion; `Terminal` abstracts
@@ -129,6 +141,8 @@ transaction and `bad*` fields expose in-flight or counterexample state.
 | read-present release | `tests/server/orchestration/test_validate_deployment_concurrency_at_running.py::TestValidateDeploymentConcurrencyAtRunning::test_terminal_release_racing_reaper_preserves_replacement_slot` |
 | flow-run deletion | `tests/server/orchestration/test_validate_deployment_concurrency_at_running.py::TestValidateDeploymentConcurrencyAtRunning::test_flow_run_deletion_reaper_preserves_replacement_slot` |
 | duplicate reapers | `tests/server/services/test_repossessor.py::TestRevokeExpiredLease::test_duplicate_reapers_preserve_replacement_capacity` |
+| acquisition abort | `tests/server/orchestration/test_core_policy.py::TestFlowConcurrencyLimits::test_acquisition_abort_reaper_preserves_replacement_slot` |
+| PENDING reacquisition nullification | `tests/server/orchestration/test_validate_deployment_concurrency_at_running.py::TestValidateDeploymentConcurrencyAtRunning::test_full_policy_wait_after_reacquisition_releases_capacity` |
 
 These regressions are strict `xfail` tests while claim authority is absent.
 Implementing the target requires removing those marks and passing the same
@@ -136,4 +150,5 @@ boundary assertions; lower-level replacements are insufficient.
 
 Review the model when deployment or global concurrency changes admission,
 renewal, expiry scanning, terminal release, flow-run deletion, lease
-persistence, queue delivery, PENDING reacquisition, or accounting.
+persistence, acquisition failure handling, queue delivery, PENDING
+reacquisition, transition nullification, or accounting.
