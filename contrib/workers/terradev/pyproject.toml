@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "prefect-terradev"
+version = "0.1.0"
+description = "Prefect worker that routes flow runs to GPU compute across 17 cloud providers via Terradev"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+requires-python = ">=3.10"
+dependencies = [
+    "prefect>=3.0.0",
+    "terradev-cli>=6.2.15",
+]
+
+[project.urls]
+Homepage = "https://github.com/theoddden/Terradev"
+Repository = "https://github.com/PrefectHQ/prefect"
+
+[project.entry-points."prefect.workers"]
+terradev = "contrib.workers.terradev.worker:TerradevWorker"
