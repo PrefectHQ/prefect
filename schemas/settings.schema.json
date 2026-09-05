@@ -182,6 +182,16 @@
                     "title": "Max Retries",
                     "type": "integer"
                 },
+                "connection_attempts": {
+                    "default": 0,
+                    "description": "\n        The total number of attempts to make when the API cannot be reached at all,\n        before the client has connected successfully even once. Defaults to 0, which\n        fails immediately so that a misconfigured API URL surfaces right away. Set to a\n        positive value to tolerate an API that is briefly unavailable at startup; for\n        example, 5 makes at most five connection attempts and then gives up.\n\n        This budget is counted separately from `PREFECT_CLIENT_MAX_RETRIES`, so enabling\n        it never changes how many times a server that is actually answering is retried.\n        Attempts use the same exponential backoff and `PREFECT_CLIENT_RETRY_JITTER_FACTOR`\n        as other retries.\n        ",
+                    "minimum": 0,
+                    "supported_environment_variables": [
+                        "PREFECT_CLIENT_CONNECTION_ATTEMPTS"
+                    ],
+                    "title": "Connection Attempts",
+                    "type": "integer"
+                },
                 "retry_jitter_factor": {
                     "default": 0.2,
                     "description": "\n        A value greater than or equal to zero to control the amount of jitter added to retried\n        client requests. Higher values introduce larger amounts of jitter.\n        Set to 0 to disable jitter. See `clamped_poisson_interval` for details on the how jitter\n        can affect retry lengths.\n        ",

@@ -1,4 +1,5 @@
 import logging
+import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncGenerator, Dict, List, Tuple
@@ -7,7 +8,7 @@ from unittest.mock import AsyncMock
 
 import httpx
 import pytest
-from httpx import AsyncClient, Request, Response
+from httpx import AsyncClient, Client, Request, Response
 
 import prefect
 import prefect.client
@@ -15,6 +16,7 @@ import prefect.client.constants
 from prefect._internal.compatibility.starlette import status
 from prefect.client.base import (
     PrefectHttpxAsyncClient,
+    PrefectHttpxSyncClient,
     PrefectResponse,
     ServerType,
     determine_server_type,
@@ -47,6 +49,11 @@ RESPONSE_429_RETRY_AFTER_MISSING = Response(
     request=Request("a test request", "fake.url/fake/route"),
 )
 
+
+RESPONSE_503 = Response(
+    status.HTTP_503_SERVICE_UNAVAILABLE,
+    request=Request("a test request", "fake.url/fake/route"),
+)
 
 RESPONSE_200 = Response(
     status.HTTP_200_OK,
@@ -528,6 +535,79 @@ class TestPrefectHttpxAsyncClient:
         mock_anyio_sleep.assert_not_called()
 
     @pytest.mark.usefixtures("mock_anyio_sleep", "disable_jitter")
+    async def test_initial_connect_error_is_retried_when_connection_attempts_set(
+        self, monkeypatch
+    ):
+        """PREFECT_CLIENT_CONNECTION_ATTEMPTS opts in to retrying an API that is not up yet.
+
+        Regression test for https://github.com/PrefectHQ/prefect/issues/20462
+        """
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+
+        base_client_send.side_effect = [
+            httpx.ConnectError("Connection refused"),
+            httpx.ConnectError("Connection refused"),
+            RESPONSE_200,
+        ]
+
+        with temporary_settings({"PREFECT_CLIENT_CONNECTION_ATTEMPTS": 3}):
+            client = PrefectHttpxAsyncClient()
+            async with client:
+                response = await client.get(url="fake.url/fake/route")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert base_client_send.call_count == 3
+
+    @pytest.mark.usefixtures("mock_anyio_sleep", "disable_jitter")
+    async def test_initial_connect_error_stops_at_connection_attempts_limit(
+        self, monkeypatch
+    ):
+        """The opt-in is bounded: once the budget is spent the ConnectError surfaces."""
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+
+        base_client_send.side_effect = httpx.ConnectError("Connection refused")
+
+        with temporary_settings(
+            {"PREFECT_CLIENT_CONNECTION_ATTEMPTS": 2, "PREFECT_CLIENT_MAX_RETRIES": 0}
+        ):
+            client = PrefectHttpxAsyncClient()
+            with pytest.raises(httpx.ConnectError, match="Connection refused"):
+                async with client:
+                    await client.get(url="fake.url/fake/route")
+
+        # exactly the configured number of connection attempts, no more
+        assert base_client_send.call_count == 2
+
+    @pytest.mark.usefixtures("mock_anyio_sleep", "disable_jitter")
+    async def test_connection_attempts_does_not_widen_retries_for_a_reachable_server(
+        self, monkeypatch
+    ):
+        """The connection budget must not leak into the normal retry budget.
+
+        A server that answers with a retryable status is governed by
+        PREFECT_CLIENT_MAX_RETRIES alone, so a large connection budget cannot cause a
+        non-idempotent request to be resubmitted.
+        """
+        base_client_send = AsyncMock()
+        monkeypatch.setattr(AsyncClient, "send", base_client_send)
+
+        base_client_send.side_effect = [RESPONSE_503] * 12
+
+        with temporary_settings(
+            {"PREFECT_CLIENT_CONNECTION_ATTEMPTS": 10, "PREFECT_CLIENT_MAX_RETRIES": 0}
+        ):
+            client = PrefectHttpxAsyncClient()
+            with pytest.raises(PrefectHTTPStatusError, match="503"):
+                async with client:
+                    await client.post(
+                        url="fake.url/fake/route", data={"evenmorefake": "data"}
+                    )
+
+        assert base_client_send.call_count == 1
+
+    @pytest.mark.usefixtures("mock_anyio_sleep", "disable_jitter")
     async def test_prefect_httpx_client_retries_connect_error_after_successful_connection(
         self, monkeypatch, caplog
     ):
@@ -684,6 +764,47 @@ async def mocked_csrf_client(
 ) -> AsyncGenerator[Tuple[PrefectHttpxAsyncClient, mock.AsyncMock], None]:
     async with mocked_client(responses, enable_csrf_support=True) as (client, send):
         yield client, send
+
+
+class TestPrefectHttpxSyncClientConnectionAttempts:
+    """The sync client mirrors the async ConnectError gating, so it gets the same opt-in.
+
+    Regression test for https://github.com/PrefectHQ/prefect/issues/20462
+    """
+
+    @pytest.mark.usefixtures("disable_jitter")
+    def test_initial_connect_error_is_retried_when_connection_attempts_set(
+        self, monkeypatch
+    ):
+        monkeypatch.setattr(time, "sleep", lambda _: None)
+        base_client_send = mock.MagicMock()
+        monkeypatch.setattr(Client, "send", base_client_send)
+
+        base_client_send.side_effect = [
+            httpx.ConnectError("Connection refused"),
+            RESPONSE_200,
+        ]
+
+        with temporary_settings({"PREFECT_CLIENT_CONNECTION_ATTEMPTS": 2}):
+            with PrefectHttpxSyncClient() as client:
+                response = client.get(url="fake.url/fake/route")
+
+        assert response.status_code == status.HTTP_200_OK
+        assert base_client_send.call_count == 2
+
+    @pytest.mark.usefixtures("disable_jitter")
+    def test_initial_connect_error_fails_fast_by_default(self, monkeypatch):
+        monkeypatch.setattr(time, "sleep", lambda _: None)
+        base_client_send = mock.MagicMock()
+        monkeypatch.setattr(Client, "send", base_client_send)
+
+        base_client_send.side_effect = httpx.ConnectError("Connection refused")
+
+        with PrefectHttpxSyncClient() as client:
+            with pytest.raises(httpx.ConnectError, match="Connection refused"):
+                client.get(url="fake.url/fake/route")
+
+        assert base_client_send.call_count == 1
 
 
 class TestCsrfSupport:
