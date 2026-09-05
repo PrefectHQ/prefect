@@ -285,6 +285,9 @@ class AzureContainerJobConfiguration(BaseJobConfiguration):
         if self.image_registry:
             self._add_image_registry_credentials(self.image_registry)
 
+        if self.gpu_count is not None or self.gpu_sku is not None:
+            self._add_gpu()
+
         if self.identities:
             self._add_identities(self.identities)
 
@@ -304,6 +307,21 @@ class AzureContainerJobConfiguration(BaseJobConfiguration):
             ]["image"] = self.image
         except KeyError:
             raise ValueError("Unable to add image due to invalid job ARM template.")
+
+    def _add_gpu(self):
+        """Add the requested GPU resources to the container ARM template."""
+        if self.gpu_count is None or self.gpu_sku is None:
+            raise ValueError("gpu_count and gpu_sku must be provided together.")
+
+        try:
+            self.arm_template["resources"][0]["properties"]["containers"][0][
+                "properties"
+            ]["resources"]["requests"]["gpu"] = {
+                "count": self.gpu_count,
+                "sku": self.gpu_sku,
+            }
+        except KeyError:
+            raise ValueError("Unable to add GPU due to invalid job ARM template.")
 
     def _add_image_registry_credentials(self, image_registry: DockerRegistry):
         """

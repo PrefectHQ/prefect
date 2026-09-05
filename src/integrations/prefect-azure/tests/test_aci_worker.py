@@ -1085,6 +1085,32 @@ async def test_add_dns_servers(
         assert dns_server in dns_config["nameServers"]
 
 
+async def test_add_gpu_resources(raw_job_configuration, worker_flow_run):
+    raw_job_configuration.gpu_count = 1
+    raw_job_configuration.gpu_sku = "V100"
+    raw_job_configuration.prepare_for_flow_run(worker_flow_run)
+
+    container = raw_job_configuration.arm_template["resources"][0]["properties"][
+        "containers"
+    ][0]
+    assert container["properties"]["resources"]["requests"]["gpu"] == {
+        "count": 1,
+        "sku": "V100",
+    }
+
+
+@pytest.mark.parametrize("missing_field", ["gpu_count", "gpu_sku"])
+async def test_gpu_resources_require_count_and_sku(
+    raw_job_configuration, worker_flow_run, missing_field
+):
+    raw_job_configuration.gpu_count = 1
+    raw_job_configuration.gpu_sku = "V100"
+    setattr(raw_job_configuration, missing_field, None)
+
+    with pytest.raises(ValueError, match="gpu_count and gpu_sku"):
+        raw_job_configuration.prepare_for_flow_run(worker_flow_run)
+
+
 @pytest.mark.parametrize(
     "flow_name",
     [
