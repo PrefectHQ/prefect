@@ -22,6 +22,7 @@ from pydantic import (
     ConfigDict,
     Field,
     RootModel,
+    computed_field,
     field_validator,
     model_validator,
 )
@@ -216,6 +217,7 @@ class ReceivedEvent(Event):
         description="When the event was received by Prefect Cloud",
     )
 
+    @computed_field(return_type=Optional[str])
     @property
     def url(self) -> Optional[str]:
         """Returns the UI URL for this event, allowing users to link to events
@@ -223,7 +225,7 @@ class ReceivedEvent(Event):
         return url_for(self, url_type="ui")
 
     def as_database_row(self) -> dict[str, Any]:
-        row = self.model_dump()
+        row = self.model_dump(exclude={"url"})
         row["resource_id"] = self.resource.id
         row["recorded"] = prefect.types._datetime.now("UTC")
         row["related_resource_ids"] = [related.id for related in self.related]

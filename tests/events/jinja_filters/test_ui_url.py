@@ -4,9 +4,10 @@ from uuid import uuid4
 import jinja2
 import pytest
 
-from prefect.events.schemas.events import ReceivedEvent, Resource
+from prefect.events.schemas.events import Resource
 from prefect.server.events.jinja_filters import ui_url
 from prefect.server.events.schemas.automations import Automation, EventTrigger, Posture
+from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.schemas.core import (
     Deployment,
     Flow,
@@ -78,6 +79,15 @@ def test_automation_url(chonk_party: Automation):
 
     assert rendered == (
         f"http://localhost:3000/automations/automation/{chonk_party.id}"
+    )
+
+
+def test_received_event_url_is_preserved_when_serialized(
+    woodchonk_walked: ReceivedEvent,
+):
+    assert woodchonk_walked.model_dump(mode="json")["url"] == (
+        f"http://localhost:3000/events/event/{woodchonk_walked.occurred:%Y-%m-%d}/"
+        f"{woodchonk_walked.id}"
     )
 
 
