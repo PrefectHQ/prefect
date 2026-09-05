@@ -12,6 +12,7 @@ from prefect.server.events.schemas.events import (
     RelatedResource,
     Resource,
 )
+from prefect.settings import PREFECT_UI_URL, temporary_settings
 from prefect.types import DateTime
 from prefect.types._datetime import now
 
@@ -199,7 +200,8 @@ def test_json_representation():
         received=DateTime(2021, 2, 3, 4, 5, 6, 78, tzinfo=timezone.utc),
     )
 
-    jsonified = json.loads(event.model_dump_json())
+    with temporary_settings({PREFECT_UI_URL: ""}):
+        jsonified = json.loads(event.model_dump_json())
 
     assert jsonified == {
         "occurred": "2021-02-03T04:05:06.000007Z",
