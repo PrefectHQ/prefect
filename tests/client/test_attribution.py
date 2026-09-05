@@ -17,8 +17,6 @@ from prefect.client.attribution import get_attribution_headers
 from prefect.client.base import PrefectHttpxAsyncClient, PrefectHttpxSyncClient
 from prefect.settings import PREFECT_CLIENT_MAX_RETRIES, temporary_settings
 
-pytestmark = pytest.mark.clear_db
-
 RESPONSE_200 = Response(
     status.HTTP_200_OK,
     request=Request("a test request", "fake.url/fake/route"),
@@ -319,6 +317,7 @@ class TestSyncClientAttributionHeaders:
 def test_environment_attribution_whitespace(
     monkeypatch: pytest.MonkeyPatch, kind: str, name: str, expected: str | None
 ):
+    """Normalize optional header values without changing the source environment."""
     monkeypatch.setenv(f"PREFECT__{kind}_NAME", name)
     headers = get_attribution_headers()
     header = f"X-Prefect-{kind.title()}-Name"
@@ -332,6 +331,8 @@ def test_environment_attribution_whitespace(
 @pytest.mark.parametrize("is_async", [False, True])
 @pytest.mark.parametrize("name", ["my flow ", " my flow", "\t my flow \t", " \t "])
 def test_flow_with_surrounding_whitespace_completes(name: str, is_async: bool):
+    """Accepted flow names must not prevent terminal state reporting over HTTP."""
+
     def sync_body() -> str:
         return "done"
 
