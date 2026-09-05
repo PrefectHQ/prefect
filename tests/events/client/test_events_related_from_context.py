@@ -11,7 +11,9 @@ from prefect.events.related import (
     MAX_CACHE_SIZE,
     _get_and_cache_related_object,
     related_resources_from_run_context,
+    tags_as_related_resources,
 )
+from prefect.settings.context import get_current_settings
 from prefect.states import Running
 
 
@@ -233,3 +235,36 @@ async def test_lru_cache_timestamp_updated():
     _, next_timestamp = cache["flow-run.👴"]
 
     assert next_timestamp > timestamp
+
+
+def test_tags_as_related_resources_keeps_every_tag_that_fits():
+    """The public helper must not reserve slots the caller isn't using.
+
+    A caller with no other related resources can carry up to the configured maximum in
+    tags; truncating below that silently drops tag relationships, so automations
+    matching a dropped tag stop seeing the event.
+    """
+    maximum = get_current_settings().server.events.maximum_related_resources
+    tags = [f"tag-{i:04d}" for i in range(maximum + 5)]
+
+    resources = tags_as_related_resources(tags)
+
+    assert len(resources) == maximum
+    assert resources[0].id == "prefect.tag.tag-0000"
+
+
+def test_tags_as_related_resources_reserves_for_the_caller():
+    """`reserved` accounts for related resources the caller has already composed."""
+    maximum = get_current_settings().server.events.maximum_related_resources
+    tags = [f"tag-{i:04d}" for i in range(maximum + 5)]
+
+    resources = tags_as_related_resources(tags, reserved=3)
+
+    assert len(resources) == maximum - 3
+
+
+def test_tags_as_related_resources_reserved_beyond_maximum_yields_nothing():
+    maximum = get_current_settings().server.events.maximum_related_resources
+
+    assert tags_as_related_resources(["a", "b"], reserved=maximum) == []
+    assert tags_as_related_resources(["a", "b"], reserved=maximum + 10) == []

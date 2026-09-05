@@ -1297,6 +1297,38 @@ class TestScheduledRuns:
             assert scheduled_run.auto_scheduled is True
             assert "auto-scheduled" in scheduled_run.tags
 
+    async def test_deployment_with_many_tags_does_not_fail_on_flow_run_creation(
+        self, flow, session
+    ):
+        """Deployments with >100 tags must not blow the event related-resource limit.
+
+        Regression for #19064: each tag becomes a related resource on flow-run
+        state-change events, which cap related resources at 100.
+        """
+        tags = [f"tag-{i:03d}" for i in range(101)]
+        deployment = await models.deployments.create_deployment(
+            session=session,
+            deployment=schemas.core.Deployment(
+                name="deployment-with-many-tags",
+                flow_id=flow.id,
+                tags=tags,
+            ),
+        )
+        await session.commit()
+
+        flow_run = await models.flow_runs.create_flow_run(
+            session=session,
+            flow_run=schemas.core.FlowRun(
+                flow_id=flow.id,
+                deployment_id=deployment.id,
+                tags=tags,
+            ),
+        )
+        await session.commit()
+
+        assert flow_run.id is not None
+        assert len(flow_run.tags) == 101
+
 
 class TestUpdateDeployment:
     async def test_updating_deployment_creates_associated_work_queue(

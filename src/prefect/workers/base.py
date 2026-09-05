@@ -539,7 +539,7 @@ class BaseJobConfiguration(BaseModel):
                 tags.update(obj.tags)
             related.append(object_as_related_resource(kind=kind, role=kind, object=obj))
 
-        return related + tags_as_related_resources(tags)
+        return related + tags_as_related_resources(tags, reserved=len(related))
 
 
 class BaseVariables(BaseModel):
