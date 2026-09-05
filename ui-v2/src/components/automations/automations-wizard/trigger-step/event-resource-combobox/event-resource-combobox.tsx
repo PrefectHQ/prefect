@@ -37,6 +37,7 @@ export function EventResourceCombobox({
 	onToggleResource,
 	emptyMessage = "All resources",
 }: EventResourceComboboxProps) {
+	const [open, setOpen] = useState(false);
 	const [search, setSearch] = useState("");
 	const deferredSearch = useDeferredValue(search);
 	const [containerWidth, setContainerWidth] = useState(0);
@@ -58,8 +59,10 @@ export function EventResourceCombobox({
 		return () => observer.disconnect();
 	}, []);
 
-	// Use existing hook that fetches all resource types
-	const { resourceOptions } = useResourceOptions();
+	// Deployment lists can be large, so defer that request until the dropdown is opened.
+	const { resourceOptions } = useResourceOptions({
+		deploymentsEnabled: open,
+	});
 
 	// Group resources by type
 	const groupedResources = useMemo(() => {
@@ -209,7 +212,7 @@ export function EventResourceCombobox({
 	};
 
 	return (
-		<Combobox>
+		<Combobox onOpenChange={setOpen}>
 			<ComboboxTrigger selected={selectedResourceIds.length > 0}>
 				{renderSelectedResources()}
 			</ComboboxTrigger>
