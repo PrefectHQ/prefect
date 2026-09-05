@@ -113,7 +113,10 @@ def _initialize_plugins() -> None:
         # Re-raise SystemExit from strict mode
         raise
     except Exception as e:
-        from pydantic_settings.exceptions import SettingsError
+        try:
+            from pydantic_settings.exceptions import SettingsError
+        except ImportError:
+            from pydantic_settings import SettingsError
 
         if isinstance(e, SettingsError):
             return
