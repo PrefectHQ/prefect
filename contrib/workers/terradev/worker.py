@@ -44,10 +44,12 @@ class TerradevWorker(BaseWorker):
         instance_id: Optional[str] = None
         provider_name: Optional[str] = None
         try:
-            # _provision returns immediately after creation (before IP polling)
-            # so instance_id is set in the outer scope before any RuntimeError
-            # from _wait_for_address can prevent cleanup.
-            instance_id, address, provider_name = await self._provision(configuration)
+            instance_id, address, provider_name = await self._provision(
+                configuration
+            )
+            # _wait_for_address is separate from _provision so that instance_id
+            # is captured before any timeout raises, allowing the finally block
+            # to terminate the GPU even when IP assignment times out.
             if not address:
                 address = await self._wait_for_address(
                     instance_id, provider_name, configuration
@@ -74,7 +76,9 @@ class TerradevWorker(BaseWorker):
             self._logger.error("Terradev worker failed: %s", exc)
             return TerradevWorkerResult(
                 status_code=1,
-                identifier=f"{provider_name or 'unknown'}:{instance_id or 'unknown'}",
+                identifier=(
+                    f"{provider_name or 'unknown'}:{instance_id or 'unknown'}"
+                ),
             )
         finally:
             if instance_id and provider_name:
@@ -111,12 +115,7 @@ class TerradevWorker(BaseWorker):
     async def _provision(
         self, cfg: TerradevWorkerConfiguration
     ) -> tuple[str, str, str]:
-        """Provision a GPU; return (instance_id, address_or_empty, provider_name).
-
-        Returns immediately after instance creation — IP polling is handled by
-        _wait_for_address so that instance_id is captured before any timeout
-        raises and cleanup in run() can call _terminate.
-        """
+        """Return (instance_id, address_or_empty, provider_name)."""
         from terradev_cli.providers.provider_factory import ProviderFactory
 
         factory = ProviderFactory()
@@ -143,11 +142,7 @@ class TerradevWorker(BaseWorker):
         provider_name: str,
         cfg: TerradevWorkerConfiguration,
     ) -> str:
-        """Poll until the provider assigns a public IP (up to 5 minutes).
-
-        Intentionally separated from _provision: if this raises, instance_id
-        is already set in run() so the finally block can terminate the GPU.
-        """
+        """Poll until the provider assigns a public IP (up to 5 minutes)."""
         from terradev_cli.providers.provider_factory import ProviderFactory
 
         factory = ProviderFactory()
@@ -165,8 +160,8 @@ class TerradevWorker(BaseWorker):
             await p.aclose()
 
         raise RuntimeError(
-            f"Instance {instance_id} on {provider_name} did not receive an IP "
-            "within 5 minutes"
+            f"Instance {instance_id} on {provider_name} "
+            "did not receive an IP within 5 minutes"
         )
 
     async def _cheapest_provider(self, cfg: TerradevWorkerConfiguration) -> str:
@@ -197,13 +192,16 @@ class TerradevWorker(BaseWorker):
         return best_name
 
     async def _run_flow(
-        self, flow_run: FlowRun, address: str, cfg: TerradevWorkerConfiguration
+        self,
+        flow_run: FlowRun,
+        address: str,
+        cfg: TerradevWorkerConfiguration,
     ) -> int:
         """Execute the flow run on the remote instance via SSH.
 
         Uses configuration.command when set. Prefect API credentials are
-        forwarded via shlex.quote — values are never interpolated as raw shell
-        syntax and do not appear in process listings.
+        forwarded via shlex.quote so values are never interpolated as raw
+        shell syntax and do not appear in process listings.
         """
         flow_cmd_parts: list[str] = (
             list(cfg.command)
@@ -222,8 +220,10 @@ class TerradevWorker(BaseWorker):
 
         cmd = [
             "ssh",
-            "-o", "StrictHostKeyChecking=accept-new",
-            "-o", "ConnectTimeout=30",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            "-o",
+            "ConnectTimeout=30",
             f"{cfg.ssh_user}@{address}",
             remote_cmd,
         ]
@@ -237,7 +237,7 @@ class TerradevWorker(BaseWorker):
         provider_name: str,
         cfg: TerradevWorkerConfiguration,
     ) -> None:
-        """Terminate the instance; re-raises on failure so the caller can log the leak."""
+        """Terminate the instance; re-raises on failure so the caller logs it."""
         from terradev_cli.providers.provider_factory import ProviderFactory
 
         factory = ProviderFactory()
