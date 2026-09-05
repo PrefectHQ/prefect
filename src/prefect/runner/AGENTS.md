@@ -73,13 +73,13 @@ The first authenticated connection consumes its attempt token. Replay and connec
 **How cancellation uses it:**
 1. Runner signals `"cancel"` intent over the channel and waits up to 1 s for the child's `b'a'` ack.
 2. If the child acks, the intent is committed in the child before the SIGTERM arrives, so the engine's `except TerminationSignal` block can dispatch to `on_cancellation` hooks instead of `on_crashed`.
-3. Runner then proceeds through `ProcessManager.kill()` regardless of ack status.
+3. Runner then proceeds through `ProcessManager.kill()` — unless `signal()` returned `ALREADY_CONCLUDED`, meaning an engine outcome receipt already won; both `CancellationManager` and the `prefect flow-run execute` CLI path return immediately without killing so the reported outcome is never overwritten.
 
 **POSIX vs Windows difference:**
 - POSIX: ack only means "SIGTERM bridge is armed and intent is seeded." The runner's real `SIGTERM` is still the only trigger that interrupts blocking code. Kill happens immediately after ack.
 - Windows: ack means the child has queued `_thread.interrupt_main(SIGTERM)`. The runner gives the child a 30 s grace window to self-exit before falling back to an external kill.
 
-**Failure modes:** If the child never connects or never acks within 1 s, `signal()` returns `False`. `CancellationManager` falls through to the normal graceful kill and the engine treats the termination as a crash. The `prefect flow-run execute` supervisor instead calls `ProcessManager.kill(force=True)` (SIGKILL, no grace), because an unacked engine would propose `Crashed` and undo a `reschedule`/`relinquish`.
+**Failure modes:** `signal()` returns a `ControlSignalStatus`, never a bare `bool`: `NOT_ACKNOWLEDGED` if the child never connects or never acks within 1 s, `ALREADY_CONCLUDED` if an engine receipt already won (see above). On `NOT_ACKNOWLEDGED`, `CancellationManager` falls through to the normal graceful kill and the engine treats the termination as a crash. The `prefect flow-run execute` supervisor instead calls `ProcessManager.kill(force=True)` (SIGKILL, no grace), because an unacked engine would propose `Crashed` and undo a `reschedule`/`relinquish`.
 
 **Extending intents:** The intents today are `"cancel"`, `"reschedule"` and `"relinquish"`. Update the single shared map in `prefect._internal.attempt_control` and the engine's `TerminationSignal` dispatch together.
 
