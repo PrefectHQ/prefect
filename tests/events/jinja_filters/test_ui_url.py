@@ -4,9 +4,10 @@ from uuid import uuid4
 import jinja2
 import pytest
 
-from prefect.events.schemas.events import ReceivedEvent, Resource
+from prefect.events.schemas.events import Resource
 from prefect.server.events.jinja_filters import ui_url
 from prefect.server.events.schemas.automations import Automation, EventTrigger, Posture
+from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.schemas.core import (
     Deployment,
     Flow,

@@ -214,6 +214,7 @@ def test_json_representation():
         "id": str(event.id),
         "follows": None,
         "received": "2021-02-03T04:05:06.000078Z",
+        "url": None,
     }
 
 
