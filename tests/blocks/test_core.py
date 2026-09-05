@@ -9,7 +9,14 @@ from uuid import UUID, uuid4
 
 import pytest
 from packaging.version import Version
-from pydantic import BaseModel, Field, SecretBytes, SecretStr, ValidationError
+from pydantic import (
+    AliasPath,
+    BaseModel,
+    Field,
+    SecretBytes,
+    SecretStr,
+    ValidationError,
+)
 from pydantic import Secret as PydanticSecret
 from pydantic_core import to_json
 from pydantic_extra_types.semantic_version import SemanticVersion
@@ -3440,3 +3447,98 @@ class TestDefineMetadataOnNestedBlocksRecursionBound:
         outer._define_metadata_on_nested_blocks(refs, _depth=1, _max_depth=0)
         # Inner was not visited; its _block_document_id stays None.
         assert outer.inner._block_document_id is None
+
+
+class TestUnexpectedFields:
+    def test_warns_and_names_unexpected_field(self):
+        class Credentials(Block):
+            access_key_id: str | None = None
+
+        with pytest.warns(UserWarning, match="'acess_key_id'") as warned:
+            credentials = Credentials(acess_key_id="sentinel")
+
+        assert "Credentials" in str(warned[0].message)
+        assert credentials.access_key_id is None
+
+    def test_does_not_warn_for_expected_fields(self):
+        class Credentials(Block):
+            access_key_id: str | None = None
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            credentials = Credentials(access_key_id="sentinel")
+
+        assert credentials.access_key_id == "sentinel"
+
+    def test_does_not_warn_for_field_aliases(self):
+        class Aliased(Block):
+            schema_: str = Field(alias="schema")
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            aliased = Aliased(schema="public")
+
+        assert aliased.schema_ == "public"
+
+    def test_does_not_warn_for_block_type_slug(self):
+        class Discriminated(Block):
+            _block_type_slug = "discriminated"
+            x: int = 1
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            block = Block(block_type_slug="discriminated", x=2)
+
+        assert isinstance(block, Discriminated)
+        assert block.x == 2
+
+    def test_does_not_warn_for_alias_paths(self):
+        class Pathed(Block):
+            x: int = Field(validation_alias=AliasPath("payload", "x"), default=0)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            pathed = Pathed(payload={"x": 1})
+
+        assert pathed.x == 1
+
+    def test_does_not_warn_for_other_members_of_a_union(self):
+        class Left(Block):
+            left: int = 1
+
+        class Right(Block):
+            right: int = 2
+
+        class Holder(BaseModel):
+            block: Union[Left, Right]
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            holder = Holder(block={"right": 4})
+
+        assert isinstance(holder.block, (Left, Right))
+
+    async def test_does_not_warn_when_loading_document_with_removed_field(
+        self, unique_block_slug
+    ):
+        slug = unique_block_slug("removed-field")
+
+        class Original(Block):
+            _block_type_slug = slug
+            x: int = 1
+            y: int = 2
+
+        block_name = f"test-{uuid4()}"
+        await Original().save(block_name)
+
+        with pytest.warns(UserWarning, match="matches existing registered type"):
+
+            class Current(Block):
+                _block_type_slug = slug
+                x: int = 1
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            loaded = await Current.load(block_name)
+
+        assert loaded.x == 1
