@@ -43,11 +43,18 @@ store: projections, migration, and eventual reclamation need separate models
 or tests, and cannot authorize claim actions.
 
 `Limit` maps to `ConcurrencyLimitV2.limit`, is selected before `Init`, and stays
-fixed for one modeled behavior. Runtime deployment-limit changes, including
-`_create_or_update_deployment_concurrency_limit`, `global_concurrency_limit_id`
-reassignment, and direct global-concurrency API mutation, are out of scope.
-Lowering a live limit may intentionally leave existing occupancy above the new
-limit until holders release.
+fixed for one modeled behavior. The target assumes a dedicated, unshared limit
+whose occupied slots all have modeled claims. It excludes limit-definition
+changes, `global_concurrency_limit_id` reassignment, and public v2 API writes to
+that limit's `active_slots` through direct updates or leased and unleased
+increments and decrements. Production does not enforce this isolation:
+deployments can share a global limit, and public v2 callers can mutate it.
+
+Implementing the target therefore requires routing every slot writer for a
+claim-managed limit through the same claim authority, or isolating deployment
+accounting from shared global-limit accounting. Dynamic limit changes need a
+separate model; lowering a live limit may leave occupancy above the new limit
+until holders release.
 
 ## Run locally
 
@@ -79,6 +86,9 @@ use `concurrency/lease_storage/ConcurrencyLeaseStorage`.
 | `Renew`, `Expire`, `ScanExpired`, `ReapRead`, `BeginReap`, `ReapRevoke`, `CommitReap` | `api/concurrency_limits_v2.py::renew_concurrency_lease`; `core_policy.py::ValidateDeploymentConcurrencyAtRunning`; lease deadlines and `renew_lease`/`read_expired_lease_ids`; `services/repossessor.py::{monitor_expired_leases, revoke_expired_lease}`; `models/concurrency_limits_v2.py::bulk_decrement_active_slots` |
 | `CancelAfterLostLease`, `TerminalRead*`, `Begin*Release`, `ReleaseRevoke`, `Commit*Release` | `core_policy.py::{ValidateDeploymentConcurrencyAtRunning, _release_concurrency_lease, ReleaseFlowConcurrencySlots}`; lease storage `read_lease`/`revoke_lease`; `models/concurrency_limits_v2.py::bulk_decrement_active_slots` |
 | `DeleteFlowRun` | `models/flow_runs.py::{cleanup_flow_run_concurrency_slots, delete_flow_run, delete_flow_runs}`; `models/concurrency_limits_v2.py::bulk_decrement_active_slots` |
+
+The generic concurrency-limit helper mappings cover only calls from the listed
+deployment protocol paths; public v2 slot API calls are excluded above.
 
 `ClaimAcquire`, `ClaimReacquire`, `ClaimExpiryRelease`, `DiscardStaleExpiry`,
 `ClaimTerminalRelease`, and `ClaimTerminalNoop` are an unimplemented
