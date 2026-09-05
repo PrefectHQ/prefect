@@ -126,6 +126,10 @@ Task timeouts work differently depending on how the task is executed:
 
 **Sync tasks via `.submit()` with ThreadPoolTaskRunner**: When a sync task is submitted using to a `ThreadPoolTaskRunner` (the default), it runs in a worker thread. In this context, timeouts **cannot interrupt blocking operations** like `time.sleep()`, network requests, or file I/O. The timeout will only take effect after the blocking operation completes naturally.
 
+A task is also on a worker thread when it is called from inside another submitted or mapped task, even if the inner task is called directly.
+
+When a task run passes its timeout and is still running, Prefect logs a warning to the task run logger. The run continues until its blocking operation finishes and is only then marked `TimedOut`, so this warning is the first indication that the timeout was exceeded.
+
 <Warning>
 If you need reliable timeout behavior for sync tasks that perform blocking operations, consider:
 1. Using `ProcessPoolTaskRunner` instead of the default `ThreadPoolTaskRunner`
