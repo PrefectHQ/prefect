@@ -5,8 +5,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
-from contrib.workers.terradev.worker import TerradevWorker, TerradevWorkerResult
+from contrib.workers.terradev.worker import TerradevWorker
 from contrib.workers.terradev.worker_config import TerradevWorkerConfiguration
 
 
