@@ -1658,9 +1658,14 @@ class BaseWorker(abc.ABC, Generic[C, V, R]):
             # handler below and the run would otherwise be left `Running` for
             # ever, holding a work pool concurrency slot that nothing releases.
             # Only report a run that actually started; one cancelled while still
-            # being submitted never had infrastructure to lose. The scope is
-            # already cancelled, so the call has to be shielded to survive.
-            if task_status and getattr(task_status, "_future").done():
+            # being submitted never had infrastructure to lose. `done()` alone
+            # does not say that here: the same cancellation cancels the future
+            # `TaskGroup.start` is waiting on, so it is done either way. It is
+            # `started()` that resolves it with a result, and a cancelled future
+            # that never carried one is the run that had not started. The scope
+            # is already cancelled, so the call has to be shielded to survive.
+            future = getattr(task_status, "_future") if task_status else None
+            if future is not None and future.done() and not future.cancelled():
                 with anyio.CancelScope(shield=True):
                     await self._propose_crashed_state(
                         flow_run,

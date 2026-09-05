@@ -2326,6 +2326,47 @@ class TestInfrastructureIntegration:
         with pytest.raises(CrashedRun, match="interrupted by worker shutdown"):
             await state.result()
 
+    async def test_worker_does_not_crash_flow_run_interrupted_before_it_started(
+        self,
+        prefect_client: PrefectClient,
+        worker_deployment_infra_wq1: WorkQueue,
+        work_pool: WorkPool,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """
+        The other side of the handler above. A run cancelled while its
+        infrastructure is still being provisioned never started, so shutdown has
+        taken nothing away from it and it must not be reported as crashed.
+        """
+        flow_run = await prefect_client.create_flow_run_from_deployment(
+            worker_deployment_infra_wq1.id,
+            state=Scheduled(scheduled_time=now_fn("UTC")),
+        )
+
+        provisioning = anyio.Event()
+
+        async def never_reports_started(
+            flow_run: FlowRun,
+            configuration: BaseJobConfiguration,
+            task_status: anyio.abc.TaskStatus[int] | None = None,
+        ) -> None:
+            provisioning.set()
+            await anyio.sleep_forever()
+
+        async with WorkerTestImpl(work_pool_name=work_pool.name) as worker:
+            worker._work_pool = work_pool
+            monkeypatch.setattr(worker, "run", never_reports_started)
+            await worker.get_and_submit_flow_runs()
+
+            with anyio.fail_after(10):
+                await provisioning.wait()
+
+            assert worker._runs_task_group is not None
+            worker._runs_task_group.cancel_scope.cancel()
+
+        state = (await prefect_client.read_flow_run(flow_run.id)).state
+        assert not state.is_crashed()
+
     async def test_submission_failure_log_uses_flow_run_name(
         self,
         prefect_client: PrefectClient,
