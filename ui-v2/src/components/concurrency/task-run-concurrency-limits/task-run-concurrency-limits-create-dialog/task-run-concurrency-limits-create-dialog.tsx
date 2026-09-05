@@ -31,7 +31,7 @@ const formSchema = z.object({
 		.or(z.string())
 		.pipe(
 			z.coerce
-				.number()
+				.number<string | number>()
 				.int({ message: "Concurrency limit must be a whole number" })
 				.nonnegative({ message: "Concurrency limit must be 0 or greater" }),
 		),

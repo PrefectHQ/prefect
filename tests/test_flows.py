@@ -4047,7 +4047,7 @@ class TestFlowHooksOnCrashed:
             my_flow(return_state=True)
         my_mock.assert_not_called()
 
-    def test_on_crashed_hooks_respect_env_var(self, monkeypatch):
+    def test_on_crashed_hooks_remain_engine_owned_with_env_var_false(self, monkeypatch):
         my_mock = MagicMock()
         monkeypatch.setenv("PREFECT__ENABLE_CANCELLATION_AND_CRASHED_HOOKS", "false")
 
@@ -4063,7 +4063,7 @@ class TestFlowHooksOnCrashed:
 
         state = my_flow(return_state=True)
         assert state.type == StateType.CRASHED
-        my_mock.assert_not_called()
+        assert my_mock.mock_calls == [call("crashed_hook1"), call("crashed_hook2")]
 
 
 class TestFlowHooksOnRunning:

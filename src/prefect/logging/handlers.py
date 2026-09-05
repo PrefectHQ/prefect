@@ -9,7 +9,7 @@ import traceback
 import uuid
 import warnings
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, Any, Callable, Dict, TextIO, Type
+from typing import TYPE_CHECKING, Any, Callable, Dict, TextIO, Type, cast
 
 from rich.console import Console
 from rich.highlighter import Highlighter, NullHighlighter
@@ -334,7 +334,28 @@ class _SafeStreamHandler(StreamHandler):
     it to handleError(), which prints a noisy traceback to sys.stderr. We
     suppress that for ValueError so background threads logging after stream
     teardown stay silent.
+
+    Context-managed locking also prevents asynchronous cancellation from
+    leaving the handler locked on Python 3.12 and earlier.
     """
+
+    def handle(self, record: logging.LogRecord) -> bool:
+        filtered = self.filter(record)
+        if isinstance(filtered, logging.LogRecord):
+            record = filtered
+        if filtered:
+            lock = self.lock
+            assert lock is not None
+            with lock:
+                self.emit(record)
+        return cast(bool, filtered)
+
+    def flush(self) -> None:
+        lock = self.lock
+        assert lock is not None
+        with lock:
+            if self.stream and hasattr(self.stream, "flush"):
+                self.stream.flush()
 
     def handleError(self, record: logging.LogRecord) -> None:
         _, exc, _ = sys.exc_info()

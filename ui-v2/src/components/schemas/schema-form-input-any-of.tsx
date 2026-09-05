@@ -1,11 +1,12 @@
 import type { ReferenceObject, SchemaObject } from "openapi-typescript";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { SchemaFormProperty } from "./schema-form-property";
 import type { SchemaFormErrors } from "./types/errors";
 import { useSchemaFormContext } from "./use-schema-form-context";
 import { getIndexForAnyOfPropertyValue } from "./utilities/getIndexForAnyOfPropertyValue";
 import { getSchemaObjectLabel } from "./utilities/getSchemaObjectLabel";
+import { mergeSchemaPropertyDefinition } from "./utilities/mergeSchemaPropertyDefinition";
 export type SchemaFormInputAnyOfProps = {
 	value: unknown;
 	property: SchemaObject & { anyOf: (SchemaObject | ReferenceObject)[] };
@@ -24,6 +25,24 @@ export function SchemaFormInputAnyOf({
 		getIndexForAnyOfPropertyValue({ value, property, schema }),
 	);
 	const values = useRef(new Map<number, unknown>());
+	const emittedValue = useRef<{ value: unknown } | undefined>(undefined);
+
+	useEffect(() => {
+		if (emittedValue.current && Object.is(emittedValue.current.value, value)) {
+			emittedValue.current = undefined;
+			return;
+		}
+
+		emittedValue.current = undefined;
+		setSelectedIndex(
+			getIndexForAnyOfPropertyValue({ value, property, schema }),
+		);
+	}, [property, schema, value]);
+
+	function emitValue(newValue: unknown) {
+		emittedValue.current = { value: newValue };
+		onValueChange(newValue);
+	}
 
 	function onSelectedIndexChange(newSelectedIndexValue: string) {
 		const newSelectedIndex = Number.parseInt(newSelectedIndexValue, 10);
@@ -36,7 +55,22 @@ export function SchemaFormInputAnyOf({
 
 		setSelectedIndex(newSelectedIndex);
 
-		onValueChange(values.current.get(newSelectedIndex));
+		emitValue(getValueForIndex(newSelectedIndex));
+	}
+
+	// a definition with a const has exactly one valid value. The user cannot type
+	// it, so the const is the value for that definition
+	function getValueForIndex(index: number): unknown {
+		const definition = mergeSchemaPropertyDefinition(
+			property.anyOf[index],
+			schema,
+		);
+
+		if ("const" in definition) {
+			return definition.const;
+		}
+
+		return values.current.get(index);
 	}
 
 	return (
@@ -60,7 +94,7 @@ export function SchemaFormInputAnyOf({
 					key={selectedIndex}
 					value={value}
 					property={property.anyOf[selectedIndex]}
-					onValueChange={onValueChange}
+					onValueChange={emitValue}
 					errors={errors}
 					showLabel={false}
 					nested={false}

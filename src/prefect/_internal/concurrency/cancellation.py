@@ -424,11 +424,18 @@ class WatcherThreadCancelScope(CancelScope):
         return self
 
     def __exit__(self, *_: Any) -> Optional[bool]:
-        retval = super().__exit__(*_)
-        self._event.set()
-        if self._enforcer_thread:
-            logger.debug("%r joining enforcer thread %r", self, self._enforcer_thread)
-            self._enforcer_thread.join()
+        # The enforcer thread can inject a cancellation exception at any instruction in
+        # this frame, so the event must be set from a `finally` to guarantee the
+        # enforcer is always released.
+        try:
+            retval = super().__exit__(*_)
+        finally:
+            self._event.set()
+            if self._enforcer_thread:
+                logger.debug(
+                    "%r joining enforcer thread %r", self, self._enforcer_thread
+                )
+                self._enforcer_thread.join()
         return retval
 
     def _send_cancelled_error(self):
@@ -457,10 +464,6 @@ class WatcherThreadCancelScope(CancelScope):
             if self.cancel(throw=False):
                 with _get_thread_shield(self._supervised_thread):
                     self._send_cancelled_error()
-
-        # Wait for the supervised thread to exit its context
-        logger.debug("%r waiting for supervised thread to exit", self)
-        self._event.wait()
 
     def cancel(self, throw: bool = True):
         if not super().cancel():

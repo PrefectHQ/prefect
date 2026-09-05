@@ -13,6 +13,7 @@ from prefect._internal.compatibility.migration import getattr_migration
 from prefect._internal.control_listener import (
     clear_intent,
     configure_from_env,
+    engine_outcome_is_handled,
     get_intent,
 )
 from prefect.exceptions import (
@@ -102,17 +103,22 @@ def handle_engine_signals(flow_run_id: UUID | None = None):
     except TerminationSignal:
         # An intent means the runner or the `prefect flow-run execute` supervisor
         # drove this termination and owns the flow run's next state, so exit cleanly.
-        # A raw external termination has no intent and must keep propagating.
-        if get_intent() is not None:
+        # An engine outcome means orchestration already handled the termination.
+        # A raw external termination with neither form of evidence must propagate.
+        intent = get_intent()
+        if intent is not None or engine_outcome_is_handled():
             if flow_run_id:
                 msg = f"Execution of flow run '{flow_run_id}' was terminated."
             else:
                 msg = "Execution was terminated."
             engine_logger.info(msg)
-            clear_intent()
+            if intent is not None:
+                clear_intent()
             exit(0)
         raise
     except Exception:
+        if engine_outcome_is_handled():
+            exit(0)
         if flow_run_id:
             msg = f"Execution of flow run '{flow_run_id}' exited with unexpected exception"
         else:
@@ -120,6 +126,8 @@ def handle_engine_signals(flow_run_id: UUID | None = None):
         engine_logger.error(msg, exc_info=True)
         exit(1)
     except BaseException:
+        if engine_outcome_is_handled():
+            exit(0)
         if flow_run_id:
             msg = f"Execution of flow run '{flow_run_id}' interrupted by base exception"
         else:

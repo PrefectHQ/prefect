@@ -1,5 +1,6 @@
 /// <reference lib="dom" />
 import * as matchers from "@testing-library/jest-dom/matchers";
+import { toast } from "sonner";
 import { afterAll, afterEach, beforeAll, expect, vi } from "vitest";
 import "@testing-library/jest-dom";
 import { uiSettings } from "../src/api/ui-settings";
@@ -15,6 +16,7 @@ beforeAll(() => {
 	});
 });
 afterEach(() => {
+	toast.dismiss();
 	server.resetHandlers();
 	// Reset the UI settings singleton to ensure tests don't share cached state
 	uiSettings.reset();

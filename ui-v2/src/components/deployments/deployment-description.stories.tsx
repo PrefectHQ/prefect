@@ -21,6 +21,25 @@ export const WithDescription: Story = {
 	},
 };
 
+export const WithCodeBlock: Story = {
+	name: "With Code Block",
+	args: {
+		deployment: createFakeDeployment({
+			description: [
+				"Runs the following query with an inline `cursor_value` parameter:",
+				"",
+				"```sql",
+				'SELECT SRC."id", SRC."status", SRC."CreatedDate"',
+				"FROM raw.events AS SRC",
+				"WHERE status = 'active' AND SRC.\"CreatedDate\" > :cursor_value",
+				'ORDER BY SRC."CreatedDate" LIMIT 10000;',
+				"```",
+			].join("\n"),
+			entrypoint: "flows/etl.py:daily_etl",
+		}),
+	},
+};
+
 export const EmptyDescription: Story = {
 	name: "Empty State",
 	args: {

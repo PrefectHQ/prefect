@@ -1,14 +1,9 @@
 import { useNavigate } from "@tanstack/react-router";
 import type { OnChangeFn, SortingState } from "@tanstack/react-table";
-import {
-	getCoreRowModel,
-	getPaginationRowModel,
-	getSortedRowModel,
-	useReactTable,
-} from "@tanstack/react-table";
 import { useCallback } from "react";
 import type { WorkPoolQueue } from "@/api/work-pool-queues";
 import { DataTable } from "@/components/ui/data-table";
+import { useTable } from "@/lib/tanstack-table";
 import { cn } from "@/utils";
 import { createWorkPoolQueuesTableColumns } from "./components/work-pool-queues-table-columns";
 import { WorkPoolQueuesTableEmptyState } from "./components/work-pool-queues-table-empty-state";
@@ -51,13 +46,9 @@ export const WorkPoolQueuesTable = ({
 	});
 
 	// Enhanced table configuration
-	const table = useReactTable({
+	const table = useTable({
 		data: queues,
 		columns,
-		// Core features
-		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
-		getSortedRowModel: getSortedRowModel(),
 		state: {
 			sorting: sortState,
 		},

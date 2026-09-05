@@ -52,70 +52,70 @@ read_automations_for_workspace(db: PrefectDBInterface, session: AsyncSession, so
 ### `count_automations_for_workspace` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automations.py#L96" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
-count_automations_for_workspace(db: PrefectDBInterface, session: AsyncSession) -> int
+count_automations_for_workspace(db: PrefectDBInterface, session: AsyncSession, automation_filter: Optional[filters.AutomationFilter] = None) -> int
 ```
 
-### `read_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automations.py#L108" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automations.py#L112" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_automation(db: PrefectDBInterface, session: AsyncSession, automation_id: UUID) -> Optional[Automation]
 ```
 
-### `read_automation_by_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automations.py#L122" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_automation_by_id` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automations.py#L126" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_automation_by_id(db: PrefectDBInterface, session: AsyncSession, automation_id: UUID) -> Optional[Automation]
 ```
 
-### `create_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automations.py#L194" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `create_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automations.py#L198" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 create_automation(db: PrefectDBInterface, session: AsyncSession, automation: Automation) -> Automation
 ```
 
-### `update_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automations.py#L210" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `update_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automations.py#L214" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 update_automation(db: PrefectDBInterface, session: AsyncSession, automation_update: Union[AutomationUpdate, AutomationPartialUpdate], automation_id: UUID) -> bool
 ```
 
-### `delete_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automations.py#L259" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automations.py#L263" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_automation(db: PrefectDBInterface, session: AsyncSession, automation_id: UUID) -> bool
 ```
 
-### `delete_automations_for_workspace` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automations.py#L300" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_automations_for_workspace` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automations.py#L304" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_automations_for_workspace(db: PrefectDBInterface, session: AsyncSession) -> bool
 ```
 
-### `disable_automations_for_workspace` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automations.py#L322" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `disable_automations_for_workspace` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automations.py#L326" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 disable_automations_for_workspace(db: PrefectDBInterface, session: AsyncSession) -> bool
 ```
 
-### `disable_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automations.py#L334" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `disable_automation` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automations.py#L338" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 disable_automation(db: PrefectDBInterface, session: AsyncSession, automation_id: UUID) -> bool
 ```
 
-### `relate_automation_to_resource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automations.py#L387" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `relate_automation_to_resource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automations.py#L391" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 relate_automation_to_resource(db: PrefectDBInterface, session: AsyncSession, automation_id: UUID, resource_id: str, owned_by_resource: bool) -> None
 ```
 
-### `read_automations_related_to_resource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automations.py#L418" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `read_automations_related_to_resource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automations.py#L422" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 read_automations_related_to_resource(db: PrefectDBInterface, session: AsyncSession, resource_id: str, owned_by_resource: Optional[bool] = None, automation_filter: Optional[filters.AutomationFilter] = None) -> Sequence[Automation]
 ```
 
-### `delete_automations_owned_by_resource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automations.py#L449" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
+### `delete_automations_owned_by_resource` <sup><a href="https://github.com/PrefectHQ/prefect/blob/main/src/prefect/server/events/models/automations.py#L453" target="_blank"><Icon icon="github" style="width: 14px; height: 14px;" /></a></sup>
 
 ```python
 delete_automations_owned_by_resource(db: PrefectDBInterface, session: AsyncSession, resource_id: str, automation_filter: Optional[filters.AutomationFilter] = None) -> Sequence[UUID]

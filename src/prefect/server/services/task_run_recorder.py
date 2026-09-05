@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
-from typing import TYPE_CHECKING, Any, AsyncGenerator, NoReturn, Optional
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, AsyncGenerator, NamedTuple, NoReturn, Optional
 from uuid import UUID
 
 import sqlalchemy as sa
@@ -21,6 +22,7 @@ from prefect.server.events.schemas.events import ReceivedEvent
 from prefect.server.schemas.core import TaskRun
 from prefect.server.schemas.states import State
 from prefect.server.services.base import RunInEphemeralServers, Service
+from prefect.server.utilities.database import get_max_query_parameters
 from prefect.server.utilities.messaging import (
     Consumer,
     Message,
@@ -38,8 +40,7 @@ if TYPE_CHECKING:
     import logging
 
     TaskRunUpsertKey = tuple[str, UUID] | tuple[str, UUID, str, str]
-    TaskRunBatchKey = tuple[frozenset[str], str]
-    TaskRunBatchByKey = tuple[TaskRunBatchKey, list[dict[str, Any]]]
+    TaskRunTargetValue = UUID | tuple[UUID, str, str]
 
 logger: "logging.Logger" = get_logger(__name__)
 
@@ -69,6 +70,165 @@ def _task_run_conflict_keys(task_run: TaskRun) -> list[TaskRunUpsertKey]:
             )
         )
     return keys
+
+
+def _task_run_target_value(
+    task_run: TaskRun, conflict_target: str
+) -> TaskRunTargetValue:
+    """The value `ON CONFLICT` matches this row on."""
+    if conflict_target == "natural-key":
+        return (task_run.flow_run_id, task_run.task_key, task_run.dynamic_key)
+    return task_run.id
+
+
+@dataclass
+class _TaskRunRecord:
+    """One event's task run, and the upsert bookkeeping resolved for it.
+
+    The fields the constructor does not take are filled in stages, each by the
+    method named below it. They have no defaults, so reading one before its
+    stage has run raises `AttributeError` instead of silently reading a
+    placeholder.
+    """
+
+    task_run: TaskRun
+    # the columns to insert, keyed by column name; a key it does not carry is
+    # left to its default, and a `None` value asks to write a real NULL
+    task_run_dict: dict[str, Any]
+
+    # `pin_upsert_key`
+    conflict_group: TaskRunUpsertKey = field(init=False)
+    upsert_key: TaskRunUpsertKey = field(init=False)
+    # `resolve_conflict_target`
+    conflict_target: str = field(init=False)
+    target_value: TaskRunTargetValue = field(init=False)
+
+    def pin_upsert_key(self, conflict_group: TaskRunUpsertKey) -> None:
+        """Record the coalesced group, and the upsert key as it stands now.
+
+        `rewrite_id` can change `task_run.id`, and so the upsert key, so it has
+        to be pinned before that happens and used for every later lookup.
+        """
+        self.conflict_group = conflict_group
+        self.upsert_key = _task_run_upsert_key(self.task_run)
+
+    def rewrite_id(self, canonical_task_run_id: UUID) -> None:
+        """Point the row at the id an existing row already holds.
+
+        Both the model and the payload are rewritten, so the statement inserts
+        the canonical id and callers observe it too.
+        """
+        self.task_run.id = canonical_task_run_id
+        self.task_run_dict["id"] = canonical_task_run_id
+
+    def resolve_conflict_target(self, conflict_target: str) -> None:
+        """Fix the `ON CONFLICT` target, and the value it matches this row on."""
+        self.conflict_target = conflict_target
+        self.target_value = _task_run_target_value(self.task_run, conflict_target)
+
+
+class _UpsertSegment(NamedTuple):
+    """A contiguous run of task runs that can share one upsert statement."""
+
+    conflict_target: str
+    columns: frozenset[str]
+    null_filled: frozenset[str]
+    rows: list[_TaskRunRecord]
+
+
+def _fillable_columns(db: PrefectDBInterface) -> frozenset[str]:
+    """Columns where passing `NULL` does the same thing as leaving the key out.
+
+    An explicit `None` overrides a column default, so any column with a default
+    is excluded.
+    """
+    return (
+        frozenset(
+            column.name
+            for column in db.TaskRun.__table__.columns
+            if column.nullable
+            and column.default is None
+            and column.server_default is None
+        )
+        # the ON CONFLICT WHERE clause compares against this column, and
+        # `x < NULL` is NULL, so a NULL-filled row would silently skip its update
+        - {"state_timestamp"}
+        # ON CONFLICT matches rows on these columns, and NULL matches nothing, so
+        # a filled row would insert a duplicate instead of updating. Excluding them
+        # also keeps `flow_run_id` out of the coalesce, so an event with no flow
+        # run still clears it.
+        - {column.key for column in db.orm.task_run_unique_upsert_columns}
+    )
+
+
+def _segment_task_runs_for_upsert(
+    task_runs: list[_TaskRunRecord],
+    fillable: frozenset[str],
+    max_rows: int,
+) -> list[_UpsertSegment]:
+    """Group already-sorted task runs into the longest batches that can share a statement.
+
+    Each record must have had `resolve_conflict_target` called on it.
+
+    Segments are contiguous blocks of the input, emitted in order, so
+    concatenating them gives back the input unchanged. The caller has already
+    sorted the rows by conflict key, which is what makes concurrent recorders
+    take row locks in the same order and so not deadlock.
+    """
+    segments: list[_UpsertSegment] = []
+
+    conflict_target = ""
+    # Segments below hold on to these, and `|=` on a frozenset rebinds rather
+    # than mutating in place, so an emitted segment's sets can never grow. Plain
+    # sets would leave every segment sharing one object that ends up describing
+    # the whole flush.
+    union: frozenset[str] = frozenset()
+    null_filled: frozenset[str] = frozenset()
+    explicit_nulls: frozenset[str] = frozenset()
+    seen: set[TaskRunTargetValue] = set()
+    rows: list[_TaskRunRecord] = []
+
+    for tr in task_runs:
+        columns = frozenset(tr.task_run_dict)
+        row_nulls = frozenset(
+            column for column, value in tr.task_run_dict.items() if value is None
+        )
+        if rows:
+            # A statement has a single column list, so any row missing one of its
+            # columns is given NULL there. Merging adds a fill for every column the
+            # batch and this row do not both have.
+            merged_fills = null_filled | (union ^ columns)
+            merged_nulls = explicit_nulls | row_nulls
+            if (
+                tr.conflict_target == conflict_target
+                # a fill is only safe on a fillable column, and only where no row
+                # writes a real NULL: the two are the same value, so one SET
+                # clause cannot mean both
+                and merged_fills <= fillable - merged_nulls
+                # a target value already in the batch makes PostgreSQL raise
+                # CardinalityViolationError, which is not an IntegrityError and so is
+                # never retried, and makes SQLite silently keep only the last write
+                and tr.target_value not in seen
+                and len(rows) < max_rows
+            ):
+                union |= columns
+                null_filled, explicit_nulls = merged_fills, merged_nulls
+                seen.add(tr.target_value)
+                rows.append(tr)
+                continue
+            segments.append(_UpsertSegment(conflict_target, union, null_filled, rows))
+
+        conflict_target = tr.conflict_target
+        union = columns
+        null_filled = frozenset()
+        explicit_nulls = row_nulls
+        seen = {tr.target_value}
+        rows = [tr]
+
+    if rows:
+        segments.append(_UpsertSegment(conflict_target, union, null_filled, rows))
+
+    return segments
 
 
 @db_injector
@@ -214,7 +374,7 @@ async def _record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
     now = prefect.types._datetime.now("UTC")
 
     all_task_runs = [
-        {"task_run": task_run, "task_run_dict": task_run_dict, "event": event}
+        _TaskRunRecord(task_run=task_run, task_run_dict=task_run_dict)
         for event in events
         for task_run, task_run_dict in [db_recordable_task_run_from_event(event)]
     ]
@@ -222,7 +382,7 @@ async def _record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
     # Drop duplicate task run rows, keep the one with the latest state_timestamp.
     # A single bulk flush can contain events that collide on either id or natural
     # key, so coalesce connected conflicts before choosing the ON CONFLICT target.
-    all_task_runs.sort(key=lambda tr: tr["task_run"].state.timestamp)
+    all_task_runs.sort(key=lambda tr: tr.task_run.state.timestamp)
     parent: dict[TaskRunUpsertKey, TaskRunUpsertKey] = {}
 
     def find(key: TaskRunUpsertKey) -> TaskRunUpsertKey:
@@ -238,29 +398,28 @@ async def _record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
             parent[right_root] = left_root
 
     for tr in all_task_runs:
-        conflict_keys = _task_run_conflict_keys(tr["task_run"])
+        conflict_keys = _task_run_conflict_keys(tr.task_run)
         for conflict_key in conflict_keys[1:]:
             union(conflict_keys[0], conflict_key)
 
-    unique_task_runs_by_group: dict[TaskRunUpsertKey, dict[str, Any]] = {}
+    unique_task_runs_by_group: dict[TaskRunUpsertKey, _TaskRunRecord] = {}
     conflict_keys_by_group: dict[TaskRunUpsertKey, set[TaskRunUpsertKey]] = {}
     upsert_key_aliases: dict[TaskRunUpsertKey, TaskRunUpsertKey] = {}
     for tr in all_task_runs:
-        conflict_keys = _task_run_conflict_keys(tr["task_run"])
+        conflict_keys = _task_run_conflict_keys(tr.task_run)
         conflict_group = find(conflict_keys[0])
-        tr["conflict_group"] = conflict_group
+        tr.pin_upsert_key(conflict_group)
         unique_task_runs_by_group[conflict_group] = tr
         conflict_keys_by_group.setdefault(conflict_group, set()).update(conflict_keys)
 
     for tr in all_task_runs:
-        conflict_group = tr["conflict_group"]
-        upsert_key_aliases[_task_run_upsert_key(tr["task_run"])] = _task_run_upsert_key(
-            unique_task_runs_by_group[conflict_group]["task_run"]
-        )
+        upsert_key_aliases[tr.upsert_key] = unique_task_runs_by_group[
+            tr.conflict_group
+        ].upsert_key
 
     unique_task_runs = sorted(
         unique_task_runs_by_group.values(),
-        key=lambda tr: _task_run_upsert_key(tr["task_run"]),
+        key=lambda tr: tr.upsert_key,
     )
 
     db = provide_database_interface()
@@ -307,8 +466,8 @@ async def _record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
                         ("natural-key", flow_run_id, task_key, dynamic_key)
                     ] = task_run_id
 
-        def conflict_target(tr: dict[str, Any]) -> str:
-            task_run = tr["task_run"]
+        def conflict_target(tr: _TaskRunRecord) -> str:
+            task_run = tr.task_run
             natural_key = (
                 task_run.flow_run_id,
                 task_run.task_key,
@@ -322,77 +481,86 @@ async def _record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
             if task_run.id in existing_task_run_ids:
                 return "id"
             for conflict_key in sorted(
-                conflict_keys_by_group[tr["conflict_group"]], key=str
+                conflict_keys_by_group[tr.conflict_group], key=str
             ):
                 if conflict_key in existing_task_run_ids_by_key:
-                    canonical_task_run_id = existing_task_run_ids_by_key[conflict_key]
-                    task_run.id = canonical_task_run_id
-                    tr["task_run_dict"]["id"] = canonical_task_run_id
+                    tr.rewrite_id(existing_task_run_ids_by_key[conflict_key])
                     return "id"
             if task_run.flow_run_id is not None:
                 return "natural-key"
             return "id"
 
-        # Batch contiguous rows by keys to avoid column mismatches during bulk insert.
-        # Keeping only contiguous runs preserves the global conflict-key sort order
-        # established above for deterministic lock acquisition.
-        batches_by_keys: list[TaskRunBatchByKey] = []
         for tr in unique_task_runs:
-            key_signature = (
-                frozenset(tr["task_run_dict"].keys()),
-                conflict_target(tr),
-            )
-            if batches_by_keys and batches_by_keys[-1][0] == key_signature:
-                batches_by_keys[-1][1].append(tr)
-            else:
-                batches_by_keys.append((key_signature, [tr]))
+            tr.resolve_conflict_target(conflict_target(tr))
+
+        fillable = _fillable_columns(db)
+        # Sized on how many columns the table has, not how many keys the rows
+        # carry: SQLAlchemy renders a bind parameter for every column with a
+        # Python-side default, whether the row supplies it or not.
+        max_rows = get_max_query_parameters() // len(db.TaskRun.__table__.columns)
+        segments = _segment_task_runs_for_upsert(unique_task_runs, fillable, max_rows)
 
         logger.debug(
-            f"Partitioned task runs into {len(batches_by_keys)} groups by update columns"
+            "Partitioned %s task runs into %s upsert statement(s)",
+            len(unique_task_runs),
+            len(segments),
         )
 
         canonical_task_run_ids: dict[TaskRunUpsertKey, UUID] = {}
 
-        for (column_keys, conflict_target_name), batch in batches_by_keys:
-            update_cols = set(column_keys) - {"id", "created"}
+        for segment in segments:
+            update_cols = (segment.columns | {"updated"}) - {"id", "created"}
+            # sorted so the column order does not vary with the hash seed, which
+            # keeps the generated SQL text stable
+            insert_cols = sorted(segment.columns)
 
-            logger.debug(f"Preparing to bulk insert {len(batch)} task runs")
+            # SQLAlchemy takes the statement's column list from the first row and
+            # silently drops keys that only later rows carry, so give every row
+            # the same keys.
             to_insert = [
-                tr["task_run_dict"] | {"created": now, "updated": now} for tr in batch
+                {column: tr.task_run_dict.get(column) for column in insert_cols}
+                | {"created": now, "updated": now}
+                for tr in segment.rows
             ]
 
             insert_statement = db.queries.insert(db.TaskRun).values(to_insert)
             index_elements = (
                 db.orm.task_run_unique_upsert_columns
-                if conflict_target_name == "natural-key"
+                if segment.conflict_target == "natural-key"
                 else ["id"]
             )
+            # See https://www.postgresql.org/docs/current/sql-insert.html for details on excluded.
+            # Idea is excluded.x references the proposed insertion value for column x.
+            # `coalesce` undoes the NULL fills, and applies to exactly the columns
+            # that were filled. A column every row supplied keeps a plain
+            # `excluded.col`, so a row asking to write a real NULL still writes one.
             upsert_statement = insert_statement.on_conflict_do_update(
                 index_elements=index_elements,
                 set_={
-                    # See https://www.postgresql.org/docs/current/sql-insert.html for details on excluded.
-                    # Idea is excluded.x references the proposed insertion value for column x.
-                    **{
-                        col.name: getattr(insert_statement.excluded, col.name)
-                        for col in insert_statement.excluded
-                        if col.name in (update_cols | {"updated"}) - {"id"}
-                    },
+                    col.name: (
+                        sa.func.coalesce(
+                            getattr(insert_statement.excluded, col.name),
+                            getattr(db.TaskRun, col.name),
+                        )
+                        if col.name in segment.null_filled
+                        else getattr(insert_statement.excluded, col.name)
+                    )
+                    for col in insert_statement.excluded
+                    if col.name in update_cols
                 },
                 where=db.TaskRun.state_timestamp
                 < insert_statement.excluded.state_timestamp,
             )
             await session.execute(upsert_statement)
 
-            logger.debug(f"Finished bulk inserting {len(batch)} task runs")
-
-            if conflict_target_name == "natural-key":
-                natural_keys = [
+            if segment.conflict_target == "natural-key":
+                segment_natural_keys = [
                     (
-                        tr["task_run"].flow_run_id,
-                        tr["task_run"].task_key,
-                        tr["task_run"].dynamic_key,
+                        tr.task_run.flow_run_id,
+                        tr.task_run.task_key,
+                        tr.task_run.dynamic_key,
                     )
-                    for tr in batch
+                    for tr in segment.rows
                 ]
                 result = await session.execute(
                     sa.select(
@@ -405,7 +573,7 @@ async def _record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
                             db.TaskRun.flow_run_id,
                             db.TaskRun.task_key,
                             db.TaskRun.dynamic_key,
-                        ).in_(natural_keys)
+                        ).in_(segment_natural_keys)
                     )
                 )
                 for flow_run_id, task_key, dynamic_key, task_run_id in result.all():
@@ -413,25 +581,21 @@ async def _record_bulk_task_run_events(events: list[ReceivedEvent]) -> None:
                         ("natural-key", flow_run_id, task_key, dynamic_key)
                     ] = task_run_id
             else:
-                for tr in batch:
-                    canonical_task_run_ids[_task_run_upsert_key(tr["task_run"])] = tr[
-                        "task_run"
-                    ].id
+                for tr in segment.rows:
+                    canonical_task_run_ids[tr.upsert_key] = tr.task_run.id
 
         for alias_key, canonical_key in upsert_key_aliases.items():
             canonical_task_run_ids[alias_key] = canonical_task_run_ids[canonical_key]
 
         for tr in all_task_runs:
-            task_run = tr["task_run"]
-            canonical_task_run_id = canonical_task_run_ids[
-                _task_run_upsert_key(task_run)
-            ]
+            task_run = tr.task_run
+            canonical_task_run_id = canonical_task_run_ids[tr.upsert_key]
             task_run.id = canonical_task_run_id
             if task_run.state is not None:
                 task_run.state.state_details.task_run_id = canonical_task_run_id
 
         # Insert all task run states - we only coalesce task run updates, not states
-        await _insert_task_run_states(session, [tr["task_run"] for tr in all_task_runs])
+        await _insert_task_run_states(session, [tr.task_run for tr in all_task_runs])
         await session.commit()
 
 

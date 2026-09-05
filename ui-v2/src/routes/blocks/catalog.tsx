@@ -1,7 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo } from "react";
 import { z } from "zod";
 import { buildListFilterBlockTypesQuery } from "@/api/block-types";
@@ -15,7 +14,7 @@ const searchParams = z.object({
 });
 
 export const Route = createFileRoute("/blocks/catalog")({
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	component: function RouteComponent() {
 		const [search, onSearch] = useSearch();
 		const { data: blockTypes } = useSuspenseQuery(

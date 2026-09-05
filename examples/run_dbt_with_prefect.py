@@ -257,6 +257,10 @@ def dbt_flow(repo_zip_url: str = DEFAULT_REPO_ZIP) -> None:
     print(f"\nDone! DuckDB file located at: {duckdb_path.resolve()}")
 
 
+if __name__ == "__main__":
+    dbt_flow()
+
+
 # ### What Just Happened?
 #
 # Here's the sequence of events when you run this flow:
@@ -288,6 +292,3 @@ def dbt_flow(repo_zip_url: str = DEFAULT_REPO_ZIP) -> None:
 # - [prefect-dbt integration guide](https://docs.prefect.io/integrations/prefect-dbt)
 # - [Task configuration and retries](https://docs.prefect.io/v3/develop/write-tasks#retries)
 # - [Workflow scheduling and deployment](https://docs.prefect.io/v3/deploy/index#workflow-scheduling-and-parametrization)
-
-if __name__ == "__main__":
-    dbt_flow()

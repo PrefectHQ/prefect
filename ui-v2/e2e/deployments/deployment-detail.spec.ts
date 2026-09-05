@@ -69,7 +69,13 @@ test.describe("Deployment Detail Page", () => {
 		await expect(page.getByRole("tab", { name: "Upcoming" })).toBeVisible();
 		await expect(page.getByRole("tab", { name: "Parameters" })).toBeVisible();
 
-		await expect(page.getByText("e2e-detail-tag")).toBeVisible();
+		// The details content renders twice: in the sidebar (`complementary`) and in
+		// the Details tab panel, which is mounted until the tab redirects to "Runs"
+		// on desktop viewports. Scope to the sidebar to avoid a strict mode
+		// violation while both copies are in the DOM.
+		await expect(
+			page.getByRole("complementary").getByText("e2e-detail-tag"),
+		).toBeVisible();
 	});
 
 	test("View flow runs in runs tab", async ({ page, apiClient }) => {
@@ -91,7 +97,11 @@ test.describe("Deployment Detail Page", () => {
 
 		await page.goto(`/deployments/deployment/${deployment.id}`);
 
-		await expect(page.getByText(depName)).toBeVisible({ timeout: 10000 });
+		// Scope to the breadcrumb: the deployment name also appears in the
+		// flow run card's deployment link once the runs tab loads
+		await expect(
+			page.getByLabel("breadcrumb").getByText(depName, { exact: true }),
+		).toBeVisible({ timeout: 10000 });
 
 		await expect(page.getByText(runName)).toBeVisible({ timeout: 10000 });
 	});
@@ -253,10 +263,17 @@ test.describe("Deployment Detail Page", () => {
 
 		await page.goto(`/deployments/deployment/${deployment.id}`);
 
-		await expect(page.getByText(depName)).toBeVisible({ timeout: 10000 });
+		await expect(
+			page.getByLabel("breadcrumb").getByText(depName, { exact: true }),
+		).toBeVisible({ timeout: 10000 });
 
-		await expect(page.getByText("Schedules")).toBeVisible();
-		await expect(page.getByText("Every 5 minutes")).toBeVisible({
+		// The schedule content renders twice: in the sidebar (`complementary`) and
+		// in the Details tab panel, which is mounted until the tab redirects to
+		// "Runs" on desktop viewports. Scope to the sidebar to avoid a strict mode
+		// violation while both copies are in the DOM.
+		const sidebar = page.getByRole("complementary");
+		await expect(sidebar.getByText("Schedules")).toBeVisible();
+		await expect(sidebar.getByText("Every 5 minutes")).toBeVisible({
 			timeout: 10000,
 		});
 	});

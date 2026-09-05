@@ -1,13 +1,8 @@
+import isEqual from "lodash.isequal";
 import type { SchemaObject } from "openapi-typescript";
 import { isPrefectKindValue } from "../types/prefect-kind-value";
-import {
-	isArray,
-	isDefined,
-	isEmptyObject,
-	isRecord,
-	isReferenceObject,
-} from "./guards";
-import { getSchemaDefinition } from "./mergeSchemaPropertyDefinition";
+import { isArray, isDefined, isEmptyObject, isRecord } from "./guards";
+import { mergeSchemaPropertyDefinition } from "./mergeSchemaPropertyDefinition";
 
 type InitialIndexContext = {
 	property: SchemaObject;
@@ -20,7 +15,8 @@ type InitialIndexContext = {
  * @param value - The value to match
  * @param property - The property to match
  * @param schema - The schema to match
- * @returns The index of the definition that matches the value
+ * @returns The index of the definition that matches the value, or 0 when no
+ * definition matches
  */
 export function getIndexForAnyOfPropertyValue({
 	value,
@@ -35,26 +31,56 @@ export function getIndexForAnyOfPropertyValue({
 	}
 
 	const definitions = getSchemaPropertyAnyOfDefinitions(property, schema);
+	const index = getMatchingDefinitionIndex(valueOrDefaultValue, definitions);
 
+	// values that don't match any definition default to showing the first one
+	return index >= 0 ? index : 0;
+}
+
+/**
+ * Get the index of the definition that matches a defined value
+ * @param valueOrDefaultValue - The value to match
+ * @param definitions - The definitions to match
+ * @returns The index of the definition that matches the value, or -1 when no
+ * definition matches
+ */
+function getMatchingDefinitionIndex(
+	valueOrDefaultValue: unknown,
+	definitions: SchemaObject[],
+): number {
 	if (isPrefectKindValue(valueOrDefaultValue)) {
-		const index = definitions.findIndex(
-			(definition) => !isDefined(definition.type),
-		);
-		return index >= 0 ? index : 0;
+		return definitions.findIndex((definition) => !isDefined(definition.type));
+	}
+
+	// a definition with a const accepts only that value, so an exact match wins
+	// over a definition that only matches the type of the value
+	const constIndex = definitions.findIndex(
+		(definition) =>
+			"const" in definition && isEqual(definition.const, valueOrDefaultValue),
+	);
+
+	if (constIndex >= 0) {
+		return constIndex;
 	}
 
 	switch (typeof valueOrDefaultValue) {
 		case "string":
-			return definitions.findIndex(
+			return getPrimitiveDefinitionIndex(
+				valueOrDefaultValue,
+				definitions,
 				(definition) => definition.type === "string",
 			);
 		case "number":
-			return definitions.findIndex(
+			return getPrimitiveDefinitionIndex(
+				valueOrDefaultValue,
+				definitions,
 				(definition) =>
 					definition.type === "number" || definition.type === "integer",
 			);
 		case "boolean":
-			return definitions.findIndex(
+			return getPrimitiveDefinitionIndex(
+				valueOrDefaultValue,
+				definitions,
 				(definition) => definition.type === "boolean",
 			);
 		case "object":
@@ -62,6 +88,50 @@ export function getIndexForAnyOfPropertyValue({
 		default:
 			return -1;
 	}
+}
+
+/**
+ * Get the index of the definition that matches a primitive value, preferring an
+ * enum definition that includes the value over a definition without an enum.
+ * Enum definitions without a type, like referenced python enums, are eligible.
+ * @param value - The value to match
+ * @param definitions - The definitions to match
+ * @param matchesType - Whether a definition has the same type as the value
+ * @returns The index of the definition that matches the value
+ */
+function getPrimitiveDefinitionIndex(
+	value: string | number | boolean,
+	definitions: SchemaObject[],
+	matchesType: (definition: SchemaObject) => boolean,
+): number {
+	const enumIndex = definitions.findIndex(
+		(definition) =>
+			(matchesType(definition) || !isDefined(definition.type)) &&
+			isArray(definition.enum) &&
+			definition.enum.includes(value),
+	);
+
+	if (enumIndex >= 0) {
+		return enumIndex;
+	}
+
+	// a definition with an enum or a const only accepts the values it declares,
+	// and none of them matched the value, so a definition without either is a
+	// better match
+	const unrestrictedIndex = definitions.findIndex(
+		(definition) =>
+			matchesType(definition) &&
+			!isDefined(definition.enum) &&
+			!("const" in definition),
+	);
+
+	if (unrestrictedIndex >= 0) {
+		return unrestrictedIndex;
+	}
+
+	return definitions.findIndex(
+		(definition) => matchesType(definition) && !("const" in definition),
+	);
 }
 
 /**
@@ -78,13 +148,9 @@ function getSchemaPropertyAnyOfDefinitions(
 		return [];
 	}
 
-	return property.anyOf.map((definition) => {
-		if (isReferenceObject(definition)) {
-			return getSchemaDefinition(schema, definition.$ref);
-		}
-
-		return definition;
-	});
+	return property.anyOf.map((definition) =>
+		mergeSchemaPropertyDefinition(definition, schema),
+	);
 }
 
 /**
@@ -148,8 +214,21 @@ function getRecordDefinitionIndex(
 		[0, 0],
 	);
 
+	// definitions that don't declare properties, like an untyped `dict`, can
+	// hold any record value, so they're preferred over a structured definition
+	// the value shares no keys with
 	if (keysInCommon === 0) {
-		return -1;
+		const openObjectIndex = definitions.findIndex(
+			(definition) =>
+				definition.type === "object" &&
+				(!("properties" in definition) || !definition.properties),
+		);
+
+		if (openObjectIndex >= 0) {
+			return openObjectIndex;
+		}
+
+		return definitions.findIndex((definition) => definition.type === "object");
 	}
 
 	return index;

@@ -148,10 +148,16 @@ async def critical_service_loop(
         if run_once:
             return
 
+        # Jitter is applied around the current (possibly backed off) interval so that
+        # it does not cancel out the doubling performed on each backoff
+        backed_off_interval = interval * 2**backoff_count
+
         if jitter_range is not None:
-            sleep = clamped_poisson_interval(interval, clamping_factor=jitter_range)
+            sleep = clamped_poisson_interval(
+                backed_off_interval, clamping_factor=jitter_range
+            )
         else:
-            sleep = interval * 2**backoff_count
+            sleep = backed_off_interval
 
         await anyio.sleep(sleep)
 

@@ -103,81 +103,19 @@ custom_blob_storage_download_flow = example_blob_storage_download_flow.with_opti
 )
 ```
 
-### Run a command on an Azure container instance
-
-```python
-from prefect import flow
-from prefect_azure import AzureContainerInstanceCredentials
-from prefect_azure.container_instance import AzureContainerInstanceJob
-
-
-@flow
-def container_instance_job_flow():
-    aci_credentials = AzureContainerInstanceCredentials.load("MY_BLOCK_NAME")
-    container_instance_job = AzureContainerInstanceJob(
-        aci_credentials=aci_credentials,
-        resource_group_name="azure_resource_group.example.name",
-        subscription_id="<MY_AZURE_SUBSCRIPTION_ID>",
-        command=["echo", "hello world"],
-    )
-    return container_instance_job.run()
-```
-
-### Use Azure Container Instance as infrastructure
-
-If we have `a_flow_module.py`:
-
-```python
-from prefect import flow
-from prefect.logging import get_run_logger
-
-@flow
-def log_hello_flow(name="Marvin"):
-    logger = get_run_logger()
-    logger.info(f"{name} said hello!")
-
-if __name__ == "__main__":
-    log_hello_flow()
-```
-
-We can run that flow using an Azure Container Instance, but first create the infrastructure block:
-
-```python
-from prefect_azure import AzureContainerInstanceCredentials
-from prefect_azure.container_instance import AzureContainerInstanceJob
-
-container_instance_job = AzureContainerInstanceJob(
-    aci_credentials=AzureContainerInstanceCredentials.load("MY_BLOCK_NAME"),
-    resource_group_name="azure_resource_group.example.name",
-    subscription_id="<MY_AZURE_SUBSCRIPTION_ID>",
-)
-container_instance_job.save("aci-dev")
-```
-
-Then, create the deployment either on the UI or through the CLI:
-
-```bash
-prefect deployment build a_flow_module.py:log_hello_flow --name aci-dev -ib container-instance-job/aci-dev
-```
-
-Visit [Prefect Deployments](https://docs.prefect.io/latest/deploy/) for more information about deployments.
-
 ## Azure Container Instance Worker
 
-The Azure Container Instance worker is an excellent way to run
-your workflows on Azure.
+Use the Azure Container Instance worker to run flow runs in Azure Container
+Instances.
 
 To get started, create an Azure Container Instances typed work pool:
 
-```
-prefect work-pool create -t azure-container-instance my-aci-work-pool
+```bash
+prefect work-pool create --type azure-container-instance my-aci-work-pool
 ```
 
 Then, run a worker that pulls jobs from the work pool:
 
+```bash
+prefect worker start --pool my-aci-work-pool --type azure-container-instance
 ```
-prefect worker start -n my-aci-worker -p my-aci-work-pool
-```
-
-The worker should automatically read the work pool's type and start an
-Azure Container Instance worker.

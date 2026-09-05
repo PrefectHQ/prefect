@@ -2,12 +2,13 @@ from __future__ import annotations
 
 import datetime
 from functools import partial
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Callable, Protocol
 from uuid import UUID
 
 import anyio
 import anyio.abc
 
+from prefect._internal.attempt_control import AttemptConclusion
 from prefect.logging import get_logger
 from prefect.runner._flow_run_executor import FlowRunExecutor, ProcessStarter
 from prefect.types._datetime import now
@@ -59,6 +60,7 @@ class ScheduledRunPoller:
         state_proposer: StateProposer,
         hook_runner: HookRunner,
         cancellation_manager: CancellationManager,
+        get_attempt_conclusion: Callable[[UUID], AttemptConclusion | None],
     ) -> None:
         self._query_seconds = query_seconds
         self._prefetch_seconds = prefetch_seconds
@@ -72,6 +74,7 @@ class ScheduledRunPoller:
         self._state_proposer = state_proposer
         self._hook_runner = hook_runner
         self._cancellation_manager = cancellation_manager
+        self._get_attempt_conclusion = get_attempt_conclusion
 
         self._submitting_flow_run_ids: set[UUID] = set()
         self.last_polled: datetime.datetime | None = None
@@ -196,6 +199,7 @@ class ScheduledRunPoller:
                 process_manager=self._process_manager,
                 state_proposer=self._state_proposer,
                 hook_runner=self._hook_runner,
+                get_attempt_conclusion=self._get_attempt_conclusion,
             )
             await executor.submit()
         except Exception:

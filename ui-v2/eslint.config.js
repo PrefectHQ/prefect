@@ -8,6 +8,13 @@ import testingLibrary from "eslint-plugin-testing-library";
 import globals from "globals";
 import tseslint from "typescript-eslint";
 
+// React Hooks v7's recommended preset also enables React Compiler rules.
+// Keep this upgrade scoped to the two classic hook rules used before v7.
+const reactHooksRules = {
+	"react-hooks/rules-of-hooks": "error",
+	"react-hooks/exhaustive-deps": "warn",
+};
+
 export default tseslint.config(
 	{
 		ignores: [
@@ -43,7 +50,7 @@ export default tseslint.config(
 			"react-refresh": reactRefresh,
 		},
 		rules: {
-			...reactHooks.configs.recommended.rules,
+			...reactHooksRules,
 			"react-refresh/only-export-components": [
 				"warn",
 				{ allowConstantExport: true },

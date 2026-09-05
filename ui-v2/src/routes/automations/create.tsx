@@ -1,7 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { useMemo } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -30,13 +29,13 @@ type AutomationCreate = components["schemas"]["AutomationCreate"];
  */
 const searchParams = z.object({
 	/** Direct action to pre-populate the actions step */
-	actions: z.record(z.unknown()).optional(),
+	actions: z.record(z.string(), z.unknown()).optional(),
 	/** Event ID to pre-populate the trigger from */
 	eventId: z.string().optional(),
 	/** Event date in YYYY-MM-DD format for fetching the event */
 	eventDate: z.string().optional(),
 	/** Direct trigger definition to pre-populate the trigger step */
-	trigger: z.record(z.unknown()).optional(),
+	trigger: z.record(z.string(), z.unknown()).optional(),
 });
 
 /**
@@ -84,7 +83,7 @@ export const Route = createFileRoute("/automations/create")({
 			</div>
 		);
 	},
-	validateSearch: zodValidator(searchParams),
+	validateSearch: searchParams,
 	loaderDeps: ({ search }) => ({
 		eventId: search.eventId,
 		eventDate: search.eventDate,
