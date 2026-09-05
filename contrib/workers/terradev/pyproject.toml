@@ -16,7 +16,12 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/theoddden/Terradev"
-Repository = "https://github.com/PrefectHQ/prefect"
 
 [project.entry-points."prefect.workers"]
-terradev = "contrib.workers.terradev.worker:TerradevWorker"
+terradev = "prefect_terradev.worker:TerradevWorker"
+
+[tool.hatch.build.targets.wheel]
+packages = ["contrib/workers/terradev"]
+
+[tool.hatch.build.targets.wheel.sources]
+"contrib/workers/terradev" = "prefect_terradev"
