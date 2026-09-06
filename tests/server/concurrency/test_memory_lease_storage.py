@@ -151,6 +151,9 @@ class TestMemoryConcurrencyLeaseStorage:
         assert renewed is True
         new_expiration = storage.expirations[lease_id]
         assert new_expiration > original_expiration
+        read_lease = await storage.read_lease(lease_id)
+        assert read_lease is not None
+        assert read_lease.expiration == new_expiration
 
     async def test_renew_lease_non_existing(self, storage: ConcurrencyLeaseStorage):
         non_existing_id = uuid4()

@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 import pytest
@@ -138,6 +138,45 @@ class TestRevokeExpiredLease:
 
         # Verify lease was not processed due to missing metadata
         assert len(lease_storage.leases) == 1  # Lease should still exist
+
+    async def test_revoke_expired_lease_skips_renewed_lease(
+        self, lease_storage, concurrency_limit, session: AsyncSession
+    ):
+        """Test that revoke_expired_lease skips leases that were renewed after being listed as expired"""
+        # Take a couple of slots
+        await bulk_increment_active_slots(session, [concurrency_limit.id], 2)
+        await session.commit()
+
+        # Create an expired lease
+        resource_ids = [concurrency_limit.id]
+        metadata = ConcurrencyLimitLeaseMetadata(slots=2)
+        lease = await lease_storage.create_lease(
+            resource_ids=resource_ids,
+            ttl=timedelta(seconds=-1),  # Already expired
+            metadata=metadata,
+        )
+
+        # Holder renews before scheduled revocation runs
+        renewed = await lease_storage.renew_lease(lease.id, timedelta(minutes=5))
+        assert renewed is True
+
+        # Attempt to revoke the renewed lease
+        db = provide_database_interface()
+        await revoke_expired_lease(
+            lease.id,
+            db=db,
+            lease_storage=lease_storage,
+        )
+
+        # Verify the lease is still active and slots were not decremented
+        assert lease.id in lease_storage.leases
+        read_back = await lease_storage.read_lease(lease.id)
+        assert read_back is not None
+        assert read_back.expiration > datetime.now(timezone.utc)
+
+        limits = await bulk_read_concurrency_limits(session, [concurrency_limit.name])
+        assert len(limits) == 1
+        assert limits[0].active_slots == 2
 
 
 class TestMonitorExpiredLeases:
