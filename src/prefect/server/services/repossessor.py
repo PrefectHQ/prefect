@@ -44,6 +44,12 @@ async def revoke_expired_lease(
         logger.warning(f"Lease {lease_id} should be revoked but has no metadata")
         return
 
+    if expired_lease.expiration > datetime.now(timezone.utc):
+        logger.info(
+            f"Lease {lease_id} was renewed after being listed as expired; skipping revocation"
+        )
+        return
+
     occupancy_seconds = (
         datetime.now(timezone.utc) - expired_lease.created_at
     ).total_seconds()
