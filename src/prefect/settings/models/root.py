@@ -291,6 +291,17 @@ class Settings(PrefectBaseSettings):
                     f"http://{self.server.api.host}:{self.server.api.port}/api"
                 )
                 self.server.ui.__pydantic_fields_set__.remove("api_url")
+        # Paths that default to a location under `home` live on nested models, which
+        # cannot see the root `home` value while their own defaults are built.
+        if "config_path" not in self.logging.model_fields_set:
+            self.logging.config_path = self.home / "logging.yml"
+            self.logging.__pydantic_fields_set__.discard("config_path")
+        if "local_storage_path" not in self.results.model_fields_set:
+            self.results.local_storage_path = self.home / "storage"
+            self.results.__pydantic_fields_set__.discard("local_storage_path")
+        if "memo_store_path" not in self.server.model_fields_set:
+            self.server.memo_store_path = self.home / "memo_store.toml"
+            self.server.__pydantic_fields_set__.discard("memo_store_path")
         if self.debug_mode or self.testing.test_mode:
             self.logging.level = "DEBUG"
             self.internal.logging_level = "DEBUG"

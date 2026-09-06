@@ -1333,6 +1333,68 @@ class TestSettingAccess:
         assert value == settings.flows.heartbeat_frequency
 
 
+class TestHomeDependentPathDefaults:
+    """Regression tests for https://github.com/PrefectHQ/prefect/issues/23046"""
+
+    @pytest.fixture(autouse=True)
+    def unset_home_dependent_paths(self, monkeypatch: pytest.MonkeyPatch):
+        for env_var in (
+            "PREFECT_LOGGING_CONFIG_PATH",
+            "PREFECT_LOGGING_SETTINGS_PATH",
+            "PREFECT_RESULTS_LOCAL_STORAGE_PATH",
+            "PREFECT_LOCAL_STORAGE_PATH",
+            "PREFECT_SERVER_MEMO_STORE_PATH",
+            "PREFECT_MEMO_STORE_PATH",
+        ):
+            monkeypatch.delenv(env_var, raising=False)
+
+    def test_paths_default_relative_to_home_from_env(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setenv("PREFECT_HOME", str(tmp_path))
+
+        settings = Settings()
+
+        assert settings.home == tmp_path
+        assert settings.logging.config_path == tmp_path / "logging.yml"
+        assert settings.results.local_storage_path == tmp_path / "storage"
+        assert settings.server.memo_store_path == tmp_path / "memo_store.toml"
+
+    def test_paths_default_relative_to_home_from_init(self, tmp_path: Path):
+        settings = Settings(home=tmp_path)
+
+        assert settings.logging.config_path == tmp_path / "logging.yml"
+        assert settings.results.local_storage_path == tmp_path / "storage"
+        assert settings.server.memo_store_path == tmp_path / "memo_store.toml"
+
+    def test_explicit_paths_take_precedence_over_home(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        other_path = tmp_path / "elsewhere"
+        monkeypatch.setenv("PREFECT_HOME", str(tmp_path))
+        monkeypatch.setenv("PREFECT_LOGGING_CONFIG_PATH", str(other_path / "log.yml"))
+        monkeypatch.setenv("PREFECT_LOCAL_STORAGE_PATH", str(other_path / "storage"))
+        monkeypatch.setenv("PREFECT_MEMO_STORE_PATH", str(other_path / "memos.toml"))
+
+        settings = Settings()
+
+        assert settings.logging.config_path == other_path / "log.yml"
+        assert settings.results.local_storage_path == other_path / "storage"
+        assert settings.server.memo_store_path == other_path / "memos.toml"
+
+    def test_home_dependent_paths_are_unset(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        """Defaults must not be reported as explicitly set values."""
+        monkeypatch.setenv("PREFECT_HOME", str(tmp_path))
+
+        settings = Settings()
+
+        assert "config_path" not in settings.logging.model_fields_set
+        assert "local_storage_path" not in settings.results.model_fields_set
+        assert "memo_store_path" not in settings.server.model_fields_set
+
+
 class TestDatabaseSettings:
     def test_migration_timeout_defaults_to_none(self):
         """Migrations are not bound by the application statement timeout.
