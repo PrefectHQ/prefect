@@ -2254,7 +2254,10 @@ class TestTaskTimeoutExceededWarning:
 
         @flow
         def my_flow():
-            return blocking_task.submit().wait()
+            future = blocking_task.submit()
+            # `wait` resolves the future without returning the state
+            future.wait()
+            return future.state
 
         with caplog.at_level(logging.WARNING):
             state = my_flow()
