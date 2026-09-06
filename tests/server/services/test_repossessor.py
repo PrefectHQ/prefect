@@ -50,7 +50,7 @@ class TestRevokeExpiredLease:
         limit = await create_concurrency_limit(
             session=session,
             concurrency_limit=ConcurrencyLimitV2(
-                name="test_limit",
+                name=f"test-limit-{uuid4()}",
                 limit=10,
                 avg_slot_occupancy_seconds=0.5,
             ),
@@ -302,9 +302,11 @@ class TestRevokeExpiredLease:
         assert read_back is not None
         assert read_back.expiration > datetime.now(timezone.utc)
 
-        limits = await bulk_read_concurrency_limits(session, [concurrency_limit.name])
-        assert len(limits) == 1
-        assert limits[0].active_slots == 2
+        # bulk_increment_active_slots updates rows with
+        # synchronize_session=False, so the cached ORM object is stale;
+        # refresh it before asserting the persisted slot count
+        await session.refresh(concurrency_limit)
+        assert concurrency_limit.active_slots == 2
 
 
 class TestMonitorExpiredLeases:
@@ -322,7 +324,7 @@ class TestMonitorExpiredLeases:
         limit = await create_concurrency_limit(
             session=session,
             concurrency_limit=ConcurrencyLimitV2(
-                name="test_limit",
+                name=f"test-limit-{uuid4()}",
                 limit=10,
                 avg_slot_occupancy_seconds=0.5,
             ),
