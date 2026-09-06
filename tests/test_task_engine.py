@@ -2240,6 +2240,24 @@ class TestTaskTimeoutExceededWarning:
         )
         assert result == "result"
 
+    def test_watchdog_does_not_alter_an_ordinary_failure(self):
+        """Test that a run failing for its own reasons resolves with a watchdog armed."""
+
+        @task(timeout_seconds=30)
+        def failing_task():
+            raise ValueError("boom")
+
+        @flow
+        def my_flow():
+            future = failing_task.submit()
+            future.wait()
+            return future.state.name, future.state.is_failed()
+
+        state_name, is_failed = my_flow()
+
+        assert is_failed
+        assert state_name == "Failed"
+
     @pytest.mark.skipif(
         sys.platform == "win32",
         reason="Timeouts are not enforced on Windows, so the run never reaches TimedOut",
@@ -2255,15 +2273,17 @@ class TestTaskTimeoutExceededWarning:
         @flow
         def my_flow():
             future = blocking_task.submit()
-            # `wait` resolves the future without returning the state
+            # `wait` resolves the future without returning the state. Returning the
+            # state itself would make the flow adopt it and fail its own run, so
+            # report it as plain data instead.
             future.wait()
-            return future.state
+            return future.state.name, future.state.is_failed()
 
         with caplog.at_level(logging.WARNING):
-            state = my_flow()
+            state_name, is_failed = my_flow()
 
-        assert state.is_failed()
-        assert state.name == "TimedOut"
+        assert is_failed
+        assert state_name == "TimedOut"
 
 
 class TestPersistence:
