@@ -1337,7 +1337,7 @@ class TestHomeDependentPathDefaults:
     """Regression tests for https://github.com/PrefectHQ/prefect/issues/23046"""
 
     @pytest.fixture(autouse=True)
-    def unset_home_dependent_paths(self, monkeypatch: pytest.MonkeyPatch):
+    def unset_home_dependent_paths(self, monkeypatch: pytest.MonkeyPatch) -> None:
         for env_var in (
             "PREFECT_LOGGING_CONFIG_PATH",
             "PREFECT_LOGGING_SETTINGS_PATH",
