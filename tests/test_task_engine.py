@@ -2092,15 +2092,94 @@ class TestSyncTaskTimeoutWarning:
         assert result == "result"
 
 
+class TestTaskTimeoutWatchdog:
+    """Tests for the watchdog itself, without racing a real deadline."""
+
+    def test_arms_a_timer_for_the_deadline_plus_grace(self):
+        """Test that the watchdog arms for the deadline and disarms on exit."""
+
+        @task(timeout_seconds=30)
+        def timed_task():
+            return "result"
+
+        engine = SyncTaskRunEngine(task=timed_task)
+
+        with mock.patch("threading.Timer") as timer_cls:
+            with engine.timeout_watchdog():
+                timer_cls.assert_called_once_with(
+                    30 + TIMEOUT_WATCHDOG_GRACE_SECONDS,
+                    engine._warn_timeout_exceeded,
+                )
+                timer_cls.return_value.start.assert_called_once()
+                timer_cls.return_value.cancel.assert_not_called()
+
+            timer_cls.return_value.cancel.assert_called_once()
+
+    def test_does_not_arm_when_the_task_has_no_timeout(self):
+        """Test that a task without a timeout gets no watchdog thread."""
+
+        @task
+        def untimed_task():
+            return "result"
+
+        engine = SyncTaskRunEngine(task=untimed_task)
+
+        with mock.patch("threading.Timer") as timer_cls:
+            with engine.timeout_watchdog():
+                pass
+
+            timer_cls.assert_not_called()
+
+    def test_run_survives_a_watchdog_thread_that_cannot_start(self):
+        """Test that a run continues when no thread is available for the warning.
+
+        A wide enough mapped run can exhaust the process's threads. The warning is
+        advisory, so failing to arm it must not take the run down with it.
+        """
+
+        @task(timeout_seconds=30)
+        def timed_task():
+            return "result"
+
+        engine = SyncTaskRunEngine(task=timed_task)
+
+        with mock.patch("threading.Timer") as timer_cls:
+            timer_cls.return_value.start.side_effect = RuntimeError(
+                "can't start new thread"
+            )
+
+            with engine.timeout_watchdog():
+                pass
+
+            # Nothing to cancel, since the timer never started
+            timer_cls.return_value.cancel.assert_not_called()
+
+    def test_warning_names_the_configured_timeout(self, caplog):
+        """Test that the warning reports the timeout the task was given."""
+
+        @task(timeout_seconds=30)
+        def timed_task():
+            return "result"
+
+        engine = SyncTaskRunEngine(task=timed_task)
+
+        with caplog.at_level(logging.WARNING):
+            engine._warn_timeout_exceeded()
+
+        assert (
+            "exceeded its timeout of 30.0 second(s) but is still running" in caplog.text
+        )
+
+
 class TestTaskTimeoutExceededWarning:
-    """Tests for the warning emitted when a run outlives its timeout."""
+    """Tests for the warning reaching a run that actually outlives its timeout."""
 
     def test_warning_emitted_when_run_outlives_its_timeout(self, caplog):
         """Test that a warning is emitted while the run is still overrunning."""
 
         @task(timeout_seconds=0.1)
         def blocking_task():
-            time.sleep(TIMEOUT_WATCHDOG_GRACE_SECONDS + 1)
+            time.sleep(TIMEOUT_WATCHDOG_GRACE_SECONDS + 2)
             return "result"
 
         @flow
@@ -2118,45 +2197,6 @@ class TestTaskTimeoutExceededWarning:
             for record in caplog.records
         )
 
-    def test_no_warning_when_run_finishes_within_its_timeout(self, caplog):
-        """Test that no warning is emitted when the run stays inside its timeout."""
-
-        @task(timeout_seconds=10)
-        def quick_task():
-            return "result"
-
-        @flow
-        def my_flow():
-            return quick_task.submit().result()
-
-        with caplog.at_level(logging.WARNING):
-            result = my_flow()
-
-        assert not any(
-            "but is still running" in record.message for record in caplog.records
-        )
-        assert result == "result"
-
-    def test_no_warning_when_task_has_no_timeout(self, caplog):
-        """Test that no warning is emitted when the task sets no timeout."""
-
-        @task
-        def blocking_task():
-            time.sleep(TIMEOUT_WATCHDOG_GRACE_SECONDS + 1)
-            return "result"
-
-        @flow
-        def my_flow():
-            return blocking_task.submit().result()
-
-        with caplog.at_level(logging.WARNING):
-            result = my_flow()
-
-        assert not any(
-            "but is still running" in record.message for record in caplog.records
-        )
-        assert result == "result"
-
     async def test_warning_emitted_for_async_run_that_blocks_past_its_timeout(
         self, caplog
     ):
@@ -2165,7 +2205,7 @@ class TestTaskTimeoutExceededWarning:
         @task(timeout_seconds=0.1)
         async def blocking_async_task():
             # Blocks the event loop, so there is no await point to cancel at
-            time.sleep(TIMEOUT_WATCHDOG_GRACE_SECONDS + 1)
+            time.sleep(TIMEOUT_WATCHDOG_GRACE_SECONDS + 2)
             return "result"
 
         @flow
@@ -2181,6 +2221,25 @@ class TestTaskTimeoutExceededWarning:
             for record in caplog.records
         )
 
+    def test_no_warning_when_run_finishes_within_its_timeout(self, caplog):
+        """Test that no warning is emitted when the run stays inside its timeout."""
+
+        @task(timeout_seconds=30)
+        def quick_task():
+            return "result"
+
+        @flow
+        def my_flow():
+            return quick_task.submit().result()
+
+        with caplog.at_level(logging.WARNING):
+            result = my_flow()
+
+        assert not any(
+            "but is still running" in record.message for record in caplog.records
+        )
+        assert result == "result"
+
     @pytest.mark.skipif(
         sys.platform == "win32",
         reason="Timeouts are not enforced on Windows, so the run never reaches TimedOut",
@@ -2190,7 +2249,7 @@ class TestTaskTimeoutExceededWarning:
 
         @task(timeout_seconds=0.1)
         def blocking_task():
-            time.sleep(TIMEOUT_WATCHDOG_GRACE_SECONDS + 1)
+            time.sleep(TIMEOUT_WATCHDOG_GRACE_SECONDS + 2)
             return "result"
 
         @flow

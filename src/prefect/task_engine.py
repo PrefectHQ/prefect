@@ -300,12 +300,18 @@ class BaseTaskRunEngine(Generic[P, R]):
         """
         watchdog: Optional[threading.Timer] = None
         if self.task.timeout_seconds is not None:
-            watchdog = threading.Timer(
-                self.task.timeout_seconds + TIMEOUT_WATCHDOG_GRACE_SECONDS,
-                self._warn_timeout_exceeded,
-            )
-            watchdog.daemon = True
-            watchdog.start()
+            try:
+                watchdog = threading.Timer(
+                    self.task.timeout_seconds + TIMEOUT_WATCHDOG_GRACE_SECONDS,
+                    self._warn_timeout_exceeded,
+                )
+                watchdog.daemon = True
+                watchdog.start()
+            except Exception:
+                # The warning is advisory, so a run that cannot spare a thread for it
+                # goes without rather than failing. `start` raises once the process
+                # cannot allocate more, which a wide enough mapped run can reach.
+                watchdog = None
 
         try:
             yield
@@ -1035,7 +1041,7 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     @contextmanager
     def run_context(self):
         # reenter the run context to ensure it is up to date for every run
-        with self.setup_run_context(), self.timeout_watchdog():
+        with self.setup_run_context():
             try:
                 # Warn if timeout is set but we're not on the main thread
                 if (
@@ -1053,9 +1059,16 @@ class SyncTaskRunEngine(BaseTaskRunEngine[P, R]):
                         "write-and-run#task-timeout-behavior for more information.",
                         self.task.timeout_seconds,
                     )
-                with timeout(
-                    seconds=self.task.timeout_seconds,
-                    timeout_exc_type=TaskRunTimeoutError,
+                # The watchdog is entered outside the timeout scope so that it is
+                # disarmed the moment execution leaves it, before `handle_timeout`
+                # evaluates retry conditions. An enforced timeout has already
+                # interrupted the run by then and there is no overrun to report.
+                with (
+                    self.timeout_watchdog(),
+                    timeout(
+                        seconds=self.task.timeout_seconds,
+                        timeout_exc_type=TaskRunTimeoutError,
+                    ),
                 ):
                     self.logger.debug(
                         f"Executing task {self.task.name!r} for task run {self.task_run.name!r}..."
@@ -1666,25 +1679,29 @@ class AsyncTaskRunEngine(BaseTaskRunEngine[P, R]):
     async def run_context(self):
         # reenter the run context to ensure it is up to date for every run
         async with self.setup_run_context():
-            with self.timeout_watchdog():
-                try:
-                    with timeout_async(
+            try:
+                # The watchdog is entered outside the timeout scope so that it is
+                # disarmed the moment execution leaves it, before `handle_timeout`
+                # evaluates retry conditions. An enforced timeout has already
+                # interrupted the run by then and there is no overrun to report.
+                with (
+                    self.timeout_watchdog(),
+                    timeout_async(
                         seconds=self.task.timeout_seconds,
                         timeout_exc_type=TaskRunTimeoutError,
-                    ):
-                        self.logger.debug(
-                            f"Executing task {self.task.name!r} for task run {self.task_run.name!r}..."
-                        )
-                        if self.is_cancelled():
-                            raise CancelledError(
-                                "Task run cancelled by the task runner"
-                            )
+                    ),
+                ):
+                    self.logger.debug(
+                        f"Executing task {self.task.name!r} for task run {self.task_run.name!r}..."
+                    )
+                    if self.is_cancelled():
+                        raise CancelledError("Task run cancelled by the task runner")
 
-                        yield self
-                except TimeoutError as exc:
-                    await self.handle_timeout(exc)
-                except Exception as exc:
-                    await self.handle_exception(exc)
+                    yield self
+            except TimeoutError as exc:
+                await self.handle_timeout(exc)
+            except Exception as exc:
+                await self.handle_exception(exc)
 
     async def call_task_fn(
         self, transaction: AsyncTransaction
