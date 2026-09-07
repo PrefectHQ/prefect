@@ -20,6 +20,7 @@ from prefect.server.utilities.leasing import ResourceLease
 from prefect_redis.client import cluster_key_prefix, get_async_redis_client
 
 logger = logging.getLogger(__name__)
+REVOCATION_CLAIM_TTL_SECONDS = 60
 
 
 class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
@@ -244,6 +245,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             local lease_id = ARGV[1]
             local new_expiration_timestamp = tonumber(ARGV[2])
             local new_expiration_iso = ARGV[3]
+            local now = tonumber(ARGV[4])
 
             -- Get existing lease data
             local serialized_lease = redis.call('get', lease_key)
@@ -255,9 +257,12 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
             -- Parse lease data, update expiration, and save back
             local lease_data = cjson.decode(serialized_lease)
-            if lease_data['revoking'] then
+            local revoking_until = tonumber(lease_data['revoking_until'])
+            if lease_data['revoking'] and revoking_until and revoking_until > now then
                 return 0
             end
+            lease_data['revoking'] = nil
+            lease_data['revoking_until'] = nil
             lease_data['expiration'] = new_expiration_iso
             redis.call('set', lease_key, cjson.encode(lease_data))
 
@@ -275,6 +280,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
                 str(lease_id),
                 new_expiration_timestamp,
                 new_expiration_iso,
+                datetime.now(timezone.utc).timestamp(),
             )
 
             return bool(result)
@@ -292,16 +298,19 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         end
 
         local lease_data = cjson.decode(serialized_lease)
-        if lease_data['revoking'] then
+        local now = tonumber(ARGV[1])
+        local revoking_until = tonumber(lease_data['revoking_until'])
+        if lease_data['revoking'] and revoking_until and revoking_until > now then
             return false
         end
 
-        local expiration = redis.call('zscore', KEYS[2], ARGV[2])
-        if not expiration or tonumber(expiration) > tonumber(ARGV[1]) then
+        local expiration = redis.call('zscore', KEYS[2], ARGV[3])
+        if not expiration or tonumber(expiration) > now then
             return false
         end
 
         lease_data['revoking'] = true
+        lease_data['revoking_until'] = tonumber(ARGV[2])
         local claimed_lease = cjson.encode(lease_data)
         redis.call('set', KEYS[1], claimed_lease)
         return claimed_lease
@@ -313,6 +322,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
                 self._lease_key(lease_id),
                 self.expirations_key,
                 datetime.now(timezone.utc).timestamp(),
+                datetime.now(timezone.utc).timestamp() + REVOCATION_CLAIM_TTL_SECONDS,
                 str(lease_id),
             )
             if not serialized_lease:
@@ -331,6 +341,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
         local lease_data = cjson.decode(serialized_lease)
         lease_data['revoking'] = false
+        lease_data['revoking_until'] = nil
         redis.call('set', KEYS[1], cjson.encode(lease_data))
         return 1
         """
