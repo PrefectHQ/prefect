@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -16,6 +17,7 @@ from prefect.server.models.concurrency_limits_v2 import (
     create_concurrency_limit,
 )
 from prefect.server.schemas.core import ConcurrencyLimitV2
+from prefect.server.services import repossessor as repossessor_module
 from prefect.server.services.repossessor import (
     monitor_expired_leases,
     revoke_expired_lease,
@@ -31,6 +33,7 @@ class TestRevokeExpiredLease:
         storage = ConcurrencyLeaseStorage()
         storage.leases.clear()
         storage.expirations.clear()
+        storage.revoking.clear()
         return storage
 
     @pytest.fixture
@@ -180,6 +183,38 @@ class TestRevokeExpiredLease:
         await session.refresh(concurrency_limit)
         assert concurrency_limit.active_slots == 2
 
+    async def test_revoke_expired_lease_blocks_concurrent_renewal(
+        self, lease_storage, concurrency_limit, monkeypatch
+    ):
+        lease = await lease_storage.create_lease(
+            resource_ids=[concurrency_limit.id],
+            ttl=timedelta(seconds=-1),
+            metadata=ConcurrencyLimitLeaseMetadata(slots=1),
+        )
+        decrement_started = asyncio.Event()
+        allow_decrement = asyncio.Event()
+
+        async def wait_for_decrement(*args, **kwargs):
+            decrement_started.set()
+            await allow_decrement.wait()
+
+        monkeypatch.setattr(
+            repossessor_module, "bulk_decrement_active_slots", wait_for_decrement
+        )
+        revoke_task = asyncio.create_task(
+            revoke_expired_lease(
+                lease.id,
+                db=provide_database_interface(),
+                lease_storage=lease_storage,
+            )
+        )
+        await decrement_started.wait()
+
+        assert await lease_storage.renew_lease(lease.id, timedelta(minutes=5)) is False
+
+        allow_decrement.set()
+        await revoke_task
+
 
 class TestMonitorExpiredLeases:
     @pytest.fixture
@@ -188,6 +223,7 @@ class TestMonitorExpiredLeases:
         storage = ConcurrencyLeaseStorage()
         storage.leases.clear()
         storage.expirations.clear()
+        storage.revoking.clear()
         return storage
 
     @pytest.fixture

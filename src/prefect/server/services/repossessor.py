@@ -31,8 +31,10 @@ async def revoke_expired_lease(
     lease_storage: ConcurrencyLeaseStorage = Depends(get_concurrency_lease_storage),
 ) -> None:
     """Revoke a single expired lease (docket task)."""
-    expired_lease = await lease_storage.read_lease(lease_id)
+    expired_lease = await lease_storage.begin_lease_revocation(lease_id)
     if expired_lease is None:
+        if await lease_storage.read_lease(lease_id) is not None:
+            return
         # The lease itself is gone, but storage may still hold an expiration
         # entry for it; revoking clears that entry so the lease stops being
         # reported as expired on every pass.
@@ -41,6 +43,7 @@ async def revoke_expired_lease(
         return
 
     if expired_lease.metadata is None:
+        await lease_storage.cancel_lease_revocation(lease_id)
         logger.warning(f"Lease {lease_id} should be revoked but has no metadata")
         return
 
@@ -59,14 +62,18 @@ async def revoke_expired_lease(
         f"concurrency limits with {expired_lease.metadata.slots} slots"
     )
 
-    async with db.session_context(begin_transaction=True) as session:
-        await bulk_decrement_active_slots(
-            session=session,
-            concurrency_limit_ids=expired_lease.resource_ids,
-            slots=expired_lease.metadata.slots,
-            occupancy_seconds=occupancy_seconds,
-        )
-        await lease_storage.revoke_lease(lease_id)
+    try:
+        async with db.session_context(begin_transaction=True) as session:
+            await bulk_decrement_active_slots(
+                session=session,
+                concurrency_limit_ids=expired_lease.resource_ids,
+                slots=expired_lease.metadata.slots,
+                occupancy_seconds=occupancy_seconds,
+            )
+            await lease_storage.revoke_lease(lease_id)
+    except Exception:
+        await lease_storage.cancel_lease_revocation(lease_id)
+        raise
 
 
 @perpetual_service(
