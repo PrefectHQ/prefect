@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
@@ -224,6 +225,14 @@ class TestConcurrencyLeaseStorage:
 
         await storage.cancel_lease_revocation(expired_lease.id)
         assert await storage.renew_lease(expired_lease.id, timedelta(minutes=5))
+
+        abandoned_lease = await storage.create_lease([uuid4()], timedelta(seconds=-1))
+        assert await storage.begin_lease_revocation(abandoned_lease.id) is not None
+        lease_key = storage._lease_key(abandoned_lease.id)
+        lease_data = json.loads(await storage.redis_client.get(lease_key))
+        lease_data["revoking_until"] = datetime.now(timezone.utc).timestamp() - 1
+        await storage.redis_client.set(lease_key, json.dumps(lease_data))
+        assert await storage.renew_lease(abandoned_lease.id, timedelta(minutes=5))
 
     async def test_revoke_lease(self, storage: ConcurrencyLeaseStorage):
         """Test revoking an existing lease."""
