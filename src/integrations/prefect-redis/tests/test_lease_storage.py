@@ -234,6 +234,30 @@ class TestConcurrencyLeaseStorage:
         await storage.redis_client.set(lease_key, json.dumps(lease_data))
         assert await storage.renew_lease(abandoned_lease.id, timedelta(minutes=5))
 
+    async def test_revocation_token_fences_old_worker(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        lease = await storage.create_lease([uuid4()], timedelta(seconds=-1))
+        first_claim = await storage.begin_lease_revocation(lease.id)
+        assert first_claim is not None
+        assert first_claim.revocation_token is not None
+
+        lease_key = storage._lease_key(lease.id)
+        lease_data = json.loads(await storage.redis_client.get(lease_key))
+        lease_data["revoking_until"] = datetime.now(timezone.utc).timestamp() - 1
+        await storage.redis_client.set(lease_key, json.dumps(lease_data))
+
+        second_claim = await storage.begin_lease_revocation(lease.id)
+        assert second_claim is not None
+        assert second_claim.revocation_token != first_claim.revocation_token
+
+        with pytest.raises(RuntimeError, match="no longer owned"):
+            await storage.revoke_lease(lease.id, first_claim.revocation_token)
+        assert await storage.read_lease(lease.id) is not None
+
+        await storage.revoke_lease(lease.id, second_claim.revocation_token)
+        assert await storage.read_lease(lease.id) is None
+
     async def test_revoke_lease(self, storage: ConcurrencyLeaseStorage):
         """Test revoking an existing lease."""
         resource_ids = [uuid4()]

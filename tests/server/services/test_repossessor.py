@@ -34,6 +34,7 @@ class TestRevokeExpiredLease:
         storage.leases.clear()
         storage.expirations.clear()
         storage.revoking.clear()
+        storage.revocation_tokens.clear()
         return storage
 
     @pytest.fixture
@@ -224,6 +225,7 @@ class TestMonitorExpiredLeases:
         storage.leases.clear()
         storage.expirations.clear()
         storage.revoking.clear()
+        storage.revocation_tokens.clear()
         return storage
 
     @pytest.fixture

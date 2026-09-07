@@ -12,6 +12,8 @@ from prefect.settings.context import get_current_settings
 
 from prefect.types._concurrency import ConcurrencyLeaseHolder
 
+REVOCATION_CLAIM_TTL_SECONDS = 60
+
 
 @runtime_checkable
 class ConcurrencyLeaseStorageModule(Protocol):
@@ -59,10 +61,17 @@ class ConcurrencyLeaseStorage(LeaseStorage[ConcurrencyLimitLeaseMetadata]):
     ) -> ResourceLease[ConcurrencyLimitLeaseMetadata] | None:
         raise NotImplementedError
 
-    async def cancel_lease_revocation(self, lease_id: UUID) -> None:
+    async def renew_lease_revocation(self, lease_id: UUID, revocation_token: str) -> bool:
         raise NotImplementedError
 
-    async def revoke_lease(self, lease_id: UUID) -> None: ...
+    async def cancel_lease_revocation(
+        self, lease_id: UUID, revocation_token: str | None = None
+    ) -> None:
+        raise NotImplementedError
+
+    async def revoke_lease(
+        self, lease_id: UUID, revocation_token: str | None = None
+    ) -> None: ...
 
     async def read_active_lease_ids(
         self, limit: int = 100, offset: int = 0

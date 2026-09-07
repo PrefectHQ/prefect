@@ -16,6 +16,7 @@ class ResourceLease(Generic[T]):
     created_at: datetime = field(default_factory=partial(datetime.now, timezone.utc))
     id: UUID = field(default_factory=uuid4)
     metadata: T | None = None
+    revocation_token: str | None = None
 
 
 class LeaseStorage(Protocol[T]):
@@ -62,7 +63,9 @@ class LeaseStorage(Protocol[T]):
         """
         ...
 
-    async def revoke_lease(self, lease_id: UUID) -> None:
+    async def revoke_lease(
+        self, lease_id: UUID, revocation_token: str | None = None
+    ) -> None:
         """
         Release a resource lease by removing it from list of active leases.
 
