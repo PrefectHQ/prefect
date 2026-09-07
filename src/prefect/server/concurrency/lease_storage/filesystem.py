@@ -39,6 +39,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         self.storage_path: Path = Path(
             storage_path or prefect_home / "concurrency_leases"
         )
+        self.revoking: set[UUID] = set()
 
     def _ensure_storage_path(self) -> None:
         """Ensure the storage path exists, creating it if necessary."""
@@ -212,6 +213,9 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             await self._remove_from_expiration_index(lease_id)
             return False
 
+        if lease_id in self.revoking:
+            return False
+
         try:
             with open(lease_file, "r") as f:
                 lease_data = json.load(f)
@@ -238,7 +242,23 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             await self._remove_from_expiration_index(lease_id)
             return False
 
+    async def begin_lease_revocation(
+        self, lease_id: UUID
+    ) -> ResourceLease[ConcurrencyLimitLeaseMetadata] | None:
+        if lease_id in self.revoking:
+            return None
+        lease = await self.read_lease(lease_id)
+        if lease is None:
+            return None
+        if lease.expiration <= datetime.now(timezone.utc):
+            self.revoking.add(lease_id)
+        return lease
+
+    async def cancel_lease_revocation(self, lease_id: UUID) -> None:
+        self.revoking.discard(lease_id)
+
     async def revoke_lease(self, lease_id: UUID) -> None:
+        self.revoking.discard(lease_id)
         lease_file = self._lease_file_path(lease_id)
         lease_file.unlink(missing_ok=True)
 
