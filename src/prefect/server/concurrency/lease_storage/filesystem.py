@@ -250,8 +250,9 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         lease = await self.read_lease(lease_id)
         if lease is None:
             return None
-        if lease.expiration <= datetime.now(timezone.utc):
-            self.revoking.add(lease_id)
+        if lease.expiration > datetime.now(timezone.utc):
+            return None
+        self.revoking.add(lease_id)
         return lease
 
     async def cancel_lease_revocation(self, lease_id: UUID) -> None:
