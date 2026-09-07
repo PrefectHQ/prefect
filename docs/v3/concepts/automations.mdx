@@ -192,8 +192,8 @@ example `{{ event.occurred | humanize_naturaltime }}`) and these Prefect-specifi
 
 | Filter | Result |
 | --- | --- |
-| `tojson` | Serializes any template value to a JSON string, including Pydantic objects such as `flow_run`, `deployment`, and `event`. The optional `indent` argument pretty-prints: `{{ flow_run | tojson(indent=2) }}`. |
-| `ui_url` | The URL to view the given object in the UI, for example `{{ flow_run | ui_url }}`. |
+| `tojson` | Serializes any template value to a JSON string, including Pydantic objects such as `flow_run`, `deployment`, and `event`. The optional `indent` argument pretty-prints: `{{ flow_run \| tojson(indent=2) }}`. |
+| `ui_url` | The URL to view the given object in the UI, for example `{{ flow_run \| ui_url }}`. |
 | `ui_resource_events_url` | The URL of the UI event feed filtered to the given object or event resource. |
 | `flow_run_id` | Extracts a flow run ID from a string that contains a flow run URL, such as a pull request body. |
 
