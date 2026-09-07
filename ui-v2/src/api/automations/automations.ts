@@ -31,8 +31,6 @@ export const queryKeyFactory = {
 	filters: () => [...queryKeyFactory.lists(), "filter"] as const,
 	filter: (filter: AutomationsFilter) =>
 		[...queryKeyFactory.filters(), filter] as const,
-	allFilter: (filter: AutomationsFilter) =>
-		[...queryKeyFactory.filter(filter), "all"] as const,
 	relates: () => [...queryKeyFactory.lists(), "relates"] as const,
 	relate: (resourceId: string) =>
 		[...queryKeyFactory.relates(), resourceId] as const,
@@ -42,41 +40,19 @@ export const queryKeyFactory = {
 
 // ----- 🔑 Queries 🗄️
 // ----------------------------
-const fetchAutomations = async (filter: AutomationsFilter) => {
-	const { data } = await (await getQueryService()).POST("/automations/filter", {
-		body: filter,
-	});
-	if (!data) {
-		throw new Error("'data' expected");
-	}
-	return data;
-};
-
 export const buildListAutomationsQuery = (
 	filter: AutomationsFilter = { sort: "CREATED_DESC", offset: 0 },
 ) =>
 	queryOptions({
 		queryKey: queryKeyFactory.filter(filter),
-		queryFn: () => fetchAutomations(filter),
-	});
-
-export const buildListAllAutomationsQuery = (
-	filter: AutomationsFilter = { sort: "CREATED_DESC", offset: 0 },
-) =>
-	queryOptions({
-		queryKey: queryKeyFactory.allFilter(filter),
 		queryFn: async () => {
-			const automations: Array<Automation> = [];
-			let offset = filter.offset;
-
-			while (true) {
-				const data = await fetchAutomations({ ...filter, offset });
-				if (data.length === 0) {
-					return automations;
-				}
-				automations.push(...data);
-				offset += data.length;
+			const res = await (await getQueryService()).POST("/automations/filter", {
+				body: filter,
+			});
+			if (!res.data) {
+				throw new Error("'data' expected");
 			}
+			return res.data;
 		},
 	});
 
