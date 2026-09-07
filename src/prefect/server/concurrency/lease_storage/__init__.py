@@ -56,9 +56,11 @@ class ConcurrencyLeaseStorage(LeaseStorage[ConcurrencyLimitLeaseMetadata]):
 
     async def begin_lease_revocation(
         self, lease_id: UUID
-    ) -> ResourceLease[ConcurrencyLimitLeaseMetadata] | None: ...
+    ) -> ResourceLease[ConcurrencyLimitLeaseMetadata] | None:
+        raise NotImplementedError
 
-    async def cancel_lease_revocation(self, lease_id: UUID) -> None: ...
+    async def cancel_lease_revocation(self, lease_id: UUID) -> None:
+        raise NotImplementedError
 
     async def revoke_lease(self, lease_id: UUID) -> None: ...
 

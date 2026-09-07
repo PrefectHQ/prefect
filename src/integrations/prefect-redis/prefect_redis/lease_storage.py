@@ -255,6 +255,9 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
             -- Parse lease data, update expiration, and save back
             local lease_data = cjson.decode(serialized_lease)
+            if lease_data['revoking'] then
+                return 0
+            end
             lease_data['expiration'] = new_expiration_iso
             redis.call('set', lease_key, cjson.encode(lease_data))
 
@@ -277,6 +280,64 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             return bool(result)
         except RedisError as e:
             logger.error(f"Failed to renew lease {lease_id}: {e}")
+            raise
+
+    async def begin_lease_revocation(
+        self, lease_id: UUID
+    ) -> ResourceLease[ConcurrencyLimitLeaseMetadata] | None:
+        script = """
+        local serialized_lease = redis.call('get', KEYS[1])
+        if not serialized_lease then
+            return false
+        end
+
+        local lease_data = cjson.decode(serialized_lease)
+        if lease_data['revoking'] then
+            return false
+        end
+
+        local expiration = redis.call('zscore', KEYS[2], ARGV[2])
+        if not expiration or tonumber(expiration) > tonumber(ARGV[1]) then
+            return false
+        end
+
+        lease_data['revoking'] = true
+        local claimed_lease = cjson.encode(lease_data)
+        redis.call('set', KEYS[1], claimed_lease)
+        return claimed_lease
+        """
+        try:
+            serialized_lease = await self.redis_client.eval(
+                script,
+                2,
+                self._lease_key(lease_id),
+                self.expirations_key,
+                datetime.now(timezone.utc).timestamp(),
+                str(lease_id),
+            )
+            if not serialized_lease:
+                return None
+            return self._deserialize_lease(serialized_lease)
+        except RedisError as e:
+            logger.error(f"Failed to begin revocation for lease {lease_id}: {e}")
+            raise
+
+    async def cancel_lease_revocation(self, lease_id: UUID) -> None:
+        script = """
+        local serialized_lease = redis.call('get', KEYS[1])
+        if not serialized_lease then
+            return 0
+        end
+
+        local lease_data = cjson.decode(serialized_lease)
+        lease_data['revoking'] = false
+        redis.call('set', KEYS[1], cjson.encode(lease_data))
+        return 1
+        """
+        try:
+            await self.redis_client.eval(script, 1, self._lease_key(lease_id))
+        except RedisError as e:
+            logger.error(f"Failed to cancel revocation for lease {lease_id}: {e}")
             raise
 
     async def revoke_lease(self, lease_id: UUID) -> None:

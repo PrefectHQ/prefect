@@ -210,6 +210,21 @@ class TestConcurrencyLeaseStorage:
         # Should not raise an error
         await storage.renew_lease(nonexistent_id, ttl)
 
+    async def test_begin_lease_revocation_blocks_renewal(
+        self, storage: ConcurrencyLeaseStorage
+    ):
+        active_lease = await storage.create_lease([uuid4()], timedelta(minutes=5))
+        assert await storage.begin_lease_revocation(active_lease.id) is None
+        assert await storage.renew_lease(active_lease.id, timedelta(minutes=5))
+
+        expired_lease = await storage.create_lease([uuid4()], timedelta(seconds=-1))
+        claimed_lease = await storage.begin_lease_revocation(expired_lease.id)
+        assert claimed_lease is not None
+        assert await storage.renew_lease(expired_lease.id, timedelta(minutes=5)) is False
+
+        await storage.cancel_lease_revocation(expired_lease.id)
+        assert await storage.renew_lease(expired_lease.id, timedelta(minutes=5))
+
     async def test_revoke_lease(self, storage: ConcurrencyLeaseStorage):
         """Test revoking an existing lease."""
         resource_ids = [uuid4()]
