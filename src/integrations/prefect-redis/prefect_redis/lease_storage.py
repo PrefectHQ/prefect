@@ -4,12 +4,13 @@ import json
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
 from prefect.server.concurrency.lease_storage import (
+    REVOCATION_CLAIM_TTL_SECONDS,
     ConcurrencyLeaseHolder,
     ConcurrencyLimitLeaseMetadata,
 )
@@ -20,7 +21,6 @@ from prefect.server.utilities.leasing import ResourceLease
 from prefect_redis.client import cluster_key_prefix, get_async_redis_client
 
 logger = logging.getLogger(__name__)
-REVOCATION_CLAIM_TTL_SECONDS = 60
 
 
 class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
@@ -78,8 +78,15 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             -- KEYS[2] = expirations_key
             -- ARGV[1] = lease_id
             -- ARGV[2] = concurrency key prefix
+            -- ARGV[3] = revocation token (or empty string)
             -- Read the lease in-script to avoid races and compute index keys
             local lease_json = redis.call('GET', KEYS[1])
+            if ARGV[3] ~= '' then
+              local ok, lease = pcall(cjson.decode, lease_json or '')
+              if not ok or not lease or lease['revocation_token'] ~= ARGV[3] then
+                return 0
+              end
+            end
             if lease_json then
               local ok, lease = pcall(cjson.decode, lease_json)
               if ok and lease then
@@ -147,6 +154,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             expiration=datetime.fromisoformat(lease_data["expiration"]),
             created_at=datetime.fromisoformat(lease_data["created_at"]),
             metadata=metadata,
+            revocation_token=lease_data.get("revocation_token"),
         )
 
     async def create_lease(
@@ -263,6 +271,7 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             end
             lease_data['revoking'] = nil
             lease_data['revoking_until'] = nil
+            lease_data['revocation_token'] = nil
             lease_data['expiration'] = new_expiration_iso
             redis.call('set', lease_key, cjson.encode(lease_data))
 
@@ -311,28 +320,34 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
 
         lease_data['revoking'] = true
         lease_data['revoking_until'] = tonumber(ARGV[2])
+        lease_data['revocation_token'] = ARGV[4]
         local claimed_lease = cjson.encode(lease_data)
         redis.call('set', KEYS[1], claimed_lease)
         return claimed_lease
         """
         try:
+            now = datetime.now(timezone.utc).timestamp()
+            revocation_token = str(uuid4())
             serialized_lease = await self.redis_client.eval(
                 script,
                 2,
                 self._lease_key(lease_id),
                 self.expirations_key,
-                datetime.now(timezone.utc).timestamp(),
-                datetime.now(timezone.utc).timestamp() + REVOCATION_CLAIM_TTL_SECONDS,
+                now,
+                now + REVOCATION_CLAIM_TTL_SECONDS,
                 str(lease_id),
+                revocation_token,
             )
             if not serialized_lease:
                 return None
-            return self._deserialize_lease(serialized_lease)
+            lease = self._deserialize_lease(serialized_lease)
+            lease.revocation_token = revocation_token
+            return lease
         except RedisError as e:
             logger.error(f"Failed to begin revocation for lease {lease_id}: {e}")
             raise
 
-    async def cancel_lease_revocation(self, lease_id: UUID) -> None:
+    async def renew_lease_revocation(self, lease_id: UUID, revocation_token: str) -> bool:
         script = """
         local serialized_lease = redis.call('get', KEYS[1])
         if not serialized_lease then
@@ -340,18 +355,62 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
         end
 
         local lease_data = cjson.decode(serialized_lease)
-        lease_data['revoking'] = false
-        lease_data['revoking_until'] = nil
+        if lease_data['revocation_token'] ~= ARGV[1] then
+            return 0
+        end
+        if not lease_data['revoking'] or tonumber(lease_data['revoking_until']) <= tonumber(ARGV[2]) then
+            return 0
+        end
+
+        lease_data['revoking_until'] = tonumber(ARGV[3])
         redis.call('set', KEYS[1], cjson.encode(lease_data))
         return 1
         """
         try:
-            await self.redis_client.eval(script, 1, self._lease_key(lease_id))
+            now = datetime.now(timezone.utc).timestamp()
+            result = await self.redis_client.eval(
+                script,
+                1,
+                self._lease_key(lease_id),
+                revocation_token,
+                now,
+                now + REVOCATION_CLAIM_TTL_SECONDS,
+            )
+            return bool(result)
+        except RedisError as e:
+            logger.error(f"Failed to renew revocation for lease {lease_id}: {e}")
+            raise
+
+    async def cancel_lease_revocation(
+        self, lease_id: UUID, revocation_token: str | None = None
+    ) -> None:
+        script = """
+        local serialized_lease = redis.call('get', KEYS[1])
+        if not serialized_lease then
+            return 0
+        end
+
+        local lease_data = cjson.decode(serialized_lease)
+        if ARGV[1] ~= '' and lease_data['revocation_token'] ~= ARGV[1] then
+            return 0
+        end
+        lease_data['revoking'] = false
+        lease_data['revoking_until'] = nil
+        lease_data['revocation_token'] = nil
+        redis.call('set', KEYS[1], cjson.encode(lease_data))
+        return 1
+        """
+        try:
+            await self.redis_client.eval(
+                script, 1, self._lease_key(lease_id), revocation_token or ""
+            )
         except RedisError as e:
             logger.error(f"Failed to cancel revocation for lease {lease_id}: {e}")
             raise
 
-    async def revoke_lease(self, lease_id: UUID) -> None:
+    async def revoke_lease(
+        self, lease_id: UUID, revocation_token: str | None = None
+    ) -> None:
         try:
             lease_key = self._lease_key(lease_id)
             # Use a Lua script for atomic multi-key updates with in-script read/cleanup
@@ -363,8 +422,11 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             args: list[str] = [
                 str(lease_id),
                 self.base_prefix,
+                revocation_token or "",
             ]
-            await self._revoke_script(keys=keys, args=args)  # type: ignore[misc]
+            result = await self._revoke_script(keys=keys, args=args)  # type: ignore[misc]
+            if revocation_token and not result:
+                raise RuntimeError("revocation claim is no longer owned")
         except RedisError as e:
             logger.error(f"Failed to revoke lease {lease_id}: {e}")
             raise

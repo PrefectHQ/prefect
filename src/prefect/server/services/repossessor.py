@@ -4,7 +4,9 @@ The Repossessor service. Handles reconciliation of expired concurrency leases.
 
 from __future__ import annotations
 
+import asyncio
 import logging
+from contextlib import suppress
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 from uuid import UUID
@@ -13,6 +15,7 @@ from docket import CurrentDocket, Depends, Docket, Logged, Perpetual
 
 from prefect.logging import get_logger
 from prefect.server.concurrency.lease_storage import (
+    REVOCATION_CLAIM_TTL_SECONDS,
     ConcurrencyLeaseStorage,
     get_concurrency_lease_storage,
 )
@@ -22,6 +25,26 @@ from prefect.server.services.perpetual_services import perpetual_service
 from prefect.settings.context import get_current_settings
 
 logger: logging.Logger = get_logger(__name__)
+
+
+async def _maintain_revocation_claim(
+    lease_storage: ConcurrencyLeaseStorage,
+    lease_id: UUID,
+    revocation_token: str,
+    claim_lost: asyncio.Event,
+) -> None:
+    try:
+        while True:
+            await asyncio.sleep(REVOCATION_CLAIM_TTL_SECONDS / 3)
+            if not await lease_storage.renew_lease_revocation(
+                lease_id, revocation_token
+            ):
+                claim_lost.set()
+                return
+    except asyncio.CancelledError:
+        raise
+    except Exception:
+        claim_lost.set()
 
 
 async def revoke_expired_lease(
@@ -43,11 +66,16 @@ async def revoke_expired_lease(
         return
 
     if expired_lease.metadata is None:
-        await lease_storage.cancel_lease_revocation(lease_id)
+        await lease_storage.cancel_lease_revocation(
+            lease_id, expired_lease.revocation_token
+        )
         logger.warning(f"Lease {lease_id} should be revoked but has no metadata")
         return
 
     if expired_lease.expiration > datetime.now(timezone.utc):
+        await lease_storage.cancel_lease_revocation(
+            lease_id, expired_lease.revocation_token
+        )
         logger.info(
             f"Lease {lease_id} was renewed after being listed as expired; skipping revocation"
         )
@@ -62,6 +90,18 @@ async def revoke_expired_lease(
         f"concurrency limits with {expired_lease.metadata.slots} slots"
     )
 
+    claim_lost = asyncio.Event()
+    claim_task = None
+    if expired_lease.revocation_token:
+        claim_task = asyncio.create_task(
+            _maintain_revocation_claim(
+                lease_storage,
+                lease_id,
+                expired_lease.revocation_token,
+                claim_lost,
+            )
+        )
+
     try:
         async with db.session_context(begin_transaction=True) as session:
             await bulk_decrement_active_slots(
@@ -70,10 +110,21 @@ async def revoke_expired_lease(
                 slots=expired_lease.metadata.slots,
                 occupancy_seconds=occupancy_seconds,
             )
-            await lease_storage.revoke_lease(lease_id)
+            if claim_lost.is_set():
+                raise RuntimeError("revocation claim is no longer owned")
+            await lease_storage.revoke_lease(
+                lease_id, expired_lease.revocation_token
+            )
     except Exception:
-        await lease_storage.cancel_lease_revocation(lease_id)
+        await lease_storage.cancel_lease_revocation(
+            lease_id, expired_lease.revocation_token
+        )
         raise
+    finally:
+        if claim_task:
+            claim_task.cancel()
+            with suppress(asyncio.CancelledError):
+                await claim_task
 
 
 @perpetual_service(
