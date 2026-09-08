@@ -288,6 +288,10 @@ class TaskSource(CachePolicy):
     Policy for computing a cache key based on the source code of the task.
 
     This policy only considers raw lines of code in the task, and not the source code of nested tasks.
+
+    Values captured by the task function's closure are included in the key, so tasks
+    created by a factory with identical source but different captured values do not
+    share a cache entry. Closure values that cannot be hashed are ignored.
     """
 
     def compute_key(
@@ -300,10 +304,12 @@ class TaskSource(CachePolicy):
         if not task_ctx:
             return None
 
+        closure = self._closure_hashes(task_ctx.task)
+
         # Use stored source code if available (works after cloudpickle serialization)
         lines = getattr(task_ctx.task, "source_code", None)
         if lines is not None:
-            return hash_objects(lines, raise_on_failure=True)
+            return hash_objects(lines, *closure, raise_on_failure=True)
 
         # Fall back to inspect.getsource for local execution
         try:
@@ -316,7 +322,29 @@ class TaskSource(CachePolicy):
             else:
                 raise
 
-        return hash_objects(lines, raise_on_failure=True)
+        return hash_objects(lines, *closure, raise_on_failure=True)
+
+    @staticmethod
+    def _closure_hashes(task: Any) -> list[str | None]:
+        """
+        Hash each value captured by the task function's closure. Tasks without a
+        closure produce an empty list so their key is unchanged.
+        """
+        fn = getattr(task, "fn", None)
+        cells = getattr(fn, "__closure__", None)
+        if not cells:
+            return []
+
+        hashes: list[str | None] = []
+        for cell in cells:
+            try:
+                value = cell.cell_contents
+            except ValueError:
+                # empty cell
+                hashes.append(None)
+                continue
+            hashes.append(hash_objects(value))
+        return hashes
 
 
 @dataclass

@@ -1,6 +1,7 @@
 import itertools
 import subprocess
 import sys
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
@@ -9,6 +10,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from prefect import task
 from prefect.cache_policies import (
     DEFAULT,
     CachePolicy,
@@ -19,6 +21,7 @@ from prefect.cache_policies import (
     _None,
 )
 from prefect.context import TaskRunContext
+from prefect.utilities.hashing import hash_objects
 
 
 class TestBaseClass:
@@ -369,6 +372,78 @@ class TestTaskSourcePolicy:
         assert key_a is not None
         assert key_b is not None
         assert key_a != key_b
+
+    def test_closure_values_change_key(self):
+        """Tasks with identical source but different captured values get different keys."""
+        policy = TaskSource()
+
+        def make_scaler(factor: int):
+            @task
+            def scale(x: int) -> int:
+                return x * factor
+
+            return scale
+
+        double, triple, another_double = (
+            make_scaler(2),
+            make_scaler(3),
+            make_scaler(2),
+        )
+        assert double.source_code == triple.source_code
+
+        keys = [
+            policy.compute_key(
+                task_ctx=TaskRunContext.model_construct(task=t),
+                inputs=None,
+                flow_parameters=None,
+            )
+            for t in (double, triple, another_double)
+        ]
+
+        assert keys[0] != keys[1]
+        assert keys[0] == keys[2]
+
+    def test_unhashable_closure_values_are_ignored(self):
+        policy = TaskSource()
+
+        def make_task(resource: threading.Lock):
+            @task
+            def locked() -> None:
+                with resource:
+                    pass
+
+            return locked
+
+        one, two = make_task(threading.Lock()), make_task(threading.Lock())
+
+        key_one = policy.compute_key(
+            task_ctx=TaskRunContext.model_construct(task=one),
+            inputs=None,
+            flow_parameters=None,
+        )
+        key_two = policy.compute_key(
+            task_ctx=TaskRunContext.model_construct(task=two),
+            inputs=None,
+            flow_parameters=None,
+        )
+
+        assert key_one is not None
+        assert key_one == key_two
+
+    def test_task_without_closure_key_is_unchanged(self):
+        policy = TaskSource()
+
+        @task
+        def plain() -> int:
+            return 1
+
+        key = policy.compute_key(
+            task_ctx=TaskRunContext.model_construct(task=plain),
+            inputs=None,
+            flow_parameters=None,
+        )
+
+        assert key == hash_objects(plain.source_code, raise_on_failure=True)
 
 
 class TestDefaultPolicy:
