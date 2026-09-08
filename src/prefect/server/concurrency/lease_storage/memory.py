@@ -72,7 +72,12 @@ class ConcurrencyLeaseStorage(_ConcurrencyLeaseStorage):
             self.expirations.pop(lease_id, None)
             return False
 
-        self.expirations[lease_id] = datetime.now(timezone.utc) + ttl
+        new_expiration = datetime.now(timezone.utc) + ttl
+        # Keep the lease itself in step with the index, otherwise `read_lease`
+        # reports the pre-renewal expiration and callers cannot tell that the
+        # lease is still live.
+        self.leases[lease_id].expiration = new_expiration
+        self.expirations[lease_id] = new_expiration
         return True
 
     async def revoke_lease(self, lease_id: UUID) -> None:

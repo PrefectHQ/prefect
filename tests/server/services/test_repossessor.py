@@ -139,6 +139,40 @@ class TestRevokeExpiredLease:
         # Verify lease was not processed due to missing metadata
         assert len(lease_storage.leases) == 1  # Lease should still exist
 
+    async def test_revoke_expired_lease_skips_lease_renewed_after_listing(
+        self, lease_storage, concurrency_limit, monkeypatch: pytest.MonkeyPatch
+    ):
+        """A lease renewed between listing and revocation must not be revoked."""
+        lease = await lease_storage.create_lease(
+            resource_ids=[concurrency_limit.id],
+            ttl=timedelta(seconds=-1),  # Already expired, so it gets listed
+            metadata=ConcurrencyLimitLeaseMetadata(slots=2),
+        )
+
+        # The holder renews before the scheduled revocation task runs
+        assert await lease_storage.renew_lease(lease.id, timedelta(minutes=5)) is True
+
+        decrement_calls: list[int] = []
+
+        async def spy_decrement(*args: object, slots: int, **kwargs: object) -> None:
+            decrement_calls.append(slots)
+
+        monkeypatch.setattr(
+            "prefect.server.services.repossessor.bulk_decrement_active_slots",
+            spy_decrement,
+        )
+
+        db = provide_database_interface()
+        await revoke_expired_lease(
+            lease.id,
+            db=db,
+            lease_storage=lease_storage,
+        )
+
+        # The renewed lease survives and its slots are left alone
+        assert lease.id in lease_storage.leases
+        assert decrement_calls == []
+
 
 class TestMonitorExpiredLeases:
     @pytest.fixture
