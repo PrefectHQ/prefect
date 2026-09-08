@@ -3326,13 +3326,14 @@ class TestResumingFlows:
 
         assert ctx.response_status == SetStateStatus.ACCEPT
 
-    async def test_allows_cancelling_a_paused_flow_run(
+    async def test_allows_cancelling_a_paused_flow_run_after_pause_has_timed_out(
         self,
-        session,
-        initialize_orchestration,
+        session: AsyncSession,
+        initialize_orchestration: Callable[..., Awaitable[FlowOrchestrationContext]],
     ):
-        """A blocking pause keeps the flow process alive, so a user cancel
-        must reach Cancelling for the worker to tear that process down."""
+        """A blocking pause keeps the flow process alive even after its
+        deadline passes, so an explicit cancel must still reach Cancelling
+        rather than being rewritten to Failed."""
         initial_state_type = states.StateType.PAUSED
         proposed_state_type = states.StateType.CANCELLING
         intended_transition = (initial_state_type, proposed_state_type)
@@ -3341,8 +3342,10 @@ class TestResumingFlows:
             "flow",
             *intended_transition,
         )
-        the_future = now("UTC") + timedelta(minutes=5)
-        ctx.initial_state.state_details = states.StateDetails(pause_timeout=the_future)
+        five_minutes_ago = now("UTC") - timedelta(minutes=5)
+        ctx.initial_state.state_details = states.StateDetails(
+            pause_timeout=five_minutes_ago
+        )
 
         state_protection = HandleResumingPausedFlows(ctx, *intended_transition)
 
