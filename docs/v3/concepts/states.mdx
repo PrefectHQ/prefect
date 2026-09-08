@@ -191,6 +191,7 @@ flowchart TD
 
     Running --> |Manual pause| Paused
     Paused --> |Resume| Running
+    Paused --> |User cancels| Cancelling
     
     Cancelling -.-> |Cleanup complete| Cancelled
 

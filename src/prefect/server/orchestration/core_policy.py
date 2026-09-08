@@ -1431,7 +1431,7 @@ class HandlePausingFlows(FlowRunOrchestrationRule):
 
 class HandleResumingPausedFlows(FlowRunOrchestrationRule):
     """
-    Governs runs attempting to leave a Paused state
+    Governs runs attempting to leave a Paused state.
     """
 
     FROM_STATES = {StateType.PAUSED}
@@ -1451,6 +1451,7 @@ class HandleResumingPausedFlows(FlowRunOrchestrationRule):
             and (
                 proposed_state.is_running()
                 or proposed_state.is_scheduled()
+                or proposed_state.is_cancelling()
                 or proposed_state.is_final()
             )
         ):
