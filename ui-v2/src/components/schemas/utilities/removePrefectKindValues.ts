@@ -9,7 +9,9 @@ import { isArray, isRecord } from "./guards";
  * Converts `__prefect_kind: "json"` wrapper values produced by the schema form
  * back into their native values. Work pool base job templates and block
  * documents are stored as plain JSON on the server, so they must not contain
- * the wrappers the form uses for editing free-form objects.
+ * the wrappers the form uses for editing free-form objects. Wrappers whose text
+ * is empty or not valid JSON become `undefined` so malformed editor input is
+ * never persisted as a string.
  */
 export function removePrefectKindValues(
 	values: SchemaFormValues,
@@ -31,7 +33,7 @@ export function removePrefectKindValue(value: unknown): unknown {
 		try {
 			return removePrefectKindValue(JSON.parse(value.value));
 		} catch {
-			return value.value;
+			return undefined;
 		}
 	}
 
@@ -40,7 +42,10 @@ export function removePrefectKindValue(value: unknown): unknown {
 	}
 
 	if (isArray(value)) {
-		return value.map(removePrefectKindValue);
+		return value.flatMap((item) => {
+			const converted = removePrefectKindValue(item);
+			return converted === undefined ? [] : [converted];
+		});
 	}
 
 	if (isRecord(value)) {

@@ -70,6 +70,25 @@ describe("getSchemaDefinition", () => {
 		expect(result).toEqual({ type: "string" });
 	});
 
+	test("prefers the container named in the ref when both define the key", () => {
+		const schema = {
+			type: "object",
+			definitions: {
+				MyType: { type: "string" },
+			},
+			$defs: {
+				MyType: { type: "integer" },
+			},
+		} as unknown as SchemaObject;
+
+		expect(getSchemaDefinition(schema, "#/definitions/MyType")).toEqual({
+			type: "string",
+		});
+		expect(getSchemaDefinition(schema, "#/$defs/MyType")).toEqual({
+			type: "integer",
+		});
+	});
+
 	test("throws when definition key is not found in definitions", () => {
 		const schema = {
 			type: "object",
