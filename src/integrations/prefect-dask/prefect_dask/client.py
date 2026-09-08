@@ -1,4 +1,6 @@
 import asyncio
+
+import cloudpickle
 from uuid import uuid4
 
 from distributed import Client, Future
@@ -10,8 +12,8 @@ from prefect.utilities.callables import get_call_parameters
 from prefect.utilities.engine import collect_task_run_inputs_sync
 
 
-def _materialize_payload(value):
-    return value
+def _materialize_payload(payload: bytes):
+    return cloudpickle.loads(payload)
 
 
 def _run_prefect_task(*args, **kwargs):
@@ -25,9 +27,10 @@ def _run_prefect_task(*args, **kwargs):
 class PrefectDaskClient(Client):
     def _submit_payload(self, value, key_prefix: str) -> Future:
         """Submit payload data as a dependency without waiting for a worker."""
+        payload = cloudpickle.dumps(value)
         return super().submit(
             _materialize_payload,
-            value,
+            payload,
             key=f"{key_prefix}-{uuid4().hex}",
             pure=False,
         )
