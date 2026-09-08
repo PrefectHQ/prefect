@@ -595,9 +595,22 @@ class PrefectFutureList(list[PrefectFuture[R]], Iterator[PrefectFuture[R]]):
                 remaining = (
                     None if deadline is None else max(0.0, deadline - time.monotonic())
                 )
-                result = future.result(
-                    timeout=remaining, raise_on_failure=raise_on_failure
-                )
+                try:
+                    result = future.result(
+                        timeout=remaining, raise_on_failure=raise_on_failure
+                    )
+                except TimeoutError as exc:
+                    # A `TimeoutError` from a future that reached a final state
+                    # is the task's own result and propagates unchanged; a
+                    # timeout from a future with no final state means the
+                    # retrieval budget expired.
+                    if (
+                        future._final_state is not None  # type: ignore[privateUsage]
+                        or deadline is None
+                        or time.monotonic() < deadline
+                    ):
+                        raise
+                    raise TimeoutError(timeout_message) from exc
                 for i in future_to_indices[future]:
                     results[i] = result
                 # `as_completed` cannot interrupt non-interruptible retrieval
@@ -607,13 +620,6 @@ class PrefectFutureList(list[PrefectFuture[R]], Iterator[PrefectFuture[R]]):
         # A `TimeoutError` from inside a task is not a `_WaitTimeoutError` and
         # propagates unchanged.
         except _WaitTimeoutError as exc:
-            raise TimeoutError(timeout_message) from exc
-        except TimeoutError as exc:
-            # A `TimeoutError` raised as a task's own result propagates
-            # unchanged; once our deadline has passed, though, the retrieval
-            # budget is what expired.
-            if deadline is None or time.monotonic() < deadline:
-                raise
             raise TimeoutError(timeout_message) from exc
         except CancelledError as exc:
             # Cancel scopes deliver cancellation to the frame the supervised

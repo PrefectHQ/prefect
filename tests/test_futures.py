@@ -1017,6 +1017,19 @@ class TestPrefectFutureList:
         with pytest.raises(TimeoutError, match="oops"):
             futures.result()
 
+    def test_result_does_not_obscure_task_timeout_with_expired_deadline(self):
+        """A `TimeoutError` stored as a task's result propagates unchanged even
+        when the list timeout is exhausted."""
+        final_state = Failed(data=TimeoutError("oops"))
+        wrapped_future = Future()
+        wrapped_future.set_result(final_state)
+        futures = PrefectFutureList(
+            [PrefectConcurrentFuture(uuid.uuid4(), wrapped_future)]
+        )
+
+        with pytest.raises(TimeoutError, match="oops"):
+            futures.result(timeout=0)
+
     @pytest.mark.timeout(method="thread")
     def test_result_timeout_covers_slow_result_retrieval(self):
         """The timeout also bounds result retrieval, which runs while
