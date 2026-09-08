@@ -2226,6 +2226,79 @@ class TestSettingsSources:
         assert Settings().profiles_path == profile_path
         assert (k := Settings().api.key) and k.get_secret_value() == "test_key"
 
+    HOME_DERIVED_PATH_ENV_VARS = (
+        "PREFECT_RESULTS_LOCAL_STORAGE_PATH",
+        "PREFECT_LOCAL_STORAGE_PATH",
+        "PREFECT_LOGGING_CONFIG_PATH",
+        "PREFECT_LOGGING_SETTINGS_PATH",
+        "PREFECT_SERVER_MEMO_STORE_PATH",
+        "PREFECT_MEMO_STORE_PATH",
+    )
+
+    def test_prefect_home_determines_home_derived_paths(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """
+        this is a regression test for https://github.com/PrefectHQ/prefect/issues/23046
+
+        Each of these settings documents a default relative to $PREFECT_HOME, so with
+        no explicit value set they must follow PREFECT_HOME rather than the user's
+        real home directory.
+        """
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+        for env_var in self.HOME_DERIVED_PATH_ENV_VARS:
+            monkeypatch.delenv(env_var, raising=False)
+
+        home_dir = tmp_path / "custom_home"
+        home_dir.mkdir()
+        monkeypatch.setenv("PREFECT_HOME", str(home_dir))
+
+        settings = Settings()
+
+        assert settings.home == home_dir
+        assert settings.results.local_storage_path == home_dir / "storage"
+        assert settings.logging.config_path == home_dir / "logging.yml"
+        assert settings.server.memo_store_path == home_dir / "memo_store.toml"
+
+    def test_explicit_paths_are_kept_when_prefect_home_is_set(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """
+        Setting PREFECT_HOME must not override a path the user set explicitly.
+        """
+        monkeypatch.delenv("PREFECT_TESTING_TEST_MODE", raising=False)
+        monkeypatch.delenv("PREFECT_TESTING_UNIT_TEST_MODE", raising=False)
+        for env_var in self.HOME_DERIVED_PATH_ENV_VARS:
+            monkeypatch.delenv(env_var, raising=False)
+
+        home_dir = tmp_path / "custom_home"
+        elsewhere = tmp_path / "elsewhere"
+        home_dir.mkdir()
+        elsewhere.mkdir()
+
+        monkeypatch.setenv("PREFECT_HOME", str(home_dir))
+        monkeypatch.setenv(
+            "PREFECT_RESULTS_LOCAL_STORAGE_PATH", str(elsewhere / "storage")
+        )
+        monkeypatch.setenv(
+            "PREFECT_LOGGING_CONFIG_PATH", str(elsewhere / "logging.yml")
+        )
+        monkeypatch.setenv(
+            "PREFECT_SERVER_MEMO_STORE_PATH", str(elsewhere / "memo_store.toml")
+        )
+
+        settings = Settings()
+
+        assert settings.home == home_dir
+        assert settings.results.local_storage_path == elsewhere / "storage"
+        assert settings.logging.config_path == elsewhere / "logging.yml"
+        assert settings.server.memo_store_path == elsewhere / "memo_store.toml"
+
 
 class TestLoadProfiles:
     @pytest.fixture(autouse=True)

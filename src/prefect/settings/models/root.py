@@ -279,6 +279,17 @@ class Settings(PrefectBaseSettings):
         to use default_factory. The remaining items here require access to the full Settings instance
         or have complex interdependencies that will be migrated in future PRs.
         """
+        for model, field, relative_path in (
+            (self.results, "local_storage_path", "storage"),
+            (self.logging, "config_path", "logging.yml"),
+            (self.server, "memo_store_path", "memo_store.toml"),
+        ):
+            # These live on submodels, so their default_factory cannot see `home`,
+            # which is a field of this model. Resolve them here, leaving any value
+            # the user set explicitly untouched.
+            if field not in model.__pydantic_fields_set__:
+                setattr(model, field, self.home / relative_path)
+                model.__pydantic_fields_set__.remove(field)
         if self.ui_url is None:
             self.ui_url = default_ui_url(self)
             self.__pydantic_fields_set__.remove("ui_url")
