@@ -477,6 +477,9 @@ SUPPORTED_SETTINGS = {
         "expected_value": {"prefect.flow-run.heartbeat": timedelta(hours=1)},
     },
     "PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS": {"test_value": 1800.0},
+    "PREFECT_SERVER_SERVICES_DB_VACUUM_ORPHAN_CLEANUP_LOOP_SECONDS": {
+        "test_value": 43200.0
+    },
     "PREFECT_SERVER_SERVICES_DB_VACUUM_RETENTION_PERIOD": {
         "test_value": 172800,
         "expected_value": timedelta(days=2),
@@ -1265,12 +1268,13 @@ class TestSettingAccess:
         assert settings.flows.heartbeat_frequency == 90
 
     def test_db_vacuum_enabled_bool_true_compat(self, monkeypatch: pytest.MonkeyPatch):
-        """Legacy ENABLED=true should map to both vacuum types enabled."""
+        """Legacy ENABLED=true should retain automatic orphan cleanup."""
         monkeypatch.setenv("PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED", "true")
         settings = Settings()
         assert settings.server.services.db_vacuum.enabled_vacuum_types == {
             "events",
             "flow_runs",
+            "orphans",
         }
 
     def test_db_vacuum_enabled_bool_false_compat(self, monkeypatch: pytest.MonkeyPatch):
@@ -1287,6 +1291,18 @@ class TestSettingAccess:
         settings = Settings()
         with pytest.raises(ValueError, match="Invalid vacuum type"):
             settings.server.services.db_vacuum.enabled_vacuum_types
+
+    def test_db_vacuum_orphan_reconciliation_can_be_enabled(
+        self, monkeypatch: pytest.MonkeyPatch
+    ):
+        monkeypatch.setenv(
+            "PREFECT_SERVER_SERVICES_DB_VACUUM_ENABLED", "events,orphans"
+        )
+        settings = Settings()
+        assert settings.server.services.db_vacuum.enabled_vacuum_types == {
+            "events",
+            "orphans",
+        }
 
     def test_db_vacuum_event_retention_override_rejects_negative(
         self, monkeypatch: pytest.MonkeyPatch

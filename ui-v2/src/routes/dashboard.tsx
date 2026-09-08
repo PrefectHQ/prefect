@@ -642,7 +642,7 @@ export const Route = createFileRoute("/dashboard")({
 			// Prefetch mini bar chart flow runs (used by WorkPoolMiniBarChart)
 			const miniBarChartFilter: FlowRunsFilter = {
 				limit: 24,
-				sort: "START_TIME_DESC",
+				sort: "EXPECTED_START_TIME_DESC",
 				offset: 0,
 				work_pools: {
 					operator: "and_",

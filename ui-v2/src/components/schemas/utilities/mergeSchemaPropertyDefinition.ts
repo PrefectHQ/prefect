@@ -46,7 +46,7 @@ export function getSchemaDefinition(
 
 export function mergeSchemaPropertyDefinition(
 	property: SchemaObject | ReferenceObject,
-	schema: SchemaObject & ObjectSubtype,
+	schema: SchemaObject,
 ): SchemaObject {
 	if (isReferenceObject(property) && typeof property.$ref === "string") {
 		const { $ref, ...rest } = property;

@@ -45,6 +45,8 @@ alembic_revision("description")      # Create a new migration
 
 **Every migration must support both SQLite and PostgreSQL.** Migration scripts live in `database/_migrations/`. Config is in `database/alembic.ini`.
 
+**`CREATE INDEX CONCURRENTLY IF NOT EXISTS` migrations can leave an `INVALID` index behind if the build is interrupted** (statement timeout, pod restart, racing replicas) — a later `IF NOT EXISTS` retry then silently skips repairing it, so the migration records as applied but the planner never uses the index. New concurrent-index migrations should check `pg_index.indisvalid` and `REINDEX INDEX CONCURRENTLY` if invalid; see `c8d5f2a71b3e` for the pattern.
+
 ## Orchestration Pitfalls
 
 - **Pydantic v2 treats null JSON fields as explicitly set.** When a worker sends a state update with `field: null`, Pydantic v2 sets that field to `None`, silently overwriting any existing value. To preserve `state_details` fields across transitions (e.g. `deployment_concurrency_lease_id`), add a `FlowRunUniversalTransform` to `CoreFlowPolicy` that copies the field forward when the proposed state has `None`. See `PreserveDeploymentConcurrencyLeaseId` in `orchestration/core_policy.py` as the canonical pattern. Any new field added to `state_details` that workers may omit faces this same risk.

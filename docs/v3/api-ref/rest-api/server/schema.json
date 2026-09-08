@@ -9264,6 +9264,15 @@
                         }
                     }
                 ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Body_count_automations_automations_count_post"
+                            }
+                        }
+                    }
+                },
                 "responses": {
                     "200": {
                         "description": "Successful Response",
@@ -11283,6 +11292,17 @@
                         "description": "Operator for combining filter criteria. Defaults to 'and_'.",
                         "default": "and_"
                     },
+                    "id": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AutomationFilterId"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "description": "Filter criteria for `Automation.id`"
+                    },
                     "name": {
                         "anyOf": [
                             {
@@ -11341,6 +11361,30 @@
                 "type": "object",
                 "title": "AutomationFilterCreated",
                 "description": "Filter by `Automation.created`."
+            },
+            "AutomationFilterId": {
+                "properties": {
+                    "any_": {
+                        "anyOf": [
+                            {
+                                "items": {
+                                    "type": "string",
+                                    "format": "uuid"
+                                },
+                                "type": "array"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ],
+                        "title": "Any",
+                        "description": "A list of automation ids to include"
+                    }
+                },
+                "additionalProperties": false,
+                "type": "object",
+                "title": "AutomationFilterId",
+                "description": "Filter by `Automation.id`."
             },
             "AutomationFilterName": {
                 "properties": {
@@ -13038,6 +13082,22 @@
                 },
                 "type": "object",
                 "title": "Body_count_artifacts_artifacts_count_post"
+            },
+            "Body_count_automations_automations_count_post": {
+                "properties": {
+                    "automations": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/AutomationFilter"
+                            },
+                            {
+                                "type": "null"
+                            }
+                        ]
+                    }
+                },
+                "type": "object",
+                "title": "Body_count_automations_automations_count_post"
             },
             "Body_count_block_documents_block_documents_count_post": {
                 "properties": {
@@ -24871,7 +24931,7 @@
                             }
                         ],
                         "title": "Enabled",
-                        "description": "Comma-separated set of vacuum types to enable. Valid values: 'events', 'flow_runs'. Defaults to 'events'. For backward compatibility, 'true' maps to 'events,flow_runs' and 'false' maps to 'events'. Event vacuum also requires event_persister.enabled (the default).",
+                        "description": "Comma-separated set of vacuum types to enable. Valid values: 'events', 'flow_runs', 'orphans'. Defaults to 'events'. Enabling 'flow_runs' also enables lower-frequency orphan cleanup; 'orphans' can enable that cleanup independently. For backward compatibility, 'true' maps to all vacuum types and 'false' maps to 'events'. Event vacuum also requires event_persister.enabled (the default).",
                         "default": [
                             "events"
                         ],
@@ -24887,6 +24947,16 @@
                         "default": 3600,
                         "supported_environment_variables": [
                             "PREFECT_SERVER_SERVICES_DB_VACUUM_LOOP_SECONDS"
+                        ]
+                    },
+                    "orphan_cleanup_loop_seconds": {
+                        "type": "number",
+                        "exclusiveMinimum": 0.0,
+                        "title": "Orphan Cleanup Loop Seconds",
+                        "description": "The database vacuum service will scan for orphaned logs and artifacts this often, in seconds. Defaults to `86400` (24 hours).",
+                        "default": 86400,
+                        "supported_environment_variables": [
+                            "PREFECT_SERVER_SERVICES_DB_VACUUM_ORPHAN_CLEANUP_LOOP_SECONDS"
                         ]
                     },
                     "retention_period": {
