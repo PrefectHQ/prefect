@@ -242,8 +242,9 @@ When set to 0, Kubernetes does not retry the job. Instead, the worker sets
 `PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR=reschedule` in the pod's environment, so a
 flow run whose pod receives a `SIGTERM` (for example, from an eviction, node drain, or
 spot instance reclaim) moves to `AwaitingRetry` and starts again in a new pod.
-A forced termination such as `OOMKilled` never reaches the `SIGTERM` handler, so the run ends as
-`Crashed` regardless of this setting.
+An abrupt termination such as `OOMKilled` never reaches the `SIGTERM` handler, so with a
+backoff limit of 0 the run ends as `Crashed` regardless of the variable's value.
+Kubernetes still retries the job when the backoff limit is greater than 0.
 
 `PREFECT_FLOW_RUN_EXECUTE_SIGTERM_BEHAVIOR` accepts the following values:
 
