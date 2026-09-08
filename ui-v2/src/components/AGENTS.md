@@ -37,6 +37,10 @@ This directory contains React components for the Prefect UI migration from Vue t
 - Use `FormField` component from `@/components/ui/form` to wrap form fields
 - Use `Stepper` component for wizard-like flows
 
+## Schema Forms (`schemas/`)
+
+`SchemaFormProperty` re-syncs its internal state from the parent's `value` prop via `useEffect`, but values propagate up the recursive property tree asynchronously — a parent can echo back a value older than what the user already typed. Any nested schema-form input that keeps its own local state must track the last value it emitted (e.g. a ref) and skip adopting a parent value until it matches, or in-flight edits get silently reverted.
+
 ## Icon Usage
 
   - Import icons from `lucide-react`
