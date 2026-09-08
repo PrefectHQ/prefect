@@ -30,6 +30,46 @@ describe("getSchemaDefinition", () => {
 		expect(result).toEqual({ type: "integer", title: "My Int" });
 	});
 
+	test("resolves a #/definitions/ ref when the schema only has $defs", () => {
+		const schema: SchemaObject = {
+			type: "object",
+			$defs: {
+				DockerRegistryCredentials: { type: "object", title: "Credentials" },
+			},
+		};
+
+		const result = getSchemaDefinition(
+			schema,
+			"#/definitions/DockerRegistryCredentials",
+		);
+		expect(result).toEqual({ type: "object", title: "Credentials" });
+	});
+
+	test("resolves a #/$defs/ ref when the schema only has definitions", () => {
+		const schema = {
+			type: "object",
+			definitions: {
+				MyType: { type: "string" },
+			},
+		} as unknown as SchemaObject;
+
+		const result = getSchemaDefinition(schema, "#/$defs/MyType");
+		expect(result).toEqual({ type: "string" });
+	});
+
+	test("falls back to $defs when definitions does not have the key", () => {
+		const schema = {
+			type: "object",
+			definitions: {},
+			$defs: {
+				MyType: { type: "string" },
+			},
+		} as unknown as SchemaObject;
+
+		const result = getSchemaDefinition(schema, "#/definitions/MyType");
+		expect(result).toEqual({ type: "string" });
+	});
+
 	test("throws when definition key is not found in definitions", () => {
 		const schema = {
 			type: "object",

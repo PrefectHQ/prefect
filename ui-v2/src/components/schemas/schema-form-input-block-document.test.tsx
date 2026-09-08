@@ -133,7 +133,9 @@ describe("SchemaFormInputBlockDocument", () => {
 		await user.click(screen.getByLabelText(/select a block/i));
 		await user.click(screen.getByRole("option", { name: "my_block_0" }));
 
-		expect(mockOnValueChange).toHaveBeenCalledWith({ $ref: "block-1" });
+		expect(mockOnValueChange).toHaveBeenCalledWith({
+			$ref: { block_document_id: "block-1" },
+		});
 	});
 
 	it("displays the selected block document name", async () => {
@@ -141,7 +143,7 @@ describe("SchemaFormInputBlockDocument", () => {
 
 		render(
 			<SchemaFormInputBlockDocument
-				value={{ $ref: "block-1" }}
+				value={{ $ref: { block_document_id: "block-1" } }}
 				onValueChange={vi.fn()}
 				blockTypeSlug="aws-credentials"
 				id="test-id"

@@ -6,42 +6,48 @@ import type {
 } from "openapi-typescript";
 import { isRecord, isReferenceObject } from "./guards";
 
-type SchemaWithDefinitions = SchemaObject &
-	ObjectSubtype & {
-		definitions: Record<string, SchemaObject>;
-	};
+const DEFINITION_CONTAINERS = ["definitions", "$defs"] as const;
 
-function isSchemaWithDefinitions(
+function getDefinitionContainers(
 	schema: SchemaObject | ReferenceObject | ObjectSubtype,
-): schema is SchemaWithDefinitions {
-	return "definitions" in schema && isRecord(schema.definitions);
+): Record<string, unknown>[] {
+	const record: Record<string, unknown> = { ...schema };
+
+	return DEFINITION_CONTAINERS.flatMap((key) => {
+		const container = record[key];
+		return isRecord(container) ? [container] : [];
+	});
 }
 
+/**
+ * Resolves a `$ref` such as `#/definitions/Foo` or `#/$defs/Foo` against the
+ * root schema. Pydantic emits `$defs` while Prefect rewrites refs to
+ * `#/definitions/`, so schemas in the wild mix the two; the lookup uses the
+ * definition name and checks both containers.
+ */
 export function getSchemaDefinition(
 	schema: SchemaObject | ReferenceObject | ObjectSubtype,
 	definition: string,
 ): SchemaObject {
-	if (isSchemaWithDefinitions(schema)) {
-		const definitionKey = definition.replace("#/definitions/", "");
-		const definitionSchema = schema.definitions?.[definitionKey];
+	const containers = getDefinitionContainers(schema);
 
-		if (!definitionSchema) {
-			throw new Error(`Definition not found for ${definition}`);
-		}
-
-		return definitionSchema;
-	}
-	if ("$defs" in schema && isRecord(schema.$defs)) {
-		const definitionKey = definition.replace("#/$defs/", "");
-		const definitionSchema = schema.$defs?.[definitionKey];
-		if (!definitionSchema) {
-			throw new Error(`Definition not found for ${definition}`);
-		}
-
-		return definitionSchema;
+	if (containers.length === 0) {
+		return {} as SchemaObject;
 	}
 
-	return {} as SchemaObject;
+	const definitionKey = definition
+		.replace("#/definitions/", "")
+		.replace("#/$defs/", "");
+
+	for (const container of containers) {
+		const definitionSchema = container[definitionKey];
+
+		if (isRecord(definitionSchema)) {
+			return definitionSchema as SchemaObject;
+		}
+	}
+
+	throw new Error(`Definition not found for ${definition}`);
 }
 
 export function mergeSchemaPropertyDefinition(
