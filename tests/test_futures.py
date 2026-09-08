@@ -1040,6 +1040,27 @@ class TestPrefectFutureList:
             futures.result(timeout=0.1)
 
     @pytest.mark.timeout(method="thread")
+    def test_result_timeout_is_passed_to_future_result(self):
+        """The remaining budget is forwarded to each future's `result` call so
+        interruptible retrieval cannot overrun the list timeout."""
+
+        class BudgetCheckingFuture(MockFuture):
+            def result(
+                self,
+                timeout: Optional[float] = None,
+                raise_on_failure: bool = True,
+            ) -> Any:
+                assert timeout is not None and timeout <= 10
+                raise TimeoutError("did not complete in time")
+
+        futures = PrefectFutureList([BudgetCheckingFuture()])
+
+        # The deadline has not passed, so the future's own TimeoutError is
+        # propagated unchanged.
+        with pytest.raises(TimeoutError, match="did not complete in time"):
+            futures.result(timeout=10)
+
+    @pytest.mark.timeout(method="thread")
     def test_result_timeout_raises_dedicated_message(self):
         futures = PrefectFutureList([PrefectConcurrentFuture(uuid.uuid4(), Future())])
 

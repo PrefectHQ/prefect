@@ -588,18 +588,32 @@ class PrefectFutureList(list[PrefectFuture[R]], Iterator[PrefectFuture[R]]):
 
         try:
             # `as_completed` de-duplicates internally; each unique future is
-            # yielded exactly once, in completion order.
+            # yielded exactly once, in completion order. Retrieval runs while
+            # `as_completed` is suspended at its `yield`, so it is bounded by
+            # the remaining budget and by the post-retrieval deadline check.
             for future in as_completed(list(self), timeout=timeout):
-                result = future.result(raise_on_failure=raise_on_failure)
+                remaining = (
+                    None if deadline is None else max(0.0, deadline - time.monotonic())
+                )
+                result = future.result(
+                    timeout=remaining, raise_on_failure=raise_on_failure
+                )
                 for i in future_to_indices[future]:
                     results[i] = result
-                # `as_completed` cannot interrupt result retrieval, so bound slow
-                # retrieval (e.g. large data deserialization) here.
+                # `as_completed` cannot interrupt non-interruptible retrieval
+                # (e.g. large data deserialization), so check the deadline here.
                 if deadline is not None and time.monotonic() >= deadline:
                     raise TimeoutError(timeout_message)
         # A `TimeoutError` from inside a task is not a `_WaitTimeoutError` and
         # propagates unchanged.
         except _WaitTimeoutError as exc:
+            raise TimeoutError(timeout_message) from exc
+        except TimeoutError as exc:
+            # A `TimeoutError` raised as a task's own result propagates
+            # unchanged; once our deadline has passed, though, the retrieval
+            # budget is what expired.
+            if deadline is None or time.monotonic() < deadline:
+                raise
             raise TimeoutError(timeout_message) from exc
         except CancelledError as exc:
             # Cancel scopes deliver cancellation to the frame the supervised
@@ -634,6 +648,13 @@ def as_completed(
     total_futures = len(unique_futures)
     pending = unique_futures
     try:
+        # The deadline is enforced by bounding every wait below rather than with a
+        # cancel scope: a scope delivers its cancellation to whatever frame the
+        # thread is in, which for a generator is the consumer's frame while we are
+        # suspended at a `yield`. The scope is then never exited and its watcher
+        # thread never stops, which keeps the process from terminating.
+        deadline = time.monotonic() + timeout if timeout is not None else None
+
         done = {f for f in unique_futures if f._final_state}  # type: ignore[privateUsage]
         pending = unique_futures - done
         yield from done
@@ -649,13 +670,6 @@ def as_completed(
 
         for future in pending:
             _register_prefect_done_callback(future, add_to_done)
-
-        # The deadline is enforced by bounding every wait below rather than with a
-        # cancel scope: a scope delivers its cancellation to whatever frame the
-        # thread is in, which for a generator is the consumer's frame while we are
-        # suspended at a `yield`. The scope is then never exited and its watcher
-        # thread never stops, which keeps the process from terminating.
-        deadline = time.monotonic() + timeout if timeout is not None else None
 
         while pending:
             if deadline is None:
