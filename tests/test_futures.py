@@ -1047,7 +1047,7 @@ class TestPrefectFutureList:
         class BudgetCheckingFuture(MockFuture):
             def result(
                 self,
-                timeout: Optional[float] = None,
+                timeout: float | None = None,
                 raise_on_failure: bool = True,
             ) -> Any:
                 assert timeout is not None and timeout <= 10
