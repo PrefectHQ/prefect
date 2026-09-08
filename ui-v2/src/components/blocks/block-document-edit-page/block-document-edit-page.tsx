@@ -39,7 +39,10 @@ export const BlockDocumentEditPage = ({
 	const handleSubmit = async (event: FormEvent) => {
 		event.preventDefault();
 		try {
-			await validateForm({ schema: values });
+			const validation = await validateForm({ schema: values });
+			if (validation && !validation.valid) {
+				return;
+			}
 			updateBlockDocument(
 				{
 					id: blockDocument.id,
