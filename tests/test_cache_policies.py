@@ -430,6 +430,27 @@ class TestTaskSourcePolicy:
         assert key_one is not None
         assert key_one == key_two
 
+    def test_closure_mutation_after_definition_does_not_change_key(self):
+        policy = TaskSource()
+        run_count = 0
+
+        @task
+        def counted() -> None:
+            nonlocal run_count
+            run_count += 1
+
+        def key() -> str | None:
+            return policy.compute_key(
+                task_ctx=TaskRunContext.model_construct(task=counted),
+                inputs=None,
+                flow_parameters=None,
+            )
+
+        before = key()
+        counted.fn()
+        assert run_count == 1
+        assert key() == before
+
     def test_task_without_closure_key_is_unchanged(self):
         policy = TaskSource()
 

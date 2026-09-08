@@ -304,6 +304,27 @@ def _generate_task_key(fn: Callable[..., Any]) -> str:
     return f"{qualname}-{code_hash}"
 
 
+def _hash_closure(fn: Callable[..., Any]) -> str | None:
+    """Hash the values captured by a function's closure.
+
+    Returns `None` when the function has no closure. Values that cannot be
+    hashed (and empty cells) contribute `None` to the hash.
+    """
+    cells = getattr(fn, "__closure__", None)
+    if not cells:
+        return None
+
+    hashes: list[str | None] = []
+    for cell in cells:
+        try:
+            value = cell.cell_contents
+        except ValueError:
+            hashes.append(None)
+            continue
+        hashes.append(hash_objects(value))
+    return hash_objects(hashes)
+
+
 class Task(Generic[P, R]):
     """
     A Prefect task definition.
@@ -469,6 +490,10 @@ class Task(Generic[P, R]):
             self.source_code: str | None = inspect.getsource(fn)
         except (TypeError, OSError):
             self.source_code = None
+
+        # Closure values are hashed once at definition time so that the cache
+        # key reflects the values the task was created with, not later mutation
+        self.closure_hash: str | None = _hash_closure(fn)
 
         # the task is considered async if its function is async or an async
         # generator
