@@ -2240,6 +2240,38 @@ class TestTaskCaching:
             f"Expected all results to be identical but got {results}"
         )
 
+    def test_task_source_policy_distinguishes_closure_values(self):
+        """Regression test for https://github.com/PrefectHQ/prefect/issues/23062"""
+
+        def make_scaler(factor: int):
+            @task(cache_policy=TASK_SOURCE + INPUTS, persist_result=True)
+            def scale(x: int) -> int:
+                return x * factor
+
+            return scale
+
+        double, triple, another_double = (
+            make_scaler(2),
+            make_scaler(3),
+            make_scaler(2),
+        )
+
+        @flow
+        def my_flow() -> tuple[State[int], State[int], State[int]]:
+            return (
+                double(10, return_state=True),
+                triple(10, return_state=True),
+                another_double(10, return_state=True),
+            )
+
+        first, second, third = my_flow()
+
+        assert first.result() == 20
+        assert second.result() == 30
+        assert second.name == "Completed"
+        assert third.result() == 20
+        assert third.name == "Cached"
+
     def test_cache_policy_serializable_isolation_level_with_no_manager(self):
         cache_policy = Inputs().configure(isolation_level=IsolationLevel.SERIALIZABLE)
 

@@ -50,6 +50,13 @@ def _register_stable_transforms() -> None:
         ]
 
 
+def _stabilize(value: Any) -> Any:
+    """Apply the registered stable transform for `value`'s type, if any."""
+    _register_stable_transforms()
+    transformer = STABLE_TRANSFORMS.get(type(value))  # type: ignore[reportUnknownMemberType]
+    return transformer(value) if transformer else value
+
+
 @dataclass
 class CachePolicy:
     """
@@ -388,12 +395,9 @@ class Inputs(CachePolicy):
         if not inputs:
             return None
 
-        _register_stable_transforms()
-
         for key, val in inputs.items():
             if key not in exclude:
-                transformer = STABLE_TRANSFORMS.get(type(val))  # type: ignore[reportUnknownMemberType]
-                hashed_inputs[key] = transformer(val) if transformer else val
+                hashed_inputs[key] = _stabilize(val)
 
         try:
             return hash_objects(hashed_inputs, raise_on_failure=True)

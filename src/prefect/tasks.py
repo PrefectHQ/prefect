@@ -45,7 +45,7 @@ from prefect._flow_run_suspension import raise_if_flow_run_suspension_requested
 from prefect._internal.compatibility.async_dispatch import async_dispatch
 from prefect._internal.uuid7 import uuid7
 from prefect.assets import Asset
-from prefect.cache_policies import DEFAULT, NO_CACHE, CachePolicy
+from prefect.cache_policies import DEFAULT, NO_CACHE, CachePolicy, _stabilize
 from prefect.client.orchestration import get_client
 from prefect.client.schemas import TaskRun
 from prefect.client.schemas.objects import (
@@ -308,7 +308,8 @@ def _hash_closure(fn: Callable[..., Any]) -> str | None:
     """Hash the values captured by a function's closure.
 
     Returns `None` when the function has no closure. Values that cannot be
-    hashed (and empty cells) contribute `None` to the hash.
+    hashed (and empty cells) contribute `None` to the hash, so tasks that differ
+    only by such values (for example, locks or connections) are not distinguished.
     """
     cells = getattr(fn, "__closure__", None)
     if not cells:
@@ -321,7 +322,7 @@ def _hash_closure(fn: Callable[..., Any]) -> str | None:
         except ValueError:
             hashes.append(None)
             continue
-        hashes.append(hash_objects(value))
+        hashes.append(hash_objects(_stabilize(value)))
     return hash_objects(hashes)
 
 
