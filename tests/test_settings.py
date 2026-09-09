@@ -3242,3 +3242,25 @@ class TestWorkerDebugMode:
         with temporary_settings({PREFECT_DEBUG_MODE: True}):
             env = get_current_settings().to_environment_variables(exclude_unset=True)
             assert "PREFECT_DEBUG_MODE" in env
+
+
+class TestHomeDependentDefaults:
+    def test_local_storage_path_defaults_to_prefect_home_storage(self, monkeypatch, tmp_path):
+        custom_home = tmp_path / "custom_prefect_home"
+        monkeypatch.setenv("PREFECT_HOME", str(custom_home))
+        settings = Settings()
+        assert settings.home == custom_home
+        assert settings.results.local_storage_path == custom_home / "storage"
+        assert settings.profiles_path == custom_home / "profiles.toml"
+        assert settings.server.memo_store_path == custom_home / "memo_store.toml"
+        assert settings.logging.config_path == custom_home / "logging.yml"
+
+    def test_local_storage_path_explicit_override(self, monkeypatch, tmp_path):
+        custom_home = tmp_path / "custom_prefect_home"
+        override_path = tmp_path / "override_storage"
+        monkeypatch.setenv("PREFECT_HOME", str(custom_home))
+        monkeypatch.setenv("PREFECT_RESULTS_LOCAL_STORAGE_PATH", str(override_path))
+        settings = Settings()
+        assert settings.home == custom_home
+        assert settings.results.local_storage_path == override_path
+

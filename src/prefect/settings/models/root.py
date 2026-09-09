@@ -279,6 +279,15 @@ class Settings(PrefectBaseSettings):
         to use default_factory. The remaining items here require access to the full Settings instance
         or have complex interdependencies that will be migrated in future PRs.
         """
+        if "profiles_path" not in self.model_fields_set:
+            self.profiles_path = self.home / "profiles.toml"
+        if "local_storage_path" not in self.results.model_fields_set:
+            self.results.local_storage_path = self.home / "storage"
+        if "config_path" not in self.logging.model_fields_set:
+            self.logging.config_path = self.home / "logging.yml"
+        if "memo_store_path" not in self.server.model_fields_set:
+            self.server.memo_store_path = self.home / "memo_store.toml"
+
         if self.ui_url is None:
             self.ui_url = default_ui_url(self)
             self.__pydantic_fields_set__.remove("ui_url")
